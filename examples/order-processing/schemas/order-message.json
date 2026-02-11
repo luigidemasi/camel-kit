@@ -1,0 +1,71 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/order-message.json",
+  "title": "OrderMessage",
+  "description": "Order message from Kafka topic",
+  "type": "object",
+  "required": ["orderId", "customerId", "amount", "currency", "items"],
+  "properties": {
+    "orderId": {
+      "type": "string",
+      "description": "Unique order identifier",
+      "pattern": "^ORD-[0-9]+$"
+    },
+    "customerId": {
+      "type": "string",
+      "description": "Customer identifier",
+      "pattern": "^CUST-[0-9]+$"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Total order amount",
+      "minimum": 0
+    },
+    "currency": {
+      "type": "string",
+      "enum": ["EUR", "USD", "GBP"],
+      "default": "EUR",
+      "description": "Currency code (ISO 4217)"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"],
+      "default": "PENDING",
+      "description": "Order status"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Order creation timestamp (ISO 8601)"
+    },
+    "items": {
+      "type": "array",
+      "description": "Order line items",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["productId", "quantity", "unitPrice"],
+        "properties": {
+          "productId": {
+            "type": "string",
+            "description": "Product identifier"
+          },
+          "productName": {
+            "type": "string",
+            "description": "Product display name"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Quantity ordered"
+          },
+          "unitPrice": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Price per unit"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/order-entity.json",
+  "title": "OrderRecord",
+  "description": "Order record for JDBC database persistence",
+  "type": "object",
+  "required": ["orderId", "customerId", "amount"],
+  "properties": {
+    "orderId": {
+      "type": "string",
+      "description": "Unique order identifier"
+    },
+    "customerId": {
+      "type": "string",
+      "description": "Customer identifier"
+    },
+    "amount": {
+      "type": "number",
+      "description": "Total order amount"
+    },
+    "currency": {
+      "type": "string",
+      "description": "Currency code",
+      "default": "EUR"
+    },
+    "status": {
+      "type": "string",
+      "description": "Order processing status",
+      "default": "RECEIVED"
+    },
+    "createdAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when order was received"
+    },
+    "updatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of last update"
+    }
+  }
+}

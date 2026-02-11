@@ -1,0 +1,16 @@
+{
+  "orderId": "ORD-002",
+  "customerId": "CUST-456",
+  "amount": 25.00,
+  "currency": "EUR",
+  "status": "PENDING",
+  "timestamp": "2024-01-15T11:00:00Z",
+  "items": [
+    {
+      "productId": "PROD-002",
+      "productName": "Small Item",
+      "quantity": 1,
+      "unitPrice": 25.00
+    }
+  ]
+}
