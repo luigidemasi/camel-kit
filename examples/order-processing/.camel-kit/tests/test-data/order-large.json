@@ -1,0 +1,22 @@
+{
+  "orderId": "ORD-003",
+  "customerId": "CUST-789",
+  "amount": 249.95,
+  "currency": "EUR",
+  "status": "PENDING",
+  "timestamp": "2024-01-15T14:30:00Z",
+  "items": [
+    {
+      "productId": "PROD-003",
+      "productName": "Deluxe Widget Set",
+      "quantity": 1,
+      "unitPrice": 149.99
+    },
+    {
+      "productId": "PROD-004",
+      "productName": "Widget Accessory Pack",
+      "quantity": 2,
+      "unitPrice": 49.98
+    }
+  ]
+}
