@@ -330,7 +330,7 @@ Follow the VETRO pattern for message processing.
 
 ## Design Patterns Reference
 
-> For comprehensive guidance on 20 Camel Design Patterns organized by category (Foundational, Error Handling, Deployment), see [`templates/design-patterns.md`](design-patterns.md).
+> For comprehensive guidance on 20 Camel Design Patterns organized by category (Foundational, Error Handling, Deployment), see [`templates/design-patterns.md`](templates/design-patterns.md).
 
 Key patterns include:
 - **Foundational**: VETRO, Canonical Data Model, Edge Component, CQRS, Reusable Route
