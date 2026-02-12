@@ -74,7 +74,7 @@ cd order-processing
 #    /camel.generate    - Output Camel YAML
 
 # 4. Run the generated routes
-camel run .camel-kit/output/routes.camel.yaml
+camel run routes.camel.yaml
 ```
 
 ---
@@ -238,7 +238,7 @@ Based on your route design, tests are generated for:
 
 ### Test Files
 
-Tests are saved to `.camel-kit/tests/<route-name>-test.yaml` with test data in `.camel-kit/tests/test-data/`.
+Tests are saved to `test/<route-name>.camel.it.yaml` following the Camel JBang naming convention, with test data in `test/data/`.
 
 ### Running Tests
 
@@ -246,8 +246,13 @@ Tests are saved to `.camel-kit/tests/<route-name>-test.yaml` with test data in `
 # Install Camel test plugin
 camel plugin add test
 
-# Run tests
-camel test run .camel-kit/tests/order-ingestion-test.yaml
+# Run tests (Testcontainers manages infrastructure automatically)
+camel test run test/order-ingestion.camel.it.yaml
+
+# Or start infrastructure separately
+camel infra run kafka
+camel infra run postgres
+camel test run test/order-ingestion.camel.it.yaml
 ```
 
 ---
@@ -265,7 +270,7 @@ Generate Kaoto-compatible Camel YAML DSL from your specifications.
 This:
 1. Runs validation first (blocks if errors)
 2. Transforms specifications to Camel YAML DSL
-3. Outputs to `.camel-kit/output/routes.camel.yaml`
+3. Outputs to `routes.camel.yaml`
 
 ### Kaoto Compatibility
 
@@ -279,13 +284,13 @@ Generated YAML follows Kaoto requirements:
 
 ```bash
 # With Camel JBang
-camel run .camel-kit/output/routes.camel.yaml
+camel run routes.camel.yaml
 
 # With environment variables
-KAFKA_BROKERS=localhost:9092 camel run .camel-kit/output/routes.camel.yaml
+KAFKA_BROKERS=localhost:9092 camel run routes.camel.yaml
 
 # Export to Maven project
-camel export .camel-kit/output/routes.camel.yaml \
+camel export routes.camel.yaml \
   --runtime quarkus \
   --gav com.example:my-integration:1.0.0
 ```

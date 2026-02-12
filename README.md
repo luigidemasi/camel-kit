@@ -114,6 +114,11 @@ After initialization:
 
 ```
 my-integration/
+├── routes.camel.yaml           # Generated Camel routes (after /camel.generate)
+├── test/                       # Generated Citrus tests (Camel JBang convention)
+│   ├── *.camel.it.yaml         # Test files
+│   ├── data/                   # Test data files
+│   └── jbang.properties        # Test dependencies
 ├── .bob/commands/              # AI agent slash commands
 │   ├── camel.init.md
 │   ├── camel.context.md
@@ -121,7 +126,7 @@ my-integration/
 │   ├── camel.validate.md
 │   ├── camel.test.md
 │   └── camel.generate.md
-└── .camel-kit/                 # Specifications and output
+└── .camel-kit/                 # Specifications and configuration
     ├── config.yaml             # Project configuration
     ├── constitution.md         # Best practices
     ├── context.md              # Integration landscape
@@ -129,11 +134,7 @@ my-integration/
     │   ├── route.md
     │   ├── yaml-generation-guide.md
     │   └── validation-guide.md
-    ├── routes/                 # Route specifications
-    ├── tests/                  # Generated Citrus tests
-    │   └── test-data/
-    └── output/                 # Generated YAML
-        └── routes.camel.yaml
+    └── routes/                 # Route specifications
 ```
 
 ## Example Workflow
@@ -171,10 +172,10 @@ cd order-processing
 
 # 7. Generate YAML:
 #    /camel.generate
-#    - Creates: .camel-kit/output/routes.camel.yaml
+#    - Creates: routes.camel.yaml (in project root)
 
 # 8. Open in Kaoto or run:
-camel run .camel-kit/output/routes.camel.yaml
+camel run routes.camel.yaml
 ```
 
 ## Output Example

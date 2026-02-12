@@ -134,13 +134,66 @@ Do you have a schema or data class?
 4. Let me describe the structure
 ```
 
-Then remind about validation:
+**If they choose option 1 (schema file)**, ask:
+
+```
+Where is your schema file located?
+
+Examples:
+  - schemas/order.json (JSON Schema)
+  - schemas/order.avsc (Avro)
+  - schemas/order.xsd (XML Schema)
+
+Schema path:
+> [wait for input]
+```
+
+Verify the file exists. If not found, offer to:
+- Create it in `schemas/` directory
+- Search for schema files in the project
+- Let them provide the content
+
+**If they choose option 2 (Java class)**, ask:
+
+```
+What is the fully qualified class name?
+
+Example: com.example.Order
+
+Class name:
+> [wait for input]
+```
+
+**If they choose option 4 (describe structure)**, ask:
+
+```
+Describe the data structure. I'll help create a schema.
+
+Example: "Order with orderId (string), customerId (string), amount (number),
+         items array with productId, quantity, unitPrice"
+
+Structure:
+> [wait for input]
+```
+
+Then generate a JSON schema in `schemas/<name>.json` and confirm with the user.
+
+After getting schema information, remind about validation:
 
 ```
 📋 Constitution reminder: "Validate schemas at boundaries"
 
+Schema: [path or class name]
+
 Add schema validation at route entry? (yes/no)
+
+This will validate incoming data against your schema and fail fast on invalid data.
 ```
+
+If yes, record:
+- Schema type: `json-schema`, `avro`, `xsd`, or `class`
+- Schema location: file path or class name
+- Validation enabled: true
 
 ---
 

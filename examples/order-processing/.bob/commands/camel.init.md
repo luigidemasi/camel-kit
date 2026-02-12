@@ -114,7 +114,9 @@ Ready to initialize:
     .camel-kit/constitution.md
     .camel-kit/context.md
     .camel-kit/routes/
-    .camel-kit/output/
+    test/                    (at project root)
+
+  Generated files (routes.camel.yaml) will be placed in the project root.
 
 Proceed? (yes/no)
 ```
@@ -143,8 +145,7 @@ Confirm the context template exists at `.camel-kit/context.md`.
 
 Create directories if they don't exist:
 - `.camel-kit/routes/`
-- `.camel-kit/output/`
-- `.camel-kit/tests/`
+- `test/` (at project root)
 
 ---
 
@@ -158,9 +159,10 @@ Created:
   ├── config.yaml         (project settings)
   ├── constitution.md     (best practices)
   ├── context.md          (integration landscape)
-  ├── routes/             (route specifications)
-  ├── tests/              (generated tests)
-  └── output/             (generated YAML)
+  └── routes/             (route specifications)
+  test/                   (generated tests - at project root)
+
+Generated YAML files will be placed in the project root (e.g., routes.camel.yaml)
 
 📦 Camel [version] catalog: [count] components, [count] Kamelets
 

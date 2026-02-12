@@ -564,7 +564,7 @@ The [Kaoto DataMapper](https://kaoto.io/docs/manual/04_datamapper/) provides a v
    - Install "Kaoto - Integration Designer"
 
 2. **Open the Generated Route**
-   - Navigate to `.camel-kit/output/routes.camel.yaml`
+   - Navigate to `routes.camel.yaml`
    - Right-click → "Open with Kaoto"
 
 3. **Add DataMapper Step**
@@ -666,7 +666,7 @@ Run `/camel.generate` to produce the final Camel YAML:
 ```
 ✅ YAML generated successfully!
 
-Output: .camel-kit/output/routes.camel.yaml
+Output: routes.camel.yaml
 
 Environment variables needed:
   - KAFKA_BROKERS
@@ -689,7 +689,7 @@ DATABASE_PASSWORD=orderpass123
 
 ```bash
 # Using Camel JBang
-camel run .camel-kit/output/routes.camel.yaml \
+camel run routes.camel.yaml \
   --property-file .env \
   --dep org.apache.camel:camel-kafka \
   --dep org.apache.camel:camel-jdbc \
@@ -741,40 +741,30 @@ Note: `ORD-002` should NOT appear because it was filtered out (amount < 50 EUR).
 
 ## Part 9: Automated Testing with Citrus
 
-For comprehensive automated testing, use the `/camel.test` command to generate Citrus integration tests that can be visually edited in Kaoto.
+For comprehensive automated testing, use the `/camel.test` command to generate Citrus integration tests using the [Camel JBang test plugin](https://camel.apache.org/manual/camel-jbang-test.html).
 
-### Step 9.1: Understanding the /camel.test Command
+### Step 9.1: Prerequisites
 
-The `/camel.test` command generates integration tests using the [Citrus Framework](https://citrusframework.org/), which provides:
+Install the Camel test plugin:
+
+```bash
+camel plugin add test
+```
+
+The test plugin integrates with the [Citrus Framework](https://citrusframework.org/), which provides:
 
 - **Testcontainers**: Automatic infrastructure provisioning (Kafka, PostgreSQL)
+- **`camel infra` command**: Start services with `camel infra run kafka`
 - **Message Testing**: Send/receive verification for Kafka topics
 - **Database Assertions**: SQL queries to validate persisted data
-- **Kaoto Integration**: Visual test editing and debugging
 
 ### Step 9.2: Generate Test Suite
 
-Run `/camel.test order-ingestion` in your AI assistant:
+Run `/camel.test order-ingestion` in your AI assistant. The command will:
 
-```
-== TEST APPROACH ==
-
-How would you like to design your tests?
-
-1. Visual with Kaoto (Recommended)
-   Design tests visually in Kaoto, generates Citrus YAML
-   Best for: Complex scenarios, visual debugging
-
-2. YAML DSL
-   Write Citrus tests directly in YAML
-   Best for: CI/CD pipelines, scripted tests
-
-3. Guided Wizard
-   I'll guide you through test scenarios step by step
-   Best for: Learning, comprehensive coverage
-
-> 1
-```
+1. Load the route specification from `.camel-kit/routes/order-ingestion.md`
+2. Detect external services (Kafka, PostgreSQL)
+3. Generate Citrus test files using the correct YAML DSL
 
 ### Step 9.3: Select Test Scenarios
 
@@ -783,24 +773,27 @@ The command analyzes your route and suggests relevant test scenarios:
 ```
 == TEST SCENARIOS ==
 
-Based on your route design, I recommend these test scenarios:
+Based on your route, I recommend testing:
 
-ALWAYS INCLUDED:
-[x] Happy Path - Valid order processed successfully
+[x] 1. Happy Path (always included)
+      Send valid message → verify it reaches the sink
 
-BASED ON YOUR ROUTE:
-[x] Filter Conditions - Orders below 50 EUR filtered out
-[x] Dead Letter Queue - Invalid orders routed to DLQ
-[x] Edge Case - Order exactly at 50 EUR threshold
-[ ] External Service Failure - N/A (no external calls)
+[ ] 2. Filter Rejection (your route has filter: amount >= 50)
+      Send message with amount < 50 → verify it's NOT in database
 
-Which scenarios do you want? (enter numbers, 'all', or describe custom)
+[ ] 3. Error Handling (your route has DLQ: orders-dlq)
+      Send malformed message → verify it goes to DLQ topic
+
+[ ] 4. Edge Cases
+      Test boundary values (amount = 50 exactly)
+
+Which scenarios? (enter numbers, 'all', or describe custom)
 > all
 ```
 
 ### Step 9.4: Review Test Data
 
-The command generates test data files in `.camel-kit/tests/test-data/`:
+The command generates test data files in `test/data/`:
 
 ```
 Generated test data:
@@ -842,100 +835,113 @@ Review and modify? (yes/no)
 
 ### Step 9.5: Review Generated Test File
 
-The command generates `.camel-kit/tests/order-ingestion-test.yaml`:
+The command generates `test/order-ingestion.camel.it.yaml` following the Camel JBang naming convention:
 
 ```yaml
+# Citrus Integration Test for: order-ingestion
+# Run with: camel test run test/order-ingestion.camel.it.yaml
+
 name: "order-ingestion-integration-test"
 description: "Integration tests for order-ingestion route"
 
-# Testcontainers automatically provision infrastructure
-testcontainers:
-  kafka:
-    image: "apache/kafka:latest"
-    exposedPorts: [9092]
-  postgres:
-    image: "postgres:16"
-    initScript: "../../init-db.sql"
+variables:
+  kafka.topic.input: "orders"
+  kafka.topic.dlq: "orders-dlq"
 
-tests:
-  # Test 1: Happy Path
-  - name: "happy-path"
-    description: "Valid order flows through successfully"
-    actions:
-      - send:
-          endpoint:
-            kafka:
-              topic: "orders"
-          message:
-            body:
-              file: "test-data/order-valid.json"
-      - sleep:
-          milliseconds: 3000
-      - query:
-          datasource: "ordersdb"
-          statement: "SELECT * FROM orders WHERE order_id = 'ORD-001'"
-          validate:
-            - column: "status"
-              value: "RECEIVED"
-            - column: "amount"
-              value: 75.50
+actions:
+  # Start Infrastructure (Testcontainers)
+  - testcontainers:
+      start:
+        kafka: {}
 
-  # Test 2: Filter Rejection
-  - name: "filter-rejected"
-    description: "Order below threshold is filtered out"
-    actions:
-      - send:
-          endpoint:
-            kafka:
-              topic: "orders"
-          message:
-            body:
-              file: "test-data/order-filtered.json"
-      - sleep:
-          milliseconds: 3000
-      - query:
-          datasource: "ordersdb"
-          statement: "SELECT COUNT(*) as cnt FROM orders WHERE order_id = 'ORD-002'"
-          validate:
-            - column: "cnt"
-              value: 0
+  - testcontainers:
+      start:
+        postgresql:
+          env:
+            POSTGRES_DB: "orders"
+            POSTGRES_USER: "orderuser"
+            POSTGRES_PASSWORD: "orderpass123"
+          initScript: "../init-db.sql"
 
-  # Test 3: Dead Letter Queue
-  - name: "dead-letter-queue"
-    description: "Invalid message routed to DLQ"
-    actions:
-      - send:
-          endpoint:
-            kafka:
-              topic: "orders"
-          message:
-            body: '{"orderId": "", "amount": "invalid"}'
-      - receive:
-          endpoint:
-            kafka:
-              topic: "orders-dlq"
-          timeout: 10000
+  # Start the Camel Integration
+  - camel:
+      jbang:
+        run:
+          integration:
+            file: "../routes.camel.yaml"
+          wait: 5000
 
-finally:
-  - query:
+  # TEST 1: Happy Path
+  - echo:
+      message: "━━━ Test 1: Happy Path ━━━"
+
+  - send:
+      endpoint: "kafka:${kafka.topic.input}"
+      message:
+        body:
+          file: "data/order-valid.json"
+        headers:
+          - name: "citrus_kafka_messageKey"
+            value: "ORD-001"
+
+  - sleep:
+      milliseconds: 3000
+
+  - sql:
       datasource: "ordersdb"
-      statement: "DELETE FROM orders WHERE order_id LIKE 'ORD-%'"
+      statements:
+        - "SELECT * FROM orders WHERE order_id = 'ORD-001'"
+      validate:
+        - column: "status"
+          value: "RECEIVED"
+
+  # TEST 2: Filter Rejection
+  - send:
+      endpoint: "kafka:${kafka.topic.input}"
+      message:
+        body:
+          file: "data/order-filtered.json"
+
+  - sql:
+      datasource: "ordersdb"
+      statements:
+        - "SELECT COUNT(*) as cnt FROM orders WHERE order_id = 'ORD-002'"
+      validate:
+        - column: "cnt"
+          value: "0"
+
+  # TEST 3: Dead Letter Queue
+  - send:
+      endpoint: "kafka:${kafka.topic.input}"
+      message:
+        body:
+          data: '{"orderId": "", "amount": "invalid"}'
+
+  - receive:
+      endpoint: "kafka:${kafka.topic.dlq}"
+      timeout: 15000
+
+  # Cleanup
+  - sql:
+      datasource: "ordersdb"
+      statements:
+        - "DELETE FROM orders WHERE order_id LIKE 'ORD-%'"
 ```
 
 ### Step 9.6: Run Tests
 
 ```bash
-# Ensure infrastructure is running
+# Option 1: Let Citrus manage infrastructure (Testcontainers)
+camel test run test/order-ingestion.camel.it.yaml
+
+# Option 2: Start infrastructure separately with camel infra
+camel infra run kafka
+camel infra run postgres
+camel test run test/order-ingestion.camel.it.yaml
+
+# Option 3: Use Docker Compose (for development)
 docker compose up -d
-
-# Run integration tests with Camel JBang
-camel test run .camel-kit/tests/order-ingestion-test.yaml
-
-# Run with specific environment configuration
-camel test run --config .camel-kit/tests/order-ingestion-test-config.yaml --env local
-
-# Generate HTML report
-camel test run .camel-kit/tests/order-ingestion-test.yaml --report html
+camel run routes.camel.yaml
 ```
 
 **Expected output:**
@@ -953,51 +959,59 @@ camel test run .camel-kit/tests/order-ingestion-test.yaml --report html
 Tests: 3 passed, 0 failed
 ```
 
-### Step 9.7: Visual Test Editing with Kaoto
+### Step 9.7: Export to Maven Project
 
-Open the test file in Kaoto for visual editing:
+Once you're happy with your integration and tests, export to a Maven project:
 
-1. Open VS Code with Kaoto extension installed
-2. Navigate to `.camel-kit/tests/order-ingestion-test.yaml`
-3. Right-click -> "Open with Kaoto"
+```bash
+# Export to Quarkus project
+camel export routes.camel.yaml --dir my-project --runtime quarkus
 
-In Kaoto you can:
-- **Visualize** the test flow as a diagram
-- **Drag and drop** to add new test steps
-- **Configure assertions** visually
-- **Run tests** directly from the editor
-- **Debug** test failures with visual feedback
+# The test files are automatically included
+cd my-project && ./mvnw verify
+```
 
 ### Step 9.8: CI/CD Integration
 
-The test configuration supports multiple environments. For CI/CD, use the `ci` environment:
-
-```yaml
-# .camel-kit/tests/order-ingestion-test-config.yaml
-environments:
-  ci:
-    kafka.bootstrap.servers: "${KAFKA_BROKERS}"
-    database.url: "${DATABASE_URL}"
-    database.username: "${DATABASE_USER}"
-    database.password: "${DATABASE_PASSWORD}"
-```
+For CI/CD pipelines, the tests run with Testcontainers automatically:
 
 **GitHub Actions example:**
 ```yaml
-- name: Run Integration Tests
-  env:
-    KAFKA_BROKERS: ${{ secrets.KAFKA_BROKERS }}
-    DATABASE_URL: ${{ secrets.DATABASE_URL }}
-  run: |
-    camel test run --config .camel-kit/tests/order-ingestion-test-config.yaml --env ci --report junit
+- name: Set up JBang
+  uses: jbangdev/setup-jbang@main
 
-- name: Publish Test Results
-  uses: dorny/test-reporter@v1
-  with:
-    name: Integration Tests
-    path: .camel-kit/tests/reports/junit.xml
-    reporter: java-junit
+- name: Install Camel JBang
+  run: jbang app install camel@apache/camel
+
+- name: Install Test Plugin
+  run: camel plugin add test
+
+- name: Run Integration Tests
+  run: camel test run test/order-ingestion.camel.it.yaml
+
+- name: Export and Build
+  run: |
+    camel export routes.camel.yaml --dir target/project --runtime quarkus
+    cd target/project && ./mvnw verify
 ```
+
+### Step 9.9: Additional Dependencies
+
+If you need additional Citrus modules (Kafka, SQL, Testcontainers), add them to `test/jbang.properties`:
+
+```properties
+# test/jbang.properties
+run.deps=org.citrusframework:citrus-kafka:4.7.0,\
+org.citrusframework:citrus-testcontainers:4.7.0,\
+org.citrusframework:citrus-sql:4.7.0,\
+org.postgresql:postgresql:42.7.3
+```
+
+### Documentation
+
+- [Camel Testing Plugin](https://camel.apache.org/manual/camel-jbang-test.html) - Official Camel JBang test documentation
+- [Citrus Framework](https://citrusframework.org/) - Integration testing framework
+- [Camel Infra Command](https://camel.apache.org/manual/camel-jbang.html) - Infrastructure services with Testcontainers
 
 ---
 

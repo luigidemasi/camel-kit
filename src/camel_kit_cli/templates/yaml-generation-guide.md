@@ -1243,17 +1243,21 @@ After generating YAML:
 ### Single File (Default)
 
 ```
-.camel-kit/output/
-└── routes.camel.yaml    # All routes in one file
+my-integration/
+├── routes.camel.yaml           # Generated routes (project root)
+└── .camel-kit/
+    └── routes/                 # Route specifications
 ```
 
 ### Split Files (--split option)
 
 ```
-.camel-kit/output/
+my-integration/
 ├── routes.camel.yaml           # All routes combined
 ├── order-ingestion.camel.yaml  # Individual route
-└── inventory-lookup.camel.yaml # Individual route
+├── inventory-lookup.camel.yaml # Individual route
+└── .camel-kit/
+    └── routes/
 ```
 
 ### Pipe Format (--pipe option)

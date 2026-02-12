@@ -72,6 +72,11 @@ Creates the following structure:
 
 ```
 my-integration/
+├── routes.camel.yaml        # Generated routes (after /camel.generate)
+├── test/                    # Generated Citrus tests (Camel JBang convention)
+│   ├── data/                # Test data files
+│   ├── *.camel.it.yaml      # Test files
+│   └── jbang.properties     # Test dependencies
 ├── .bob/commands/           # AI agent slash commands
 │   ├── camel.init.md
 │   ├── camel.context.md
@@ -84,9 +89,7 @@ my-integration/
     ├── constitution.md      # Best practices
     ├── context.md           # Integration landscape
     ├── templates/           # Reference templates
-    ├── routes/              # Route specifications
-    ├── tests/               # Generated tests
-    └── output/              # Generated YAML
+    └── routes/              # Route specifications
 ```
 
 ---
@@ -359,14 +362,15 @@ Generate Citrus integration tests for routes.
 
 **Output:**
 
-- Test file: `.camel-kit/tests/<route-name>-test.yaml`
-- Test data: `.camel-kit/tests/test-data/`
+- Test file: `test/<route-name>.camel.it.yaml`
+- Test data: `test/data/`
+- Dependencies: `test/jbang.properties`
 
 **Running tests:**
 
 ```bash
 camel plugin add test
-camel test run .camel-kit/tests/<route-name>-test.yaml
+camel test run test/<route-name>.camel.it.yaml
 ```
 
 ---
@@ -387,7 +391,7 @@ Generate Kaoto-compatible Camel YAML DSL from specifications.
    - Blocks if errors exist
    - Warns but continues if only warnings
 2. **Transformation** - Converts specs to YAML DSL
-3. **Output** - Writes to `.camel-kit/output/routes.camel.yaml`
+3. **Output** - Writes to `routes.camel.yaml`
 
 **Kaoto compatibility:**
 
@@ -427,13 +431,13 @@ Generated YAML follows Kaoto requirements:
 
 ```bash
 # Direct execution
-camel run .camel-kit/output/routes.camel.yaml
+camel run routes.camel.yaml
 
 # With environment variables
-KAFKA_BROKERS=localhost:9092 camel run .camel-kit/output/routes.camel.yaml
+KAFKA_BROKERS=localhost:9092 camel run routes.camel.yaml
 
 # Export to Maven project
-camel export .camel-kit/output/routes.camel.yaml \
+camel export routes.camel.yaml \
   --runtime quarkus \
   --gav com.example:my-integration:1.0.0
 ```
