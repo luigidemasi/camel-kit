@@ -461,10 +461,11 @@ Add `/camel.test` command to generate Citrus tests:
 │   └── order-ingestion.md
 ├── output/
 │   └── routes.camel.yaml
-└── tests/
-    ├── order-ingestion-test.yaml    # Generated Citrus test
-    ├── inventory-lookup-test.yaml
-    └── test-data/
+└── test/                              # At project root (Camel JBang convention)
+    ├── order-ingestion.camel.it.yaml  # Generated Citrus test
+    ├── inventory-lookup.camel.it.yaml
+    ├── jbang.properties               # Test dependencies
+    └── data/
         ├── order-valid.json
         ├── order-invalid.json
         └── expected-output.json
@@ -662,19 +663,22 @@ Based on route specification, generate tests for:
 ### Running Tests
 
 ```bash
+# Install test plugin (first time only)
+camel plugin add test
+
 # Run single test
-camel test run .camel-kit/tests/order-ingestion-test.yaml
+camel test run test/order-ingestion.camel.it.yaml
 
 # Run all tests
-camel test run .camel-kit/tests/
+camel test run test/
 
 # Run with verbose output
-camel test run .camel-kit/tests/ --verbose
+camel test run test/ --verbose
 
 # Export to Maven project for CI/CD
-camel export .camel-kit/output/routes.camel.yaml \
+camel export routes.camel.yaml \
   --runtime quarkus \
-  --gav com.example:my-integration:1.0.0
+  --dir target/project
 ```
 
 ### Integration with Validation
@@ -686,7 +690,7 @@ After `/camel.validate` passes, suggest running tests:
 
 Next steps:
   1. Generate tests: /camel.test --all
-  2. Run tests: camel test run .camel-kit/tests/
+  2. Run tests: camel test run test/
   3. Generate YAML: /camel.generate
 ```
 

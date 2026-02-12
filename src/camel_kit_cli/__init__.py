@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Camel-Kit CLI: A toolkit for designing Apache Camel integrations with AI coding assistants.
 
@@ -225,8 +226,10 @@ def init(
     camel_kit_dir.mkdir(parents=True, exist_ok=True)
     routes_dir = camel_kit_dir / "routes"
     routes_dir.mkdir(parents=True, exist_ok=True)
-    output_dir = camel_kit_dir / "output"
-    output_dir.mkdir(parents=True, exist_ok=True)
+    test_dir = target_dir / "test"
+    test_dir.mkdir(parents=True, exist_ok=True)
+    test_data_dir = test_dir / "data"
+    test_data_dir.mkdir(parents=True, exist_ok=True)
 
     # Copy templates
     templates_dir = get_templates_dir()
@@ -288,12 +291,6 @@ def init(
         content = validation_guide.read_text()
         dest_file.write_text(content)
         files_created.append(str(dest_file.relative_to(target_dir)))
-
-    # Create tests directory
-    tests_dir = camel_kit_dir / "tests"
-    tests_dir.mkdir(parents=True, exist_ok=True)
-    test_data_dir = tests_dir / "test-data"
-    test_data_dir.mkdir(parents=True, exist_ok=True)
 
     # Create config file
     config_content = f"""# Camel-Kit Configuration
