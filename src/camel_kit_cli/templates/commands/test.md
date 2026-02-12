@@ -2,28 +2,152 @@
 
 You are helping the user create test scenarios for their Camel routes. Follow these steps exactly.
 
-The user runs: `/camel.test <route-name>` or `/camel.test --all`
+The user runs: `/camel.test <flow-name>` or `/camel.test --all`
 
-**Prerequisites:** The Camel test plugin must be installed:
-```bash
-camel plugin add test
+---
+
+## Citrus YAML Schema Rules
+
+**CRITICAL: Follow these rules exactly when generating Citrus YAML tests.**
+
+### 1. Variables - Use list format with name/value
+
+```yaml
+# WRONG
+variables:
+  kafka.brokers: "localhost:9092"
+
+# CORRECT
+variables:
+  - name: "kafka.brokers"
+    value: "localhost:9092"
+```
+
+### 2. Testcontainers - Simple format for built-in types
+
+For Kafka and PostgreSQL, use the simple empty object format. Citrus handles the configuration automatically.
+
+```yaml
+# CORRECT - Simple format (recommended)
+- testcontainers:
+    start:
+      kafka: {}
+
+- testcontainers:
+    start:
+      postgresql: {}
+```
+
+The testcontainers action automatically exposes connection details as variables:
+- `CITRUS_TESTCONTAINERS_KAFKA_BOOTSTRAP_SERVERS`
+- `CITRUS_TESTCONTAINERS_POSTGRESQL_URL`
+- `CITRUS_TESTCONTAINERS_POSTGRESQL_USERNAME`
+- `CITRUS_TESTCONTAINERS_POSTGRESQL_PASSWORD`
+
+### 3. SQL Actions - Use dataSource (camelCase) and statement: property
+
+```yaml
+# WRONG
+- sql:
+    datasource: "postgresql"
+    statements:
+      - "SELECT * FROM orders"
+
+# CORRECT
+- sql:
+    dataSource: "postgresql"
+    statements:
+      - statement: "SELECT * FROM orders WHERE id = 'TEST-001'"
+    validate:
+      - column: "order_id"
+        value: "TEST-001"
+```
+
+### 4. Camel JBang Run - NO wait property
+
+The `camel.jbang.run` action does NOT support a `wait` property. Use a `sleep` action after it instead.
+
+```yaml
+# WRONG - wait is not a valid property
+- camel:
+    jbang:
+      run:
+        integration:
+          file: "my-route.camel.yaml"
+        wait: 5000
+
+# CORRECT - use sleep action after
+- camel:
+    jbang:
+      run:
+        integration:
+          file: "my-route.camel.yaml"
+
+- sleep:
+    milliseconds: 5000
+```
+
+Optional: You can pass system properties:
+```yaml
+- camel:
+    jbang:
+      run:
+        integration:
+          file: "my-route.camel.yaml"
+          systemProperties:
+            file: "application.test.properties"
+```
+
+### 5. Message Body and Headers
+
+Use `data:` for inline body content. Headers use list format with name/value.
+
+```yaml
+# CORRECT - inline data
+- send:
+    endpoint: "kafka:orders"
+    message:
+      body:
+        data: |
+          {"orderId":"TEST-001","customerId":"CUST-123","amount":100.00}
+      headers:
+        - name: "kafka.KEY"
+          value: "TEST-001"
+```
+
+**Note:** Do NOT use `body.file:` - it's not a valid property. Use inline `data:` instead.
+
+### 6. jbang.properties - Single run.deps with all dependencies
+
+Include `citrus-camel` for Camel JBang actions:
+
+```properties
+# CORRECT - all deps in one property
+run.deps=org.citrusframework:citrus-camel:4.9.0,\
+org.citrusframework:citrus-kafka:4.9.0,\
+org.citrusframework:citrus-testcontainers:4.9.0,\
+org.citrusframework:citrus-sql:4.9.0,\
+org.postgresql:postgresql:42.7.3,\
+org.testcontainers:testcontainers:1.20.4,\
+org.testcontainers:postgresql:1.20.4,\
+org.testcontainers:kafka:1.20.4
 ```
 
 ---
 
-## Step 1: Load Route
+## Step 1: Load Flow
 
 Read these files:
-- `.camel-kit/routes/<route-name>.md` - Route specification
+- `.camel-kit/flows/<flow-name>/flow.md` - Flow definition
 - `.camel-kit/context.md` - Systems and connections
-- `routes.camel.yaml` - Generated route (if exists)
+- `<flow-name>.camel.yaml` - Generated route (if exists)
 
-If `--all`, load all route files from `.camel-kit/routes/`.
+If `--all`, load all flow files from `.camel-kit/flows/`.
 
 Show:
 
 ```
-Loading route: [route-name]
+Loading flow: [flow-name]
 
 Source: [component:endpoint]
 Processing: [list of EIPs]
@@ -36,46 +160,22 @@ External services detected:
 
 ---
 
-## Step 2: Explain Test Infrastructure
+## Step 2: Identify Test Scenarios
 
-Explain how Camel JBang testing works:
-
-```
-== TEST INFRASTRUCTURE ==
-
-Your route uses external services. Camel JBang provides two ways to handle them:
-
-1. camel infra command (recommended)
-   Start services with: camel infra run kafka, camel infra run postgres
-   Services run via Testcontainers, connection details auto-exposed
-
-2. Testcontainers in test
-   Start containers directly in the Citrus test YAML
-   Useful for test-specific configuration
-
-For development, you can also use Docker Compose manually.
-
-Continue with test generation? (yes/no)
-```
-
----
-
-## Step 3: Identify Test Scenarios
-
-Based on the route design, identify applicable test scenarios:
+Based on the flow design, identify applicable test scenarios:
 
 ```
 == TEST SCENARIOS ==
 
-Based on your route, I recommend testing:
+Based on your flow, I recommend testing:
 
 [x] 1. Happy Path (always included)
       Send valid message → verify it reaches the sink
 
-[ ] 2. Filter Rejection (if route has filter)
+[ ] 2. Filter Rejection (if flow has filter)
       Send message that fails filter → verify it's dropped
 
-[ ] 3. Error Handling (if route has DLQ)
+[ ] 3. Error Handling (if flow has DLQ)
       Send malformed message → verify it goes to DLQ
 
 [ ] 4. Edge Cases
@@ -84,264 +184,200 @@ Based on your route, I recommend testing:
 Which scenarios? (enter numbers, 'all', or describe custom)
 ```
 
+Wait for response before continuing.
+
 ---
 
-## Step 4: Generate Test Data
+## Step 3: Generate Test Data
 
 Create test data files in `test/data/`:
 
 ```
 Generated test data:
 
-[route-name]-valid.json     - Valid message (should pass)
-[route-name]-filtered.json  - Message that fails filter (if applicable)
-[route-name]-invalid.json   - Malformed message (for error handling)
-[route-name]-edge.json      - Edge case (boundary values)
+[flow-name]-valid.json     - Valid message (should pass)
+[flow-name]-filtered.json  - Message that fails filter (if applicable)
+[flow-name]-invalid.json   - Malformed message (for error handling)
 
 Files saved to: test/data/
 ```
 
-Example files:
-
-**[route-name]-valid.json:**
-```json
-{
-  "orderId": "TEST-001",
-  "customerId": "CUST-123",
-  "amount": 75.50,
-  "currency": "EUR",
-  "items": [
-    {"productId": "PROD-1", "productName": "Widget", "quantity": 2, "unitPrice": 37.75}
-  ]
-}
-```
-
-**[route-name]-filtered.json:**
-```json
-{
-  "orderId": "TEST-002",
-  "customerId": "CUST-456",
-  "amount": 25.00,
-  "currency": "EUR",
-  "items": [
-    {"productId": "PROD-2", "productName": "Small Item", "quantity": 1, "unitPrice": 25.00}
-  ]
-}
-```
-
 ---
 
-## Step 5: Generate Citrus Test
+## Step 4: Generate Citrus Test
 
-Generate `test/[route-name].camel.it.yaml` (Citrus test file):
-
-**Note:** The naming convention `[route-name].camel.it.yaml` follows Camel JBang's expected pattern where tests for `route.camel.yaml` are named `route.camel.it.yaml`.
+Generate `test/[flow-name].camel.it.yaml` following the schema rules above:
 
 ```yaml
-# Citrus Integration Test for: [route-name]
+# Citrus Integration Test for: [flow-name]
 # Generated by camel-kit
 #
-# Prerequisites:
-#   camel plugin add test
-#
 # Run with:
-#   camel test run test/[route-name].camel.it.yaml
-#
-# Or start infra separately:
-#   camel infra run kafka
-#   camel infra run postgres
-#   camel test run test/[route-name].camel.it.yaml
+#   camel test run test/[flow-name].camel.it.yaml
 
-name: "[route-name]-integration-test"
-description: "Integration tests for [route-name] route"
+name: "[flow-name]-integration-test"
+description: "Integration tests for [flow-name] flow"
 
-# ============================================
-# VARIABLES
-# ============================================
 variables:
-  kafka.topic.input: "orders"
-  kafka.topic.dlq: "orders-dlq"
+  - name: "kafka.topic.input"
+    value: "orders"
+  - name: "kafka.topic.dlq"
+    value: "orders-dlq"
 
-# ============================================
-# TEST ACTIONS
-# ============================================
 actions:
 
-  # ------------------------------------------
-  # Start Infrastructure (Testcontainers)
-  # ------------------------------------------
+  # Start Infrastructure (simple format)
   - testcontainers:
       start:
         kafka: {}
 
   - testcontainers:
       start:
-        postgresql:
-          env:
-            POSTGRES_DB: "testdb"
-            POSTGRES_USER: "testuser"
-            POSTGRES_PASSWORD: "testpass"
+        postgresql: {}
 
-  # ------------------------------------------
-  # Start the Camel Integration
-  # ------------------------------------------
+  - sleep:
+      milliseconds: 5000
+
+  # Setup database table
+  - sql:
+      dataSource: "postgresql"
+      statements:
+        - statement: "CREATE TABLE IF NOT EXISTS orders (order_id VARCHAR(50) PRIMARY KEY, customer_id VARCHAR(50), amount DECIMAL(10,2), status VARCHAR(20))"
+
+  # Start Camel Integration (NO wait property)
   - camel:
       jbang:
         run:
           integration:
-            file: "../routes.camel.yaml"
-          wait: 5000  # Wait for route to start
+            file: "[flow-name].camel.yaml"
 
-  # ------------------------------------------
+  - sleep:
+      milliseconds: 5000
+
   # TEST 1: Happy Path
-  # ------------------------------------------
   - echo:
-      message: "━━━ Test 1: Happy Path ━━━"
+      message: "Test 1: Happy Path"
 
-  # Send valid message to Kafka
   - send:
       endpoint: "kafka:${kafka.topic.input}"
       message:
         body:
           data: |
-            {
-              "orderId": "TEST-001",
-              "customerId": "CUST-123",
-              "amount": 75.50,
-              "currency": "EUR"
-            }
+            {"orderId":"TEST-001","customerId":"CUST-123","amount":100.00,"status":"PENDING"}
         headers:
-          - name: "citrus_kafka_messageKey"
+          - name: "kafka.KEY"
             value: "TEST-001"
 
-  # Wait for processing
   - sleep:
       milliseconds: 3000
 
-  # Verify in database
   - sql:
-      datasource: "testdb"
+      dataSource: "postgresql"
       statements:
-        - "SELECT * FROM orders WHERE order_id = 'TEST-001'"
+        - statement: "SELECT * FROM orders WHERE order_id = 'TEST-001'"
       validate:
         - column: "order_id"
           value: "TEST-001"
-        - column: "status"
-          value: "RECEIVED"
 
   - echo:
-      message: "✅ Happy path PASSED"
+      message: "Happy path PASSED"
 
-  # ------------------------------------------
-  # TEST 2: Filter Rejection
-  # ------------------------------------------
+  # TEST 2: Filter Rejection (if applicable)
   - echo:
-      message: "━━━ Test 2: Filter Rejection ━━━"
+      message: "Test 2: Filter Rejection"
 
-  # Send message that should be filtered (amount < 50)
   - send:
       endpoint: "kafka:${kafka.topic.input}"
       message:
         body:
           data: |
-            {
-              "orderId": "TEST-002",
-              "customerId": "CUST-456",
-              "amount": 25.00,
-              "currency": "EUR"
-            }
+            {"orderId":"TEST-002","customerId":"CUST-456","amount":25.00,"status":"PENDING"}
         headers:
-          - name: "citrus_kafka_messageKey"
+          - name: "kafka.KEY"
             value: "TEST-002"
 
   - sleep:
       milliseconds: 3000
 
-  # Verify NOT in database
   - sql:
-      datasource: "testdb"
+      dataSource: "postgresql"
       statements:
-        - "SELECT COUNT(*) as cnt FROM orders WHERE order_id = 'TEST-002'"
+        - statement: "SELECT COUNT(*) as cnt FROM orders WHERE order_id = 'TEST-002'"
       validate:
         - column: "cnt"
           value: "0"
 
   - echo:
-      message: "✅ Filter rejection PASSED"
+      message: "Filter rejection PASSED"
 
-  # ------------------------------------------
-  # TEST 3: Dead Letter Queue
-  # ------------------------------------------
+  # TEST 3: Dead Letter Queue (if applicable)
   - echo:
-      message: "━━━ Test 3: Dead Letter Queue ━━━"
+      message: "Test 3: Dead Letter Queue"
 
-  # Send malformed message
   - send:
       endpoint: "kafka:${kafka.topic.input}"
       message:
         body:
           data: |
-            {"orderId": "", "amount": "not-a-number"}
+            {"orderId":"","amount":"not-a-number"}
         headers:
-          - name: "citrus_kafka_messageKey"
+          - name: "kafka.KEY"
             value: "TEST-INVALID"
 
-  # Verify message appears in DLQ
   - receive:
       endpoint: "kafka:${kafka.topic.dlq}"
       timeout: 15000
       message:
         headers:
-          - name: "citrus_kafka_messageKey"
+          - name: "kafka.KEY"
             value: "TEST-INVALID"
 
   - echo:
-      message: "✅ DLQ PASSED"
+      message: "DLQ test PASSED"
 
-  # ------------------------------------------
-  # CLEANUP
-  # ------------------------------------------
-  - echo:
-      message: "━━━ Cleanup ━━━"
-
+  # Cleanup
   - sql:
-      datasource: "testdb"
+      dataSource: "postgresql"
       statements:
-        - "DELETE FROM orders WHERE order_id LIKE 'TEST-%'"
+        - statement: "DELETE FROM orders WHERE order_id LIKE 'TEST-%'"
 
   - echo:
-      message: "━━━ Test suite completed ━━━"
+      message: "Test suite completed"
 ```
 
 ---
 
-## Step 6: Create jbang.properties (if needed)
+## Step 5: Create jbang.properties
 
-If the test needs additional dependencies (e.g., Kafka, database drivers), create `test/jbang.properties`:
+Create `test/jbang.properties` with ALL dependencies in a single run.deps:
 
 ```properties
-# Additional Citrus modules for testing
-run.deps=org.citrusframework:citrus-kafka:4.7.0,\
-org.citrusframework:citrus-testcontainers:4.7.0,\
-org.citrusframework:citrus-sql:4.7.0,\
-org.postgresql:postgresql:42.7.3
+# Citrus test dependencies - ALL in single run.deps property
+run.deps=org.citrusframework:citrus-camel:4.9.0,\
+org.citrusframework:citrus-kafka:4.9.0,\
+org.citrusframework:citrus-testcontainers:4.9.0,\
+org.citrusframework:citrus-sql:4.9.0,\
+org.postgresql:postgresql:42.7.3,\
+org.testcontainers:testcontainers:1.20.4,\
+org.testcontainers:postgresql:1.20.4,\
+org.testcontainers:kafka:1.20.4
 ```
 
 ---
 
-## Step 7: Summary
+## Step 6: Summary
 
 Show summary:
 
 ```
-✅ Test suite generated for '[route-name]'
+Test suite generated for '[flow-name]'
 
 CREATED FILES:
-  test/[route-name].camel.it.yaml    Citrus test suite
-  test/data/[route-name]-valid.json
-  test/data/[route-name]-filtered.json
-  test/data/[route-name]-invalid.json
-  test/jbang.properties              Additional dependencies
+  test/[flow-name].camel.it.yaml    Citrus test suite
+  test/data/[flow-name]-valid.json
+  test/data/[flow-name]-filtered.json
+  test/data/[flow-name]-invalid.json
+  test/jbang.properties              Dependencies
 
 TEST SCENARIOS:
   [x] Happy Path
@@ -350,27 +386,11 @@ TEST SCENARIOS:
 
 HOW TO RUN:
 
-  Option 1: Let Citrus manage infrastructure
-  ─────────────────────────────────────────────
-  camel test run test/[route-name].camel.it.yaml
+  # Install test plugin (one-time)
+  camel plugin add test
 
-  Option 2: Start infrastructure separately
-  ─────────────────────────────────────────────
-  # Terminal 1: Start services
-  camel infra run kafka
-  camel infra run postgres
-
-  # Terminal 2: Run tests
-  camel test run test/[route-name].camel.it.yaml
-
-  Option 3: Use Docker Compose for development
-  ─────────────────────────────────────────────
-  docker compose up -d
-  camel run routes.camel.yaml
-
-EXPORT TO MAVEN PROJECT:
-  camel export routes.camel.yaml --dir my-project --runtime quarkus
-  cd my-project && ./mvnw verify
+  # Run tests
+  camel test run test/[flow-name].camel.it.yaml
 
 DOCUMENTATION:
   - Camel Test Plugin: https://camel.apache.org/manual/camel-jbang-test.html

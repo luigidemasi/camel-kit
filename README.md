@@ -2,11 +2,33 @@
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-> Design Apache Camel integrations with AI coding assistants using spec-driven development.
+> Design Apache Camel integrations with AI coding assistants using Flow-Driven Development.
 
 **Camel-Kit is heavily inspired by [GitHub Spec-Kit](https://github.com/github/spec-kit)** — a brilliant project by the GitHub team that pioneered the concept of spec-driven development with AI coding assistants. We're grateful to the spec-kit authors for their innovative approach and for making their work available to the community. Their elegant design patterns and philosophy have directly shaped how Camel-Kit guides developers through integration design.
 
 Camel-Kit adapts these ideas for the Apache Camel ecosystem, providing structured slash commands for AI coding assistants (like IBM Project Bob) to help you design, validate, and generate Camel routes following best practices.
+
+**Workflow: 1 Flow = 1 Route** — Each integration flow maps to a single Camel route, making it easy to design, implement, and maintain your integrations.
+
+```mermaid
+flowchart LR
+    subgraph CLI
+        A[camel-kit init]
+    end
+    subgraph "AI Assistant"
+        B["/camel.context"]
+        C["/camel.flow"]
+        D["/camel.implement"]
+    end
+    subgraph Output
+        E["flow-name.camel.yaml"]
+    end
+
+    A --> B
+    B -.->|optional| C
+    C --> D
+    D --> E
+```
 
 ## Features
 
@@ -74,11 +96,11 @@ camel-kit init --here --ai bob
 Open your project in IBM Project Bob (or other supported AI assistant) and use the slash commands:
 
 ```
-/camel.context     Define your integration landscape
-/camel.route       Design individual routes
-/camel.validate    Check specifications
-/camel.test        Generate Citrus tests
-/camel.generate    Output Kaoto-ready YAML
+/camel.context     (Optional) Define integration landscape and identify flows
+/camel.flow        Define and design the integration flow
+/camel.implement   Generate Kaoto-ready YAML code
+/camel.validate    Check specifications and compliance
+/camel.test        Generate Citrus integration tests
 ```
 
 ## Documentation
@@ -101,40 +123,57 @@ Open your project in IBM Project Bob (or other supported AI assistant) and use t
 
 | Command | Purpose |
 |---------|---------|
-| `/camel.init` | Bootstrap project with constitution and catalog |
-| `/camel.context` | Define systems, protocols, and route overview |
-| `/camel.route <name>` | Design individual route with EIPs |
-| `/camel.validate` | Check completeness and correctness |
+| `/camel.context` | (Optional) Define integration landscape and identify all flows |
+| `/camel.flow` | Define and design the integration flow (business + technical) |
+| `/camel.implement` | Generate Camel YAML DSL from the flow definition |
+| `/camel.validate` | Check completeness and constitution compliance |
 | `/camel.test` | Generate Citrus integration tests |
-| `/camel.generate` | Output Camel YAML DSL |
+
+**Note:** Project initialization is done via CLI (`camel-kit init`), not a slash command.
 
 ## Project Structure
+
+Each flow progresses through two artifacts:
+
+```mermaid
+flowchart TB
+    subgraph "Flow Definition"
+        FLOW["flow.md<br/><i>Business + Technical Design</i>"]
+    end
+    subgraph "Implementation"
+        YAML["flow-name.camel.yaml<br/><i>Executable Camel route</i>"]
+    end
+
+    FLOW -->|"/camel.implement"| YAML
+```
 
 After initialization:
 
 ```
 my-integration/
-├── routes.camel.yaml           # Generated Camel routes (after /camel.generate)
+├── <flow-name>.camel.yaml      # Generated Camel route (after /camel.implement)
 ├── test/                       # Generated Citrus tests (Camel JBang convention)
 │   ├── *.camel.it.yaml         # Test files
 │   ├── data/                   # Test data files
 │   └── jbang.properties        # Test dependencies
 ├── .bob/commands/              # AI agent slash commands
-│   ├── camel.init.md
 │   ├── camel.context.md
-│   ├── camel.route.md
+│   ├── camel.flow.md
+│   ├── camel.implement.md
 │   ├── camel.validate.md
-│   ├── camel.test.md
-│   └── camel.generate.md
+│   └── camel.test.md
 └── .camel-kit/                 # Specifications and configuration
     ├── config.yaml             # Project configuration
     ├── constitution.md         # Best practices
-    ├── context.md              # Integration landscape
-    ├── templates/              # Reference templates
-    │   ├── route.md
-    │   ├── yaml-generation-guide.md
-    │   └── validation-guide.md
-    └── routes/                 # Route specifications
+    ├── context.md              # Integration landscape (optional)
+    ├── flows/                  # Flow definitions (1 flow = 1 route)
+    │   └── <flow-name>/
+    │       └── flow.md         # Complete flow definition
+    └── templates/              # Reference templates
+        ├── flow.md
+        ├── design-patterns.md
+        ├── validation-guide.md
+        └── yaml-generation-guide.md
 ```
 
 ## Example Workflow
@@ -146,41 +185,57 @@ camel-kit init order-processing --ai bob
 # 2. Open in IBM Project Bob
 cd order-processing
 
-# 3. In the AI assistant, run:
+# 3. (Optional) Define integration landscape:
 #    /camel.context
-#    - Define: Kafka source, PostgreSQL sink
-#    - Identify routes: order-ingestion, order-validation
+#    - Identify systems, data formats, and flows
 
-# 4. Design routes:
-#    /camel.route order-ingestion
+# 4. Define and design the flow:
+#    /camel.flow order-ingestion
 #    - Source: Kafka topic "orders"
-#    - Processing: Unmarshal JSON, validate, filter
+#    - EIPs: Unmarshal JSON, validate, filter
 #    - Sink: PostgreSQL database
 #    - Error handling: Dead Letter Channel
 
-# 5. Validate:
+# 5. Generate the Camel YAML:
+#    /camel.implement order-ingestion
+#    - Creates: order-ingestion.camel.yaml
+
+# 6. Validate & Test:
 #    /camel.validate
-#    - Check completeness
-#    - Verify against catalog
-#    - Constitution compliance
-
-# 6. Generate tests:
 #    /camel.test order-ingestion
-#    - Happy path test
-#    - Error handling test
-#    - DLQ test
 
-# 7. Generate YAML:
-#    /camel.generate
-#    - Creates: routes.camel.yaml (in project root)
-
-# 8. Open in Kaoto or run:
-camel run routes.camel.yaml
+# 7. Open in Kaoto or run:
+camel run order-ingestion.camel.yaml
 ```
 
 ## Output Example
 
-Generated Kaoto-compatible YAML:
+A flow defines the data journey from source to sink:
+
+```mermaid
+flowchart LR
+    subgraph Source
+        K[Kafka: orders]
+    end
+    subgraph Processing
+        U[Unmarshal JSON]
+        V[Validate Schema]
+        F[Filter >= $50]
+    end
+    subgraph Sink
+        P[(PostgreSQL)]
+    end
+    subgraph Error
+        DLQ[Kafka: orders-dlq]
+    end
+
+    K --> U --> V --> F --> P
+    U -.->|error| DLQ
+    V -.->|error| DLQ
+    F -.->|error| DLQ
+```
+
+Generated Kaoto-compatible YAML (`order-ingestion.camel.yaml`):
 
 ```yaml
 - route:

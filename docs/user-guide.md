@@ -8,11 +8,11 @@ This guide walks you through using Camel-Kit to design Apache Camel integrations
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Workflow Overview](#workflow-overview)
-- [Working with Context](#working-with-context)
-- [Designing Routes](#designing-routes)
+- [Flow Definition](#flow-definition)
+- [Route Design](#route-design)
+- [YAML Generation](#yaml-generation)
 - [Validation](#validation)
 - [Test Generation](#test-generation)
-- [YAML Generation](#yaml-generation)
 - [Best Practices](#best-practices)
 - [Troubleshooting](#troubleshooting)
 
@@ -24,10 +24,12 @@ Camel-Kit is a toolkit that guides you through designing Apache Camel integratio
 
 **Key concepts:**
 
-- **Context** - The integration landscape: systems, protocols, data formats
-- **Routes** - Individual data flows: source → processing → sink
+- **Flow** - The business intent: what the integration does and why
+- **Route** - The technical design: how the integration is built
 - **Constitution** - Best practices that guide design decisions
 - **Catalog** - Live component and Kamelet information from Apache Camel
+
+**Workflow: 1 Flow = 1 Route** — Each integration flow maps to a single Camel route, making it easy to design, implement, and maintain your integrations.
 
 ---
 
@@ -68,121 +70,173 @@ camel-kit init order-processing --ai bob
 cd order-processing
 
 # 3. Use slash commands in the AI assistant:
-#    /camel.context     - Define what systems you're connecting
-#    /camel.route       - Design each route
-#    /camel.validate    - Check your specifications
-#    /camel.generate    - Output Camel YAML
+#    /camel.context     - (Optional) Define integration landscape
+#    /camel.flow        - Define flow (business level)
+#    /camel.flow       - Design route (technical level)
+#    /camel.implement   - Generate Camel YAML
+#    /camel.validate    - Check specifications
+#    /camel.test        - Generate integration tests
 
-# 4. Run the generated routes
-camel run routes.camel.yaml
+# 4. Run the generated route
+camel run order-ingestion.camel.yaml
 ```
 
 ---
 
 ## Workflow Overview
 
+```mermaid
+flowchart TB
+    subgraph CLI
+        A[camel-kit init]
+    end
+    subgraph "AI Assistant"
+        B["/camel.context<br/>(optional)"]
+        C["/camel.flow"]
+        D["/camel.flow"]
+        E["/camel.implement"]
+    end
+    subgraph Output
+        F["flow-name.camel.yaml"]
+    end
+
+    A --> B --> C --> D --> E --> F
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  1. INIT                                                         │
-│     camel-kit init my-project --ai bob                          │
-│     Creates project structure and fetches catalogs               │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│  2. CONTEXT                                                      │
-│     /camel.context                                               │
-│     Define systems, protocols, data formats, route overview      │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│  3. ROUTES (repeat for each route)                               │
-│     /camel.route order-ingestion                                 │
-│     Design source, processing, sink, error handling              │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│  4. VALIDATE                                                     │
-│     /camel.validate                                              │
-│     Check completeness, correctness, constitution compliance     │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│  5. TEST                                                         │
-│     /camel.test order-ingestion                                  │
-│     Generate Citrus integration tests                            │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│  6. GENERATE                                                     │
-│     /camel.generate                                              │
-│     Output Kaoto-compatible Camel YAML DSL                       │
-└─────────────────────────────────────────────────────────────────┘
+
+| Step | Command | Purpose |
+|------|---------|---------|
+| 1 | `camel-kit init` | Create project structure and fetch catalogs |
+| 2 | `/camel.context` | (Optional) Define integration landscape |
+| 3 | `/camel.flow` | Define flow: source, sink, business rules |
+| 4 | `/camel.flow` | Design route: components, EIPs, error handling |
+| 5 | `/camel.implement` | Generate Kaoto-compatible Camel YAML |
+| 6 | `/camel.validate` | Verify compliance with constitution |
+| 7 | `/camel.test` | Generate Citrus integration tests |
+
+---
+
+## Flow Definition
+
+The flow definition captures **WHAT** the integration does from a business perspective, without technical details.
+
+### Creating a Flow
+
+Run `/camel.flow <flow-name>` in your AI assistant. You'll be guided through:
+
+1. **Business Purpose** - What problem does this flow solve?
+2. **Source & Sink** - Where data comes from and goes to
+3. **Processing Steps** - High-level steps (validate, filter, transform)
+4. **Data Contracts** - Input/output formats and schemas
+5. **Error Scenarios** - What can go wrong and expected behavior
+6. **Flow Diagram** - Mermaid visualization
+
+### Flow File
+
+The flow is saved to `.camel-kit/flows/<flow-name>/flow.md`.
+
+**Example flow diagram:**
+
+```mermaid
+flowchart LR
+    subgraph Source
+        K["Order Management System"]
+    end
+    subgraph Processing
+        P1["Parse JSON"]
+        P2["Validate"]
+        P3["Filter >= $50"]
+    end
+    subgraph Sink
+        DB[("Fulfillment Database")]
+    end
+
+    K --> P1 --> P2 --> P3 --> DB
 ```
 
 ---
 
-## Working with Context
+## Route Design
 
-The context defines your integration landscape before you design individual routes.
+The route design defines **HOW** the flow is technically implemented using Apache Camel.
 
-### Creating Context
+### Creating a Route Design
 
-Run `/camel.context` in your AI assistant. You'll be guided through:
+Run `/camel.flow <flow-name>` in your AI assistant. It will:
 
-1. **Business Purpose** - What problem does this integration solve?
-2. **Systems** - What external systems are involved?
-3. **Data Formats** - JSON, XML, Avro, etc.
-4. **Routes Overview** - High-level list of needed routes
-5. **Non-Functional Requirements** - Volume, latency, availability
+1. **Select Source** - Choose Camel component/Kamelet
+2. **Define EIPs** - Filter, Split, Aggregate, Transform, etc.
+3. **Select Sink** - Choose Camel component/Kamelet
+4. **Configure Error Handling** - Dead Letter Channel, Retry, Circuit Breaker
+5. **Check Constitution** - Verify against best practices
+6. **Generate Route Diagram** - Mermaid visualization with EIP icons
 
-### Updating Context
+### Route Design File
 
-Running `/camel.context` again enters **update mode**:
-- Existing values are shown
-- Press Enter to keep, or type to update
-- Add/remove systems and routes as needed
+The route design is saved to `.camel-kit/flows/<flow-name>/flow.md`.
 
-### Context File
+**Example route diagram:**
 
-The context is saved to `.camel-kit/context.md` in structured markdown format.
+```mermaid
+flowchart LR
+    subgraph Source
+        K[("fa:fa-envelope kafka:orders")]
+    end
+    subgraph "Processing (EIPs)"
+        E1["fa:fa-file-code unmarshal"]
+        E2["fa:fa-check-circle validate"]
+        E3["fa:fa-filter filter"]
+    end
+    subgraph Sink
+        DB[("fa:fa-database sql:INSERT")]
+    end
+    subgraph Error
+        DLQ[("fa:fa-exclamation-triangle kafka:orders-dlq")]
+    end
+
+    K --> E1 --> E2 --> E3 --> DB
+    E1 -.->|error| DLQ
+    E2 -.->|error| DLQ
+```
 
 ---
 
-## Designing Routes
+## YAML Generation
 
-Each route represents a single data flow: source → processing → sink.
+Generate Kaoto-compatible Camel YAML DSL from your route design.
 
-### Creating a Route
+### Running Generation
 
 ```
-/camel.route order-ingestion
+/camel.implement <flow-name>
 ```
 
-The AI assistant guides you through:
+This:
+1. Verifies route design and schemas exist
+2. Transforms the design into Camel YAML DSL
+3. Outputs to `<flow-name>.camel.yaml`
 
-1. **Source** - Where does data come from?
-2. **Data Format** - How is the data structured?
-3. **Processing** - What transformations are needed?
-4. **Sink** - Where does data go?
-5. **Error Handling** - How to handle failures?
+### Kaoto Compatibility
 
-### Catalog Integration
+Generated YAML follows Kaoto requirements:
+- Nested EIPs under parent's `steps` array
+- Proper expression format for Simple, JSONPath, etc.
+- Error handlers at route level
+- Environment variables as `{{VARIABLE}}`
 
-During route design, the AI assistant searches the cached Camel catalog to:
-- Suggest appropriate components or Kamelets
-- Show required vs optional parameters
-- Validate your configuration
+### Running Generated Routes
 
-### Updating Routes
+```bash
+# With Camel JBang
+camel run order-ingestion.camel.yaml
 
-Running `/camel.route <name>` on an existing route enters **update mode**:
-- Current configuration is shown for each section
-- Press Enter to keep, or provide new input
-- Processing steps can be added, removed, or reordered
+# With environment variables
+KAFKA_BROKERS=localhost:9092 camel run order-ingestion.camel.yaml
 
-### Route Files
-
-Routes are saved to `.camel-kit/routes/<route-name>.md`.
+# Export to Maven project
+camel export order-ingestion.camel.yaml \
+  --runtime quarkus \
+  --gav com.example:my-integration:1.0.0
+```
 
 ---
 
@@ -193,8 +247,8 @@ Validation checks your specifications before generating YAML.
 ### Running Validation
 
 ```
-/camel.validate           # Validate all routes
-/camel.validate order-ingestion  # Validate specific route
+/camel.validate           # Validate all flows
+/camel.validate <flow-name>  # Validate specific flow
 ```
 
 ### What's Checked
@@ -222,8 +276,8 @@ Generate Citrus integration tests for your routes.
 ### Running Test Generation
 
 ```
-/camel.test order-ingestion    # Generate tests for one route
-/camel.test --all              # Generate tests for all routes
+/camel.test <flow-name>    # Generate tests for one flow
+/camel.test --all          # Generate tests for all flows
 ```
 
 ### Test Scenarios
@@ -238,7 +292,7 @@ Based on your route design, tests are generated for:
 
 ### Test Files
 
-Tests are saved to `test/<route-name>.camel.it.yaml` following the Camel JBang naming convention, with test data in `test/data/`.
+Tests are saved to `test/<flow-name>.camel.it.yaml` following the Camel JBang naming convention, with test data in `test/data/`.
 
 ### Running Tests
 
@@ -246,53 +300,8 @@ Tests are saved to `test/<route-name>.camel.it.yaml` following the Camel JBang n
 # Install Camel test plugin
 camel plugin add test
 
-# Run tests (Testcontainers manages infrastructure automatically)
+# Run tests
 camel test run test/order-ingestion.camel.it.yaml
-
-# Or start infrastructure separately
-camel infra run kafka
-camel infra run postgres
-camel test run test/order-ingestion.camel.it.yaml
-```
-
----
-
-## YAML Generation
-
-Generate Kaoto-compatible Camel YAML DSL from your specifications.
-
-### Running Generation
-
-```
-/camel.generate
-```
-
-This:
-1. Runs validation first (blocks if errors)
-2. Transforms specifications to Camel YAML DSL
-3. Outputs to `routes.camel.yaml`
-
-### Kaoto Compatibility
-
-Generated YAML follows Kaoto requirements:
-- Nested EIPs under parent's `steps` array
-- Proper expression format for Simple, JSONPath, etc.
-- Error handlers at route level
-- Environment variables as `{{VARIABLE}}`
-
-### Running Generated Routes
-
-```bash
-# With Camel JBang
-camel run routes.camel.yaml
-
-# With environment variables
-KAFKA_BROKERS=localhost:9092 camel run routes.camel.yaml
-
-# Export to Maven project
-camel export routes.camel.yaml \
-  --runtime quarkus \
-  --gav com.example:my-integration:1.0.0
 ```
 
 ---
@@ -303,14 +312,14 @@ Camel-Kit enforces best practices through the **constitution** (`.camel-kit/cons
 
 | Principle | Description |
 |-----------|-------------|
+| Route Structure | Every route has a clear source and sink |
 | Single Responsibility | One route = one clear purpose |
 | Error Handling | Every route declares error strategy |
-| Circuit Breaker | External service calls use resilience patterns |
+| Resilience | External service calls use circuit breakers |
 | Idempotency | Consumer routes handle duplicates |
-| Schema Validation | Validate at integration boundaries |
-| Secrets Management | Use environment variables, never hardcode |
-| Observability | Include correlation IDs and logging |
-| Naming Conventions | Route IDs follow `<domain>-<action>` pattern |
+| Data Format Discipline | Validate at integration boundaries |
+| External Configuration | Use environment variables, never hardcode |
+| Throttling | High-throughput routes have rate limiting |
 
 ### Customizing the Constitution
 
@@ -342,15 +351,15 @@ COMP-001: Component 'kafak' not found
 
 **Solution:** Check for typos. The validation will suggest corrections.
 
-### Route Dependencies
+### Flow Not Found
 
 ```
-DEP-001: direct:inventory-lookup referenced but route not found
+Error: Flow definition not found. Run /camel.flow [flow-name] first.
 ```
 
-**Solution:** Create the missing route:
+**Solution:** Create the flow definition first:
 ```
-/camel.route inventory-lookup
+/camel.flow order-ingestion
 ```
 
 ### Test Failures
@@ -362,7 +371,7 @@ If generated tests fail, check:
 
 Regenerate tests after route changes:
 ```
-/camel.test <route-name>
+/camel.test <flow-name>
 ```
 
 ---

@@ -224,8 +224,8 @@ def init(
     commands_dir.mkdir(parents=True, exist_ok=True)
     camel_kit_dir = target_dir / ".camel-kit"
     camel_kit_dir.mkdir(parents=True, exist_ok=True)
-    routes_dir = camel_kit_dir / "routes"
-    routes_dir.mkdir(parents=True, exist_ok=True)
+    flows_dir = camel_kit_dir / "flows"
+    flows_dir.mkdir(parents=True, exist_ok=True)
     test_dir = target_dir / "test"
     test_dir.mkdir(parents=True, exist_ok=True)
     test_data_dir = test_dir / "data"
@@ -247,6 +247,17 @@ def init(
             dest_file.write_text(content)
             files_created.append(str(dest_file.relative_to(target_dir)))
 
+    # Copy flow template
+    sdd_templates = ["flow.md"]
+    for sdd_template in sdd_templates:
+        template_file = templates_dir / sdd_template
+        if template_file.exists():
+            dest_file = camel_kit_dir / "templates" / sdd_template
+            dest_file.parent.mkdir(parents=True, exist_ok=True)
+            content = template_file.read_text()
+            dest_file.write_text(content)
+            files_created.append(str(dest_file.relative_to(target_dir)))
+
     # Copy constitution template
     constitution_template = templates_dir / "constitution.md"
     if constitution_template.exists():
@@ -257,7 +268,7 @@ def init(
         dest_file.write_text(content)
         files_created.append(str(dest_file.relative_to(target_dir)))
 
-    # Copy context template
+    # Copy context template (legacy support or global overview)
     context_template = templates_dir / "context.md"
     if context_template.exists():
         dest_file = camel_kit_dir / "context.md"
@@ -267,7 +278,7 @@ def init(
         dest_file.write_text(content)
         files_created.append(str(dest_file.relative_to(target_dir)))
 
-    # Copy route template
+    # Copy route template (legacy support)
     route_template = templates_dir / "route.md"
     if route_template.exists():
         dest_file = camel_kit_dir / "templates" / "route.md"
@@ -342,8 +353,9 @@ catalog:
     console.print()
     console.print("[bold]Next steps:[/bold]")
     console.print(f"  1. Open [cyan]{project_name}[/cyan] in {agent['name']}")
-    console.print("  2. Run [cyan]/camel.context[/cyan] to define your integration landscape")
-    console.print("  3. Run [cyan]/camel.route <name>[/cyan] to design routes")
+    console.print("  2. Run [cyan]/camel.context[/cyan] to define your integration landscape [dim](optional)[/dim]")
+    console.print("  3. Run [cyan]/camel.flow <flow-name>[/cyan] to define and design a flow")
+    console.print("  4. Run [cyan]/camel.implement <flow-name>[/cyan] to generate the Camel YAML")
     console.print()
 
 

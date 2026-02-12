@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "camel-kit-cli"
-version = "0.1.0"
+version = "0.1.1"
 description = "Camel-Kit CLI: A toolkit for designing Apache Camel integrations with AI coding assistants"
 readme = "README.md"
 license = "Apache-2.0"
