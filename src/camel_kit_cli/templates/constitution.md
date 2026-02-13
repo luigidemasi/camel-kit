@@ -180,25 +180,53 @@ Design routes to handle duplicate messages safely.
 
 ### 8. Data Format Discipline
 
-Be explicit about data serialization at system boundaries.
+Be intentional about data serialization — unmarshal when needed, not by default.
 
 **Guidance:**
-- Always `unmarshal` at route entry, `marshal` at route exit
-- Validate schemas at ingestion (fail fast)
-- Use typed objects internally, raw formats only at boundaries
+- **Unmarshal when** you need to work with data as typed objects (field access, complex transformations, bean processing)
+- **Skip unmarshal when** routing/forwarding without inspection, or using expression languages (JSONPath, XPath) that work on raw data
+- **Schema validation before unmarshal** — JSON Schema, XSD validation works on raw data
+- **Bean validation after unmarshal** — JSR-380 (Hibernate Validator) works on Java objects
 - Document data contracts in route specifications
 
-**Pattern:**
+**Validation Order:**
+
+| Validation Type | When | Works On | Camel Component |
+|-----------------|------|----------|-----------------|
+| JSON Schema | Before unmarshal | Raw JSON string | `json-validator` |
+| XML Schema (XSD) | Before unmarshal | Raw XML string | `validator` |
+| Bean Validation | After unmarshal | Java object | `bean-validator` |
+
+**When to Unmarshal:**
+
+| Scenario | Unmarshal? | Why |
+|----------|------------|-----|
+| Complex bean processing | Yes | Need typed object access |
+| Field-level transformations | Yes | Easier with POJOs |
+| Simple filtering with JSONPath | No | JSONPath works on raw JSON |
+| Pass-through routing | No | Unnecessary overhead |
+| Content-based routing on headers | No | Body not inspected |
+
+**Pattern (with schema validation and unmarshalling):**
 ```
 from(external)
+  → validate (JSON Schema/XSD - on raw data)
   → unmarshal (JSON/XML/Avro)
-  → validate (optional but recommended)
+  → bean-validate (optional - on Java object)
   → process (work with typed objects)
-  → marshal (if needed)
+  → marshal (if sink expects specific format)
   → to(external)
 ```
 
-**Enforcement:** Routes consuming structured data without unmarshal trigger warnings.
+**Pattern (when raw data suffices):**
+```
+from(external)
+  → validate (JSON Schema/XSD - optional)
+  → filter (using jsonpath or xpath)
+  → to(external)
+```
+
+**Enforcement:** Informational only — unmarshal/marshal decisions depend on processing needs.
 
 ---
 

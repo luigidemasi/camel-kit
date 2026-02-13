@@ -10,7 +10,7 @@ This document provides detailed reference for all Camel-Kit commands.
   - [camel-kit catalog](#camel-kit-catalog)
   - [camel-kit version](#camel-kit-version)
 - [Slash Commands](#slash-commands)
-  - [/camel.context](#camelcontext)
+  - [/camel.project](#camelcontext)
   - [/camel.flow](#camelflow)
   - [/camel.flow](#camelroute)
   - [/camel.implement](#camelimplement)
@@ -56,6 +56,12 @@ camel-kit init --here [options]
 # Create new project for IBM Project Bob
 camel-kit init my-integration --ai bob
 
+# Create new project for Gemini CLI
+camel-kit init my-integration --ai gemini
+
+# Create new project for Claude Code
+camel-kit init my-integration --ai claude
+
 # Use specific Camel version
 camel-kit init my-integration --camel-version 4.10.0
 
@@ -73,12 +79,13 @@ Creates the following structure:
 ```
 my-integration/
 ├── <flow-name>.camel.yaml   # Generated routes (after /camel.implement)
+├── application.properties   # Component config & dependencies (camel.jbang.dependencies)
 ├── test/                    # Generated Citrus tests
 │   ├── data/                # Test data files
 │   ├── *.camel.it.yaml      # Test files
-│   └── jbang.properties     # Test dependencies
+│   └── jbang.properties     # Test dependencies (Citrus)
 ├── .bob/commands/           # AI agent slash commands
-│   ├── camel.context.md
+│   ├── camel.project.md
 │   ├── camel.flow.md
 │   ├── camel.flow.md
 │   ├── camel.implement.md
@@ -87,7 +94,7 @@ my-integration/
 └── .camel-kit/
     ├── config.yaml          # Project configuration
     ├── constitution.md      # Best practices
-    ├── context.md           # Integration landscape (optional)
+    ├── project.md           # Integration landscape (optional)
     ├── flows/               # Flow definitions (1 flow = 1 route)
     │   └── <flow-name>/
     │       ├── flow.md      # Business-level flow definition
@@ -110,11 +117,13 @@ camel-kit agents
 **Output:**
 
 ```
-┌────────┬──────────────────┬──────────────────┬───────────┐
-│ Agent  │ Name             │ Commands Folder  │ Status    │
-├────────┼──────────────────┼──────────────────┼───────────┤
-│ bob    │ IBM Project Bob  │ .bob/commands/   │ Available │
-└────────┴──────────────────┴──────────────────┴───────────┘
+┌────────┬──────────────────┬────────────────────┬───────────┐
+│ Agent  │ Name             │ Commands Folder    │ Status    │
+├────────┼──────────────────┼────────────────────┼───────────┤
+│ bob    │ IBM Project Bob  │ .bob/commands/     │ Available │
+│ gemini │ Gemini CLI       │ .gemini/commands/  │ Available │
+│ claude │ Claude Code      │ .claude/commands/  │ Available │
+└────────┴──────────────────┴────────────────────┴───────────┘
 ```
 
 ---
@@ -182,14 +191,14 @@ camel-kit version
 
 These commands are used within your AI coding assistant after project initialization.
 
-### /camel.context
+### /camel.project
 
 **(Optional)** Define your integration landscape and identify all flows.
 
 **Usage:**
 
 ```
-/camel.context
+/camel.project
 ```
 
 **Interactive flow:**
@@ -200,7 +209,7 @@ These commands are used within your AI coding assistant after project initializa
 
 **Output:**
 
-- Saves to `.camel-kit/context.md`
+- Saves to `.camel-kit/project.md`
 
 ---
 
@@ -316,16 +325,19 @@ Generated YAML follows Kaoto requirements:
 **Running generated routes:**
 
 ```bash
-# Direct execution
-camel run order-ingestion.camel.yaml
-
-# With environment variables
-KAFKA_BROKERS=localhost:9092 camel run order-ingestion.camel.yaml
+# Run with application.properties (includes camel.jbang.dependencies)
+camel run order-ingestion.camel.yaml application.properties
 
 # Export to Maven project
 camel export order-ingestion.camel.yaml \
   --runtime quarkus \
   --gav com.example:my-integration:1.0.0
+```
+
+Dependencies are configured in `application.properties`:
+```properties
+camel.jbang.dependencies=org.postgresql:postgresql:42.7.3,\
+org.apache.commons:commons-dbcp2:2.12.0
 ```
 
 ---
@@ -422,7 +434,7 @@ camel-kit catalog search kafka         # Search catalog
 camel-kit agents                       # List AI agents
 
 # Slash commands (in AI assistant)
-/camel.context                         # Define landscape (optional)
+/camel.project                         # Define landscape (optional)
 /camel.flow order-ingestion            # Define flow (business level)
 /camel.flow order-ingestion           # Design route (technical level)
 /camel.implement order-ingestion       # Generate YAML

@@ -1,8 +1,8 @@
 # /camel.validate
 
-You are validating the user's route specifications. Follow these steps exactly.
+You are validating the user's Camel routes and specifications. Follow these steps exactly.
 
-The user runs: `/camel.validate` or `/camel.validate <route-name>`
+The user runs: `/camel.validate` or `/camel.validate <flow-name>`
 
 ---
 
@@ -11,28 +11,90 @@ The user runs: `/camel.validate` or `/camel.validate <route-name>`
 Read these files:
 - `.camel-kit/config.yaml` - for Camel version
 - `.camel-kit/constitution.md` - for rules to enforce
-- `.camel-kit/routes/*.md` - all route specifications
+- `.camel-kit/flows/*/flow.md` - all flow specifications
 - `.camel-kit/.cache/components-*.json` - component catalog
 - `.camel-kit/.cache/kamelets-*.json` - Kamelet catalog
+- `*.camel.yaml` - generated route files
+- `application.properties` - configuration file
 
-If validating a specific route, only load that route file.
+If validating a specific flow, only load that flow's files.
 
 ---
 
-## Step 2: Run Validation Checks
+## Step 2: YAML Schema Validation
 
-For each route, check the following:
+**CRITICAL**: Validate generated YAML files against the Camel YAML DSL schema.
 
-### Completeness Checks
+### 2.1 Fetch Schema (if not cached)
+
+The JSON schema is in the `camel-yaml-dsl` JAR:
+- **GroupId**: `org.apache.camel`
+- **ArtifactId**: `camel-yaml-dsl`
+- **Version**: Use version from `.camel-kit/config.yaml`
+- **Schema path**: `schema/camelYamlDsl.json` inside the JAR
+
+To extract the schema:
+```bash
+# Download JAR and extract schema
+mvn dependency:copy -Dartifact=org.apache.camel:camel-yaml-dsl:{{CAMEL_VERSION}}:jar -DoutputDirectory=.camel-kit/.cache
+unzip -p .camel-kit/.cache/camel-yaml-dsl-{{CAMEL_VERSION}}.jar schema/camelYamlDsl.json > .camel-kit/.cache/camelYamlDsl.json
+```
+
+Or use `camel` CLI to validate directly:
+```bash
+camel run --check <flow-name>.camel.yaml application.properties
+```
+
+### 2.2 Validate Each YAML File
+
+For each `*.camel.yaml` file:
+
+1. **Syntax validation**: Parse YAML and check for syntax errors
+2. **Schema validation**: Validate against `camelYamlDsl.json` schema
+3. **Property placeholders**: Check that all `{{property}}` references exist in `application.properties`
+
+Report schema validation errors:
+```
+== YAML SCHEMA VALIDATION ==
+✅ order-processing.camel.yaml: Valid YAML syntax
+✅ order-processing.camel.yaml: Schema validation passed
+❌ order-processing.camel.yaml: Missing property 'kafka.topic.orders' in application.properties
+```
+
+---
+
+## Step 3: Run Camel Validation
+
+Use the Camel CLI to validate the route:
+
+```bash
+camel run --check <flow-name>.camel.yaml application.properties
+```
+
+This will:
+- Parse the YAML
+- Resolve property placeholders
+- Validate component URIs
+- Check for missing dependencies
+
+Report any errors from `camel run --check`.
+
+---
+
+## Step 4: Completeness Checks
+
+For each flow, check the following:
 
 | Check | Pass if |
 |-------|---------|
-| Source defined | Route has a source section with component/Kamelet |
-| Sink defined | Route has a sink section |
-| Error handling | Route declares error strategy |
-| Data format | Input format is specified |
+| Source defined | Route has a `from:` section |
+| Sink defined | Route has `to:` or ends with producer |
+| Error handling | Route declares `errorHandler:` |
+| Route ID | Route has `id:` property |
 
-### Correctness Checks
+---
+
+## Step 5: Correctness Checks
 
 | Check | Pass if |
 |-------|---------|
@@ -41,62 +103,81 @@ For each route, check the following:
 | Required options | All required parameters are provided |
 | Expression syntax | Simple/JSONPath expressions are valid |
 
-### Constitution Checks
+---
+
+## Step 6: Constitution Checks
 
 | Check | Pass if |
 |-------|---------|
 | Naming convention | Route ID follows `domain-action` pattern |
-| Circuit breaker | External calls have resilience pattern |
+| Clean routes | No connection details in YAML (use application.properties) |
 | Error handling | Every route has error strategy |
 | Secrets | No hardcoded passwords/keys |
 
-### Dependency Checks
+---
+
+## Step 7: Configuration Checks
+
+Validate `application.properties`:
 
 | Check | Pass if |
 |-------|---------|
-| direct: endpoints | All referenced routes exist |
-| No circular deps | Routes don't create infinite loops |
+| Component config | Uses `camel.component.<name>.<prop>` pattern |
+| Bean definitions | Uses `#class:` prefix for bean instantiation |
+| Property references | All `{{placeholder}}` values are defined |
 
 ---
 
-## Step 3: Show Results
+## Step 8: Show Results
 
 Present results in this format:
 
 ```
 🔍 Validating camel-kit specifications...
 
+== YAML SCHEMA VALIDATION ==
+✅ order-processing.camel.yaml: Valid YAML syntax
+✅ order-processing.camel.yaml: Schema validation passed
+✅ order-processing.camel.yaml: All properties resolved
+
+== CAMEL VALIDATION ==
+✅ camel run --check: Route compiles successfully
+✅ Components: kafka, sql - valid
+✅ Properties: All placeholders resolved
+
 == COMPLETENESS ==
-✅ order-ingestion: source defined
-✅ order-ingestion: sink defined
-✅ order-ingestion: error handling defined
-✅ order-ingestion: data format specified
+✅ order-processing: source defined (kafka)
+✅ order-processing: sink defined (sql)
+✅ order-processing: error handling defined (deadLetterChannel)
+✅ order-processing: route ID present
 
 == CORRECTNESS ==
-✅ kafka component valid (Camel 4.x)
-✅ jpa component valid
+✅ kafka component valid (Camel {{CAMEL_VERSION}})
+✅ sql component valid
 ✅ All required options provided
 
 == CONSTITUTION ==
 ✅ Route naming follows convention
-✅ Circuit breaker on external calls
+✅ Clean route (no connection details in YAML)
 ✅ No hardcoded secrets
 
-== DEPENDENCIES ==
-✅ All direct: endpoints have routes
-✅ No circular dependencies
+== CONFIGURATION ==
+✅ application.properties: Component-level config used
+✅ application.properties: Bean definitions with #class: prefix
+✅ application.properties: All properties defined
 ```
 
 ---
 
-## Step 4: Handle Failures
+## Step 9: Handle Failures
 
 If any checks fail, show:
 
 ```
-== COMPLETENESS ==
-✅ order-ingestion: source defined
-❌ order-ingestion: error handling NOT defined
+== YAML SCHEMA VALIDATION ==
+❌ order-processing.camel.yaml: Schema validation failed
+   Line 15: Unknown property 'brokers' on kafka endpoint
+   Hint: Use camel.component.kafka.brokers in application.properties instead
 ```
 
 At the end, summarize:
@@ -107,21 +188,22 @@ At the end, summarize:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Errors (must fix):
-1. order-ingestion: Add error handling
-   → Update with: /camel.route order-ingestion
+1. order-processing.camel.yaml: Schema validation error
+   Line 15: Unknown property 'brokers'
+   → Move to application.properties: camel.component.kafka.brokers=localhost:9092
 
-2. Missing route: inventory-lookup
-   → Create with: /camel.route inventory-lookup
+2. Missing property: kafka.topic.orders
+   → Add to application.properties: kafka.topic.orders=orders
 
 Warnings (recommended):
-1. order-ingestion: Consider adding schema validation
+1. Consider adding circuit breaker for external calls
 
 Run /camel.validate again after fixes.
 ```
 
 ---
 
-## Step 5: Handle Success
+## Step 10: Handle Success
 
 If all checks pass:
 
@@ -130,14 +212,17 @@ If all checks pass:
 ✅ VALIDATION PASSED
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-All routes are valid and ready for generation.
+All routes are valid and ready to run.
 
-Next step: /camel.generate
+Next steps:
+  1. Start external services: docker compose up -d
+  2. Run the integration: ./run.sh
+  3. Generate tests: /camel.test <flow-name>
 ```
 
 ---
 
-## Step 6: Save Report
+## Step 11: Save Report
 
 Save a validation report to `.camel-kit/validation-report.md`:
 
@@ -145,29 +230,62 @@ Save a validation report to `.camel-kit/validation-report.md`:
 # Validation Report
 
 Generated: [timestamp]
+Camel Version: {{CAMEL_VERSION}}
 
 ## Summary
 
 | Status | Count |
 |--------|-------|
-| ✅ Passed | 12 |
+| ✅ Passed | 15 |
 | ❌ Errors | 0 |
 | ⚠️ Warnings | 1 |
 
+## YAML Schema Validation
+
+| File | Status | Details |
+|------|--------|---------|
+| order-processing.camel.yaml | ✅ | Valid |
+
 ## Routes
 
-### order-ingestion
+### order-processing
 
 | Check | Status | Details |
 |-------|--------|---------|
-| Source | ✅ | kafka:orders |
-| Sink | ✅ | jpa:Order |
-| Error Handling | ✅ | DLC → kafka:orders-dlq |
+| YAML Schema | ✅ | Valid against camelYamlDsl.json |
+| Camel Check | ✅ | camel run --check passed |
+| Source | ✅ | kafka:{{kafka.topic.orders}} |
+| Sink | ✅ | sql:INSERT INTO... |
+| Error Handling | ✅ | deadLetterChannel |
 | Constitution | ✅ | All rules pass |
+
+## Configuration
+
+### application.properties
+
+| Check | Status |
+|-------|--------|
+| Component config | ✅ camel.component.kafka.brokers |
+| Bean definitions | ✅ camel.beans.dataSource=#class:... |
+| Properties | ✅ All placeholders defined |
 ```
 
 Confirm:
 
 ```
 Report saved: .camel-kit/validation-report.md
+```
+
+---
+
+## Quick Validation Command
+
+For quick validation without full report, suggest:
+
+```bash
+# Quick syntax check
+camel run --check order-processing.camel.yaml application.properties
+
+# Or validate all YAML files
+for f in *.camel.yaml; do camel run --check "$f" application.properties; done
 ```

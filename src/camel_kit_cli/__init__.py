@@ -17,7 +17,7 @@ from rich.text import Text
 
 from . import catalog as catalog_module
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 # Console for rich output
 console = Console()
@@ -94,24 +94,26 @@ AGENT_CONFIG = {
         "install_url": None,  # IDE-based, no CLI install
         "requires_cli": False,
         "description": "IBM's AI-powered development assistant",
+        "arg_placeholder": "$ARGUMENTS",
     },
-    # Future agents (commented out for now)
-    # "claude": {
-    #     "name": "Claude Code",
-    #     "folder": ".claude/commands",
-    #     "file_format": "md",
-    #     "install_url": "https://docs.anthropic.com/en/docs/claude-code",
-    #     "requires_cli": True,
-    #     "description": "Anthropic's Claude coding assistant",
-    # },
-    # "copilot": {
-    #     "name": "GitHub Copilot",
-    #     "folder": ".github/agents",
-    #     "file_format": "md",
-    #     "install_url": None,
-    #     "requires_cli": False,
-    #     "description": "GitHub's AI pair programmer",
-    # },
+    "gemini": {
+        "name": "Gemini CLI",
+        "folder": ".gemini/commands",
+        "file_format": "toml",
+        "install_url": "https://github.com/google-gemini/gemini-cli",
+        "requires_cli": True,
+        "description": "Google's Gemini CLI for AI-assisted development",
+        "arg_placeholder": "{{args}}",
+    },
+    "claude": {
+        "name": "Claude Code",
+        "folder": ".claude/commands",
+        "file_format": "md",
+        "install_url": "https://docs.anthropic.com/en/docs/claude-code",
+        "requires_cli": True,
+        "description": "Anthropic's Claude Code CLI for AI-assisted development",
+        "arg_placeholder": "$ARGUMENTS",
+    },
 }
 
 # CLI app
@@ -132,6 +134,46 @@ def main_callback(ctx: typer.Context) -> None:
 def get_templates_dir() -> Path:
     """Get the templates directory path."""
     return Path(__file__).parent / "templates"
+
+
+def convert_md_to_toml(md_content: str, command_name: str) -> str:
+    """Convert a markdown command file to TOML format for Gemini CLI.
+
+    TOML format:
+    description = "Brief description"
+    prompt = \"\"\"
+    The prompt content here
+    \"\"\"
+    """
+    import re
+
+    # Extract description from first heading or first paragraph
+    lines = md_content.strip().split('\n')
+    description = f"Camel-Kit {command_name} command"
+
+    # Look for a description in the first few lines
+    for line in lines[:10]:
+        if line.startswith('# /camel.'):
+            # Extract from title
+            continue
+        elif line.strip() and not line.startswith('#') and not line.startswith('---'):
+            # First non-empty, non-heading line
+            description = line.strip()[:100]  # Limit to 100 chars
+            break
+
+    # Replace $ARGUMENTS with {{args}} for Gemini
+    prompt_content = md_content.replace('$ARGUMENTS', '{{args}}')
+
+    # Escape any triple quotes in the content
+    prompt_content = prompt_content.replace('"""', '\\"\\"\\"')
+
+    toml_content = f'''description = "{description}"
+
+prompt = """
+{prompt_content}
+"""
+'''
+    return toml_content
 
 
 def get_agent_choices() -> list[str]:
@@ -237,13 +279,25 @@ def init(
 
     # Copy command files to agent directory
     commands_templates = templates_dir / "commands"
+    file_format = agent.get("file_format", "md")
+
     if commands_templates.exists():
         for template_file in commands_templates.glob("*.md"):
-            dest_file = commands_dir / f"camel.{template_file.stem}.md"
             content = template_file.read_text()
             # Substitute placeholders
             content = content.replace("{{CAMEL_VERSION}}", camel_version)
             content = content.replace("{{PROJECT_NAME}}", project_name)
+
+            # Handle different file formats based on agent
+            if file_format == "toml":
+                # Convert to TOML for Gemini CLI
+                command_name = template_file.stem
+                content = convert_md_to_toml(content, command_name)
+                dest_file = commands_dir / f"camel.{template_file.stem}.toml"
+            else:
+                # Default: markdown format
+                dest_file = commands_dir / f"camel.{template_file.stem}.md"
+
             dest_file.write_text(content)
             files_created.append(str(dest_file.relative_to(target_dir)))
 
@@ -268,11 +322,11 @@ def init(
         dest_file.write_text(content)
         files_created.append(str(dest_file.relative_to(target_dir)))
 
-    # Copy context template (legacy support or global overview)
-    context_template = templates_dir / "context.md"
-    if context_template.exists():
-        dest_file = camel_kit_dir / "context.md"
-        content = context_template.read_text()
+    # Copy project template (for /camel.project command output)
+    project_template = templates_dir / "project.md"
+    if project_template.exists():
+        dest_file = camel_kit_dir / "project.md"
+        content = project_template.read_text()
         content = content.replace("{{PROJECT_NAME}}", project_name)
         content = content.replace("{{CAMEL_VERSION}}", camel_version)
         dest_file.write_text(content)
@@ -353,7 +407,7 @@ catalog:
     console.print()
     console.print("[bold]Next steps:[/bold]")
     console.print(f"  1. Open [cyan]{project_name}[/cyan] in {agent['name']}")
-    console.print("  2. Run [cyan]/camel.context[/cyan] to define your integration landscape [dim](optional)[/dim]")
+    console.print("  2. Run [cyan]/camel.project[/cyan] to define your integration project [dim](optional)[/dim]")
     console.print("  3. Run [cyan]/camel.flow <flow-name>[/cyan] to define and design a flow")
     console.print("  4. Run [cyan]/camel.implement <flow-name>[/cyan] to generate the Camel YAML")
     console.print()
@@ -368,15 +422,17 @@ def agents() -> None:
     table.add_column("Agent", style="cyan")
     table.add_column("Name", style="green")
     table.add_column("Commands Folder")
-    table.add_column("Status")
+    table.add_column("Format")
+    table.add_column("CLI Required")
 
     for key, config in AGENT_CONFIG.items():
-        status = "[green]Available[/green]"
+        cli_required = "[green]Yes[/green]" if config.get("requires_cli", False) else "[dim]No (IDE)[/dim]"
         table.add_row(
             key,
             config["name"],
             config["folder"],
-            status,
+            config.get("file_format", "md").upper(),
+            cli_required,
         )
 
     console.print(table)
