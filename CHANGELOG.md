@@ -7,15 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2025-02-13
+
+### Added
+
+- **Claude Code support**: Added Anthropic Claude Code as a supported AI agent
+  - Commands are generated in Markdown format (`.claude/commands/`)
+  - Uses `$ARGUMENTS` placeholder for arguments
+  - Requires `claude` CLI tool
+- YAML schema validation in `/camel.validate` using Camel YAML DSL schema
+  - Schema from `org.apache.camel:camel-yaml-dsl:{version}` JAR at `schema/camelYamlDsl.json`
+  - Validates syntax, schema compliance, and property placeholders
+  - Quick validation via `camel run --check <file>.camel.yaml application.properties`
+- `/camel.implement` now includes YAML schema validation step before saving
+
+### Changed
+
+- Renamed `/camel.context` to `/camel.project` for clarity
+- `/camel.project` now focuses only on business landscape (purpose, systems, integration goals)
+- Technical details (sources, sinks, components) moved to `/camel.flow` command
+- Removed test generation prompt from `/camel.implement` (use `/camel.test` instead)
+- Updated `camel run` examples to include `application.properties` file
+- `/camel.implement` now generates `application.properties` with component-level configuration
+- `/camel.implement` now generates `camel.jbang.dependencies` in `application.properties` for Maven dependencies
+- `/camel.validate` now checks generated YAML files against schema and application.properties
+- Updated "Data Format Discipline" constitution principle: unmarshal is now guidance-based (when needed) instead of mandatory
+- Clarified validation order: schema validation (JSON Schema, XSD) happens before unmarshal; bean validation after
+- **Improved `/camel.test` command**:
+  - Testcontainers are now mandatory for external systems (Kafka, PostgreSQL, MongoDB)
+  - Added `application.test.properties` generation with testcontainer variables
+  - Improved Citrus YAML syntax with correct property names
+  - Added testcontainer-exposed variables reference table
+  - Better structured test template with infrastructure setup, test execution, and cleanup phases
+
+### Fixed
+
+- Fixed Camel JBang configuration: use `camel.component.<name>.<prop>` for component settings
+- Fixed bean definitions: use `#class:` prefix for bean instantiation
+- Fixed property loading: `application.properties` must be included in `camel run` command
+- Fixed Citrus `camel.jbang.run` YAML schema: use `files` list instead of `integration.file`
+- Removed invalid `systemProperties` property from Citrus test examples
+- Fixed `onException` YAML syntax: `handled` requires expression format (`constant: expression: "true"`), not boolean
+
 ## [0.1.1] - 2025-02-12
+
+### Added
+
+- **Gemini CLI support**: Added Google Gemini CLI as a supported AI agent
+  - Commands are generated in TOML format (`.gemini/commands/`)
+  - Uses `{{args}}` placeholder for arguments
+  - Requires `gemini` CLI tool
 
 ### Changed
 
 - Merged `/camel.flow` and `/camel.route` commands into single `/camel.flow` command
 - Renamed `/camel.generate` to `/camel.implement` for clarity
-- Simplified `/camel.context` to ask only high-level questions (purpose, systems, flows)
+- Simplified `/camel.project` to ask only high-level questions (purpose, systems, flows)
 - Updated `/camel.flow` to ask questions one at a time interactively
-- Technical details (protocols, EIPs, error handling) now captured in `/camel.flow` instead of `/camel.context`
+- Technical details (protocols, EIPs, error handling) now captured in `/camel.flow` instead of `/camel.project`
 
 ### Fixed
 
@@ -41,7 +90,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support for IBM Project Bob AI agent
 - Slash commands for AI-assisted integration design:
   - `/camel.init` - Bootstrap project with constitution and catalog
-  - `/camel.context` - Define integration landscape
+  - `/camel.project` - Define integration landscape
   - `/camel.route` - Design individual routes with EIP guidance
   - `/camel.validate` - Check specifications against catalog and constitution
   - `/camel.test` - Generate Citrus integration tests
@@ -57,6 +106,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Heavily inspired by [GitHub Spec-Kit](https://github.com/github/spec-kit)
 - Built for the Apache Camel community
 
-[Unreleased]: https://github.com/luigidemasi/camel-kit/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/luigidemasi/camel-kit/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/luigidemasi/camel-kit/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/luigidemasi/camel-kit/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/luigidemasi/camel-kit/releases/tag/v0.1.0

@@ -868,6 +868,18 @@ steps:
 
 ### onException (Type-Specific Handling)
 
+**IMPORTANT:** The `handled` and `continued` properties require an expression, not a boolean.
+
+```yaml
+# WRONG - will cause syntax error
+handled: true
+
+# CORRECT - use constant expression
+handled:
+  constant:
+    expression: "true"
+```
+
 **YAML:**
 ```yaml
 - route:
@@ -879,7 +891,9 @@ steps:
         - onException:
             exception:
               - com.example.ValidationException
-            handled: true
+            handled:
+              constant:
+                expression: "true"
             steps:
               - log:
                   message: "Validation failed: ${exception.message}"
@@ -891,7 +905,9 @@ steps:
               - java.sql.SQLException
             maximumRedeliveries: 3
             redeliveryDelay: 5000
-            handled: true
+            handled:
+              constant:
+                expression: "true"
             steps:
               - to:
                   uri: kafka:orders-dlq
@@ -901,6 +917,19 @@ steps:
             uri: bean:orderValidator
         - to:
             uri: jpa:Order
+```
+
+**Dynamic handling based on condition:**
+```yaml
+- onException:
+    exception:
+      - java.lang.Exception
+    handled:
+      simple:
+        expression: "${exception.class.simpleName} == 'ValidationException'"
+    steps:
+      - to:
+          uri: kafka:errors
 ```
 
 ### Circuit Breaker (Resilience4j)

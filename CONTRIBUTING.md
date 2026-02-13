@@ -87,13 +87,13 @@ camel-kit/
 │   └── templates/               # Template files
 │       ├── commands/            # Slash command definitions
 │       │   ├── init.md
-│       │   ├── context.md
+│       │   ├── project.md
 │       │   ├── route.md
 │       │   ├── validate.md
 │       │   ├── test.md
 │       │   └── generate.md
 │       ├── constitution.md      # Best practices template
-│       ├── context.md           # Integration context template
+│       ├── project.md           # Integration context template
 │       ├── route.md             # Route specification template
 │       ├── yaml-generation-guide.md
 │       └── validation-guide.md

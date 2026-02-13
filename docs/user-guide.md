@@ -63,22 +63,24 @@ camel-kit --help
 ## Quick Start
 
 ```bash
-# 1. Create a new project
-camel-kit init order-processing --ai bob
+# 1. Create a new project (choose your AI assistant)
+camel-kit init order-processing --ai bob      # IBM Project Bob
+camel-kit init order-processing --ai gemini   # Google Gemini CLI
+camel-kit init order-processing --ai claude   # Anthropic Claude Code
 
-# 2. Open in your AI assistant (e.g., IBM Project Bob)
+# 2. Open in your AI assistant
 cd order-processing
 
 # 3. Use slash commands in the AI assistant:
-#    /camel.context     - (Optional) Define integration landscape
+#    /camel.project     - (Optional) Define integration landscape
 #    /camel.flow        - Define flow (business level)
 #    /camel.flow       - Design route (technical level)
 #    /camel.implement   - Generate Camel YAML
 #    /camel.validate    - Check specifications
 #    /camel.test        - Generate integration tests
 
-# 4. Run the generated route
-camel run order-ingestion.camel.yaml
+# 4. Run the generated route (include application.properties for config)
+camel run order-ingestion.camel.yaml application.properties
 ```
 
 ---
@@ -91,7 +93,7 @@ flowchart TB
         A[camel-kit init]
     end
     subgraph "AI Assistant"
-        B["/camel.context<br/>(optional)"]
+        B["/camel.project<br/>(optional)"]
         C["/camel.flow"]
         D["/camel.flow"]
         E["/camel.implement"]
@@ -106,7 +108,7 @@ flowchart TB
 | Step | Command | Purpose |
 |------|---------|---------|
 | 1 | `camel-kit init` | Create project structure and fetch catalogs |
-| 2 | `/camel.context` | (Optional) Define integration landscape |
+| 2 | `/camel.project` | (Optional) Define integration landscape |
 | 3 | `/camel.flow` | Define flow: source, sink, business rules |
 | 4 | `/camel.flow` | Design route: components, EIPs, error handling |
 | 5 | `/camel.implement` | Generate Kaoto-compatible Camel YAML |
@@ -226,16 +228,19 @@ Generated YAML follows Kaoto requirements:
 ### Running Generated Routes
 
 ```bash
-# With Camel JBang
-camel run order-ingestion.camel.yaml
-
-# With environment variables
-KAFKA_BROKERS=localhost:9092 camel run order-ingestion.camel.yaml
+# With Camel JBang (dependencies from application.properties)
+camel run order-ingestion.camel.yaml application.properties
 
 # Export to Maven project
 camel export order-ingestion.camel.yaml \
   --runtime quarkus \
   --gav com.example:my-integration:1.0.0
+```
+
+Dependencies are configured in `application.properties`:
+```properties
+camel.jbang.dependencies=org.postgresql:postgresql:42.7.3,\
+org.apache.commons:commons-dbcp2:2.12.0
 ```
 
 ---

@@ -6,7 +6,7 @@
 
 **Camel-Kit is heavily inspired by [GitHub Spec-Kit](https://github.com/github/spec-kit)** — a brilliant project by the GitHub team that pioneered the concept of spec-driven development with AI coding assistants. We're grateful to the spec-kit authors for their innovative approach and for making their work available to the community. Their elegant design patterns and philosophy have directly shaped how Camel-Kit guides developers through integration design.
 
-Camel-Kit adapts these ideas for the Apache Camel ecosystem, providing structured slash commands for AI coding assistants (like IBM Project Bob) to help you design, validate, and generate Camel routes following best practices.
+Camel-Kit adapts these ideas for the Apache Camel ecosystem, providing structured slash commands for AI coding assistants (IBM Project Bob, Gemini CLI, Claude Code, and more) to help you design, validate, and generate Camel routes following best practices.
 
 **Workflow: 1 Flow = 1 Route** — Each integration flow maps to a single Camel route, making it easy to design, implement, and maintain your integrations.
 
@@ -16,7 +16,7 @@ flowchart LR
         A[camel-kit init]
     end
     subgraph "AI Assistant"
-        B["/camel.context"]
+        B["/camel.project"]
         C["/camel.flow"]
         D["/camel.implement"]
     end
@@ -81,8 +81,14 @@ pip install git+https://github.com/luigidemasi/camel-kit.git
 ### Initialize a Project
 
 ```bash
-# Create new integration project
+# Create new integration project with IBM Project Bob
 camel-kit init my-integration --ai bob
+
+# Create new integration project with Gemini CLI
+camel-kit init my-integration --ai gemini
+
+# Create new integration project with Claude Code
+camel-kit init my-integration --ai claude
 
 # With specific Camel version
 camel-kit init my-integration --ai bob --camel-version 4.10.0
@@ -96,7 +102,7 @@ camel-kit init --here --ai bob
 Open your project in IBM Project Bob (or other supported AI assistant) and use the slash commands:
 
 ```
-/camel.context     (Optional) Define integration landscape and identify flows
+/camel.project     (Optional) Define integration landscape and identify flows
 /camel.flow        Define and design the integration flow
 /camel.implement   Generate Kaoto-ready YAML code
 /camel.validate    Check specifications and compliance
@@ -112,18 +118,19 @@ Open your project in IBM Project Bob (or other supported AI assistant) and use t
 
 ## Supported AI Agents
 
-| Agent | Status | Commands Folder |
-|-------|--------|-----------------|
-| [IBM Project Bob](https://www.ibm.com/products/bob) | ✅ Available | `.bob/commands/` |
-| Claude Code | 🔜 Planned | `.claude/commands/` |
-| GitHub Copilot | 🔜 Planned | `.github/agents/` |
-| Cursor | 🔜 Planned | `.cursor/commands/` |
+| Agent | Status | Commands Folder | Format |
+|-------|--------|-----------------|--------|
+| [IBM Project Bob](https://www.ibm.com/products/bob) | ✅ Available | `.bob/commands/` | Markdown |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✅ Available | `.gemini/commands/` | TOML |
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | ✅ Available | `.claude/commands/` | Markdown |
+| GitHub Copilot | 🔜 Planned | `.github/agents/` | Markdown |
+| Cursor | 🔜 Planned | `.cursor/commands/` | Markdown |
 
 ## Commands Overview
 
 | Command | Purpose |
 |---------|---------|
-| `/camel.context` | (Optional) Define integration landscape and identify all flows |
+| `/camel.project` | (Optional) Define integration landscape and identify all flows |
 | `/camel.flow` | Define and design the integration flow (business + technical) |
 | `/camel.implement` | Generate Camel YAML DSL from the flow definition |
 | `/camel.validate` | Check completeness and constitution compliance |
@@ -152,12 +159,13 @@ After initialization:
 ```
 my-integration/
 ├── <flow-name>.camel.yaml      # Generated Camel route (after /camel.implement)
+├── application.properties      # Component config & dependencies (camel.jbang.dependencies)
 ├── test/                       # Generated Citrus tests (Camel JBang convention)
 │   ├── *.camel.it.yaml         # Test files
 │   ├── data/                   # Test data files
-│   └── jbang.properties        # Test dependencies
+│   └── jbang.properties        # Test dependencies (Citrus)
 ├── .bob/commands/              # AI agent slash commands
-│   ├── camel.context.md
+│   ├── camel.project.md
 │   ├── camel.flow.md
 │   ├── camel.implement.md
 │   ├── camel.validate.md
@@ -165,7 +173,7 @@ my-integration/
 └── .camel-kit/                 # Specifications and configuration
     ├── config.yaml             # Project configuration
     ├── constitution.md         # Best practices
-    ├── context.md              # Integration landscape (optional)
+    ├── project.md              # Integration landscape (optional)
     ├── flows/                  # Flow definitions (1 flow = 1 route)
     │   └── <flow-name>/
     │       └── flow.md         # Complete flow definition
@@ -186,7 +194,7 @@ camel-kit init order-processing --ai bob
 cd order-processing
 
 # 3. (Optional) Define integration landscape:
-#    /camel.context
+#    /camel.project
 #    - Identify systems, data formats, and flows
 
 # 4. Define and design the flow:
@@ -204,8 +212,8 @@ cd order-processing
 #    /camel.validate
 #    /camel.test order-ingestion
 
-# 7. Open in Kaoto or run:
-camel run order-ingestion.camel.yaml
+# 7. Open in Kaoto or run (with application.properties for config):
+camel run order-ingestion.camel.yaml application.properties
 ```
 
 ## Output Example

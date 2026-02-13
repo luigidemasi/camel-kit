@@ -160,7 +160,7 @@ flowchart LR
 ## 9. Dependencies
 
 ```properties
-# jbang.properties
+# In application.properties
 camel.jbang.dependencies=org.postgresql:postgresql:42.7.3
 ```
 
