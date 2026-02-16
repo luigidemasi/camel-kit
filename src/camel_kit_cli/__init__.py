@@ -17,7 +17,7 @@ from rich.text import Text
 
 from . import catalog as catalog_module
 
-__version__ = "0.1.1"
+__version__ = "0.1.3"
 
 # Console for rich output
 console = Console()
@@ -375,9 +375,10 @@ catalog:
     config_file.write_text(config_content)
     files_created.append(str(config_file.relative_to(target_dir)))
 
-    # Fetch component and Kamelet catalogs
+    # Fetch component and Kamelet catalogs, and YAML DSL schema
     component_count = 0
     kamelet_count = 0
+    schema_fetched = False
     if fetch_catalog:
         try:
             comp_catalog = catalog_module.fetch_component_catalog(camel_version, target_dir)
@@ -389,12 +390,20 @@ catalog:
             kamelet_count = kam_catalog.get("kameletCount", 0)
         except Exception as e:
             console.print(f"[yellow]Warning:[/yellow] Could not fetch Kamelet catalog: {e}")
+        try:
+            catalog_module.fetch_yaml_schema(camel_version, target_dir)
+            schema_fetched = True
+        except Exception as e:
+            console.print(f"[yellow]Warning:[/yellow] Could not fetch YAML DSL schema: {e}")
 
     # Success output
     console.print()
     success_msg = f"[green]✓[/green] Camel-Kit initialized for [bold]{project_name}[/bold]"
-    if fetch_catalog and (component_count > 0 or kamelet_count > 0):
-        success_msg += f"\n\n📦 Cached {component_count} components and {kamelet_count} Kamelets for Camel {camel_version}"
+    if fetch_catalog and (component_count > 0 or kamelet_count > 0 or schema_fetched):
+        success_msg += f"\n\n📦 Cached {component_count} components, {kamelet_count} Kamelets"
+        if schema_fetched:
+            success_msg += ", and YAML DSL schema"
+        success_msg += f" for Camel {camel_version}"
     elif not fetch_catalog:
         success_msg += f"\n\n[dim]Catalog not fetched (use 'camel-kit catalog fetch' when needed)[/dim]"
     console.print(Panel.fit(
@@ -495,6 +504,7 @@ def catalog(
         cache_dir = camel_kit_dir / ".cache"
         comp_cache = cache_dir / f"components-{camel_version}.json"
         kam_cache = cache_dir / f"kamelets-{camel_version.replace('.', '_')}.json"
+        schema_cache = cache_dir / f"camelYamlDsl-{camel_version}.json"
 
         console.print(Panel.fit(f"Catalog Status (Camel {camel_version})", border_style="blue"))
 
@@ -513,6 +523,11 @@ def catalog(
             console.print(f"  [dim]Fetched: {data.get('fetchedAt', 'unknown')}[/dim]")
         else:
             console.print("[yellow]○[/yellow] Kamelets: not cached")
+
+        if schema_cache.exists():
+            console.print(f"[green]✓[/green] YAML DSL Schema: cached")
+        else:
+            console.print("[yellow]○[/yellow] YAML DSL Schema: not cached")
 
         console.print()
         console.print("Use [cyan]camel-kit catalog fetch[/cyan] to download catalogs")
@@ -539,6 +554,14 @@ def catalog(
             console.print(f"[green]✓[/green] Kamelets: {kam_catalog.get('kameletCount', 0)}")
         except Exception as e:
             console.print(f"[red]✗[/red] Kamelets: {e}")
+
+        try:
+            catalog_module.fetch_yaml_schema(
+                camel_version, project_dir, force_refresh=force
+            )
+            console.print("[green]✓[/green] YAML DSL Schema")
+        except Exception as e:
+            console.print(f"[red]✗[/red] YAML DSL Schema: {e}")
 
     elif action == "search":
         if not query:
