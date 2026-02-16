@@ -30,6 +30,12 @@ GITHUB_API_URL = "https://api.github.com"
 KAMELETS_REPO = "apache/camel-kamelets"
 KAMELETS_RAW_URL = "https://raw.githubusercontent.com/apache/camel-kamelets"
 
+# GitHub raw URL for Camel YAML DSL schema
+CAMEL_YAML_SCHEMA_URL = (
+    "https://raw.githubusercontent.com/apache/camel/camel-{version}/"
+    "dsl/camel-yaml-dsl/camel-yaml-dsl/src/generated/resources/schema/camelYamlDsl.json"
+)
+
 # Cache settings
 CACHE_DIR_NAME = ".cache"
 CACHE_EXPIRY_HOURS = 24
@@ -292,6 +298,59 @@ def fetch_kamelet_catalog(
     console.print(f"[green]✓[/green] Cached {len(kamelets)} Kamelets ({version_tag})")
 
     return catalog
+
+
+def fetch_yaml_schema(
+    version: str,
+    project_dir: Path,
+    force_refresh: bool = False,
+) -> dict[str, Any]:
+    """
+    Fetch the Camel YAML DSL schema from GitHub.
+
+    Downloads the official JSON schema for validating Camel YAML DSL files.
+
+    Args:
+        version: Camel version (e.g., "4.10.0")
+        project_dir: Project directory for caching
+        force_refresh: Force re-download even if cached
+
+    Returns:
+        The JSON schema as a dictionary
+    """
+    cache_dir = get_cache_dir(project_dir)
+    cache_file = cache_dir / f"camelYamlDsl-{version}.json"
+
+    # Check cache
+    if not force_refresh and is_cache_valid(cache_file):
+        console.print(f"[dim]Using cached YAML DSL schema (v{version})[/dim]")
+        return json.loads(cache_file.read_text())
+
+    # Build URL with version
+    schema_url = CAMEL_YAML_SCHEMA_URL.format(version=version)
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task(f"Fetching YAML DSL schema (v{version})...", total=None)
+
+        try:
+            response = httpx.get(schema_url, timeout=30, follow_redirects=True)
+            response.raise_for_status()
+            schema = response.json()
+        except httpx.HTTPError as e:
+            console.print(f"[red]Error:[/red] Failed to download YAML DSL schema: {e}")
+            raise
+
+        progress.update(task, description="Caching YAML DSL schema...")
+
+    # Save to cache
+    cache_file.write_text(json.dumps(schema, indent=2))
+    console.print(f"[green]✓[/green] Cached YAML DSL schema (v{version})")
+
+    return schema
 
 
 def parse_kamelet_yaml(content: str, name: str) -> dict[str, Any]:

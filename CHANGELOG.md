@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2025-02-13
+
+### Added
+
+- **YAML DSL Schema download**: Schema is now automatically fetched and cached during `camel-kit init`
+  - Cached alongside component and Kamelet catalogs in `.camel-kit/.cache/camelYamlDsl-{version}.json`
+  - Can be refreshed with `camel-kit catalog fetch --force`
+  - Schema status shown in `camel-kit catalog info`
+
+### Changed
+
+- **`/camel.implement` now uses component catalog** during YAML generation:
+  - New Step 3: Component Catalog Lookup before generating YAML
+  - Looks up each component in `.camel-kit/.cache/components-{version}.json`
+  - Verifies component exists and can be used as consumer/producer
+  - Identifies required vs optional options from `properties[*].required`
+  - Determines option placement: `kind: "path"` in URI, `kind: "parameter"` in parameters block
+  - Uses `componentProperties` from catalog for `camel.component.<name>.<prop>` configuration
+  - Generates Component Verification Report showing catalog lookup results
+
 ## [0.1.2] - 2025-02-13
 
 ### Added
@@ -15,11 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Commands are generated in Markdown format (`.claude/commands/`)
   - Uses `$ARGUMENTS` placeholder for arguments
   - Requires `claude` CLI tool
-- YAML schema validation in `/camel.validate` using Camel YAML DSL schema
-  - Schema from `org.apache.camel:camel-yaml-dsl:{version}` JAR at `schema/camelYamlDsl.json`
+- YAML schema validation in `/camel.validate` and `/camel.implement`
+  - Schema fetched from GitHub: `https://raw.githubusercontent.com/apache/camel/camel-{version}/dsl/camel-yaml-dsl/camel-yaml-dsl/src/generated/resources/schema/camelYamlDsl.json`
   - Validates syntax, schema compliance, and property placeholders
+  - **Auto-fix**: Automatically fixes common validation errors (handled expressions, property case, etc.)
   - Quick validation via `camel run --check <file>.camel.yaml application.properties`
-- `/camel.implement` now includes YAML schema validation step before saving
 
 ### Changed
 
@@ -106,7 +126,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Heavily inspired by [GitHub Spec-Kit](https://github.com/github/spec-kit)
 - Built for the Apache Camel community
 
-[Unreleased]: https://github.com/luigidemasi/camel-kit/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/luigidemasi/camel-kit/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/luigidemasi/camel-kit/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/luigidemasi/camel-kit/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/luigidemasi/camel-kit/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/luigidemasi/camel-kit/releases/tag/v0.1.0

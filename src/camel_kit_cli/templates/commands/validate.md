@@ -23,27 +23,28 @@ If validating a specific flow, only load that flow's files.
 
 ## Step 2: YAML Schema Validation
 
-**CRITICAL**: Validate generated YAML files against the Camel YAML DSL schema.
+**CRITICAL**: Validate generated YAML files against the Camel YAML DSL schema and auto-fix errors.
 
-### 2.1 Fetch Schema (if not cached)
+### 2.1 Load Schema
 
-The JSON schema is in the `camel-yaml-dsl` JAR:
-- **GroupId**: `org.apache.camel`
-- **ArtifactId**: `camel-yaml-dsl`
-- **Version**: Use version from `.camel-kit/config.yaml`
-- **Schema path**: `schema/camelYamlDsl.json` inside the JAR
+Load the Camel YAML DSL schema from the local cache:
 
-To extract the schema:
-```bash
-# Download JAR and extract schema
-mvn dependency:copy -Dartifact=org.apache.camel:camel-yaml-dsl:{{CAMEL_VERSION}}:jar -DoutputDirectory=.camel-kit/.cache
-unzip -p .camel-kit/.cache/camel-yaml-dsl-{{CAMEL_VERSION}}.jar schema/camelYamlDsl.json > .camel-kit/.cache/camelYamlDsl.json
+```
+Schema file: .camel-kit/.cache/camelYamlDsl-{{CAMEL_VERSION}}.json
 ```
 
-Or use `camel` CLI to validate directly:
-```bash
-camel run --check <flow-name>.camel.yaml application.properties
+Replace `{{CAMEL_VERSION}}` with the version from `.camel-kit/config.yaml` (e.g., `4.10.0`).
+
+If the schema file is not cached, fetch it from GitHub:
 ```
+Schema URL: https://raw.githubusercontent.com/apache/camel/camel-{{CAMEL_VERSION}}/dsl/camel-yaml-dsl/camel-yaml-dsl/src/generated/resources/schema/camelYamlDsl.json
+```
+
+Read the schema to understand:
+- Valid property names (watch for camelCase vs lowercase)
+- Required fields
+- Allowed values and types
+- Expression formats
 
 ### 2.2 Validate Each YAML File
 
@@ -51,14 +52,63 @@ For each `*.camel.yaml` file:
 
 1. **Syntax validation**: Parse YAML and check for syntax errors
 2. **Schema validation**: Validate against `camelYamlDsl.json` schema
-3. **Property placeholders**: Check that all `{{property}}` references exist in `application.properties`
+3. **Property types**: Check values match expected types
+4. **Expression formats**: Verify expressions use correct structure
+5. **Property placeholders**: Check that all `{{property}}` references exist in `application.properties`
 
-Report schema validation errors:
+### 2.3 Common Schema Errors and Fixes
+
+| Error | Wrong | Correct |
+|-------|-------|---------|
+| `handled` requires expression | `handled: true` | `handled: { constant: { expression: "true" } }` |
+| `continued` requires expression | `continued: true` | `continued: { constant: { expression: "true" } }` |
+| Wrong property case | `datasource:` | `dataSource:` |
+| Missing uri wrapper | `to: kafka:topic` | `to: { uri: "kafka:topic" }` |
+| Wrong exception format | `exception: MyEx` | `exception: [ "MyEx" ]` |
+| Invalid redeliveryPolicy | nested wrong | check schema for exact structure |
+
+### 2.4 Auto-Fix Validation Errors
+
+**IMPORTANT: If validation errors are found, automatically fix them and re-validate.**
+
 ```
 == YAML SCHEMA VALIDATION ==
+
+Fetching schema for Camel {{CAMEL_VERSION}}...
+Validating order-processing.camel.yaml...
+
+❌ Error 1: Property 'handled' at line 25
+   Expected: object (expression)
+   Found: boolean
+   → AUTO-FIX: Converting 'handled: true' to expression format
+
+❌ Error 2: Unknown property 'datasource' at line 42
+   Did you mean: 'dataSource'?
+   → AUTO-FIX: Renaming to 'dataSource'
+
+Applying fixes to order-processing.camel.yaml...
+Re-validating...
+
 ✅ order-processing.camel.yaml: Valid YAML syntax
-✅ order-processing.camel.yaml: Schema validation passed
-❌ order-processing.camel.yaml: Missing property 'kafka.topic.orders' in application.properties
+✅ order-processing.camel.yaml: Schema validation passed (2 errors fixed)
+✅ order-processing.camel.yaml: All properties resolved
+```
+
+### 2.5 Fix Loop
+
+Repeat validation until:
+- All errors are fixed, OR
+- An error cannot be auto-fixed (requires user input)
+
+For errors that cannot be auto-fixed, provide clear instructions:
+
+```
+❌ Error: Cannot auto-fix
+   Property 'customProcessor' references bean not defined
+
+   Manual fix required:
+   Add bean definition to application.properties:
+   camel.beans.customProcessor=#class:com.example.MyProcessor
 ```
 
 ---

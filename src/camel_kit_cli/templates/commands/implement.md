@@ -10,16 +10,18 @@ The user runs: `/camel.implement <flow-name>`
 
 Read these files in order:
 
-1. `.camel-kit/flows/[flow-name]/flow.md` - Flow definition
-2. `.camel-kit/flows/[flow-name]/flow.md` - Route design (REQUIRED)
+1. `.camel-kit/config.yaml` - Get Camel version
+2. `.camel-kit/flows/[flow-name]/flow.md` - Flow definition and route design (REQUIRED)
 3. `.camel-kit/templates/yaml-generation-guide.md` - YAML DSL rules (REQUIRED)
 4. `.camel-kit/constitution.md` - Quality principles
-5. `.camel-kit/.cache/components-*.json` - Component catalog
-6. `.camel-kit/.cache/kamelets-*.json` - Kamelet catalog
+5. `.camel-kit/.cache/components-{version}.json` - Component catalog (CRITICAL for correct options)
+6. `.camel-kit/.cache/kamelets-{version}.json` - Kamelet catalog
+7. `.camel-kit/.cache/camelYamlDsl-{version}.json` - YAML DSL schema
 
 **Error conditions:**
-- If `flow.md` does not exist: ERROR "Route design not found. Run /camel.route [flow-name] first."
+- If `flow.md` does not exist: ERROR "Route design not found. Run /camel.flow [flow-name] first."
 - If `yaml-generation-guide.md` does not exist: WARN and proceed with standard Camel YAML DSL.
+- If component catalog is missing: WARN "Component catalog not found. Run 'camel-kit catalog fetch' first."
 
 ---
 
@@ -55,9 +57,113 @@ If any gates are unchecked or failed, warn the user before proceeding.
 
 ---
 
-## Step 3: YAML Generation
+## Step 3: Component Catalog Lookup
 
-### 3.1 Read Generation Rules
+**CRITICAL: Before generating any YAML, look up each component in the catalog to ensure correct usage.**
+
+### 3.1 Identify Components from Flow Design
+
+Extract all Camel components mentioned in the flow design:
+- Source component (e.g., `kafka`, `file`, `timer`)
+- Sink component (e.g., `sql`, `kafka`, `http`)
+- Any intermediate components (e.g., `bean`, `log`)
+
+### 3.2 Look Up Each Component in Catalog
+
+For each component, read its entry from `.camel-kit/.cache/components-{version}.json`:
+
+```json
+{
+  "components": {
+    "kafka": {
+      "component": {
+        "name": "kafka",
+        "title": "Kafka",
+        "description": "...",
+        "producerOnly": false,
+        "consumerOnly": false
+      },
+      "componentProperties": {
+        "brokers": { "type": "string", "required": false, ... },
+        "groupId": { "type": "string", "required": false, ... }
+      },
+      "properties": {
+        "topic": { "type": "string", "required": true, "kind": "path", ... },
+        "brokers": { "type": "string", "required": false, "kind": "parameter", ... },
+        "groupId": { "type": "string", "required": false, "kind": "parameter", ... }
+      }
+    }
+  }
+}
+```
+
+### 3.3 Extract Key Information
+
+For each component, extract:
+
+| Information | Catalog Path | Use For |
+|-------------|--------------|---------|
+| Component name | `component.name` | Verify correct spelling |
+| Required options | `properties[*].required == true` | Must include in URI or parameters |
+| Path options | `properties[*].kind == "path"` | Include in URI path |
+| Parameter options | `properties[*].kind == "parameter"` | Include in `parameters:` or URI query |
+| Option types | `properties[*].type` | Correct value format |
+| Default values | `properties[*].defaultValue` | Only specify if different |
+| Component-level options | `componentProperties` | Goes in `application.properties` |
+
+### 3.4 Component Verification Report
+
+Show verification for each component:
+
+```
+Component Catalog Verification:
+
+KAFKA (source):
+  ✓ Component exists in catalog
+  ✓ Can be used as consumer (consumerOnly=false, producerOnly=false)
+  Required options: topic (path)
+  Component-level config: brokers, groupId, securityProtocol
+  → Use: kafka:{{kafka.topic.orders}}
+  → Config: camel.component.kafka.brokers=localhost:9092
+
+SQL (sink):
+  ✓ Component exists in catalog
+  ✓ Can be used as producer
+  Required options: query (path)
+  Component-level config: dataSource
+  → Use: sql:INSERT INTO...
+  → Config: camel.component.sql.dataSource=#dataSource
+```
+
+### 3.5 Option Placement Rules
+
+Based on catalog lookup, place options correctly:
+
+| Option Kind | Catalog Property | Where to Place |
+|-------------|------------------|----------------|
+| Path option | `kind: "path"` | In URI path: `kafka:mytopic` |
+| Endpoint parameter | `kind: "parameter"` | In URI query or `parameters:` block |
+| Component-level | In `componentProperties` | In `application.properties` as `camel.component.<name>.<prop>` |
+
+**Example based on catalog:**
+
+```yaml
+# Kafka: topic is path option, brokers is component-level
+from:
+  uri: "kafka:{{kafka.topic.orders}}"  # topic is path option
+  # brokers NOT here - it's component-level, goes in application.properties
+
+# SQL: query is path option, dataSource is component-level
+to:
+  uri: "sql:INSERT INTO orders VALUES (:#${body.id})"
+  # dataSource NOT here - it's component-level, goes in application.properties
+```
+
+---
+
+## Step 4: YAML Generation
+
+### 4.1 Read Generation Rules
 
 **CRITICAL**: Follow the rules in `.camel-kit/templates/yaml-generation-guide.md`:
 
@@ -68,9 +174,9 @@ If any gates are unchecked or failed, warn the user before proceeding.
 - Include route metadata (`id`, `description`)
 - Place error handlers at route level
 
-### 3.2 Generate Route
+### 4.2 Generate Route (Using Catalog)
 
-Generate the single route defined in `flow.md`:
+Generate the single route defined in `flow.md`, using component catalog information:
 
 **IMPORTANT**: Keep routes CLEAN - connection details go in `application.properties`, NOT in the route YAML.
 
@@ -124,7 +230,7 @@ Generate the single route defined in `flow.md`:
 
 Note: No `brokers=`, `dataSource=`, or other connection parameters in the route.
 
-### 3.3 File Output
+### 4.3 File Output
 
 Generate a single file named after the flow:
 
@@ -134,7 +240,7 @@ Generate a single file named after the flow:
 
 Example: `order-ingestion.camel.yaml`
 
-### 3.4 Generation Report
+### 4.4 Generation Report
 
 Show what was generated:
 
@@ -164,14 +270,87 @@ EXTERNAL SERVICES (docker-compose.yaml):
 
 ---
 
-## Step 4: YAML Validation
+## Step 5: YAML Schema Validation
 
-### 4.1 Kaoto Compatibility Check
+**CRITICAL: Validate ALL generated YAML against the official Camel YAML DSL schema before saving.**
 
-Verify the generated YAML follows Kaoto requirements:
+### 5.1 Load Camel YAML Schema
+
+Load the Camel YAML DSL schema from the local cache:
 
 ```
-Kaoto Compatibility Check:
+Schema file: .camel-kit/.cache/camelYamlDsl-{{CAMEL_VERSION}}.json
+```
+
+Replace `{{CAMEL_VERSION}}` with the project's Camel version (e.g., `4.10.0`).
+
+If the schema file is not cached, fetch it from GitHub:
+```
+Schema URL: https://raw.githubusercontent.com/apache/camel/camel-{{CAMEL_VERSION}}/dsl/camel-yaml-dsl/camel-yaml-dsl/src/generated/resources/schema/camelYamlDsl.json
+```
+
+Read the schema to understand valid properties, required fields, and allowed values.
+
+### 5.2 Validate Generated YAML
+
+Validate the generated YAML against the schema:
+
+1. **Check YAML syntax** - Valid YAML format
+2. **Check schema compliance** - All properties match schema definitions
+3. **Check required fields** - All required properties are present
+4. **Check property types** - Values match expected types (string, boolean, integer, etc.)
+5. **Check enum values** - Values are within allowed options
+
+### 5.3 Common Validation Errors and Fixes
+
+**IMPORTANT: If validation fails, you MUST fix the errors before saving. Loop until all errors are fixed.**
+
+| Error | Wrong | Correct |
+|-------|-------|---------|
+| `handled` requires expression | `handled: true` | `handled: { constant: { expression: "true" } }` |
+| `continued` requires expression | `continued: true` | `continued: { constant: { expression: "true" } }` |
+| Invalid property name | `datasource:` | `dataSource:` (camelCase) |
+| Missing required `uri` | `to: kafka:topic` | `to: { uri: "kafka:topic" }` |
+| Invalid expression format | `simple: expr` (in some contexts) | `simple: { expression: "expr" }` |
+| Wrong array format | `exception: MyException` | `exception: [ "MyException" ]` |
+
+### 5.4 Auto-Fix Loop
+
+```
+YAML Schema Validation:
+
+Fetching schema for Camel {{CAMEL_VERSION}}...
+Validating [flow-name].camel.yaml...
+
+❌ Error 1: Property 'handled' at /route/from/steps/0/onException
+   Expected: object with expression
+   Found: boolean
+   → Fixing: Converting to { constant: { expression: "true" } }
+
+❌ Error 2: Unknown property 'datasource' at /route/from/steps/2/sql
+   Did you mean: 'dataSource'?
+   → Fixing: Renaming to 'dataSource'
+
+Re-validating after fixes...
+
+✓ Valid YAML syntax
+✓ Schema validation passed
+✓ All 2 errors fixed automatically
+```
+
+### 5.5 Validation Report
+
+After all fixes, show final status:
+
+```
+YAML Schema Validation: PASSED
+
+Validated against: camelYamlDsl.json (Camel {{CAMEL_VERSION}})
+Errors found: 2
+Errors fixed: 2
+Final status: ✓ Valid
+
+Kaoto Compatibility:
 ✓ Standard route format (- route:)
 ✓ Steps array format used
 ✓ Explicit uri/parameters structure
@@ -179,37 +358,33 @@ Kaoto Compatibility Check:
 ✓ Error handler at route level
 ```
 
-### 4.2 Schema Validation
+### 5.6 Manual Validation
 
-Validate generated YAML against the Camel YAML DSL schema:
+Users can also validate manually using Camel CLI:
 
 ```bash
-# Quick validation using Camel CLI
 camel run --check [flow-name].camel.yaml application.properties
 ```
 
-The schema is available in `org.apache.camel:camel-yaml-dsl:{{CAMEL_VERSION}}` JAR at `schema/camelYamlDsl.json`.
-
-Report validation status:
-```
-YAML Schema Validation:
-✓ Valid YAML syntax
-✓ Schema validation passed
-✓ All property placeholders have values in application.properties
-```
-
-If any checks fail, fix the YAML before saving.
-
 ---
 
-## Step 5: Create Supporting Files
+## Step 6: Create Supporting Files (Using Catalog)
 
-### 5.1 Application Properties
+### 6.1 Application Properties (From Catalog)
 
 **CRITICAL**: Use component-level configuration. This keeps routes clean and portable.
 
+**Use the component catalog** to identify which properties are component-level (`componentProperties`):
+
+```
+For each component used in the route:
+1. Read component entry from .camel-kit/.cache/components-{version}.json
+2. Look at componentProperties section
+3. Generate camel.component.<name>.<prop>=<value> for each needed property
+```
+
 Create or update `application.properties` with:
-1. **Component-level settings** (connection details)
+1. **Component-level settings** (from catalog's `componentProperties`)
 2. **Bean definitions** (for DataSources, etc.)
 3. **Route placeholders** (topic names, etc.)
 
@@ -289,7 +464,7 @@ org.apache.commons:commons-dbcp2:2.12.0
 - Use simple property names for route placeholders (`kafka.topic.orders`)
 - The SQL component auto-wires the dataSource bean if only one DataSource exists
 
-### 5.2 Docker Compose for External Systems
+### 6.2 Docker Compose for External Systems
 
 Based on the source/sink components in the flow, generate `docker-compose.yaml`:
 
@@ -366,7 +541,7 @@ volumes:
 - Use Alpine/lightweight images when possible
 - Add volume mounts for data persistence
 
-### 5.3 Run Script
+### 6.3 Run Script
 
 Generate a `run.sh` script:
 
@@ -387,7 +562,7 @@ Make it executable: `chmod +x run.sh`
 
 ---
 
-## Step 6: Summary and Next Steps
+## Step 7: Summary and Next Steps
 
 Present completion summary:
 
