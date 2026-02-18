@@ -3,10 +3,10 @@
 __pycache__/
 *.py[codz]
 *$py.class
-
+.idea
+*.iml
 # C extensions
 *.so
-
 # Distribution / packaging
 .Python
 build/
@@ -26,13 +26,12 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-
 # PyInstaller
 #   Usually these files are written by a python script from a template
 #   before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
-.idea
+.idea/
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
@@ -215,3 +214,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+#maven
+pom.xml.releaseBackup
+release.properties

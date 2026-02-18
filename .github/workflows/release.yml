@@ -1,0 +1,57 @@
+name: Release with Maven
+
+on:
+  workflow_dispatch:
+  create:
+
+jobs:
+  release:
+    # only run on the release branch
+    if: github.ref == 'refs/heads/release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6.0.2
+        with:
+          token: ${{ secrets.ACCESS_TOKEN || secrets.GITHUB_TOKEN }}
+          persist-credentials: false
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5.2.0
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Set up Maven settings
+        uses: s4u/maven-settings-action@v4.0.0
+        with:
+          githubServer: false
+          servers: |
+            [{
+              "id": "${env.MAVEN_REPO_SERVER_ID}",
+              "username": "${env.MAVEN_REPO_SERVER_USERNAME}",
+              "password": "${env.MAVEN_REPO_SERVER_PASSWORD}"
+            }]
+
+      - name: Execute Release
+        env:
+          RELEASE_BRANCH_NAME: "release"
+
+          GPG_ENABLED: "true"
+          GPG_KEY_ID: ${{ secrets.GPG_ID }}
+          GPG_KEY: ${{ secrets.GPG_KEY }}
+
+          MAVEN_REPO_SERVER_ID: ${{ secrets.MVN_CENTRAL }}
+          MAVEN_REPO_SERVER_USERNAME: ${{ secrets.MVN_CENTRAL_USER }}
+          MAVEN_REPO_SERVER_PASSWORD: ${{ secrets.MVN_CENTRAL_PASSWORD }}
+          MAVEN_ARGS: "-Dgpg.passphrase="
+
+          GIT_RELEASE_BOT_NAME: "release-bot"
+          GIT_RELEASE_BOT_EMAIL: "luigidemasi@gmail.com"
+
+          GITHUB_ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN || secrets.GITHUB_TOKEN }}
+        run: ./.github/workflows/release.sh

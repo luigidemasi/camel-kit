@@ -26,10 +26,10 @@ This project follows the [Apache Software Foundation Code of Conduct](https://ww
 
 ### Prerequisites
 
-- Python 3.11 or higher
-- [uv](https://github.com/astral-sh/uv) (recommended) or pip
+- Java 17 or higher
+- [JBang](https://www.jbang.dev/) (for running the CLI)
+- Maven 3.9+ (included via Maven Wrapper)
 - Git
-- [Camel JBang](https://camel.apache.org/manual/camel-jbang.html) (for testing routes)
 
 ### Fork and Clone
 
@@ -46,63 +46,68 @@ This project follows the [Apache Software Foundation Code of Conduct](https://ww
 
 ## Development Setup
 
-### Using uv (Recommended)
+### Building the Project
 
 ```bash
-# Install dependencies and create virtual environment
-uv sync
+# Build all modules using Maven Wrapper
+./mvnw clean install
 
-# Run CLI in development mode
-uv run camel-kit --help
+# Run CLI using JBang (from jbang-catalog.json)
+jbang camel-kit@. --help
+
+# Or run directly from the main JBang script
+jbang camel-kit-main/src/main/jbang/main/CamelKit.java --help
 
 # Run tests
-uv run pytest
+./mvnw test
 
-# Run linting
-uv run ruff check src/
-uv run ruff format src/
+# Package for distribution
+./mvnw package
 ```
 
-### Using pip
+### IDE Setup
 
-```bash
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install in development mode
-pip install -e ".[dev]"
-
-# Run CLI
-camel-kit --help
-```
+For IntelliJ IDEA or Eclipse:
+1. Import as Maven project
+2. Enable annotation processing for Picocli
+3. Set JDK 17 or higher as project SDK
 
 ## Project Structure
 
 ```
 camel-kit/
-├── src/camel_kit_cli/           # Main Python package
-│   ├── __init__.py              # CLI entry point and agent config
-│   ├── catalog.py               # Catalog fetching logic
-│   └── templates/               # Template files
-│       ├── commands/            # Slash command definitions
-│       │   ├── init.md
-│       │   ├── project.md
-│       │   ├── route.md
-│       │   ├── validate.md
-│       │   ├── test.md
-│       │   └── generate.md
-│       ├── constitution.md      # Best practices template
-│       ├── project.md           # Integration context template
-│       ├── route.md             # Route specification template
-│       ├── yaml-generation-guide.md
-│       └── validation-guide.md
+├── camel-kit-main/              # Main JBang CLI module
+│   └── src/main/jbang/main/
+│       └── CamelKit.java        # JBang entry point
+├── camel-kit-core/              # Core functionality module
+│   └── src/main/java/com/github/luigidemasi/camelkit/
+│       ├── CamelKitMain.java    # Picocli CLI main class
+│       ├── command/             # CLI command implementations
+│       ├── catalog/             # Catalog fetching logic
+│       ├── config/              # Configuration handling
+│       ├── output/              # Output formatting
+│       └── util/                # Utility classes
+│   └── src/main/resources/
+│       ├── templates/           # Template files
+│       │   ├── commands/        # Slash command definitions
+│       │   ├── constitution.md
+│       │   ├── design-patterns.md
+│       │   └── ...
+│       └── maven/               # Maven wrapper generation
+├── camel-kit-plugins/           # Plugin modules
+│   └── camel-kit-wanaku-plugin/ # Wanaku validation plugin
+├── templates/                   # Template sources (copied to resources)
+│   ├── commands/
+│   ├── constitution.md
+│   └── design-patterns.md
 ├── docs/                        # Documentation
 │   ├── user-guide.md
 │   ├── commands.md
 │   └── constitution.md
-├── tests/                       # Test files
-├── pyproject.toml               # Project configuration
+├── src/python/                  # Python utilities (validation scripts)
+├── pom.xml                      # Parent Maven POM
+├── jbang-catalog.json           # JBang catalog definition
+├── mvnw, mvnw.cmd               # Maven Wrapper scripts
 ├── README.md
 ├── CONTRIBUTING.md
 └── LICENSE
@@ -116,7 +121,8 @@ camel-kit/
 2. **Feature Requests** - Open an issue describing the feature
 3. **Documentation** - Improve docs, fix typos, add examples
 4. **Code** - Fix bugs, implement features, improve tests
-5. **New AI Agents** - Add support for additional AI assistants
+5. **New Commands** - Add new slash commands for AI assistants
+6. **Templates** - Enhance constitution, design patterns, or command templates
 
 ### Issue Guidelines
 
@@ -131,7 +137,8 @@ Before opening an issue:
 - `feature/description` - New features
 - `fix/description` - Bug fixes
 - `docs/description` - Documentation changes
-- `agent/agent-name` - New AI agent support
+- `command/command-name` - New slash commands
+- `template/template-name` - Template enhancements
 
 ## Pull Request Process
 
@@ -145,18 +152,17 @@ Before opening an issue:
 
 2. **Run tests:**
    ```bash
-   uv run pytest
+   ./mvnw test
    ```
 
-3. **Run linting:**
+3. **Build the project:**
    ```bash
-   uv run ruff check src/ --fix
-   uv run ruff format src/
+   ./mvnw clean install
    ```
 
 4. **Test the CLI:**
    ```bash
-   uv run camel-kit init test-project --ai bob --no-fetch-catalog
+   jbang camel-kit@. init
    ```
 
 ### Submitting
@@ -176,37 +182,39 @@ Before opening an issue:
 
 ## Coding Standards
 
-### Python Style
+### Java Style
 
-- Follow PEP 8 style guide
-- Use type hints for function signatures
-- Maximum line length: 100 characters
-- Use `ruff` for linting and formatting
+- Follow standard Java conventions
+- Use meaningful variable and method names
+- Maximum line length: 120 characters
+- Prefer composition over inheritance
+- Follow SOLID principles
 
 ### Code Example
 
-```python
-from pathlib import Path
-from typing import Optional
+```java
+package io.github.luigidemasi.camelkit.command;
 
-def process_route(
-    route_name: str,
-    project_dir: Path,
-    force: bool = False,
-) -> dict[str, Any]:
-    """
-    Process a route specification.
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Parameters;
 
-    Args:
-        route_name: Name of the route to process
-        project_dir: Project directory path
-        force: Force overwrite existing files
+/**
+ * Command to process a route specification.
+ */
+@Command(
+    name = "route",
+    description = "Process a route specification"
+)
+public class RouteCommand implements Runnable {
 
-    Returns:
-        Dictionary with processing results
-    """
-    # Implementation here
-    pass
+    @Parameters(index = "0", description = "Name of the route")
+    private String routeName;
+
+    @Override
+    public void run() {
+        // Implementation here
+    }
+}
 ```
 
 ### Template Style (Markdown)
@@ -222,48 +230,59 @@ def process_route(
 
 ```bash
 # Run all tests
-uv run pytest
+./mvnw test
 
-# Run with coverage
-uv run pytest --cov=camel_kit_cli
+# Run tests for specific module
+./mvnw test -pl camel-kit-core
 
-# Run specific test
-uv run pytest tests/test_catalog.py -v
+# Run with verbose output
+./mvnw test -X
+
+# Run specific test class
+./mvnw test -Dtest=CatalogServiceTest
 ```
 
 ### Writing Tests
 
-```python
-import pytest
-from pathlib import Path
-from camel_kit_cli import catalog
+```java
+package io.github.luigidemasi.camelkit.catalog;
 
-def test_get_latest_camel_version():
-    """Test fetching latest Camel version."""
-    version = catalog.get_latest_camel_version()
-    assert version.startswith("4.")
-    assert len(version.split(".")) == 3
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
-def test_search_components(tmp_path):
-    """Test component search functionality."""
-    # Setup test catalog
-    catalog_data = {
-        "components": {
-            "kafka": {"component": {"title": "Kafka"}},
-            "http": {"component": {"title": "HTTP"}},
-        }
+import java.nio.file.Path;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class CatalogServiceTest {
+
+    @Test
+    void testGetLatestCamelVersion() {
+        CatalogService service = new CatalogService();
+        String version = service.getLatestCamelVersion();
+
+        assertNotNull(version);
+        assertTrue(version.startsWith("4."));
+        assertEquals(3, version.split("\\.").length);
     }
 
-    results = catalog.search_components("kafka", catalog_data)
-    assert len(results) == 1
-    assert results[0]["name"] == "kafka"
+    @Test
+    void testSearchComponents(@TempDir Path tempDir) {
+        // Setup test
+        CatalogService service = new CatalogService();
+
+        // Test search
+        var results = service.searchComponents("kafka");
+        assertFalse(results.isEmpty());
+    }
+}
 ```
 
 ### Test Categories
 
-1. **Unit Tests** - Test individual functions
-2. **Integration Tests** - Test CLI commands
-3. **Template Tests** - Verify template generation
+1. **Unit Tests** - Test individual classes and methods
+2. **Integration Tests** - Test CLI command execution
+3. **Template Tests** - Verify template generation and validation
 
 ## Documentation
 
@@ -283,49 +302,66 @@ def test_search_components(tmp_path):
 - Add screenshots for visual features
 - Keep documentation up-to-date with code
 
-## Adding New AI Agents
+## Adding New Commands
 
-To add support for a new AI coding assistant:
+To add support for a new slash command:
 
-### 1. Update Agent Configuration
+### 1. Create Command Template
 
-Edit `src/camel_kit_cli/__init__.py`:
+Add a new markdown file in `templates/commands/`:
 
-```python
-AGENT_CONFIG = {
-    # Existing agents...
+```markdown
+# /camel.yourcommand
 
-    "new-agent": {
-        "name": "New Agent Name",
-        "folder": ".new-agent/commands",
-        "file_format": "md",
-        "install_url": "https://example.com/install",
-        "requires_cli": True,  # or False for IDE-based
-        "description": "Description of the agent",
-    },
+> Brief description of what this command does
+
+## Purpose
+
+Detailed explanation of the command's purpose and when to use it.
+
+## Workflow
+
+1. Step one
+2. Step two
+3. Step three
+
+## Example
+
+Provide examples of using the command.
+```
+
+### 2. Register Command
+
+Add the command class in `camel-kit-core/src/main/java/com/github/luigidemasi/camelkit/command/`:
+
+```java
+@Command(
+    name = "yourcommand",
+    description = "Description of your command"
+)
+public class YourCommand implements Runnable {
+    @Override
+    public void run() {
+        // Implementation
+    }
 }
 ```
 
-### 2. Verify Command Format
-
-Check that the command template format works with the new agent:
-- Some agents use different slash command syntax
-- Some require different file extensions
-- Test with actual agent before merging
+Register it in `CamelKitMain.java`.
 
 ### 3. Update Documentation
 
-- Add to README.md agents table
-- Add to docs/user-guide.md
-- Update any agent-specific instructions
+- Add to docs/commands.md
+- Add to README.md if it's a major command
+- Update any related documentation
 
 ### 4. Add Tests
 
-```python
-def test_new_agent_init(tmp_path):
-    """Test initialization with new agent."""
-    # Test that init creates correct folder structure
-    pass
+```java
+@Test
+void testYourCommand() {
+    // Test command execution
+}
 ```
 
 ## Release Process
@@ -339,11 +375,12 @@ We follow [Semantic Versioning](https://semver.org/):
 
 ### Release Steps
 
-1. Update version in `pyproject.toml`
+1. Update version in `pom.xml` (parent and all modules)
 2. Update `CHANGELOG.md`
-3. Create release PR
-4. After merge, create GitHub release
-5. Tag with version: `v0.1.0`
+3. Update version in `jbang-catalog.json`
+4. Create release PR
+5. After merge, create GitHub release
+6. Tag with version: `v0.2.0`
 
 ### Changelog Format
 

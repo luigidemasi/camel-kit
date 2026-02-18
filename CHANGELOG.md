@@ -5,7 +5,103 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+
+## [0.2.0] - 2025-02-18
+
+### Added
+- **Camel version updated to 4.18.0** (LTS)
+
+- **Camel-Kit logo** - Added camel-kit.gif logo inspired by K.I.T.T. from Knight Rider
+  - Displayed at the top of README.md
+  - Represents AI-guided integration development
+
+- **Enhanced error handling guidance** in constitution and design patterns:
+  - Three exception handling approaches: `doTry/doCatch/doFinally`, `errorHandler`, `onException`
+  - Error handler types: `noErrorHandler`, `defaultErrorHandler`, `deadLetterChannel`
+  - `onException` clause with `handled()`, `continued()`, `markRollbackOnly()`
+  - Detailed examples for each approach
+
+- **Transaction handling patterns**:
+  - Transaction propagation policies (PROPAGATION_REQUIRED, PROPAGATION_REQUIRES_NEW, etc.)
+  - Using `.transacted()` DSL for transaction management
+  - Combining transactions with exception handling via `markRollbackOnly`
+  - Examples for local and distributed transactions
+
+- **Kafka consumer scaling guidance**:
+  - Consumer-to-partition relationship and assignment rules
+  - Starving consumer scenarios and optimal configurations
+  - `consumersCount` parameter usage with Kubernetes replicas
+  - Offset reset strategies (earliest, latest, none)
+
+- **Kubernetes deployment best practices**:
+  - ConfigMaps and Secrets patterns for configuration
+  - Health probes (liveness, readiness, startup)
+  - Resource requests and limits configuration
+  - Configuration hierarchy (environment variables, ConfigMaps, defaults)
+
+### Changed
+
+- **Rewritten in Java** - Complete rewrite from Python to Java for better JBang integration
+  - Multi-module Maven project structure (camel-kit-core, camel-kit-main, camel-kit-plugins)
+  - Installation via JBang: `jbang app install camel-kit@io.github.luigidemasi:camel-kit-main:0.2.0-SNAPSHOT`
+  - Uses PicoCLI for command-line parsing
+  - Uses JLine for terminal handling
+
+- **Camel version updated to 4.14.5** (LTS)
+
+- **Citrus version updated to 4.9.2**
+
+- **Maven Wrapper included in generated projects**
+  - `mvnw` (Unix) and `mvnw.cmd` (Windows) generated during init
+  - Enables portable Maven execution without pre-installed Maven
+
+- **Validation loops now use Maven plugins**:
+  - Camel YAML validation: `./mvnw org.apache.camel:camel-yaml-dsl-validator:{version}:validate`
+  - Citrus test validation: `./mvnw com.dataliquid.maven:json-yaml-validator-maven-plugin:2.0.0:validate`
+
+- **Citrus JSON schemas downloaded during init**
+  - Schemas extracted from `citrus-catalog-schema` JAR on Maven Central
+  - Cached in `.camel-kit/.cache/citrus/{version}/`
+  - Quick reference files generated for AI agent consumption
+
+- **Updated constitution.md** - Renumbered sections after adding transaction handling
+  - Section 4: Enhanced error handling with three approaches
+  - Section 7: New transaction handling section
+  - Section 15: New Kafka consumer scaling section
+  - Section 16: New Kubernetes deployment section
+
+- **Updated design-patterns.md**:
+  - Enhanced Data Integrity Pattern with transaction propagation policies
+  - Enhanced Service Instance Pattern with Kafka consumer scaling details
+  - Added offset reset strategies and Kubernetes scaling patterns
+
+- **Updated docs/constitution.md**:
+  - Added principles 11-13 (Transaction Handling, Kafka Consumer Scaling, Kubernetes Deployment)
+  - Added validation codes CONST-009 through CONST-011
+  - Enhanced error handling section with three approaches
+
+- **Rewrote CONTRIBUTING.md**:
+  - Changed from Python development to Java/Maven development
+  - Updated prerequisites (Java 17+, JBang, Maven)
+  - Updated build commands (./mvnw instead of uv/pip)
+  - Changed coding standards from Python/PEP 8 to Java conventions
+  - Updated testing from pytest to JUnit 5
+  - Changed contribution types (commands/templates instead of agents)
+
+- **Updated README.md**:
+  - Added camel-kit.gif logo at the top
+  - Better visual presentation with centered logo
+
+### Fixed
+
+- Template consistency across all locations (templates/, camel-kit-core/src/main/resources/templates/, src/camel_kit_cli/templates/)
+
+### Removed
+
+- **Python implementation** - Replaced with Java/JBang
+- **`camel-kit catalog` command** - Catalogs are downloaded during init and cached
+- **`camel-kit agents` command** - Agent information available via `--help`
+- **`camel-kit version` command** - Use `camel-kit --help` for version info
 
 ## [0.1.3] - 2025-02-13
 
@@ -126,7 +222,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Heavily inspired by [GitHub Spec-Kit](https://github.com/github/spec-kit)
 - Built for the Apache Camel community
 
-[Unreleased]: https://github.com/luigidemasi/camel-kit/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/luigidemasi/camel-kit/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/luigidemasi/camel-kit/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/luigidemasi/camel-kit/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/luigidemasi/camel-kit/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/luigidemasi/camel-kit/compare/v0.1.0...v0.1.1
