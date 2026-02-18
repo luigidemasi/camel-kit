@@ -6,13 +6,9 @@ This document provides detailed reference for all Camel-Kit commands.
 
 - [CLI Commands](#cli-commands)
   - [camel-kit init](#camel-kit-init)
-  - [camel-kit agents](#camel-kit-agents)
-  - [camel-kit catalog](#camel-kit-catalog)
-  - [camel-kit version](#camel-kit-version)
 - [Slash Commands](#slash-commands)
-  - [/camel.project](#camelcontext)
+  - [/camel.project](#camelproject)
   - [/camel.flow](#camelflow)
-  - [/camel.flow](#camelroute)
   - [/camel.implement](#camelimplement)
   - [/camel.validate](#camelvalidate)
   - [/camel.test](#cameltest)
@@ -44,11 +40,11 @@ camel-kit init --here [options]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--ai`, `-a` | `bob` | AI coding assistant to configure |
-| `--camel-version`, `-v` | `latest` | Apache Camel version to target |
+| `--ai`, `-a` | `bob` | AI coding assistant to configure (bob, gemini, claude) |
+| `--camel-version`, `-v` | `4.14.5` | Apache Camel version to target |
+| `--citrus-version` | `4.9.2` | Citrus Framework version for test schemas |
 | `--here` | `false` | Initialize in current directory |
-| `--force`, `-f` | `false` | Overwrite existing files without confirmation |
-| `--fetch-catalog/--no-fetch-catalog` | `true` | Fetch component and Kamelet catalogs |
+| `--no-fetch` | `false` | Skip external catalog fetching |
 
 **Examples:**
 
@@ -63,13 +59,16 @@ camel-kit init my-integration --ai gemini
 camel-kit init my-integration --ai claude
 
 # Use specific Camel version
-camel-kit init my-integration --camel-version 4.10.0
+camel-kit init my-integration --camel-version 4.14.5
+
+# Use specific Citrus version
+camel-kit init my-integration --citrus-version 4.9.2
 
 # Initialize in current directory
 camel-kit init --here --ai bob
 
 # Skip catalog fetch (faster, offline)
-camel-kit init my-integration --ai bob --no-fetch-catalog
+camel-kit init my-integration --ai bob --no-fetch
 ```
 
 **Output:**
@@ -78,111 +77,28 @@ Creates the following structure:
 
 ```
 my-integration/
-├── <flow-name>.camel.yaml   # Generated routes (after /camel.implement)
-├── application.properties   # Component config & dependencies (camel.jbang.dependencies)
-├── test/                    # Generated Citrus tests
-│   ├── data/                # Test data files
-│   ├── *.camel.it.yaml      # Test files
-│   └── jbang.properties     # Test dependencies (Citrus)
-├── .bob/commands/           # AI agent slash commands
+├── mvnw                         # Maven Wrapper (Unix)
+├── mvnw.cmd                     # Maven Wrapper (Windows)
+├── .mvn/wrapper/                # Maven Wrapper config
+├── test/                        # Generated Citrus tests
+│   └── data/                    # Test data files
+├── schemas/                     # JSON/XML schemas
+├── .bob/commands/               # AI agent slash commands
 │   ├── camel.project.md
-│   ├── camel.flow.md
 │   ├── camel.flow.md
 │   ├── camel.implement.md
 │   ├── camel.validate.md
 │   └── camel.test.md
 └── .camel-kit/
-    ├── config.yaml          # Project configuration
-    ├── constitution.md      # Best practices
-    ├── project.md           # Integration landscape (optional)
-    ├── flows/               # Flow definitions (1 flow = 1 route)
-    │   └── <flow-name>/
-    │       ├── flow.md      # Business-level flow definition
-    │       └── flow.md      # Technical route design
-    └── templates/           # Reference templates
-```
-
----
-
-### camel-kit agents
-
-List available AI coding agents.
-
-**Usage:**
-
-```bash
-camel-kit agents
-```
-
-**Output:**
-
-```
-┌────────┬──────────────────┬────────────────────┬───────────┐
-│ Agent  │ Name             │ Commands Folder    │ Status    │
-├────────┼──────────────────┼────────────────────┼───────────┤
-│ bob    │ IBM Project Bob  │ .bob/commands/     │ Available │
-│ gemini │ Gemini CLI       │ .gemini/commands/  │ Available │
-│ claude │ Claude Code      │ .claude/commands/  │ Available │
-└────────┴──────────────────┴────────────────────┴───────────┘
-```
-
----
-
-### camel-kit catalog
-
-Manage Camel component and Kamelet catalogs.
-
-**Usage:**
-
-```bash
-camel-kit catalog <action> [options]
-```
-
-**Actions:**
-
-| Action | Description |
-|--------|-------------|
-| `info` | Show catalog status and statistics |
-| `fetch` | Download/refresh catalogs |
-| `search <query>` | Search components and Kamelets |
-
-**Options:**
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--camel-version`, `-v` | `latest` | Apache Camel version |
-| `--force`, `-f` | `false` | Force refresh even if cached |
-| `--type`, `-t` | (all) | Filter Kamelets: `source`, `sink`, `action` |
-
-**Examples:**
-
-```bash
-# Show catalog status
-camel-kit catalog info
-
-# Fetch catalogs for specific version
-camel-kit catalog fetch --camel-version 4.10.0
-
-# Force refresh
-camel-kit catalog fetch --force
-
-# Search for Kafka components/Kamelets
-camel-kit catalog search kafka
-
-# Search for sink Kamelets only
-camel-kit catalog search postgres --type sink
-```
-
----
-
-### camel-kit version
-
-Show Camel-Kit version.
-
-**Usage:**
-
-```bash
-camel-kit version
+    ├── config.yaml              # Project configuration
+    ├── constitution.md          # Best practices
+    ├── .cache/                  # Downloaded catalogs and schemas
+    │   ├── components-{version}.json
+    │   ├── kamelets-{version}.json
+    │   ├── camelYamlDsl-{version}.json
+    │   └── citrus/{version}/    # Citrus JSON schemas
+    ├── flows/                   # Flow definitions
+    └── templates/               # Reference templates
 ```
 
 ---
@@ -215,7 +131,7 @@ These commands are used within your AI coding assistant after project initializa
 
 ### /camel.flow
 
-Define a flow's business requirements and data contracts.
+Define a flow's business requirements, technical design, and data contracts.
 
 **Usage:**
 
@@ -226,51 +142,22 @@ Define a flow's business requirements and data contracts.
 **Interactive flow:**
 
 1. **Flow Identification** - Extract core intent
-2. **Source & Sink** - Where data comes from and goes to (business terms)
-3. **Processing Steps** - High-level steps required
+2. **Source & Sink** - Where data comes from and goes to
+3. **Processing Steps** - High-level steps and EIPs required
 4. **Data Contracts** - Input/output formats and schemas
 5. **Error Scenarios** - What can go wrong
-6. **Flow Diagram** - Mermaid visualization
+6. **Error Handling** - Dead Letter Channel, Retry, Circuit Breaker
+7. **Flow Diagram** - Mermaid visualization
 
 **Output:**
 
 - Creates `.camel-kit/flows/<flow-name>/flow.md`
-
----
-
-### /camel.flow
-
-Design the technical route for a flow (source, sink, EIPs, error handling).
-
-**Usage:**
-
-```
-/camel.flow <flow-name>
-```
-
-**Prerequisites:**
-
-- Flow definition must exist (`/camel.flow` first)
-
-**Interactive flow:**
-
-1. **Source (Consumer)** - Select Camel component/Kamelet
-2. **Processing Steps (EIPs)** - Filter, Split, Aggregate, Transform, etc.
-3. **Sink (Producer)** - Select Camel component/Kamelet
-4. **Error Handling** - Dead Letter Channel, Retry, Circuit Breaker
-5. **Constitution Gate Check** - Verify against best practices
-6. **Route Diagram** - Mermaid visualization with EIP icons
-
-**Output:**
-
-- Creates `.camel-kit/flows/<flow-name>/flow.md`
-- Identifies necessary schemas in `schemas/`
 
 ---
 
 ### /camel.implement
 
-Generate Camel YAML DSL from the route design.
+Generate Camel YAML DSL from the flow definition with automated validation.
 
 **Usage:**
 
@@ -280,21 +167,30 @@ Generate Camel YAML DSL from the route design.
 
 **Prerequisites:**
 
-- Route design must exist (`/camel.flow` first)
+- Flow definition must exist (`/camel.flow` first)
 
 **Process:**
 
-1. **Validation** - Ensures plan and schemas exist
-2. **Transformation** - Converts plan to YAML DSL
-3. **Output** - Writes to `<flow-name>.camel.yaml`
+1. **Load Flow** - Read flow definition and component catalog
+2. **Component Lookup** - Verify components exist in catalog
+3. **Generate YAML** - Transform design to Camel YAML DSL
+4. **Validate** - Run validation loop until YAML is valid
+5. **Output** - Write to `<flow-name>.camel.yaml`
 
-**Kaoto compatibility:**
+**Validation Loop:**
 
-Generated YAML follows Kaoto requirements:
-- Nested EIPs under `steps` arrays
-- Proper expression syntax
-- Route-level error handlers
-- Environment variable placeholders
+The command uses the official Camel YAML DSL Validator Maven plugin:
+
+```bash
+./mvnw org.apache.camel:camel-yaml-dsl-validator:{version}:validate \
+  -Dcamel.validator.files=<flow-name>.camel.yaml
+```
+
+The AI agent loops until validation passes:
+1. Generate YAML
+2. Run validation
+3. If errors, fix and repeat
+4. If success, proceed
 
 **Output:**
 
@@ -334,12 +230,6 @@ camel export order-ingestion.camel.yaml \
   --gav com.example:my-integration:1.0.0
 ```
 
-Dependencies are configured in `application.properties`:
-```properties
-camel.jbang.dependencies=org.postgresql:postgresql:42.7.3,\
-org.apache.commons:commons-dbcp2:2.12.0
-```
-
 ---
 
 ### /camel.validate
@@ -367,17 +257,15 @@ Validate route specifications before generating YAML.
 
 ```
 == COMPLETENESS ==
-✅ order-ingestion: source defined
-✅ order-ingestion: sink defined
-❌ order-ingestion: error handling NOT defined
+[OK] order-ingestion: source defined
+[OK] order-ingestion: sink defined
+[ERROR] order-ingestion: error handling NOT defined
 
 == CORRECTNESS ==
-✅ kafka component valid (Camel 4.10.x)
-⚠️  kafak component - did you mean 'kafka'?
+[OK] kafka component valid (Camel 4.14.x)
+[WARN] kafak component - did you mean 'kafka'?
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-❌ VALIDATION FAILED - 2 errors, 1 warning
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VALIDATION FAILED - 2 errors, 1 warning
 ```
 
 **Validation report:**
@@ -388,15 +276,18 @@ Saves detailed report to `.camel-kit/validation-report.md`.
 
 ### /camel.test
 
-Generate Citrus integration tests for routes.
+Generate Citrus integration tests for routes with automated validation.
 
 **Usage:**
 
 ```
 /camel.test <flow-name>      # Generate tests for one flow
 /camel.test --all            # Generate tests for all flows
-/camel.test --scenarios      # List available test scenarios
 ```
+
+**Prerequisites:**
+
+- Citrus schemas must be cached (downloaded during `camel-kit init`)
 
 **Test scenarios:**
 
@@ -410,15 +301,37 @@ Generate Citrus integration tests for routes.
 | Filter Conditions | If filter EIP used |
 | Split Processing | If split EIP used |
 
+**Validation Loop:**
+
+The command uses the json-yaml-validator-maven-plugin:
+
+```bash
+./mvnw com.dataliquid.maven:json-yaml-validator-maven-plugin:2.0.0:validate \
+  -Dschema.validator.schemaFile=.camel-kit/.cache/citrus/{version}/citrus-testcase.json \
+  -Dschema.validator.sourceDirectory=test \
+  -Dschema.validator.includes=**/*.camel.it.yaml
+```
+
+The AI agent loops until validation passes.
+
 **Output:**
 
 - Test file: `test/<flow-name>.camel.it.yaml`
 - Test data: `test/data/`
 - Dependencies: `test/jbang.properties`
+- Test config: `test/application.test.properties`
 
 **Running tests:**
 
 ```bash
+# Install Citrus JBang app
+jbang app install citrus@citrusframework/citrus
+
+# Run tests (Docker required for Testcontainers)
+cd test
+citrus run <flow-name>.camel.it.yaml
+
+# Or using Camel test plugin
 camel plugin add test
 camel test run test/<flow-name>.camel.it.yaml
 ```
@@ -430,14 +343,11 @@ camel test run test/<flow-name>.camel.it.yaml
 ```bash
 # CLI
 camel-kit init my-project --ai bob     # Create project
-camel-kit catalog search kafka         # Search catalog
-camel-kit agents                       # List AI agents
 
 # Slash commands (in AI assistant)
 /camel.project                         # Define landscape (optional)
-/camel.flow order-ingestion            # Define flow (business level)
-/camel.flow order-ingestion           # Design route (technical level)
-/camel.implement order-ingestion       # Generate YAML
+/camel.flow order-ingestion            # Define and design flow
+/camel.implement order-ingestion       # Generate YAML with validation
 /camel.validate                        # Check specs
-/camel.test order-ingestion            # Generate tests
+/camel.test order-ingestion            # Generate tests with validation
 ```

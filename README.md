@@ -1,5 +1,9 @@
 # Camel-Kit
 
+<p align="center">
+  <img src="camel-kit.gif" alt="Camel-Kit Logo" width="600"/>
+</p>
+
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 > Design Apache Camel integrations with AI coding assistants using Flow-Driven Development.
@@ -35,47 +39,46 @@ flowchart LR
 - **Guided Design** - Interactive commands walk you through integration design step-by-step
 - **Best Practices** - Constitution enforces Apache Camel best practices automatically
 - **Catalog Integration** - Live component and Kamelet catalog lookup with suggestions
-- **Validation** - Comprehensive checks before generating code
+- **Schema Validation** - Automated validation using official Camel YAML DSL Validator Maven plugin
 - **Kaoto-Ready Output** - Generate YAML DSL compatible with [Kaoto](https://kaoto.io/) visual designer
-- **Citrus Testing** - Generate integration tests using [Citrus Framework](https://citrusframework.org/)
+- **Citrus Testing** - Generate integration tests using [Citrus Framework](https://citrusframework.org/) with JSON schema validation
+- **Portable Maven** - Generated projects include Maven Wrapper for cross-platform builds
 
 ## Quick Start
 
 ### Installation
 
-**Using uv (Recommended):**
+**Using JBang (Recommended):**
 
-[uv](https://github.com/astral-sh/uv) is a fast Python package manager. Install it first:
+[JBang](https://www.jbang.dev/) makes running Java applications easy. Install it first:
 
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
+# Linux/macOS
+curl -Ls https://sh.jbang.dev | bash -s - app setup
+
+# Windows (PowerShell)
+iex "& { $(iwr -useb https://ps.jbang.dev) } app setup"
 ```
 
 Then install camel-kit:
 
 ```bash
-# Persistent installation (adds to PATH)
-uv tool install camel-kit-cli --from git+https://github.com/luigidemasi/camel-kit.git
+# Install from Maven (after publishing)
+jbang app install camel-kit@io.github.luigidemasi:camel-kit
+
+# Or install from local build
+cd camel-kit
+mvn install
+jbang app install --force camel-kit@io.github.luigidemasi:camel-kit
 
 # Verify installation
-camel-kit version
+camel-kit --help
 ```
 
-**Using uvx (Run without installing):**
+**Run without installing:**
 
 ```bash
-# Run any camel-kit command directly without installation
-uvx --from git+https://github.com/luigidemasi/camel-kit.git camel-kit init my-integration
-
-# Examples
-uvx --from git+https://github.com/luigidemasi/camel-kit.git camel-kit version
-uvx --from git+https://github.com/luigidemasi/camel-kit.git camel-kit catalog search kafka
-```
-
-**Using pip:**
-
-```bash
-pip install git+https://github.com/luigidemasi/camel-kit.git
+jbang io.github.luigidemasi:camel-kit init my-integration --ai bob
 ```
 
 ### Initialize a Project
@@ -91,7 +94,10 @@ camel-kit init my-integration --ai gemini
 camel-kit init my-integration --ai claude
 
 # With specific Camel version
-camel-kit init my-integration --ai bob --camel-version 4.10.0
+camel-kit init my-integration --ai bob --camel-version 4.14.5
+
+# With specific Citrus version
+camel-kit init my-integration --ai bob --citrus-version 4.9.2
 
 # Initialize in current directory
 camel-kit init --here --ai bob
@@ -104,9 +110,9 @@ Open your project in IBM Project Bob (or other supported AI assistant) and use t
 ```
 /camel.project     (Optional) Define integration landscape and identify flows
 /camel.flow        Define and design the integration flow
-/camel.implement   Generate Kaoto-ready YAML code
+/camel.implement   Generate Kaoto-ready YAML code with validation loop
 /camel.validate    Check specifications and compliance
-/camel.test        Generate Citrus integration tests
+/camel.test        Generate Citrus integration tests with validation loop
 ```
 
 ## Documentation
@@ -120,11 +126,11 @@ Open your project in IBM Project Bob (or other supported AI assistant) and use t
 
 | Agent | Status | Commands Folder | Format |
 |-------|--------|-----------------|--------|
-| [IBM Project Bob](https://www.ibm.com/products/bob) | ✅ Available | `.bob/commands/` | Markdown |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✅ Available | `.gemini/commands/` | TOML |
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | ✅ Available | `.claude/commands/` | Markdown |
-| GitHub Copilot | 🔜 Planned | `.github/agents/` | Markdown |
-| Cursor | 🔜 Planned | `.cursor/commands/` | Markdown |
+| [IBM Project Bob](https://www.ibm.com/products/bob) | Available | `.bob/commands/` | Markdown |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | Available | `.gemini/commands/` | TOML |
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Available | `.claude/commands/` | Markdown |
+| GitHub Copilot | Planned | `.github/agents/` | Markdown |
+| Cursor | Planned | `.cursor/commands/` | Markdown |
 
 ## Commands Overview
 
@@ -132,56 +138,30 @@ Open your project in IBM Project Bob (or other supported AI assistant) and use t
 |---------|---------|
 | `/camel.project` | (Optional) Define integration landscape and identify all flows |
 | `/camel.flow` | Define and design the integration flow (business + technical) |
-| `/camel.implement` | Generate Camel YAML DSL from the flow definition |
+| `/camel.implement` | Generate Camel YAML DSL with automated validation loop |
 | `/camel.validate` | Check completeness and constitution compliance |
-| `/camel.test` | Generate Citrus integration tests |
+| `/camel.test` | Generate Citrus integration tests with automated validation loop |
 
 **Note:** Project initialization is done via CLI (`camel-kit init`), not a slash command.
 
-## Project Structure
+## Validation
 
-Each flow progresses through two artifacts:
+Camel-Kit uses official validation tools via Maven Wrapper for cross-platform compatibility:
 
-```mermaid
-flowchart TB
-    subgraph "Flow Definition"
-        FLOW["flow.md<br/><i>Business + Technical Design</i>"]
-    end
-    subgraph "Implementation"
-        YAML["flow-name.camel.yaml<br/><i>Executable Camel route</i>"]
-    end
+### Camel YAML Validation
 
-    FLOW -->|"/camel.implement"| YAML
+```bash
+./mvnw org.apache.camel:camel-yaml-dsl-validator:4.14.5:validate \
+  -Dcamel.validator.files=my-route.camel.yaml
 ```
 
-After initialization:
+### Citrus Test Validation
 
-```
-my-integration/
-├── <flow-name>.camel.yaml      # Generated Camel route (after /camel.implement)
-├── application.properties      # Component config & dependencies (camel.jbang.dependencies)
-├── test/                       # Generated Citrus tests (Camel JBang convention)
-│   ├── *.camel.it.yaml         # Test files
-│   ├── data/                   # Test data files
-│   └── jbang.properties        # Test dependencies (Citrus)
-├── .bob/commands/              # AI agent slash commands
-│   ├── camel.project.md
-│   ├── camel.flow.md
-│   ├── camel.implement.md
-│   ├── camel.validate.md
-│   └── camel.test.md
-└── .camel-kit/                 # Specifications and configuration
-    ├── config.yaml             # Project configuration
-    ├── constitution.md         # Best practices
-    ├── project.md              # Integration landscape (optional)
-    ├── flows/                  # Flow definitions (1 flow = 1 route)
-    │   └── <flow-name>/
-    │       └── flow.md         # Complete flow definition
-    └── templates/              # Reference templates
-        ├── flow.md
-        ├── design-patterns.md
-        ├── validation-guide.md
-        └── yaml-generation-guide.md
+```bash
+./mvnw com.dataliquid.maven:json-yaml-validator-maven-plugin:2.0.0:validate \
+  -Dschema.validator.schemaFile=.camel-kit/.cache/citrus/4.9.2/citrus-testcase.json \
+  -Dschema.validator.sourceDirectory=test \
+  -Dschema.validator.includes=**/*.camel.it.yaml
 ```
 
 ## Example Workflow
@@ -204,9 +184,10 @@ cd order-processing
 #    - Sink: PostgreSQL database
 #    - Error handling: Dead Letter Channel
 
-# 5. Generate the Camel YAML:
+# 5. Generate the Camel YAML (with validation loop):
 #    /camel.implement order-ingestion
 #    - Creates: order-ingestion.camel.yaml
+#    - Validates with: ./mvnw camel-yaml-dsl-validator:validate
 
 # 6. Validate & Test:
 #    /camel.validate
@@ -278,29 +259,20 @@ Generated Kaoto-compatible YAML (`order-ingestion.camel.yaml`):
 ```bash
 # Project initialization
 camel-kit init <project-name> [options]
-  --ai, -a        AI agent (default: bob)
-  --camel-version Version (default: latest)
-  --here          Initialize in current directory
-  --no-fetch-catalog  Skip catalog download
-
-# List available agents
-camel-kit agents
-
-# Manage component/Kamelet catalog
-camel-kit catalog info
-camel-kit catalog fetch [--force]
-camel-kit catalog search <query> [--type source|sink|action]
-
-# Show version
-camel-kit version
+  --ai, -a           AI agent: bob, gemini, claude (default: bob)
+  --camel-version    Camel version (default: 4.14.5)
+  --citrus-version   Citrus version (default: 4.9.2)
+  --here             Initialize in current directory
+  --no-fetch         Skip external catalog fetching
 ```
 
 ## Requirements
 
-- Python 3.11+
-- [uv](https://github.com/astral-sh/uv) (recommended) or pip
+- Java 17+
+- [JBang](https://www.jbang.dev/) (for installation and running)
 - [Camel JBang](https://camel.apache.org/manual/camel-jbang.html) (for running routes)
-- Supported AI coding assistant (IBM Project Bob, etc.)
+- Supported AI coding assistant (IBM Project Bob, Gemini CLI, Claude Code)
+- Docker/Podman (for Citrus tests with Testcontainers)
 
 ## Related Projects
 

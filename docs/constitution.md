@@ -53,16 +53,23 @@ order-processing: Kafka → Validate → Database → REST → Email
 
 Every route must declare an error handling strategy. No route should silently swallow exceptions.
 
-**Options:**
+**Approaches:**
 
-| Strategy | Use when |
-|----------|----------|
-| Dead Letter Channel | Messages need manual review |
-| Retry with Backoff | Transient failures expected |
-| Circuit Breaker | External service may be unavailable |
-| Custom Handler | Specific exceptions need special handling |
+| Approach | Scope | Use When |
+|----------|-------|----------|
+| `doTry/doCatch/doFinally` | Inline | Fine-grained control within a route |
+| `errorHandler` | Route/Context | Default handling for all exceptions |
+| `onException` | Route/Context | Type-specific handling |
 
-**Example:**
+**Error Handler Types:**
+
+| Type | Behavior |
+|------|----------|
+| `noErrorHandler` | Exceptions propagate to caller |
+| `defaultErrorHandler` | Default Camel behavior with retry |
+| `deadLetterChannel` | Failed messages sent to DLQ |
+
+**Example - Error Handler:**
 ```yaml
 errorHandler:
   deadLetterChannel:
@@ -70,6 +77,29 @@ errorHandler:
     redeliveryPolicy:
       maximumRedeliveries: 3
       redeliveryDelay: 1000
+```
+
+**Example - doTry/doCatch:**
+```yaml
+- doTry:
+    steps:
+      - to: http:external-service
+  doCatch:
+    - exception: java.net.ConnectException
+      steps:
+        - to: direct:fallback
+  doFinally:
+    steps:
+      - to: direct:cleanup
+```
+
+**Example - onException:**
+```yaml
+- onException:
+    exception: com.example.ValidationException
+    handled: true
+    steps:
+      - to: kafka:invalid-messages
 ```
 
 ---
@@ -236,6 +266,99 @@ Routes should support graceful shutdown, completing in-flight messages before st
 
 ---
 
+### 11. Transaction Handling
+
+**Level:** Recommended
+
+Use transactions to ensure data consistency across multiple operations.
+
+**Transaction Propagation Policies:**
+
+| Policy | Behavior |
+|--------|----------|
+| `PROPAGATION_REQUIRED` | Join existing or create new (default) |
+| `PROPAGATION_REQUIRES_NEW` | Always create new transaction |
+| `PROPAGATION_MANDATORY` | Must run within existing transaction |
+
+**Implementation:**
+```yaml
+- transacted:
+    ref: PROPAGATION_REQUIRED
+- to: jpa:Order
+- to: jms:queue:notifications
+```
+
+**Exception Handling with Transactions:**
+```yaml
+- onException:
+    exception: com.example.BusinessException
+    handled: true
+    markRollbackOnly: true
+    steps:
+      - to: kafka:failed-orders
+```
+
+---
+
+### 12. Kafka Consumer Scaling
+
+**Level:** Recommended
+
+Configure Kafka consumers appropriately for parallel processing.
+
+**Key Considerations:**
+- Each partition is assigned to exactly one consumer in a group
+- More consumers than partitions = idle (starving) consumers
+- Use `consumersCount: 1` per pod and scale via Kubernetes replicas
+
+**Implementation:**
+```yaml
+from:
+  uri: kafka:orders
+  parameters:
+    groupId: order-processors
+    consumersCount: 1
+    autoOffsetReset: earliest
+```
+
+**Offset Reset Strategies:**
+
+| Strategy | Use When |
+|----------|----------|
+| `earliest` | Process all messages from beginning |
+| `latest` | Only process new messages |
+| `none` | Fail if no committed offset |
+
+---
+
+### 13. Kubernetes Deployment
+
+**Level:** Recommended
+
+Design routes for cloud-native deployment on Kubernetes.
+
+**Key Practices:**
+- Externalize all configuration using environment variables or ConfigMaps
+- Implement health checks for liveness and readiness probes
+- Use Secrets for sensitive configuration
+- Configure resource requests and limits
+
+**Configuration Hierarchy:**
+1. Environment variables (highest priority)
+2. System properties
+3. ConfigMap-mounted `application.properties`
+4. Bundled defaults
+
+**Health Probes:**
+
+| Probe | Purpose |
+|-------|---------|
+| **Readiness** | Is the app ready to receive traffic? |
+| **Liveness** | Is the app still running correctly? |
+| **Startup** | Has the app finished starting? |
+
+---
+
 ## Customization
 
 The constitution in `.camel-kit/constitution.md` can be customized for your organization:
@@ -304,7 +427,10 @@ Constitution violations generate specific error codes during `/camel.validate`:
 | `CONST-006` | Idempotent Consumer | Warning | Consumer without idempotent handling |
 | `CONST-007` | Schema Validation | Warning | No validation at entry point |
 | `CONST-008` | Observability | Warning | No correlation ID handling |
-| `CONST-009` | Custom Rule | Varies | Custom rule violation |
+| `CONST-009` | Transaction | Warning | Multiple writes without transaction |
+| `CONST-010` | Kafka Scaling | Warning | More consumers than partitions |
+| `CONST-011` | Kubernetes | Warning | Hardcoded Kubernetes-specific values |
+| `CONST-012` | Custom Rule | Varies | Custom rule violation |
 
 ---
 

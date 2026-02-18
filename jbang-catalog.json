@@ -1,0 +1,9 @@
+{
+  "catalogs": {},
+  "aliases": {
+    "camel-kit": {
+      "script-ref": "camel-kit-main/src/main/jbang/main/CamelKit.java",
+      "description": "Design Apache Camel integrations with AI coding assistants"
+    }
+  }
+}
