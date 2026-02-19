@@ -342,7 +342,7 @@ Generate `.camel-kit/validation-report.json`:
 ```json
 {
   "timestamp": "2024-01-15T10:30:00Z",
-  "camelVersion": "4.17.0",
+  "camelVersion": "4.18.0",
   "result": "FAILED",
   "summary": {
     "routes": 2,
@@ -396,7 +396,7 @@ Generate `.camel-kit/validation-report.md`:
 # Validation Report
 
 Generated: 2024-01-15T10:30:00Z
-Camel Version: 4.17.0
+Camel Version: 4.18.0
 
 ## Summary
 

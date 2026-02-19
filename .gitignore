@@ -25,6 +25,7 @@ share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+camel-kit-presentation-speech.md
 MANIFEST
 # PyInstaller
 #   Usually these files are written by a python script from a template
@@ -218,3 +219,11 @@ __marimo__/
 #maven
 pom.xml.releaseBackup
 release.properties
+
+# Presentation files
+*.odp
+*.pptx
+camel-kit-transparent.png
+generate_presentation.py
+generate_pptx.py
+.~lock.*

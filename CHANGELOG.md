@@ -6,6 +6,124 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Added
+
+- **Skills-based architecture with MCP integration**
+  - Converted 5 commands to skills standard with YAML frontmatter and metadata
+  - Commands now use kebab-case naming: `/camel-project`, `/camel-flow`, `/camel-implement`, `/camel-validate`, `/camel-test`
+  - All skills are user-invocable and discoverable by AI agents
+  - On-demand guide loading for token optimization (60-70% token savings)
+  - Bundled component skills structure for offline use
+
+- **Apache Camel MCP Server Integration**
+  - Automatic project-specific MCP configuration during `camel-kit init`
+  - Support for 3 AI agents: Claude Code (`.mcp.json`), IBM Bob (`.bob/mcp.json`), Gemini CLI (`.gemini/mcp.json`)
+  - 15 MCP tools available, 7 actively used across skills
+  - Real-time catalog queries: `camel_catalog_components`, `camel_catalog_component_doc`
+  - Route validation: `camel_validate_route`, `camel_route_context`
+  - Security analysis: `camel_route_harden_context` with 47 automated checks
+  - Version management: `camel_version_list`
+  - 60-70% token savings compared to loading full catalog
+  - Always-current documentation matching exact Camel version
+
+- **Comprehensive Data Transformation & Field Mapping (Kaoto DataMapper)**
+  - Interactive schema-based field mapping in `/camel-flow`
+  - Support for both XML Schema (XSD) and JSON Schema
+  - Automatic field name matching and automapping proposals
+  - Nested field handling (e.g., `order.customer.name` → `customer.name`)
+  - Detailed field mapping tables in TDD with transformation types
+  - Parameter support for Camel Variables and Message Headers
+  - Conditional mappings: IF and CHOOSE-WHEN-OTHERWISE
+  - Collection processing with FOR-EACH and position tracking
+  - Comprehensive XPath function library (string, numeric, date/time, boolean)
+
+- **Automatic XSLT Generation**
+  - Generate Kaoto-compatible DataMapper XSLT from TDD field mappings
+  - File naming: `{flow-name}-datamapper-{random-8-char-id}.xsl`
+  - XSLT 2.0 for XML transformations, XSLT 3.0 for JSON
+  - Support for all transformation types:
+    - Direct copy, nested flattening, date/time formatting
+    - String concatenation, numeric calculations
+    - Conditional logic (IF, CHOOSE-WHEN-OTHERWISE)
+    - Array iteration with position tracking
+    - Parameter usage from Camel context
+  - JSON transformation with `fn:json-to-xml()` and `fn:xml-to-json()`
+  - XML namespace preservation and handling
+  - Automatic integration in route YAML with xslt-saxon component
+  - Parameter passing from route to XSLT
+  - Best practices and limitations guidance
+
+- **Documentation**
+  - `docs/MCP-TOOLS-REFERENCE.md` - Comprehensive MCP tools documentation with 23 invocation points
+  - Updated all documentation with MCP integration details
+  - Updated all slash command references to kebab-case
+  - Enhanced transformation sections in user guide
+  - Added MCP configuration examples for all 3 agents
+
+### Changed
+
+- **InitCommand improvements**
+  - Create MCP configs only for selected AI agent (not all 3)
+  - Fixed JAR filesystem handling for bundled skill distribution
+  - Skills copied to both `.bob/commands/` (flat) and `.bob/skills/` (full structure)
+  - Clean project initialization without unnecessary files
+  - **Removed redundant catalog downloads** - Component and Kamelet catalogs are no longer downloaded during init
+    - MCP server queries catalogs in real-time from Maven Central and GitHub
+    - YAML DSL schema not needed (Maven validator plugin downloads its own)
+    - Only Citrus schemas are downloaded (used by `/camel-test` skill)
+    - Faster init, smaller `.camel-kit/.cache/` folder
+    - 60-70% reduction in cached data
+
+- **camel-implement skill - Route validation with MCP**
+  - Replaced Maven YAML DSL Validator with MCP `camel_validate_route` tool
+  - Validates all endpoint URIs against Camel catalog in real-time
+  - Checks component options and required parameters
+  - Catches typos and suggests corrections automatically
+  - Consistent MCP-first approach throughout workflow
+  - Faster validation feedback, no Maven execution needed
+  - Renumbered steps: Step 5 is now Route Validation with MCP, Steps 6-11 adjusted
+
+- **File generation locations corrected**
+  - All generated routes now in project root (NOT in `.camel-kit/`)
+  - `{flow-name}.camel.yaml` → Project root
+  - `application.properties` → Project root
+  - `docker-compose.yaml` → Project root
+  - `run.sh` → Project root (executable)
+  - XSLT files → Project root (same folder as route)
+  - Test files → `test/` directory in project root
+  - Schemas → `schemas/` directory in project root
+  - `.camel-kit/` reserved ONLY for internal metadata
+
+- **Skills structure enhanced**
+  - `/camel-flow` now captures detailed field mappings, parameters, and conditional logic
+  - `/camel-implement` generates DataMapper XSLT automatically
+  - All skills include explicit file location instructions
+  - TDD template expanded to 7 sections for transformations:
+    - Section 3.2: Field Mappings
+    - Section 3.3: Transformation Parameters
+    - Section 3.4: Conditional Mappings
+    - Section 3.5: Collection/Array Mappings
+    - Section 3.6: Transformation Rules
+    - Section 3.7: Additional Processing Steps (EIPs)
+
+- **Documentation updates**
+  - All command references changed from `/camel.X` to `/camel-X` throughout
+  - README.md updated with MCP features and transformation capabilities
+  - docs/user-guide.md enhanced with MCP Integration section
+  - docs/commands.md updated with MCP tools by command
+  - docs/skills-architecture.md updated with MCP + skills comparison
+  - examples/order-processing/README.md updated with kebab-case commands
+  - CONTRIBUTING.md updated with skills-based template format
+
+### Fixed
+
+- MCP configuration generation now creates only the config for the selected agent
+- Project initialization no longer creates backup/temporary files
+- Skills are properly distributed from JAR filesystem to project folders
+- File paths in skills explicitly state project root vs .camel-kit folder
+
 ## [0.2.0] - 2025-02-18
 
 ### Added
@@ -55,8 +173,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `mvnw` (Unix) and `mvnw.cmd` (Windows) generated during init
   - Enables portable Maven execution without pre-installed Maven
 
-- **Validation loops now use Maven plugins**:
-  - Camel YAML validation: `./mvnw org.apache.camel:camel-yaml-dsl-validator:{version}:validate`
+- **Validation uses MCP and Maven plugins**:
+  - Camel route validation: MCP `camel_validate_route` tool (validates URIs, options, catches typos)
   - Citrus test validation: `./mvnw com.dataliquid.maven:json-yaml-validator-maven-plugin:2.0.0:validate`
 
 - **Citrus JSON schemas downloaded during init**
@@ -114,7 +232,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **`/camel.implement` now uses component catalog** during YAML generation:
+- **`/camel-implement` now uses component catalog** during YAML generation:
   - New Step 3: Component Catalog Lookup before generating YAML
   - Looks up each component in `.camel-kit/.cache/components-{version}.json`
   - Verifies component exists and can be used as consumer/producer
@@ -131,7 +249,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Commands are generated in Markdown format (`.claude/commands/`)
   - Uses `$ARGUMENTS` placeholder for arguments
   - Requires `claude` CLI tool
-- YAML schema validation in `/camel.validate` and `/camel.implement`
+- YAML schema validation in `/camel-validate` and `/camel-implement`
   - Schema fetched from GitHub: `https://raw.githubusercontent.com/apache/camel/camel-{version}/dsl/camel-yaml-dsl/camel-yaml-dsl/src/generated/resources/schema/camelYamlDsl.json`
   - Validates syntax, schema compliance, and property placeholders
   - **Auto-fix**: Automatically fixes common validation errors (handled expressions, property case, etc.)
@@ -139,17 +257,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Renamed `/camel.context` to `/camel.project` for clarity
-- `/camel.project` now focuses only on business landscape (purpose, systems, integration goals)
-- Technical details (sources, sinks, components) moved to `/camel.flow` command
-- Removed test generation prompt from `/camel.implement` (use `/camel.test` instead)
+- Renamed `/camel-context` to `/camel-project` for clarity
+- `/camel-project` now focuses only on business landscape (purpose, systems, integration goals)
+- Technical details (sources, sinks, components) moved to `/camel-flow` command
+- Removed test generation prompt from `/camel-implement` (use `/camel-test` instead)
 - Updated `camel run` examples to include `application.properties` file
-- `/camel.implement` now generates `application.properties` with component-level configuration
-- `/camel.implement` now generates `camel.jbang.dependencies` in `application.properties` for Maven dependencies
-- `/camel.validate` now checks generated YAML files against schema and application.properties
+- `/camel-implement` now generates `application.properties` with component-level configuration
+- `/camel-implement` now generates `camel.jbang.dependencies` in `application.properties` for Maven dependencies
+- `/camel-validate` now checks generated YAML files against schema and application.properties
 - Updated "Data Format Discipline" constitution principle: unmarshal is now guidance-based (when needed) instead of mandatory
 - Clarified validation order: schema validation (JSON Schema, XSD) happens before unmarshal; bean validation after
-- **Improved `/camel.test` command**:
+- **Improved `/camel-test` command**:
   - Testcontainers are now mandatory for external systems (Kafka, PostgreSQL, MongoDB)
   - Added `application.test.properties` generation with testcontainer variables
   - Improved Citrus YAML syntax with correct property names
@@ -176,15 +294,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Merged `/camel.flow` and `/camel.route` commands into single `/camel.flow` command
-- Renamed `/camel.generate` to `/camel.implement` for clarity
-- Simplified `/camel.project` to ask only high-level questions (purpose, systems, flows)
-- Updated `/camel.flow` to ask questions one at a time interactively
-- Technical details (protocols, EIPs, error handling) now captured in `/camel.flow` instead of `/camel.project`
+- Merged `/camel-flow` and `/camel-route` commands into single `/camel-flow` command
+- Renamed `/camel-generate` to `/camel-implement` for clarity
+- Simplified `/camel-project` to ask only high-level questions (purpose, systems, flows)
+- Updated `/camel-flow` to ask questions one at a time interactively
+- Technical details (protocols, EIPs, error handling) now captured in `/camel-flow` instead of `/camel-project`
 
 ### Fixed
 
-- Fixed Citrus YAML schema issues in `/camel.test`:
+- Fixed Citrus YAML schema issues in `/camel-test`:
   - Variables now use list format with `name`/`value` properties
   - Testcontainers use simple format (`kafka: {}`, `postgresql: {}`)
   - SQL actions use `dataSource` (camelCase) and `statement:` property
@@ -194,8 +312,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Removed obsolete `/camel.init` command (replaced by CLI `camel-kit init`)
-- Removed separate `/camel.route` command (merged into `/camel.flow`)
+- Removed obsolete `/camel-init` command (replaced by CLI `camel-kit init`)
+- Removed separate `/camel-route` command (merged into `/camel-flow`)
 
 ## [0.1.0] - 2024-XX-XX
 
@@ -205,12 +323,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Project initialization with `camel-kit init`
 - Support for IBM Project Bob AI agent
 - Slash commands for AI-assisted integration design:
-  - `/camel.init` - Bootstrap project with constitution and catalog
-  - `/camel.project` - Define integration landscape
-  - `/camel.route` - Design individual routes with EIP guidance
-  - `/camel.validate` - Check specifications against catalog and constitution
-  - `/camel.test` - Generate Citrus integration tests
-  - `/camel.generate` - Output Kaoto-compatible Camel YAML DSL
+  - `/camel-init` - Bootstrap project with constitution and catalog
+  - `/camel-project` - Define integration landscape
+  - `/camel-route` - Design individual routes with EIP guidance
+  - `/camel-validate` - Check specifications against catalog and constitution
+  - `/camel-test` - Generate Citrus integration tests
+  - `/camel-generate` - Output Kaoto-compatible Camel YAML DSL
 - Live catalog fetching from Maven Central (components) and GitHub (Kamelets)
 - Constitution-based best practices enforcement
 - Kaoto-compatible YAML generation

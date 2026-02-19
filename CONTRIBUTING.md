@@ -308,10 +308,21 @@ To add support for a new slash command:
 
 ### 1. Create Command Template
 
-Add a new markdown file in `templates/commands/`:
+Add a new markdown file in `camel-kit-core/src/main/resources/skills/`:
 
 ```markdown
-# /camel.yourcommand
+---
+name: camel-yourcommand
+description: Brief description of what this command does with trigger keywords
+user-invocable: true
+metadata:
+  version: "1.0.0"
+  author: "camel-kit"
+  category: "integration"
+  license: "Apache-2.0"
+---
+
+# /camel-yourcommand
 
 > Brief description of what this command does
 
@@ -328,6 +339,11 @@ Detailed explanation of the command's purpose and when to use it.
 ## Example
 
 Provide examples of using the command.
+
+## MCP Integration (if applicable)
+
+Document which MCP tools are used:
+- `mcp_tool_name` - Purpose and when it's called
 ```
 
 ### 2. Register Command

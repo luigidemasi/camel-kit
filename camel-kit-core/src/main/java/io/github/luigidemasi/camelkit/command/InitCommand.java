@@ -1,8 +1,6 @@
 package io.github.luigidemasi.camelkit.command;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import io.github.luigidemasi.camelkit.CamelKitMain;
-import io.github.luigidemasi.camelkit.catalog.CatalogDownloader;
 import io.github.luigidemasi.camelkit.catalog.CitrusSchemaDownloader;
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
@@ -11,9 +9,16 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URI;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -23,27 +28,27 @@ import java.util.List;
 public class InitCommand extends CamelKitCommand {
 
     @Parameters(index = "0", description = "Project name", arity = "0..1")
-    String projectName;
+    public String projectName;
 
     @Option(names = {"-a", "--ai"}, description = "AI agent: bob, gemini, claude",
             defaultValue = "bob")
-    String ai;
+    public String ai;
 
     @Option(names = {"--here"}, description = "Initialize in current directory")
-    boolean here;
+    public boolean here;
 
     @Option(names = {"-v", "--camel-version"},
             description = "Camel version (use 'default' for bundled catalog)",
             defaultValue = "default")
-    String camelVersion;
+    public String camelVersion;
 
     @Option(names = {"--citrus-version"},
             description = "Citrus version for test schemas",
             defaultValue = "default")
-    String citrusVersion;
+    public String citrusVersion;
 
     @Option(names = {"--no-fetch"}, description = "Skip external catalog fetching")
-    boolean noFetch;
+    public boolean noFetch;
 
     public InitCommand(CamelKitMain main) {
         super(main);
@@ -106,6 +111,11 @@ public class InitCommand extends CamelKitCommand {
         // Create command templates
         createCommandTemplates(commandsDir, agent);
 
+        // Copy full skills structure (with guides) to agent's skills folder
+        // Skills go in .bob/skills/ not .bob/commands/skills/
+        Path agentBaseDir = targetDir.resolve(agent.folder()).getParent(); // Get .bob from .bob/commands
+        copySkills(agentBaseDir.resolve("skills"));
+
         // Create YAML generation guide and additional templates
         createYamlGuide(camelKitDir.resolve("templates"));
         copyAdditionalTemplates(camelKitDir.resolve("templates"));
@@ -113,25 +123,14 @@ public class InitCommand extends CamelKitCommand {
         // Create Maven Wrapper for portable Maven execution
         createMavenWrapper(targetDir);
 
-        // Download catalog JSON files and Citrus schemas
-        int componentCount = 0;
-        int kameletCount = 0;
+        // Create MCP configuration file for selected coding agent
+        createMcpConfigs(targetDir, version, ai);
+
+        // Download Citrus schemas (used by /camel-test skill)
+        // Note: Camel catalog is queried in real-time via MCP server - no local cache needed
         int citrusSchemaCount = 0;
 
         if (!noFetch) {
-            try {
-                CatalogDownloader downloader = new CatalogDownloader(camelKitDir.resolve(".cache"));
-                JsonNode compCatalog = downloader.fetchComponentCatalog(version, false);
-                componentCount = compCatalog.path("componentCount").asInt();
-
-                JsonNode kamCatalog = downloader.fetchKameletCatalog(version, false);
-                kameletCount = kamCatalog.path("kameletCount").asInt();
-
-                downloader.fetchYamlSchema(version, false);
-            } catch (Exception e) {
-                printer().println(yellow("  Warning: Could not fetch Camel catalog: " + e.getMessage()));
-            }
-
             try {
                 CitrusSchemaDownloader citrusDownloader = new CitrusSchemaDownloader(camelKitDir.resolve(".cache"));
                 citrusDownloader.fetchCitrusSchemas(citrusVer, false);
@@ -150,23 +149,16 @@ public class InitCommand extends CamelKitCommand {
         printer().println();
         printer().println(green("✓") + " Camel-Kit initialized for " + bold(projectName));
         printer().println();
-        if (componentCount > 0 || kameletCount > 0) {
-            printer().println("  Cached catalog (Camel " + version + "):");
-            printer().println("    Components: " + componentCount);
-            printer().println("    Kamelets:   " + kameletCount);
-        }
         if (citrusSchemaCount > 0) {
             printer().println("  Cached schemas (Citrus " + citrusVer + "):");
             printer().println("    Schemas:    " + citrusSchemaCount);
-        }
-        if (componentCount > 0 || kameletCount > 0 || citrusSchemaCount > 0) {
             printer().println();
         }
         printer().println(bold("Next steps:"));
         printer().println("  1. Open " + cyan(projectName) + " in " + agent.name());
-        printer().println("  2. Run " + cyan("/camel.project") + " to define your integration project");
-        printer().println("  3. Run " + cyan("/camel.flow <flow-name>") + " to design a flow");
-        printer().println("  4. Run " + cyan("/camel.implement <flow-name>") + " to generate Camel YAML");
+        printer().println("  2. Run " + cyan("/camel-project") + " to define your integration project");
+        printer().println("  3. Run " + cyan("/camel-flow <flow-name>") + " to design a flow");
+        printer().println("  4. Run " + cyan("/camel-implement <flow-name>") + " to generate Camel YAML");
         printer().println();
 
         return 0;
@@ -200,18 +192,25 @@ public class InitCommand extends CamelKitCommand {
     private void createCommandTemplates(Path dir, AgentConfig agent) throws Exception {
         List<String> commands = List.of("project", "flow", "implement", "validate", "test");
 
+        // Extract agent base folder (e.g., ".bob" from ".bob/commands")
+        String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf("/"));
+
         for (String cmd : commands) {
-            String templatePath = "templates/commands/" + cmd + ".md";
-            String content = TemplateUtils.readTemplate(templatePath);
+            String skillName = "camel-" + cmd;
+
+            // Create reference to skill file
+            String content = "Read " + agentBaseFolder + "/skills/" + skillName + "/SKILL.md and follow those instructions";
 
             // Wrap in TOML format if needed
             if ("toml".equals(agent.fileFormat())) {
                 content = wrapInToml(cmd, content);
             }
 
-            String filename = "camel." + cmd + "." + agent.fileFormat();
+            String filename = skillName + "." + agent.fileFormat();
             Files.writeString(dir.resolve(filename), content);
         }
+
+        printer().println(green("✓") + " Created " + commands.size() + " skill reference commands");
     }
 
     private String wrapInToml(String cmd, String content) {
@@ -243,6 +242,99 @@ public class InitCommand extends CamelKitCommand {
         }
     }
 
+    private void copySkills(Path skillsTargetDir) throws Exception {
+        Files.createDirectories(skillsTargetDir);
+
+        // Get the skills directory from resources
+        var skillsResource = getClass().getClassLoader().getResource("skills");
+        if (skillsResource == null) {
+            printer().println(yellow("  Warning: Skills not found in resources"));
+            return;
+        }
+
+        URI uri = skillsResource.toURI();
+        Path skillsSourceDir;
+        FileSystem fileSystem = null;
+
+        try {
+            // Check if we're reading from a JAR
+            if (uri.getScheme().equals("jar")) {
+                // Create filesystem for JAR
+                try {
+                    fileSystem = FileSystems.newFileSystem(uri, Collections.emptyMap());
+                } catch (Exception e) {
+                    // FileSystem might already exist
+                    fileSystem = FileSystems.getFileSystem(uri);
+                }
+                skillsSourceDir = fileSystem.getPath("/skills");
+            } else {
+                // Regular file system path
+                skillsSourceDir = Path.of(uri);
+            }
+
+            // Copy all skills from resources to target directory
+            int filesCopied = 0;
+            int dirsCopied = 0;
+            try (var stream = Files.walk(skillsSourceDir)) {
+                var paths = stream.toList();
+                for (Path source : paths) {
+                    // Convert paths to strings to avoid ProviderMismatchException
+                    String relativePathStr = skillsSourceDir.relativize(source).toString();
+
+                    // Skip the root directory itself
+                    if (relativePathStr.isEmpty()) {
+                        continue;
+                    }
+
+                    // Resolve using string to create a proper filesystem path
+                    Path destination = skillsTargetDir.resolve(relativePathStr);
+
+                    try {
+                        // Check attributes to determine if directory (works across filesystems)
+                        boolean isDir = Files.isDirectory(source);
+
+                        if (isDir) {
+                            Files.createDirectories(destination);
+                            dirsCopied++;
+                        } else {
+                            // Ensure parent directory exists
+                            Files.createDirectories(destination.getParent());
+
+                            // Use InputStream for cross-filesystem copy (JAR to filesystem)
+                            try (InputStream in = Files.newInputStream(source)) {
+                                Files.copy(in, destination, StandardCopyOption.REPLACE_EXISTING);
+                                filesCopied++;
+                            }
+                        }
+                    } catch (Exception e) {
+                        // Silent skip - this is expected for some paths
+                    }
+                }
+            }
+
+            // Count copied skills (directories only)
+            int skillCount = (int) Files.list(skillsTargetDir)
+                .filter(Files::isDirectory)
+                .count();
+
+            if (filesCopied > 0) {
+                printer().println(green("✓") + " Copied " + filesCopied + " files in " + skillCount + " skill folders");
+            } else {
+                printer().println(yellow("  No skills copied (this is normal - skills are embedded in command files)"));
+            }
+
+        } finally {
+            // Close the JAR filesystem if we created it
+            if (fileSystem != null && uri.getScheme().equals("jar")) {
+                try {
+                    fileSystem.close();
+                } catch (Exception e) {
+                    // Ignore close errors
+                }
+            }
+        }
+    }
+
     private void createMavenWrapper(Path projectDir) throws Exception {
         // Create .mvn/wrapper directory
         Path wrapperDir = projectDir.resolve(".mvn/wrapper");
@@ -267,5 +359,61 @@ public class InitCommand extends CamelKitCommand {
         Files.writeString(projectDir.resolve("mvnw.cmd"), mvnwCmdScript);
 
         printer().println(green("✓") + " Maven Wrapper created (portable Maven " + mavenVersion + ")");
+    }
+
+    private void createMcpConfigs(Path projectDir, String camelVersion, String selectedAgent) throws Exception {
+        String agentName = "";
+
+        // Create MCP config only for the selected agent
+        try {
+            switch (selectedAgent.toLowerCase()) {
+                case "claude" -> {
+                    // Claude Code - .mcp.json in project root (standard MCP location)
+                    String claudeTemplate = TemplateUtils.readTemplate("templates/mcp-configs/claude-code-mcp.json");
+                    String processedTemplate = claudeTemplate.replace("{{CAMEL_VERSION}}", camelVersion);
+                    Files.writeString(projectDir.resolve(".mcp.json"), processedTemplate);
+                    agentName = "Claude Code";
+                }
+                case "bob" -> {
+                    // IBM Bob - .bob/mcp.json
+                    String bobTemplate = TemplateUtils.readTemplate("templates/mcp-configs/bob-mcp.json");
+                    String processedTemplate = bobTemplate.replace("{{CAMEL_VERSION}}", camelVersion);
+                    Path bobDir = projectDir.resolve(".bob");
+                    Files.createDirectories(bobDir);
+                    Files.writeString(bobDir.resolve("mcp.json"), processedTemplate);
+                    agentName = "IBM Bob";
+                }
+                case "gemini" -> {
+                    // Gemini CLI - .gemini/mcp.json
+                    String geminiTemplate = TemplateUtils.readTemplate("templates/mcp-configs/gemini-mcp.json");
+                    String processedTemplate = geminiTemplate.replace("{{CAMEL_VERSION}}", camelVersion);
+                    Path geminiDir = projectDir.resolve(".gemini");
+                    Files.createDirectories(geminiDir);
+                    Files.writeString(geminiDir.resolve("settings.json"), processedTemplate);
+                    agentName = "Gemini CLI";
+                }
+                default -> {
+                    printer().println(yellow("  Warning: Unknown agent '" + selectedAgent + "', skipping MCP config"));
+                    return;
+                }
+            }
+
+            // Copy MCP setup documentation
+            try {
+                String mcpSetupGuide = TemplateUtils.readTemplate("templates/mcp-configs/MCP-SETUP.md");
+                String mcpTestingGuide = TemplateUtils.readTemplate("templates/mcp-configs/MCP-TESTING.md");
+                Path camelKitDir = projectDir.resolve(".camel-kit");
+                Files.writeString(camelKitDir.resolve("MCP-SETUP.md"), mcpSetupGuide);
+                Files.writeString(camelKitDir.resolve("MCP-TESTING.md"), mcpTestingGuide);
+            } catch (Exception e) {
+                printer().println(yellow("  Warning: Could not copy MCP documentation: " + e.getMessage()));
+            }
+
+            printer().println(green("✓") + " MCP config created for " + agentName);
+            printer().println("  - See .camel-kit/MCP-SETUP.md for configuration details");
+            printer().println("  - See .camel-kit/MCP-TESTING.md for testing and troubleshooting");
+        } catch (Exception e) {
+            printer().println(yellow("  Warning: Could not create MCP config: " + e.getMessage()));
+        }
     }
 }
