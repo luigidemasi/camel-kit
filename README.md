@@ -64,21 +64,15 @@ Then install camel-kit:
 
 ```bash
 # Install from Maven (after publishing)
-jbang app install camel-kit@io.github.luigidemasi:camel-kit
+jbang app install camel-kit@luigidemasi/camel-kit
 
-# Or install from local build
+# Or install from local path 
 cd camel-kit
 mvn install
-jbang app install --force camel-kit@io.github.luigidemasi:camel-kit
+jbang app install --force camel-kit@./
 
 # Verify installation
 camel-kit --help
-```
-
-**Run without installing:**
-
-```bash
-jbang io.github.luigidemasi:camel-kit init my-integration --ai bob
 ```
 
 ### Initialize a Project

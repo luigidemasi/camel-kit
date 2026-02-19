@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.github.luigidemasi</groupId>
         <artifactId>camel-kit</artifactId>
-        <version>0.2.0-SNAPSHOT</version>
+        <version>0.2.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>camel-kit-plugins</artifactId>
