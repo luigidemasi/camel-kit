@@ -24,7 +24,7 @@ Customer orders are received on a Kafka topic as JSON messages. Valid orders (am
 
 Define your integration landscape - systems and high-level integration goals:
 ```
-/camel.project
+/camel-project
 ```
 
 **Sample conversation:**
@@ -50,7 +50,7 @@ You: Move customer orders from Order Management System to Fulfillment Database
 
 Define and design the integration flow (business + technical details):
 ```
-/camel.flow order-ingestion
+/camel-flow order-ingestion
 ```
 
 **Sample conversation:**
@@ -104,7 +104,7 @@ You: Dead Letter Channel to kafka:orders-dlq with 3 retries
 
 Generate the Camel YAML DSL and supporting files:
 ```
-/camel.implement order-ingestion
+/camel-implement order-ingestion
 ```
 
 **Generated files:**
@@ -127,7 +127,7 @@ camel run order-ingestion.camel.yaml application.properties
 
 Validate the route against the constitution and YAML schema:
 ```
-/camel.validate
+/camel-validate
 ```
 
 Or using Camel CLI:
@@ -139,7 +139,7 @@ camel run --check order-ingestion.camel.yaml application.properties
 
 Generate integration tests with Testcontainers:
 ```
-/camel.test order-ingestion
+/camel-test order-ingestion
 ```
 
 **Sample conversation:**
@@ -193,11 +193,11 @@ order-processing/
 │   ├── jbang.properties
 │   └── data/
 ├── .bob/commands/                 # AI agent slash commands
-│   ├── camel.project.md
-│   ├── camel.flow.md
-│   ├── camel.implement.md
-│   ├── camel.validate.md
-│   └── camel.test.md
+│   ├── camel-project.md
+│   ├── camel-flow.md
+│   ├── camel-implement.md
+│   ├── camel-validate.md
+│   └── camel-test.md
 └── .camel-kit/
     ├── config.yaml
     ├── constitution.md
@@ -210,17 +210,17 @@ order-processing/
 ## Workflow Summary (1 Flow = 1 Route)
 
 ```
-/camel.project                # (Optional) Define integration landscape
-/camel.flow <flow-name>       # Define and design the flow
-/camel.implement <flow-name>  # Generate <flow-name>.camel.yaml
-/camel.validate               # Check against constitution & schema
-/camel.test <flow-name>       # Generate integration tests
+/camel-project                # (Optional) Define integration landscape
+/camel-flow <flow-name>       # Define and design the flow
+/camel-implement <flow-name>  # Generate <flow-name>.camel.yaml with MCP validation
+/camel-validate               # Check against constitution, security (47 checks)
+/camel-test <flow-name>       # Generate integration tests
 ```
 
 To add another flow, simply run:
 ```
-/camel.flow order-notification
-/camel.implement order-notification
+/camel-flow order-notification
+/camel-implement order-notification
 ```
 
 ## Documentation

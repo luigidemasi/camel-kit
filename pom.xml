@@ -6,7 +6,7 @@
 
     <groupId>io.github.luigidemasi</groupId>
     <artifactId>camel-kit</artifactId>
-    <version>0.2.1-SNAPSHOT</version>
+    <version>0.3.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
 
@@ -73,6 +73,7 @@
         <module>camel-kit-main</module>
         <module>camel-kit-core</module>
         <module>camel-kit-plugins</module>
+        <module>camel-jbang-plugin-kit</module>
     </modules>
     <dependencyManagement>
         <dependencies>

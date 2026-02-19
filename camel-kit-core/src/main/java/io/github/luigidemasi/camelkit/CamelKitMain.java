@@ -23,7 +23,7 @@ import java.util.concurrent.Callable;
 @Command(
     name = "camel-kit",
     mixinStandardHelpOptions = true,
-    version = "0.2.0-SNAPSHOT",
+    version = "0.2.1-SNAPSHOT",
     description = "Design Apache Camel integrations with AI coding assistants")
 public class CamelKitMain implements Callable<Integer> {
 

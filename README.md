@@ -20,9 +20,9 @@ flowchart LR
         A[camel-kit init]
     end
     subgraph "AI Assistant"
-        B["/camel.project"]
-        C["/camel.flow"]
-        D["/camel.implement"]
+        B["/camel-project"]
+        C["/camel-flow"]
+        D["/camel-implement"]
     end
     subgraph Output
         E["flow-name.camel.yaml"]
@@ -38,8 +38,22 @@ flowchart LR
 
 - **Guided Design** - Interactive commands walk you through integration design step-by-step
 - **Best Practices** - Constitution enforces Apache Camel best practices automatically
+- **Data Transformation** - Schema-based field mapping with automatic XSLT generation
+  - Support for XML Schema (XSD) and JSON Schema
+  - Automatic field matching and automapping
+  - Nested field handling and flattening
+  - Conditional mappings (IF, CHOOSE-WHEN-OTHERWISE)
+  - Collection processing with FOR-EACH iterations
+  - Parameter support for Camel Variables and Headers
+  - Comprehensive XPath function library
+  - Kaoto DataMapper-compatible XSLT output
+- **MCP Integration** - Real-time Camel catalog queries via Model Context Protocol (60-70% token savings)
+  - Project-specific configuration for Claude Code, IBM Bob, and Gemini CLI
+  - 7 active MCP tools: component search, documentation, validation, security analysis
+  - Always-current documentation matching exact Camel version
 - **Catalog Integration** - Live component and Kamelet catalog lookup with suggestions
 - **Schema Validation** - Automated validation using official Camel YAML DSL Validator Maven plugin
+- **Security Analysis** - 47 automated security checks via Camel MCP server
 - **Kaoto-Ready Output** - Generate YAML DSL compatible with [Kaoto](https://kaoto.io/) visual designer
 - **Citrus Testing** - Generate integration tests using [Citrus Framework](https://citrusframework.org/) with JSON schema validation
 - **Portable Maven** - Generated projects include Maven Wrapper for cross-platform builds
@@ -102,17 +116,19 @@ camel-kit init --here --ai bob
 Open your project in IBM Project Bob (or other supported AI assistant) and use the slash commands:
 
 ```
-/camel.project     (Optional) Define integration landscape and identify flows
-/camel.flow        Define and design the integration flow
-/camel.implement   Generate Kaoto-ready YAML code with validation loop
-/camel.validate    Check specifications and compliance
-/camel.test        Generate Citrus integration tests with validation loop
+/camel-project     (Optional) Define integration landscape and identify flows
+/camel-flow        Define and design the integration flow
+/camel-implement   Generate Kaoto-ready YAML code with MCP route validation
+/camel-validate    Check specifications and compliance
+/camel-test        Generate Citrus integration tests with validation loop
 ```
 
 ## Documentation
 
 - [User Guide](docs/user-guide.md) - Complete guide to using camel-kit
 - [Command Reference](docs/commands.md) - Detailed command documentation
+- [Skills Architecture](docs/skills-architecture.md) - Skills-based architecture overview
+- [MCP Tools Reference](docs/mcp-tools-reference.md) - Camel MCP server integration guide
 - [Constitution](docs/constitution.md) - Best practices enforced by camel-kit
 - [Contributing](CONTRIBUTING.md) - How to contribute to camel-kit
 
@@ -130,24 +146,49 @@ Open your project in IBM Project Bob (or other supported AI assistant) and use t
 
 | Command | Purpose |
 |---------|---------|
-| `/camel.project` | (Optional) Define integration landscape and identify all flows |
-| `/camel.flow` | Define and design the integration flow (business + technical) |
-| `/camel.implement` | Generate Camel YAML DSL with automated validation loop |
-| `/camel.validate` | Check completeness and constitution compliance |
-| `/camel.test` | Generate Citrus integration tests with automated validation loop |
+| `/camel-project` | (Optional) Define integration landscape and identify all flows |
+| `/camel-flow` | Define and design the integration flow with field mappings and transformations |
+| `/camel-implement` | Generate Camel YAML DSL and DataMapper XSLT with automated validation |
+| `/camel-validate` | Check completeness, constitution compliance, and run security analysis |
+| `/camel-test` | Generate Citrus integration tests with automated validation loop |
 
 **Note:** Project initialization is done via CLI (`camel-kit init`), not a slash command.
 
+### Data Transformation Workflow
+
+When your flow includes data transformation (e.g., JSON to different JSON format, XML to JSON):
+
+1. **`/camel-flow`** - Capture field mappings interactively:
+   - Provide source and destination schemas (XSD or JSON Schema)
+   - AI proposes automapping for matching field names
+   - Define conditional logic and collection processing
+   - Specify parameters (Camel Variables/Headers) for transformation
+
+2. **`/camel-implement`** - Automatic XSLT generation:
+   - Generates Kaoto DataMapper-compatible XSLT from field mappings
+   - Includes all conditionals, loops, and parameter handling
+   - Integrates XSLT into route with xslt-saxon component
+   - Adds camel-saxon dependency automatically
+
+Example transformation features:
+- **Automapping**: `orderId` → `orderId` (exact match)
+- **Nested flattening**: `order.customer.name` → `customerName`
+- **Conditionals**: IF amount > 1000 THEN priority = 'HIGH'
+- **Collections**: FOR-EACH items with position tracking
+- **Parameters**: Use `$userId` from Camel Header in mapping
+- **Functions**: Date formatting, string concatenation, calculations
+
 ## Validation
 
-Camel-Kit uses official validation tools via Maven Wrapper for cross-platform compatibility:
+Camel-Kit uses multiple validation approaches:
 
-### Camel YAML Validation
+### Camel Route Validation via MCP
 
-```bash
-./mvnw org.apache.camel:camel-yaml-dsl-validator:4.14.5:validate \
-  -Dcamel.validator.files=my-route.camel.yaml
-```
+During `/camel-implement`, routes are validated using the MCP `camel_validate_route` tool:
+- Validates all endpoint URIs against Camel catalog
+- Checks component options and required parameters
+- Catches typos and suggests corrections
+- Validates against exact Camel version in project
 
 ### Citrus Test Validation
 
@@ -168,24 +209,24 @@ camel-kit init order-processing --ai bob
 cd order-processing
 
 # 3. (Optional) Define integration landscape:
-#    /camel.project
+#    /camel-project
 #    - Identify systems, data formats, and flows
 
 # 4. Define and design the flow:
-#    /camel.flow order-ingestion
+#    /camel-flow order-ingestion
 #    - Source: Kafka topic "orders"
 #    - EIPs: Unmarshal JSON, validate, filter
 #    - Sink: PostgreSQL database
 #    - Error handling: Dead Letter Channel
 
-# 5. Generate the Camel YAML (with validation loop):
-#    /camel.implement order-ingestion
+# 5. Generate the Camel YAML (with MCP validation):
+#    /camel-implement order-ingestion
 #    - Creates: order-ingestion.camel.yaml
-#    - Validates with: ./mvnw camel-yaml-dsl-validator:validate
+#    - Validates with: MCP camel_validate_route
 
 # 6. Validate & Test:
-#    /camel.validate
-#    /camel.test order-ingestion
+#    /camel-validate
+#    /camel-test order-ingestion
 
 # 7. Open in Kaoto or run (with application.properties for config):
 camel run order-ingestion.camel.yaml application.properties
@@ -247,6 +288,49 @@ Generated Kaoto-compatible YAML (`order-ingestion.camel.yaml`):
               - to:
                   uri: jpa:com.example.Order
 ```
+
+**With Data Transformation** (`order-transform.camel.yaml`):
+
+When field mappings are defined in `/camel-flow`, a DataMapper XSLT file is generated:
+
+```yaml
+- route:
+    id: order-transform
+    description: Transform order format from source to target schema
+
+    from:
+      uri: kafka:source-orders
+      steps:
+        - unmarshal:
+            json:
+              library: Jackson
+
+        # DataMapper XSLT transformation
+        - step:
+            id: order-transform-datamapper-step
+            steps:
+              - to:
+                  id: order-transform-datamapper-xslt
+                  uri: "xslt-saxon:order-transform-datamapper-a1b2c3d4.xsl"
+                  parameters:
+                    userId: "${header.userId}"
+                    tenantId: "${header.tenantId}"
+
+        - marshal:
+            json:
+              library: Jackson
+
+        - to:
+            uri: kafka:target-orders
+```
+
+Generated XSLT file (`order-transform-datamapper-a1b2c3d4.xsl`) includes:
+- Field-to-field mappings (direct copy, nested flattening)
+- Date/time formatting
+- Conditional logic (IF, CHOOSE-WHEN-OTHERWISE)
+- Collection iterations with position tracking
+- Parameter usage from Camel context
+- Comprehensive XPath transformations
 
 ## CLI Commands
 
