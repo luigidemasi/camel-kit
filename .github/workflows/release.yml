@@ -55,3 +55,12 @@ jobs:
 
           GITHUB_ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN || secrets.GITHUB_TOKEN }}
         run: ./.github/workflows/release.sh
+
+      - name: Merge snapshot version to main
+        run: |
+          git config --global user.name "release-bot"
+          git config --global user.email "luigidemasi@gmail.com"
+          git fetch origin main
+          git checkout main
+          git merge origin/release --no-ff -m "chore: update to next snapshot version after release [skip ci]"
+          git push https://x-access-token:${{ secrets.ACCESS_TOKEN || secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main
