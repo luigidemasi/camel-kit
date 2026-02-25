@@ -204,7 +204,7 @@ Protect routes from external service failures.
 - Provide fallback behavior when circuit is open
 - Consider bulkhead isolation for independent external services
 
-**Enforcement:** External service calls without resilience patterns trigger warnings.
+**Enforcement:** Informational only — apply when explicitly requested during flow design.
 
 ---
 
@@ -256,7 +256,7 @@ Use transactions to ensure data consistency across multiple operations.
       - to: kafka:failed-orders
 ```
 
-**Enforcement:** Routes with multiple external writes without transactions trigger warnings.
+**Enforcement:** Informational only — apply when explicitly requested during flow design.
 
 ---
 
@@ -273,7 +273,7 @@ Design routes to handle duplicate messages safely.
   - `InfinispanIdempotentRepository`: Distributed data grid
 - Define meaningful message IDs (business keys preferred over technical IDs)
 
-**Enforcement:** High-volume routes without idempotency configured trigger warnings.
+**Enforcement:** Informational only — apply when explicitly requested during flow design.
 
 ---
 

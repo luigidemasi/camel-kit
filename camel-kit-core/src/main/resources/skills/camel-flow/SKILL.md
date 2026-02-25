@@ -262,23 +262,28 @@ Describe your processing steps.
 → Show relevant EIP patterns with examples
 
 **If user clear on transformations:**
-→ Suggest EIPs directly:
+→ Suggest EIPs directly, based only on what the user described:
 ```
 Suggested processing steps:
 
-1. unmarshal (JSON) - Parse JSON to object
-2. validate - Check required fields
-3. filter - Apply business rule
-4. [other steps based on their description]
+1. validate - Check required fields
+2. filter - Apply business rule
+3. [other steps based on their description]
 
 Does this match your requirements? (yes/modify)
 ```
+
+Do NOT include `unmarshal` or `marshal` steps unless the user explicitly said they need to work with typed Java objects. When formats are JSON or XML, prefer DataMapper/XSLT-saxon (see Question 3a).
 
 ---
 
 ### Question 3a: Data Transformation & Field Mapping (Conditional)
 
 **ONLY ask if user mentioned data transformation/mapping/format conversion in Question 3**
+
+**Transformation approach (decide before asking about schemas):**
+- If source and target formats are both JSON, or both XML, or JSON↔XML → prefer **DataMapper/XSLT-saxon**. Ask for schemas to drive the mapping.
+- Use `unmarshal`/`marshal` **only as a fallback** when: no schemas are available, or the transformation logic cannot be expressed in XSLT (e.g. complex Java-level business logic).
 
 ```
 Do you have schemas for the source and destination messages?
@@ -287,7 +292,7 @@ Options:
 a) Yes, I have both schemas (XML Schema / JSON Schema)
 b) Yes, source schema only
 c) Yes, destination schema only
-d) No schemas available
+d) No schemas — I'll describe the mappings manually
 ```
 
 **If user has schemas (a, b, or c):**
@@ -648,10 +653,10 @@ Within `items[]` iteration:
 
 ### 3.7 Additional Processing Steps (EIPs)
 
-1. unmarshal (JSON) - Parse incoming JSON message
-2. **datamapper** - Transform using XSLT (field mappings above)
-3. validate - Check required fields in transformed message
-4. marshal (JSON) - Convert to JSON for sink
+1. **datamapper** - Transform using XSLT-saxon (field mappings above)
+2. validate - Check required fields in transformed message
+
+> Note: `unmarshal`/`marshal` steps are added here ONLY when DataMapper/XSLT is not applicable (no schemas available or Java-level processing required). Do not include them by default.
 ```
 
 ---
@@ -771,6 +776,94 @@ Logging: Error details with correlation ID
 
 ---
 
+### Question 5b: Circuit Breaker (Conditional)
+
+**Ask ONLY if the source or sink identified in Questions 2 / 4 involves an external HTTP/REST API or remote service (not a local queue or database).**
+
+```
+This flow calls an external service ([service name]).
+Do you want circuit breaker protection to prevent cascading failures if that service becomes unavailable?
+
+Options:
+a) Yes — trip the circuit after repeated failures and use a fallback
+b) No — rely on the retry policy defined in error handling
+```
+
+**If user selects (a), ask:**
+```
+What fallback should the route use when the circuit is open?
+- Return a default response (describe it)
+- Send to an alternative endpoint
+- Fail fast with a specific error message
+```
+
+Document in TDD under **Section 5b: Resilience** (load `skills/camel-flow/guides/performance.md` for circuit breaker configuration reference).
+
+**If user selects (b) or question does not apply:**
+→ Skip to Question 5c
+
+---
+
+### Question 5c: Idempotent Consumer (Conditional)
+
+**Ask ONLY if:**
+- The source is a message broker (Kafka, JMS, AMQP, etc.), OR
+- The user mentioned deduplication, exactly-once, or duplicate messages
+
+```
+Does this flow need to guard against processing duplicate messages?
+(e.g., the same message delivered more than once by the broker)
+
+a) Yes — use an idempotent consumer to deduplicate
+b) No — duplicates are acceptable or handled upstream
+```
+
+**If user selects (a), ask:**
+```
+Where should the idempotent repository be stored?
+
+a) In-memory (development / single instance only — not persistent)
+b) Database (JPA — persistent, single-node production)
+c) Distributed cache (Infinispan / Hazelcast — clustered environments)
+
+Which field uniquely identifies a message? (e.g., "orderId", "messageId", "CamelKafkaOffset")
+```
+
+Document in TDD under **Section 5c: Idempotency**.
+
+**If user selects (b) or question does not apply:**
+→ Skip to Question 5d
+
+---
+
+### Question 5d: Transactions (Conditional)
+
+**Ask ONLY if the flow writes to more than one external system** (e.g., database AND message broker, two databases, etc.).
+
+```
+This flow writes to [system A] and [system B].
+Do you need both writes to succeed or fail together (transactional consistency)?
+
+a) Yes — wrap both writes in a transaction
+b) No — eventual consistency is acceptable (handle partial failures in error handling)
+```
+
+**If user selects (a), ask:**
+```
+Which transaction manager applies?
+
+a) JTA (distributed transactions across JMS + DB)
+b) Spring / Quarkus local transaction (single datasource)
+c) Saga pattern (compensating transactions, eventual consistency)
+```
+
+Document in TDD under **Section 5d: Transactions** (refer to constitution Principle 7 for propagation policy reference).
+
+**If user selects (b) or question does not apply:**
+→ Skip to Question 6
+
+---
+
 ### Question 6: Performance (Conditional)
 
 **Ask ONLY if user mentioned:**
@@ -860,9 +953,12 @@ Based on our discussion:
 - Sink: {component} connection details
 - Processing: [list parameters]
 - Error handling: DLQ endpoint, retry config
-[+ Performance config if high volume]
-[+ Security credentials if needed]
-[+ Monitoring config if requested]
+[+ Circuit breaker thresholds — if Q5b selected]
+[+ Idempotent repository config — if Q5c selected]
+[+ Transaction manager ref — if Q5d selected]
+[+ Performance config — if Q6 triggered]
+[+ Security credentials — if Q7 triggered]
+[+ Monitoring config — if Q8 triggered]
 
 Any additional properties? (specify or say "no")
 ```
@@ -897,10 +993,13 @@ Create `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md`:
 4. Sink System (component, URI, config)
 5. Error Handling (strategy, DLQ, retries)
 
-**Conditional Sections (include only if discussed):**
-6. Performance & Reliability (if high volume/latency requirements)
-7. Security (if security/compliance requirements)
-8. Monitoring & Observability (if monitoring discussed)
+**Conditional Sections (include only if the corresponding question was answered affirmatively):**
+5b. Resilience / Circuit Breaker (only if Q5b selected)
+5c. Idempotent Consumer (only if Q5c selected)
+5d. Transactions (only if Q5d selected)
+6. Performance & Reliability (only if Q6 triggered)
+7. Security (only if Q7 triggered)
+8. Monitoring & Observability (only if Q8 triggered)
 
 **Always include:**
 9. Sequence Diagram

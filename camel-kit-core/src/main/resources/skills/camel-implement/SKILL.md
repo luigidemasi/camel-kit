@@ -1038,6 +1038,89 @@ Generate the route by translating the TDD to Camel YAML DSL:
          # ...
    ```
 
+6. **Jakarta EE namespaces when Camel ≥ 4.0** — Apache Camel 4.x requires Jakarta EE 9+ APIs. If the project's Camel version (from `.camel-kit/config.yaml`) is **4.0 or later**, always use `jakarta.*` package names. If the version is older than 4.0, keep `javax.*`.
+
+   **Java SE packages are exempt** — `javax.sql.*`, `javax.xml.*`, `javax.swing.*`, and other packages that belong to the Java Standard Edition are NOT affected by this rule. Only Jakarta EE APIs change.
+
+   | Functional Area | Camel < 4.0 (javax) | Camel ≥ 4.0 (jakarta) |
+   |---|---|---|
+   | Servlet | `javax.servlet.*` | `jakarta.servlet.*` |
+   | Persistence (JPA) | `javax.persistence.*` | `jakarta.persistence.*` |
+   | CDI | `javax.enterprise.*` | `jakarta.enterprise.*` |
+   | Bean Validation | `javax.validation.*` | `jakarta.validation.*` |
+   | JAX-RS | `javax.ws.rs.*` | `jakarta.ws.rs.*` |
+   | JSON Binding | `javax.json.bind.*` | `jakarta.json.bind.*` |
+   | JSON Processing | `javax.json.*` | `jakarta.json.*` |
+   | JMS | `javax.jms.*` | `jakarta.jms.*` |
+   | Annotation | `javax.annotation.*` | `jakarta.annotation.*` |
+   | Mail | `javax.mail.*` | `jakarta.mail.*` |
+   | Transaction (JTA) | `javax.transaction.*` | `jakarta.transaction.*` |
+   | Faces (JSF) | `javax.faces.*` | `jakarta.faces.*` |
+   | WebSocket | `javax.websocket.*` | `jakarta.websocket.*` |
+
+   ```yaml
+   # Camel ≥ 4.0 — CORRECT
+   - unmarshal:
+       jaxb:
+         contextPath: com.example.model    # class uses jakarta.xml.bind annotations
+
+   # Camel ≥ 4.0 — WRONG
+   - unmarshal:
+       jaxb:
+         contextPath: com.example.model    # class uses javax.xml.bind annotations ❌
+   ```
+
+   **Validation gate:** After generating all YAML and property files, scan for any `javax.` reference that belongs to the Jakarta EE list above. If the Camel version is ≥ 4.0, replace it with the corresponding `jakarta.` equivalent before saving.
+
+7. **Global `onException` MUST be declared before any `route` elements** — This is a hard constraint of the Camel RouteBuilder. Two scopes exist; handle them differently:
+
+   - **Global scope** (`- onException:` at top level, applies to all routes): MUST appear before the first `- route:` block.
+   - **Route scope** (`onException:` inside a route definition, applies only to that route): lives inside the route and is fine wherever the route needs it.
+
+   ```yaml
+   # CORRECT — global onException before routes
+   - onException:
+       exception:
+         - com.example.ValidationException
+       handled:
+         constant:
+           expression: "true"
+       steps:
+         - to:
+             uri: "kafka:{{kafka.topic.invalid}}"
+
+   - route:
+       id: flow-name
+       errorHandler:           # route-scoped error handler — inside the route, fine
+         deadLetterChannel:
+           deadLetterUri: "kafka:{{kafka.topic.dlq}}"
+       from:
+         uri: "kafka:{{kafka.topic.input}}"
+         steps:
+           - doTry:            # inline doTry/doCatch — inside the route, fine
+               steps:
+                 - to:
+                     uri: "http:{{api.host}}"
+             doCatch:
+               - exception:
+                   - java.net.ConnectException
+                 steps:
+                   - to:
+                       uri: "direct:fallback"
+
+   # WRONG — global onException declared after a route
+   - route:
+       id: flow-name
+       from:
+         uri: "kafka:{{kafka.topic.input}}"
+
+   - onException:   # ❌ too late — must be before all routes
+       exception:
+         - com.example.ValidationException
+   ```
+
+   **Validation gate:** Scan the generated YAML top-to-bottom. If any `- onException:` top-level element appears after a `- route:` element, move it above all routes before saving the file.
+
 ### 3.3 Generate File
 
 Create `{flow-name}.camel.yaml`:
@@ -1047,6 +1130,19 @@ Create `{flow-name}.camel.yaml`:
 # Camel Route: {flow-name}
 # Generated from TDD: .camel-kit/flows/{flow-name}/{flow-name}.tdd.md
 # ============================================
+
+# Global onException MUST be declared before any route (Rule 6).
+# Include ONLY if TDD Section 5 defines global (cross-route) onException handling.
+# Route-scoped error handling (errorHandler:, doTry/doCatch) stays inside the route.
+- onException:
+    exception:
+      - [exception class from TDD]
+    handled:
+      constant:
+        expression: "true"
+    steps:
+      - to:
+          uri: "[component]:{{dlq.endpoint}}"
 
 - route:
     id: {flow-name}
@@ -1067,10 +1163,7 @@ Create `{flow-name}.camel.yaml`:
 
       steps:
         # Processing steps from TDD Section 3
-        - unmarshal:
-            json:
-              library: Jackson
-              unmarshalType: [type from TDD]
+        # (unmarshal only if explicitly required — see Rule in Step 3.2)
 
         # DataMapper transformation (if generated in Step 2.5)
         - step:

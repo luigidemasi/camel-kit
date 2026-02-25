@@ -156,7 +156,8 @@ public class InitCommand extends CamelKitCommand {
         }
         printer().println(bold("Next steps:"));
         printer().println("  1. Open " + cyan(projectName) + " in " + agent.name());
-        printer().println("  2. Run " + cyan("/camel-project") + " to define your integration project");
+        printer().println("  2. For greenfield: Run " + cyan("/camel-project") + " to define your integration project");
+        printer().println("     For migration:  Run " + cyan("/camel-migrate <export-file>") + " to migrate from another product");
         printer().println("  3. Run " + cyan("/camel-flow <flow-name>") + " to design a flow");
         printer().println("  4. Run " + cyan("/camel-implement <flow-name>") + " to generate Camel YAML");
         printer().println();
@@ -190,7 +191,7 @@ public class InitCommand extends CamelKitCommand {
     }
 
     private void createCommandTemplates(Path dir, AgentConfig agent) throws Exception {
-        List<String> commands = List.of("project", "flow", "implement", "validate", "test");
+        List<String> commands = List.of("project", "flow", "implement", "validate", "test", "migrate");
 
         // Extract agent base folder (e.g., ".bob" from ".bob/commands")
         String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf("/"));
@@ -398,20 +399,7 @@ public class InitCommand extends CamelKitCommand {
                 }
             }
 
-            // Copy MCP setup documentation
-            try {
-                String mcpSetupGuide = TemplateUtils.readTemplate("templates/mcp-configs/MCP-SETUP.md");
-                String mcpTestingGuide = TemplateUtils.readTemplate("templates/mcp-configs/MCP-TESTING.md");
-                Path camelKitDir = projectDir.resolve(".camel-kit");
-                Files.writeString(camelKitDir.resolve("MCP-SETUP.md"), mcpSetupGuide);
-                Files.writeString(camelKitDir.resolve("MCP-TESTING.md"), mcpTestingGuide);
-            } catch (Exception e) {
-                printer().println(yellow("  Warning: Could not copy MCP documentation: " + e.getMessage()));
-            }
-
             printer().println(green("✓") + " MCP config created for " + agentName);
-            printer().println("  - See .camel-kit/MCP-SETUP.md for configuration details");
-            printer().println("  - See .camel-kit/MCP-TESTING.md for testing and troubleshooting");
         } catch (Exception e) {
             printer().println(yellow("  Warning: Could not create MCP config: " + e.getMessage()));
         }
