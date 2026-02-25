@@ -8,6 +8,7 @@ This guide walks you through using Camel-Kit to design Apache Camel integrations
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Workflow Overview](#workflow-overview)
+- [Migration Workflow](#migration-workflow)
 - [Flow Definition](#flow-definition)
 - [Data Transformation](#data-transformation)
 - [YAML Generation](#yaml-generation)
@@ -61,8 +62,8 @@ The Camel MCP server (`camel-jbang-mcp`) exposes the complete Apache Camel catal
 | Tool | Purpose | Used By |
 |------|---------|---------|
 | `camel_version_list` | List Camel versions with LTS status | camel-project |
-| `camel_catalog_components` | Search components by category | camel-flow |
-| `camel_catalog_component_doc` | Get component documentation | camel-flow, camel-implement, camel-test |
+| `camel_catalog_components` | Search components by category | camel-flow, camel-migrate |
+| `camel_catalog_component_doc` | Get component documentation | camel-flow, camel-migrate, camel-implement, camel-test |
 | `camel_validate_route` | Validate endpoint URIs | camel-implement, camel-validate |
 | `camel_route_context` | Extract components/EIPs from route | camel-implement, camel-test |
 | `camel_route_harden_context` | Security analysis (47 checks) | camel-validate |
@@ -124,8 +125,12 @@ camel-kit init order-processing --ai claude   # Anthropic Claude Code
 cd order-processing
 
 # 3. Use slash commands in the AI assistant:
+#    Greenfield:
 #    /camel-project     - (Optional) Define integration landscape
 #    /camel-flow        - Define and design the flow
+#    Migration:
+#    /camel-migrate     - Migrate from MuleSoft Mule (or other supported platforms)
+#    Shared:
 #    /camel-implement   - Generate Camel YAML with validation
 #    /camel-validate    - Check specifications
 #    /camel-test        - Generate integration tests with validation
@@ -138,31 +143,138 @@ camel run order-ingestion.camel.yaml application.properties
 
 ## Workflow Overview
 
+Camel-Kit supports two paths to `/camel-implement` — greenfield (new integrations) and migration (from another platform). Both paths produce the same artifacts, so the implementation and testing steps are identical.
+
 ```mermaid
 flowchart TB
     subgraph CLI
         A[camel-kit init]
     end
-    subgraph "AI Assistant"
+    subgraph "Greenfield"
         B["/camel-project<br/>(optional)"]
         C["/camel-flow"]
+    end
+    subgraph "Migration"
+        M["/camel-migrate"]
+    end
+    subgraph "Shared"
         D["/camel-implement"]
+        V["/camel-validate"]
+        T["/camel-test"]
     end
     subgraph Output
         E["flow-name.camel.yaml"]
     end
 
-    A --> B --> C --> D --> E
+    A --> B --> C --> D
+    A --> M --> D
+    D --> V --> T --> E
 ```
+
+### Greenfield steps
 
 | Step | Command | Purpose |
 |------|---------|---------|
 | 1 | `camel-kit init` | Create project structure and fetch catalogs |
 | 2 | `/camel-project` | (Optional) Define integration landscape |
-| 3 | `/camel-flow` | Define flow: source, sink, EIPs, error handling |
-| 4 | `/camel-implement` | Generate Kaoto-compatible Camel YAML with validation loop |
+| 3 | `/camel-flow <flow-name>` | Define flow: source, sink, EIPs, error handling |
+| 4 | `/camel-implement <flow-name>` | Generate Kaoto-compatible Camel YAML with validation loop |
 | 5 | `/camel-validate` | Verify compliance with constitution |
-| 6 | `/camel-test` | Generate Citrus integration tests with validation loop |
+| 6 | `/camel-test <flow-name>` | Generate Citrus integration tests with validation loop |
+
+### Migration steps
+
+| Step | Command | Purpose |
+|------|---------|---------|
+| 1 | `camel-kit init` | Create project structure and fetch catalogs |
+| 2 | `/camel-migrate [export-path]` | Detect vendor, analyse flows, produce BRD + TDD files |
+| 3 | `/camel-implement <flow-name>` | Generate Camel YAML — same as greenfield |
+| 4 | `/camel-validate` | Verify compliance with constitution |
+| 5 | `/camel-test <flow-name>` | Generate Citrus integration tests |
+
+---
+
+## Migration Workflow
+
+Use `/camel-migrate` when you have an existing integration built on another platform and want to move it to Apache Camel. The command analyses your existing artifacts, asks targeted questions, and produces the same BRD + TDD files that the greenfield workflow produces — making `/camel-implement` the shared step for both paths.
+
+### Supported platforms
+
+| Platform | Versions | Notes |
+|----------|---------|-------|
+| MuleSoft Mule | 3.x, 4.x | XML flows, DataWeave transformations, all standard connectors |
+
+### Running a migration
+
+```
+/camel-migrate path/to/mule-project/
+```
+
+Provide a path to any of:
+- A single Mule XML file (`mule-config.xml`)
+- A Mule project directory (containing `src/main/mule/*.xml`)
+- A ZIP archive of a Mule project
+
+If no path is given, the command asks for one.
+
+### What the command does
+
+**Phase 1 — Business Analyst**
+
+The command reads all Mule XML files and builds a complete inventory of flows. Before asking any questions, it identifies which components have direct Camel equivalents and which are proprietary connectors that need a decision:
+
+```
+I found the following connector(s) with no direct Apache Camel equivalent:
+
+- Anypoint MQ (used in: order-ingestion-flow)
+  Suggested alternatives:
+  a) Amazon SQS (camel-aws2-sqs)
+  b) RabbitMQ (camel-rabbitmq)
+  c) ActiveMQ (camel-activemq)
+  d) Keep as TODO placeholder
+```
+
+After resolving proprietary connectors, it asks only the business questions the XML cannot answer — purpose, SLA, compliance requirements, and failure behaviour.
+
+Produces:
+- `.camel-kit/business-requirements.md`
+- `.camel-kit/constitution.md`
+
+**Phase 2 — Integration Architect**
+
+Maps each Mule component to its Camel equivalent, converts DataWeave transformations into TDD field mapping tables, and asks only what the XML cannot answer (DataWeave transformation intent, missing endpoint URLs, authentication, retry strategy).
+
+Produces one TDD file per Mule flow:
+- `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md`
+
+### Mule → Camel component mapping highlights
+
+| Mule Component | Camel Equivalent |
+|----------------|-----------------|
+| HTTP Listener | `platform-http` (consumer) |
+| HTTP Request | `camel-http` (producer) |
+| JMS | `camel-jms` / `camel-sjms` |
+| Database | `camel-sql` / `camel-jdbc` |
+| Scheduler | `camel-timer` / `camel-quartz` |
+| Choice Router | `choice` EIP |
+| Scatter-Gather | `multicast` EIP |
+| For Each | `split` EIP |
+| Sub Flow | `direct:` route |
+| DataWeave Transform | XSLT (Kaoto DataMapper) |
+| Set Payload | `setBody` EIP |
+| Set Variable | `setHeader` EIP |
+
+For a complete mapping table, see `skills/camel-migrate-mule/guides/mule-component-mapping.md` in your project's skills folder after running `camel-kit init`.
+
+### After `/camel-migrate`
+
+The produced files are fully compatible with the rest of the workflow:
+
+```
+/camel-implement order-ingestion     # Generate Camel YAML
+/camel-validate order-ingestion      # Verify compliance
+/camel-test order-ingestion          # Generate Citrus tests
+```
 
 ---
 
@@ -174,13 +286,18 @@ The flow definition captures **WHAT** the integration does and **HOW** it's impl
 
 Run `/camel-flow <flow-name>` in your AI assistant. You'll be guided through:
 
-1. **Business Purpose** - What problem does this flow solve?
-2. **Source & Sink** - Where data comes from and goes to
-3. **Processing Steps** - EIPs (Filter, Split, Aggregate, Transform)
-4. **Data Contracts** - Input/output formats and schemas
-5. **Error Scenarios** - What can go wrong and expected behavior
-6. **Error Handling** - Dead Letter Channel, Retry, Circuit Breaker
-7. **Flow Diagram** - Mermaid visualization
+1. **Flow Intent** - What data is processed and what is the goal
+2. **Source System** - Where data comes from and which Camel component handles it
+3. **Processing Steps** - EIPs required (filter, split, aggregate, transform, etc.)
+4. **Sink System** - Where data goes and which Camel component handles it
+5. **Error Handling** - Dead Letter Channel and retry strategy
+
+Then, only if relevant, the agent asks follow-up questions for:
+- **Data transformation** - Schemas for DataMapper/XSLT generation; `unmarshal` only as a fallback
+- **Circuit Breaker** - Only if an external HTTP/REST service is involved
+- **Idempotent Consumer** - Only if consuming from a message broker or deduplication is needed
+- **Transactions** - Only if writing to more than one external system
+- **Performance, Security, Monitoring** - Only if mentioned during the interview
 
 ### Flow File
 
@@ -658,11 +775,13 @@ Camel-Kit enforces best practices through the **constitution** (`.camel-kit/cons
 | Route Structure | Every route has a clear source and sink |
 | Single Responsibility | One route = one clear purpose |
 | Error Handling | Every route declares error strategy |
-| Resilience | External service calls use circuit breakers |
-| Idempotency | Consumer routes handle duplicates |
-| Data Format Discipline | Validate at integration boundaries |
+| Resilience | Circuit breaker added when explicitly requested during `/camel-flow` (external HTTP/REST calls) |
+| Idempotency | Idempotent consumer added when explicitly requested during `/camel-flow` (message broker sources) |
+| Data Format Discipline | DataMapper/XSLT-saxon preferred for transformation; `unmarshal`/`marshal` used only as fallback |
 | External Configuration | Use environment variables, never hardcode |
 | Throttling | High-throughput routes have rate limiting |
+| Jakarta EE namespaces | `jakarta.*` packages used for all Jakarta EE APIs when Camel ≥ 4.0 |
+| `onException` ordering | Global `onException` declared before all routes; route-scoped error handling stays inside the route |
 
 ### Customizing the Constitution
 

@@ -9,6 +9,7 @@ This document provides detailed reference for all Camel-Kit commands.
 - [Slash Commands](#slash-commands)
   - [/camel-project](#camel-project)
   - [/camel-flow](#camel-flow)
+  - [/camel-migrate](#camel-migrate)
   - [/camel-implement](#camel-implement)
   - [/camel-validate](#camel-validate)
   - [/camel-test](#camel-test)
@@ -146,12 +147,20 @@ Define a flow's business requirements, technical design, and data contracts.
 **Interactive flow:**
 
 1. **Flow Identification** - Extract core intent
-2. **Source & Sink** - Where data comes from and goes to (uses MCP `camel_catalog_components` to search)
-3. **Processing Steps** - High-level steps and EIPs required
-4. **Data Contracts** - Input/output formats and schemas
-5. **Error Scenarios** - What can go wrong
-6. **Error Handling** - Dead Letter Channel, Retry, Circuit Breaker
-7. **Flow Diagram** - Mermaid visualization
+2. **Source System** - Where data comes from (uses MCP `camel_catalog_components` to search)
+3. **Processing Steps** - EIPs required; data transformation uses DataMapper/XSLT-saxon by default (schemas requested); `unmarshal`/`marshal` only as fallback when no schemas are available
+4. **Sink System** - Where data goes to
+5. **Error Handling** - Dead Letter Channel and retry strategy
+
+**Conditional questions (asked only when relevant):**
+
+- **Data transformation** - If transformation is needed: asks for source/target schemas; prefers DataMapper/XSLT-saxon; falls back to `unmarshal`/`marshal` only when schemas are unavailable
+- **Circuit Breaker** - Asked only if source or sink is an external HTTP/REST service
+- **Idempotent Consumer** - Asked only if source is a message broker or deduplication is needed
+- **Transactions** - Asked only if the flow writes to more than one external system
+- **Performance** - Asked only if high throughput or low latency was mentioned
+- **Security** - Asked only if security, PII, or compliance was mentioned
+- **Monitoring** - Asked only if observability was mentioned
 
 **MCP Tools Used:**
 - `camel_catalog_components` - Search components by category
@@ -159,7 +168,79 @@ Define a flow's business requirements, technical design, and data contracts.
 
 **Output:**
 
-- Creates `.camel-kit/flows/<flow-name>/flow.md`
+- Creates `.camel-kit/flows/<flow-name>/<flow-name>.tdd.md`
+
+---
+
+### /camel-migrate
+
+Migrate an existing integration from another platform to Apache Camel. Detects the source vendor automatically, then runs a two-phase analysis (Business Analyst + Integration Architect) to produce the same artifacts that `/camel-project` + `/camel-flow` produce — so `/camel-implement` requires no changes.
+
+**Usage:**
+
+```
+/camel-migrate [path-to-export]
+```
+
+| Argument | Description |
+|----------|-------------|
+| `path-to-export` | Optional path to the source export: a single XML file, a project directory, or a ZIP archive. If omitted, the command asks for it. |
+
+**Supported source platforms:**
+
+| Platform | Versions | Detection method |
+|----------|---------|-----------------|
+| MuleSoft Mule | 3.x, 4.x | XML namespace `mulesoft.org`, `pom.xml` groupId `org.mule` / `com.mulesoft` |
+
+**Phase 1 — Business Analyst:**
+
+1. Parses all Mule XML files and builds a flow inventory.
+2. Flags proprietary connectors (Anypoint MQ, Object Store, SAP, Workday, etc.) and asks the user how to handle each one.
+3. Asks business questions that cannot be answered from the XML (purpose, SLA, compliance, failure behaviour).
+4. Produces:
+   - `.camel-kit/business-requirements.md`
+   - `.camel-kit/constitution.md`
+
+**Phase 2 — Integration Architect:**
+
+1. Maps each Mule component to its Camel equivalent using the bundled mapping guide.
+2. Converts DataWeave transformations into TDD Section 3 field mapping tables.
+3. Asks only what the XML cannot answer (DataWeave intent, missing endpoints, auth mechanisms, retry strategy).
+4. Produces one TDD file per Mule flow:
+   - `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md`
+
+**Output:**
+
+```
+.camel-kit/
+├── business-requirements.md      # BRD — identical format to /camel-project output
+├── constitution.md               # Same as /camel-project output
+└── flows/
+    ├── {flow-name-1}/
+    │   └── {flow-name-1}.tdd.md  # TDD — identical format to /camel-flow output
+    └── {flow-name-2}/
+        └── {flow-name-2}.tdd.md
+```
+
+**Next steps after `/camel-migrate`:**
+
+```
+/camel-implement {flow-name}      # Same as greenfield from here
+/camel-validate {flow-name}
+/camel-test {flow-name}
+```
+
+**Proprietary connectors handled:**
+
+| Connector | Suggested Alternatives |
+|-----------|----------------------|
+| Anypoint MQ | Amazon SQS, Azure Service Bus, RabbitMQ, ActiveMQ |
+| Object Store | Infinispan, Redis, Caffeine cache, JPA |
+| SAP Connector | `camel-sap` (if licensed), SAP REST/SOAP APIs |
+| Workday | Workday REST API via `camel-http` |
+| NetSuite | NetSuite REST/SOAP APIs via `camel-http` |
+
+For connectors with no direct equivalent, the command stops and asks the user before proceeding.
 
 ---
 
@@ -236,30 +317,45 @@ Validation checks:
 
 The AI agent fixes validation errors automatically until the route is valid.
 
+**Generation constraints:**
+
+| Constraint | Rule |
+|-----------|------|
+| `unmarshal`/`marshal` | Not added by default. Included only when the TDD explicitly requires typed Java object processing and no XSLT transformation covers it. |
+| DataMapper/XSLT | Preferred over `unmarshal` for JSON↔JSON, JSON↔XML, and XML↔XML transformations when schemas are available. |
+| Global `onException` | Must be declared as top-level elements **before** any `- route:` block. Route-scoped error handling (`errorHandler:`, `doTry`/`doCatch`) stays inside the route. |
+| Jakarta EE namespaces | When Camel version ≥ 4.0, `jakarta.*` packages are used instead of `javax.*` for all Jakarta EE APIs (Servlet, JPA, JMS, Bean Validation, JAX-RS, etc.). Java SE packages (`javax.sql.*`, `javax.xml.*`) are not affected. |
+
 **Output:**
 
 ```yaml
+# Global onException (if defined in TDD) — MUST come before routes
+- onException:
+    exception:
+      - com.example.ValidationException
+    handled:
+      constant:
+        expression: "true"
+    steps:
+      - to:
+          uri: "kafka:{{kafka.topic.invalid}}"
+
 - route:
     id: order-ingestion
     description: Consume orders from Kafka and persist to database
 
     errorHandler:
       deadLetterChannel:
-        deadLetterUri: kafka:orders-dlq
+        deadLetterUri: "kafka:{{kafka.topic.dlq}}"
 
     from:
-      uri: kafka:orders
-      parameters:
-        brokers: "{{KAFKA_BROKERS}}"
+      uri: "kafka:{{kafka.topic.orders}}"
       steps:
-        - unmarshal:
-            json:
-              unmarshalType: com.example.Order
         - filter:
             simple: "${body.totalAmount} >= 50"
             steps:
               - to:
-                  uri: jpa:com.example.Order
+                  uri: "jpa:{{jpa.entity.order}}"
 ```
 
 **Running generated routes:**
@@ -459,6 +555,7 @@ The AI assistant automatically uses MCP tools when available. No additional conf
 |---------|---------------|---------|
 | `/camel-project` | `camel_version_list` | List Camel versions with LTS status |
 | `/camel-flow` | `camel_catalog_components`<br>`camel_catalog_component_doc` | Search components by category<br>Get component documentation |
+| `/camel-migrate` | `camel_catalog_components`<br>`camel_catalog_component_doc` | Search Camel equivalents for Mule components<br>Get component documentation for TDD |
 | `/camel-implement` | `camel_catalog_component_doc`<br>`camel_route_context`<br>`camel_validate_route` | Get component configuration<br>Analyze route structure<br>Validate endpoint URIs |
 | `/camel-validate` | `camel_validate_route`<br>`camel_route_harden_context` | Validate URIs and options<br>47 automated security checks |
 | `/camel-test` | `camel_route_context`<br>`camel_catalog_component_doc` | Analyze route for test strategy<br>Get component details for mocks |
@@ -483,9 +580,14 @@ See [MCP Tools Reference](mcp-tools-reference.md) for complete documentation inc
 # CLI
 camel-kit init my-project --ai bob     # Create project with MCP config
 
-# Slash commands (in AI assistant)
+# Greenfield slash commands (in AI assistant)
 /camel-project                         # Define landscape (optional)
 /camel-flow order-ingestion            # Define and design flow
+
+# Migration slash commands (in AI assistant)
+/camel-migrate path/to/mule-project/   # Migrate from MuleSoft (or other supported platforms)
+
+# Shared slash commands
 /camel-implement order-ingestion       # Generate YAML with MCP validation
 /camel-validate                        # Check specs and run security analysis
 /camel-test order-ingestion            # Generate tests with validation
