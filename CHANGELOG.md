@@ -10,6 +10,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`/camel-migrate` skill — vendor migration workflow**
+  - New user-invocable skill that detects the source platform from a provided XML file, project directory, or ZIP archive
+  - Delegates to vendor-specific sub-skills; first implementation: MuleSoft Mule 3.x / 4.x
+  - Detection by XML namespace (`mulesoft.org`) and `pom.xml` groupId (`org.mule`, `com.mulesoft`)
+  - Easter egg: 🫏 → 🐪 displayed on Mule detection
+  - Unknown vendors report found signatures and link to GitHub issues
+
+- **`camel-migrate-mule` internal sub-skill (MuleSoft Mule → Apache Camel)**
+  - Phase 1 (Business Analyst): parses all Mule XML flows, resolves proprietary connectors
+    (Anypoint MQ, Object Store, SAP, Workday, etc.) by asking the user before proceeding,
+    conducts a one-question-at-a-time business interview, produces
+    `.camel-kit/business-requirements.md` and `.camel-kit/constitution.md`
+  - Phase 2 (Integration Architect): maps Mule components to Camel equivalents,
+    converts DataWeave transformations into TDD field-mapping tables, produces one
+    `.camel-kit/flows/{name}/{name}.tdd.md` per Mule flow — identical format to `/camel-flow` output
+  - `guides/mule-component-mapping.md`: reference table for 40+ Mule → Camel component mappings
+    including proprietary connectors requiring user decisions
+  - `guides/mule-dataweave-conversion.md`: DataWeave 1.0 / 2.0 conversion guide with
+    9 common patterns mapped to TDD Section 3 table format
+
+- **`camel-kit init` — `camel-migrate` command registered automatically**
+  - `"migrate"` added to the commands list; `.claude/commands/camel-migrate.md` (and equivalent
+    for Bob / Gemini) is generated during `camel-kit init`
+  - "Next steps" output updated to mention `/camel-migrate <export-file>` alongside `/camel-project`
+
+- **Workflow diagram** — `camel-kit-workflow.excalidraw` showing the dual-path workflow
+  (greenfield and migration converging at `/camel-implement`)
+
+- **Jakarta EE namespace rule in `/camel-implement`**
+  - When Camel version ≥ 4.0, `jakarta.*` packages are used for all Jakarta EE APIs
+    (Servlet, JPA, JMS, Bean Validation, JAX-RS, JSON, Annotation, Mail, JTA, etc.)
+  - Java SE packages (`javax.sql.*`, `javax.xml.*`) are explicitly exempt
+  - Validation gate scans all generated files and replaces offending `javax.` references
+    before saving
+
+- **`onException` ordering constraint in `/camel-implement`**
+  - Global `onException` (top-level `- onException:`) must be declared before all `- route:` blocks
+  - Route-scoped error handling (`errorHandler:`, `doTry`/`doCatch`) stays inside the route
+  - Placing a global `onException` after a route is a schema validation error, not a warning
+  - Generated YAML template updated to show `onException` as the first element
+
+### Changed
+
+- **`/camel-flow` — simplified defaults, advanced patterns now opt-in**
+  - `unmarshal`/`marshal` no longer suggested by default; included only when the user
+    explicitly needs typed Java object processing
+  - DataMapper/XSLT-saxon is now the preferred transformation approach for JSON↔JSON,
+    JSON↔XML, and XML↔XML when schemas are available; `unmarshal` is a fallback only
+  - Circuit Breaker, Idempotent Consumer, and Transactions moved from default questions
+    to separate conditional questions asked only when contextually relevant:
+    - Circuit Breaker: only when source or sink is an external HTTP/REST service
+    - Idempotent Consumer: only when source is a message broker or deduplication is needed
+    - Transactions: only when the flow writes to more than one external system
+
+- **`/camel-implement` — `unmarshal` removed from default YAML template**
+  - Generated route no longer includes `unmarshal` as a default step
+  - `unmarshal` added only when TDD explicitly requires typed object processing and
+    no DataMapper XSLT covers the transformation
+
+- **Constitution — Principles 6, 7, 8 changed to informational**
+  - Resilience (Circuit Breaker): enforcement changed from "trigger warnings" to
+    "Informational only — apply when explicitly requested during flow design"
+  - Transaction Handling: same change
+  - Idempotent Processing: same change
+  - Reference content preserved; enforcement removed to avoid adding advanced patterns by default
+
+- **`camel-kit init` — removed MCP guide file copying**
+  - `MCP-SETUP.md` and `MCP-TESTING.md` are no longer copied to `.camel-kit/` during init
+  - Corresponding "See .camel-kit/MCP-SETUP.md" output lines removed
+
+- **README.md rewritten** — focused on installation and the two entry points
+  (`camel-kit init` for greenfield, `camel-kit init` + `/camel-migrate` for migration);
+  detailed content delegated to `docs/`
+
+- **Documentation updated** (`docs/commands.md`, `docs/user-guide.md`)
+  - `/camel-flow` interactive steps reflect new conditional question structure
+  - `/camel-implement` section documents the four generation constraints:
+    unmarshal opt-in, DataMapper preference, `onException` ordering, Jakarta EE namespaces
+  - Best Practices table updated: Resilience and Idempotency marked as opt-in;
+    Data Format Discipline updated to reflect DataMapper-first approach;
+    two new rows for Jakarta EE namespaces and `onException` ordering
+
+
+### Added
+
 - **Skills-based architecture with MCP integration**
   - Converted 5 commands to skills standard with YAML frontmatter and metadata
   - Commands now use kebab-case naming: `/camel-project`, `/camel-flow`, `/camel-implement`, `/camel-validate`, `/camel-test`

@@ -232,18 +232,35 @@ Source Component: [component-name]
 
 ---
 
-## Step 2.5: Generate DataMapper XSLT (Conditional)
+## Step 2.5: DataMapper Artifacts (Conditional)
 
-**ONLY execute this step if TDD Section 3.2 contains field mappings**
+**ONLY execute this step if the TDD contains one or more `### DataMapper: kaoto-datamapper-{id}` sections.**
 
-### 2.5.1 Check for Field Mappings
+For **each** `### DataMapper:` section found in the TDD:
 
-Read TDD Section 3.2 "Field Mappings" table. If present, generate XSLT transformation file.
+→ **Load `guides/datamapper-implement.md`** and follow all steps in that guide, passing the flow name and mapping ID as context.
 
-### 2.5.2 Generate XSLT File
+The guide will:
+1. Read the full mapping data from the TDD DataMapper section
+2. Generate `kaoto-datamapper-{id}.xsl` in the project root (Kaoto-compatible XSLT 3.0)
+3. Inject the `step` + `xslt-saxon` block into `{flow-name}.camel.yaml`
+4. Create or append the `.kaoto` metadata file in the project root
+5. Verify `camel-xslt-saxon` is declared in `pom.xml`
 
-**File naming:** `{flow-name}-datamapper-{random-8-char-id}.xsl`
-**Location:** Project root (same folder as route.camel.yaml)
+After all DataMapper sections have been processed, continue to Step 3.
+
+**If no `### DataMapper:` section is found:** skip this step entirely.
+
+---
+
+<!-- LEGACY SECTION REMOVED: The XSLT generation logic below has been moved to camel-datamapper-implement.
+     The following placeholder is retained only to preserve line references during migration.
+     File naming was: {flow-name}-datamapper-{random-8-char-id}.xsl -->
+
+### 2.5.1 (Reference only — handled by camel-datamapper-implement)
+
+**File naming:** `kaoto-datamapper-{8hexchars}.xsl`
+**Location:** Project root (same folder as {flow-name}.camel.yaml)
 
 Generate XSLT based on mapping tables from TDD:
 
@@ -822,7 +839,7 @@ FILE DETAILS
 File: {flow-name}-datamapper-a1b2c3d4.xsl
 Location: Project root
 XSLT Version: 3.0
-Processor: Saxon (camel-saxon component)
+Processor: Saxon (camel-xslt-saxon component)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 MAPPINGS SUMMARY
@@ -864,7 +881,7 @@ This file will be referenced in the route YAML:
                 customerProfile: "${variable.customerProfile}"
                 tenantId: "${header.tenantId}"
 
-Dependency: camel-saxon (will be added to pom.xml)
+Dependency: camel-xslt-saxon (handled by camel-datamapper-implement)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -927,7 +944,7 @@ Generate the route by translating the TDD to Camel YAML DSL:
 
 3. **Processing Steps** (from TDD Section 3):
    - Translate each step from TDD to Camel EIP
-   - **If DataMapper XSLT was generated (Step 2.5)**, include it in processing steps
+   - **If `camel-datamapper-implement` was invoked (Step 2.5)**, the DataMapper step is already injected into the YAML
    - Preserve order from TDD
    - Use `steps:` array format for Kaoto compatibility
 
@@ -988,11 +1005,11 @@ Generate the route by translating the TDD to Camel YAML DSL:
    ```
 
    **When to include:**
-   - ONLY if Step 2.5 generated a DataMapper XSLT file
-   - Place AFTER unmarshal (when data is in structured format)
-   - Place BEFORE validation (so validation sees transformed data)
+   - ONLY if Step 2.5 invoked `camel-datamapper-implement` (TDD had a `### DataMapper:` section)
+   - The step block is already injected by `camel-datamapper-implement` — do not duplicate it
+   - Logical placement: AFTER unmarshal (when data is in structured format), BEFORE validation
 
-   **Component required:** `camel-saxon` (add to dependencies)
+   **Component required:** `camel-xslt-saxon` (verified by `camel-datamapper-implement`)
 
 3b. **DataMapper Parameters** - Pass Camel Variables/Headers to XSLT (if TDD Section 3.3 defines parameters):
    ```yaml
@@ -1072,13 +1089,20 @@ Generate the route by translating the TDD to Camel YAML DSL:
 
    **Validation gate:** After generating all YAML and property files, scan for any `javax.` reference that belongs to the Jakarta EE list above. If the Camel version is ≥ 4.0, replace it with the corresponding `jakarta.` equivalent before saving.
 
-7. **Global `onException` MUST be declared before any `route` elements** — This is a hard constraint of the Camel RouteBuilder. Two scopes exist; handle them differently:
+7. **Choosing between global and route-scoped `onException`** — Use global scope by default; use route scope only when handling differs per route.
 
-   - **Global scope** (`- onException:` at top level, applies to all routes): MUST appear before the first `- route:` block.
-   - **Route scope** (`onException:` inside a route definition, applies only to that route): lives inside the route and is fine wherever the route needs it.
+   | Use case | Correct scope |
+   |----------|--------------|
+   | Same exception handled identically across all routes in the file | **Global** (`- onException:` at top level) |
+   | Exception handling differs route by route | **Route** (`onException:` inside the route) |
+   | Only one route in the file | Either — prefer **global** for consistency |
+
+   **Do not default to route-scoped just to avoid placement complexity.** Global `onException` is the standard, idiomatic choice for cross-cutting error handling in Camel YAML DSL. The ordering rule below is a mechanical constraint to follow, not a reason to prefer route scope.
+
+   **Ordering constraint — enforced by the Camel YAML DSL schema:** A top-level `- onException:` element MUST appear before the first `- route:` element. Placing it after a route is a **schema validation error**, not a runtime warning.
 
    ```yaml
-   # CORRECT — global onException before routes
+   # ✅ CORRECT — global onException declared before routes
    - onException:
        exception:
          - com.example.ValidationException
@@ -1090,31 +1114,28 @@ Generate the route by translating the TDD to Camel YAML DSL:
              uri: "kafka:{{kafka.topic.invalid}}"
 
    - route:
-       id: flow-name
-       errorHandler:           # route-scoped error handler — inside the route, fine
-         deadLetterChannel:
-           deadLetterUri: "kafka:{{kafka.topic.dlq}}"
+       id: route-one
        from:
          uri: "kafka:{{kafka.topic.input}}"
          steps:
-           - doTry:            # inline doTry/doCatch — inside the route, fine
-               steps:
-                 - to:
-                     uri: "http:{{api.host}}"
-             doCatch:
-               - exception:
-                   - java.net.ConnectException
-                 steps:
-                   - to:
-                       uri: "direct:fallback"
+           - to:
+               uri: "direct:process"
 
-   # WRONG — global onException declared after a route
    - route:
-       id: flow-name
+       id: route-two
+       from:
+         uri: "direct:process"
+         steps:
+           - to:
+               uri: "http:{{api.host}}"
+
+   # ❌ WRONG — global onException after a route (schema validation error)
+   - route:
+       id: route-one
        from:
          uri: "kafka:{{kafka.topic.input}}"
 
-   - onException:   # ❌ too late — must be before all routes
+   - onException:   # ❌ schema error — must appear before all routes
        exception:
          - com.example.ValidationException
    ```
@@ -1165,13 +1186,13 @@ Create `{flow-name}.camel.yaml`:
         # Processing steps from TDD Section 3
         # (unmarshal only if explicitly required — see Rule in Step 3.2)
 
-        # DataMapper transformation (if generated in Step 2.5)
+        # DataMapper transformation (injected by camel-datamapper-implement in Step 2.5)
         - step:
-            id: {flow-name}-datamapper-step
+            id: kaoto-datamapper-{id}
             steps:
               - to:
-                  id: {flow-name}-datamapper-xslt
-                  uri: "xslt-saxon:{flow-name}-datamapper-a1b2c3d4.xsl"
+                  id: kaoto-datamapper-xslt-{4hexchars}
+                  uri: xslt-saxon:kaoto-datamapper-{id}.xsl
                   # Pass parameters to XSLT if TDD Section 3.3 defines parameters
                   parameters:
                     userId: "${header.userId}"
@@ -1628,17 +1649,17 @@ If using Maven project, add dependencies from TDD Section 8:
   <artifactId>camel-jackson</artifactId>
 </dependency>
 
-<!-- DataMapper / XSLT transformation (if DataMapper XSLT generated in Step 2.5) -->
+<!-- DataMapper / XSLT transformation (added by camel-datamapper-implement if Step 2.5 ran) -->
 <dependency>
   <groupId>org.apache.camel</groupId>
-  <artifactId>camel-saxon</artifactId>
+  <artifactId>camel-xslt-saxon</artifactId>
 </dependency>
 
 <!-- External dependencies from TDD -->
 [dependencies from TDD Section 8.2]
 ```
 
-**Note:** Include `camel-saxon` ONLY if DataMapper XSLT file was generated in Step 2.5.
+**Note:** `camel-datamapper-implement` (Step 2.5) handles adding `camel-xslt-saxon` automatically. Do not add it manually here.
 
 ---
 
