@@ -1,8 +1,48 @@
 # Sequential HTTP Calls & State Management
 
 ## 📌 Context
-When generating Apache Camel YAML DSL code that involves **two or more HTTP/S endpoint calls within the same route**, you must ALWAYS manage the lifecycle of the Exchange headers and state.
-By default, Camel propagates message headers. If not explicitly cleared, response or request headers from the first endpoint (including security tokens and query parameters) will leak into the second endpoint, causing HTTP 400, 401, 403 errors. Furthermore, to handle API responses without polluting or overwriting the current Message Body, you must utilize **Camel Variables** with the `variableReceive` feature (introduced in Camel 4.4+).
+When generating Apache Camel YAML DSL code that involves **two or more HTTP/S endpoint calls within the same route**, 
+you must ALWAYS manage the lifecycle of the Exchange headers and state.
+By default, Camel propagates message headers. If not explicitly cleared, response or request headers from the first 
+endpoint (including security tokens and query parameters) will leak into the second endpoint, causing HTTP 400, 401, 403 errors. 
+Furthermore, to handle API responses without polluting or overwriting the current Message Body, 
+you must utilize **Camel Variables** with the `variableReceive` feature (introduced in Camel 4.4+).
+
+---
+
+## 🗂️ HTTP Component Quick Reference
+
+Camel provides multiple HTTP-related components. Choose based on role (consumer vs. producer) and runtime.
+
+### Consumer Components (used in `from:` — expose HTTP endpoints)
+
+| Component | URI Format | Best For |
+|-----------|-----------|---------|
+| `platform-http` | `platform-http:/path` | **Preferred** for Quarkus and Spring Boot — delegates to the platform's native server (RESTEasy Reactive / Spring MVC) |
+| `servlet` | `servlet:/contextPath` | WAR deployments inside an existing servlet container |
+| `jetty` | `jetty:http://host:port/path` | Standalone Jetty server, no external container needed |
+| `undertow` | `undertow:http://host:port/path` | Standalone Undertow server; also supports WebSocket |
+| `netty-http` | `netty-http:http://host:port/path` | High-performance Netty server; also supports HTTPS and WebSocket |
+
+> **Rule:** Consumer components cannot be used in `to:`. They only appear in `from:`.
+
+### Producer Components (used in `to:` — make outbound HTTP calls)
+
+| Component | URI Format | Best For |
+|-----------|-----------|---------|
+| `http` | `http://host/path` | Standard outbound HTTP calls — **default choice** |
+| `https` | `https://host/path` | TLS/SSL outbound calls — same component as `http`, different scheme |
+| `undertow` | `undertow:http://host:port/path` | Outbound calls using Undertow client |
+| `netty-http` | `netty-http:http://host:port/path` | Outbound calls using Netty client (high-performance) |
+| `vertx-http` | `vertx-http:http://host/path` | Outbound calls using Vert.x HTTP client (reactive) |
+
+> **Rule:** The mandatory header-sanitization rules below apply to **all producer components**, not just `http`. Whenever any of the components above appears in a `to:` step, treat it the same way.
+
+### Consumer + Producer (both roles)
+
+`undertow` and `netty-http` can appear in both `from:` and `to:` in the same project. When used as a producer in a route that already has an HTTP consumer, the sanitization rules still apply.
+
+---
 
 ## 🤖 Agent Workflow & MCP Tool Usage
 You are connected to the `camel-jbang-mcp` server. Follow this strict workflow:
@@ -76,3 +116,75 @@ Use the `removeHeaders` EIP right before setting up the request for the second `
             uri: "[https://api.system-two.com/v2/process](https://api.system-two.com/v2/process)"
             
         - log: "Processing completed successfully."
+```
+
+---
+
+## 🔌 Producer Component URI Examples
+
+The same pattern applies regardless of which producer component is used. Only the URI scheme changes.
+
+```yaml
+# http / https (default choice)
+- to:
+    uri: "https://api.example.com/v1/resource"
+    variableReceive: "response1"
+
+# undertow (as producer)
+- to:
+    uri: "undertow:http://internal-service:8080/api/resource"
+    variableReceive: "response1"
+
+# netty-http (as producer)
+- to:
+    uri: "netty-http:http://internal-service:8080/api/resource"
+    variableReceive: "response1"
+
+# vertx-http (as producer)
+- to:
+    uri: "vertx-http:http://api.example.com/v1/resource"
+    variableReceive: "response1"
+```
+
+In every case: apply `removeHeaders` and `removeHeader: Authorization` before the next producer call. The rules do not change.
+
+---
+
+## 🚪 When the Route Source is an HTTP Consumer
+
+When a route is triggered by an HTTP consumer (`platform-http`, `servlet`, `jetty`, `undertow`, `netty-http`), the incoming HTTP request headers — including `Authorization`, `Content-Type`, `CamelHttpUri`, `CamelHttpQuery` — are already present on the Exchange before the first `to:` call.
+
+**This means header leakage can happen from the inbound request into the first outbound call**, not just between two outbound calls.
+
+Apply the same sanitization pattern before the very first `to:` producer step:
+
+```yaml
+- route:
+    id: "platform-http-to-backend-route"
+    from:
+      uri: "platform-http:/api/orders"
+      steps:
+        # Inbound HTTP headers (Authorization, CamelHttpQuery, etc.) are now on the Exchange.
+        # Sanitize before calling any backend.
+        - removeHeaders:
+            pattern: "CamelHttp*"
+        - removeHeader:
+            name: "Authorization"
+
+        # Now set up a clean outbound call
+        - setHeader:
+            name: "CamelHttpMethod"
+            constant: "GET"
+        - setHeader:
+            name: "Authorization"
+            constant: "Bearer {{backend.token}}"
+        - to:
+            uri: "https://backend.example.com/orders"
+            variableReceive: "backendResponse"
+
+        - setBody:
+            simple: "${variable.backendResponse}"
+```
+
+The same applies for `servlet`, `jetty`, `undertow` (as consumer), and `netty-http` (as consumer) in place of `platform-http`.
+
