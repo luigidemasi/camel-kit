@@ -41,6 +41,31 @@
             <artifactId>jline</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>dev.tamboui</groupId>
+            <artifactId>tamboui-image</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>dev.tamboui</groupId>
+            <artifactId>tamboui-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>dev.tamboui</groupId>
+            <artifactId>tamboui-tui</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>dev.tamboui</groupId>
+            <artifactId>tamboui-widgets</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>dev.tamboui</groupId>
+            <artifactId>tamboui-jline3-backend</artifactId>
+        </dependency>
+
         <!-- No camel-catalog or citrus-catalog-schema dependency - JSON downloaded at runtime -->
 
     </dependencies>

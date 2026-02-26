@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.InputStream;
 import java.net.URI;
+import java.util.function.Consumer;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -44,6 +45,10 @@ public class CitrusSchemaDownloader {
      * @return the index.json content
      */
     public JsonNode fetchCitrusSchemas(String version, boolean forceRefresh) throws Exception {
+        return fetchCitrusSchemas(version, forceRefresh, System.out::println);
+    }
+
+    public JsonNode fetchCitrusSchemas(String version, boolean forceRefresh, Consumer<String> log) throws Exception {
         Path citrusDir = cacheDir.resolve("citrus").resolve(version);
         Path indexFile = citrusDir.resolve("index.json");
 
@@ -57,7 +62,7 @@ public class CitrusSchemaDownloader {
         String jarUrl = String.format("%s/org/citrusframework/citrus-catalog-schema/%s/citrus-catalog-schema-%s.jar",
             MAVEN_CENTRAL, version, version);
 
-        System.out.println("  Downloading Citrus schemas for version " + version + "...");
+        log.accept("  Downloading Citrus schemas for version " + version + "...");
 
         HttpRequest request = HttpRequest.newBuilder()
             .uri(URI.create(jarUrl))
@@ -95,10 +100,10 @@ public class CitrusSchemaDownloader {
             }
         }
 
-        System.out.println("    Extracted " + fileCount + " schema files");
+        log.accept("    Extracted " + fileCount + " schema files");
 
         // Generate quick reference from schemas
-        System.out.println("    Generating quick reference...");
+        log.accept("    Generating quick reference...");
         CitrusSchemaProcessor processor = new CitrusSchemaProcessor();
         processor.generateQuickReference(citrusDir);
 

@@ -10,6 +10,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Split-screen TUI for `camel-kit init` (TamboUI integration)**
+  - Full-screen two-panel layout on terminals that support native image protocols
+    (Kitty, iTerm2, Sixel): left panel shows the Camel-Kit logo; right panel shows
+    live task progress with animated DOTS spinner and green tick on completion
+  - Task list with emoji icons: 📁 project structure · 📝 configuration · 🤖 AI commands
+    · 📚 skills · 🔌 MCP & Maven wrapper · ⬇️ Citrus schemas
+  - Word-wrapping in the right panel so text never overflows the border
+  - Panels are 37.5 % of terminal width and 85 % of terminal height (minimum 30 × 15),
+    centred horizontally and vertically with amber/gold borders
+  - Auto-exits when all tasks complete — no keypress required; Ctrl+C as emergency exit
+  - Falls back gracefully to the existing banner + sequential output on terminals that do
+    not support native image protocols or when running as a Camel JBang plugin with an
+    incompatible classloader (ServiceLoader isolation bypassed via explicit `JLineBackend`)
+  - Non-TUI fallback shows the logo via the Kitty/iTerm2/Sixel protocol inline above the
+    output when the terminal supports it; degrades to ASCII art otherwise
+  - New dependencies: `dev.tamboui:tamboui-core`, `tamboui-image`, `tamboui-tui`,
+    `tamboui-widgets`, `tamboui-jline3-backend` at version `0.1.0`
+
+- **`LogoRenderer` utility** — writes the `logo.png` image directly to the terminal
+  output stream using the best available native image protocol; sizes the image
+  proportionally, accounting for the 8 × 16 px/cell aspect ratio; centers it horizontally
+  using the Kitty protocol's `rect.x()` coordinate
+
+- **`TaskTracker` interface** — allows `InitCommand` to report task lifecycle events
+  (`startTask`, `finishTask`) to the TUI; a no-op implementation is used in normal mode
+  so the existing init logic requires no branching
+
+### Changed
+
+- **`CitrusSchemaDownloader`** — `fetchCitrusSchemas()` now accepts an optional
+  `Consumer<String>` logger parameter; defaults to `System.out::println` for backward
+  compatibility; in TUI mode the printer is passed so download messages appear in the
+  right panel instead of going directly to the terminal
+
+- **`camel-kit init` completion message** — reformatted to a minimal clean layout:
+  summary line (`✓ project-name · version · agent · N schemas`), followed by a
+  `Next steps` section with a divider line and colour-coded command references
+
+- **`CamelKitMain` banner** — tagline split into a dim prefix ("Camel-Kit —") and a
+  bold amber suffix ("Design Apache Camel Integrations with AI") for better visual
+  hierarchy; terminal height now passed to `LogoRenderer` so the image is sized to fit
+  both dimensions
+
 - **`/camel-migrate` skill — vendor migration workflow**
   - New user-invocable skill that detects the source platform from a provided XML file, project directory, or ZIP archive
   - Delegates to vendor-specific sub-skills; first implementation: MuleSoft Mule 3.x / 4.x

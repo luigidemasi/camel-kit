@@ -4,7 +4,11 @@ import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.catalog.CitrusSchemaDownloader;
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
+import io.github.luigidemasi.camelkit.output.Printer;
+import io.github.luigidemasi.camelkit.tui.InitTuiView;
+import io.github.luigidemasi.camelkit.tui.TaskTracker;
 import io.github.luigidemasi.camelkit.util.TemplateUtils;
+import dev.tamboui.image.capability.TerminalImageCapabilities;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -56,26 +60,53 @@ public class InitCommand extends CamelKitCommand {
 
     @Override
     public Integer doCall() throws Exception {
-        main.printBanner();
-
+        // Validate agent and resolve arguments upfront (fast, non-blocking)
         if (!AgentRegistry.contains(ai)) {
+            main.printBanner();
             printer().println(red("Error: Unknown agent '" + ai + "'"));
             printer().println("Available agents: " + String.join(", ", AgentRegistry.names()));
             return 1;
         }
 
-        AgentConfig agent = AgentRegistry.get(ai);
+        if (projectName == null && !here) {
+            main.printBanner();
+            printer().println(red("Error: Please provide a project name or use --here"));
+            return 1;
+        }
 
+        // If native image protocol is available and TUI is enabled, run the full
+        // split-screen experience. Falls back to normal mode on any failure
+        // (missing backend JAR, dumb terminal, JBang plugin context, etc.).
+        if (main.isTuiEnabled() && TerminalImageCapabilities.detect().supportsNativeImages()) {
+            InitTuiView tui = new InitTuiView();
+            Printer original = main.getOut();
+            main.setOut(tui.createPrinter());
+            main.setTaskTracker(tui.createTaskTracker());
+            // Release our JLine terminal so TamboUI can acquire the device cleanly.
+            main.closeTerminal();
+            try {
+                return tui.run(this::doInitWork);
+            } catch (Throwable e) {
+                // TUI not available — restore and continue in normal mode
+                main.setOut(original);
+                main.setTaskTracker(TaskTracker.noop());
+            }
+        }
+
+        // Normal mode: print banner then run init inline
+        main.printBanner();
+        return doInitWork();
+    }
+
+    private Integer doInitWork() throws Exception {
+        AgentConfig agent = AgentRegistry.get(ai);
         // Resolve target directory
         Path targetDir;
         if (here) {
             targetDir = Path.of("").toAbsolutePath();
             projectName = targetDir.getFileName().toString();
-        } else if (projectName != null) {
-            targetDir = Path.of(projectName).toAbsolutePath();
         } else {
-            printer().println(red("Error: Please provide a project name or use --here"));
-            return 1;
+            targetDir = Path.of(projectName).toAbsolutePath();
         }
 
         // Get catalog versions
@@ -87,10 +118,10 @@ public class InitCommand extends CamelKitCommand {
             ? CamelKitMain.DEFAULT_CITRUS_VERSION
             : citrusVersion;
 
-        printer().println(green("✓") + " Using Camel version " + version);
-        printer().println(green("✓") + " Using Citrus version " + citrusVer);
+        TaskTracker tracker = main.getTaskTracker();
 
-        // Create directory structure
+        // 1 — project structure
+        tracker.startTask("📁", "Creating project structure");
         Files.createDirectories(targetDir);
         Path commandsDir = targetDir.resolve(agent.folder());
         Files.createDirectories(commandsDir);
@@ -101,40 +132,40 @@ public class InitCommand extends CamelKitCommand {
         Files.createDirectories(camelKitDir.resolve(".cache"));
         Files.createDirectories(targetDir.resolve("test/data"));
         Files.createDirectories(targetDir.resolve("schemas"));
+        tracker.finishTask();
 
-        // Create config.yaml
+        // 2 — configuration files
+        tracker.startTask("\uD83D\uDCDD", "Writing configuration");
         createConfigFile(camelKitDir, projectName, version, citrusVer, ai, agent);
-
-        // Create constitution.md
         createConstitution(camelKitDir);
-
-        // Create command templates
-        createCommandTemplates(commandsDir, agent);
-
-        // Copy full skills structure (with guides) to agent's skills folder
-        // Skills go in .bob/skills/ not .bob/commands/skills/
-        Path agentBaseDir = targetDir.resolve(agent.folder()).getParent(); // Get .bob from .bob/commands
-        copySkills(agentBaseDir.resolve("skills"));
-
-        // Create YAML generation guide and additional templates
         createYamlGuide(camelKitDir.resolve("templates"));
         copyAdditionalTemplates(camelKitDir.resolve("templates"));
+        tracker.finishTask();
 
-        // Create Maven Wrapper for portable Maven execution
+        // 3 — AI agent commands
+        tracker.startTask("🤖", "Registering " + agent.name() + " commands");
+        createCommandTemplates(commandsDir, agent);
+        tracker.finishTask();
+
+        // 4 — skills
+        tracker.startTask("📚", "Copying skills");
+        Path agentBaseDir = targetDir.resolve(agent.folder()).getParent();
+        copySkills(agentBaseDir.resolve("skills"));
+        tracker.finishTask();
+
+        // 5 — MCP + Maven Wrapper
+        tracker.startTask("🔌", "Configuring MCP & Maven wrapper");
         createMavenWrapper(targetDir);
-
-        // Create MCP configuration file for selected coding agent
         createMcpConfigs(targetDir, version, ai);
+        tracker.finishTask();
 
-        // Download Citrus schemas (used by /camel-test skill)
-        // Note: Camel catalog is queried in real-time via MCP server - no local cache needed
+        // 6 — Citrus schemas
         int citrusSchemaCount = 0;
-
         if (!noFetch) {
+            tracker.startTask("⬇️", "Downloading Citrus schemas");
             try {
                 CitrusSchemaDownloader citrusDownloader = new CitrusSchemaDownloader(camelKitDir.resolve(".cache"));
-                citrusDownloader.fetchCitrusSchemas(citrusVer, false);
-                // Count schema files
+                citrusDownloader.fetchCitrusSchemas(citrusVer, false, printer()::println);
                 Path citrusSchemasDir = citrusDownloader.getCitrusSchemasDir(citrusVer);
                 if (Files.exists(citrusSchemasDir)) {
                     citrusSchemaCount = (int) Files.walk(citrusSchemasDir)
@@ -144,22 +175,27 @@ public class InitCommand extends CamelKitCommand {
             } catch (Exception e) {
                 printer().println(yellow("  Warning: Could not fetch Citrus schemas: " + e.getMessage()));
             }
+            tracker.finishTask();
         }
 
+        // Summary line
         printer().println();
-        printer().println(green("✓") + " Camel-Kit initialized for " + bold(projectName));
+        printer().print("  " + green("✓") + "  ");
+        printer().println(bold(projectName));
+        String meta = "     " + version + "  \u00b7  " + agent.name()
+                + (citrusSchemaCount > 0 ? "  \u00b7  " + citrusSchemaCount + " schemas" : "");
+        printer().println(meta);
         printer().println();
-        if (citrusSchemaCount > 0) {
-            printer().println("  Cached schemas (Citrus " + citrusVer + "):");
-            printer().println("    Schemas:    " + citrusSchemaCount);
-            printer().println();
-        }
-        printer().println(bold("Next steps:"));
-        printer().println("  1. Open " + cyan(projectName) + " in " + agent.name());
-        printer().println("  2. For greenfield: Run " + cyan("/camel-project") + " to define your integration project");
-        printer().println("     For migration:  Run " + cyan("/camel-migrate <export-file>") + " to migrate from another product");
-        printer().println("  3. Run " + cyan("/camel-flow <flow-name>") + " to design a flow");
-        printer().println("  4. Run " + cyan("/camel-implement <flow-name>") + " to generate Camel YAML");
+
+        // Next steps
+        String divider = "  " + "\u2500".repeat(34);
+        printer().println("  " + bold("Next steps"));
+        printer().println(divider);
+        printer().println("  1  Open " + cyan(projectName) + " in " + agent.name());
+        printer().println("  2  " + cyan("/camel-project") + "   \u2014 define integration landscape");
+        printer().println("     " + cyan("/camel-migrate") + "   \u2014 migrate from another platform");
+        printer().println("  3  " + cyan("/camel-flow") + " <name>");
+        printer().println("  4  " + cyan("/camel-implement") + " <name>");
         printer().println();
 
         return 0;

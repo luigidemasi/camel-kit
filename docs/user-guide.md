@@ -7,6 +7,7 @@ This guide walks you through using Camel-Kit to design Apache Camel integrations
 - [Introduction](#introduction)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Init TUI](#init-tui)
 - [Workflow Overview](#workflow-overview)
 - [Migration Workflow](#migration-workflow)
 - [Flow Definition](#flow-definition)
@@ -138,6 +139,39 @@ cd order-processing
 # 4. Run the generated route (include application.properties for config)
 camel run order-ingestion.camel.yaml application.properties
 ```
+
+---
+
+## Init TUI
+
+When you run `camel-kit init` (or `camel kit init` via the Camel JBang plugin) in a terminal that supports a native image protocol (Kitty, iTerm2, Sixel), the command displays a split-screen TUI instead of sequential text output.
+
+```
+┌──────────────────────────┐  ┌─ Camel Kit ──────────────┐
+│                          │  │                          │
+│      [logo image]        │  │  ⠋ 📁  Creating project  │
+│                          │  │  ✓ 📝  Writing config    │
+│                          │  │  ✓ 🤖  Registering cmds  │
+│                          │  │  ✓ 📚  Copying skills    │
+│                          │  │  ✓ 🔌  Configuring MCP   │
+│                          │  │  ✓ ⬇️   Downloading schemas│
+└──────────────────────────┘  └──────────────────────────┘
+```
+
+**Left panel** — the Camel-Kit logo, sized to preserve its pixel aspect ratio.
+**Right panel** — live task list: animated DOTS spinner (⠋⠙⠹…) for the running task, green ✓ for completed tasks, each with an emoji icon.
+
+The TUI exits automatically when all tasks are done. Ctrl+C exits early at any point.
+
+### Fallback behaviour
+
+| Terminal capability | Experience |
+|--------------------|-|
+| Native image protocol (Kitty, iTerm2, Sixel) | Full split-screen TUI |
+| Native image but no TUI backend | Logo rendered inline above coloured text output |
+| No native image support | ASCII art banner above coloured text output |
+
+The Camel JBang plugin (`camel kit init`) uses the same TUI when running in a Kitty/iTerm2 terminal.
 
 ---
 

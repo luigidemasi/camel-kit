@@ -43,7 +43,9 @@ public class KitInitCommand extends CamelCommand {
 
     @Override
     public Integer doCall() throws Exception {
-        // Create a camel-kit-core main instance
+        // Create a camel-kit-core main instance.
+        // TUI is enabled; if the backend is unavailable in this context,
+        // InitCommand catches the exception and falls back to normal mode.
         CamelKitMain camelKitMain = new CamelKitMain();
 
         // Create the InitCommand and set its parameters
