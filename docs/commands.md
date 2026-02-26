@@ -73,6 +73,10 @@ camel-kit init --here --ai bob
 camel-kit init my-integration --ai bob --no-fetch
 ```
 
+**TUI experience:**
+
+On terminals that support a native image protocol (Kitty, iTerm2, Sixel), `camel-kit init` displays a split-screen TUI while the project is being created: the logo on the left, a live task list with animated spinners and green ticks on the right. The TUI exits automatically when all tasks complete. Falls back to coloured inline output on unsupported terminals.
+
 **Output:**
 
 Creates the following structure:

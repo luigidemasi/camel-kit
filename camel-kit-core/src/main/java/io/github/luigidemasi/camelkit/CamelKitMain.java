@@ -5,6 +5,7 @@ import io.github.luigidemasi.camelkit.output.JLinePrinter;
 import io.github.luigidemasi.camelkit.output.Printer;
 import io.github.luigidemasi.camelkit.output.SystemPrinter;
 import io.github.luigidemasi.camelkit.util.AnsiColors;
+import io.github.luigidemasi.camelkit.util.LogoRenderer;
 import io.github.luigidemasi.camelkit.util.TemplateUtils;
 
 import java.io.IOException;
@@ -23,7 +24,7 @@ import java.util.concurrent.Callable;
 @Command(
     name = "camel-kit",
     mixinStandardHelpOptions = true,
-    version = "0.2.1-SNAPSHOT",
+    version = "0.3.1-SNAPSHOT",
     description = "Design Apache Camel integrations with AI coding assistants")
 public class CamelKitMain implements Callable<Integer> {
 
@@ -32,6 +33,9 @@ public class CamelKitMain implements Callable<Integer> {
 
     private Terminal terminal;
     private Printer printer;
+    private boolean tuiEnabled = true;
+    private io.github.luigidemasi.camelkit.tui.TaskTracker taskTracker =
+            io.github.luigidemasi.camelkit.tui.TaskTracker.noop();
 
     public CamelKitMain() {
         try {
@@ -47,6 +51,41 @@ public class CamelKitMain implements Callable<Integer> {
 
     public Printer getOut() {
         return printer;
+    }
+
+    public void setOut(Printer printer) {
+        this.printer = printer;
+    }
+
+    public io.github.luigidemasi.camelkit.tui.TaskTracker getTaskTracker() {
+        return taskTracker;
+    }
+
+    public void setTaskTracker(io.github.luigidemasi.camelkit.tui.TaskTracker tracker) {
+        this.taskTracker = tracker;
+    }
+
+    /** Disable the TUI split-screen experience (e.g. when running as a JBang plugin). */
+    public void disableTui() {
+        this.tuiEnabled = false;
+    }
+
+    public boolean isTuiEnabled() {
+        return tuiEnabled;
+    }
+
+    /**
+     * Release the JLine terminal so that another framework (e.g. TamboUI) can
+     * acquire the terminal device. Safe to call multiple times.
+     */
+    public void closeTerminal() {
+        if (terminal != null) {
+            try {
+                terminal.close();
+            } catch (Exception ignored) {
+            }
+            terminal = null;
+        }
     }
 
     public Terminal getTerminal() {
@@ -77,35 +116,51 @@ public class CamelKitMain implements Callable<Integer> {
     }
 
     /**
-     * Print the Camel-Kit banner with gradient colors.
+     * Print the Camel-Kit banner.
+     *
+     * <p>Tries to render the logo image using a native terminal image protocol
+     * (Kitty, iTerm2, Sixel). Falls back to ASCII art + gradient text when the
+     * current terminal does not support any native image protocol.
      */
     public void printBanner() {
-        String[] camelLines;
-        String[] bannerLines;
+        int terminalWidth  = terminal != null ? terminal.getWidth()  : 80;
+        int terminalHeight = terminal != null ? terminal.getHeight() : 24;
 
-        try {
-            camelLines = TemplateUtils.readLines("art/camelLines.txt");
-            bannerLines = TemplateUtils.readLines("art/bannerLines.txt");
-        } catch (IOException e) {
-            // Fallback to empty if resources not found
-            camelLines = new String[]{""};
-            bannerLines = new String[]{""};
+        printer.println();
+
+        boolean imageRendered = LogoRenderer.tryRender(System.out, terminalWidth, terminalHeight);
+
+        if (!imageRendered) {
+            // ASCII art fallback
+            String[] camelLines;
+            String[] bannerLines;
+            try {
+                camelLines = TemplateUtils.readLines("art/camelLines.txt");
+                bannerLines = TemplateUtils.readLines("art/bannerLines.txt");
+            } catch (IOException e) {
+                camelLines = new String[]{""};
+                bannerLines = new String[]{""};
+            }
+            printCenteredBlock(camelLines, AnsiColors.CAMEL_GRADIENT);
+            printer.println();
+            printCenteredBlock(bannerLines, AnsiColors.CAMEL_GRADIENT);
         }
 
         printer.println();
-        printCenteredBlock(camelLines, AnsiColors.CAMEL_GRADIENT);
-        printer.println();
-        printCenteredBlock(bannerLines, AnsiColors.CAMEL_GRADIENT);
-        printer.println();
 
-        // Center the tagline
-        String tagline = "Camel-Kit - Design Apache Camel Integrations with AI";
-        int terminalWidth = terminal != null ? terminal.getWidth() : 80;
+        // Tagline — always shown
+        String tagline = "Camel-Kit \u2014 Design Apache Camel Integrations with AI";
         int padding = Math.max(0, (terminalWidth - tagline.length()) / 2);
+        String pad = " ".repeat(padding);
 
-        AttributedStyle taglineStyle = AttributedStyle.DEFAULT.italic().foregroundRgb(0xF4AF23);
-        printer.print(" ".repeat(padding));
-        printer.println(new AttributedString(tagline, taglineStyle).toAnsi(terminal));
+        AttributedStyle dimStyle  = AttributedStyle.DEFAULT.foregroundRgb(0x888888);
+        AttributedStyle mainStyle = AttributedStyle.DEFAULT.bold().foregroundRgb(0xF4AF23);
+
+        // "Camel-Kit — " dimmed, rest in amber
+        int splitAt = "Camel-Kit \u2014 ".length();
+        printer.print(pad);
+        printer.print(new AttributedString(tagline.substring(0, splitAt), dimStyle).toAnsi(terminal));
+        printer.println(new AttributedString(tagline.substring(splitAt), mainStyle).toAnsi(terminal));
         printer.println();
     }
 
