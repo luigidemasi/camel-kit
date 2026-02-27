@@ -176,8 +176,8 @@ Failure Behaviour
   Alert mechanism:   [✓/~/? ] [found or "Not found"]
 
 API Compatibility
-  ? Must the Camel implementation be a drop-in API replacement?
-    (Cannot be inferred from artifacts — will ask)
+  ✓ Assumed: Camel routes will preserve the same HTTP paths, queue/topic names,
+    and data contracts as the original integration unless the user explicitly says otherwise.
 
 Flows to migrate: [N] flows detected
   - [flow-name-1]
@@ -199,10 +199,11 @@ Please confirm, correct, or fill in any gaps.
 
 [show summary from Step 4]
 
-Questions I could not answer from the artifacts:
-1. [Only list ? Unknown fields]
-   - API compatibility: must the Camel routes expose the same HTTP paths / queue names as the existing [Vendor] version?
-   [any other genuine gaps]
+Assumptions:
+- API compatibility: Camel routes will preserve the same HTTP paths, queue/topic names,
+  and data contracts as the original integration. Say "not compatible" if this should change.
+
+[List any remaining ? Unknown fields — if none, skip this section]
 
 Are there any ~ Inferred fields above that need correcting? (or say "looks good")
 ```

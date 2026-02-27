@@ -67,21 +67,12 @@ Example: `/camel-test order-to-warehouse`
 
 ## MCP Server Configuration (Recommended)
 
-**Check for Camel MCP server availability:**
-
 The Camel MCP server provides route analysis capabilities:
 - **Route Context** - Extract components and EIPs from routes automatically
 - **Component Documentation** - Get component test patterns
 - **Route Understanding** - Analyze route structure for test generation
 
-**If MCP configured in `.mcp.json`:**
-- Automatically extract components from route
-- Get component-specific test patterns
-- Understand route flow for test scenario generation
-
-**If MCP not available:**
-- Manually parse route YAML
-- Use TDD for component information
+Always attempt MCP tool calls directly. If a call fails (tool not found, network error), fall back to manual analysis from TDD and route files.
 
 **To enable MCP server**, add to `.mcp.json`:
 ```json
@@ -122,9 +113,7 @@ This file contains:
 
 ---
 
-## Step 1: Analyze Route with MCP (if available)
-
-**If MCP server available:**
+## Step 1: Analyze Route with MCP
 
 ### 1.1 Extract Route Context
 
@@ -192,10 +181,10 @@ Params: { "name": "kafka", "version": "{{VERSION}}" }
 Get testing recommendations for kafka component.
 ```
 
-**Skip if MCP not available:**
+**If tool call fails (fallback):**
 
 ```
-MCP not available. Using TDD and manual route analysis.
+MCP tool call failed. Using TDD and manual route analysis.
 Proceeding to Step 2...
 ```
 

@@ -46,15 +46,13 @@ Example: `/camel-flow order-to-warehouse`
 - `skills/camel-flow/guides/security.md` - If security/compliance mentioned
 - `skills/camel-flow/guides/monitoring.md` - If observability needed
 
-**Component selection (Questions 2 and 4) — MANDATORY when MCP is configured:**
-- **MCP available:** Call `camel_catalog_components` (with `CAMEL_VERSION`) to list available components, then `camel_catalog_component_doc` (with `CAMEL_VERSION`) for the chosen component. Do not suggest component names from training data before querying the catalog.
-- **MCP not available:** Load from `{skills.folder}/camel-component-[name]/SKILL.md`. Warn if no bundled skill exists.
+**Component selection (Questions 2 and 4) — MANDATORY:**
+- **Primary:** Call `camel_catalog_components` + `camel_catalog_component_doc` directly (with `CAMEL_VERSION`). Do not suggest component names from training data before attempting the catalog call.
+- **Fallback (tool call failed):** Load from `{skills.folder}/camel-component-[name]/SKILL.md`. Warn if no bundled skill exists.
 
 ---
 
 ## MCP Server Configuration (Recommended)
-
-**Check for Camel MCP server availability:**
 
 The Camel MCP server provides powerful catalog query capabilities:
 - **Component Search** (`camel_catalog_components`) - Find components available in the project Camel version
@@ -68,14 +66,7 @@ The Camel MCP server provides powerful catalog query capabilities:
 
 All catalog calls MUST pass `CAMEL_VERSION` (from `.camel-kit/config.yaml`) as the `version` parameter.
 
-**If MCP configured in `.mcp.json`:**
-- Search for components matching user requirements
-- Get always-current documentation
-- No need to maintain component files
-
-**If MCP not available:**
-- Falls back to component SKILL.md files
-- Manual component selection
+Always attempt MCP tool calls directly — do not check for `.mcp.json` or try to detect MCP availability upfront. If a tool call fails (tool not found, network error, timeout), fall back to the bundled component skill files.
 
 **To enable MCP server**, add to `.mcp.json`:
 ```json
@@ -140,7 +131,7 @@ Describe:
 Example: "Process JSON order events and insert into warehouse database."
 ```
 
-**After response — data format lookup (MANDATORY when MCP is configured):**
+**After response — data format lookup (MANDATORY):**
 
 Whenever a data format is mentioned or needs to be chosen (JSON, XML, CSV, Avro, Protobuf, etc.), call the catalog **before** making any recommendation:
 
@@ -228,12 +219,11 @@ Shall I search for alternatives? (yes/no)
 
 Do not proceed with an unverified component.
 
-### Fallback (MCP not available)
+### Fallback (tool call failed)
 
-**Only use when no MCP server is configured.**
+**Only use this path when the `camel_catalog_components` or `camel_catalog_component_doc` call fails (tool not found, network error, timeout).**
 
-Warn user that the component cannot be verified and ask them 
-to either enable MCP or provide the component documentation manually.
+Load `{skills.folder}/camel-component-[name]/SKILL.md` if it exists. Warn the user if no bundled skill is available and ask for manual documentation.
 
 **After user confirms component:**
 
@@ -261,7 +251,7 @@ Describe your processing steps.
 
 **After response:**
 
-**EIP lookup (MANDATORY when MCP is configured) — before suggesting any EIP:**
+**EIP lookup (MANDATORY) — before suggesting any EIP:**
 
 **Step A — List available EIPs for the project version, filtered by the relevant category:**
 ```
@@ -296,7 +286,7 @@ Does this match your requirements? (yes/modify)
 
 Do NOT include `unmarshal` or `marshal` steps unless the user explicitly said they need to work with typed Java objects. When formats are JSON or XML, prefer Kaoto DataMapper via `camel-datamapper-interview`.
 
-**Expression language lookup (MANDATORY when MCP is configured):**
+**Expression language lookup (MANDATORY):**
 
 Whenever the flow requires an expression inside an EIP — `filter`, `choice`/`when`, `setBody`, `setHeader`, `validate`, `log`, routing conditions, or any predicate — the expression language must be chosen from the catalog, not assumed from training data.
 
@@ -400,7 +390,7 @@ If the user prefers a different component, call `camel_catalog_component_doc` fo
 Shall I search for alternatives? (yes/no)
 ```
 
-### Fallback (MCP not available)
+### Fallback (tool call failed)
 
 Load `{skills.folder}/camel-component-[name]/SKILL.md` if it exists. Warn the user if no bundled skill is available and ask for manual documentation.
 

@@ -87,8 +87,7 @@ Check the confirmed summary from `camel-migrate`. For every field still marked *
 
 **Do not ask about fields already marked ✓ Confirmed in the summary.**
 
-Typical remaining gaps after Mule XML analysis (ask only these if still unknown):
-- API compatibility: must the Camel routes be a drop-in replacement for the Mule endpoints (same paths, same queue names)?
+API compatibility is assumed by default — Camel routes will preserve the same HTTP paths, queue/topic names, and data contracts as the original Mule flows. If the user explicitly stated otherwise during the Step 5 confirmation in `camel-migrate`, note the deviation in the BRD.
 
 If the summary has no remaining gaps, skip this step entirely.
 
@@ -178,7 +177,7 @@ Run `/camel-implement <flow-name>` for each flow once TDD files are created.
 Check if `.camel-kit/constitution.md` already exists:
 
 - **If it exists:** Read it and confirm with the user whether to keep it or update it.
-- **If it does not exist:** Create `.camel-kit/constitution.md` using the v2.0 format from `templates/constitution.md`. The constitution contains six enforced rules: Route Structure, Single Responsibility, Separation of Concerns, Naming Conventions, Observability, and External Configuration. All other design guidance (error handling strategy, retry policy, resilience, performance, Kubernetes) is applied during this migration's Phase 1 interview and recorded in the BRD.
+- **If it does not exist:** Create `.camel-kit/constitution.md` using the v2.0 format from `templates/constitution.md`. The constitution contains six enforced rules: Route Structure, Single Responsibility, Separation of Concerns, Naming Conventions, Observability, and External Configuration. All other design guidance (resilience patterns, transactions, idempotency, throttling, Kubernetes) is applied context-specifically during this migration and recorded in the BRD. Error handling strategy and retry policy are extracted from the source artifacts, not asked.
 
 ---
 
@@ -278,8 +277,9 @@ Ask ONLY questions that cannot be answered from the Mule XML. Group questions pe
 - **DataWeave transformations:** For each flow containing a DataWeave script, load `skills/camel-migrate-mule/guides/datamapper-migrate.md` and follow its steps. The guide will infer field mappings from the DataWeave code, collect schema paths, confirm with the user, and append a `### DataMapper: kaoto-datamapper-{id}` section to the TDD. Do not ask ad-hoc mapping questions here — the guide handles it fully.
 - **Proprietary connectors:** Confirm the replacement approach decided in Phase 1 and any additional configuration needed (credentials format, endpoint URLs, etc.).
 - **Target infrastructure endpoints:** If endpoint URLs, queue names, or topic names are parameterised or missing from the config, ask for the target environment values or confirm they will be externalised to properties.
-- **Error handling strategy:** If not fully defined in the Mule config, ask: retry count, retry delay, dead-letter queue/topic name, alert mechanism.
 - **Authentication:** For HTTP endpoints, confirm authentication mechanism (Basic, OAuth2, mTLS, API Key) and where credentials will be stored.
+
+**Do NOT ask about error handling.** Error handlers (`on-error-continue`/`on-error-propagate`), retry policies, DLQ endpoints, and alert mechanisms are extracted from Mule XML in Step 1.1 and recorded in the analysis summary. Use them directly when populating TDD Section 5.
 
 ---
 

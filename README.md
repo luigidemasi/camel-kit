@@ -23,7 +23,7 @@ Camel-Kit adds structured slash commands to your AI assistant (Claude Code, IBM 
 curl -Ls https://sh.jbang.dev | bash -s - app setup        # Linux/macOS
 iex "& { $(iwr -useb https://ps.jbang.dev) } app setup"    # Windows PowerShell
 
-# Install camel-kit
+# Install camel-kit globally
 jbang app install camel-kit@luigidemasi/camel-kit
 
 # Verify
@@ -36,6 +36,26 @@ camel-kit --help
 mvn install
 jbang app install --force camel-kit@./
 ```
+
+---
+
+## Run without installing
+
+No global install required — JBang can run camel-kit directly, caching dependencies automatically:
+
+```bash
+# From the published catalog
+jbang run camel-kit@luigidemasi/camel-kit init my-project --ai claude
+
+# From a local clone
+jbang run camel-kit-main/src/main/jbang/main/CamelKit.java init my-project --ai claude
+
+# From a local SNAPSHOT build (after mvn install)
+jbang -Dcamel.kit.version=0.3.1-SNAPSHOT \
+  run camel-kit-main/src/main/jbang/main/CamelKit.java init my-project --ai claude
+```
+
+JBang caches the resolved JARs in `~/.jbang/cache/` so subsequent runs are fast.
 
 ---
 

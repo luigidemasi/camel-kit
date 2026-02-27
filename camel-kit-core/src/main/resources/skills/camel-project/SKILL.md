@@ -35,20 +35,12 @@ You are acting as a **Business Analyst** helping the user define their integrati
 
 ## MCP Server Configuration (Optional)
 
-**Check for Camel MCP server availability:**
-
 The Camel MCP server provides version management capabilities:
 - **Version List** - Get available Camel versions with LTS status
 - **Version Info** - Check JDK requirements, release dates
 - **Catalog Info** - Verify component availability for version
 
-**If MCP configured in `.mcp.json`:**
-- Check recommended Camel versions
-- Verify LTS status
-- Get JDK compatibility info
-
-**If MCP not available:**
-- Uses default/latest stable version
+Always attempt `camel_version_list` directly. If the call fails (tool not found, network error), use the default/latest stable version.
 
 **To enable MCP server**, add to `.mcp.json`:
 ```json
@@ -173,9 +165,9 @@ You can also accept the default Apache Camel best practices.
 Type "defaults" to use standard Apache Camel best practices, or list your specific requirements.
 ```
 
-### Question 6: Camel Version Selection (MCP Enhanced)
+### Question 6: Camel Version Selection
 
-**If MCP available:**
+**If tool call succeeds:**
 
 ```
 Checking available Camel versions...
@@ -218,7 +210,7 @@ Version Info:
 Confirmed: Using Camel {{VERSION}}
 ```
 
-**If MCP not available:**
+**If tool call fails (fallback):**
 
 ```
 Which Apache Camel version would you like to use?

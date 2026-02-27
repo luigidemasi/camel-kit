@@ -62,9 +62,9 @@ Example: `/camel-implement order-to-warehouse`
 - If BRD does not exist: ERROR "Business Requirements Document not found. Run /camel-project first."
 - If TDD does not exist: ERROR "Technical Design Document for '{flow-name}' not found. Run /camel-flow {flow-name} first."
 
-**Component Documentation (MCP or fallback):**
-- **If MCP available:** Query component docs via `camel_catalog_component_doc` tool
-- **If MCP not available:** Load from `{skills.folder}/camel-component-[name]/SKILL.md`
+**Component Documentation (primary or fallback):**
+- **Primary:** Call `camel_catalog_component_doc` directly. If the call fails, fall back to bundled skill files.
+- **Fallback (tool call failed):** Load from `{skills.folder}/camel-component-[name]/SKILL.md`
 
 **Advanced Pattern Guide (conditional):**
 - Load `skills/camel-implement/guides/advanced-patterns.md` ONLY if TDD contains:
@@ -76,8 +76,6 @@ Example: `/camel-implement order-to-warehouse`
 
 ## MCP Server Configuration (Recommended)
 
-**Check for Camel MCP server availability:**
-
 The Camel MCP server provides powerful code generation and validation tools:
 - **Component Documentation** (`camel_catalog_component_doc`) - Full options and Maven coords for a component at the project Camel version
 - **Data Format Documentation** (`camel_catalog_dataformat_doc`) - Full options and Maven coords for a data format at the project Camel version
@@ -88,14 +86,7 @@ The Camel MCP server provides powerful code generation and validation tools:
 
 All catalog calls MUST pass the Camel version from `.camel-kit/config.yaml` as the `version` parameter.
 
-**If MCP configured in `.mcp.json`:**
-- Use MCP for component documentation (always current)
-- Validate URIs before generating code
-- No need to maintain component files
-
-**If MCP not available:**
-- Falls back to component SKILL.md files
-- Manual URI validation
+Always attempt MCP tool calls directly — do not check for `.mcp.json` or try to detect MCP availability upfront. If a tool call fails (tool not found, network error, timeout), fall back to the bundled component skill files or proceed without validation with a warning.
 
 **To enable MCP server**, add to `.mcp.json`:
 ```json
@@ -191,9 +182,9 @@ If gates fail, warn before proceeding.
 
 Extract every component used in the TDD (source, sink, DLQ, any `to()` targets) and retrieve its full documentation. This is the single source of truth for URI syntax, endpoint options, component-level options, and Maven coordinates. **Never use training-data knowledge as a substitute** — component option names, default values, and URI syntax change between Camel versions and must be verified against the catalog for the project's exact version.
 
-### 2.1 With MCP (Required when available)
+### 2.1 With MCP (Required)
 
-**If MCP server is configured in `.mcp.json`, use it for EVERY component — no exceptions.**
+**Call `camel_catalog_component_doc` directly for EVERY component — no exceptions. Do not check for MCP availability upfront.**
 
 For each component, call `camel_catalog_component_doc` and extract:
 
@@ -234,9 +225,9 @@ Options:
 
 Do NOT guess a component name or proceed with an unverified component.
 
-### 2.2 Fallback (MCP not available)
+### 2.2 Fallback (tool call failed)
 
-**Only use this path when no MCP server is configured.**
+**Only use this path when the `camel_catalog_component_doc` call fails (tool not found, network error, timeout).**
 
 ```
 Loading component documentation from bundled skills...
@@ -1278,7 +1269,7 @@ Proceeding to validation...
 
 **CRITICAL — You MUST complete this step before generating any supporting files. Do NOT skip it, do NOT proceed on failure without attempting fixes.**
 
-If MCP is not configured, skip to Step 4.3. If MCP is configured, the validate→fix→retry loop is non-negotiable.
+Always attempt `camel_validate_route` directly. If the call fails (tool not found, network error), skip to Step 4.4. The validate→fix→retry loop is non-negotiable when the tool is available.
 
 ### 4.1 Validate the Full Route
 
@@ -1362,10 +1353,10 @@ File: {flow-name}.camel.yaml
 Proceeding to generate supporting files...
 ```
 
-### 4.4 No MCP Available
+### 4.4 Tool Call Failed
 
 ```
-⚠️ MCP server not configured — skipping catalog validation.
+⚠️ camel_validate_route call failed — skipping catalog validation.
    Endpoint URIs and option names have NOT been verified against the Camel catalog.
    Run /camel-validate after implementation to catch any errors.
 ```
@@ -1679,9 +1670,9 @@ Save to `schemas/{flow-name}-output.json`
 
 After all files are generated, perform automatic validation:
 
-### MCP-Based Route Validation (Automatic)
+### Route Validation (Automatic)
 
-**If MCP available:**
+**If `camel_validate_route` succeeds:**
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1746,13 +1737,13 @@ Route is ready for execution!
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-**If MCP not available:**
+**If `camel_validate_route` fails to execute (tool not found, network error):**
 
 ```
-Note: MCP server not configured - basic validation performed
+Note: camel_validate_route call failed - basic validation performed
 ✓ YAML syntax checked
 ✓ File structure validated
-⚠️ Full catalog validation requires MCP server
+⚠️ Full catalog validation was not possible — run /camel-validate to catch any errors
 ```
 
 ---
