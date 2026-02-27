@@ -10,6 +10,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Run without installing** — `jbang run camel-kit@luigidemasi/camel-kit` runs camel-kit directly without a global install; local clone and local SNAPSHOT variants also documented in README
+
+### Changed
+
+- **MCP tool invocation — try-first, handle-failure** — all skills now attempt MCP tool calls directly without pre-checking for `.mcp.json` or trying to detect MCP availability upfront; if a call fails (tool not found, network error, timeout) the skill falls back to bundled component skill files or manual analysis; affects `camel-flow`, `camel-implement`, `camel-project`, `camel-validate`, `camel-test`
+
+- **`/camel-migrate` — error handling inferred from artifacts, not asked** — error handlers, retry policies, DLQ endpoints, and alert mechanisms are extracted from the source artifacts (vendor XML, properties files) during the scan phase; the sub-skill's technical interview no longer asks about error handling strategy
+
+- **`/camel-migrate` — API compatibility assumed by default** — Camel routes preserve the same HTTP paths, queue/topic names, and data contracts as the original integration unless the user explicitly opts out; removed API compatibility as a question from both the orchestrator confirmation step and the Mule sub-skill gap-filling step
+
+---
+
+### Added
+
 - **Mandatory MCP catalog lookups in `/camel-flow`**
   - `camel_catalog_components` + `camel_catalog_component_doc` required before any component is suggested (Q2 source, Q4 sink); `CAMEL_VERSION` from `config.yaml` must be passed — training-data component names are forbidden
   - `camel_catalog_dataformats` + `camel_catalog_dataformat_doc` required before any data format is chosen (Q1); verifies availability in `CAMEL_VERSION` and records Maven coordinates

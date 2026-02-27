@@ -54,21 +54,12 @@ Example: `/camel-validate order-to-warehouse`
 
 ## MCP Server Configuration (Recommended)
 
-**Check for Camel MCP server availability:**
-
 The Camel MCP server provides powerful validation and security analysis tools:
 - **URI Validation** - Validate endpoint URIs against catalog (catches typos)
 - **Security Analysis** - 47 built-in security checks for hardcoded credentials, insecure protocols, etc.
 - **Route Understanding** - Extract and document components from routes
 
-**If MCP configured in `.mcp.json`:**
-- Use MCP tools for enhanced validation
-- Get real-time catalog validation
-- Access 47 security checks
-
-**If MCP not available:**
-- Falls back to Maven validator
-- Uses manual anti-pattern checks from guide
+Always attempt MCP tool calls directly. If a call fails (tool not found, network error), fall back to the manual anti-pattern guide or static validation rules.
 
 **To enable MCP server**, add to `.mcp.json`:
 ```json
@@ -202,9 +193,9 @@ Found endpoints:
   - http:{{api.endpoint}}
 ```
 
-### 2.2 Validate URIs with MCP (if available)
+### 2.2 Validate URIs with MCP
 
-**If MCP server available:**
+**If tool call succeeds:**
 
 ```
 == ENDPOINT URI VALIDATION (MCP) ==
@@ -239,7 +230,7 @@ Endpoint 3: http://{{api.endpoint}}
   - Recommendation: Use https:// for production
 ```
 
-**If MCP not available:**
+**If tool call fails (fallback):**
 
 ```
 == ENDPOINT URI VALIDATION (Manual) ==
@@ -459,9 +450,9 @@ Bean Definitions:
 
 **This is the most powerful MCP integration - 47 automated security checks!**
 
-### 8.1 MCP Security Analysis (if available)
+### 8.1 MCP Security Analysis
 
-**If MCP server available:**
+**If tool call succeeds:**
 
 ```
 == SECURITY ANALYSIS (MCP - 47 Checks) ==
@@ -542,10 +533,10 @@ Recommendation: Fix warnings before production deployment
 
 ### 8.2 Fallback: Manual Anti-Pattern Detection
 
-**If MCP NOT available AND user requests comprehensive validation:**
+**If tool call fails AND user requests comprehensive validation:**
 
 ```
-MCP not available. Loading manual anti-pattern guide...
+MCP tool call failed. Loading manual anti-pattern guide...
 → Reading skills/camel-validate/guides/anti-patterns.md
 
 Running manual security checks...
@@ -713,10 +704,10 @@ Looking for: *.camel.yaml
 Have you run /camel-implement yet?
 ```
 
-### MCP Server Not Available
+### MCP Tool Call Failed
 
 ```
-ℹ️ INFO: Camel MCP server not configured
+ℹ️ INFO: MCP tool call failed
 
 Falling back to:
 - Manual URI validation
