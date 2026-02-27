@@ -10,6 +10,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Mandatory MCP catalog lookups in `/camel-flow`**
+  - `camel_catalog_components` + `camel_catalog_component_doc` required before any component is suggested (Q2 source, Q4 sink); `CAMEL_VERSION` from `config.yaml` must be passed — training-data component names are forbidden
+  - `camel_catalog_dataformats` + `camel_catalog_dataformat_doc` required before any data format is chosen (Q1); verifies availability in `CAMEL_VERSION` and records Maven coordinates
+  - `camel_catalog_eips` + `camel_catalog_eip_doc` required before any EIP is suggested (Q3); catalog descriptions replace hardcoded examples
+  - `camel_catalog_languages` + `camel_catalog_language_doc` required before any expression language is chosen (Q3); prevents defaulting to `simple` without checking fit for the data format
+  - `.camel-kit/config.yaml` is now REQUIRED at skill start to extract `CAMEL_VERSION`; skill asks the user if the file is missing
+
+- **Mandatory MCP catalog lookups in `/camel-implement`**
+  - Rule 0: all component scheme names, endpoint option names, component-level option names, and Maven coordinates must come from `camel_catalog_component_doc` — never from training data
+  - Rule 0b: data format names and options must come from `camel_catalog_dataformat_doc`
+  - Rule 0c: expression language names and syntax must come from `camel_catalog_language_doc`
+  - Rule 0d: EIP names and options must come from `camel_catalog_eip_doc`
+  - Step 2 (Load Component Documentation) is now MANDATORY — hard stop if a component is not found in the catalog
+  - Step 4 (Route Validation) is a validate→fix→re-query→retry loop up to 3 attempts; fixes must re-query the catalog before editing the YAML; failure after 3 attempts stops generation and reports errors
+
+- **Mandatory MCP catalog lookups in `/camel-migrate-mule`** (Phase 2)
+  - Same rules as `/camel-flow` and `/camel-implement`: `camel_catalog_component_doc` before writing any Camel component to the TDD; `camel_catalog_eip_doc` for each EIP mapping; `camel_catalog_language_doc` for predicates/expressions; `camel_catalog_dataformat_doc` for data format choices
+  - `mule-component-mapping.md` is a starting-point only — catalog verification is always required
+
+- **`/camel-migrate` rewritten as a generic migration orchestrator (v2.0)**
+  - New step order: locate artifacts → scan ALL files → detect vendor from full scan content → build pre-populated analysis summary → confirm gaps with user → delegate to sub-skill
+  - Vendor detection now uses the complete picture from all scanned files (namespaces, groupIds, descriptor files, property key patterns, dependency names) rather than a single file
+  - Pre-populated analysis summary covers: vendor & version, business purpose, owning team, SLA/throughput, compliance/security, failure behaviour, deployment target — all extracted from artifacts without asking the user
+  - Only genuine gaps (fields not found in any artifact) are asked; API compatibility is the only field that cannot be inferred
+  - Defines a generic contract for all future vendor sub-skills: receive summary → do vendor-specific work → fill gaps only
+
+### Changed
+
+- **Constitution rewritten to v2.0** — reduced from 700 lines to ~100; contains only the six enforced rules: Route Structure, Single Responsibility, Separation of Concerns, Naming Conventions, Observability, External Configuration; all informational-only sections (Resilience, Transactions, Idempotency, VETRO, Kafka Scaling, Kubernetes, Data Format Discipline) removed; Error Handling, Retry Policy, Throttling, and Kubernetes guidance moved to `/camel-flow` Q5/Q6 where they are applied context-specifically
+
+- **`/camel-flow` Q5 (Error Handling)** — retry policy guidance (3–5 retries, exponential backoff, max 30 s delay) now documented inline; stale constitution principle reference in Q5d replaced with transaction propagation policies inline
+
+- **`/camel-flow` Q6 (Performance)** — expanded to also trigger on "Kubernetes/cloud/scale/replicas"; throttling strategies and Kafka `consumersCount` guidance added; Kubernetes deployment guidance (ConfigMaps, health probes, Secrets) added
+
+- **`/camel-migrate-mule` updated to sub-skill contract (v2.0)** — Phase 1 receives the pre-populated summary from the orchestrator and does not re-ask confirmed questions; Step 1.2 (proprietary connectors) now uses `pom.xml` dependencies to pre-suggest replacement options; Step 1.3 asks only genuine gaps (typically API compatibility only); TDD Section 9 (Constitution Gate Checks) updated to constitution v2.0 six rules; BRD Best Practices updated to name the six constitution rules explicitly; Step 1.5 references constitution v2.0 template
+
 - **Split-screen TUI for `camel-kit init` (TamboUI integration)**
   - Full-screen two-panel layout on terminals that support native image protocols
     (Kitty, iTerm2, Sixel): left panel shows the Camel-Kit logo; right panel shows

@@ -166,9 +166,11 @@ Define a flow's business requirements, technical design, and data contracts.
 - **Security** - Asked only if security, PII, or compliance was mentioned
 - **Monitoring** - Asked only if observability was mentioned
 
-**MCP Tools Used:**
-- `camel_catalog_components` - Search components by category
-- `camel_catalog_component_doc` - Get component documentation
+**MCP Tools Used (all MANDATORY when MCP is configured, all pass `CAMEL_VERSION`):**
+- `camel_catalog_components` + `camel_catalog_component_doc` — before any component is suggested (Q2, Q4)
+- `camel_catalog_dataformats` + `camel_catalog_dataformat_doc` — before any data format is chosen (Q1)
+- `camel_catalog_eips` + `camel_catalog_eip_doc` — before any EIP is suggested (Q3)
+- `camel_catalog_languages` + `camel_catalog_language_doc` — before any expression language is chosen (Q3)
 
 **Output:**
 
@@ -196,18 +198,24 @@ Migrate an existing integration from another platform to Apache Camel. Detects t
 |----------|---------|-----------------|
 | MuleSoft Mule | 3.x, 4.x | XML namespace `mulesoft.org`, `pom.xml` groupId `org.mule` / `com.mulesoft` |
 
-**Phase 1 — Business Analyst:**
+**How it works (generic orchestration):**
 
-1. Parses all Mule XML files and builds a flow inventory.
-2. Flags proprietary connectors (Anypoint MQ, Object Store, SAP, Workday, etc.) and asks the user how to handle each one.
-3. Asks business questions that cannot be answered from the XML (purpose, SLA, compliance, failure behaviour).
-4. Produces:
-   - `.camel-kit/business-requirements.md`
-   - `.camel-kit/constitution.md`
+1. Scans **all** project artifacts (XML, build files, properties, docs, Docker/K8s, source, tests).
+2. Detects vendor and version from the full scan content.
+3. Builds a pre-populated analysis summary (purpose, SLA, security, failure behaviour, deployment target) extracted from the artifacts — without asking the user.
+4. Confirms the summary; only asks about genuine gaps (typically just API compatibility).
+5. Delegates to the vendor sub-skill, passing the confirmed summary so it never re-asks confirmed questions.
 
-**Phase 2 — Integration Architect:**
+**MuleSoft Mule sub-skill (Phase 1 — Business Analyst):**
 
-1. Maps each Mule component to its Camel equivalent using the bundled mapping guide.
+1. Parses Mule XML and builds a flow inventory.
+2. Flags proprietary connectors and asks the user how to handle each one (using `pom.xml` dependencies to pre-suggest replacements).
+3. Fills any remaining gaps not already in the analysis summary.
+4. Produces `.camel-kit/business-requirements.md` and `.camel-kit/constitution.md`.
+
+**MuleSoft Mule sub-skill (Phase 2 — Integration Architect):**
+
+1. Maps each Mule component to its catalog-verified Camel equivalent (calls `camel_catalog_component_doc` for every component).
 2. Converts DataWeave transformations into TDD Section 3 field mapping tables.
 3. Asks only what the XML cannot answer (DataWeave intent, missing endpoints, auth mechanisms, retry strategy).
 4. Produces one TDD file per Mule flow:
@@ -558,9 +566,9 @@ The AI assistant automatically uses MCP tools when available. No additional conf
 | Command | MCP Tools Used | Purpose |
 |---------|---------------|---------|
 | `/camel-project` | `camel_version_list` | List Camel versions with LTS status |
-| `/camel-flow` | `camel_catalog_components`<br>`camel_catalog_component_doc` | Search components by category<br>Get component documentation |
-| `/camel-migrate` | `camel_catalog_components`<br>`camel_catalog_component_doc` | Search Camel equivalents for Mule components<br>Get component documentation for TDD |
-| `/camel-implement` | `camel_catalog_component_doc`<br>`camel_route_context`<br>`camel_validate_route` | Get component configuration<br>Analyze route structure<br>Validate endpoint URIs |
+| `/camel-flow` | `camel_catalog_components`<br>`camel_catalog_component_doc`<br>`camel_catalog_dataformats`<br>`camel_catalog_dataformat_doc`<br>`camel_catalog_eips`<br>`camel_catalog_eip_doc`<br>`camel_catalog_languages`<br>`camel_catalog_language_doc` | **MANDATORY** — called before any component, data format, EIP, or expression language is chosen; all calls pass `CAMEL_VERSION` from `config.yaml` |
+| `/camel-migrate` | `camel_catalog_components`<br>`camel_catalog_component_doc`<br>`camel_catalog_eips`<br>`camel_catalog_eip_doc`<br>`camel_catalog_languages`<br>`camel_catalog_language_doc`<br>`camel_catalog_dataformats`<br>`camel_catalog_dataformat_doc` | **MANDATORY** — same rules as `/camel-flow`; called in Phase 2 after Mule→Camel mapping |
+| `/camel-implement` | `camel_catalog_component_doc`<br>`camel_catalog_dataformat_doc`<br>`camel_catalog_eip_doc`<br>`camel_catalog_language_doc`<br>`camel_route_context`<br>`camel_validate_route` | **MANDATORY** — all names/options verified before YAML is written; validate→fix→re-query→retry loop (up to 3 attempts) |
 | `/camel-validate` | `camel_validate_route`<br>`camel_route_harden_context` | Validate URIs and options<br>47 automated security checks |
 | `/camel-test` | `camel_route_context`<br>`camel_catalog_component_doc` | Analyze route for test strategy<br>Get component details for mocks |
 
