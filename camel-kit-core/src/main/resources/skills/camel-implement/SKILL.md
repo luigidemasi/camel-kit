@@ -79,9 +79,14 @@ Example: `/camel-implement order-to-warehouse`
 **Check for Camel MCP server availability:**
 
 The Camel MCP server provides powerful code generation and validation tools:
-- **Component Documentation** - Get real-time component docs for exact Camel version
-- **URI Validation** - Validate endpoint URIs and catch typos before runtime
-- **Catalog Queries** - Search for components, data formats, EIPs
+- **Component Documentation** (`camel_catalog_component_doc`) - Full options and Maven coords for a component at the project Camel version
+- **Data Format Documentation** (`camel_catalog_dataformat_doc`) - Full options and Maven coords for a data format at the project Camel version
+- **Language Documentation** (`camel_catalog_language_doc`) - Full syntax, options, and Maven coords for an expression language at the project Camel version
+- **EIP List** (`camel_catalog_eips`) - All EIPs available in the project Camel version, filterable by category
+- **EIP Documentation** (`camel_catalog_eip_doc`) - Full options and YAML DSL usage for a specific EIP at the project Camel version
+- **URI Validation** (`camel_validate_route`) - Validate endpoint URIs and catch typos before runtime
+
+All catalog calls MUST pass the Camel version from `.camel-kit/config.yaml` as the `version` parameter.
 
 **If MCP configured in `.mcp.json`:**
 - Use MCP for component documentation (always current)
@@ -182,53 +187,68 @@ If gates fail, warn before proceeding.
 
 ## Step 2: Load Component Documentation
 
-Extract all components mentioned in the TDD and get their documentation:
+**MANDATORY — do not skip, do not proceed to Step 3 without completing this step for every component.**
 
-### 2.1 With MCP (Recommended)
+Extract every component used in the TDD (source, sink, DLQ, any `to()` targets) and retrieve its full documentation. This is the single source of truth for URI syntax, endpoint options, component-level options, and Maven coordinates. **Never use training-data knowledge as a substitute** — component option names, default values, and URI syntax change between Camel versions and must be verified against the catalog for the project's exact version.
 
-**If MCP server available:**
+### 2.1 With MCP (Required when available)
+
+**If MCP server is configured in `.mcp.json`, use it for EVERY component — no exceptions.**
+
+For each component, call `camel_catalog_component_doc` and extract:
+
+| Field | Where to use it |
+|-------|----------------|
+| `syntax` | URI pattern in `from:` / `to:` |
+| `path parameters` (kind=path) | URI path segment, in order |
+| `endpoint options` (kind=parameter) | `parameters:` block in YAML |
+| `component options` | `camel.component.<name>.<option>` in `application.properties` |
+| `groupId` + `artifactId` | Maven dependency in `pom.xml` / `camel.jbang.dependencies` |
 
 ```
-Loading component documentation...
+Loading component documentation via MCP...
 
-Source Component: [component-name]
+Component: [component-name]
   MCP Tool: camel_catalog_component_doc
   Params: { "name": "[component-name]", "version": "{{CAMEL_VERSION}}" }
 
-  ✓ Component: [component-name]
-  ✓ Title: [full component title]
-  ✓ Scheme: [scheme]
-  ✓ Syntax: [syntax]
-  ✓ Maven: org.apache.camel:camel-[name]:{{VERSION}}
-
-  Component Options (selected):
-  - brokers: Kafka broker addresses
-  - securityProtocol: Security protocol (SSL, SASL, etc.)
-
-  Endpoint Options (selected):
-  - topic: Topic name (path parameter)
-  - groupId: Consumer group ID
-  - autoOffsetReset: earliest, latest, none
-
-Sink Component: [component-name]
-  MCP Tool: camel_catalog_component_doc
-  Params: { "name": "[component-name]", "version": "{{CAMEL_VERSION}}" }
-
-  [Similar output]
+  ✓ Syntax:            [exact URI syntax from catalog]
+  ✓ Path parameters:   [list with order]
+  ✓ Endpoint options:  [all valid parameter names and types]
+  ✓ Component options: [all valid component-level config keys]
+  ✓ Maven:             org.apache.camel:camel-[name]:{{CAMEL_VERSION}}
 ```
 
-### 2.2 Fallback (if MCP not available)
+Repeat for every component before writing any YAML.
+
+**If `camel_catalog_component_doc` returns an error (component not found):**
 
 ```
-Loading component skills from files...
+❌ Component '[name]' not found in Camel {{CAMEL_VERSION}} catalog.
 
-Source Component: [component-name]
-  ✓ Loading {skills.folder}/camel-component-[name]/SKILL.md
-  ✓ Loading {skills.folder}/camel-component-[name]/schema.json
-  - Scheme: [scheme]
-  - Syntax: [syntax]
-  - Maven: camel-[name]
+Options:
+1. Search for the correct component name with camel_catalog_components
+2. Confirm the component exists in this Camel version
+3. Update the TDD with the correct component before proceeding
 ```
+
+Do NOT guess a component name or proceed with an unverified component.
+
+### 2.2 Fallback (MCP not available)
+
+**Only use this path when no MCP server is configured.**
+
+```
+Loading component documentation from bundled skills...
+
+Component: [component-name]
+  ✓ {skills.folder}/camel-component-[name]/SKILL.md
+  ✓ {skills.folder}/camel-component-[name]/schema.json
+  - Syntax:   [from skill file]
+  - Maven:    [from skill file]
+```
+
+If neither MCP nor a bundled skill exists for a component, **stop and ask the user** to provide the component documentation before continuing. Do not invent option names.
 
 ---
 
@@ -943,7 +963,8 @@ Generate the route by translating the TDD to Camel YAML DSL:
    - Parameters: Only endpoint-specific (NOT connection details)
 
 3. **Processing Steps** (from TDD Section 3):
-   - Translate each step from TDD to Camel EIP
+   - For each EIP in the TDD, call `camel_catalog_eip_doc` (with `CAMEL_VERSION`) to get the authoritative option names and YAML DSL structure before writing the step — see Rule 0d
+   - Translate each step from TDD to Camel EIP using only catalog-verified option names
    - **If `camel-datamapper-implement` was invoked (Step 2.5)**, the DataMapper step is already injected into the YAML
    - Preserve order from TDD
    - Use `steps:` array format for Kaoto compatibility
@@ -961,6 +982,30 @@ Generate the route by translating the TDD to Camel YAML DSL:
 ### 3.2 YAML Generation Rules
 
 **CRITICAL RULES:**
+
+0. **Use only catalog-verified names** — Every component scheme, endpoint option name, component-level option name, and Maven coordinate used in the generated YAML and `application.properties` MUST come from the documentation loaded in Step 2. Do not use option names, parameter names, or URI syntax from training data or memory. If you are unsure whether an option exists or is spelled correctly, call `camel_catalog_component_doc` again before writing it.
+
+0c. **Expression language names and options must also be catalog-verified** — Before writing any expression language value in the YAML (`simple`, `jsonpath`, `xpath`, `jq`, `groovy`, etc.), call `camel_catalog_language_doc` for that language with the project Camel version. This ensures the language is available in the project's Camel version, its syntax is correct, and any required Maven dependency (e.g. `camel-jsonpath`, `camel-jq`) is included. Never assume a language name or its syntax from training data. Example:
+   ```
+   MCP Tool: camel_catalog_language_doc
+   Params: { "name": "jsonpath", "version": "{{CAMEL_VERSION}}" }
+   → Use the returned syntax rules and Maven coordinates in the generated YAML
+   ```
+   If the language requires a separate Maven artifact, add it to `application.properties` (`camel.jbang.dependencies`) and `pom.xml`.
+
+0d. **EIP names and options must also be catalog-verified** — Before writing any EIP step in the YAML (`filter`, `split`, `aggregate`, `choice`, `multicast`, `enrich`, `wireTap`, `throttle`, `idempotentConsumer`, etc.), call `camel_catalog_eip_doc` for that EIP with the project Camel version. This ensures the EIP exists in the project's version and that all option names and their types are correct. Never assume EIP option names from training data. Example:
+   ```
+   MCP Tool: camel_catalog_eip_doc
+   Params: { "name": "filter", "version": "{{CAMEL_VERSION}}" }
+   → Use the returned options and YAML DSL structure in the generated YAML
+   ```
+
+0b. **Data format names and options must also be catalog-verified** — If the TDD requires `unmarshal` or `marshal`, call `camel_catalog_dataformat_doc` for the data format (e.g. `jackson`, `jaxb`, `csv`, `avro`) with the project Camel version before generating the YAML block. Never assume the data format name, its configuration options, or its Maven coordinates from training data. Example:
+   ```
+   MCP Tool: camel_catalog_dataformat_doc
+   Params: { "name": "jackson", "version": "{{CAMEL_VERSION}}" }
+   → Use the returned options and Maven coordinates in the generated YAML and application.properties
+   ```
 
 1. **Clean Routes** - NO connection details in YAML:
    ```yaml
@@ -1229,188 +1274,107 @@ Proceeding to validation...
 
 ---
 
-## Step 4: URI Validation (MCP Pre-Check)
+## Step 4: Route Validation Loop (MANDATORY)
 
-**Before running full route validation, validate endpoint URIs if MCP available.**
+**CRITICAL — You MUST complete this step before generating any supporting files. Do NOT skip it, do NOT proceed on failure without attempting fixes.**
 
-### 4.1 Extract URIs from Generated YAML
+If MCP is not configured, skip to Step 4.3. If MCP is configured, the validate→fix→retry loop is non-negotiable.
 
-```
-Extracting endpoint URIs from {flow-name}.camel.yaml...
+### 4.1 Validate the Full Route
 
-Found URIs:
-  - Source: [component]:{{source.endpoint}}
-  - Sink: [component]:{{sink.endpoint}}
-  - DLQ: [component]:{{dlq.endpoint}}
-```
-
-### 4.2 Validate with MCP (if available)
-
-**If MCP server available:**
-
-```
-Pre-validating URIs with MCP catalog...
-
-URI 1: kafka:{{kafka.topic.input}}
-  MCP Tool: camel_validate_route
-  Params: { "uri": "kafka:topic-name", "version": "{{VERSION}}" }
-
-  Result: ✅ VALID
-  - Component: kafka exists in catalog
-  - Path parameter: topic (valid)
-  - No typos detected
-
-URI 2: sql:{{sql.insert}}
-  MCP Tool: camel_validate_route
-  Params: { "uri": "sql:INSERT INTO orders", "version": "{{VERSION}}" }
-
-  Result: ✅ VALID
-  - Component: sql exists in catalog
-  - Query: valid syntax
-  - Required: dataSource bean configuration
-
-URI 3: kafka:{{kafka.topic.dlq}}
-  MCP Tool: camel_validate_route
-  Params: { "uri": "kafka:dlq-topic", "version": "{{VERSION}}" }
-
-  Result: ✅ VALID
-
-All URIs validated successfully via MCP.
-```
-
-**If typos detected:**
-
-```
-URI: kafak:{{kafka.topic.input}}
-  MCP Tool: camel_validate_route
-
-  Result: ❌ ERROR
-  - Component 'kafak' not found
-  - Did you mean: 'kafka'?
-
-  AUTO-FIX: Correcting 'kafak' to 'kafka'
-  Rewriting {flow-name}.camel.yaml...
-```
-
-### 4.3 Skip if MCP Not Available
-
-**If MCP not available:**
-
-```
-MCP not available. Skipping URI pre-validation.
-URIs will be validated in Step 5 (Route Validation with MCP).
-Note: Without MCP, proceed directly to Step 5 for complete route validation.
-```
-
----
-
-## Step 5: Route Validation with MCP (MANDATORY)
-
-**CRITICAL: You MUST validate the generated route using MCP camel_validate_route. DO NOT proceed without successful validation.**
-
-### 5.1 MCP Route Validation
-
-**If MCP available**, use `camel_validate_route` to validate the entire generated route:
+Pass the **entire content** of `{flow-name}.camel.yaml` to `camel_validate_route`:
 
 ```
 MCP Tool: camel_validate_route
-
-Parameters:
+Params:
 {
-  "route": "<entire YAML route content from {flow-name}.camel.yaml>",
+  "route": "<full YAML file content>",
   "version": "{{CAMEL_VERSION}}"
 }
 ```
 
-### 5.2 Validation Process
-
-The MCP tool validates:
-- All endpoint URIs exist in catalog
-- Component options are valid
+The tool validates:
+- All component schemes exist in the Camel {{CAMEL_VERSION}} catalog
+- URI path parameters are in the correct order and format
+- All endpoint option names are valid (catches misspellings like `datasource` vs `dataSource`)
 - Required parameters are present
-- Catches typos in component names
-- Verifies option types and values
+- No unknown options are used
 
-### 5.3 Expected Success Output
+### 4.2 Fix → Re-query → Retry Loop
 
-```
-Validating route: {flow-name}
-
-Endpoint: kafka:orders?brokers={{KAFKA_BROKERS}}&groupId=order-processor
-  ✅ Component 'kafka' exists in catalog
-  ✅ All options valid: brokers, groupId
-  ✅ Required parameters present: topic
-
-Endpoint: jpa:com.example.Order
-  ✅ Component 'jpa' exists in catalog
-  ✅ Entity class specified
-  ✅ Valid JPA endpoint format
-
-Error Handler: kafka:orders-dlq
-  ✅ Component 'kafka' exists in catalog
-  ✅ Valid DLQ URI
-
-✅ All endpoint URIs valid (3/3 passed)
-✅ No typos or unknown options
-✅ Route validation passed
-```
-
-### 5.4 Handling Validation Errors
-
-If validation fails, the MCP tool returns errors:
+**If validation returns errors, follow this loop — up to 3 attempts:**
 
 ```
-❌ VALIDATION FAILED
+Attempt N/3: camel_validate_route returned errors:
 
-Endpoint: kafak:orders
-  ❌ Component 'kafak' not found
-  💡 Did you mean: 'kafka'?
-
-Endpoint: sql:INSERT INTO orders?datasource=#db
-  ❌ Unknown option 'datasource'
-  💡 Did you mean: 'dataSource' (camelCase)?
-
-ERRORS: 2
+  ❌ [component]: [error description]
+     💡 [suggestion from tool]
 ```
 
-**Fix the errors:**
-1. Read the error messages
-2. Fix typos and incorrect options
-3. Rewrite the YAML file
-4. Run validation again
+**For each error, before editing the YAML:**
 
-### 5.5 Validation Success
+1. **Re-query the failing component** with `camel_catalog_component_doc` to get the authoritative option list:
+   ```
+   MCP Tool: camel_catalog_component_doc
+   Params: { "name": "[component-name]", "version": "{{CAMEL_VERSION}}" }
+   ```
+2. **Identify the correct option name/value** from the catalog response — do not guess.
+3. **Apply the fix** to `{flow-name}.camel.yaml`.
+4. **Run `camel_validate_route` again** with the updated file content.
+5. If validation passes → proceed to Step 4.3 ✅
+6. If errors remain → repeat from step 1 (up to 3 total attempts).
 
-When validation passes:
+**After 3 failed attempts:**
 
 ```
-=== ROUTE VALIDATION PASSED ===
+⚠️ Route validation still failing after 3 fix attempts.
+
+Remaining errors:
+[list errors]
+
+These errors require manual intervention. Possible causes:
+- Component option not available in Camel {{CAMEL_VERSION}}
+- TDD specifies a component configuration that is incompatible
+- YAML DSL syntax issue not covered by catalog validation
+
+Action required:
+1. Review the errors above
+2. Check component docs: camel_catalog_component_doc { "name": "...", "version": "{{CAMEL_VERSION}}" }
+3. Update the TDD if the component choice needs to change
+4. Re-run /camel-implement once the TDD is corrected
+```
+
+Stop and report the errors — do not generate supporting files for a route that fails validation.
+
+### 4.3 Validation Success
+
+```
+=== ROUTE VALIDATION PASSED (attempt N/3) ===
 
 File: {flow-name}.camel.yaml
-URIs validated: [count]
-All components exist in catalog
-All options valid
-No typos detected
-
-Route Structure:
-  ✓ Route ID: {flow-name}
-  ✓ From URI valid
-  ✓ All step URIs valid
-  ✓ Error handler valid
-
-Kaoto Compatibility:
-  ✓ Standard route format
-  ✓ Steps array format
-  ✓ Explicit uri/parameters structure
+  ✓ All component schemes valid
+  ✓ All endpoint URIs valid
+  ✓ All option names verified against catalog
+  ✓ No unknown or misspelled options
   ✓ Route ID present
-  ✓ Error handler at route level
+  ✓ Steps array format (Kaoto compatible)
 
 Proceeding to generate supporting files...
 ```
 
+### 4.4 No MCP Available
+
+```
+⚠️ MCP server not configured — skipping catalog validation.
+   Endpoint URIs and option names have NOT been verified against the Camel catalog.
+   Run /camel-validate after implementation to catch any errors.
+```
+
+Proceed to Step 5 with this warning recorded.
+
 ---
 
-## Step 6: Generate application.properties
+## Step 5: Generate application.properties
 
 **IMPORTANT: Save this file in the PROJECT ROOT directory, NOT in .camel-kit/**
 
@@ -1489,7 +1453,7 @@ If TDD Section 7.2 defines environment-specific configuration, create templates:
 
 ---
 
-## Step 7: Generate docker-compose.yaml
+## Step 6: Generate docker-compose.yaml
 
 **IMPORTANT: Save this file in the PROJECT ROOT directory, NOT in .camel-kit/**
 
@@ -1545,7 +1509,7 @@ volumes:
 
 ---
 
-## Step 8: Generate run.sh Script
+## Step 7: Generate run.sh Script
 
 **IMPORTANT: Save this file in the PROJECT ROOT directory, NOT in .camel-kit/**
 
@@ -1583,7 +1547,7 @@ chmod +x run.sh
 
 ---
 
-## Step 9: Implement Advanced Patterns (Conditional)
+## Step 8: Implement Advanced Patterns (Conditional)
 
 **Check TDD for advanced requirements:**
 
@@ -1624,7 +1588,7 @@ Proceeding to dependency management...
 
 ---
 
-## Step 10: Update pom.xml (if exists)
+## Step 9: Update pom.xml (if exists)
 
 If using Maven project, add dependencies from TDD Section 8:
 
@@ -1663,7 +1627,7 @@ If using Maven project, add dependencies from TDD Section 8:
 
 ---
 
-## Step 11: Generate Schemas (if requested)
+## Step 10: Generate Schemas (if requested)
 
 If schemas were missing in Step 1.2 and user chose to generate them:
 

@@ -802,27 +802,36 @@ camel test run test/order-ingestion.camel.it.yaml
 
 ## Best Practices
 
-Camel-Kit enforces best practices through the **constitution** (`.camel-kit/constitution.md`):
+### Constitution v2.0 — Six Enforced Rules
 
-| Principle | Description |
-|-----------|-------------|
-| Route Structure | Every route has a clear source and sink |
-| Single Responsibility | One route = one clear purpose |
-| Error Handling | Every route declares error strategy |
-| Resilience | Circuit breaker added when explicitly requested during `/camel-flow` (external HTTP/REST calls) |
-| Idempotency | Idempotent consumer added when explicitly requested during `/camel-flow` (message broker sources) |
-| Data Format Discipline | DataMapper/XSLT-saxon preferred for transformation; `unmarshal`/`marshal` used only as fallback |
-| External Configuration | Use environment variables, never hardcode |
-| Throttling | High-throughput routes have rate limiting |
-| Jakarta EE namespaces | `jakarta.*` packages used for all Jakarta EE APIs when Camel ≥ 4.0 |
-| `onException` ordering | Global `onException` declared before all routes; route-scoped error handling stays inside the route |
+The constitution (`.camel-kit/constitution.md`) enforces exactly six rules on every generated route:
+
+| Rule | Description | Violation |
+|------|-------------|-----------|
+| Route Structure | Every route has a `from:` source and a final `to:` sink | ERROR |
+| Single Responsibility | One route = one clear purpose; ≤ 7 processing steps | WARNING if > 7 |
+| Separation of Concerns | Ingestion → Processing → Delivery; `direct:` for sync, `seda:` for async | WARNING |
+| Naming Conventions | Route IDs follow `<domain>-<action>[-<qualifier>]` | WARNING |
+| Observability | Every route declares `routeId` and `description` | ERROR |
+| External Configuration | No hardcoded credentials or connection strings; use `{{PLACEHOLDER}}` | ERROR |
+
+All other design guidance (error handling strategy, retry policy, circuit breaker, transactions, idempotency, throttling, Kubernetes, data format choices) is applied context-specifically during `/camel-flow` and `/camel-migrate` flow design — not enforced globally.
+
+### Generated Route Quality
+
+`/camel-implement` enforces catalog-verified accuracy on every generated route:
+- All component names, endpoint option names, and Maven coordinates come from `camel_catalog_component_doc` — never from training data
+- All data format names and options come from `camel_catalog_dataformat_doc`
+- All expression language names and syntax come from `camel_catalog_language_doc`
+- All EIP names and options come from `camel_catalog_eip_doc`
+- After generation, the route is validated with `camel_validate_route` in a fix→re-query→retry loop (up to 3 attempts)
 
 ### Customizing the Constitution
 
-Edit `.camel-kit/constitution.md` to:
-- Disable specific rules
-- Add organization-specific guidelines
-- Adjust strictness levels
+Edit `.camel-kit/constitution.md` to add project-specific overrides:
+- Restrict allowed components
+- Override naming patterns
+- Define project-specific DLQ topics or security requirements
 
 ---
 

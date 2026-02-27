@@ -3,7 +3,7 @@ name: camel-migrate-mule
 description: Internal sub-skill for migrating MuleSoft Mule integrations to Apache Camel
 user-invocable: false
 metadata:
-  version: "1.0.0"
+  version: "2.0.0"
   author: "camel-kit"
   category: "migration"
   license: "Apache-2.0"
@@ -11,13 +11,19 @@ metadata:
 
 # Camel Migrate Mule - MuleSoft → Apache Camel Migration
 
-This is an internal sub-skill invoked by `camel-migrate` when a MuleSoft Mule project is detected. Do not invoke this skill directly.
+This is an internal sub-skill invoked by `camel-migrate` after it has already:
+1. Detected the vendor (MuleSoft Mule 3.x / 4.x)
+2. Scanned all project artifacts
+3. Built a pre-populated analysis summary
+4. Confirmed the summary with the user
+
+**Do not re-ask questions already answered in the summary. Do not invoke this skill directly.**
 
 You will work in two phases:
-- **Phase 1 (Business Analyst):** Understand the business context and produce BRD + constitution.
-- **Phase 2 (Integration Architect):** Design the Camel route architecture and produce TDD files.
+- **Phase 1 (Business Analyst):** Deep-dive into Mule XML flows, resolve proprietary connectors, fill any remaining gaps, produce BRD + constitution.
+- **Phase 2 (Integration Architect):** Design catalog-verified Camel route architecture and produce TDD files.
 
-The outputs of both phases are identical in format to those produced by `/camel-project` + `/camel-flow`, making them fully compatible with `/camel-implement`.
+The outputs are identical in format to `/camel-project` + `/camel-flow`, making them fully compatible with `/camel-implement`.
 
 ---
 
@@ -26,107 +32,65 @@ The outputs of both phases are identical in format to those produced by `/camel-
 ### Context Loading
 
 **ALWAYS load at the start of Phase 1:**
-- Load `skills/camel-migrate-mule/guides/mule-component-mapping.md` — you will need this for the entire migration
-- Read ALL Mule XML files provided (flows, sub-flows, global configuration)
-- Read `pom.xml` if present (to determine Mule version and dependencies)
+- Load `skills/camel-migrate-mule/guides/mule-component-mapping.md` — needed for the entire migration
+- Read ALL Mule XML files (flows, sub-flows, global configuration)
+- Read the confirmed analysis summary passed by `camel-migrate` (contains vendor, purpose, SLA, security, failure behaviour, deployment target, API compatibility)
 
 **Conditional:**
 - Load `.camel-kit/constitution.md` if it already exists (do not overwrite without asking)
 
 ---
 
-### Step 1.1 — Parse and Inventory the Mule Project
+### Step 1.1 — Parse and Inventory the Mule Flows
 
-Before asking any questions, analyse all provided Mule XML files and build an internal inventory:
+Analyse all Mule XML files and build a flow inventory. This is Mule-specific extraction that complements the generic analysis summary already provided.
 
 **For each Mule flow and sub-flow, identify:**
 - Flow name
 - Source (inbound endpoint, HTTP listener, scheduler, etc.)
 - Processors in order (transformers, routers, filters, enrichers)
-- DataWeave transformation scripts (note their location and complexity)
+- DataWeave transformation scripts (location and complexity)
 - Sink (outbound endpoint, HTTP request, database write, etc.)
-- Error handlers (on-error-continue, on-error-propagate)
+- Error handlers (`on-error-continue`, `on-error-propagate`, retry policies, DLQ endpoints)
 
-**Classify each component using the mapping guide** (`mule-component-mapping.md`):
-- Mark components that have known Camel equivalents
+**Classify each component using `mule-component-mapping.md`:**
+- Mark components with known Camel equivalents
 - Mark components flagged as **ASK USER** (proprietary connectors with no direct equivalent)
+- Use dependencies from `pom.xml` to pre-suggest replacement options for proprietary connectors (e.g. AWS SDK present → suggest `camel-aws2-sqs` for Anypoint MQ)
 
 ---
 
 ### Step 1.2 — Resolve Proprietary Connectors
 
-For each component marked **ASK USER** in the mapping guide, ask the user before proceeding:
+For each component marked **ASK USER**, ask the user — one connector at a time:
 
 ```
-I found the following connector(s) in your Mule project that have no direct Apache Camel equivalent:
+I found the following connector with no direct Apache Camel equivalent:
 
-[For each proprietary connector:]
-- **[Connector Name]** (used in flow: [flow-name])
-  Suggested alternatives: [list from mapping guide]
+- **[Connector Name]** (used in: [flow-name])
+  Suggested alternatives based on your project dependencies:
+  a) [best match from pom.xml analysis] — [brief description]
+  b) [alternative]
+  c) Remove this step
+  d) Keep as a TODO placeholder
 
-  How would you like to handle this?
-  a) Replace with [suggested alternative] — [brief description]
-  b) Replace with a different component (please specify)
-  c) Remove this step (it will be omitted from the migration)
-  d) Keep as a TODO placeholder in the TDD (I'll decide later)
+Your choice?
 ```
 
-Record the user's decision for each proprietary connector. You will use these decisions in Phase 2.
+Record each decision. Use these in Phase 2.
 
 ---
 
-### Step 1.3 — Business Interview
+### Step 1.3 — Fill Remaining Gaps
 
-Ask ONLY questions that the XML files cannot answer. Ask them **one at a time**, in order. Wait for the user's answer before moving to the next question. Skip any question whose answer is clearly determinable from the XML.
+Check the confirmed summary from `camel-migrate`. For every field still marked **? Unknown** or **~ Inferred**, ask the user — one question at a time, only if it was not resolved by the Mule XML analysis in Step 1.1.
 
-Introduce the interview with:
-```
-I have a few business questions that I can't answer from the Mule config alone.
-I'll ask them one at a time — feel free to answer with as much or as little detail as you have.
-```
+**Do not ask about fields already marked ✓ Confirmed in the summary.**
 
-Then ask each question individually and wait for the response:
+Typical remaining gaps after Mule XML analysis (ask only these if still unknown):
+- API compatibility: must the Camel routes be a drop-in replacement for the Mule endpoints (same paths, same queue names)?
 
-**Question 1 — Business Purpose**
-```
-What is the business purpose of this integration, and what problem does it solve?
-(What value does it deliver to the business?)
-```
-
-**Question 2 — Owning Team / Stakeholders** *(optional — skip if the user is unsure or it is not relevant)*
-```
-Do you know which team owns this integration or who the key stakeholders are?
-(Feel free to skip this if you don't have that information handy.)
-```
-
-**Question 3 — SLA / Performance Requirements**
-```
-What are the performance expectations?
-- Throughput: how many messages or transactions per hour/day?
-- Latency: real-time (< 1s), near-real-time (< 10s), or batch?
-- Are there peak load periods to plan for?
-```
-
-**Question 4 — Compliance and Security**
-```
-Are there any compliance or security requirements?
-(e.g. GDPR, PCI-DSS, HIPAA, data classification, audit logging)
-If none apply, just say "no".
-```
-
-**Question 5 — Business Failure Behaviour**
-```
-What should happen from a business perspective when this integration fails?
-- Should failed messages be retried, dead-lettered, or discarded?
-- Who (if anyone) should be notified on failure?
-```
-
-**Question 6 — Migration Constraints**
-```
-A few final questions about the migration itself:
-- Is this a direct cut-over or will both systems run in parallel for a while?
-- Must the Camel implementation be API-compatible with the existing Mule version?
-```
+If the summary has no remaining gaps, skip this step entirely.
 
 ---
 
@@ -174,10 +138,12 @@ Create `.camel-kit/business-requirements.md` using the following format:
 
 ## Best Practices
 
-- Follow Apache Camel DSL best practices per `.camel-kit/constitution.md`
-- One Camel route per Mule flow
-- Use Dead Letter Channel for failed messages
-- Externalise all connection parameters to `application.properties`
+The following rules from `.camel-kit/constitution.md` apply to every generated route:
+- One Camel route per Mule flow (Single Responsibility)
+- Route IDs follow `<domain>-<action>[-<qualifier>]` naming (Naming Conventions)
+- Every route declares a `routeId` and a `description` (Observability)
+- All connection parameters externalised to `application.properties` — no hardcoded values (External Configuration)
+- Dead Letter Channel for failed messages (Error Handling — enforced by `/camel-validate`)
 
 ## Success Criteria
 
@@ -212,7 +178,7 @@ Run `/camel-implement <flow-name>` for each flow once TDD files are created.
 Check if `.camel-kit/constitution.md` already exists:
 
 - **If it exists:** Read it and confirm with the user whether to keep it or update it.
-- **If it does not exist:** Create it using the same minimal constitution format that `/camel-project` produces. Load `skills/camel-project/guides/constitution-template.md` for the format reference, then create `.camel-kit/constitution.md`.
+- **If it does not exist:** Create `.camel-kit/constitution.md` using the v2.0 format from `templates/constitution.md`. The constitution contains six enforced rules: Route Structure, Single Responsibility, Separation of Concerns, Naming Conventions, Observability, and External Configuration. All other design guidance (error handling strategy, retry policy, resilience, performance, Kubernetes) is applied during this migration's Phase 1 interview and recorded in the BRD.
 
 ---
 
@@ -240,8 +206,7 @@ Starting Phase 2 — Integration Architect...
 **ALWAYS load at the start of Phase 2:**
 - Load `skills/camel-migrate-mule/guides/mule-dataweave-conversion.md` — required for DataWeave analysis
 - Re-read `.camel-kit/business-requirements.md` and `.camel-kit/constitution.md`
-- Re-read `.camel-kit/config.yaml` if it exists (for Camel version)
-- Load `skills/camel-flow/guides/eip-catalog.md` — for EIP mapping decisions
+- Re-read `.camel-kit/config.yaml` — **REQUIRED**: extract `project.camelVersion` and store it as `CAMEL_VERSION`. Every MCP catalog call in Phase 2 MUST use this exact version. If the file does not exist, ask the user for the Camel version before proceeding.
 
 **Conditionally load:**
 - `skills/camel-migrate-mule/guides/datamapper-migrate.md` — load once per flow that contains a DataWeave transformation (see Step 2.2)
@@ -249,18 +214,58 @@ Starting Phase 2 — Integration Architect...
 - `skills/camel-flow/guides/security.md` — if compliance requirements exist
 - `skills/camel-flow/guides/monitoring.md` — if observability requirements exist
 
+**MCP catalog tools — MANDATORY when MCP is configured (same rules as `/camel-flow`):**
+
+All catalog calls MUST pass `CAMEL_VERSION` as the `version` parameter. Never use a Camel component name, EIP name, data format name, or expression language name from training data or the mapping guide without first verifying it in the catalog.
+
+| Decision | Tool to call first | Then call |
+|----------|--------------------|-----------|
+| Camel component for a Mule connector | `camel_catalog_components` | `camel_catalog_component_doc` |
+| Camel EIP for a Mule routing construct | `camel_catalog_eips` | `camel_catalog_eip_doc` |
+| Data format for unmarshal/marshal | `camel_catalog_dataformats` | `camel_catalog_dataformat_doc` |
+| Expression language for conditions/predicates | `camel_catalog_languages` | `camel_catalog_language_doc` |
+
+The static `mule-component-mapping.md` guide provides a **starting point** (the suggested Camel component name). It does NOT replace catalog verification — always confirm availability and option names in `CAMEL_VERSION` before writing the TDD.
+
 ---
 
 ### Step 2.1 — Design Camel Route Architecture for Each Flow
 
 For each Mule flow identified in Phase 1:
 
-1. Map each Mule component to its Camel equivalent using `mule-component-mapping.md`.
-2. Apply the proprietary connector decisions from Step 1.2.
-3. Translate DataWeave transformations using `mule-dataweave-conversion.md`.
-4. Identify Camel EIPs that correspond to Mule routing constructs (choice → CBR, scatter-gather → multicast, etc.).
-5. Map Mule sub-flows to Camel `direct:` routes.
-6. Map Mule error handlers to Camel `doTry/doCatch` or Dead Letter Channel.
+1. **Map Mule components → Camel components (catalog-verified).**
+   Use `mule-component-mapping.md` to find the suggested Camel component name, then — **before writing anything to the TDD** — MUST verify it in the catalog that the component exist for the camel version in use:
+   ```
+   MCP Tool: camel_catalog_component_doc
+   Params: { "name": "[suggested-camel-component]", "version": "{{CAMEL_VERSION}}" }
+   ```
+   Record the URI syntax, endpoint options, component-level options, and Maven coordinates from the catalog response. If the component is not found in `CAMEL_VERSION`, call `camel_catalog_components` to search for an alternative and notify the user.
+
+2. **Apply proprietary connector decisions from Step 1.2** using the same catalog verification above.
+
+3. **Translate DataWeave transformations** using `mule-dataweave-conversion.md`.
+   When the translation requires `unmarshal`/`marshal` (e.g. no DataMapper XSLT coverage), verify the data format in the catalog before documenting it in the TDD:
+   ```
+   MCP Tool: camel_catalog_dataformat_doc
+   Params: { "name": "[format-name]", "version": "{{CAMEL_VERSION}}" }
+   ```
+
+4. **Map Mule routing constructs → Camel EIPs (catalog-verified).**
+   Use `mule-component-mapping.md` for the initial EIP suggestion (choice → `choice`, scatter-gather → `multicast`, forEach → `split`, etc.), then verify each EIP in the catalog:
+   ```
+   MCP Tool: camel_catalog_eip_doc
+   Params: { "name": "[eip-name]", "version": "{{CAMEL_VERSION}}" }
+   ```
+   If any condition or predicate expression is required inside the EIP, also verify the expression language:
+   ```
+   MCP Tool: camel_catalog_language_doc
+   Params: { "name": "[language-name]", "version": "{{CAMEL_VERSION}}" }
+   ```
+
+5. **Map Mule sub-flows → Camel `direct:` routes.**
+
+6. **Map Mule error handlers → Camel error handling.**
+   Use `doTry/doCatch` for inline handlers, `onException` or `deadLetterChannel` for global handlers.
 
 ---
 
@@ -428,12 +433,14 @@ sequenceDiagram
 
 ## Section 9: Constitution Gate Checks
 
-- [ ] One route per flow (no mega-routes)
-- [ ] All connection parameters externalised to `application.properties`
-- [ ] Dead Letter Channel configured for error handling
-- [ ] No hardcoded credentials or secrets
-- [ ] Route IDs follow naming convention: `[flow-name]-route`
-- [ ] Logging at appropriate levels (INFO for business events, DEBUG for technical details)
+Constitution v2.0 — six enforced rules:
+
+- [ ] **Route Structure** — route has a `from:` source and a final `to:` sink
+- [ ] **Single Responsibility** — route has one clear purpose; ≤ 7 processing steps
+- [ ] **Separation of Concerns** — ingestion, processing, and delivery are separate routes where appropriate
+- [ ] **Naming Conventions** — route ID follows `<domain>-<action>[-<qualifier>]`
+- [ ] **Observability** — `routeId` and `description` declared; correlation ID propagated
+- [ ] **External Configuration** — no hardcoded credentials, connection strings, or env-specific values; all use `{{PLACEHOLDER}}`
 
 ## Section 10: Testing Strategy
 
@@ -455,7 +462,7 @@ sequenceDiagram
 - [ ] Verify against original Mule behaviour
 ```
 
-**Note:** If the BRD specifies performance, security, or monitoring requirements, also include the corresponding conditional sections from the `camel-flow` TDD format (Sections 6/7/8 for Performance/Security/Monitoring, renumbering as needed).
+**Note:** If the BRD specifies performance/throughput requirements, add a **Section 5e: Throttling & Scaling** covering throttle EIP configuration and Kafka `consumersCount`. If security or compliance requirements exist, add a **Section 5f: Security**. If observability requirements exist, add a **Section 5g: Monitoring**. Renumber sections as needed.
 
 ---
 
