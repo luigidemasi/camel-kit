@@ -12,6 +12,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Run without installing** — `jbang run camel-kit@luigidemasi/camel-kit` runs camel-kit directly without a global install; local clone and local SNAPSHOT variants also documented in README
 
+### Added
+
+- **`camel-kit init --silent`** — new flag that suppresses all output (no banner, no TUI, no progress messages, no summary); useful for scripted/CI environments where only the exit code matters; `Printer.noop()` added to the `Printer` interface as the no-op implementation
+
+### Fixed
+
+- **HTTP header cleanup between HTTP endpoints** — new mandatory generation rule (Rule 0e) in `/camel-implement`: when a route has both an inbound HTTP consumer (`platform-http`, `servlet`, `jetty`, `netty-http`) and one or more outbound HTTP producer calls (`http`, `https`), a `removeHeaders("CamelHttp*")` step is now inserted before each outbound call to prevent inbound headers (`CamelHttpMethod`, `CamelHttpPath`, `CamelHttpQuery`, etc.) from leaking into the outbound request; references the existing `guides/sequential-http-calls.md` for detailed examples
+
+- **DataMapper XSLT generation — empty skeleton prevented**
+  - `guides/datamapper-implement.md`: new Step 1.5 validation gate — if the `#### Field Mappings` table in the TDD DataMapper section has no data rows, generation stops with an actionable error message instead of producing an empty, non-functional XSLT skeleton
+  - `guides/datamapper-migrate.md`: Step 6 now refuses to append a DataMapper section with an empty Field Mappings table — warns the user to review the DataWeave script manually instead
+  - `guides/datamapper-implement.md`: Step 2 pattern-selection table now includes the `xsl:output method` for each pattern with an explicit CRITICAL note that Patterns B (JSON→JSON) and D (XML→JSON) use `method="text"` — not `method="xml"` — and that an empty `<xsl:template match="/">` is always wrong
+  - `guides/datamapper-implement.md`: Pattern B (JSON→JSON) rules expanded with a field-path translation table (DataWeave paths → XSLT lossless XML XPath), array iteration guidance (relative paths inside `xsl:for-each`), and a concrete end-to-end example matching a real migration scenario; confirmed against Kaoto source code (`packages/ui/src/stubs/datamapper/json/ShipOrderJson.xsl`)
+
 ### Changed
 
 - **MCP tool invocation — try-first, handle-failure** — all skills now attempt MCP tool calls directly without pre-checking for `.mcp.json` or trying to detect MCP availability upfront; if a call fails (tool not found, network error, timeout) the skill falls back to bundled component skill files or manual analysis; affects `camel-flow`, `camel-implement`, `camel-project`, `camel-validate`, `camel-test`

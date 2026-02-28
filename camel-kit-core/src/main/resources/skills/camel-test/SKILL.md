@@ -26,7 +26,7 @@ You are acting as a **Test Engineer** creating comprehensive integration tests f
 **CRITICAL: All test files go in PROJECT ROOT test/ directory, NOT in .camel-kit folder!**
 
 Generated test files and their locations:
-- `test/{flow-name}.citrus.yaml` → **Project root test/ directory**
+- `test/{flow-name}.camel.it.yaml` → **Project root test/ directory**
 - `test/application-test.properties` → **Project root test/ directory**
 - `test/data/` → **Project root test/data/ directory** (test data files)
 - `run-tests.sh` → **Project root** (make executable with chmod +x)
@@ -244,7 +244,7 @@ Testcontainers Required:
 
 **IMPORTANT: Save this file in the test/ directory in PROJECT ROOT, NOT in .camel-kit/**
 
-Create file: `test/{flow-name}.citrus.yaml` (in project root test/ directory)
+Create file: `test/{flow-name}.camel.it.yaml` (in project root test/ directory)
 
 ### 2.1 Test File Structure
 
@@ -648,7 +648,7 @@ echo "✓ Docker is running"
 # Run Citrus tests
 echo "Starting Citrus tests..."
 
-citrus run tests/{flow-name}.citrus.yaml
+citrus run tests/{flow-name}.camel.it.yaml
 
 # Or using Maven:
 # ./mvnw test -Dtest={flow-name}IntegrationTest
@@ -670,7 +670,7 @@ chmod +x run-tests.sh
 TESTS GENERATED: {flow-name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Test File: tests/{flow-name}.citrus.yaml
+Test File: tests/{flow-name}.camel.it.yaml
 
 Test Scenarios:
   ✓ Happy path: Valid order processing
@@ -709,7 +709,7 @@ RUNNING THE TESTS
    ./run-tests.sh
 
    Or manually:
-   citrus run tests/{flow-name}.citrus.yaml
+   citrus run tests/{flow-name}.camel.it.yaml
 
 3. Review test results:
 

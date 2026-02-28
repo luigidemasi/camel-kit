@@ -37,6 +37,9 @@ public class KitInitCommand extends CamelCommand {
     @Option(names = {"--no-fetch"}, description = "Skip external catalog fetching")
     boolean noFetch;
 
+    @Option(names = {"--silent"}, description = "Suppress all output (no banner, no progress, no summary)")
+    boolean silent;
+
     public KitInitCommand(CamelJBangMain main) {
         super(main);
     }
@@ -56,6 +59,7 @@ public class KitInitCommand extends CamelCommand {
         initCommand.camelVersion = this.camelVersion;
         initCommand.citrusVersion = this.citrusVersion;
         initCommand.noFetch = this.noFetch;
+        initCommand.silent = this.silent;
 
         // Execute the command
         return initCommand.call();

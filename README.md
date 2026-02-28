@@ -69,6 +69,7 @@ camel-kit init my-integration --ai gemini     # Gemini CLI
 # Options
 camel-kit init my-integration --ai claude --camel-version 4.14.5
 camel-kit init --here --ai claude             # initialize in current directory
+camel-kit init my-integration --ai claude --silent  # suppress all output (CI/scripts)
 ```
 
 This creates the project structure, downloads the Camel catalog, configures MCP, and registers all slash commands in your AI assistant's commands folder.
