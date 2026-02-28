@@ -8,7 +8,7 @@ This guide maps MuleSoft Mule components to their Apache Camel equivalents. It i
 
 | Mule Component | Mule Version | Camel Equivalent | Camel Artifact | Notes |
 |----------------|-------------|------------------|----------------|-------|
-| HTTP Listener | 3.x / 4.x | `platform-http` (consumer) | `camel-platform-http` | Preferred for Quarkus/Spring Boot. Alternatively `camel-servlet` or `camel-jetty`. |
+| HTTP Listener | 3.x / 4.x | `platform-http` (consumer) | `camel-platform-http` | Preferred for Quarkus/Spring Boot. Alternatively `camel-servlet` or `camel-jetty`. See **HTTP Listener Port Conversion** below. |
 | HTTP Request | 3.x / 4.x | `http` (producer) | `camel-http` | Use `camel-http` for outbound HTTP calls. |
 | HTTPS Listener | 3.x / 4.x | `platform-http` with SSL | `camel-platform-http` | Configure SSL via `application.properties`. |
 | HTTPS Request | 3.x / 4.x | `https` (producer) | `camel-http` | Use `https://` URI scheme. |
@@ -65,6 +65,23 @@ This guide maps MuleSoft Mule components to their Apache Camel equivalents. It i
 | REST Consumer (RAML) | 4.x | `rest` + `openapi` | `camel-rest`, `camel-openapi-java` | Import OpenAPI/Swagger spec. |
 | Kafka Consumer | 4.x | `kafka` (consumer) | `camel-kafka` | |
 | Kafka Producer | 4.x | `kafka` (producer) | `camel-kafka` | |
+
+---
+
+### HTTP Listener Port Conversion
+
+Mule's `<http:listener-config>` defines `host` and `port` attributes. Camel's `platform-http` component does NOT have `host` or `port` component options — these properties do not exist in the catalog.
+
+Convert Mule HTTP Listener port configuration to Camel as follows:
+
+| Mule Config | Camel `application.properties` |
+|---|---|
+| `<http:listener-config host="0.0.0.0" port="8081">` | `camel.server.enabled=true` |
+| | `camel.server.port=8081` |
+
+Both `camel.server.enabled` and `camel.server.port` MUST be set together — they are a pair.
+
+**Never generate** `camel.component.platform-http.host=...` or `camel.component.platform-http.port=...` — these options do not exist.
 
 ---
 

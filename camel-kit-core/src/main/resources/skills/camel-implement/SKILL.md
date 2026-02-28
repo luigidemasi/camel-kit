@@ -186,6 +186,8 @@ Extract every component used in the TDD (source, sink, DLQ, any `to()` targets) 
 
 **Call `camel_catalog_component_doc` directly for EVERY component — no exceptions. Do not check for MCP availability upfront.**
 
+**CRITICAL — use the exact component scheme from the route URI.** The component name passed to `camel_catalog_component_doc` MUST be the exact URI scheme used in the route's `from:` or `to:` (e.g., `smtp`, not `mail`; `aws2-sqs`, not `aws`; `kafka`, not `messaging`). Many Camel components share a parent artifact but are distinct components with distinct schemes, options, and property prefixes. Always use the specific scheme — never a parent, alias, or abstract name.
+
 For each component, call `camel_catalog_component_doc` and extract:
 
 | Field | Where to use it |
@@ -1454,7 +1456,20 @@ Create file: `application.properties` (in project root)
 
 ### 5.1 Component-Level Configuration
 
-Based on components used and their skills, generate component configuration:
+**CRITICAL — component name in property keys.** The `<component>` in `camel.component.<component>.<property>` MUST be the **exact URI scheme** from the route (the same name verified via `camel_catalog_component_doc` in Step 2). For example, if the route uses `smtp://...`, the properties MUST use `camel.component.smtp.*` — never a parent or meta component like `camel.component.mail.*`.
+
+**CRITICAL — verify every property name against the catalog.** Before writing any `camel.component.<component>.<property>`, confirm that `<property>` exists in the component options returned by `camel_catalog_component_doc` in Step 2. Do NOT invent property names — only use options that the catalog lists for that component. If a needed configuration is not available as a component option (e.g., server port for `platform-http`), check whether it requires a different property prefix (see platform-http rule below).
+
+**Platform-HTTP port configuration.** The `platform-http` component has NO `port` component option. To change the HTTP listener port, use the Camel server properties instead:
+
+```properties
+camel.server.enabled=true
+camel.server.port=8081
+```
+
+Never write `camel.component.platform-http.port=...` — it does not exist.
+
+Based on components used and their catalog documentation, generate component configuration:
 
 ```properties
 # ============================================
@@ -1465,13 +1480,14 @@ Based on components used and their skills, generate component configuration:
 # --------------------------------------------
 # COMPONENT CONFIGURATION
 # Syntax: camel.component.<component>.<property>=<value>
+# <component> = exact URI scheme from the route (verified in Step 2)
 # --------------------------------------------
 
-# [Source Component] Configuration
-camel.component.[source-component].[property]=[value from TDD]
+# [Source Component] Configuration (scheme: [exact-scheme-from-route])
+camel.component.[exact-scheme-from-route].[property]=[value from TDD]
 
-# [Sink Component] Configuration
-camel.component.[sink-component].[property]=[value from TDD]
+# [Sink Component] Configuration (scheme: [exact-scheme-from-route])
+camel.component.[exact-scheme-from-route].[property]=[value from TDD]
 
 # --------------------------------------------
 # BEAN DEFINITIONS

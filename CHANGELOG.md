@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **MCP catalog verification for component properties and hardened DataMapper XSLT generation**
+  - `application.properties` must use the exact URI scheme from the route (e.g., `smtp`, not `mail`) — enforced in both `camel-implement/SKILL.md` Step 2.1 and Step 5.1 via mandatory `camel_catalog_component_doc` verification
+  - Every `camel.component.<name>.<property>` must be verified against the catalog — no invented property names
+  - `platform-http` has no `host` or `port` component options — Mule HTTP Listener port converts to `camel.server.enabled=true` + `camel.server.port=XXXX` (explicit conversion rule in `mule-component-mapping.md`)
+  - DataMapper TDD validation (Step 1.5b–d in `datamapper-implement.md`): auto-corrects wrong XSLT Pattern (e.g., D→B when both source and target are JSON_SCHEMA), detects plain Source XPaths (`/name` instead of `/fn:map/fn:string[@key='name']`) and plain Target Elements (`city` instead of `<string key="city">`) and recomputes them
+  - Explicit `json-to-xml()` prohibition for Approach A — calling it on lossless XML causes `Invalid numeric literal: multiple points`
+  - Split Step 4 (YAML injection) into three per-approach blocks: Approach A with mandatory `useJsonBody: true`, Approach B with `setHeader`/`setBody`, Approach N/A without special params — missing `useJsonBody: true` causes `Content is not allowed in prolog`
+  - New Step 3.5b: post-injection route YAML verification ensures `useJsonBody: true` presence matches the XSLT Approach
+
 - **Deterministic DataMapper XSLT generation with canonical XPaths and self-validation**
   - Pre-compute Source XPaths and Target Elements during flow design (`/camel-flow`) and migration (`/camel-migrate`) so that `/camel-implement` performs mechanical translation rather than re-interpreting semantic field paths on every run
   - New shared guide `skills/shared/datamapper-canonicalize.md` — enriches semantic field mappings with XSLT-ready structural data (pattern, approach, XPaths, target elements); used by both `datamapper-interview.md` and `datamapper-migrate.md`, eliminating duplicated TDD-writing logic
