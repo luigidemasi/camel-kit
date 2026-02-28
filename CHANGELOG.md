@@ -10,6 +10,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Deterministic DataMapper XSLT generation with canonical XPaths and self-validation**
+  - Pre-compute Source XPaths and Target Elements during flow design (`/camel-flow`) and migration (`/camel-migrate`) so that `/camel-implement` performs mechanical translation rather than re-interpreting semantic field paths on every run
+  - New shared guide `skills/shared/datamapper-canonicalize.md` — enriches semantic field mappings with XSLT-ready structural data (pattern, approach, XPaths, target elements); used by both `datamapper-interview.md` and `datamapper-migrate.md`, eliminating duplicated TDD-writing logic
+  - Enriched Field Mappings table: 8 columns (added Source XPath + Target Element) plus header-level XSLT Pattern and XSLT Approach metadata
+  - Split Pattern B (JSON→JSON) and Pattern C (JSON→XML) skeletons into per-approach variants (Approach A: useJsonBody vs Approach B: header param) to eliminate skeleton/TDD conflicts that caused empty XSLT output
+  - New mandatory Step 3.5 self-validation pass in `datamapper-implement.md` — verifies every TDD field mapping row has a matching XSLT element with correct Source XPath, Target Element, type consistency, and approach purity before proceeding
+  - Removed redundant ~200-line "Two correct approaches" section, replaced with concise reference sections for runtime behavior and correctness checks
+
+- **JSON DataMapper XSLT correctness rules** — two new mandatory checks added to `guides/datamapper-implement.md` Step 4 to prevent incorrectly generated XSLT files:
+  - **`json-to-xml($paramName)` not `json-to-xml(.)`** — the JSON string arrives via `xsl:param`, not as the context node; using `fn:json-to-xml(.)` on the `<root/>` placeholder context document produces wrong output; it must always be `json-to-xml($paramName)` on the named param that received the JSON string
+  - **Why intermediate XML is required** — XSLT 3.0 has no `json-to-json()` function; `json-to-xml()` converts a JSON string to W3C lossless XML (`fn:map`, `fn:array`, `fn:string[@key]`, `fn:number[@key]`, `fn:boolean[@key]`), and `xml-to-json()` converts it back; this lossless XML intermediate is the only way XPath can navigate JSON data
+  - **Structural checklist** — every generated JSON XSLT must have: `xsl:param` for each JSON source, `json-to-xml($paramName)` variable (not `.`), `xsl:template match="/"`, and `xml-to-json($mapped-xml)` output
+  - **`unmarshal: json:` ordering** — Rule 0g in `camel-implement/SKILL.md`: never place `unmarshal: json:` before an xslt-saxon DataMapper step when `useJsonBody: true` — it converts the body to `LinkedHashMap` which cannot be passed as a JSON string to the XSLT param; `unmarshal: json:` goes after the DataMapper step if needed
+
+- **`toD` for dynamic URIs and parameters** — Rule 0f in `camel-implement/SKILL.md`: `to` evaluates its URI once at startup; any `${...}` Simple expression in the `uri` or in any `parameters:` value is treated as a literal string and never evaluated at runtime; use `toD` and inline all dynamic values in the URI string; static `{{...}}` property placeholders are safe in both `to` and `parameters:`
+
+### Fixed
+
 - **`to` vs `toD` for dynamic destinations** — new mandatory generation rule (Rule 0f) in `/camel-implement`: `to` resolves its URI once at startup as a static string — any `${...}` Simple expression in the URI path **or** in a `parameters:` value is never evaluated at runtime; when either contains a Simple expression the step must use `toD` instead, with all dynamic values inlined into the URI string (e.g. `?q=${header.city}`); a static pre-check in Step 4.1 scans every `to:` step for `${...}` in the URI and `parameters:` block before calling `camel_validate_route`, ensuring the rule is enforced even if the generator misses it; `{{...}}` property placeholders remain safe in both `to` and `parameters:`
 
 ### Added
@@ -28,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `guides/datamapper-implement.md`: new Step 1.5 validation gate — if the `#### Field Mappings` table in the TDD DataMapper section has no data rows, generation stops with an actionable error message instead of producing an empty, non-functional XSLT skeleton
   - `guides/datamapper-migrate.md`: Step 6 now refuses to append a DataMapper section with an empty Field Mappings table — warns the user to review the DataWeave script manually instead
   - `guides/datamapper-implement.md`: Step 2 pattern-selection table now includes the `xsl:output method` for each pattern with an explicit CRITICAL note that Patterns B (JSON→JSON) and D (XML→JSON) use `method="text"` — not `method="xml"` — and that an empty `<xsl:template match="/">` is always wrong
-  - `guides/datamapper-implement.md`: Pattern B (JSON→JSON) rules expanded with a field-path translation table (DataWeave paths → XSLT lossless XML XPath), array iteration guidance (relative paths inside `xsl:for-each`), and a concrete end-to-end example matching a real migration scenario; confirmed against Kaoto source code (`packages/ui/src/stubs/datamapper/json/ShipOrderJson.xsl`)
+  - `guides/datamapper-implement.md`: Pattern B (JSON→JSON) rules expanded with a field-path translation table (DataWeave paths → XSLT lossless XML XPath), array iteration guidance (relative paths inside `xsl:for-each`), and a concrete end-to-end example matching a real migration scenario
 
 ### Changed
 

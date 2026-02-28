@@ -252,11 +252,13 @@ For **each** `### DataMapper:` section found in the TDD:
 → **Load `guides/datamapper-implement.md`** and follow all steps in that guide, passing the flow name and mapping ID as context.
 
 The guide will:
-1. Read the full mapping data from the TDD DataMapper section
-2. Generate `kaoto-datamapper-{id}.xsl` in the project root (Kaoto-compatible XSLT 3.0)
-3. Inject the `step` + `xslt-saxon` block into `{flow-name}.camel.yaml`
-4. Create or append the `.kaoto` metadata file in the project root
-5. Verify `camel-xslt-saxon` is declared in `pom.xml`
+1. Read the enriched mapping data from the TDD DataMapper section (including pre-computed Source XPaths and Target Elements)
+2. Use the pre-determined XSLT Pattern and Approach from the TDD
+3. Generate `kaoto-datamapper-{id}.xsl` in the project root (Kaoto-compatible XSLT 3.0) using the canonical XPaths
+4. Verify the generated XSLT against the TDD field-by-field (self-validation pass)
+5. Inject the `step` + `xslt-saxon` block into `{flow-name}.camel.yaml`
+6. Create or append the `.kaoto` metadata file in the project root
+7. Verify `camel-xslt-saxon` is declared in `pom.xml`
 
 After all DataMapper sections have been processed, continue to Step 3.
 
@@ -431,7 +433,7 @@ Generate XSLT based on mapping tables from TDD:
 
 ### 2.5.3 XSLT Generation Rules
 
-**For each row in TDD Section 3.2 Field Mappings table:**
+**For each row in the TDD DataMapper Field Mappings table, use the pre-computed Source XPath and Target Element columns:**
 
 1. **Direct Copy:**
    ```xml
@@ -1047,6 +1049,13 @@ Generate the route by translating the TDD to Camel YAML DSL:
    For HTTP calls with multiple dynamic query parameters, inline all dynamic values directly in the `toD` URI string. Static `{{placeholder}}` values may stay in the URI string or in `parameters:` — only `${expression}` values must be inlined.
 
    **Enforcement:** scan every `to:` step in the generated YAML. If the `uri` value **or** any `parameters:` value contains `${...}`, rewrite the step as `toD` with all dynamic values interpolated into the URI string. Property placeholders `{{...}}` are safe in both `to` and `parameters:` — they resolve at startup.
+
+0g. **Never `unmarshal: json:` before a JSON DataMapper step** — With `useJsonBody: true`, the `xslt-saxon` component reads the Exchange body as a JSON **string** and passes it to the XSLT `xsl:param` via `json-to-xml()`. The body must be a JSON string or InputStream. If `unmarshal: json:` appears before the DataMapper step, the body is converted to a `java.util.LinkedHashMap`; the component then receives a `Map` instead of a JSON string and cannot pass it to the XSLT param, causing the route to fail.
+
+   - ✅ Body = JSON String or InputStream → `useJsonBody: true` works correctly
+   - ❌ Body = `LinkedHashMap` (after `unmarshal: json:`) → XSLT param receives nothing usable → failure
+
+   `unmarshal: json:` may be placed **after** the DataMapper step if subsequent steps need a typed object.
 
 1. **Clean Routes** - NO connection details in YAML:
    ```yaml
