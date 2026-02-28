@@ -17,11 +17,21 @@ Read `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md` and extract from the `###
 | `source-schema` | File path relative to project root, or `none` |
 | `target-type` | `XML_SCHEMA`, `JSON_SCHEMA`, or `Primitive` |
 | `target-schema` | File path relative to project root, or `none` |
+| `xslt-pattern` | Pre-determined: `A` (XML→XML), `B` (JSON→JSON), `C` (JSON→XML), or `D` (XML→JSON) |
+| `xslt-approach` | Pre-determined: `A` (useJsonBody), `B` (header param), or `N/A` |
 | `source-parameters` | Table of name → type + schema path |
 | `namespace-map` | Table of prefix → URI |
-| `field-mappings` | Complete field mapping table |
+| `field-mappings` | Enriched field mapping table with **Source XPath** and **Target Element** columns |
 | `conditional-mappings` | Conditional mapping table (may be absent) |
 | `collection-mappings` | Collection mapping table (may be absent) |
+
+The enriched Field Mappings table has 8 columns:
+
+```
+| Source Field | Src Type | Source XPath | Target Field | Tgt Type | Target Element | Transformation | How |
+```
+
+The **Source XPath** and **Target Element** columns are pre-computed by `skills/shared/datamapper-canonicalize.md` during the flow design or migration phase. Use them directly when generating the XSLT — do not re-derive them.
 
 ---
 
@@ -53,18 +63,22 @@ That is acceptable — they are optional. Only Field Mappings is required.
 
 ---
 
-## Step 2: Determine XSLT Pattern
+## Step 2: Read Pre-Determined XSLT Pattern and Approach
 
-Select the generation pattern based on source-type and target-type:
+Read the **XSLT Pattern** and **XSLT Approach** from the TDD header — these were pre-determined by `datamapper-canonicalize.md` during the flow design or migration phase. Do not re-compute them.
 
-| Source | Target | Pattern | `xsl:output method` |
-|--------|--------|---------|---------------------|
-| XML_SCHEMA | XML_SCHEMA | A — XML→XML | `xml` |
-| JSON_SCHEMA | JSON_SCHEMA | B — JSON→JSON | **`text`** |
-| JSON_SCHEMA | XML_SCHEMA | C — JSON→XML | `xml` |
-| XML_SCHEMA | JSON_SCHEMA | D — XML→JSON | **`text`** |
-| Primitive | XML_SCHEMA or JSON_SCHEMA | A or B without namespace prefix | match source |
-| Any | Primitive | Value-of only, no typed output | `text` |
+| Pattern | Format pair | `xsl:output method` |
+|---------|-------------|---------------------|
+| A | XML→XML | `xml` |
+| B | JSON→JSON | `text` |
+| C | JSON→XML | `xml` |
+| D | XML→JSON | `text` |
+
+| Approach | Meaning |
+|----------|---------|
+| A | `useJsonBody: true` — Camel converts JSON body to lossless XML before Saxon starts |
+| B | Manual header param — JSON string in Exchange header, body set to `<root/>` |
+| N/A | Source is XML or Primitive — no JSON handling needed |
 
 **CRITICAL:** Patterns B and D use `method="text"` (NOT `method="xml"`). If source or target is `JSON_SCHEMA`, the template body must use `xml-to-json($mapped-xml)` — never produce an empty `<xsl:template match="/">`. An empty template is always wrong.
 
@@ -81,6 +95,8 @@ Create `kaoto-datamapper-{id}.xsl` in the **project root**.
 ```
 
 **Always declare namespace prefixes from the TDD namespace map on the `xsl:stylesheet` root element.**
+
+**IMPORTANT — use pre-computed values from the TDD:** For each field mapping row, use the **Source XPath** column directly in `select="..."` attributes and the **Target Element** column directly as the wrapping element. Do not re-derive XPaths from semantic field paths — the canonical values are already computed.
 
 ---
 
@@ -151,7 +167,15 @@ Use when source-type = `XML_SCHEMA` and target-type = `XML_SCHEMA`.
 
 ### Pattern B: JSON → JSON
 
-Use when source-type = `JSON_SCHEMA` and target-type = `JSON_SCHEMA`.
+Use when XSLT Pattern = `B` in the TDD. **Check the XSLT Approach field in the TDD to select the correct skeleton below.**
+
+---
+
+#### Pattern B — Approach A (useJsonBody: true)
+
+**Use when TDD says `XSLT Approach: A (useJsonBody)`.**
+
+Camel converts the JSON body to lossless XML before Saxon starts. The XSLT receives lossless XML as its input document. **Do NOT declare any `xsl:param` for the body.** Navigate using absolute XPath from `/fn:map/...`.
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -161,7 +185,96 @@ Use when source-type = `JSON_SCHEMA` and target-type = `JSON_SCHEMA`.
     xmlns:fn="http://www.w3.org/2005/xpath-functions">
   <xsl:output method="text" indent="yes"/>
 
-  <!-- Source body parameter — JSON input converted to lossless XML -->
+  <!-- NO xsl:param — Camel already converted the body to lossless XML -->
+
+  <!-- Build target in lossless XML format -->
+  <xsl:variable name="mapped-xml">
+    <map xmlns="http://www.w3.org/2005/xpath-functions">
+
+      <!-- For each TDD row: use Target Element as wrapper, Source XPath in select -->
+      <{Target Element}>
+        <xsl:value-of select="{Source XPath}"/>
+      </{Target Element}>
+
+    </map>
+  </xsl:variable>
+
+  <xsl:template match="/">
+    <xsl:value-of select="xml-to-json($mapped-xml)"/>
+  </xsl:template>
+</xsl:stylesheet>
+```
+
+**Concrete example — Approach A with pre-computed TDD values:**
+
+Given TDD rows:
+
+| Source Field | Src Type | Source XPath | Target Field | Tgt Type | Target Element | Transformation | How |
+|---|---|---|---|---|---|---|---|
+| payload.name | string | `/fn:map/fn:string[@key='name']` | city | string | `<string key="city">` | Direct copy | Auto |
+| payload.weather[0].main | string | `/fn:map/fn:array[@key='weather']/fn:map[1]/fn:string[@key='main']` | condition | string | `<string key="condition">` | Direct copy | Auto |
+| payload.main.temp | number | `/fn:map/fn:map[@key='main']/fn:number[@key='temp']` | temperature | number | `<number key="temperature">` | `format-number(_, '##.##')` | Manual |
+| (computed) | boolean | (conditional) | alert | boolean | `<boolean key="alert">` | Conditional expression | Manual |
+
+Produces:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This file is generated by Kaoto DataMapper. Do not edit. -->
+<xsl:stylesheet version="3.0"
+    xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+    xmlns:fn="http://www.w3.org/2005/xpath-functions">
+  <xsl:output method="text" indent="yes"/>
+
+  <xsl:variable name="mapped-xml">
+    <map xmlns="http://www.w3.org/2005/xpath-functions">
+      <string key="city">
+        <xsl:value-of select="/fn:map/fn:string[@key='name']"/>
+      </string>
+      <string key="condition">
+        <xsl:value-of select="/fn:map/fn:array[@key='weather']/fn:map[1]/fn:string[@key='main']"/>
+      </string>
+      <number key="temperature">
+        <xsl:value-of select="format-number(
+          /fn:map/fn:map[@key='main']/fn:number[@key='temp'], '##.##')"/>
+      </number>
+      <boolean key="alert">
+        <xsl:variable name="cond"
+          select="upper-case(/fn:map/fn:array[@key='weather']/fn:map[1]/fn:string[@key='main'])"/>
+        <xsl:variable name="temp"
+          select="/fn:map/fn:map[@key='main']/fn:number[@key='temp']"/>
+        <xsl:choose>
+          <xsl:when test="$cond = 'RAIN' or $temp > 35.0
+              or ($cond = 'CLEAR' and $temp > 37.0)">true</xsl:when>
+          <xsl:otherwise>false</xsl:otherwise>
+        </xsl:choose>
+      </boolean>
+    </map>
+  </xsl:variable>
+
+  <xsl:template match="/">
+    <xsl:value-of select="xml-to-json($mapped-xml)"/>
+  </xsl:template>
+</xsl:stylesheet>
+```
+
+---
+
+#### Pattern B — Approach B (manual header param)
+
+**Use when TDD says `XSLT Approach: B (header param)`.**
+
+The body is set to `<root/>`. The JSON string is stored in a Camel Exchange header whose name matches the XSLT `xsl:param` name. Each JSON source gets its own `xsl:param` + `json-to-xml()` variable.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This file is generated by Kaoto DataMapper. Do not edit. -->
+<xsl:stylesheet version="3.0"
+    xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+    xmlns:fn="http://www.w3.org/2005/xpath-functions">
+  <xsl:output method="text" indent="yes"/>
+
+  <!-- Declare xsl:param for each JSON source — name must match the Camel Exchange header -->
   <xsl:param name="{source-param-name}"/>
   <xsl:variable name="{source-param-name}-x" select="json-to-xml(${source-param-name})"/>
 
@@ -173,41 +286,10 @@ Use when source-type = `JSON_SCHEMA` and target-type = `JSON_SCHEMA`.
   <xsl:variable name="mapped-xml">
     <map xmlns="http://www.w3.org/2005/xpath-functions">
 
-      <!-- String field mapping -->
-      <string key="{target-field}">
-        <xsl:value-of select="${source-param-name}-x/fn:map/fn:string[@key='{source-field}']"/>
-      </string>
-
-      <!-- Number field mapping -->
-      <number key="{target-field}">
-        <xsl:value-of select="${source-param-name}-x/fn:map/fn:number[@key='{source-field}']"/>
-      </number>
-
-      <!-- Boolean field mapping -->
-      <boolean key="{target-field}">
-        <xsl:value-of select="${source-param-name}-x/fn:map/fn:boolean[@key='{source-field}']"/>
-      </boolean>
-
-      <!-- Nested object mapping -->
-      <map key="{target-object}">
-        <string key="{target-nested-field}">
-          <xsl:value-of select="${source-param-name}-x/fn:map/fn:map[@key='{source-object}']/fn:string[@key='{source-field}']"/>
-        </string>
-      </map>
-
-      <!-- Array / for-each mapping -->
-      <array key="{target-array}">
-        <xsl:for-each select="${source-param-name}-x/fn:array/fn:map">
-          <map>
-            <string key="{target-field}">
-              <xsl:value-of select="fn:string[@key='{source-field}']"/>
-            </string>
-            <number key="{target-field}">
-              <xsl:value-of select="fn:number[@key='{source-field}']"/>
-            </number>
-          </map>
-        </xsl:for-each>
-      </array>
+      <!-- For each TDD row: use Target Element as wrapper, Source XPath in select -->
+      <{Target Element}>
+        <xsl:value-of select="{Source XPath}"/>
+      </{Target Element}>
 
     </map>
   </xsl:variable>
@@ -218,82 +300,49 @@ Use when source-type = `JSON_SCHEMA` and target-type = `JSON_SCHEMA`.
 </xsl:stylesheet>
 ```
 
-**Rules for Pattern B:**
-- Output method is `text` (not `xml`)
-- Every JSON input becomes an `xsl:param` + `json-to-xml()` variable suffixed with `-x`
-- The lossless XML format uses the `http://www.w3.org/2005/xpath-functions` namespace (aliased as `fn:`)
-- JSON types map to lossless XML elements: `string`, `number`, `boolean`, `map`, `array`
+---
+
+**Rules for Pattern B (both approaches):**
+- Output method is **always `text`** (NEVER `xml`)
 - The `$mapped-xml` variable is built **before** the `<xsl:template>` — the template body only calls `xml-to-json($mapped-xml)`
-- Final output uses `xml-to-json($mapped-xml)` in the template body
-
-**Path translation — DataWeave field paths → XSLT lossless XML XPath:**
-
-Strip the `payload.` prefix and translate each segment:
-
-| DataWeave path | XSLT lossless XML path |
-|---|---|
-| `payload.field` | `$body-x/fn:map/fn:string[@key='field']` |
-| `payload.field` (number) | `$body-x/fn:map/fn:number[@key='field']` |
-| `payload.obj.field` | `$body-x/fn:map/fn:map[@key='obj']/fn:string[@key='field']` |
-| `payload.arr[0].field` | `$body-x/fn:map/fn:array[@key='arr']/fn:map[1]/fn:string[@key='field']` *(single item)* |
-| array iteration (for-each) | `select="$body-x/fn:map/fn:array[@key='arr']/fn:map"` then use **relative** paths inside: `fn:string[@key='field']` |
-
-**Key rules:**
-- Single indexed access: DataWeave `[0]` → XPath `[1]` (XPath is 1-based)
-- Array iteration: use `xsl:for-each` with the array path, then **relative** paths inside the loop (no `$var` prefix) — e.g. `fn:string[@key='Title']` not `$body-x/fn:map/...`
-- Use `fn:string`, `fn:number`, `fn:boolean` to match the JSON type of the source field
-- For `format-number()`, use `format-number(number-expr, 'pattern')` — e.g. `format-number($body-x/fn:map/fn:map[@key='main']/fn:number[@key='temp'], '##.##')`
-- For `upper-case()` on a string field: `upper-case($body-x/fn:map/fn:string[@key='condition'])`
+- For each field mapping row: use the **Target Element** from the TDD as the wrapping element, and the **Source XPath** from the TDD in the `select` attribute
+- Array iteration: use `xsl:for-each` with the Source XPath of the array row, then fields inside the loop use **relative** Source XPaths (already pre-computed as relative in the TDD)
+- For `format-number()`, wrap the Source XPath: `format-number({Source XPath}, 'pattern')`
+- For `upper-case()`, wrap the Source XPath: `upper-case({Source XPath})`
 - Conditional (`xsl:choose`) inside `$mapped-xml` for boolean computed fields
 - The target `<boolean>` element must contain exactly `true` or `false` (lowercase)
-
-**Example — translating the TDD field mappings table to Pattern B `$mapped-xml`:**
-
-For a TDD with:
-- `payload.main.temp` (number) → `temperature` (number, format 2 decimal places)
-- `payload.weather[0].main` (string) → `condition` (string, direct copy)
-- `payload.name` (string) → `city` (string, direct copy)
-- `alert` (boolean, conditional on `condition` and `temperature`)
-
-```xml
-<xsl:variable name="mapped-xml">
-  <map xmlns="http://www.w3.org/2005/xpath-functions">
-    <number key="temperature">
-      <xsl:value-of select="format-number(
-        $body-x/fn:map/fn:map[@key='main']/fn:number[@key='temp'], '##.##')"/>
-    </number>
-    <string key="condition">
-      <xsl:value-of select="
-        $body-x/fn:map/fn:array[@key='weather']/fn:map[1]/fn:string[@key='main']"/>
-    </string>
-    <string key="city">
-      <xsl:value-of select="$body-x/fn:map/fn:string[@key='name']"/>
-    </string>
-    <boolean key="alert">
-      <xsl:variable name="cond"
-        select="upper-case(
-          $body-x/fn:map/fn:array[@key='weather']/fn:map[1]/fn:string[@key='main'])"/>
-      <xsl:variable name="temp"
-        select="$body-x/fn:map/fn:map[@key='main']/fn:number[@key='temp']"/>
-      <xsl:choose>
-        <xsl:when test="$cond = 'RAIN' or $temp > 35.0
-            or ($cond = 'CLEAR' and $temp > 37.0)">true</xsl:when>
-        <xsl:otherwise>false</xsl:otherwise>
-      </xsl:choose>
-    </boolean>
-  </map>
-</xsl:variable>
-
-<xsl:template match="/">
-  <xsl:value-of select="xml-to-json($mapped-xml)"/>
-</xsl:template>
-```
+- **Do NOT mix approaches.** The bug that causes `An empty string is not valid JSON` is always a mix: `useJsonBody: true` in the route (Approach A) with `xsl:param name="body"` + `json-to-xml($body)` in the XSLT (Approach B). The self-validation pass (Step 3.5) checks for this.
 
 ---
 
 ### Pattern C: JSON → XML
 
-Use when source-type = `JSON_SCHEMA` and target-type = `XML_SCHEMA`.
+Use when XSLT Pattern = `C` in the TDD. **Check the XSLT Approach field to select the correct skeleton.**
+
+#### Pattern C — Approach A (useJsonBody: true)
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This file is generated by Kaoto DataMapper. Do not edit. -->
+<xsl:stylesheet version="3.0"
+    xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+    xmlns:fn="http://www.w3.org/2005/xpath-functions">
+  <xsl:output method="xml" indent="yes"/>
+
+  <!-- NO xsl:param — Camel already converted the body to lossless XML -->
+
+  <xsl:template match="/">
+    <{TargetRoot} xmlns="{target-namespace-URI}">
+      <!-- For each TDD row: use Target Element as wrapper, Source XPath in select -->
+      <{TargetField}>
+        <xsl:value-of select="{Source XPath from TDD — starts with /fn:map/...}"/>
+      </{TargetField}>
+    </{TargetRoot}>
+  </xsl:template>
+</xsl:stylesheet>
+```
+
+#### Pattern C — Approach B (manual header param)
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -309,22 +358,18 @@ Use when source-type = `JSON_SCHEMA` and target-type = `XML_SCHEMA`.
   <xsl:template match="/">
     <{TargetRoot} xmlns="{target-namespace-URI}">
       <{TargetField}>
-        <xsl:value-of select="${source-param-name}-x/fn:map/fn:string[@key='{source-field}']"/>
+        <xsl:value-of select="{Source XPath from TDD — starts with $body-x/fn:map/...}"/>
       </{TargetField}>
-      <xsl:for-each select="${source-param-name}-x/fn:array/fn:map">
-        <{TargetItem} xmlns="">
-          <{TargetField}><xsl:value-of select="fn:string[@key='{source-field}']"/></{TargetField}>
-        </{TargetItem}>
-      </xsl:for-each>
     </{TargetRoot}>
   </xsl:template>
 </xsl:stylesheet>
 ```
 
-**Rules for Pattern C:**
+**Rules for Pattern C (both approaches):**
 - Output method is `xml`
-- JSON source is still converted via `json-to-xml()` and navigated using `fn:` lossless XML paths
+- JSON source is navigated using the pre-computed **Source XPath** from the TDD
 - XML target construction uses normal element creation (same as Pattern A)
+- Same approach selection rules as Pattern B — do NOT mix approaches
 
 ---
 
@@ -367,9 +412,43 @@ Use when source-type = `XML_SCHEMA` and target-type = `JSON_SCHEMA`.
 
 **Rules for Pattern D:**
 - Output method is `text`
-- XML source is navigated with normal XPath and `ns0:` namespace prefixes
-- Target is built in lossless XML format and converted with `xml-to-json()`
-- Infer JSON type (`string`, `number`, `boolean`) from the source field's XSD type
+- XML source is navigated using the **Source XPath** from the TDD (with `ns0:` namespace prefixes)
+- Target is built in lossless XML format using the **Target Element** from the TDD, and converted with `xml-to-json()`
+- JSON type (`string`, `number`, `boolean`) for the target is already specified in the TDD Target Element column
+
+---
+
+## Step 3.5: Verify Generated XSLT Against TDD — MANDATORY
+
+After generating the XSLT file, walk through **every row** in the TDD Field Mappings table and verify the generated XSLT contains a matching element.
+
+**For each field mapping row, check:**
+
+| Check | What to verify |
+|-------|----------------|
+| Completeness | The TDD row has a corresponding element in the XSLT |
+| Source XPath | The `select="..."` attribute matches the TDD **Source XPath** column |
+| Target Element | The XSLT element tag/key matches the TDD **Target Element** column |
+| Type consistency | `fn:string`/`fn:number`/`fn:boolean` matches the source field type |
+| Approach purity | No `xsl:param` when Approach is A; no `useJsonBody` when Approach is B |
+
+**Present the verification result:**
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+XSLT VERIFICATION AGAINST TDD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+| TDD Row | Source XPath Match | Target Element Match | Status |
+|---|---|---|---|
+| orderId → orderId | ✅ | ✅ | OK |
+| main.temp → temperature | ✅ | ✅ | OK |
+| items[] → items[] | ✅ | ✅ | OK |
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**If any row shows ❌:** fix the XSLT to match the TDD values and re-verify before proceeding.
+
+**Only proceed to Step 4 when all rows show ✅.**
 
 ---
 
@@ -386,10 +465,68 @@ In `{flow-name}.camel.yaml`, locate the position for this datamapper step and in
           uri: xslt-saxon:kaoto-datamapper-{id}.xsl
           parameters:
             failOnNullBody: false
-            useJsonBody: true   # include ONLY when source-type = JSON_SCHEMA
+            useJsonBody: true   # include ONLY when XSLT Approach = A
 ```
 
-**Rule:** Omit `useJsonBody` entirely when source-type is `XML_SCHEMA` or `Primitive`.
+**Rule:** Include `useJsonBody: true` ONLY when the TDD specifies `XSLT Approach: A (useJsonBody)`. Omit it entirely for Approach B or N/A.
+
+---
+
+### Reference: How `useJsonBody: true` works at runtime
+
+When `useJsonBody: true` is set on the `xslt-saxon` component, Camel does the following **before the XSLT template runs**:
+
+1. Converts the Exchange body to a `String` (`convertTo(String.class, body)`)
+2. Runs Saxon's `json-to-xml(.)` on that string → lossless XML document
+3. Returns that lossless XML as a `DOMSource` — this becomes the primary input document
+
+**Consequence for Approach A:** The XSLT's context node is already the lossless XML. No `xsl:param` needed — navigate directly from `/fn:map/...`.
+
+**Consequence for Approach B:** If `useJsonBody: true` is set but the XSLT declares `<xsl:param name="body"/>`, the param is empty → `json-to-xml("")` → Saxon error: `An empty string is not valid JSON`. **Never mix approaches.**
+
+**What must NOT happen before the DataMapper step:** `unmarshal: json:` — this converts the body to a `java.util.LinkedHashMap`, and `json-to-xml()` cannot work with that. Unmarshal **after** the DataMapper if needed.
+
+---
+
+### Reference: Approach B route setup
+
+When the TDD specifies Approach B, the Camel route must include `setHeader` + `setBody` steps **before** the DataMapper step:
+
+```yaml
+- setHeader:
+    name: "{xsl-param-name}"     # must exactly match xsl:param name in the XSLT
+    expression:
+      simple: "${bodyAs(String)}"
+- setBody:
+    expression:
+      constant: "<root/>"
+- step:
+    id: kaoto-datamapper-{id}
+    steps:
+      - to:
+          id: kaoto-datamapper-xslt-{4hexchars}
+          uri: xslt-saxon:kaoto-datamapper-{id}.xsl
+          parameters:
+            failOnNullBody: false
+            # DO NOT add useJsonBody: true here
+```
+
+**`setHeader` must be called while the body is still a String or InputStream** — before any `unmarshal: json:` step.
+
+---
+
+### Reference: Mandatory correctness check for Approach B — `json-to-xml($paramName)` not `json-to-xml(.)`
+
+If Approach B is used, `json-to-xml()` must receive the **JSON string from the named param** (`$paramName`), not the context node (`.`). The context node in Approach B is the `<root/>` placeholder, not the JSON string.
+
+```xml
+<!-- CORRECT -->
+<xsl:param name="body"/>
+<xsl:variable name="body-x" select="json-to-xml($body)"/>
+
+<!-- WRONG — json-to-xml receives <root/>, not JSON -->
+<xsl:variable name="body-x" select="json-to-xml(.)"/>
+```
 
 The `kaoto-datamapper-xslt-{4hexchars}` inner ID is a fresh random 4-character hex string, different from the outer mapping ID.
 
@@ -470,8 +607,10 @@ DATAMAPPER ARTIFACTS GENERATED
 ✅ kaoto-datamapper-{id}.xsl    (project root)
 ✅ {flow-name}.camel.yaml       (step injected)
 ✅ .kaoto                       (key added: kaoto-datamapper-{id})
+✅ XSLT verified against TDD    ({N}/{N} fields matched)
 
 Pattern:        {A | B | C | D} ({source-format} → {target-format})
+Approach:       {A (useJsonBody) | B (header param) | N/A}
 Fields mapped:  {N} ({auto} auto, {inferred} inferred, {manual} manual)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```

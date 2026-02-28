@@ -193,120 +193,25 @@ Example: "concat(firstName, ' ', lastName) → fullName"
 
 ---
 
-## Step 7: Confirmation
+## Step 7: Canonicalize and Save
 
-Generate a unique 8-character hexadecimal mapping ID. Present the complete mapping table:
+Generate a unique 8-character hexadecimal mapping ID.
 
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-DATAMAPPER MAPPING SUMMARY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Mapping ID:     kaoto-datamapper-{8hexchars}
-Source format:  {XML_SCHEMA | JSON_SCHEMA | Primitive}
-Source schema:  {path or "none"}
-Target format:  {XML_SCHEMA | JSON_SCHEMA | Primitive}
-Target schema:  {path or "none"}
+Load `skills/shared/datamapper-canonicalize.md` and follow all steps, passing:
+- The semantic field mappings collected from Steps 4–6 (source field, src type, target field, tgt type, transformation, how)
+- Conditional and collection mappings from Step 6 (if any)
+- Source/target types and schema paths from Steps 1–3
+- Source parameters from Step 3b (if any)
+- Namespace map (constructed from schema namespaces — include `xs`, `fn`, `xsl` base entries plus `ns0` for XML namespaces)
+- The generated mapping ID
+- The flow name
 
-FIELD MAPPINGS
-| Source Field       | Src Type | Target Field       | Tgt Type | Transformation                     | How      |
-|--------------------|----------|--------------------|----------|------------------------------------|----------|
-| orderId            | string   | orderId            | string   | Direct copy                        | Auto     |
-| customer.name      | string   | customer.name      | string   | Direct copy                        | Auto     |
-| order.timestamp    | datetime | orderDate          | date     | format-dateTime('[D01]-[M01]-[Y]') | Manual   |
-| items[]            | array    | items[]            | array    | for-each                           | Auto     |
-| items[].price      | decimal  | items[].unitPrice  | decimal  | Direct copy                        | Inferred |
+The shared guide will:
+1. Determine the XSLT pattern and approach
+2. Compute XSLT-ready Source XPaths and Target Elements for each field
+3. Present the enriched mapping table for user confirmation
+4. Write the canonical `### DataMapper:` section to the TDD
 
-CONDITIONAL MAPPINGS
-| Target Field | Condition        | True Value | False Value |
-|--------------|------------------|------------|-------------|
-| priority     | amount > 1000    | HIGH       | NORMAL      |
-
-SOURCE PARAMETERS
-| Parameter       | Type        | Schema               |
-|-----------------|-------------|----------------------|
-| userId          | Primitive   | none                 |
-| customerProfile | JSON_SCHEMA | customer.schema.json |
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Is this mapping correct? (yes / modify)
-```
-
-If the user wants to modify: ask which row or section to change and update accordingly. Re-display the table for confirmation.
-
----
-
-## Step 8: Save to TDD
-
-Append the following section to `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md`:
-
-```markdown
-### DataMapper: kaoto-datamapper-{8hexchars}
-
-**Mapping ID:** `kaoto-datamapper-{8hexchars}`
-**Source:** {XML_SCHEMA | JSON_SCHEMA | Primitive} — `{source-schema-path or "none"}`
-**Target:** {XML_SCHEMA | JSON_SCHEMA | Primitive} — `{target-schema-path or "none"}`
-
-#### Source Parameters
-
-| Parameter | Type | Schema Path |
-|-----------|------|-------------|
-| userId | Primitive | none |
-| customerProfile | JSON_SCHEMA | customer.schema.json |
-
-#### Namespace Map
-
-| Prefix | URI |
-|--------|-----|
-| xs  | http://www.w3.org/2001/XMLSchema |
-| fn  | http://www.w3.org/2005/xpath-functions |
-| xsl | http://www.w3.org/1999/XSL/Transform |
-| ns0 | {source-or-target-namespace-URI} |
-
-#### Field Mappings
-
-| Source Field | Src Type | Target Field | Tgt Type | Transformation | How |
-|---|---|---|---|---|---|
-| orderId | string | orderId | string | Direct copy | Auto |
-| customer.name | string | customer.name | string | Direct copy | Auto |
-| order.timestamp | datetime | orderDate | date | format-dateTime('[D01]-[M01]-[Y0001]') | Manual |
-| items[] | array | items[] | array | for-each | Auto |
-| items[].price | decimal | items[].unitPrice | decimal | Direct copy | Inferred |
-
-#### Conditional Mappings
-
-| Target Field | Condition | True Value | False Value | Notes |
-|---|---|---|---|---|
-| priority | amount > 1000 | HIGH | NORMAL | Order priority |
-
-#### Collection Mappings
-
-| Source Collection | Target Collection | Iteration |
-|---|---|---|
-| items[] | items[] | for-each |
-```
-
-Omit the Conditional Mappings and Collection Mappings sections if there are none.
-
----
-
-## Schema-less Path
-
-When no schemas are available (Step 2c or 3c selected):
-
-- Set `type: Primitive` for the schema-less side
-- Set `filePath: []`
-- Collect field names and types through manual description in Steps 5–6
-- Note in the TDD: `No schema provided — field paths are descriptive only`
-- The `guides/datamapper-implement.md` guide (loaded by `camel-implement`) will generate best-effort XSLT using the described field names as XPath segments
-
----
-
-## Token Optimization
-
-- Do not load external guides unless user asks for XPath function reference
-- Keep mapping tables compact — omit empty sections (Conditional Mappings, Collection Mappings only if populated)
-- The mapping ID is generated once in Step 7 and reused throughout
-
----
+**Schema-less path:** If source or target has no schema (Step 2c or 3c selected), set the type to `Primitive` and pass the manually described field names and types. The shared guide will compute best-effort XPaths from the field paths.
 
 **When done:** return control to `camel-flow` and continue at Question 4 (Sink System).

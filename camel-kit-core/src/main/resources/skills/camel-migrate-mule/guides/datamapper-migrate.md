@@ -203,76 +203,23 @@ If the DataWeave script contains constructs that cannot be mapped to the pattern
 
 ---
 
-## Step 6: Save DataMapper Section to TDD
+## Step 6: Canonicalize and Save
 
-Append the following section to `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md` — after the existing Section 3.x content. This section is what `camel-implement` acts on; the existing Section 3.2 Field Mapping Table remains as migration audit trail.
+Generate a unique 8-character hexadecimal mapping ID.
 
-```markdown
-### DataMapper: kaoto-datamapper-{8hexchars}
+Load `skills/shared/datamapper-canonicalize.md` and follow all steps, passing:
+- The confirmed field mappings from Step 4 (source field, src type, target field, tgt type, transformation, how)
+- Conditional and collection mappings from Step 3 (if any)
+- Source/target types and schema paths from Steps 1–2
+- Source parameters from Step 3 (Camel Variables/Headers)
+- Namespace map (constructed from schema namespaces — include `xs`, `fn`, `xsl` base entries plus `ns0` for XML namespaces)
+- The generated mapping ID
+- The flow name
 
-**Mapping ID:** `kaoto-datamapper-{8hexchars}`
-**Migrated from DataWeave:** `{path-to-original-dataweave-file-or-inline}`
-**Source:** {XML_SCHEMA | JSON_SCHEMA | Primitive} — `{source-schema-path or "none"}`
-**Target:** {XML_SCHEMA | JSON_SCHEMA | Primitive} — `{target-schema-path or "none"}`
-
-#### Source Parameters
-
-| Parameter | Type | Schema Path |
-|-----------|------|-------------|
-| tenantId | Primitive | none |
-| userId | Primitive | none |
-
-#### Namespace Map
-
-| Prefix | URI |
-|--------|-----|
-| xs  | http://www.w3.org/2001/XMLSchema |
-| fn  | http://www.w3.org/2005/xpath-functions |
-| xsl | http://www.w3.org/1999/XSL/Transform |
-| ns0 | {source-or-target-namespace-URI — XML only} |
-
-#### Field Mappings
-
-| Source Field | Src Type | Target Field | Tgt Type | Transformation | How |
-|---|---|---|---|---|---|
-| payload.orderId | string | orderId | string | Direct copy | Inferred |
-| payload.order.total | decimal | totalAmount | decimal | Direct copy | Inferred |
-| payload.timestamp | datetime | orderDate | date | format-dateTime('[D01]-[M01]-[Y0001]') | Confirmed |
-| payload.items[] | array | items[] | array | for-each | Inferred |
-| payload.items[].productId | string | items[].sku | string | Direct copy | Inferred |
-
-#### Conditional Mappings
-
-| Target Field | Condition | True Value | False Value | Notes |
-|---|---|---|---|---|
-| priority | amount > 1000 | HIGH | NORMAL | Migrated from DataWeave if/else |
-
-#### Collection Mappings
-
-| Source Collection | Target Collection | Iteration |
-|---|---|---|
-| payload.items[] | items[] | for-each |
-```
-
-Omit Conditional Mappings and Collection Mappings sections if there are none.
-
-**CRITICAL — do not save an empty Field Mappings table.** If Step 3 (Infer Field Mappings from DataWeave) produced no rows, do NOT append the DataMapper section to the TDD. Instead, report:
-
-```
-⚠️ WARNING: No field mappings could be inferred from the DataWeave script in flow '{mule-flow-name}'.
-
-Possible causes:
-- The DataWeave script uses unsupported constructs (see Step 5)
-- The script only sets metadata or variables, not payload fields
-- The transformation logic is too complex to infer automatically
-
-Action required:
-- Review the DataWeave script manually and add field mappings to the TDD
-- Then re-run /camel-implement {flow-name}
-```
-
-The `camel-implement` guide will generate an empty, non-functional XSLT if given an empty Field Mappings table, which is worse than having no DataMapper section at all.
-
----
+The shared guide will:
+1. Determine the XSLT pattern and approach
+2. Compute XSLT-ready Source XPaths and Target Elements for each field
+3. Present the enriched mapping table for user confirmation
+4. Write the canonical `### DataMapper:` section to the TDD (with empty mapping guard)
 
 **When done:** return control to `camel-migrate-mule` Step 2.3 to continue producing the TDD for this flow.

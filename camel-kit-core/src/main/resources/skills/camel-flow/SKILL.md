@@ -322,8 +322,9 @@ The guide will:
 2. Collect Camel Variables/Headers used as mapping parameters
 3. Auto-map exact field name matches and propose inferred mappings
 4. Gather conditional and collection mapping requirements
-5. Show a confirmed mapping table
-6. Append a `### DataMapper: kaoto-datamapper-{id}` section to the TDD
+5. Canonicalize field mappings with XSLT-ready Source XPaths and Target Elements (via `skills/shared/datamapper-canonicalize.md`)
+6. Confirm enriched mapping table with user
+7. Append a canonical `### DataMapper: kaoto-datamapper-{id}` section to the TDD
 
 **After the guide completes**, resume this interview at Question 4.
 
