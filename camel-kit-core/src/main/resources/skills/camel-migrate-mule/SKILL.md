@@ -240,6 +240,12 @@ For each Mule flow identified in Phase 1:
    ```
    Record the URI syntax, endpoint options, component-level options, and Maven coordinates from the catalog response. If the component is not found in `CAMEL_VERSION`, call `camel_catalog_components` to search for an alternative and notify the user.
 
+   **CRITICAL — use the exact component scheme from the route URI.** The component name MUST be the exact URI scheme (e.g., `smtp`, not `mail`; `aws2-sqs`, not `aws`). Many Camel components share a parent artifact but are distinct components with distinct schemes, options, and property prefixes.
+
+   **CRITICAL — TDD Section 7 (Configuration Properties) must only list properties that actually exist.** For each `camel.component.<name>.<property>` entry, verify that `<property>` appears in the component options returned by `camel_catalog_component_doc`. Do NOT carry over Mule configuration parameters (host, port, etc.) as Camel component properties if the catalog does not list them.
+
+   **Platform-HTTP special case:** The `platform-http` component has NO `host` or `port` component options. Mule's HTTP Listener host/port do NOT map to `camel.component.platform-http.*` properties. If the Mule flow uses a non-default port, document it in Section 7 as `camel.server.enabled=true` and `camel.server.port=XXXX`.
+
 2. **Apply proprietary connector decisions from Step 1.2** using the same catalog verification above.
 
 3. **Translate DataWeave transformations** using `mule-dataweave-conversion.md`.
@@ -422,6 +428,8 @@ sequenceDiagram
 ```
 
 ## Section 7: Configuration Properties
+
+> Only list properties that are valid for the actual Camel component (verified via `camel_catalog_component_doc` in Step 2.1). For `platform-http`, do NOT list host/port as component properties — use `camel.server.enabled` and `camel.server.port` instead.
 
 | Property Key | Description | Example Value | Required |
 |-------------|-------------|---------------|----------|

@@ -37,7 +37,11 @@ The **Source XPath** and **Target Element** columns are pre-computed by `skills/
 
 ## Step 1.5: Validate Mapping Data — MANDATORY before proceeding
 
-After reading the TDD DataMapper section, check that the `#### Field Mappings` table contains **at least one data row** (a row with actual source and target fields, not just the header row).
+After reading the TDD DataMapper section, perform ALL of the following checks. Fix any issues **before** proceeding to Step 2.
+
+### 1.5a — Field Mappings table must not be empty
+
+Check that the `#### Field Mappings` table contains **at least one data row** (a row with actual source and target fields, not just the header row).
 
 **If the Field Mappings table is empty or missing:**
 
@@ -60,6 +64,45 @@ Action required:
 
 **If Conditional Mappings and Collection Mappings tables are also empty:**
 That is acceptable — they are optional. Only Field Mappings is required.
+
+### 1.5b — XSLT Pattern must match source/target types
+
+Verify the **XSLT Pattern** field is consistent with the **Source** and **Target** types. The correct mapping is:
+
+| Source type | Target type | Correct Pattern |
+|---|---|---|
+| XML_SCHEMA | XML_SCHEMA | A |
+| JSON_SCHEMA | JSON_SCHEMA | **B** |
+| JSON_SCHEMA | XML_SCHEMA | C |
+| XML_SCHEMA | JSON_SCHEMA | D |
+
+**If the TDD Pattern does not match the table above** (e.g., TDD says `D` but source and target are both `JSON_SCHEMA`): override the TDD value and use the correct pattern from the table. Log a warning:
+
+```
+⚠️ TDD Pattern override: TDD says '{wrong}' but source={source-type}, target={target-type} → using Pattern {correct}.
+```
+
+### 1.5c — Source XPaths must use the correct format for the source type
+
+Check the **Source XPath** column in the Field Mappings table:
+
+- **JSON_SCHEMA source, Approach A:** Every absolute Source XPath MUST start with `/fn:map/` and use `fn:string[@key='...']`, `fn:number[@key='...']`, `fn:boolean[@key='...']`, `fn:map[@key='...']`, or `fn:array[@key='...']` segments. If the XPaths use plain paths (e.g., `/name`, `/main/temp`) instead of the lossless XML format, they are wrong.
+
+- **JSON_SCHEMA source, Approach B:** Every absolute Source XPath MUST start with `$body-x/fn:map/` (or `${param-name}-x/fn:map/`).
+
+- **XML_SCHEMA source:** XPaths should use namespace prefixes (e.g., `/ns0:Root/ns0:field`).
+
+**If Source XPaths are wrong:** Recompute them using the rules from `skills/shared/datamapper-canonicalize.md` Step 2. Use the `Source Field` and `Src Type` columns to derive the correct XPaths.
+
+### 1.5d — Target Elements must use the correct format for the target type
+
+Check the **Target Element** column in the Field Mappings table:
+
+- **JSON_SCHEMA target:** Each Target Element MUST use the lossless XML format: `<string key="{field}">`, `<number key="{field}">`, `<boolean key="{field}">`, `<map key="{field}">`, or `<array key="{field}">`. If they show plain names (e.g., `city`, `temperature`), they are wrong.
+
+- **XML_SCHEMA target:** Each Target Element should be an XML element name, optionally with namespace.
+
+**If Target Elements are wrong:** Recompute them using the rules from `skills/shared/datamapper-canonicalize.md` Step 3. Use the `Target Field` and `Tgt Type` columns.
 
 ---
 
@@ -312,6 +355,7 @@ The body is set to `<root/>`. The JSON string is stored in a Camel Exchange head
 - Conditional (`xsl:choose`) inside `$mapped-xml` for boolean computed fields
 - The target `<boolean>` element must contain exactly `true` or `false` (lowercase)
 - **Do NOT mix approaches.** The bug that causes `An empty string is not valid JSON` is always a mix: `useJsonBody: true` in the route (Approach A) with `xsl:param name="body"` + `json-to-xml($body)` in the XSLT (Approach B). The self-validation pass (Step 3.5) checks for this.
+- **NEVER call `json-to-xml()` in Approach A.** With `useJsonBody: true`, Camel already converts the JSON body to lossless XML before Saxon starts. The XSLT input is XML, not JSON. Calling `json-to-xml()` on XML causes a fatal Saxon error: `Invalid JSON input: Invalid numeric literal: multiple points`. Navigate directly from `/fn:map/...` — no conversion needed.
 
 ---
 
@@ -431,6 +475,7 @@ After generating the XSLT file, walk through **every row** in the TDD Field Mapp
 | Target Element | The XSLT element tag/key matches the TDD **Target Element** column |
 | Type consistency | `fn:string`/`fn:number`/`fn:boolean` matches the source field type |
 | Approach purity | No `xsl:param` when Approach is A; no `useJsonBody` when Approach is B |
+| No `json-to-xml()` in Approach A | When Approach = A, the XSLT MUST NOT contain any call to `json-to-xml()` — the input is already lossless XML |
 
 **Present the verification result:**
 
@@ -450,11 +495,29 @@ XSLT VERIFICATION AGAINST TDD
 
 **Only proceed to Step 4 when all rows show ✅.**
 
+### Step 3.5b: Verify Route YAML After Step 4 — MANDATORY
+
+After injecting the Camel YAML step (Step 4), verify the route YAML matches the XSLT Approach:
+
+| Approach | Route YAML must contain | Route YAML must NOT contain |
+|---|---|---|
+| A (useJsonBody) | `useJsonBody: true` in the `parameters:` block | `setHeader`/`setBody` before the step |
+| B (header param) | `setHeader` + `setBody` before the step | `useJsonBody: true` |
+| N/A | (no special params) | `useJsonBody: true` |
+
+**Missing `useJsonBody: true` for Approach A is a fatal error** — Saxon receives raw JSON and fails with `Content is not allowed in prolog`.
+
 ---
 
 ## Step 4: Inject Camel YAML Step
 
-In `{flow-name}.camel.yaml`, locate the position for this datamapper step and inject:
+In `{flow-name}.camel.yaml`, locate the position for this datamapper step and inject the correct YAML block based on the XSLT Approach.
+
+**CRITICAL — select the correct block. Omitting `useJsonBody: true` when Approach = A causes a fatal Saxon error: `Content is not allowed in prolog` (Saxon tries to parse raw JSON as XML).**
+
+### Step 4 — Approach A (useJsonBody)
+
+**When TDD says `XSLT Approach: A (useJsonBody)`**, inject this block — the `useJsonBody: true` parameter is MANDATORY:
 
 ```yaml
 - step:
@@ -464,11 +527,41 @@ In `{flow-name}.camel.yaml`, locate the position for this datamapper step and in
           id: kaoto-datamapper-xslt-{4hexchars}
           uri: xslt-saxon:kaoto-datamapper-{id}.xsl
           parameters:
-            failOnNullBody: false
-            useJsonBody: true   # include ONLY when XSLT Approach = A
+            useJsonBody: true
 ```
 
-**Rule:** Include `useJsonBody: true` ONLY when the TDD specifies `XSLT Approach: A (useJsonBody)`. Omit it entirely for Approach B or N/A.
+### Step 4 — Approach B (header param)
+
+**When TDD says `XSLT Approach: B (header param)`**, inject this block — do NOT include `useJsonBody`:
+
+```yaml
+- setHeader:
+    name: "{xsl-param-name}"
+    expression:
+      simple: "${bodyAs(String)}"
+- setBody:
+    expression:
+      constant: "<root/>"
+- step:
+    id: kaoto-datamapper-{id}
+    steps:
+      - to:
+          id: kaoto-datamapper-xslt-{4hexchars}
+          uri: xslt-saxon:kaoto-datamapper-{id}.xsl
+```
+
+### Step 4 — Approach N/A (XML source)
+
+**When TDD says `XSLT Approach: N/A`**, inject without `useJsonBody`:
+
+```yaml
+- step:
+    id: kaoto-datamapper-{id}
+    steps:
+      - to:
+          id: kaoto-datamapper-xslt-{4hexchars}
+          uri: xslt-saxon:kaoto-datamapper-{id}.xsl
+```
 
 ---
 
