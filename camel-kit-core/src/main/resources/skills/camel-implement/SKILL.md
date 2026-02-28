@@ -1016,6 +1016,38 @@ Generate the route by translating the TDD to Camel YAML DSL:
 
    → For detailed implementation guidance and examples, load `skills/camel-implement/guides/sequential-http-calls.md`.
 
+0f. **Use `toD` for dynamic URIs and dynamic parameters** — `to` resolves its URI **once at startup** as a static string. Any `${...}` Simple expression in a `to` URI **or** in its `parameters:` block is treated as a literal string and is never evaluated at runtime. This applies equally to the URI path and to every value in the `parameters:` map.
+
+   **Case 1 — dynamic expression in the URI path:**
+   ```yaml
+   # WRONG — ${header.routeName} is sent as the literal string "${header.routeName}"
+   - to:
+       uri: "direct:${header.routeName}"
+
+   # CORRECT
+   - toD:
+       uri: "direct:${header.routeName}"
+   ```
+
+   **Case 2 — dynamic expression in a `parameters:` value:**
+   ```yaml
+   # WRONG — q: "${header.city}" passes the literal string "${header.city}",
+   # not the value of the header. parameters: values are always static.
+   - to:
+       uri: "https://{{api.host}}/data/2.5/weather"
+       parameters:
+         q: "${header.city}"        # ❌ never evaluated
+         appid: "{{api.key}}"
+
+   # CORRECT — move dynamic values into the URI string and use toD
+   - toD:
+       uri: "https://{{api.host}}/data/2.5/weather?q=${header.city}&appid={{api.key}}&units=metric"
+   ```
+
+   For HTTP calls with multiple dynamic query parameters, inline all dynamic values directly in the `toD` URI string. Static `{{placeholder}}` values may stay in the URI string or in `parameters:` — only `${expression}` values must be inlined.
+
+   **Enforcement:** scan every `to:` step in the generated YAML. If the `uri` value **or** any `parameters:` value contains `${...}`, rewrite the step as `toD` with all dynamic values interpolated into the URI string. Property placeholders `{{...}}` are safe in both `to` and `parameters:` — they resolve at startup.
+
 1. **Clean Routes** - NO connection details in YAML:
    ```yaml
    # CORRECT
@@ -1301,6 +1333,28 @@ Params:
   "version": "{{CAMEL_VERSION}}"
 }
 ```
+
+**Before calling `camel_validate_route`, perform this static check (Rule 0f):**
+
+Scan every `to:` step in the generated YAML. If the `uri` value **or** any `parameters:` value contains `${...}` (a Simple language expression), the step must be rewritten as `toD` with all dynamic values inlined into the URI string — `to` never evaluates `${...}` at runtime. Fix these before validation:
+
+```yaml
+# WRONG — expression in URI or in parameters:
+- to:
+    uri: "direct:${header.routeName}"
+- to:
+    uri: "https://{{host}}/api"
+    parameters:
+      q: "${header.city}"
+
+# CORRECT
+- toD:
+    uri: "direct:${header.routeName}"
+- toD:
+    uri: "https://{{host}}/api?q=${header.city}"
+```
+
+Note: `{{...}}` property placeholders are resolved at startup and are safe in both `to` and `parameters:`.
 
 The tool validates:
 - All component schemes exist in the Camel {{CAMEL_VERSION}} catalog

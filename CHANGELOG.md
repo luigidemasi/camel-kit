@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`to` vs `toD` for dynamic destinations** — new mandatory generation rule (Rule 0f) in `/camel-implement`: `to` resolves its URI once at startup as a static string — any `${...}` Simple expression in the URI path **or** in a `parameters:` value is never evaluated at runtime; when either contains a Simple expression the step must use `toD` instead, with all dynamic values inlined into the URI string (e.g. `?q=${header.city}`); a static pre-check in Step 4.1 scans every `to:` step for `${...}` in the URI and `parameters:` block before calling `camel_validate_route`, ensuring the rule is enforced even if the generator misses it; `{{...}}` property placeholders remain safe in both `to` and `parameters:`
+
 ### Added
 
 - **Run without installing** — `jbang run camel-kit@luigidemasi/camel-kit` runs camel-kit directly without a global install; local clone and local SNAPSHOT variants also documented in README
