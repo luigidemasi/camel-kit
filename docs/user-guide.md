@@ -824,6 +824,8 @@ All other design guidance (error handling strategy, retry policy, circuit breake
 - All data format names and options come from `camel_catalog_dataformat_doc`
 - All expression language names and syntax come from `camel_catalog_language_doc`
 - All EIP names and options come from `camel_catalog_eip_doc`
+- When the route has both an HTTP consumer and an HTTP producer, `removeHeaders("CamelHttp*")` is inserted before each outbound HTTP call to prevent header leakage
+- DataMapper XSLT generation is blocked if the field mapping table is empty — an actionable error is reported instead of producing a non-functional skeleton
 - After generation, the route is validated with `camel_validate_route` in a fix→re-query→retry loop (up to 3 attempts)
 
 ### Customizing the Constitution

@@ -43,10 +43,11 @@ camel-kit init --here [options]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--ai`, `-a` | `bob` | AI coding assistant to configure (bob, gemini, claude) |
-| `--camel-version`, `-v` | `4.14.5` | Apache Camel version to target |
+| `--camel-version`, `-v` | `4.18.0` | Apache Camel version to target |
 | `--citrus-version` | `4.9.2` | Citrus Framework version for test schemas |
 | `--here` | `false` | Initialize in current directory |
 | `--no-fetch` | `false` | Skip external catalog fetching |
+| `--silent` | `false` | Suppress all output (no banner, no TUI, no progress, no summary) — useful for CI/scripted environments |
 
 **Examples:**
 
@@ -61,7 +62,7 @@ camel-kit init my-integration --ai gemini
 camel-kit init my-integration --ai claude
 
 # Use specific Camel version
-camel-kit init my-integration --camel-version 4.14.5
+camel-kit init my-integration --camel-version 4.18.0
 
 # Use specific Citrus version
 camel-kit init my-integration --citrus-version 4.9.2
@@ -94,7 +95,8 @@ my-integration/
 │   ├── camel-flow.md
 │   ├── camel-implement.md
 │   ├── camel-validate.md
-│   └── camel-test.md
+│   ├── camel-test.md
+│   └── camel-migrate.md
 ├── .mcp.json                    # Claude Code MCP configuration
 ├── .bob/mcp.json                # IBM Bob MCP configuration
 └── .gemini/mcp.json             # Gemini CLI MCP configuration
@@ -337,6 +339,7 @@ The AI agent fixes validation errors automatically until the route is valid.
 | DataMapper/XSLT | Preferred over `unmarshal` for JSON↔JSON, JSON↔XML, and XML↔XML transformations when schemas are available. |
 | Global `onException` | Must be declared as top-level elements **before** any `- route:` block. Route-scoped error handling (`errorHandler:`, `doTry`/`doCatch`) stays inside the route. |
 | Jakarta EE namespaces | When Camel version ≥ 4.0, `jakarta.*` packages are used instead of `javax.*` for all Jakarta EE APIs (Servlet, JPA, JMS, Bean Validation, JAX-RS, etc.). Java SE packages (`javax.sql.*`, `javax.xml.*`) are not affected. |
+| HTTP header cleanup | When the route has both an HTTP consumer (`platform-http`, `servlet`, `jetty`) and an HTTP producer (`http`, `https`), a `removeHeaders("CamelHttp*")` step is inserted before each outbound HTTP call. |
 
 **Output:**
 

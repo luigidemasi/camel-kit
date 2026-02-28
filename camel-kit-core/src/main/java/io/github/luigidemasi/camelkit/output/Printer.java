@@ -11,4 +11,14 @@ public interface Printer {
     default void printErr(String message) {
         System.err.println(message);
     }
+
+    /** No-op implementation that discards all output (used in silent mode). */
+    static Printer noop() {
+        return new Printer() {
+            @Override public void println() {}
+            @Override public void println(String line) {}
+            @Override public void print(String output) {}
+            @Override public void printErr(String message) {}
+        };
+    }
 }

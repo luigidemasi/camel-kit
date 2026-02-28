@@ -25,18 +25,48 @@ Read `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md` and extract from the `###
 
 ---
 
+## Step 1.5: Validate Mapping Data — MANDATORY before proceeding
+
+After reading the TDD DataMapper section, check that the `#### Field Mappings` table contains **at least one data row** (a row with actual source and target fields, not just the header row).
+
+**If the Field Mappings table is empty or missing:**
+
+```
+❌ ERROR: DataMapper section 'kaoto-datamapper-{id}' has no field mappings defined.
+
+The XSLT cannot be generated from an empty mapping table — an empty skeleton
+would be functionally useless and cannot be fixed by Kaoto IDE alone.
+
+Action required:
+1. If this is a migration: load 'guides/datamapper-migrate.md' and run
+   the DataWeave conversion analysis to extract field mappings from the
+   source DataWeave script, then update the TDD.
+2. If this is a greenfield flow: run /camel-flow {flow-name} and complete
+   the data transformation interview to define the field mappings.
+3. Then re-run /camel-implement {flow-name}.
+```
+
+**Stop here — do not generate the XSLT file.**
+
+**If Conditional Mappings and Collection Mappings tables are also empty:**
+That is acceptable — they are optional. Only Field Mappings is required.
+
+---
+
 ## Step 2: Determine XSLT Pattern
 
 Select the generation pattern based on source-type and target-type:
 
-| Source | Target | Pattern |
-|--------|--------|---------|
-| XML_SCHEMA | XML_SCHEMA | A — XML→XML |
-| JSON_SCHEMA | JSON_SCHEMA | B — JSON→JSON |
-| JSON_SCHEMA | XML_SCHEMA | C — JSON→XML |
-| XML_SCHEMA | JSON_SCHEMA | D — XML→JSON |
-| Primitive | XML_SCHEMA or JSON_SCHEMA | A or B without namespace prefix |
-| Any | Primitive | Value-of only, no typed output |
+| Source | Target | Pattern | `xsl:output method` |
+|--------|--------|---------|---------------------|
+| XML_SCHEMA | XML_SCHEMA | A — XML→XML | `xml` |
+| JSON_SCHEMA | JSON_SCHEMA | B — JSON→JSON | **`text`** |
+| JSON_SCHEMA | XML_SCHEMA | C — JSON→XML | `xml` |
+| XML_SCHEMA | JSON_SCHEMA | D — XML→JSON | **`text`** |
+| Primitive | XML_SCHEMA or JSON_SCHEMA | A or B without namespace prefix | match source |
+| Any | Primitive | Value-of only, no typed output | `text` |
+
+**CRITICAL:** Patterns B and D use `method="text"` (NOT `method="xml"`). If source or target is `JSON_SCHEMA`, the template body must use `xml-to-json($mapped-xml)` — never produce an empty `<xsl:template match="/">`. An empty template is always wrong.
 
 ---
 
@@ -193,7 +223,71 @@ Use when source-type = `JSON_SCHEMA` and target-type = `JSON_SCHEMA`.
 - Every JSON input becomes an `xsl:param` + `json-to-xml()` variable suffixed with `-x`
 - The lossless XML format uses the `http://www.w3.org/2005/xpath-functions` namespace (aliased as `fn:`)
 - JSON types map to lossless XML elements: `string`, `number`, `boolean`, `map`, `array`
+- The `$mapped-xml` variable is built **before** the `<xsl:template>` — the template body only calls `xml-to-json($mapped-xml)`
 - Final output uses `xml-to-json($mapped-xml)` in the template body
+
+**Path translation — DataWeave field paths → XSLT lossless XML XPath:**
+
+Strip the `payload.` prefix and translate each segment:
+
+| DataWeave path | XSLT lossless XML path |
+|---|---|
+| `payload.field` | `$body-x/fn:map/fn:string[@key='field']` |
+| `payload.field` (number) | `$body-x/fn:map/fn:number[@key='field']` |
+| `payload.obj.field` | `$body-x/fn:map/fn:map[@key='obj']/fn:string[@key='field']` |
+| `payload.arr[0].field` | `$body-x/fn:map/fn:array[@key='arr']/fn:map[1]/fn:string[@key='field']` *(single item)* |
+| array iteration (for-each) | `select="$body-x/fn:map/fn:array[@key='arr']/fn:map"` then use **relative** paths inside: `fn:string[@key='field']` |
+
+**Key rules:**
+- Single indexed access: DataWeave `[0]` → XPath `[1]` (XPath is 1-based)
+- Array iteration: use `xsl:for-each` with the array path, then **relative** paths inside the loop (no `$var` prefix) — e.g. `fn:string[@key='Title']` not `$body-x/fn:map/...`
+- Use `fn:string`, `fn:number`, `fn:boolean` to match the JSON type of the source field
+- For `format-number()`, use `format-number(number-expr, 'pattern')` — e.g. `format-number($body-x/fn:map/fn:map[@key='main']/fn:number[@key='temp'], '##.##')`
+- For `upper-case()` on a string field: `upper-case($body-x/fn:map/fn:string[@key='condition'])`
+- Conditional (`xsl:choose`) inside `$mapped-xml` for boolean computed fields
+- The target `<boolean>` element must contain exactly `true` or `false` (lowercase)
+
+**Example — translating the TDD field mappings table to Pattern B `$mapped-xml`:**
+
+For a TDD with:
+- `payload.main.temp` (number) → `temperature` (number, format 2 decimal places)
+- `payload.weather[0].main` (string) → `condition` (string, direct copy)
+- `payload.name` (string) → `city` (string, direct copy)
+- `alert` (boolean, conditional on `condition` and `temperature`)
+
+```xml
+<xsl:variable name="mapped-xml">
+  <map xmlns="http://www.w3.org/2005/xpath-functions">
+    <number key="temperature">
+      <xsl:value-of select="format-number(
+        $body-x/fn:map/fn:map[@key='main']/fn:number[@key='temp'], '##.##')"/>
+    </number>
+    <string key="condition">
+      <xsl:value-of select="
+        $body-x/fn:map/fn:array[@key='weather']/fn:map[1]/fn:string[@key='main']"/>
+    </string>
+    <string key="city">
+      <xsl:value-of select="$body-x/fn:map/fn:string[@key='name']"/>
+    </string>
+    <boolean key="alert">
+      <xsl:variable name="cond"
+        select="upper-case(
+          $body-x/fn:map/fn:array[@key='weather']/fn:map[1]/fn:string[@key='main'])"/>
+      <xsl:variable name="temp"
+        select="$body-x/fn:map/fn:map[@key='main']/fn:number[@key='temp']"/>
+      <xsl:choose>
+        <xsl:when test="$cond = 'RAIN' or $temp > 35.0
+            or ($cond = 'CLEAR' and $temp > 37.0)">true</xsl:when>
+        <xsl:otherwise>false</xsl:otherwise>
+      </xsl:choose>
+    </boolean>
+  </map>
+</xsl:variable>
+
+<xsl:template match="/">
+  <xsl:value-of select="xml-to-json($mapped-xml)"/>
+</xsl:template>
+```
 
 ---
 

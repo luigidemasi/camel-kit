@@ -54,47 +54,57 @@ public class InitCommand extends CamelKitCommand {
     @Option(names = {"--no-fetch"}, description = "Skip external catalog fetching")
     public boolean noFetch;
 
+    @Option(names = {"--silent"}, description = "Suppress all output (no banner, no progress, no summary)")
+    public boolean silent;
+
     public InitCommand(CamelKitMain main) {
         super(main);
     }
 
     @Override
     public Integer doCall() throws Exception {
+        if (silent) {
+            main.setOut(Printer.noop());
+        }
+
         // Validate agent and resolve arguments upfront (fast, non-blocking)
         if (!AgentRegistry.contains(ai)) {
-            main.printBanner();
+            if (!silent) main.printBanner();
             printer().println(red("Error: Unknown agent '" + ai + "'"));
             printer().println("Available agents: " + String.join(", ", AgentRegistry.names()));
             return 1;
         }
 
         if (projectName == null && !here) {
-            main.printBanner();
+            if (!silent) main.printBanner();
             printer().println(red("Error: Please provide a project name or use --here"));
             return 1;
         }
 
-        // If native image protocol is available and TUI is enabled, run the full
-        // split-screen experience. Falls back to normal mode on any failure
-        // (missing backend JAR, dumb terminal, JBang plugin context, etc.).
-        if (main.isTuiEnabled() && TerminalImageCapabilities.detect().supportsNativeImages()) {
-            InitTuiView tui = new InitTuiView();
-            Printer original = main.getOut();
-            main.setOut(tui.createPrinter());
-            main.setTaskTracker(tui.createTaskTracker());
-            // Release our JLine terminal so TamboUI can acquire the device cleanly.
-            main.closeTerminal();
-            try {
-                return tui.run(this::doInitWork);
-            } catch (Throwable e) {
-                // TUI not available — restore and continue in normal mode
-                main.setOut(original);
-                main.setTaskTracker(TaskTracker.noop());
+        if (!silent) {
+            // If native image protocol is available and TUI is enabled, run the full
+            // split-screen experience. Falls back to normal mode on any failure
+            // (missing backend JAR, dumb terminal, JBang plugin context, etc.).
+            if (main.isTuiEnabled() && TerminalImageCapabilities.detect().supportsNativeImages()) {
+                InitTuiView tui = new InitTuiView();
+                Printer original = main.getOut();
+                main.setOut(tui.createPrinter());
+                main.setTaskTracker(tui.createTaskTracker());
+                // Release our JLine terminal so TamboUI can acquire the device cleanly.
+                main.closeTerminal();
+                try {
+                    return tui.run(this::doInitWork);
+                } catch (Throwable e) {
+                    // TUI not available — restore and continue in normal mode
+                    main.setOut(original);
+                    main.setTaskTracker(TaskTracker.noop());
+                }
             }
+
+            // Normal mode: print banner then run init inline
+            main.printBanner();
         }
 
-        // Normal mode: print banner then run init inline
-        main.printBanner();
         return doInitWork();
     }
 

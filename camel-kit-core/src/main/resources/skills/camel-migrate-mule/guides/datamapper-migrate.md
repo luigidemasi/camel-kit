@@ -256,6 +256,23 @@ Append the following section to `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md
 
 Omit Conditional Mappings and Collection Mappings sections if there are none.
 
+**CRITICAL — do not save an empty Field Mappings table.** If Step 3 (Infer Field Mappings from DataWeave) produced no rows, do NOT append the DataMapper section to the TDD. Instead, report:
+
+```
+⚠️ WARNING: No field mappings could be inferred from the DataWeave script in flow '{mule-flow-name}'.
+
+Possible causes:
+- The DataWeave script uses unsupported constructs (see Step 5)
+- The script only sets metadata or variables, not payload fields
+- The transformation logic is too complex to infer automatically
+
+Action required:
+- Review the DataWeave script manually and add field mappings to the TDD
+- Then re-run /camel-implement {flow-name}
+```
+
+The `camel-implement` guide will generate an empty, non-functional XSLT if given an empty Field Mappings table, which is worse than having no DataMapper section at all.
+
 ---
 
 **When done:** return control to `camel-migrate-mule` Step 2.3 to continue producing the TDD for this flow.

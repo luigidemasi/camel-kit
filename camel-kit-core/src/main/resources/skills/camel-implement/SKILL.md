@@ -998,6 +998,24 @@ Generate the route by translating the TDD to Camel YAML DSL:
    → Use the returned options and Maven coordinates in the generated YAML and application.properties
    ```
 
+0e. **HTTP header cleanup between HTTP endpoints** — If the route has both an inbound HTTP consumer (`platform-http`, `servlet`, `jetty`, `netty-http`) **and** one or more outbound HTTP producer calls (`http`, `https`), insert a `removeHeaders` step immediately before **each** outbound HTTP call to remove all `CamelHttp*` headers set by the inbound request. Failing to do this causes inbound headers (`CamelHttpMethod`, `CamelHttpPath`, `CamelHttpQuery`, `CamelHttpUri`, `CamelHttpResponseCode`, etc.) to leak into the outbound call and can produce incorrect behaviour.
+
+   ```yaml
+   steps:
+     # ... processing steps ...
+
+     # REQUIRED before every outbound HTTP call when the route also has an HTTP consumer
+     - removeHeaders:
+         pattern: "CamelHttp*"
+
+     - to:
+         uri: "http:{{backend.host}}/api/endpoint"
+   ```
+
+   This rule applies once per outbound HTTP call — if the route calls two different HTTP backends, add `removeHeaders` before each one.
+
+   → For detailed implementation guidance and examples, load `skills/camel-implement/guides/sequential-http-calls.md`.
+
 1. **Clean Routes** - NO connection details in YAML:
    ```yaml
    # CORRECT
