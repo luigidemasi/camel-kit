@@ -65,6 +65,13 @@ This guide maps MuleSoft Mule components to their Apache Camel equivalents. It i
 | REST Consumer (RAML) | 4.x | `rest` + `openapi` | `camel-rest`, `camel-openapi-java` | Import OpenAPI/Swagger spec. |
 | Kafka Consumer | 4.x | `kafka` (consumer) | `camel-kafka` | |
 | Kafka Producer | 4.x | `kafka` (producer) | `camel-kafka` | |
+| Email Send (SMTP) | 4.x | `smtp` (producer) | `camel-mail` | See **Email Component Mapping** below. |
+| Email Send (SMTPS) | 4.x | `smtps` (producer) | `camel-mail` | See **Email Component Mapping** below. |
+| Email Listener IMAP | 4.x | `imap` (consumer) | `camel-mail` | See **Email Component Mapping** below. |
+| Email Listener IMAPS | 4.x | `imaps` (consumer) | `camel-mail` | See **Email Component Mapping** below. |
+| Email Listener POP3 | 4.x | `pop3` (consumer) | `camel-mail` | See **Email Component Mapping** below. |
+| Email Listener POP3S | 4.x | `pop3s` (consumer) | `camel-mail` | See **Email Component Mapping** below. |
+| Email (Mule 3.x) | 3.x | `smtp` / `imap` / `pop3` (+ `s` variants) | `camel-mail` | Mule 3.x uses transport-based `<smtp:outbound-endpoint>`, `<imap:inbound-endpoint>`, etc. Map directly by protocol name. |
 
 ---
 
@@ -82,6 +89,27 @@ Convert Mule HTTP Listener port configuration to Camel as follows:
 Both `camel.server.enabled` and `camel.server.port` MUST be set together — they are a pair.
 
 **Never generate** `camel.component.platform-http.host=...` or `camel.component.platform-http.port=...` — these options do not exist.
+
+---
+
+### Email Component Mapping
+
+Mule 4.x uses a single Email Connector with the SSL/TLS variant determined by the **connection type** in the config, not the operation. Camel uses **distinct URI schemes** for each protocol variant — all from the same `camel-mail` artifact.
+
+**Determine the Camel scheme from the Mule connection type:**
+
+| Mule Operation | Mule Connection Type | Camel Scheme | Direction |
+|---|---|---|---|
+| `<email:send>` | `<email:smtp-connection>` | `smtp` | producer |
+| `<email:send>` | `<email:smtps-connection>` | `smtps` | producer |
+| `<email:listener-imap>` | `<email:imap-connection>` | `imap` | consumer |
+| `<email:listener-imap>` | `<email:imaps-connection>` | `imaps` | consumer |
+| `<email:listener-pop3>` | `<email:pop3-connection>` | `pop3` | consumer |
+| `<email:listener-pop3>` | `<email:pop3s-connection>` | `pop3s` | consumer |
+
+**CRITICAL — never use `mail` as the component scheme.** `mail` is the Maven artifact name (`camel-mail`), NOT a valid URI scheme. Always use the specific protocol: `smtp`, `smtps`, `imap`, `imaps`, `pop3`, or `pop3s`. Properties must use `camel.component.smtp.*`, `camel.component.imaps.*`, etc.
+
+**STARTTLS vs SMTPS:** If the Mule config uses `<email:smtp-connection>` (plain) with a `<tls:context>` and `mail.smtp.starttls.enable=true`, map to `smtp` (not `smtps`) and set `starttls=true` as an endpoint option. Use `smtps` only when the Mule config uses `<email:smtps-connection>` (implicit SSL on port 465).
 
 ---
 
