@@ -20,7 +20,7 @@ This is an internal sub-skill invoked by `camel-migrate` after it has already:
 **Do not re-ask questions already answered in the summary. Do not invoke this skill directly.**
 
 You will work in two phases:
-- **Phase 1 (Business Analyst):** Deep-dive into Mule XML flows, resolve proprietary connectors, fill any remaining gaps, produce BRD + constitution.
+- **Phase 1 (Business Analyst):** Deep-dive into Mule XML flows, resolve proprietary connectors, fill any remaining gaps, produce BRD.
 - **Phase 2 (Integration Architect):** Design catalog-verified Camel route architecture and produce TDD files.
 
 The outputs are identical in format to `/camel-project` + `/camel-flow`, making them fully compatible with `/camel-implement`.
@@ -37,7 +37,7 @@ The outputs are identical in format to `/camel-project` + `/camel-flow`, making 
 - Read the confirmed analysis summary passed by `camel-migrate` (contains vendor, purpose, SLA, security, failure behaviour, deployment target, API compatibility)
 
 **Conditional:**
-- Load `.camel-kit/constitution.md` if it already exists (do not overwrite without asking)
+- Read `.camel-kit/constitution.md` if it exists (for reference — do not generate or modify it)
 
 ---
 
@@ -172,15 +172,6 @@ Run `/camel-implement <flow-name>` for each flow once TDD files are created.
 
 ---
 
-### Step 1.5 — Produce Constitution
-
-Check if `.camel-kit/constitution.md` already exists:
-
-- **If it exists:** Read it and confirm with the user whether to keep it or update it.
-- **If it does not exist:** Create `.camel-kit/constitution.md` using the v2.0 format from `templates/constitution.md`. The constitution contains six enforced rules: Route Structure, Single Responsibility, Separation of Concerns, Naming Conventions, Observability, and External Configuration. All other design guidance (resilience patterns, transactions, idempotency, throttling, Kubernetes) is applied context-specifically during this migration and recorded in the BRD. Error handling strategy and retry policy are extracted from the source artifacts, not asked.
-
----
-
 ### Phase 1 Complete
 
 Report:
@@ -189,7 +180,6 @@ Phase 1 complete.
 
 Created:
 - .camel-kit/business-requirements.md
-- .camel-kit/constitution.md
 
 Flows to migrate: [list flow names]
 
@@ -204,7 +194,8 @@ Starting Phase 2 — Integration Architect...
 
 **ALWAYS load at the start of Phase 2:**
 - Load `skills/camel-migrate-mule/guides/mule-dataweave-conversion.md` — required for DataWeave analysis
-- Re-read `.camel-kit/business-requirements.md` and `.camel-kit/constitution.md`
+- Re-read `.camel-kit/business-requirements.md`
+- Read `.camel-kit/constitution.md` if it exists (for reference)
 - Re-read `.camel-kit/config.yaml` — **REQUIRED**: extract `project.camelVersion` and store it as `CAMEL_VERSION`. Every MCP catalog call in Phase 2 MUST use this exact version. If the file does not exist, ask the user for the Camel version before proceeding.
 
 **Conditionally load:**
@@ -306,7 +297,7 @@ Use the **exact same TDD format** as `/camel-flow` output. The file MUST contain
 | Migrated From | MuleSoft Mule [version] — [original-mule-flow-name] |
 | Business Purpose | [from BRD] |
 | Trigger | [how the Camel route is triggered] |
-| Camel Version | [from config.yaml or constitution] |
+| Camel Version | [from config.yaml] |
 | Created | [current date] |
 
 ## Section 2: Source System
@@ -362,6 +353,8 @@ Use the **exact same TDD format** as `/camel-flow` output. The file MUST contain
 **Target:** {XML_SCHEMA | JSON_SCHEMA | Primitive} — `{target-schema-path or "none"}`
 **XSLT Pattern:** {A | B | C | D} — {source-format} → {target-format}
 **XSLT Approach:** {A (useJsonBody) | B (header param) | N/A}
+
+> **Type selection rules:** Use `JSON_SCHEMA` for JSON data and `XML_SCHEMA` for XML data, even when no schema file exists (schema path = `"none"`). `Primitive` is only for truly scalar values (a single string, number, or boolean — not a JSON object or XML document). `N/A` approach is only valid when source is `XML_SCHEMA`.
 
 #### Source Parameters
 
@@ -485,7 +478,6 @@ Migration analysis complete.
 
 Created files:
 - .camel-kit/business-requirements.md
-- .camel-kit/constitution.md
 - .camel-kit/flows/{flow-name-1}/{flow-name-1}.tdd.md
 [... one line per flow ...]
 

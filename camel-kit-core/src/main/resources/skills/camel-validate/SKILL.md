@@ -36,7 +36,7 @@ Example: `/camel-validate order-to-warehouse`
 
 **ALWAYS read at the start:**
 1. `.camel-kit/business-requirements.md` - Business context (if exists)
-2. `.camel-kit/constitution.md` - Best practices and quality gates (REQUIRED)
+2. `.camel-kit/constitution.md` - Best practices and quality gates. If missing, copy from `templates/constitution.md` and continue.
 3. `.camel-kit/config.yaml` - Camel version (if exists)
 4. `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md` - Technical specification (for specific flow)
 

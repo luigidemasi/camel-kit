@@ -2,7 +2,15 @@
 
 You are now acting as a **DataMapper Code Generator**. This guide is loaded by `camel-implement` for each `### DataMapper: kaoto-datamapper-{id}` section found in the TDD.
 
-For each DataMapper section: generate the XSLT file, inject the Camel YAML step, and update the `.kaoto` metadata file. Then return control to `camel-implement`.
+For each DataMapper section you **MUST** complete ALL 7 steps and generate ALL 3 artifacts before returning control to `camel-implement`:
+
+| Artifact | Step | File | WRONG names (do NOT use) |
+|----------|------|------|--------------------------|
+| XSLT stylesheet | Step 3 | `kaoto-datamapper-{id}.xsl` (project root) | |
+| YAML step injection | Step 4 | `{flow-name}.camel.yaml` (step block added) | |
+| Kaoto metadata | Step 5 | **`.kaoto`** (project root, exactly this name) | ~~`kaoto-datamapper-{id}.kaoto`~~, ~~`{name}.kaoto`~~ |
+
+**Do NOT return to `camel-implement` until all 3 artifacts are generated and Step 7 confirmation is displayed.**
 
 ---
 
@@ -65,9 +73,23 @@ Action required:
 **If Conditional Mappings and Collection Mappings tables are also empty:**
 That is acceptable — they are optional. Only Field Mappings is required.
 
-### 1.5b — XSLT Pattern must match source/target types
+### 1.5b — Source/Target types must not be Primitive for structured data
 
-Verify the **XSLT Pattern** field is consistent with the **Source** and **Target** types. The correct mapping is:
+Check the **Source** and **Target** type fields. If either is `Primitive` but the Field Mappings table contains dotted paths (e.g., `payload.main.temp`) or array access (e.g., `payload.items[]`), the type is wrong:
+- If data is JSON: override to `JSON_SCHEMA`
+- If data is XML: override to `XML_SCHEMA`
+- Log: `⚠️ Corrected {source|target} type from Primitive to {JSON_SCHEMA|XML_SCHEMA} — field mappings indicate structured data.`
+
+Also check the **XSLT Approach** field. If it says `N/A` but source-type or target-type is `JSON_SCHEMA`, override:
+- No source parameters → Approach A
+- Source parameters exist → Approach B
+- Log: `⚠️ Corrected XSLT Approach from N/A to {A|B} — JSON_SCHEMA requires JSON handling.`
+
+Then recompute XSLT Pattern from the corrected types using the table below.
+
+### 1.5c — XSLT Pattern must match source/target types
+
+Verify the **XSLT Pattern** field is consistent with the (possibly corrected) **Source** and **Target** types. The correct mapping is:
 
 | Source type | Target type | Correct Pattern |
 |---|---|---|
@@ -82,7 +104,7 @@ Verify the **XSLT Pattern** field is consistent with the **Source** and **Target
 ⚠️ TDD Pattern override: TDD says '{wrong}' but source={source-type}, target={target-type} → using Pattern {correct}.
 ```
 
-### 1.5c — Source XPaths must use the correct format for the source type
+### 1.5d — Source XPaths must use the correct format for the source type
 
 Check the **Source XPath** column in the Field Mappings table:
 
@@ -94,7 +116,7 @@ Check the **Source XPath** column in the Field Mappings table:
 
 **If Source XPaths are wrong:** Recompute them using the rules from `skills/shared/datamapper-canonicalize.md` Step 2. Use the `Source Field` and `Src Type` columns to derive the correct XPaths.
 
-### 1.5d — Target Elements must use the correct format for the target type
+### 1.5e — Target Elements must use the correct format for the target type
 
 Check the **Target Element** column in the Field Mappings table:
 
@@ -121,7 +143,13 @@ Read the **XSLT Pattern** and **XSLT Approach** from the TDD header — these we
 |----------|---------|
 | A | `useJsonBody: true` — Camel converts JSON body to lossless XML before Saxon starts |
 | B | Manual header param — JSON string in Exchange header, body set to `<root/>` |
-| N/A | Source is XML or Primitive — no JSON handling needed |
+| N/A | Source is XML — no JSON handling needed |
+
+**IMPORTANT — `N/A` is only valid when source-type is `XML_SCHEMA`.** If the TDD says `XSLT Approach: N/A` but source-type or target-type is `JSON_SCHEMA`, this is a TDD error. Override: use Approach A if there are no source parameters, or Approach B if source parameters exist. Log a warning:
+
+```
+⚠️ TDD Approach override: TDD says 'N/A' but source/target is JSON_SCHEMA → using Approach {A|B}.
+```
 
 **CRITICAL:** Patterns B and D use `method="text"` (NOT `method="xml"`). If source or target is `JSON_SCHEMA`, the template body must use `xml-to-json($mapped-xml)` — never produce an empty `<xsl:template match="/">`. An empty template is always wrong.
 
@@ -625,33 +653,54 @@ The `kaoto-datamapper-xslt-{4hexchars}` inner ID is a fresh random 4-character h
 
 ---
 
-## Step 5: Create or Update `.kaoto` Metadata File
+## Step 5: Create or Update `.kaoto` Metadata File — MANDATORY
 
-The `.kaoto` file lives in the **project root** alongside the `.camel.yaml` files.
+**This step is NOT optional.** Without the `.kaoto` file, the Kaoto visual editor cannot open the DataMapper node — the user sees an empty editor instead of the mappings.
 
-**If `.kaoto` does not exist:** create it with content `{}`.
+**CRITICAL — Filename and format rules:**
 
-**Read the existing content, add the new key, write back:**
+| Rule | Correct | WRONG (do NOT do this) |
+|------|---------|------------------------|
+| Filename | `.kaoto` | ~~`kaoto-datamapper-{id}.kaoto`~~, ~~`{flow-name}.kaoto`~~ |
+| Location | Project root (same directory as `.camel.yaml`) | NOT in `.camel-kit/` |
+| Format | Kaoto's internal JSON format (see template below) | NOT a custom JSON schema |
+| One file | Single `.kaoto` file for ALL DataMapper mappings in the project | NOT one file per mapping |
+
+The `.kaoto` file is a **single JSON object** where each key is a mapping ID (`kaoto-datamapper-{id}`). Multiple DataMapper sections add multiple keys to the same file.
+
+**If `.kaoto` does not exist:** create it. **If it exists:** read it, add the new key, write back.
+
+**CRITICAL — Kaoto `type` values are display strings, NOT enum keys:**
+
+| TDD type | `.kaoto` type value |
+|----------|---------------------|
+| `XML_SCHEMA` | `"XML Schema"` |
+| `JSON_SCHEMA` | `"JSON Schema"` |
+| `Primitive` | `"Primitive"` |
+
+Using `"JSON_SCHEMA"` or `"XML_SCHEMA"` (with underscores) will cause Kaoto to fail silently.
+
+**Use this EXACT structure — do NOT invent your own JSON format:**
 
 ```json
 {
 	"kaoto-datamapper-{id}": {
 		"xsltPath": "kaoto-datamapper-{id}.xsl",
 		"sourceBody": {
-			"type": "{XML_SCHEMA | JSON_SCHEMA | Primitive}",
+			"type": "{XML Schema | JSON Schema | Primitive}",
 			"filePath": ["{source-schema-path}"],
 			"fieldTypeOverrides": [],
 			"choiceSelections": []
 		},
 		"targetBody": {
-			"type": "{XML_SCHEMA | JSON_SCHEMA | Primitive}",
+			"type": "{XML Schema | JSON Schema | Primitive}",
 			"filePath": ["{target-schema-path}"],
 			"fieldTypeOverrides": [],
 			"choiceSelections": []
 		},
 		"sourceParameters": {
 			"{param-name}": {
-				"type": "{XML_SCHEMA | JSON_SCHEMA | Primitive}",
+				"type": "{XML Schema | JSON Schema | Primitive}",
 				"filePath": ["{param-schema-path}"],
 				"fieldTypeOverrides": [],
 				"choiceSelections": []
@@ -667,8 +716,10 @@ The `.kaoto` file lives in the **project root** alongside the `.camel.yaml` file
 }
 ```
 
+**The ONLY keys allowed in a mapping entry are:** `xsltPath`, `sourceBody`, `targetBody`, `sourceParameters`, `namespaceMap`. Do NOT add `mappingId`, `flowName`, `migratedFrom`, `xsltPattern`, `xsltApproach`, `fieldMappings`, `conditionalMappings`, or any other invented keys.
+
 **Rules:**
-- `filePath` is `[]` for `Primitive` type
+- `filePath` is `[]` when no schema file exists (schema path is `"none"` in TDD) — this applies to ANY type (`Primitive`, `JSON_SCHEMA`, or `XML_SCHEMA`). A `JSON_SCHEMA` type with `filePath: []` is valid and means schemaless JSON.
 - `sourceParameters` is `{}` if no parameters defined in TDD
 - Always include the three base namespace entries: `xs`, `fn`, `xsl`
 - Add `ns0` (and further prefixes e.g. `ns1`) for each XML namespace from the TDD namespace map

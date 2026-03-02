@@ -31,6 +31,7 @@ Generated files and their locations:
 - `docker-compose.yaml` → **Project root**
 - `run.sh` → **Project root** (make executable with chmod +x)
 - `schemas/{flow-name}-*.json` → **Project root schemas/ directory**
+- DataMapper artifacts (if TDD has `### DataMapper:` sections) → see `guides/datamapper-implement.md`
 
 The `.camel-kit/` folder is ONLY for internal metadata:
 - `.camel-kit/flows/` - Flow specifications (TDD)
@@ -54,7 +55,7 @@ Example: `/camel-implement order-to-warehouse`
 **ALWAYS read at the start:**
 1. `.camel-kit/business-requirements.md` - Business context (REQUIRED)
 2. `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md` - Technical Design Document (REQUIRED)
-3. `.camel-kit/constitution.md` - Best practices and quality gates (REQUIRED)
+3. `.camel-kit/constitution.md` - Best practices and quality gates. If missing, copy from `templates/constitution.md` and continue.
 4. `.camel-kit/config.yaml` - Camel version and configuration (if exists)
 5. `.camel-kit/templates/yaml-generation-guide.md` - YAML DSL rules (if exists)
 
@@ -1059,6 +1060,24 @@ Generate the route by translating the TDD to Camel YAML DSL:
 
    `unmarshal: json:` may be placed **after** the DataMapper step if subsequent steps need a typed object.
 
+0h. **Marshal body before HTTP response** — When a route starts with an HTTP consumer (`platform-http`, `servlet`, `jetty`, `netty-http`) and any step in the route unmarshals the body to a Java object (`unmarshal: json:` produces a `LinkedHashMap`; `unmarshal: jaxb:` produces a JAXB object), the HTTP response writer cannot serialize the Java object back to the wire. Add a `marshal` step at the **end** of the route to convert the body back to the response format.
+
+   ```yaml
+   # Route with platform-http source and unmarshal mid-route
+   steps:
+     # ... processing steps that need the body as a Map ...
+
+     - log:
+         message: "Done processing"
+
+     # REQUIRED — serialize body back to JSON for the HTTP response
+     - marshal:
+         json:
+           library: Jackson
+   ```
+
+   **When to apply:** scan the generated route — if the source is an HTTP consumer **and** there is an `unmarshal` step anywhere in the route, add a matching `marshal` step as the last step. Match the data format: `unmarshal: json:` → `marshal: json:`, `unmarshal: jaxb:` → `marshal: jaxb:`.
+
 1. **Clean Routes** - NO connection details in YAML:
    ```yaml
    # CORRECT
@@ -1547,53 +1566,57 @@ If TDD Section 7.2 defines environment-specific configuration, create templates:
 
 Create file: `docker-compose.yaml` (in project root)
 
-Based on external systems identified in TDD Section 8.2, generate docker-compose.yaml:
+Generate a docker-compose.yaml with the Camel service and any external services identified in TDD Section 8.2.
+
+**Mandatory rules for the Camel service:**
+
+| Rule | Detail |
+|------|--------|
+| Image | `apache/camel-jbang:{{CAMEL_VERSION}}` — Docker Hub, **NOT** `ghcr.io/apache/camel-jbang` (does not exist) |
+| Entrypoint | The image entrypoint is `camel`. The `command:` must start with the subcommand `run`, **NOT** `camel run` (otherwise it becomes `camel camel run`) |
+| Route file | Mount the `.camel.yaml` file and list it in `command:` |
+| XSL files | Mount **every** `kaoto-datamapper-*.xsl` file and list them in `command:` — omitting them causes `FileNotFoundException: Cannot find resource: classpath:kaoto-datamapper-*.xsl` at startup |
+| Properties | Mount `application.properties` and pass it via `--properties=` |
+| Port | Use the port from `camel.server.port` in `application.properties` |
+| External services | Add service definitions for TDD Section 8.2 dependencies (SMTP dev server, databases, message brokers, etc.) and use `depends_on:` from the Camel service |
+
+**Template** (adapt to actual file names and dependencies):
 
 ```yaml
 # ============================================
 # Docker Compose for {flow-name}
-# External services required by this integration
 # ============================================
 
-version: '3.8'
-
 services:
-  # [Generate service definitions based on TDD dependencies]
-
-  # Example: Kafka (if used)
-  kafka:
-    image: confluentinc/cp-kafka:7.5.0
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+  {flow-name}:
+    image: apache/camel-jbang:{{CAMEL_VERSION}}
+    container_name: {flow-name}
     ports:
-      - "9092:9092"
-    depends_on:
-      - zookeeper
-
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.0
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-    ports:
-      - "2181:2181"
-
-  # Example: PostgreSQL (if used)
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: [database from TDD]
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports:
-      - "5432:5432"
+      - "{port}:{port}"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - ./{flow-name}.camel.yaml:/work/{flow-name}.camel.yaml:ro
+      - ./application.properties:/work/application.properties:ro
+      - ./kaoto-datamapper-{id}.xsl:/work/kaoto-datamapper-{id}.xsl:ro
+    working_dir: /work
+    command: >
+      run {flow-name}.camel.yaml kaoto-datamapper-{id}.xsl
+      --properties=application.properties
+    environment:
+      CAMEL_SERVER_ENABLED: "true"
+      CAMEL_SERVER_PORT: "{port}"
+    depends_on:
+      - {external-service}
+    restart: unless-stopped
 
-volumes:
-  postgres-data:
+  # External services from TDD Section 8.2
+  {external-service}:
+    image: {image}
+    ports:
+      - "{service-port}:{service-port}"
+    restart: unless-stopped
 ```
+
+**Replace ALL `{placeholders}` with actual values.** Do NOT leave commented-out volume or command examples — generate the real entries for each DataMapper XSL file in the project.
 
 ---
 
@@ -1601,9 +1624,17 @@ volumes:
 
 **IMPORTANT: Save this file in the PROJECT ROOT directory, NOT in .camel-kit/**
 
-Create file: `run.sh` (in project root, make it executable with chmod +x)
+Create file: `run.sh` (in project root, make it executable with `chmod +x`)
 
-Create executable script to run the integration:
+**Mandatory rules for run.sh:**
+
+| Rule | Detail |
+|------|--------|
+| JBang alias | Use `jbang camel@apache/camel run` — **NOT** `org.apache.camel:camel-jbang:VERSION:runner` (non-existent Maven artifact) and **NOT** bare `camel run` (requires global install) |
+| XSL files | Include `*.xsl` (or list each file) in the `camel run` arguments — omitting them causes `FileNotFoundException` |
+| Properties | Pass via `--properties=application.properties` |
+
+**Template** (adapt to actual file names):
 
 ```bash
 #!/bin/bash
@@ -1611,21 +1642,18 @@ Create executable script to run the integration:
 # Run Script for {flow-name}
 # ============================================
 
-set -e
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+if ! command -v jbang &>/dev/null; then
+  echo "ERROR: jbang not found. Install from https://www.jbang.dev/installation/" >&2
+  exit 1
+fi
 
 echo "Starting {flow-name} integration..."
-
-# Check if external services are running
-echo "Checking external services..."
-
-# [Add checks based on TDD dependencies]
-
-# Run the Camel integration
-echo "Starting Camel route..."
-camel run {flow-name}.camel.yaml application.properties
-
-# Or using JBang:
-# jbang camel run {flow-name}.camel.yaml application.properties
+jbang camel@apache/camel run {flow-name}.camel.yaml *.xsl --properties=application.properties
 ```
 
 Make it executable:
@@ -1858,11 +1886,8 @@ Generated Files (in PROJECT ROOT):
     Sink: [component]:{{sink.endpoint}}
     Validation: PASSED ✅ (MCP verified)
 
-  ✓ {flow-name}-datamapper-a1b2c3d4.xsl (project root) [IF GENERATED]
-    Field mappings: [N] fields
-    Automapped: [N] exact matches
-    Complex transformations: [N] (date formatting, calculations, etc.)
-    Format: XSLT 2.0/3.0 (Saxon processor)
+  ✓ DataMapper artifacts [IF Step 2.5 ran]
+    See datamapper-implement.md Step 7 checklist for details
 
   ✓ application.properties (project root)
     Component config: [list components]
