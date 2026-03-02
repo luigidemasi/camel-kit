@@ -18,18 +18,16 @@ This skill is the generic entry point for all migrations. It detects the vendor,
 ## Parameters
 
 ```
-/camel-migrate [path-to-export]
+/camel-migrate
 ```
 
-- `path-to-export` — optional path to the source project (directory, XML file, or ZIP archive). If omitted, ask the user.
+No arguments. The command asks the user for the path interactively.
 
 ---
 
 ## Step 1 — Locate the Source Artifacts
 
-If a path was provided as an argument, use it directly.
-
-If no path was provided, ask:
+Ask:
 
 ```
 Please provide the path to your integration project. This can be:
