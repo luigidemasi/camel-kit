@@ -5,6 +5,7 @@
 </p>
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Website](https://img.shields.io/badge/Website-luigidemasi.github.io%2Fcamel--kit-orange)](https://luigidemasi.github.io/camel-kit/)
 
 > Design and migrate Apache Camel integrations with AI coding assistants.
 
@@ -93,6 +94,7 @@ See [Migration Workflow](docs/user-guide.md#migration-workflow) for details.
 
 ## Documentation
 
+- **[Project Website](https://luigidemasi.github.io/camel-kit/)** — getting started, user guide, architecture
 - [User Guide](docs/user-guide.md) — installation, workflows, commands
 - [Architecture Guide](docs/architecture.md) — skills, MCP, extension points
 - [Contributing](CONTRIBUTING.md) — dev setup, coding standards

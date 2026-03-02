@@ -219,7 +219,7 @@ flowchart TB
 | Step | Command | Purpose |
 |------|---------|---------|
 | 1 | `camel-kit init` | Create project structure and fetch catalogs |
-| 2 | `/camel-migrate [export-path]` | Detect vendor, analyse flows, produce BRD + TDD files |
+| 2 | `/camel-migrate` | Detect vendor, analyse flows, produce BRD + TDD files |
 | 3 | `/camel-implement <flow-name>` | Generate Camel YAML — same as greenfield |
 | 4 | `/camel-validate` | Verify compliance with constitution |
 | 5 | `/camel-test <flow-name>` | Generate Citrus integration tests |
@@ -239,15 +239,10 @@ Use `/camel-migrate` when you have an existing integration built on another plat
 ### Running a migration
 
 ```
-/camel-migrate path/to/mule-project/
+/camel-migrate
 ```
 
-Provide a path to any of:
-- A single Mule XML file (`mule-config.xml`)
-- A Mule project directory (containing `src/main/mule/*.xml`)
-- A ZIP archive of a Mule project
-
-If no path is given, the command asks for one.
+The command asks for the path to your source project interactively.
 
 ### What the command does
 

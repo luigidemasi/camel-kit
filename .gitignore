@@ -227,3 +227,9 @@ camel-kit-transparent.png
 generate_presentation.py
 generate_pptx.py
 .~lock.*
+
+# Hugo
+website/public/
+website/.hugo_build.lock
+website/_vendor/
+website/resources/_gen/

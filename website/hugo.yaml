@@ -1,0 +1,53 @@
+baseURL: https://luigidemasi.github.io/camel-kit/
+languageCode: en-us
+title: Camel-Kit
+
+module:
+  imports:
+    - path: github.com/imfing/hextra
+
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+  highlight:
+    noClasses: false
+
+enableRobotsTXT: true
+
+menu:
+  main:
+    - name: Docs
+      pageRef: /docs
+      weight: 1
+    - name: Presentations
+      pageRef: /presentations
+      weight: 2
+    - name: Blog
+      pageRef: /blog
+      weight: 3
+    - name: Search
+      weight: 4
+      params:
+        type: search
+    - name: GitHub
+      weight: 5
+      url: "https://github.com/luigidemasi/camel-kit"
+      params:
+        icon: github
+
+params:
+  description: Design and migrate Apache Camel integrations with AI coding assistants.
+  navbar:
+    displayTitle: true
+    displayLogo: true
+    logo:
+      path: images/logo.png
+      width: 40
+      height: 40
+  footer:
+    displayCopyright: true
+    displayPoweredBy: false
+  editURL:
+    enable: true
+    base: "https://github.com/luigidemasi/camel-kit/edit/main/website/content"

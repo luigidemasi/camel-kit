@@ -186,12 +186,8 @@ Migrate an existing integration from another platform to Apache Camel. Detects t
 **Usage:**
 
 ```
-/camel-migrate [path-to-export]
+/camel-migrate
 ```
-
-| Argument | Description |
-|----------|-------------|
-| `path-to-export` | Optional path to the source export: a single XML file, a project directory, or a ZIP archive. If omitted, the command asks for it. |
 
 **Supported source platforms:**
 
@@ -458,7 +454,7 @@ camel-kit init my-project --ai bob     # Create project with MCP config
 /camel-flow order-ingestion            # Define and design flow
 
 # Migration slash commands (in AI assistant)
-/camel-migrate path/to/mule-project/   # Migrate from MuleSoft (or other supported platforms)
+/camel-migrate                         # Migrate from MuleSoft (or other supported platforms)
 
 # Shared slash commands
 /camel-implement order-ingestion       # Generate YAML with MCP validation
