@@ -147,7 +147,7 @@ public class InitCommand extends CamelKitCommand {
         // 2 — configuration files
         tracker.startTask("\uD83D\uDCDD", "Writing configuration");
         createConfigFile(camelKitDir, projectName, version, citrusVer, ai, agent);
-        createConstitution(camelKitDir);
+        createConstitution(camelKitDir, version);
         createYamlGuide(camelKitDir.resolve("templates"));
         copyAdditionalTemplates(camelKitDir.resolve("templates"));
         tracker.finishTask();
@@ -231,8 +231,10 @@ public class InitCommand extends CamelKitCommand {
         Files.writeString(dir.resolve("config.yaml"), yaml);
     }
 
-    private void createConstitution(Path dir) throws Exception {
-        String content = TemplateUtils.readTemplate("templates/constitution.md");
+    private void createConstitution(Path dir, String camelVersion) throws Exception {
+        String content = TemplateUtils.readTemplate("templates/constitution.md")
+                .replace("{{DATE}}", java.time.LocalDate.now().toString())
+                .replace("{{CAMEL_VERSION}}", camelVersion);
         Files.writeString(dir.resolve("constitution.md"), content);
     }
 
