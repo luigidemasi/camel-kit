@@ -79,8 +79,6 @@ The MCP server is automatically configured when you run `camel-kit init`:
 
 The AI assistant automatically uses MCP tools when available. No additional configuration needed!
 
-**For more details**, see [MCP Tools Reference](mcp-tools-reference.md).
-
 ---
 
 ## Installation
@@ -94,7 +92,7 @@ curl -Ls https://sh.jbang.dev | bash -s - app setup
 # Install camel-kit (after local build)
 cd camel-kit
 mvn install
-jbang app install --force camel-kit@io.github.luigidemasi:camel-kit-main:1.0.0-SNAPSHOT
+jbang app install --force camel-kit@io.github.luigidemasi:camel-kit-main:0.3.2-SNAPSHOT
 
 # Verify installation
 camel-kit --help
@@ -604,54 +602,13 @@ This:
 
 ### Automatic MCP Validation
 
-If the Camel MCP server is configured, `/camel-implement` **automatically validates** the generated route:
+If the Camel MCP server is configured, `/camel-implement` **automatically validates** the generated route before Maven runs:
 
-**Step 1: Route Structure Analysis**
-```
-MCP Tool: camel_route_context
+1. **Route Structure Analysis** (`camel_route_context`) — extracts all components and EIPs, verifies they exist in the catalog
+2. **URI and Route Validation** (`camel_validate_route`) — validates all endpoint URIs against the catalog schema, catches typos and unknown options
+3. **Auto-fix loop** — if errors are found, the AI agent fixes them and re-validates (up to 3 attempts)
 
-Analyzing generated route...
-✅ Components detected: [kafka, sql, http]
-✅ EIPs used: [unmarshal, validate, choice]
-✅ All components valid for Camel 4.18.0
-```
-
-**Step 2: URI and Route Validation**
-```
-MCP Tool: camel_validate_route
-
-Validating: kafka:orders?brokers={{kafka.brokers}}
-  ✅ Component 'kafka' exists
-  ✅ All options valid
-  ✅ Required parameters present
-
-Validating: sql:INSERT INTO orders
-  ✅ Component 'sql' exists
-  ✅ Query syntax valid
-
-✅ All endpoint URIs valid (3/3 passed)
-```
-
-**Result**: Route is validated **before Maven runs**, catching errors immediately with better error messages!
-
-### MCP Route Validation
-
-The AI agent validates the generated route using the MCP `camel_validate_route` tool:
-
-```
-MCP Tool: camel_validate_route
-Parameters:
-  - route: <entire YAML route content>
-  - version: {camel-version}
-```
-
-The AI agent will:
-1. Generate the YAML
-2. Validate all endpoint URIs against Camel catalog
-3. Check component options and required parameters
-4. Catch typos and suggest corrections
-5. If errors are found, fix them automatically
-6. Repeat until validation passes
+See [Command Reference — /camel-implement](commands.md#camel-implement) for the detailed process.
 
 ### Kaoto Compatibility
 
@@ -694,28 +651,7 @@ Validation checks your routes for correctness, security, and compliance.
 
 ### MCP-Enhanced Validation
 
-When the Camel MCP server is configured, validation includes:
-
-#### 1. Route Structure Analysis
-- **Tool**: `camel_route_context`
-- **Checks**: Extracts all components and EIPs, verifies they exist in the catalog
-- **Example**: Detects if 'kafak' should be 'kafka'
-
-#### 2. URI Validation
-- **Tool**: `camel_validate_route`
-- **Checks**: Validates all endpoint URIs against catalog schema
-- **Catches**: Typos, unknown options, missing required parameters
-- **Example**: `kafka:test?brokerList=...` → Suggests `brokers` instead of `brokerList`
-
-#### 3. Security Analysis (47 Automated Checks)
-- **Tool**: `camel_route_harden_context`
-- **Categories**:
-  - Credential exposure (hardcoded passwords, API keys)
-  - Encryption (HTTP vs HTTPS, TLS configuration)
-  - Authentication (missing auth configuration)
-  - Input validation (SQL injection, XSS risks)
-  - Data exposure (sensitive data in logs)
-  - Compliance (GDPR, PCI-DSS, HIPAA concerns)
+When the Camel MCP server is configured, validation adds three automated phases: route structure analysis, URI validation, and security analysis (47 checks covering credentials, encryption, authentication, input validation, data exposure, and compliance).
 
 ### What's Checked
 
@@ -897,5 +833,5 @@ Regenerate tests after route changes:
 ## Next Steps
 
 - See [Command Reference](commands.md) for detailed command documentation
-- See [Constitution](constitution.md) for best practices details
+- See [Architecture Guide](architecture.md) for skills and MCP internals
 - See [CONTRIBUTING.md](../CONTRIBUTING.md) to contribute to Camel-Kit

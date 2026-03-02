@@ -13,7 +13,6 @@ This document provides detailed reference for all Camel-Kit commands.
   - [/camel-implement](#camel-implement)
   - [/camel-validate](#camel-validate)
   - [/camel-test](#camel-test)
-- [MCP Integration](#mcp-integration)
 
 ---
 
@@ -283,53 +282,7 @@ Generate Camel YAML DSL from the flow definition with automated validation.
 
 **Automatic MCP Validation:**
 
-When the Camel MCP server is configured, the command automatically validates the generated route:
-
-**Step 1: Route Structure Analysis**
-```
-MCP Tool: camel_route_context
-
-Analyzing generated route...
-✅ Components detected: [kafka, sql, http]
-✅ EIPs used: [unmarshal, validate, choice]
-✅ All components valid for Camel version
-```
-
-**Step 2: URI and Route Validation**
-```
-MCP Tool: camel_validate_route
-
-Validating: kafka:orders?brokers={{kafka.brokers}}
-  ✅ Component 'kafka' exists
-  ✅ All options valid
-  ✅ Required parameters present
-
-✅ All endpoint URIs valid (3/3 passed)
-```
-
-**MCP Tools Used:**
-- `camel_catalog_component_doc` - Get component configuration details
-- `camel_route_context` - Extract components and EIPs from generated route
-- `camel_validate_route` - Validate all endpoint URIs against catalog schema
-
-**MCP Route Validation:**
-
-The command uses the MCP `camel_validate_route` tool to validate the generated route:
-
-```
-MCP Tool: camel_validate_route
-Parameters:
-  - route: <entire YAML route content>
-  - version: {camel-version}
-```
-
-Validation checks:
-- All endpoint URIs exist in catalog
-- Component options are valid
-- Required parameters are present
-- Catches typos and suggests corrections
-
-The AI agent fixes validation errors automatically until the route is valid.
+When the Camel MCP server is configured, the command automatically validates the generated route using `camel_route_context` (structure analysis) and `camel_validate_route` (URI validation). All component names, options, and parameters are checked against the catalog. The AI agent fixes validation errors automatically in a validate→fix→re-query→retry loop (up to 3 attempts).
 
 **Generation constraints:**
 
@@ -414,60 +367,7 @@ Validate route specifications for correctness, security, and compliance.
 
 **MCP-Enhanced Validation:**
 
-When the Camel MCP server is configured, validation includes:
-
-**1. Route Structure Analysis**
-- **Tool**: `camel_route_context`
-- **Checks**: Extracts all components and EIPs, verifies they exist in the catalog
-- **Example**: Detects if 'kafak' should be 'kafka'
-
-**2. URI Validation**
-- **Tool**: `camel_validate_route`
-- **Checks**: Validates all endpoint URIs against catalog schema
-- **Catches**: Typos, unknown options, missing required parameters
-- **Example**: `kafka:test?brokerList=...` → Suggests `brokers` instead of `brokerList`
-
-**3. Security Analysis (47 Automated Checks)**
-- **Tool**: `camel_route_harden_context`
-- **Categories**:
-  - Credential exposure (hardcoded passwords, API keys)
-  - Encryption (HTTP vs HTTPS, TLS configuration)
-  - Authentication (missing auth configuration)
-  - Input validation (SQL injection, XSS risks)
-  - Data exposure (sensitive data in logs)
-  - Compliance (GDPR, PCI-DSS, HIPAA concerns)
-
-**MCP Tools Used:**
-- `camel_validate_route` - Validate endpoint URIs against catalog
-- `camel_route_harden_context` - Run 47 automated security checks
-
-**Output format:**
-
-With MCP:
-```
-✅ Route structure: VALID
-✅ URI validation: VALID (3/3 endpoints)
-⚠️  Security: 45/47 checks passed
-
-Security Issues:
-  Line 12: HTTP instead of HTTPS
-  Risk: Unencrypted communication
-  Fix: Change to https://api.example.com
-```
-
-Without MCP:
-```
-== COMPLETENESS ==
-[OK] order-ingestion: source defined
-[OK] order-ingestion: sink defined
-[ERROR] order-ingestion: error handling NOT defined
-
-== CORRECTNESS ==
-[OK] kafka component valid (Camel 4.14.x)
-[WARN] kafak component - did you mean 'kafka'?
-
-VALIDATION FAILED - 2 errors, 1 warning
-```
+When the Camel MCP server is configured, validation adds route structure analysis (`camel_route_context`), URI validation (`camel_validate_route`), and 47 automated security checks (`camel_route_harden_context`). See [User Guide — Validation](user-guide.md#validation) for details.
 
 **Validation report:**
 
@@ -543,52 +443,7 @@ camel test run test/<flow-name>.camel.it.yaml
 
 ---
 
-## MCP Integration
-
-Camel-Kit integrates with the **Apache Camel MCP (Model Context Protocol) Server** to provide real-time catalog queries and validation directly within your AI coding assistant.
-
-### What is the Camel MCP Server?
-
-The Camel MCP server (`camel-jbang-mcp`) exposes the complete Apache Camel catalog through the Model Context Protocol, allowing AI assistants to:
-
-- **Query components** - Search and filter 300+ Camel components by category
-- **Get documentation** - Retrieve always-current component docs for your exact Camel version
-- **Validate routes** - Check endpoint URIs against the catalog schema, catch typos
-- **Analyze security** - Run 47 automated security checks on routes
-- **Extract context** - Analyze routes to identify components and EIPs used
-
-### Configuration
-
-The MCP server is automatically configured when you run `camel-kit init`:
-
-- **Claude Code**: `.mcp.json` in project root
-- **IBM Bob**: `.bob/mcp.json`
-- **Gemini CLI**: `.gemini/mcp.json`
-
-The AI assistant automatically uses MCP tools when available. No additional configuration needed!
-
-### MCP Tools by Command
-
-| Command | MCP Tools Used | Purpose |
-|---------|---------------|---------|
-| `/camel-project` | `camel_version_list` | List Camel versions with LTS status |
-| `/camel-flow` | `camel_catalog_components`<br>`camel_catalog_component_doc`<br>`camel_catalog_dataformats`<br>`camel_catalog_dataformat_doc`<br>`camel_catalog_eips`<br>`camel_catalog_eip_doc`<br>`camel_catalog_languages`<br>`camel_catalog_language_doc` | **MANDATORY** — called before any component, data format, EIP, or expression language is chosen; all calls pass `CAMEL_VERSION` from `config.yaml` |
-| `/camel-migrate` | `camel_catalog_components`<br>`camel_catalog_component_doc`<br>`camel_catalog_eips`<br>`camel_catalog_eip_doc`<br>`camel_catalog_languages`<br>`camel_catalog_language_doc`<br>`camel_catalog_dataformats`<br>`camel_catalog_dataformat_doc` | **MANDATORY** — same rules as `/camel-flow`; called in Phase 2 after Mule→Camel mapping |
-| `/camel-implement` | `camel_catalog_component_doc`<br>`camel_catalog_dataformat_doc`<br>`camel_catalog_eip_doc`<br>`camel_catalog_language_doc`<br>`camel_route_context`<br>`camel_validate_route` | **MANDATORY** — all names/options verified before YAML is written; validate→fix→re-query→retry loop (up to 3 attempts) |
-| `/camel-validate` | `camel_validate_route`<br>`camel_route_harden_context` | Validate URIs and options<br>47 automated security checks |
-| `/camel-test` | `camel_route_context`<br>`camel_catalog_component_doc` | Analyze route for test strategy<br>Get component details for mocks |
-
-### Benefits
-
-- **60-70% token savings** - AI assistant queries MCP server instead of loading full catalog
-- **Always current** - Documentation matches your exact Camel version
-- **Better validation** - Catches typos and configuration errors before runtime
-- **Security analysis** - Automated checks for credentials, encryption, authentication
-- **Faster workflow** - No Maven needed for basic validation
-
-### For More Details
-
-See [MCP Tools Reference](mcp-tools-reference.md) for complete documentation including tool parameters, response schemas, and examples.
+All commands use the Apache Camel MCP Server when available. See [MCP Integration](user-guide.md#mcp-integration) for details, or [Architecture Guide](architecture.md#mcp-integration-internal-details) for tool parameters and internals.
 
 ---
 

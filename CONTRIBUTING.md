@@ -63,6 +63,10 @@ jbang camel-kit-main/src/main/jbang/main/CamelKit.java --help
 
 # Package for distribution
 ./mvnw package
+
+# Install locally (after build)
+mvn install
+jbang app install --force camel-kit@./
 ```
 
 ### IDE Setup
@@ -292,6 +296,7 @@ class CatalogServiceTest {
 |------|----------|
 | User documentation | `docs/user-guide.md` |
 | Command reference | `docs/commands.md` |
+| Architecture (skills, MCP) | `docs/architecture.md` |
 | API documentation | Docstrings in code |
 | Change log | `CHANGELOG.md` |
 

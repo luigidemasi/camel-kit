@@ -30,33 +30,6 @@ jbang app install camel-kit@luigidemasi/camel-kit
 camel-kit --help
 ```
 
-**Local build:**
-
-```bash
-mvn install
-jbang app install --force camel-kit@./
-```
-
----
-
-## Run without installing
-
-No global install required — JBang can run camel-kit directly, caching dependencies automatically:
-
-```bash
-# From the published catalog
-jbang run camel-kit@luigidemasi/camel-kit init my-project --ai claude
-
-# From a local clone
-jbang run camel-kit-main/src/main/jbang/main/CamelKit.java init my-project --ai claude
-
-# From a local SNAPSHOT build (after mvn install)
-jbang -Dcamel.kit.version=0.3.1-SNAPSHOT \
-  run camel-kit-main/src/main/jbang/main/CamelKit.java init my-project --ai claude
-```
-
-JBang caches the resolved JARs in `~/.jbang/cache/` so subsequent runs are fast.
-
 ---
 
 ## Bootstrap a new project
@@ -88,7 +61,7 @@ cd my-migration
 Then in your AI assistant:
 
 ```
-/camel-migrate path/to/mule-project/
+/camel-migrate
 ```
 
 The command detects the Mule version, analyses the flows, and produces the same BRD + TDD files that the greenfield workflow produces — so `/camel-implement`, `/camel-validate`, and `/camel-test` work without any changes.
@@ -97,33 +70,11 @@ See [Migration Workflow](docs/user-guide.md#migration-workflow) for details.
 
 ---
 
-## Supported AI assistants
-
-| Assistant | Status | Commands folder |
-|-----------|--------|----------------|
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Available | `.claude/commands/` |
-| [IBM Project Bob](https://www.ibm.com/products/bob) | Available | `.bob/commands/` |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | Available | `.gemini/commands/` |
-| GitHub Copilot | Planned | — |
-| Cursor | Planned | — |
-
----
-
-## Requirements
-
-- Java 17+
-- [JBang](https://www.jbang.dev/)
-- [Camel JBang](https://camel.apache.org/manual/camel-jbang.html) (to run generated routes)
-- Docker / Podman (for Citrus tests with Testcontainers)
-
----
-
 ## Documentation
 
-- [User Guide](docs/user-guide.md)
-- [Command Reference](docs/commands.md)
-- [MCP Tools Reference](docs/mcp-tools-reference.md)
-- [Skills Architecture](docs/skills-architecture.md)
+- [User Guide](docs/user-guide.md) — installation, workflows, commands
+- [Architecture Guide](docs/architecture.md) — skills, MCP, extension points
+- [Contributing](CONTRIBUTING.md) — dev setup, coding standards
 
 ---
 
