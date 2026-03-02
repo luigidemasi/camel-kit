@@ -67,7 +67,9 @@ Which schema file corresponds to the target output?   [path or "none"]
 ```
 
 **If a schema is selected:** record path relative to project root. It will be copied to the Camel project root alongside the `.camel.yaml` files.
-**If no schema is available:** set type to `Primitive`. Field names will be taken from Step 3 inference.
+**If no schema is available:** keep the format detected in Step 1 (`JSON_SCHEMA` or `XML_SCHEMA`) — the schema path is `"none"` but the type reflects the actual data format. Field names will be taken from Step 3 inference. The canonicalize guide computes XPaths from field names without needing schema files.
+
+**`Primitive` is only correct when the data is a truly scalar value** (a single string, number, or boolean — not a JSON object or XML document). If the DataWeave script accesses `payload.field` or `payload.obj.field`, the format is structured and the type must be `JSON_SCHEMA` or `XML_SCHEMA`, even without a schema file.
 
 ---
 

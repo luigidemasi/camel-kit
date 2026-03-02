@@ -17,6 +17,21 @@ It enriches the semantic mappings with XSLT-ready structural information (exact 
 
 ---
 
+## Pre-check: Validate Source/Target Types
+
+Before proceeding, verify that source-type and target-type are correct:
+
+**`Primitive` means a truly scalar value** — a single string, number, or boolean. NOT a JSON object, NOT an XML document.
+
+If ANY field mapping references nested paths (e.g., `payload.obj.field`, `payload.array[].item`), the type MUST be `JSON_SCHEMA` or `XML_SCHEMA`, even if no schema file exists. A missing schema file does not make the data Primitive — it just means the schema path is `"none"`.
+
+**Auto-correct rule:** If source-type or target-type is `Primitive` but field mappings contain dotted paths (e.g., `payload.main.temp`) or array access (e.g., `payload.items[]`):
+- If the calling guide detected JSON format: change to `JSON_SCHEMA`
+- If the calling guide detected XML format: change to `XML_SCHEMA`
+- Log: `⚠️ Corrected {source|target} type from Primitive to {JSON_SCHEMA|XML_SCHEMA} — field mappings indicate structured data.`
+
+---
+
 ## Step 1: Determine XSLT Pattern and Approach
 
 Select the XSLT generation pattern based on source-type and target-type:

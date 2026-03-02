@@ -10,6 +10,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Route generation runtime fixes (Rules 0h, run.sh, docker-compose)**
+  - Rule 0h — HTTP response body marshal: when a route starts with an HTTP consumer (`platform-http`, etc.) and has an `unmarshal` mid-route, add a matching `marshal` step at the end so the response body is serializable (otherwise `NoTypeConversionAvailableException: LinkedHashMap → InputStream`)
+  - `run.sh` template: use `jbang camel@apache/camel run` (JBang alias) instead of non-existent `org.apache.camel:camel-jbang:VERSION:runner` Maven artifact; include `*.xsl` in the `camel run` command so DataMapper XSLT files are on the classpath
+  - `docker-compose.yaml` template: `apache/camel-jbang` image entrypoint is `camel`, so `command:` must be `run ...` not `camel run ...`; mount and include all `.xsl` files in volumes and command
+
+- **`.kaoto` metadata type values must use Kaoto display strings**
+  - `datamapper-implement.md` Step 5: `.kaoto` `type` field must use `"JSON Schema"` / `"XML Schema"` (space-separated display strings), not `"JSON_SCHEMA"` / `"XML_SCHEMA"` (underscore enum keys) — Kaoto silently falls back to Primitive and wipes XSLT mappings with wrong format
+  - Added explicit mapping table and warning in the `.kaoto` template
+  - Internal TDD labels continue to use underscore format (`JSON_SCHEMA`/`XML_SCHEMA`); translation happens at the single `.kaoto` output point
+
+- **Primitive type fallback — correct type when no schema file exists**
+  - "No schema file" ≠ "Primitive data": structured JSON without a schema is `JSON_SCHEMA` with path `"none"`, not `Primitive`
+  - `datamapper-migrate.md`: keep `JSON_SCHEMA`/`XML_SCHEMA` from format detection when no schema file is found
+  - `datamapper-interview.md`: ask user for data format instead of defaulting to Primitive
+  - `datamapper-canonicalize.md`: new pre-check auto-corrects Primitive to correct type when field mappings show dotted paths or array access
+  - `datamapper-implement.md`: new Step 1.5b auto-corrects Primitive type and N/A approach; `filePath: []` valid for any type
+  - `camel-migrate-mule/SKILL.md`: added type selection rules note on TDD template
+
 - **MCP catalog verification for component properties and hardened DataMapper XSLT generation**
   - `application.properties` must use the exact URI scheme from the route (e.g., `smtp`, not `mail`) — enforced in both `camel-implement/SKILL.md` Step 2.1 and Step 5.1 via mandatory `camel_catalog_component_doc` verification
   - Every `camel.component.<name>.<property>` must be verified against the catalog — no invented property names

@@ -42,8 +42,8 @@ Draft | Review | Approved
 
 ### Processing Steps (EIPs)
 | Step | EIP | Description | Configuration |
-|------|-----|-------------|---------------|
-| 1 | `unmarshal` | Parse JSON to object | `json-jackson` |
+|------|-----|-------------|-----------|
+| 1 | `unmarshal` | Parse JSON to object | `jackson` |
 | 2 | `validate` | Validate against schema | `json-validator:schemas/[name].json` |
 | 3 | `filter` | Apply business rule | `${body.field} == value` |
 | 4 | `transform` | Map to target format | [transformation details] |

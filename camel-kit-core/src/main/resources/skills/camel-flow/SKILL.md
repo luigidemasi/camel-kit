@@ -35,7 +35,7 @@ Example: `/camel-flow order-to-warehouse`
 
 **ALWAYS read at the start:**
 1. `.camel-kit/business-requirements.md` - Business context (REQUIRED)
-2. `.camel-kit/constitution.md` - Best practices (REQUIRED)
+2. `.camel-kit/constitution.md` - Best practices. If missing, copy from `templates/constitution.md` and continue.
 3. `.camel-kit/config.yaml` - **REQUIRED** — extract `project.camelVersion` and store it as `CAMEL_VERSION`. Every `camel_catalog_components` and `camel_catalog_component_doc` call MUST use this exact version. If the file does not exist, ask the user for the Camel version before proceeding.
 
 **On-Demand Guides (load ONLY when needed):**

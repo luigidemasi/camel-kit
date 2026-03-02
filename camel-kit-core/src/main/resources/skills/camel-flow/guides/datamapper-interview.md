@@ -35,7 +35,7 @@ c) No schema — I'll describe the fields manually
 
 **If (b):** ask where to save it. Suggest `{flow-name}-source.xsd` or `{flow-name}-source.schema.json` in the project root. Save the pasted content to that path.
 
-**If (c):** set source type to `Primitive`. Proceed to Step 4 (schema-less path).
+**If (c):** ask the user what format the source data is in (JSON or XML). Set the source type to `JSON_SCHEMA` or `XML_SCHEMA` accordingly — the schema path is `"none"` but the type reflects the actual data format. `Primitive` is only correct for truly scalar values (a single string, number, or boolean — not a JSON object or XML document). Proceed to Step 4 (schema-less path).
 
 ---
 
@@ -52,7 +52,7 @@ b) Paste schema content — I'll save it to the project root
 c) No schema — I'll describe the fields manually
 ```
 
-Same handling as Step 2. If (c), set target type to `Primitive`.
+Same handling as Step 2. If (c), ask format and set type to `JSON_SCHEMA` or `XML_SCHEMA` accordingly. Only use `Primitive` for truly scalar values.
 
 ---
 
@@ -212,6 +212,6 @@ The shared guide will:
 3. Present the enriched mapping table for user confirmation
 4. Write the canonical `### DataMapper:` section to the TDD
 
-**Schema-less path:** If source or target has no schema (Step 2c or 3c selected), set the type to `Primitive` and pass the manually described field names and types. The shared guide will compute best-effort XPaths from the field paths.
+**Schema-less path:** If source or target has no schema file (Step 2c or 3c selected), the type is still `JSON_SCHEMA` or `XML_SCHEMA` (based on the data format) — the schema path is `"none"`. Pass the manually described field names and types. The shared guide will compute XPaths from the field paths without needing schema files. Only use `Primitive` if the data is a truly scalar value (single string, number, or boolean).
 
 **When done:** return control to `camel-flow` and continue at Question 4 (Sink System).

@@ -23,13 +23,7 @@ You are acting as a **Business Analyst** helping the user define their integrati
 ## Context Loading
 
 **ALWAYS read at the start:**
-- `.camel-kit/constitution.md` - Best practices and constraints (if exists)
-
-**Constitution Template Guide (conditional):**
-- Load `skills/camel-project/guides/constitution-template.md` ONLY when:
-  - Creating new `.camel-kit/constitution.md` file
-  - User requests detailed best practices
-  - User wants to customize constitution
+- `.camel-kit/constitution.md` — if it exists, read for reference (do not generate or modify it)
 
 ---
 
@@ -311,11 +305,9 @@ After gathering all information, create `.camel-kit/business-requirements.md` wi
 
 ---
 
-## 5. Best Practices and Constitution
+## 5. Best Practices
 
-[Either include user-specified practices or reference default constitution]
-
-See `.camel-kit/constitution.md` for detailed best practices and quality gates.
+See `.camel-kit/constitution.md` for best practices and quality gates (static file, placed by `camel-kit init`).
 
 ---
 
@@ -347,68 +339,6 @@ See `.camel-kit/constitution.md` for detailed best practices and quality gates.
 
 - Apache Camel Documentation: https://camel.apache.org/
 - Project-specific references: [if any]
-```
-
-## Constitution File
-
-### Loading Constitution Template
-
-**When to load the template:**
-
-```
-Creating constitution file...
-```
-
-**If user chose "defaults" or simple requirements:**
-
-Create minimal constitution:
-
-```markdown
-# Integration Constitution
-
-This project follows standard Apache Camel best practices:
-
-## Core Principles
-
-1. **Route Structure:** Each route has unique ID, follows Single Responsibility
-2. **Configuration:** Externalize all config to application.properties
-3. **Error Handling:** Every route declares error handling strategy
-4. **Security:** No hardcoded credentials, use secrets manager
-5. **Testing:** Every route has integration tests
-6. **Observability:** Structured logging with correlation IDs
-
----
-
-For detailed best practices, see: skills/camel-project/guides/constitution-template.md
-
-These gates will be checked during `/camel-validate`.
-```
-
-**If user has specific requirements or requests comprehensive constitution:**
-
-```
-Loading comprehensive constitution template...
-→ Reading skills/camel-project/guides/constitution-template.md
-
-Creating detailed constitution with:
-  - Security best practices
-  - Performance guidelines
-  - Anti-patterns to avoid
-  - Observability requirements
-  - Compliance frameworks
-  - Testing standards
-```
-
-Then load and apply:
-- `skills/camel-project/guides/constitution-template.md`
-- Customize project-specific constraints section
-- Save as `.camel-kit/constitution.md`
-
-**If NOT creating constitution (updating BRD only):**
-
-```
-Constitution already exists at .camel-kit/constitution.md
-Skipping constitution creation.
 ```
 
 ---
@@ -455,19 +385,15 @@ After user confirms:
 ```
 .camel-kit/
 ├── business-requirements.md
-├── constitution.md
 └── flows/ (empty, will be populated by /camel-flow)
 ```
 
 2. Save the BRD to `.camel-kit/business-requirements.md`
 
-3. Save/update `.camel-kit/constitution.md` with best practices
-
-4. Show next steps:
+3. Show next steps:
 
 ```
 ✅ Business Requirements Document saved to .camel-kit/business-requirements.md
-✅ Constitution saved to .camel-kit/constitution.md
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 NEXT STEPS
@@ -541,7 +467,4 @@ This is important for [reason]. Can you provide information about [what's needed
 **This skill is designed to minimize token usage:**
 
 - Core SKILL.md: ~200 lines (down from 555)
-- Load constitution-template.md only when creating detailed constitution (save ~355 lines)
-- Minimal constitution for simple projects (no guide loading needed)
-
 **Total savings:** ~60% tokens for projects using default best practices

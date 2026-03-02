@@ -340,6 +340,9 @@ The AI agent fixes validation errors automatically until the route is valid.
 | Global `onException` | Must be declared as top-level elements **before** any `- route:` block. Route-scoped error handling (`errorHandler:`, `doTry`/`doCatch`) stays inside the route. |
 | Jakarta EE namespaces | When Camel version ≥ 4.0, `jakarta.*` packages are used instead of `javax.*` for all Jakarta EE APIs (Servlet, JPA, JMS, Bean Validation, JAX-RS, etc.). Java SE packages (`javax.sql.*`, `javax.xml.*`) are not affected. |
 | HTTP header cleanup | When the route has both an HTTP consumer (`platform-http`, `servlet`, `jetty`) and an HTTP producer (`http`, `https`), a `removeHeaders("CamelHttp*")` step is inserted before each outbound HTTP call. |
+| `to` vs `toD` | Any `${...}` Simple expression in a `to` URI or `parameters:` value is never evaluated — use `toD` with dynamic values inlined in the URI string. `{{...}}` property placeholders are safe in `to`. |
+| JSON DataMapper ordering | Never place `unmarshal: json:` before an xslt-saxon DataMapper step (`useJsonBody: true`) — it converts the body to a `Map` which cannot be passed as a JSON string to the XSLT param. Place `unmarshal: json:` after the DataMapper step if needed. |
+| JSON XSLT pattern | Generated JSON DataMapper XSLTs must use `json-to-xml($paramName)` (explicit `xsl:param`) — never `json-to-xml(.)` (context node). XSLT 3.0 has no direct JSON-to-JSON function; the W3C lossless XML intermediate is required. |
 
 **Output:**
 
