@@ -10,6 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`.kaoto` filename and format hardening against hallucination**
+  - Filename must be `.kaoto` (single project-level file) — NOT `kaoto-datamapper-{id}.kaoto` (per-mapping file invented by analogy with XSL naming)
+  - Content must use Kaoto's internal format (`sourceBody`, `targetBody`, `sourceParameters`, `namespaceMap`) — NOT a custom JSON schema with invented keys (`mappingId`, `flowName`, `fieldMappings`, `conditionalMappings`)
+  - Added "WRONG names" column to artifact table, filename/format rules table with wrong examples, and explicit allowed-keys list in `datamapper-implement.md` Step 5
+
+### Changed
+
+- **Constitution is now a static file — no generation step**
+  - Removed Step 1.5 (Produce Constitution) from `camel-migrate-mule/SKILL.md`
+  - Removed constitution generation logic and `constitution-template.md` guide from `camel-project/SKILL.md`
+  - Deleted `camel-project/guides/constitution-template.md` (redundant with `templates/constitution.md`)
+  - `camel-implement`, `camel-validate`, `camel-flow`: if `.camel-kit/constitution.md` is missing, copy from `templates/constitution.md` and continue
+
+### Fixed
+
 - **Route generation runtime fixes (Rules 0h, run.sh, docker-compose)**
   - Rule 0h — HTTP response body marshal: when a route starts with an HTTP consumer (`platform-http`, etc.) and has an `unmarshal` mid-route, add a matching `marshal` step at the end so the response body is serializable (otherwise `NoTypeConversionAvailableException: LinkedHashMap → InputStream`)
   - `run.sh` template: use `jbang camel@apache/camel run` (JBang alias) instead of non-existent `org.apache.camel:camel-jbang:VERSION:runner` Maven artifact; include `*.xsl` in the `camel run` command so DataMapper XSLT files are on the classpath
