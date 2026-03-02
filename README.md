@@ -18,6 +18,8 @@ Camel-Kit adds structured slash commands to your AI assistant (Claude Code, IBM 
 
 **Requires:** Java 17+, [JBang](https://www.jbang.dev/)
 
+### Standalone (JBang)
+
 ```bash
 # Install JBang (if not already installed)
 curl -Ls https://sh.jbang.dev | bash -s - app setup        # Linux/macOS
@@ -28,6 +30,25 @@ jbang app install camel-kit@luigidemasi/camel-kit
 
 # Verify
 camel-kit --help
+```
+
+### Run without installing
+
+```bash
+jbang run camel-kit@luigidemasi/camel-kit init my-integration --ai claude
+```
+
+### Camel JBang Plugin
+
+If you already use [Camel JBang](https://camel.apache.org/manual/camel-jbang.html), install camel-kit as a plugin:
+
+```bash
+camel plugin add kit \
+  --gav io.github.luigidemasi:camel-kit-jbang-plugin:0.3.1 \
+  -d "Design Apache Camel Integrations with AI"
+
+# Then use via the camel CLI
+camel kit init my-integration --ai bob
 ```
 
 ---
