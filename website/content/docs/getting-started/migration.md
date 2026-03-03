@@ -5,6 +5,26 @@ weight: 3
 
 Use `/camel-migrate` when you have an existing integration built on another platform and want to move it to Apache Camel. The command analyses your existing artifacts, asks targeted questions, and produces the same BRD + TDD files that the greenfield workflow produces — making `/camel-implement` the shared step for both paths.
 
+## Supported Sources
+
+`/camel-migrate` auto-detects your source platform:
+
+- **MuleSoft Mule 3.x and 4.x** — Mule XML flows, DataWeave transformations, proprietary connectors
+- **Apache Camel 2.x and 3.x** — Spring XML, Blueprint XML, Java DSL routes
+
+Both produce the same BRD + TDD output, so `/camel-implement`, `/camel-validate`, and `/camel-test` work identically.
+
+## Camel 2.x/3.x Version Migration
+
+If you have existing Apache Camel 2.x or 3.x routes (Spring XML, Blueprint XML, or Java DSL), `/camel-migrate` auto-detects the Camel version and maps all components, EIPs, data formats, and languages to their 4.x equivalents.
+
+Platform-specific constructs are also handled:
+- **ServiceMix/Karaf (OSGi):** Blueprint XML → Spring Boot properties, OSGi services → Spring beans
+- **Spring XML:** `<camelContext>` → YAML DSL route files
+- **Java DSL:** `javax` → `jakarta` imports flagged, API changes documented
+
+The output is the same BRD + TDD files as any other migration — then run `/camel-implement` as usual.
+
 ## Supported Platforms
 
 | Platform | Versions | Notes |

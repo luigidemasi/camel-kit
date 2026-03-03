@@ -35,7 +35,7 @@ layout: hextra-home
   >}}
   {{< hextra/feature-card
     title="Platform Migration"
-    subtitle="Migrate existing integrations to Apache Camel. Auto-detects source platform, maps components, converts transformations."
+    subtitle="Migrate from MuleSoft Mule or upgrade from Camel 2.x/3.x to 4.x. Auto-detects source, maps components, converts transformations."
     icon="switch-horizontal"
   >}}
   {{< hextra/feature-card

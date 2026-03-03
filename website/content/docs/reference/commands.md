@@ -155,6 +155,10 @@ Migrate an existing integration from another platform to Apache Camel.
 |----------|---------|-----------------|
 | MuleSoft Mule | 3.x, 4.x | XML namespace `mulesoft.org`, `pom.xml` groupId `org.mule` / `com.mulesoft` |
 
+**Supported sources:**
+- MuleSoft Mule 3.x and 4.x
+- Apache Camel 2.x and 3.x (Spring XML, Blueprint XML, Java DSL)
+
 **Output:**
 
 ```

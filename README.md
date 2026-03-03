@@ -73,7 +73,7 @@ Then open the project in your AI assistant and use the slash commands — see [C
 
 ---
 
-## Migrate an existing project from MuleSoft Mule to Apache Camel
+## Migrate an existing project to Apache Camel
 
 ```bash
 camel-kit init my-migration --ai claude
@@ -86,7 +86,7 @@ Then in your AI assistant:
 /camel-migrate
 ```
 
-The command detects the Mule version, analyses the flows, and produces the same BRD + TDD files that the greenfield workflow produces — so `/camel-implement`, `/camel-validate`, and `/camel-test` work without any changes.
+The command auto-detects your source platform (MuleSoft Mule, Apache Camel 2.x/3.x), analyses the flows, and produces the same BRD + TDD files that the greenfield workflow produces — so `/camel-implement`, `/camel-validate`, and `/camel-test` work without any changes.
 
 See [Migration Workflow](docs/user-guide.md#migration-workflow) for details.
 
