@@ -105,10 +105,18 @@ Using ALL the information collected in Step 2, identify the integration platform
 | Vendor | Key Signals |
 |--------|-------------|
 | **MuleSoft Mule** | XML namespace `mulesoft.org`, groupId `org.mule`/`com.mulesoft`, `mule-artifact.json`, deps starting with `mule-` |
+| **Apache Camel 2.x/3.x** | groupId `org.apache.camel`, `camel-core`/`camel-spring`/`camel-blueprint` deps, XML namespace `camel.apache.org`, `RouteBuilder` classes |
 
 **Determine version from collected content:**
 - Mule 3.x: namespace `http://www.mulesoft.org/schema/mule/core/3.*` or connector version attributes < 4.0
 - Mule 4.x: namespace without version path segment, or `<mule xmlns:ee=...` (EE 4.x)
+- Camel 2.x: `<camel.version>2.*</camel.version>`, dependency `camel-core` version `2.*`, namespace `http://camel.apache.org/schema/spring` with `camelContext` element
+- Camel 3.x: `<camel.version>3.*</camel.version>`, dependency `camel-core` version `3.*`
+- Platform detection:
+  - ServiceMix/Karaf: `camel-blueprint`, `karaf-maven-plugin`, `maven-bundle-plugin`, `<blueprint>` XML
+  - Spring Boot: `camel-spring-boot-starter`
+  - Spring XML: `camel-spring`, `<camelContext>` elements
+  - Plain Java: `RouteBuilder` classes, no Spring/Blueprint deps
 
 ### If Vendor Detected
 
@@ -129,6 +137,7 @@ Signals found across all scanned files:
 
 Currently supported vendors:
 - MuleSoft Mule (3.x and 4.x)
+- Apache Camel (2.x and 3.x → 4.x version migration)
 
 To request support for a new vendor, open a GitHub issue at:
 https://github.com/luigidemasi/camel-kit/issues
@@ -230,6 +239,27 @@ Handing off to the Mule migration sub-skill...
 > - The confirmed analysis summary from Step 5
 > - The full list of source artifact paths
 > - `CAMEL_VERSION` from `.camel-kit/config.yaml` (or ask the user if not found)
+
+Replace `{agentBaseFolder}` with the actual agent base folder (`.claude`, `.bob`, or `.gemini`) — look for the matching directory in the project root.
+
+### Apache Camel 2.x/3.x → `camel-migrate-camel2`
+
+```
+🐪₂ → 🐪₄
+
+Vendor: Apache Camel [version]
+Platform: [ServiceMix/Karaf | Spring Boot | Spring XML | Plain Java]
+Routes: [N] routes ready for migration
+
+Handing off to the Camel version migration sub-skill...
+```
+
+> Read `{agentBaseFolder}/skills/camel-migrate-camel2/SKILL.md` and follow those instructions.
+> Pass as context:
+> - The confirmed analysis summary from Step 5
+> - The full list of source artifact paths
+> - The detected Camel source version (2.x or 3.x) and platform type
+> - `CAMEL_VERSION` from `.camel-kit/config.yaml` (target version — or ask the user if not found)
 
 Replace `{agentBaseFolder}` with the actual agent base folder (`.claude`, `.bob`, or `.gemini`) — look for the matching directory in the project root.
 
