@@ -212,7 +212,7 @@ Action required:
 
 ---
 
-**If Field Mappings table has at least one data row**, append the following section to `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md`:
+**If Field Mappings table has at least one data row**, append the following section to `docs/flows/{flow-name}/{flow-name}.tdd.md`:
 
 ```markdown
 ### DataMapper: kaoto-datamapper-{8hexchars}
