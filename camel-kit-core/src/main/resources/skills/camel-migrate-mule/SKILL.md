@@ -37,7 +37,7 @@ The outputs are identical in format to `/camel-project` + `/camel-flow`, making 
 - Read the confirmed analysis summary passed by `camel-migrate` (contains vendor, purpose, SLA, security, failure behaviour, deployment target, API compatibility)
 
 **Conditional:**
-- Read `.camel-kit/constitution.md` if it exists (for reference — do not generate or modify it)
+- Read `docs/constitution.md` if it exists (for reference — do not generate or modify it)
 
 ---
 
@@ -95,7 +95,7 @@ If the summary has no remaining gaps, skip this step entirely.
 
 ### Step 1.4 — Produce Business Requirements Document
 
-Create `.camel-kit/business-requirements.md` using the following format:
+Create `docs/business-requirements.md` using the following format:
 
 ```markdown
 # Business Requirements Document
@@ -137,7 +137,7 @@ Create `.camel-kit/business-requirements.md` using the following format:
 
 ## Best Practices
 
-The following rules from `.camel-kit/constitution.md` apply to every generated route:
+The following rules from `docs/constitution.md` apply to every generated route:
 - One Camel route per Mule flow (Single Responsibility)
 - Route IDs follow `<domain>-<action>[-<qualifier>]` naming (Naming Conventions)
 - Every route declares a `routeId` and a `description` (Observability)
@@ -179,7 +179,7 @@ Report:
 Phase 1 complete.
 
 Created:
-- .camel-kit/business-requirements.md
+- docs/business-requirements.md
 
 Flows to migrate: [list flow names]
 
@@ -194,8 +194,8 @@ Starting Phase 2 — Integration Architect...
 
 **ALWAYS load at the start of Phase 2:**
 - Load `skills/camel-migrate-mule/guides/mule-dataweave-conversion.md` — required for DataWeave analysis
-- Re-read `.camel-kit/business-requirements.md`
-- Read `.camel-kit/constitution.md` if it exists (for reference)
+- Re-read `docs/business-requirements.md`
+- Read `docs/constitution.md` if it exists (for reference)
 - Re-read `.camel-kit/config.yaml` — **REQUIRED**: extract `project.camelVersion` and store it as `CAMEL_VERSION`. Every MCP catalog call in Phase 2 MUST use this exact version. If the file does not exist, ask the user for the Camel version before proceeding.
 
 **Conditionally load:**
@@ -282,7 +282,7 @@ Ask ONLY questions that cannot be answered from the Mule XML. Group questions pe
 
 ### Step 2.3 — Produce TDD Files
 
-For each Mule flow, create `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md`.
+For each Mule flow, create `docs/flows/{flow-name}/{flow-name}.tdd.md`.
 
 Use the **exact same TDD format** as `/camel-flow` output. The file MUST contain all of the following sections:
 
@@ -477,8 +477,8 @@ After all TDD files are created, report:
 Migration analysis complete.
 
 Created files:
-- .camel-kit/business-requirements.md
-- .camel-kit/flows/{flow-name-1}/{flow-name-1}.tdd.md
+- docs/business-requirements.md
+- docs/flows/{flow-name-1}/{flow-name-1}.tdd.md
 [... one line per flow ...]
 
 Next steps — run for each flow:
