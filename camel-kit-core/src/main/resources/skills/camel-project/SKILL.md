@@ -23,7 +23,7 @@ You are acting as a **Business Analyst** helping the user define their integrati
 ## Context Loading
 
 **ALWAYS read at the start:**
-- `.camel-kit/constitution.md` — if it exists, read for reference (do not generate or modify it)
+- `docs/constitution.md` — if it exists, read for reference (do not generate or modify it)
 
 ---
 
@@ -53,7 +53,7 @@ Always attempt `camel_version_list` directly. If the call fails (tool not found,
 
 ## Check for Existing Project
 
-First, check if `.camel-kit/business-requirements.md` already exists.
+First, check if `docs/business-requirements.md` already exists.
 
 If it exists and has content:
 ```
@@ -218,7 +218,7 @@ Or specify another version: _____
 
 ## Business Requirements Document Format
 
-After gathering all information, create `.camel-kit/business-requirements.md` with this structure:
+After gathering all information, create `docs/business-requirements.md` with this structure:
 
 ```markdown
 # Business Requirements Document
@@ -307,7 +307,7 @@ After gathering all information, create `.camel-kit/business-requirements.md` wi
 
 ## 5. Best Practices
 
-See `.camel-kit/constitution.md` for best practices and quality gates (static file, placed by `camel-kit init`).
+See `docs/constitution.md` for best practices and quality gates (static file, placed by `camel-kit init`).
 
 ---
 
@@ -388,12 +388,12 @@ After user confirms:
 └── flows/ (empty, will be populated by /camel-flow)
 ```
 
-2. Save the BRD to `.camel-kit/business-requirements.md`
+2. Save the BRD to `docs/business-requirements.md`
 
 3. Show next steps:
 
 ```
-✅ Business Requirements Document saved to .camel-kit/business-requirements.md
+✅ Business Requirements Document saved to docs/business-requirements.md
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 NEXT STEPS
