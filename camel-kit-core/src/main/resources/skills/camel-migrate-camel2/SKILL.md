@@ -26,9 +26,9 @@ You receive:
 ## Output Contract
 
 Your output is identical to `/camel-project` + `/camel-flow` — fully compatible with `/camel-implement`:
-- `.camel-kit/business-requirements.md` (BRD)
-- `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md` (one TDD per route)
-- `.camel-kit/constitution.md` (copy from template if missing)
+- `docs/business-requirements.md` (BRD)
+- `docs/flows/{flow-name}/{flow-name}.tdd.md` (one TDD per route)
+- `docs/constitution.md` (copy from template if missing)
 
 ---
 
@@ -45,7 +45,7 @@ Load these guides — they are needed throughout the migration:
 
 Read ALL source project files (routes, configs, build files).
 Read the confirmed analysis summary from `camel-migrate`.
-Optionally read `.camel-kit/constitution.md` (reference only).
+Optionally read `docs/constitution.md` (reference only).
 
 ### Step 1.1 — Detect Platform & Source DSL
 
@@ -146,7 +146,7 @@ Skip questions already answered in the pre-populated summary from `camel-migrate
 
 ### Step 1.5 — Produce BRD
 
-Create `.camel-kit/business-requirements.md` with:
+Create `docs/business-requirements.md` with:
 
 ```markdown
 # Business Requirements Document
@@ -186,7 +186,7 @@ Create `.camel-kit/business-requirements.md` with:
 - Platform changes: [OSGi→Spring / javax→jakarta / etc.]
 
 ## Best Practices
-The following rules from `.camel-kit/constitution.md` apply to every generated route:
+The following rules from `docs/constitution.md` apply to every generated route:
 - One Camel route per original route (Single Responsibility)
 - Route IDs follow `<domain>-<action>[-<qualifier>]` naming (Naming Conventions)
 - Every route declares a `routeId` and a `description` (Observability)
@@ -213,7 +213,7 @@ TDD files will be created in Phase 2. Then run `/camel-implement` for each flow.
 [One row per ⚠ resolved item]
 ```
 
-If `.camel-kit/constitution.md` does not exist, copy from `templates/constitution.md` and continue.
+If `docs/constitution.md` does not exist, copy from `templates/constitution.md` and continue.
 
 ---
 
@@ -222,8 +222,8 @@ If `.camel-kit/constitution.md` does not exist, copy from `templates/constitutio
 ### Context Loading (MANDATORY at start)
 
 Re-read:
-- `.camel-kit/business-requirements.md`
-- `.camel-kit/constitution.md` (reference)
+- `docs/business-requirements.md`
+- `docs/constitution.md` (reference)
 - `.camel-kit/config.yaml` — **EXTRACT `project.camelVersion` as `CAMEL_VERSION`** for all MCP catalog calls (REQUIRED)
 - All guide files loaded in Phase 1 (keep in context)
 
@@ -327,7 +327,7 @@ Do NOT ask about:
 
 ### Step 2.3 — Produce TDD Files
 
-For each route, create `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md` with the **exact same 11-section format** used by `/camel-flow` and `camel-migrate-mule`:
+For each route, create `docs/flows/{flow-name}/{flow-name}.tdd.md` with the **exact same 11-section format** used by `/camel-flow` and `camel-migrate-mule`:
 
 ```markdown
 # Technical Design Document: {flow-name}
@@ -428,8 +428,8 @@ For each route, create `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md` with th
 Migration complete.
 
 Created:
-  .camel-kit/business-requirements.md
-  .camel-kit/constitution.md
+  docs/business-requirements.md
+  docs/constitution.md
   [list all TDD files]
 
 Next steps:
