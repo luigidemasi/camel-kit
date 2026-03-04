@@ -34,8 +34,8 @@ Example: `/camel-flow order-to-warehouse`
 ## Context Loading
 
 **ALWAYS read at the start:**
-1. `.camel-kit/business-requirements.md` - Business context (REQUIRED)
-2. `.camel-kit/constitution.md` - Best practices. If missing, copy from `templates/constitution.md` and continue.
+1. `docs/business-requirements.md` - Business context (REQUIRED)
+2. `docs/constitution.md` - Best practices. If missing, copy from `templates/constitution.md` and continue.
 3. `.camel-kit/config.yaml` - **REQUIRED** — extract `project.camelVersion` and store it as `CAMEL_VERSION`. Every `camel_catalog_components` and `camel_catalog_component_doc` call MUST use this exact version. If the file does not exist, ask the user for the Camel version before proceeding.
 
 **On-Demand Guides (load ONLY when needed):**
@@ -87,7 +87,7 @@ Always attempt MCP tool calls directly — do not check for `.mcp.json` or try t
 
 ## Check for Existing TDD
 
-First, check if `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md` exists.
+First, check if `docs/flows/{flow-name}/{flow-name}.tdd.md` exists.
 
 If exists:
 ```
@@ -115,6 +115,24 @@ Purpose: [extract from BRD if available]
 
 I'll ask technical questions to create the TDD.
 ```
+
+---
+
+### Step 0 — Target Runtime
+
+Before starting the design interview, check if `project.runtime` is set in `.camel-kit/config.yaml`. If not, ask:
+
+```
+What is the target runtime for this integration?
+
+(a) Camel JBang (lightweight, flat project structure) — recommended for prototyping
+(b) Spring Boot (Maven layout: src/main/resources/)
+(c) Quarkus (Maven layout: src/main/resources/)
+```
+
+Store the answer in `.camel-kit/config.yaml` as `project.runtime: jbang | spring-boot | quarkus`.
+
+If already set, skip this question.
 
 ---
 
@@ -655,7 +673,7 @@ Checking against constitution...
 
 ## Generate TDD
 
-Create `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md`:
+Create `docs/flows/{flow-name}/{flow-name}.tdd.md`:
 
 **Core Sections (always include):**
 1. Overview (business context, technical summary)
@@ -709,7 +727,7 @@ Save this TDD? (yes/no)
 If confirmed:
 
 ```
-✅ TDD saved to .camel-kit/flows/{flow-name}/{flow-name}.tdd.md
+✅ TDD saved to docs/flows/{flow-name}/{flow-name}.tdd.md
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 NEXT STEPS
