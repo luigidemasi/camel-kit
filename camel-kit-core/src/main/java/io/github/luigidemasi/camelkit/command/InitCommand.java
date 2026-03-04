@@ -137,7 +137,8 @@ public class InitCommand extends CamelKitCommand {
         Files.createDirectories(commandsDir);
         Path camelKitDir = targetDir.resolve(".camel-kit");
         Files.createDirectories(camelKitDir);
-        Files.createDirectories(camelKitDir.resolve("flows"));
+        Path docsDir = targetDir.resolve("docs");
+        Files.createDirectories(docsDir.resolve("flows"));
         Files.createDirectories(camelKitDir.resolve("templates"));
         Files.createDirectories(camelKitDir.resolve(".cache"));
         Files.createDirectories(targetDir.resolve("test/data"));
@@ -147,7 +148,7 @@ public class InitCommand extends CamelKitCommand {
         // 2 — configuration files
         tracker.startTask("\uD83D\uDCDD", "Writing configuration");
         createConfigFile(camelKitDir, projectName, version, citrusVer, ai, agent);
-        createConstitution(camelKitDir, version);
+        createConstitution(docsDir, version);
         createYamlGuide(camelKitDir.resolve("templates"));
         copyAdditionalTemplates(camelKitDir.resolve("templates"));
         tracker.finishTask();
