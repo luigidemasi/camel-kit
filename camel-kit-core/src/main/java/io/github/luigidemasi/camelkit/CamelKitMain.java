@@ -30,6 +30,7 @@ public class CamelKitMain implements Callable<Integer> {
 
     public static final String LATEST_CAMEL_LTS_VERSION = "4.18.0";
     public static final String DEFAULT_CITRUS_VERSION = "4.9.2";
+    public static final String DEFAULT_KNOWLEDGE_MCP_VERSION = "1.0.0";
 
     private Terminal terminal;
     private Printer printer;
