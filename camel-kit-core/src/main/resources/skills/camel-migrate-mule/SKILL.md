@@ -214,6 +214,7 @@ All catalog calls MUST pass `CAMEL_VERSION` as the `version` parameter. Never us
 | Camel EIP for a Mule routing construct | `camel_catalog_eips` | `camel_catalog_eip_doc` |
 | Data format for unmarshal/marshal | `camel_catalog_dataformats` | `camel_catalog_dataformat_doc` |
 | Expression language for conditions/predicates | `camel_catalog_languages` | `camel_catalog_language_doc` |
+| Migration context for mapped Camel component | `camel_camel2_migration_lookup` | — |
 
 The static `mule-component-mapping.md` guide provides a **starting point** (the suggested Camel component name). It does NOT replace catalog verification — always confirm availability and option names in `CAMEL_VERSION` before writing the TDD.
 
@@ -230,6 +231,14 @@ For each Mule flow identified in Phase 1:
    Params: { "name": "[suggested-camel-component]", "version": "{{CAMEL_VERSION}}" }
    ```
    Record the URI syntax, endpoint options, component-level options, and Maven coordinates from the catalog response. If the component is not found in `CAMEL_VERSION`, call `camel_catalog_components` to search for an alternative and notify the user.
+
+   After mapping a Mule connector to a Camel component, ALWAYS call:
+   ```
+   camel_camel2_migration_lookup(component: "{mapped_camel_component}")
+   ```
+   This provides migration context that may be relevant even for MuleSoft migrations —
+   the Camel component may have changed between versions.
+   If the camel-knowledge MCP server is not available, skip this step.
 
    **CRITICAL — use the exact component scheme from the route URI.** The component name MUST be the exact URI scheme (e.g., `smtp`, not `mail`; `aws2-sqs`, not `aws`). Many Camel components share a parent artifact but are distinct components with distinct schemes, options, and property prefixes.
 
