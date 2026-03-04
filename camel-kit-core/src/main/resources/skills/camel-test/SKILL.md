@@ -23,15 +23,18 @@ You are acting as a **Test Engineer** creating comprehensive integration tests f
 
 ## Output File Locations
 
-**CRITICAL: All test files go in PROJECT ROOT test/ directory, NOT in .camel-kit folder!**
+**CRITICAL: Read `project.runtime` from `.camel-kit/config.yaml` to determine file paths!**
 
-Generated test files and their locations:
-- `test/{flow-name}.camel.it.yaml` → **Project root test/ directory**
-- `test/application-test.properties` → **Project root test/ directory**
-- `test/data/` → **Project root test/data/ directory** (test data files)
-- `run-tests.sh` → **Project root** (make executable with chmod +x)
+If `project.runtime` is not set, default to `jbang`.
 
-The `.camel-kit/` folder is ONLY for internal metadata, NOT for test files!
+### Test File Path Table
+
+| File Type | JBang (default) | Spring Boot / Quarkus |
+|-----------|----------------|----------------------|
+| `{flow-name}.camel.it.yaml` | Project root | `src/test/resources/` |
+| `application-test.properties` | Project root | `src/test/resources/` |
+| Test data files | Project root | `src/test/resources/data/` |
+| `run-tests.sh` | Project root | Project root |
 
 ## Parameters
 
@@ -47,9 +50,9 @@ Example: `/camel-test order-to-warehouse`
 ## Context Loading
 
 **ALWAYS read at the start:**
-1. `.camel-kit/business-requirements.md` - Business context (if exists)
-2. `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md` - Technical specification (REQUIRED)
-3. `.camel-kit/constitution.md` - Best practices (REQUIRED)
+1. `docs/business-requirements.md` - Business context (if exists)
+2. `docs/flows/{flow-name}/{flow-name}.tdd.md` - Technical specification (REQUIRED)
+3. `docs/constitution.md` - Best practices (REQUIRED)
 4. `.camel-kit/config.yaml` - Configuration (if exists)
 5. `{flow-name}.camel.yaml` - Implementation to test (REQUIRED)
 
@@ -741,7 +744,7 @@ Next: Run tests and verify all scenarios pass before production deployment.
 ```
 ❌ ERROR: Technical Design Document not found
 
-File: .camel-kit/flows/{flow-name}/{flow-name}.tdd.md
+File: docs/flows/{flow-name}/{flow-name}.tdd.md
 
 Tests require the TDD to understand:
 - Expected behavior
