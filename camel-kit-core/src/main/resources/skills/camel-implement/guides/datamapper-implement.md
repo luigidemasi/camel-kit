@@ -4,11 +4,11 @@ You are now acting as a **DataMapper Code Generator**. This guide is loaded by `
 
 For each DataMapper section you **MUST** complete ALL 7 steps and generate ALL 3 artifacts before returning control to `camel-implement`:
 
-| Artifact | Step | File | WRONG names (do NOT use) |
-|----------|------|------|--------------------------|
-| XSLT stylesheet | Step 3 | `kaoto-datamapper-{id}.xsl` (project root) | |
-| YAML step injection | Step 4 | `{flow-name}.camel.yaml` (step block added) | |
-| Kaoto metadata | Step 5 | **`.kaoto`** (project root, exactly this name) | ~~`kaoto-datamapper-{id}.kaoto`~~, ~~`{name}.kaoto`~~ |
+| Artifact | Step | File | Location | WRONG names (do NOT use) |
+|----------|------|------|----------|--------------------------|
+| XSLT stylesheet | Step 3 | `kaoto-datamapper-{id}.xsl` | Project root (JBang) or `src/main/resources/camel/` (Spring Boot/Quarkus) | |
+| YAML step injection | Step 4 | `{flow-name}.camel.yaml` (step block added) | | |
+| Kaoto metadata | Step 5 | **`.kaoto`** (project root, exactly this name) | Project root | ~~`kaoto-datamapper-{id}.kaoto`~~, ~~`{name}.kaoto`~~ |
 
 **Do NOT return to `camel-implement` until all 3 artifacts are generated and Step 7 confirmation is displayed.**
 
@@ -16,7 +16,7 @@ For each DataMapper section you **MUST** complete ALL 7 steps and generate ALL 3
 
 ## Step 1: Read Mapping Data from TDD
 
-Read `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md` and extract from the `### DataMapper: kaoto-datamapper-{id}` section:
+Read `docs/flows/{flow-name}/{flow-name}.tdd.md` and extract from the `### DataMapper: kaoto-datamapper-{id}` section:
 
 | Field | Description |
 |-------|-------------|
@@ -157,7 +157,7 @@ Read the **XSLT Pattern** and **XSLT Approach** from the TDD header — these we
 
 ## Step 3: Generate XSLT File
 
-Create `kaoto-datamapper-{id}.xsl` in the **project root**.
+Create `kaoto-datamapper-{id}.xsl` in the runtime-appropriate directory: **project root** for JBang, or **`src/main/resources/camel/`** for Spring Boot/Quarkus.
 
 **Always start with the Kaoto header:**
 ```xml
@@ -748,7 +748,7 @@ Check `pom.xml`. If `camel-xslt-saxon` is not already declared, add it:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 DATAMAPPER ARTIFACTS GENERATED
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ kaoto-datamapper-{id}.xsl    (project root)
+✅ kaoto-datamapper-{id}.xsl    ({output-dir})
 ✅ {flow-name}.camel.yaml       (step injected)
 ✅ .kaoto                       (key added: kaoto-datamapper-{id})
 ✅ XSLT verified against TDD    ({N}/{N} fields matched)
