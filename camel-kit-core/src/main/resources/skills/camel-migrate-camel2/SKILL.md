@@ -245,18 +245,35 @@ For every migration decision, follow the **Verification Chain**:
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
 │ 1. Look up in decision table (camel2-*-mapping.md)                 │
-│    ├─ FOUND → use mapped 4.x name → go to step 3                  │
-│    └─ NOT FOUND → go to step 2                                     │
+│    ├─ FOUND → use mapped 4.x name → continue to step 2            │
+│    └─ NOT FOUND → continue to step 2                               │
 │                                                                     │
-│ 2. Call MCP catalog LIST tool:                                      │
+│ 2. Knowledge docs lookup (ALWAYS, if camel-knowledge MCP is        │
+│    configured) — Call:                                              │
+│      camel_camel2_migration_lookup(                                │
+│        component: "<name>",                                        │
+│        source_version: "<detected_version>"                        │
+│      )                                                              │
+│    Read the returned migration context. This provides detailed     │
+│    information about:                                               │
+│    - Behavioral changes between versions                           │
+│    - Option renames and configuration differences                  │
+│    - Known gotchas and workarounds                                 │
+│    - Related migration concerns                                    │
+│    Use this information to enrich the TDD with migration-specific  │
+│    context.                                                         │
+│    If the MCP server is not available, skip this step (graceful    │
+│    degradation).                                                    │
+│                                                                     │
+│ 3. Call MCP catalog LIST tool:                                      │
 │    • Components: camel_catalog_components(filter=<name>)           │
 │    • EIPs:       camel_catalog_eips(filter=<name>)                 │
 │    • Formats:    camel_catalog_dataformats(filter=<name>)          │
 │    • Languages:  camel_catalog_languages(filter=<name>)            │
-│    ├─ FOUND → name unchanged in 4.x → go to step 3                │
-│    └─ NOT FOUND → STOP, ask user (provide context)                 │
+│    ├─ FOUND → name unchanged in 4.x → go to step 4                │
+│    └─ NOT FOUND → go to step 5                                     │
 │                                                                     │
-│ 3. Call MCP catalog DOC tool to verify OPTIONS:                     │
+│ 4. Call MCP catalog DOC tool to verify OPTIONS:                     │
 │    • Components: camel_catalog_component_doc(component=<name>)     │
 │    • EIPs:       camel_catalog_eip_doc(eip=<name>)                 │
 │    • Formats:    camel_catalog_dataformat_doc(dataformat=<name>)   │
@@ -268,7 +285,16 @@ For every migration decision, follow the **Verification Chain**:
 │    │   └─ If not → STOP, show user the doc output, ask for help    │
 │    └─ Record: component, options, Maven coordinates from doc       │
 │                                                                     │
-│ 4. Write verified result to TDD                                     │
+│ 5. Broader knowledge search (only if steps 1-2 returned nothing)   │
+│    — Call:                                                          │
+│      camel_camel2_migration_search(                                │
+│        query: "<name> migration",                                  │
+│        source_version: "...",                                      │
+│        target_version: "4.x"                                       │
+│      )                                                              │
+│    If still nothing → STOP, ask user.                              │
+│                                                                     │
+│ 6. Write verified result to TDD                                     │
 │    • Only MCP-verified names and options go into the TDD            │
 │    • Section 7 properties must only list properties from catalog    │
 │    • Section 8 dependencies use Maven coordinates from catalog      │
