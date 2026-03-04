@@ -7,6 +7,14 @@
         "org.apache.camel:camel-jbang-mcp:{{CAMEL_VERSION}}:runner"
       ],
       "description": "Apache Camel MCP Server - Component catalog, validation, and security analysis"
+    },
+    "camel-knowledge": {
+      "command": "jbang",
+      "args": [
+        "-Dquarkus.log.level=WARN",
+        "io.github.luigidemasi:camel-kit-knowledge-mcp:{{KNOWLEDGE_VERSION}}:runner"
+      ],
+      "description": "camel-kit Knowledge Server - Migration documentation search for Camel, Fuse, MuleSoft"
     }
   }
 }

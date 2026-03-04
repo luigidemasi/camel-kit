@@ -420,14 +420,16 @@ public class InitCommand extends CamelKitCommand {
                 case "claude" -> {
                     // Claude Code - .mcp.json in project root (standard MCP location)
                     String claudeTemplate = TemplateUtils.readTemplate("templates/mcp-configs/claude-code-mcp.json");
-                    String processedTemplate = claudeTemplate.replace("{{CAMEL_VERSION}}", camelVersion);
+                    String processedTemplate = claudeTemplate.replace("{{CAMEL_VERSION}}", camelVersion)
+                            .replace("{{KNOWLEDGE_VERSION}}", "1.0.0");
                     Files.writeString(projectDir.resolve(".mcp.json"), processedTemplate);
                     agentName = "Claude Code";
                 }
                 case "bob" -> {
                     // IBM Bob - .bob/mcp.json
                     String bobTemplate = TemplateUtils.readTemplate("templates/mcp-configs/bob-mcp.json");
-                    String processedTemplate = bobTemplate.replace("{{CAMEL_VERSION}}", camelVersion);
+                    String processedTemplate = bobTemplate.replace("{{CAMEL_VERSION}}", camelVersion)
+                            .replace("{{KNOWLEDGE_VERSION}}", "1.0.0");
                     Path bobDir = projectDir.resolve(".bob");
                     Files.createDirectories(bobDir);
                     Files.writeString(bobDir.resolve("mcp.json"), processedTemplate);
@@ -436,7 +438,8 @@ public class InitCommand extends CamelKitCommand {
                 case "gemini" -> {
                     // Gemini CLI - .gemini/mcp.json
                     String geminiTemplate = TemplateUtils.readTemplate("templates/mcp-configs/gemini-mcp.json");
-                    String processedTemplate = geminiTemplate.replace("{{CAMEL_VERSION}}", camelVersion);
+                    String processedTemplate = geminiTemplate.replace("{{CAMEL_VERSION}}", camelVersion)
+                            .replace("{{KNOWLEDGE_VERSION}}", "1.0.0");
                     Path geminiDir = projectDir.resolve(".gemini");
                     Files.createDirectories(geminiDir);
                     Files.writeString(geminiDir.resolve("settings.json"), processedTemplate);
