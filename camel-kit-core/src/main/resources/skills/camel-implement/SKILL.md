@@ -95,6 +95,10 @@ The Camel MCP server provides powerful code generation and validation tools:
 - **EIP Documentation** (`camel_catalog_eip_doc`) - Full options and YAML DSL usage for a specific EIP at the project Camel version
 - **URI Validation** (`camel_validate_route`) - Validate endpoint URIs and catch typos before runtime
 
+The camel-knowledge MCP server provides Red Hat Build of Apache Camel documentation:
+- **Red Hat Component Info** (`camel_rh_build_component_info`) - Check if a component is supported by Red Hat, get configuration reference and known issues
+- **Red Hat Docs Search** (`camel_rh_build_search`) - Search Red Hat Build of Apache Camel docs for supported configurations, release notes, migration info
+
 All catalog calls MUST pass the Camel version from `.camel-kit/config.yaml` as the `version` parameter.
 
 Always attempt MCP tool calls directly — do not check for `.mcp.json` or try to detect MCP availability upfront. If a tool call fails (tool not found, network error, timeout), fall back to the bundled component skill files or proceed without validation with a warning.
@@ -224,6 +228,20 @@ Component: [component-name]
 ```
 
 Repeat for every component before writing any YAML.
+
+**Red Hat support check (optional, if camel-knowledge MCP is available):**
+
+After loading component documentation, call `camel_rh_build_component_info` to check whether the component is supported by Red Hat Build of Apache Camel. If the tool call fails (tool not found, network error), skip this step silently.
+
+```
+Red Hat support check:
+  MCP Tool: camel_rh_build_component_info
+  Params: { "component": "[component-name]" }
+
+  Result: [supported / not found in Red Hat docs]
+```
+
+If the component is NOT found in the Red Hat documentation, add an informational note but do NOT block implementation — the component may still work, it's just not officially supported by Red Hat.
 
 **If `camel_catalog_component_doc` returns an error (component not found):**
 

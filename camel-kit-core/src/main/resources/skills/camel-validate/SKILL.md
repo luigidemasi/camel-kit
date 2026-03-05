@@ -60,6 +60,10 @@ The Camel MCP server provides powerful validation and security analysis tools:
 - **Security Analysis** - 47 built-in security checks for hardcoded credentials, insecure protocols, etc.
 - **Route Understanding** - Extract and document components from routes
 
+The camel-knowledge MCP server provides Red Hat Build of Apache Camel documentation:
+- **Red Hat Component Info** (`camel_rh_build_component_info`) - Check if a component is supported by Red Hat
+- **Red Hat Docs Search** (`camel_rh_build_search`) - Search Red Hat Build of Apache Camel docs
+
 Always attempt MCP tool calls directly. If a call fails (tool not found, network error), fall back to the manual anti-pattern guide or static validation rules.
 
 **To enable MCP server**, add to `.mcp.json`:
@@ -343,7 +347,26 @@ SQL Component:
   ✅ Component-level config: camel.component.sql.dataSource (defined)
 ```
 
-### 5.2 Expression Validation
+### 5.2 Red Hat Support Check (optional, if camel-knowledge MCP is available)
+
+For each component, call `camel_rh_build_component_info` to check Red Hat support status. If the tool call fails (tool not found, network error), skip this section silently.
+
+```
+== RED HAT SUPPORT CHECK ==
+
+Kafka Component:
+  ℹ️ Red Hat supported (4.14)
+
+SQL Component:
+  ℹ️ Red Hat supported (4.14)
+
+Custom Component:
+  ⚠️ Not found in Red Hat Build of Apache Camel docs (may still work, not officially supported)
+```
+
+This is informational only — do NOT fail validation based on Red Hat support status.
+
+### 5.3 Expression Validation
 
 Validate expressions (Simple, JSONPath, etc.):
 
