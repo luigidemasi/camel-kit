@@ -250,7 +250,7 @@ For every migration decision, follow the **Verification Chain**:
 │                                                                     │
 │ 2. Knowledge docs lookup (ALWAYS, if camel-knowledge MCP is        │
 │    configured) — Call:                                              │
-│      camel_camel2_migration_lookup(                                │
+│      camel_migration_lookup(                                │
 │        component: "<name>",                                        │
 │        source_version: "<detected_version>"                        │
 │      )                                                              │
@@ -287,7 +287,7 @@ For every migration decision, follow the **Verification Chain**:
 │                                                                     │
 │ 5. Broader knowledge search (only if steps 1-2 returned nothing)   │
 │    — Call:                                                          │
-│      camel_camel2_migration_search(                                │
+│      camel_migration_search(                                │
 │        query: "<name> migration",                                  │
 │        source_version: "...",                                      │
 │        target_version: "4.x"                                       │

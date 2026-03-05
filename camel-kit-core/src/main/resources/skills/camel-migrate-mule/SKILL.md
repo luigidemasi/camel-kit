@@ -214,7 +214,7 @@ All catalog calls MUST pass `CAMEL_VERSION` as the `version` parameter. Never us
 | Camel EIP for a Mule routing construct | `camel_catalog_eips` | `camel_catalog_eip_doc` |
 | Data format for unmarshal/marshal | `camel_catalog_dataformats` | `camel_catalog_dataformat_doc` |
 | Expression language for conditions/predicates | `camel_catalog_languages` | `camel_catalog_language_doc` |
-| Migration context for mapped Camel component | `camel_camel2_migration_lookup` | — |
+| Migration context for mapped Camel component | `camel_migration_lookup` | — |
 
 The static `mule-component-mapping.md` guide provides a **starting point** (the suggested Camel component name). It does NOT replace catalog verification — always confirm availability and option names in `CAMEL_VERSION` before writing the TDD.
 
@@ -234,7 +234,7 @@ For each Mule flow identified in Phase 1:
 
    After mapping a Mule connector to a Camel component, ALWAYS call:
    ```
-   camel_camel2_migration_lookup(component: "{mapped_camel_component}")
+   camel_migration_lookup(component: "{mapped_camel_component}")
    ```
    This provides migration context that may be relevant even for MuleSoft migrations —
    the Camel component may have changed between versions.
