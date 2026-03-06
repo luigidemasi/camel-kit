@@ -13,7 +13,7 @@ metadata:
 
 You are acting as a **Migration Specialist** that analyses existing integration artifacts from any vendor and orchestrates their migration to Apache Camel.
 
-This skill is the generic entry point for all migrations. It detects the vendor, scans all available artifacts to build a pre-populated analysis summary, confirms the summary with the user, and then delegates to the appropriate vendor-specific sub-skill — passing the confirmed summary so the sub-skill never re-asks questions that have already been answered.
+This skill is the generic entry point for all migrations. It detects the vendor, scans all available artifacts to build a pre-populated analysis summary, confirms the summary with the user, and then delegates to the appropriate vendor-specific migration guide — passing the confirmed summary so the guide never re-asks questions that have already been answered.
 
 ## Parameters
 
@@ -93,6 +93,31 @@ For each file type, extract:
 ### Test files (`src/test/**`, `*Test.java`, etc.)
 - Test method names and scenarios → expected behaviour and edge cases
 - Mock endpoints → system landscape confirmation
+
+---
+
+## Step 2b — Detect Project Layout
+
+After scanning all artifacts, determine whether this is a **single-project** or **multi-project** layout:
+
+**Multi-project signals:**
+- Multiple `pom.xml` or `build.gradle` files in different subdirectories (not just a parent POM with `<modules>`)
+- Multiple independent route/flow definition directories (e.g., `fuse6-apps/http/MyApp/`, `fuse6-apps/rest/OtherApp/`)
+- Multiple `mule-artifact.json` files in different subdirectories
+- A parent directory containing multiple independent integration projects as subfolders
+
+**If multi-project:** Build a source-to-target module mapping. Each source sub-project becomes a separate target module. The target module name should be derived from the flow name (kebab-case). Example:
+
+```
+Source projects detected:
+  fuse6-apps/http/Https_jetty_Consumer/  → target: https-jetty-consumer/
+  fuse6-apps/rest/claimdemo/             → target: rest-claims-status/
+  fuse6-apps/soap/claimdemo/             → target: soap-claims-service/
+```
+
+Include this mapping in the analysis summary (Step 4) and pass it to the sub-skill. Each TDD produced by the sub-skill MUST include `Source Module` and `Target Module` fields in Section 1 so that `/camel-implement` places generated files in the correct sub-project directory.
+
+**If single-project:** Set layout to `single-project`. The `Target Module` in the TDD can be omitted or set to `.` — files will be placed at the workspace root.
 
 ---
 
@@ -182,13 +207,23 @@ Failure Behaviour
   DLQ endpoint:      [✓/~/? ] [name or "Not found"]
   Alert mechanism:   [✓/~/? ] [found or "Not found"]
 
+Target Camel Version
+  [✓/~/? ] [Red Hat supported versions ONLY: 4.14.4 ⭐ / 4.10.7 / 4.8.5 / 4.4.0 / 4.0.0]
+  Default: 4.14.4 (latest Red Hat supported version)
+
+Target Runtime
+  [✓/~/? ] [quarkus / spring-boot / camel-main / jbang]
+
 API Compatibility
   ✓ Assumed: Camel routes will preserve the same HTTP paths, queue/topic names,
     and data contracts as the original integration unless the user explicitly says otherwise.
 
+Project Layout
+  [✓/~/? ] [single-project / multi-project]
+
 Flows to migrate: [N] flows detected
-  - [flow-name-1]
-  - [flow-name-2]
+  - [flow-name-1] — source: [relative/path/to/source/project] → target: [target-module/]
+  - [flow-name-2] — source: [relative/path/to/source/project] → target: [target-module/]
   - ...
 
 ══════════════════════════════════════════════════════
@@ -217,13 +252,52 @@ Are there any ~ Inferred fields above that need correcting? (or say "looks good"
 
 Wait for the user's response. Update the summary with their answers. This is the **only** interaction before delegating to the sub-skill.
 
+**CRITICAL — Target version MUST be a Red Hat supported version:**
+
+Fetch the directory listing from `https://maven.repository.redhat.com/ga/org/apache/camel/camel-bom/` to discover available Red Hat Build versions and their latest `.redhat-XXXXX` qualifiers. Parse the version directories to build the supported versions list (only `4.x` versions). The highest base version is the recommended default.
+
+**If the fetch fails** (network error, timeout, etc.), fall back to this static table:
+
+| Base Version | Full Maven Version |
+|-------------|-------------------|
+| `4.14.4` | `4.14.4.redhat-00008` |
+| `4.10.7` | `4.10.7.redhat-00009` |
+| `4.8.5` | `4.8.5.redhat-00008` |
+| `4.4.0` | `4.4.0.redhat-00046` |
+| `4.0.0` | `4.0.0.redhat-00036` |
+
+The target Camel version MUST be one of the versions from the discovered or fallback list. If the user requests a community-only version (e.g., `4.18.0`, `4.12.0`), warn them and ask to select a supported version:
+
+```
+⚠️ Version [version] is not supported by Red Hat Build of Apache Camel.
+
+Only the following versions are supported:
+  [list from discovery or fallback]
+
+Please select a supported version.
+```
+
+If the user does not specify a version, default to the highest base version (latest).
+
+**CRITICAL — Persist confirmed settings to `.camel-kit/config.yaml`:**
+
+After the user confirms the summary, create or update `.camel-kit/config.yaml` with the confirmed target runtime and Camel version (with `.redhat-XXXXX` Maven qualifier — use the latest qualifier discovered from the repository listing). This is REQUIRED so that downstream skills (`/camel-implement`, `/camel-validate`, `/camel-test`) know where to place generated files and which Camel version to target.
+
+```yaml
+project:
+  camelVersion: "{{CAMEL_VERSION_WITH_REDHAT_QUALIFIER}}"
+  runtime: "quarkus"  # or "spring-boot" or "camel-main" or "jbang"
+```
+
+If `.camel-kit/config.yaml` already exists, merge the `project.runtime` key without overwriting other settings. If it does not exist, create it with both `camelVersion` and `runtime`.
+
 ---
 
-## Step 6 — Delegate to Sub-Skill
+## Step 6 — Delegate to Vendor-Specific Guide
 
-Pass the confirmed summary and all artifact paths to the vendor-specific sub-skill.
+Pass the confirmed summary and all artifact paths to the vendor-specific migration guide.
 
-### MuleSoft Mule → `camel-migrate-mule`
+### MuleSoft Mule
 
 ```
 🫏 → 🐪
@@ -231,43 +305,47 @@ Pass the confirmed summary and all artifact paths to the vendor-specific sub-ski
 Vendor: MuleSoft Mule [version]
 Flows:  [N] flows ready for migration
 
-Handing off to the Mule migration sub-skill...
+Starting MuleSoft migration...
 ```
 
-> Read `{agentBaseFolder}/skills/camel-migrate-mule/SKILL.md` and follow those instructions.
-> Pass as context:
-> - The confirmed analysis summary from Step 5
-> - The full list of source artifact paths
-> - `CAMEL_VERSION` from `.camel-kit/config.yaml` (or ask the user if not found)
+→ Load `guides/mulesoft-migration.md` and follow those instructions.
 
-Replace `{agentBaseFolder}` with the actual agent base folder (`.claude`, `.bob`, or `.gemini`) — look for the matching directory in the project root.
+Pass as context:
+- The confirmed analysis summary from Step 5
+- The full list of source artifact paths
+- `CAMEL_VERSION` from `.camel-kit/config.yaml` (or ask the user if not found)
 
-### Apache Camel 2.x/3.x → `camel-migrate-camel2`
+### Apache Camel (older version)
+
+Use the version-aware easter egg based on the detected source major version:
+
+- **Camel 2.x → 4.x:** `🐪₂ → 🐪₄`
+- **Camel 3.x → 4.x:** `🐪₃ → 🐪₄`
+- **Camel 4.x → 4.y (minor upgrade):** `🐪₄ ⬆ 🐪₄`
 
 ```
-🐪₂ → 🐪₄
+[version-aware easter egg]
 
 Vendor: Apache Camel [version]
 Platform: [ServiceMix/Karaf | Spring Boot | Spring XML | Plain Java]
 Routes: [N] routes ready for migration
 
-Handing off to the Camel version migration sub-skill...
+Starting Camel version migration...
 ```
 
-> Read `{agentBaseFolder}/skills/camel-migrate-camel2/SKILL.md` and follow those instructions.
-> Pass as context:
-> - The confirmed analysis summary from Step 5
-> - The full list of source artifact paths
-> - The detected Camel source version (2.x or 3.x) and platform type
-> - `CAMEL_VERSION` from `.camel-kit/config.yaml` (target version — or ask the user if not found)
+→ Load `guides/camel-version-migration.md` and follow those instructions.
 
-Replace `{agentBaseFolder}` with the actual agent base folder (`.claude`, `.bob`, or `.gemini`) — look for the matching directory in the project root.
+Pass as context:
+- The confirmed analysis summary from Step 5
+- The full list of source artifact paths
+- The detected Camel source version (2.x or 3.x) and platform type
+- `CAMEL_VERSION` from `.camel-kit/config.yaml` (target version — or ask the user if not found)
 
 ---
 
 ## Notes
 
-- This skill performs detection, scanning, and confirmation only. All vendor-specific analysis and TDD generation happens in the sub-skill.
-- Sub-skills receive a pre-populated summary and MUST NOT re-ask questions already answered here.
-- Every future vendor sub-skill follows the same contract: receive summary → do vendor-specific work → fill genuine gaps only.
-- The output of any migration sub-skill is identical to `/camel-project` + `/camel-flow` output, making it fully compatible with `/camel-implement`.
+- This skill performs detection, scanning, and confirmation only. All vendor-specific analysis and TDD generation happens in the migration guides.
+- Migration guides receive a pre-populated summary and MUST NOT re-ask questions already answered here.
+- Every future vendor migration guide follows the same contract: receive summary → do vendor-specific work → fill genuine gaps only.
+- The output of any migration guide is identical to `/camel-project` + `/camel-flow` output, making it fully compatible with `/camel-implement`.
