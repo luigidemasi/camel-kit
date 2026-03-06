@@ -89,6 +89,15 @@ Where `{module}` is the `Target Module` from TDD Section 1. For single-project s
 
 **SKIP** if schemas already exist or user declined generation.
 
+### Step 8: Smoke Test (ALWAYS)
+
+- Load `guides/smoke-test.md`
+- Pass:
+  - `FLOW_NAME`
+  - `MODULE_DIR` = `{module}/`
+  - `RUNTIME` = `quarkus`
+  - `CAMEL_VERSION`
+
 ---
 
 ## Implementation Summary
@@ -140,6 +149,8 @@ Dependencies (from TDD):
   - camel-[component1]
   - camel-[component2]
   - [external dependencies]
+
+Smoke Test: ✅ PASSED / ⚠️ FAILED
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
