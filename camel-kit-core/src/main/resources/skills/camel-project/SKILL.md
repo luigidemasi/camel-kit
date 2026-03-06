@@ -45,7 +45,7 @@ Always attempt `camel_version_list` directly. If the call fails (tool not found,
       "args": [
         "--repos", "redhat=https://maven.repository.redhat.com/ga/",
         "-Dquarkus.log.level=WARN",
-        "org.apache.camel:camel-jbang-mcp:{{CAMEL_MCP_VERSION}}:runner"
+        "org.apache.camel:camel-jbang-mcp:4.18.0:runner"
       ]
     }
   }

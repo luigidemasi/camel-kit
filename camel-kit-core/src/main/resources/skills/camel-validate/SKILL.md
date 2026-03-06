@@ -271,7 +271,7 @@ Add to .mcp.json:
   "mcpServers": {
     "camel": {
       "command": "jbang",
-      "args": ["--repos", "redhat=https://maven.repository.redhat.com/ga/", "-Dquarkus.log.level=WARN", "org.apache.camel:camel-jbang-mcp:{{CAMEL_MCP_VERSION}}:runner"]
+      "args": ["--repos", "redhat=https://maven.repository.redhat.com/ga/", "-Dquarkus.log.level=WARN", "org.apache.camel:camel-jbang-mcp:4.18.0:runner"]
     }
   }
 }
