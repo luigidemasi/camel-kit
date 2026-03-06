@@ -25,14 +25,15 @@ This skill can implement a specific flow or all flows:
 
 ```
 /camel-implement <flow-name>   # Implement specific flow
-/camel-implement --all         # Implement all flows with TDDs
+/camel-implement all           # Implement all flows with TDDs
+/camel-implement --all         # Same as above
 ```
 
 Example: `/camel-implement order-to-warehouse`
 
-### Batch Mode (`--all`)
+### Batch Mode (`all`)
 
-When `--all` is specified:
+When `all` or `--all` is specified:
 
 1. **Discover flows:** List all directories under `docs/flows/` that contain a `{flow-name}.tdd.md` file
 2. **Show plan:**

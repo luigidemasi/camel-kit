@@ -19,7 +19,9 @@ This skill can validate a specific flow or all flows:
 
 ```
 /camel-validate <flow-name>   # Validate specific flow
-/camel-validate              # Validate all flows
+/camel-validate all           # Validate all flows
+/camel-validate --all         # Same as above
+/camel-validate               # Same as above (no argument)
 ```
 
 Example: `/camel-validate order-to-warehouse`

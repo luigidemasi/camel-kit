@@ -19,7 +19,8 @@ This skill can test a specific flow or all flows:
 
 ```
 /camel-test <flow-name>   # Generate tests for specific flow
-/camel-test --all        # Generate tests for all flows
+/camel-test all           # Generate tests for all flows
+/camel-test --all         # Same as above
 ```
 
 Example: `/camel-test order-to-warehouse`
