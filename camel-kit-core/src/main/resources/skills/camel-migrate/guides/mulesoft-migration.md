@@ -498,12 +498,8 @@ Created files:
 - docs/flows/{flow-name-1}/{flow-name-1}.tdd.md
 [... one line per flow ...]
 
-Next steps — run for each flow:
-  /camel-implement {flow-name-1}
-  /camel-implement {flow-name-2}
-  [...]
-
-Then validate and test:
-  /camel-validate {flow-name}
-  /camel-test {flow-name}
+Next steps:
+  /camel-implement --all    # Implement all flows
+  /camel-validate --all     # Validate all flows
+  /camel-test --all         # Generate tests for all flows
 ```

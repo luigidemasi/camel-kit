@@ -479,8 +479,8 @@ Created:
 
 Next steps:
   1. Review each TDD file
-  2. Run /camel-implement for each flow to generate Camel YAML
-  3. Run /camel-validate for each flow
-  4. Run /camel-test for each flow
+  2. Run /camel-implement --all to generate Camel YAML for all flows
+  3. Run /camel-validate --all to validate all flows
+  4. Run /camel-test --all to generate integration tests
   5. Test against original behaviour
 ```

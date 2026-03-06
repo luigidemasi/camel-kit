@@ -21,13 +21,54 @@ You are acting as a **Developer/Implementer** generating production-ready Apache
 
 ## Parameters
 
-This skill requires a flow name parameter:
+This skill can implement a specific flow or all flows:
 
 ```
-/camel-implement <flow-name>
+/camel-implement <flow-name>   # Implement specific flow
+/camel-implement --all         # Implement all flows with TDDs
 ```
 
 Example: `/camel-implement order-to-warehouse`
+
+### Batch Mode (`--all`)
+
+When `--all` is specified:
+
+1. **Discover flows:** List all directories under `docs/flows/` that contain a `{flow-name}.tdd.md` file
+2. **Show plan:**
+   ```
+   Found [N] flows to implement:
+     1. flow-name-1  (docs/flows/flow-name-1/flow-name-1.tdd.md)
+     2. flow-name-2  (docs/flows/flow-name-2/flow-name-2.tdd.md)
+     ...
+
+   Proceed with implementing all [N] flows? (yes/no)
+   ```
+3. **Process sequentially:** For each flow, run the full pipeline (Steps 1–2 below). Between flows, report progress:
+   ```
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ✅ [current]/[total] — {flow-name} implemented
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ```
+4. **Final summary:** After all flows, show combined summary:
+   ```
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   BATCH IMPLEMENTATION COMPLETE
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   Implemented [N] flows:
+     ✅ flow-name-1
+     ✅ flow-name-2
+     ...
+
+   Next steps:
+     /camel-validate --all    # Validate all flows
+     /camel-test --all        # Generate tests for all flows
+   ```
+
+If no TDD files are found: ERROR "No TDD files found in docs/flows/. Run /camel-flow first."
+
+---
 
 ## Context Loading
 
