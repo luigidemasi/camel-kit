@@ -155,7 +155,7 @@ Create `docs/business-requirements.md` with:
 ## Executive Summary
 [2-3 sentences: origin platform (Apache Camel [2.x/3.x] on [platform]), migration goal (Camel 4.x YAML DSL), scope ([N] routes)]
 
-**Migrated from:** Apache Camel [source version] on [platform]
+**Migrated from:** Apache Camel [source version] on [platform] ([source product from summary — e.g. "Red Hat JBoss Fuse 6.3.0"])
 **Target:** Apache Camel [CAMEL_VERSION] — YAML DSL
 **Migration date:** [current date]
 **Original routes:** [N] route(s) detected
@@ -379,6 +379,7 @@ For each route, create `docs/flows/{flow-name}/{flow-name}.tdd.md` with the **ex
 |-------|-------|
 | Flow Name | {flow-name} |
 | Migrated From | Apache Camel {source-version} ({platform}) — {original-route-id} |
+| Source Product | {Red Hat product name from summary — e.g. "Red Hat JBoss Fuse 6.3.0" or "Community Apache Camel"} |
 | Source Module | {relative path from workspace root to the source project, e.g. `fuse6-apps/http/Https_jetty_Consumer`} |
 | Target Module | {relative path from workspace root to the target project, e.g. `https-jetty-consumer/`} |
 | Business Purpose | [from BRD] |

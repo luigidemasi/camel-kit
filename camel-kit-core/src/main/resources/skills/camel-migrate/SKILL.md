@@ -143,11 +143,38 @@ Using ALL the information collected in Step 2, identify the integration platform
   - Spring XML: `camel-spring`, `<camelContext>` elements
   - Plain Java: `RouteBuilder` classes, no Spring/Blueprint deps
 
+### Red Hat Product Detection
+
+When the Camel version contains a `.redhat-*` or `.fuse-*` qualifier, identify the specific Red Hat product. The qualifier pattern and BOM artifacts encode the product and version:
+
+| Signal | Product |
+|--------|---------|
+| `camel-core` version `2.12.x.redhat-6100XX` | Red Hat JBoss Fuse 6.1.0 |
+| `camel-core` version `2.15.1.redhat-621XXX` | Red Hat JBoss Fuse 6.2.1 |
+| `camel-core` version `2.17.0.redhat-630XXX` | Red Hat JBoss Fuse 6.3.0 |
+| `camel-core` version `2.21.x.fuse-7XXXXX-redhat-XXXXX` | Red Hat Fuse 7.x (Karaf or Spring Boot) |
+| `camel-core` version `2.23.x.fuse-7XXXXX-redhat-XXXXX` | Red Hat Fuse 7.x (Karaf or Spring Boot) |
+| BOM `org.jboss.redhat-fuse:fuse-springboot-bom` | Red Hat Fuse 7.x on Spring Boot |
+| BOM `org.jboss.redhat-fuse:fuse-karaf-bom` | Red Hat Fuse 7.x on Karaf |
+| `camel-core` version `3.x.x.fuse-8XXXXX-redhat-XXXXX` | Red Hat Fuse Online / Camel Extensions |
+| BOM `com.redhat.camel.springboot:camel-spring-boot-bom` | Red Hat Build of Apache Camel for Spring Boot |
+| BOM with groupId `com.redhat.quarkus.platform` + camel artifacts | Red Hat Build of Apache Camel for Quarkus |
+| `camel-core` version `3.x.x.redhat-XXXXX` or `4.x.x.redhat-XXXXX` | Red Hat Build of Apache Camel |
+
+**Qualifier decoding rules:**
+- `redhat-6XXXXX` → Fuse 6.x (digits after `6` encode minor/patch/SP)
+- `fuse-7XXXXX-redhat-XXXXX` → Fuse 7.x
+- `fuse-8XXXXX-redhat-XXXXX` → Fuse Online / Camel Extensions
+- `redhat-XXXXX` (no `fuse-` prefix, on Camel 3.x/4.x) → Red Hat Build of Apache Camel
+
+Include the detected product name in the analysis summary (Step 4) as `Source Product`.
+
 ### If Vendor Detected
 
 ```
 ✓ Vendor detected: [Vendor Name] [version]
-  Evidence: [key signals found — e.g. "mule-artifact.json, xmlns mulesoft.org/4.x"]
+  Product: [Red Hat product name, if detected — e.g. "Red Hat JBoss Fuse 6.3.0"]
+  Evidence: [key signals found — e.g. "camel-core 2.17.0.redhat-630187, karaf-maven-plugin"]
 
 Proceeding to build analysis summary...
 ```
@@ -185,6 +212,9 @@ MIGRATION ANALYSIS SUMMARY
 
 Vendor & Version
   ✓ [Vendor Name] [version]
+
+Source Product
+  [✓/~/? ] [Red Hat product name — e.g. "Red Hat JBoss Fuse 6.3.0" or "Community Apache Camel"]
 
 Business Purpose
   [✓/~/? ] [extracted text or "Not found in artifacts"]
