@@ -58,13 +58,13 @@ Testcontainers Required:
 
 ---
 
-## Step 2: Generate Citrus Test YAML
+## Step 3: Generate Citrus Test YAML
 
 **IMPORTANT: Save this file in the correct directory based on runtime!**
 
 Create file: `{TEST_DIR}{flow-name}.camel.it.yaml`
 
-### 2.1 Test File Structure
+### 3.1 Test File Structure
 
 ```yaml
 # ============================================
@@ -223,7 +223,7 @@ actions:
         postgresql: {}
 ```
 
-### 2.2 Citrus YAML Schema Rules
+### 3.2 Citrus YAML Schema Rules
 
 **CRITICAL: Follow these rules exactly:**
 
@@ -354,9 +354,9 @@ Citrus automatically exposes these variables:
 
 ---
 
-## Step 3: Test Validation
+## Step 4: Test Validation
 
-### 3.1 Validate Against Citrus Schema
+### 4.1 Validate Against Citrus Schema
 
 Before saving, verify:
 
@@ -370,7 +370,7 @@ Validating test against Citrus schema...
 ✓ Variable format correct (name/value list)
 ```
 
-### 3.2 Common Test Errors to Avoid
+### 4.2 Common Test Errors to Avoid
 
 | Error | Wrong | Correct |
 |-------|-------|---------|

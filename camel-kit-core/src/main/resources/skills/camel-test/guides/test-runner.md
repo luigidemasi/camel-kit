@@ -33,7 +33,7 @@ echo "✓ Docker is running"
 # Run Citrus tests
 echo "Starting Citrus tests..."
 
-citrus run tests/{flow-name}.camel.it.yaml
+citrus run {TEST_DIR}{flow-name}.camel.it.yaml
 
 # Or using Maven:
 # ./mvnw test -Dtest={flow-name}IntegrationTest
