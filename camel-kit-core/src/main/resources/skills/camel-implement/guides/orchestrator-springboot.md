@@ -70,6 +70,7 @@ Where `{module}` is the `Target Module` from TDD Section 1. For single-project s
   - `FLOW_NAME`
   - `MODULE_DIR` = `{module}/`
   - `CAMEL_VERSION`
+  - `RUNTIME` = `springboot`
 
 ### Step 6: Advanced Patterns (CONDITIONAL)
 
