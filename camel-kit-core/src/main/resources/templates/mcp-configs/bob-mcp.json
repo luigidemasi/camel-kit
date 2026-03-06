@@ -3,16 +3,18 @@
     "camel": {
       "command": "jbang",
       "args": [
+        "--repos", "redhat=https://maven.repository.redhat.com/ga/",
         "-Dquarkus.log.level=WARN",
-        "org.apache.camel:camel-jbang-mcp:{{CAMEL_VERSION}}:runner"
+        "org.apache.camel:camel-jbang-mcp:4.18.0:runner"
       ],
       "description": "Apache Camel MCP Server - Component catalog, validation, and security analysis"
     },
     "camel-knowledge": {
       "command": "jbang",
       "args": [
+        "-Dquarkus.http.port=9090",
         "-Dquarkus.log.level=WARN",
-        "io.github.luigidemasi:camel-kit-knowledge-mcp:{{KNOWLEDGE_VERSION}}:runner"
+        "io.github.luigidemasi:camel-kit-knowledge-mcp:1.0.0-SNAPSHOT:runner"
       ],
       "description": "camel-kit Knowledge Server - Migration documentation search for Camel, Fuse, MuleSoft"
     }

@@ -43,13 +43,16 @@ Always attempt `camel_version_list` directly. If the call fails (tool not found,
     "camel": {
       "command": "jbang",
       "args": [
+        "--repos", "redhat=https://maven.repository.redhat.com/ga/",
         "-Dquarkus.log.level=WARN",
-        "org.apache.camel:camel-jbang-mcp:4.18.0:runner"
+        "org.apache.camel:camel-jbang-mcp:{{CAMEL_MCP_VERSION}}:runner"
       ]
     }
   }
 }
 ```
+
+The `--repos` flag adds the Red Hat Maven repository so the MCP server can resolve Camel catalog artifacts for Red Hat Build versions at runtime. Without it, catalog calls targeting Red Hat versions will fail with dependency resolution errors.
 
 ## Check for Existing Project
 
@@ -163,57 +166,56 @@ Type "defaults" to use standard Apache Camel best practices, or list your specif
 
 **If tool call succeeds:**
 
-```
-Checking available Camel versions...
+**CRITICAL — Only Red Hat supported versions are allowed.** The target Camel version MUST be a version supported by Red Hat Build of Apache Camel. Community-only versions (e.g., `4.18.0`, `4.12.0`) are NOT allowed.
 
-MCP Tool: camel_version_list
+**Step 1 — Discover available Red Hat versions:**
 
-Available Camel versions:
+Fetch the directory listing from `https://maven.repository.redhat.com/ga/org/apache/camel/camel-bom/` to get the up-to-date list of available Red Hat Build versions and their latest `.redhat-XXXXX` qualifiers. Parse the version directories to build the supported versions list (only `4.x` versions). The highest base version is the recommended default.
 
-Recent Versions:
-  4.18.0 (LTS) - Released 2025-01-15 - JDK 17+ - ⭐ Recommended
-  4.17.0       - Released 2024-12-10 - JDK 17+
-  4.16.0 (LTS) - Released 2024-11-05 - JDK 17+
-  4.15.0       - Released 2024-10-01 - JDK 17+
+**If the fetch fails** (network error, timeout, etc.), fall back to this static table:
 
-Older LTS:
-  4.8.0  (LTS) - Released 2024-01-10 - JDK 17+
-  4.0.0  (LTS) - Released 2023-03-01 - JDK 17+
-  3.22.0 (LTS) - Released 2023-12-10 - JDK 11+
+| Base Version | Full Maven Version |
+|-------------|-------------------|
+| `4.14.4` | `4.14.4.redhat-00008` |
+| `4.10.7` | `4.10.7.redhat-00009` |
+| `4.8.5` | `4.8.5.redhat-00008` |
+| `4.4.0` | `4.4.0.redhat-00046` |
+| `4.0.0` | `4.0.0.redhat-00036` |
 
-Which version would you like to use?
-(Press Enter for recommended: 4.18.0 LTS)
-```
-
-**If user selects a version:**
+**Step 2 — Present to user:**
 
 ```
-Selected: Camel {{VERSION}}
+Which Red Hat Build of Apache Camel version would you like to use?
 
-Verifying version details...
+Supported versions:
+  [highest base version]  ⭐ Recommended (latest)
+  [next base version]
+  ...
 
-MCP Tool: camel_version_list (filter by selected version)
+(Press Enter for recommended: [highest base version])
+```
 
-Version Info:
-  Version: {{VERSION}}
-  LTS: Yes/No
-  Release Date: [date]
-  JDK Required: [version]
-  Status: [Supported/EOL]
+**If the user specifies a non-supported version** (not found in the discovered or fallback list):
+
+```
+⚠️ Version [version] is not supported by Red Hat Build of Apache Camel.
+
+Only the following versions are supported:
+  [list from discovery or fallback]
+
+Please select a supported version.
+```
+
+Do NOT proceed with a non-supported version. Ask again until the user selects a supported version.
+
+**Step 3 — Store with Maven qualifier:**
+
+After the user selects a base version (e.g., `4.14.4`), store the full Maven version with `.redhat-XXXXX` qualifier in `.camel-kit/config.yaml`. Use the latest qualifier discovered from the repository listing (the one with the highest `-XXXXX` number for that base version).
+
+```
+Selected: Red Hat Build of Apache Camel {{VERSION}}
 
 Confirmed: Using Camel {{VERSION}}
-```
-
-**If tool call fails (fallback):**
-
-```
-Which Apache Camel version would you like to use?
-
-Recommended: 4.18.0 (LTS - Long Term Support)
-
-Or specify another version: _____
-
-(Press Enter for 4.18.0)
 ```
 
 ## Business Requirements Document Format

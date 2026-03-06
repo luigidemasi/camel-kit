@@ -75,6 +75,7 @@ Always attempt MCP tool calls directly — do not check for `.mcp.json` or try t
     "camel": {
       "command": "jbang",
       "args": [
+        "--repos", "redhat=https://maven.repository.redhat.com/ga/",
         "-Dquarkus.log.level=WARN",
         "org.apache.camel:camel-jbang-mcp:{{CAMEL_VERSION}}:runner"
       ]
