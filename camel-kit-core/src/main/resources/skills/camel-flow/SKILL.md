@@ -83,6 +83,9 @@ Always attempt MCP tool calls directly — do not check for `.mcp.json` or try t
 }
 ```
 
+**CRITICAL — MCP version stripping:** If `CAMEL_VERSION` contains a `.redhat-XXXXX` suffix (e.g., `4.14.4.redhat-00008`), strip it before passing to MCP catalog tools (`camel_catalog_*`). The Camel Catalog MCP server uses community versions only.
+Example: `4.14.4.redhat-00008` → pass `4.14.4` to MCP calls. Keep the full `.redhat` version for Maven dependencies and `pom.xml`.
+
 ---
 
 ## Check for Existing TDD
@@ -151,27 +154,10 @@ Example: "Process JSON order events and insert into warehouse database."
 
 **After response — data format lookup (MANDATORY):**
 
-Whenever a data format is mentioned or needs to be chosen (JSON, XML, CSV, Avro, Protobuf, etc.), call the catalog **before** making any recommendation:
-
-**Step A — List available data formats for the project version:**
-```
-MCP Tool: camel_catalog_dataformats
-Params: { "version": "{{CAMEL_VERSION}}" }
-```
-This returns all data formats available in Camel {{CAMEL_VERSION}}. Use this list to confirm the format the user mentioned exists in their version, and to suggest alternatives when needed.
-
-**Step B — Get full documentation for the chosen format:**
-```
-MCP Tool: camel_catalog_dataformat_doc
-Params: { "name": "[format-name]", "version": "{{CAMEL_VERSION}}" }
-```
-This returns: configuration options, Maven coordinates, model class information, and example usage. Record the Maven coordinates and any required configuration in the TDD.
+→ **Load `guides/catalog-lookups.md` § Data Format Lookup** and execute the data format verification procedure with the format mentioned by the user.
 
 **If user uncertain about format choice:**
 → Show the list from `camel_catalog_dataformats`, optionally load `skills/camel-flow/guides/data-formats.md` for comparison guidance, then ask the user to choose.
-
-**If format is clear:**
-→ Still call `camel_catalog_dataformat_doc` to confirm availability in {{CAMEL_VERSION}} and record the Maven dependency. Then skip to Question 2.
 
 ---
 
@@ -187,61 +173,12 @@ Where does the data come from?
 Example: "Kafka topic 'orders', consuming new messages as they arrive"
 ```
 
-**After response, select component — MANDATORY steps:**
+**After response — select source component (MANDATORY):**
 
-### With MCP (Required when available)
-
-**Always call `camel_catalog_components` first using `CAMEL_VERSION` from config. Do not suggest a component name from training data before querying the catalog.**
-
-```
-Searching Camel {{CAMEL_VERSION}} catalog for matching components...
-
-MCP Tool: camel_catalog_components
-Params: { "category": "[best matching category]", "version": "{{CAMEL_VERSION}}" }
-
-Found components available in Camel {{CAMEL_VERSION}}:
-1. [component-name] - [description]
-2. ...
-
-Based on the user's description, I suggest: [component-name]
-```
-
-Then immediately retrieve the full documentation for the suggested component:
-
-```
-MCP Tool: camel_catalog_component_doc
-Params: { "name": "[component-name]", "version": "{{CAMEL_VERSION}}" }
-
-Component: [component-name]
-URI syntax:  [exact syntax from catalog]
-Maven:       org.apache.camel:camel-[name]:{{CAMEL_VERSION}}
-
-Component-level options (go in application.properties):
-- [option]: [type] — [description]
-
-Endpoint options (go in the URI parameters: block):
-- [option]: [type] — [description]
-```
-
-Present the suggestion and full option list to the user. If the user prefers a different component, repeat `camel_catalog_component_doc` for the new choice before proceeding — never document an option from training-data memory.
-
-**If `camel_catalog_components` returns no results for the category:**
-
-Try a broader search or a different category keyword. If the component the user named is not found in the Camel {{CAMEL_VERSION}} catalog, inform them:
-
-```
-⚠️ Component '[name]' was not found in the Camel {{CAMEL_VERSION}} catalog.
-It may not exist in this version, or the name may be different.
-Shall I search for alternatives? (yes/no)
-```
-
-Do not proceed with an unverified component.
-
-### Fallback (tool call failed)
-
-**Only use this path when the `camel_catalog_components` or `camel_catalog_component_doc` call fails (tool not found, network error, timeout).**
-
-Load `{skills.folder}/camel-component-[name]/SKILL.md` if it exists. Warn the user if no bundled skill is available and ask for manual documentation.
+→ **Load `guides/component-selection.md`** and execute the component selection procedure with:
+- `SYSTEM_DESCRIPTION`: the user's source system description
+- `SYSTEM_ROLE`: "source"
+- `CAMEL_VERSION`: from `.camel-kit/config.yaml`
 
 **After user confirms component:**
 
@@ -269,63 +206,14 @@ Describe your processing steps.
 
 **After response:**
 
-**EIP lookup (MANDATORY) — before suggesting any EIP:**
+→ **Load `guides/catalog-lookups.md` § EIP Lookup** and execute the EIP verification procedure for each transformation mentioned.
 
-**Step A — List available EIPs for the project version, filtered by the relevant category:**
-```
-MCP Tool: camel_catalog_eips
-Params: { "category": "[routing|transformation|routing|messaging|error|…]", "version": "{{CAMEL_VERSION}}" }
-```
-This returns all EIPs available in Camel {{CAMEL_VERSION}} for the given category. Use this list to confirm the EIP exists in the project's version and to select the most appropriate one.
-
-**Step B — Get full documentation for the chosen EIP:**
-```
-MCP Tool: camel_catalog_eip_doc
-Params: { "name": "[eip-name]", "version": "{{CAMEL_VERSION}}" }
-```
-This returns: all configuration options, output type, required fields, and YAML DSL usage. Record any non-obvious options in the TDD.
-
-Repeat Step B for every EIP proposed — do not describe EIP options from training data.
+→ **Load `guides/catalog-lookups.md` § Expression Language Lookup** and execute the expression language selection procedure for any EIP that requires an expression.
 
 **If user unsure about EIP patterns:**
 → Query `camel_catalog_eips` for relevant categories first, then optionally load `skills/camel-flow/guides/eip-catalog.md` for higher-level guidance.
 
-**If user clear on transformations:**
-→ Query `camel_catalog_eips` to confirm the EIPs exist in {{CAMEL_VERSION}}, then call `camel_catalog_eip_doc` for each one. Present the confirmed list:
-```
-Suggested processing steps (verified against Camel {{CAMEL_VERSION}} catalog):
-
-1. validate - [description from catalog]
-2. filter   - [description from catalog]
-3. [other steps]
-
-Does this match your requirements? (yes/modify)
-```
-
-Do NOT include `unmarshal` or `marshal` steps unless the user explicitly said they need to work with typed Java objects. When formats are JSON or XML, prefer Kaoto DataMapper via `camel-datamapper-interview`.
-
-**Expression language lookup (MANDATORY):**
-
-Whenever the flow requires an expression inside an EIP — `filter`, `choice`/`when`, `setBody`, `setHeader`, `validate`, `log`, routing conditions, or any predicate — the expression language must be chosen from the catalog, not assumed from training data.
-
-**Step A — List available expression languages for the project version:**
-```
-MCP Tool: camel_catalog_languages
-Params: { "version": "{{CAMEL_VERSION}}" }
-```
-This returns all expression languages available in Camel {{CAMEL_VERSION}} (Simple, JsonPath, XPath, JQ, Groovy, OGNL, SpEL, and others). Use this list to confirm the language exists in the project's version and to suggest the most appropriate one.
-
-**Step B — Get full documentation for the chosen language:**
-```
-MCP Tool: camel_catalog_language_doc
-Params: { "name": "[language-name]", "version": "{{CAMEL_VERSION}}" }
-```
-This returns: syntax rules, configuration options, Maven coordinates (if the language is in a separate artifact), and example usage. Record any non-default Maven dependency in the TDD.
-
-**Choosing the right language:**
-- Use the catalog list to match the data format and use case (e.g. JSON body → JsonPath or JQ; XML body → XPath; simple header/body checks → Simple)
-- Never default to `simple` without first confirming it is the best fit for the data format
-- If the chosen language requires an additional Maven dependency (e.g. `camel-jsonpath`, `camel-jq`), document it in TDD Section 8 (Dependencies)
+Do NOT include `unmarshal` or `marshal` steps unless the user explicitly said they need typed Java objects. Prefer Kaoto DataMapper via `camel-datamapper-interview`.
 
 ---
 
@@ -364,54 +252,12 @@ Where should the processed data go?
 Example: "PostgreSQL 'warehouse' database, INSERT into orders table"
 ```
 
-**After response, select component — MANDATORY steps (same rules as Question 2):**
+**After response — select sink component (MANDATORY):**
 
-### With MCP (Required when available)
-
-**Always call `camel_catalog_components` first using `CAMEL_VERSION` from config.**
-
-```
-Searching Camel {{CAMEL_VERSION}} catalog for matching components...
-
-MCP Tool: camel_catalog_components
-Params: { "category": "[best matching category]", "version": "{{CAMEL_VERSION}}" }
-
-Found components available in Camel {{CAMEL_VERSION}}:
-1. [component-name] - [description]
-2. ...
-
-Based on the user's description, I suggest: [component-name]
-```
-
-Then immediately retrieve full documentation:
-
-```
-MCP Tool: camel_catalog_component_doc
-Params: { "name": "[component-name]", "version": "{{CAMEL_VERSION}}" }
-
-Component: [component-name]
-URI syntax:  [exact syntax from catalog]
-Maven:       org.apache.camel:camel-[name]:{{CAMEL_VERSION}}
-
-Component-level options (go in application.properties):
-- [option]: [type] — [description]
-
-Endpoint options (go in the URI parameters: block):
-- [option]: [type] — [description]
-```
-
-If the user prefers a different component, call `camel_catalog_component_doc` for the new choice before documenting it.
-
-**If component not found in catalog:**
-
-```
-⚠️ Component '[name]' was not found in the Camel {{CAMEL_VERSION}} catalog.
-Shall I search for alternatives? (yes/no)
-```
-
-### Fallback (tool call failed)
-
-Load `{skills.folder}/camel-component-[name]/SKILL.md` if it exists. Warn the user if no bundled skill is available and ask for manual documentation.
+→ **Load `guides/component-selection.md`** and execute the component selection procedure with:
+- `SYSTEM_DESCRIPTION`: the user's sink system description
+- `SYSTEM_ROLE`: "sink"
+- `CAMEL_VERSION`: from `.camel-kit/config.yaml`
 
 ---
 
@@ -453,91 +299,14 @@ Logging: Error details with correlation ID
 
 ---
 
-### Question 5b: Circuit Breaker (Conditional)
+### Resilience Sub-Questions (Conditional)
 
-**Ask ONLY if the source or sink identified in Questions 2 / 4 involves an external HTTP/REST API or remote service (not a local queue or database).**
+→ **Load `guides/resilience-interview.md`** and ask the applicable sub-questions based on:
+- **Q5b Circuit Breaker:** if source or sink involves external HTTP/REST API
+- **Q5c Idempotent Consumer:** if source is a message broker or user mentioned deduplication
+- **Q5d Transactions:** if flow writes to more than one external system
 
-```
-This flow calls an external service ([service name]).
-Do you want circuit breaker protection to prevent cascading failures if that service becomes unavailable?
-
-Options:
-a) Yes — trip the circuit after repeated failures and use a fallback
-b) No — rely on the retry policy defined in error handling
-```
-
-**If user selects (a), ask:**
-```
-What fallback should the route use when the circuit is open?
-- Return a default response (describe it)
-- Send to an alternative endpoint
-- Fail fast with a specific error message
-```
-
-Document in TDD under **Section 5b: Resilience** (load `skills/camel-flow/guides/performance.md` for circuit breaker configuration reference).
-
-**If user selects (b) or question does not apply:**
-→ Skip to Question 5c
-
----
-
-### Question 5c: Idempotent Consumer (Conditional)
-
-**Ask ONLY if:**
-- The source is a message broker (Kafka, JMS, AMQP, etc.), OR
-- The user mentioned deduplication, exactly-once, or duplicate messages
-
-```
-Does this flow need to guard against processing duplicate messages?
-(e.g., the same message delivered more than once by the broker)
-
-a) Yes — use an idempotent consumer to deduplicate
-b) No — duplicates are acceptable or handled upstream
-```
-
-**If user selects (a), ask:**
-```
-Where should the idempotent repository be stored?
-
-a) In-memory (development / single instance only — not persistent)
-b) Database (JPA — persistent, single-node production)
-c) Distributed cache (Infinispan / Hazelcast — clustered environments)
-
-Which field uniquely identifies a message? (e.g., "orderId", "messageId", "CamelKafkaOffset")
-```
-
-Document in TDD under **Section 5c: Idempotency**.
-
-**If user selects (b) or question does not apply:**
-→ Skip to Question 5d
-
----
-
-### Question 5d: Transactions (Conditional)
-
-**Ask ONLY if the flow writes to more than one external system** (e.g., database AND message broker, two databases, etc.).
-
-```
-This flow writes to [system A] and [system B].
-Do you need both writes to succeed or fail together (transactional consistency)?
-
-a) Yes — wrap both writes in a transaction
-b) No — eventual consistency is acceptable (handle partial failures in error handling)
-```
-
-**If user selects (a), ask:**
-```
-Which transaction manager applies?
-
-a) JTA (distributed transactions across JMS + DB)
-b) Spring / Quarkus local transaction (single datasource)
-c) Saga pattern (compensating transactions, eventual consistency)
-```
-
-Document in TDD under **Section 5d: Transactions**. Propagation policies: `PROPAGATION_REQUIRED` (default — join or create), `PROPAGATION_REQUIRES_NEW` (always new), `PROPAGATION_MANDATORY` (must exist). Combine with `onException` + `markRollbackOnly` for rollback on specific exceptions.
-
-**If user selects (b) or question does not apply:**
-→ Skip to Question 6
+If none of these conditions apply, skip directly to Question 6.
 
 ---
 
@@ -763,16 +532,3 @@ Run: /camel-project
 
 Continue anyway? (yes/no)
 ```
-
----
-
-## Token Optimization
-
-**This skill is designed to minimize token usage:**
-
-- Core SKILL.md: ~300 lines (down from 1,518)
-- Load guides only when needed (save 70-80% tokens)
-- Component skills loaded on-demand (already implemented)
-- Conditional sections in TDD (only include what's needed)
-
-**Total savings:** ~1,200 lines not loaded unless specifically needed
