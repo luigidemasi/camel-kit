@@ -95,7 +95,7 @@ Recommendation: Fix warnings before production deployment
 
 ```
 MCP tool call failed. Loading manual anti-pattern guide...
-→ Reading skills/camel-validate/guides/anti-patterns.md
+→ Reading guides/anti-patterns.md
 
 Running manual security checks...
 ```

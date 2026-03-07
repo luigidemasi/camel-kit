@@ -3,6 +3,7 @@
 > **Context variables provided by master SKILL.md:**
 > - `FLOW_NAME` — the flow being validated
 > - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
+> - `RUNTIME` — project runtime from `.camel-kit/config.yaml` (affects route file location)
 
 ## Stage 2: Endpoint URI Validation (MCP Enhanced)
 

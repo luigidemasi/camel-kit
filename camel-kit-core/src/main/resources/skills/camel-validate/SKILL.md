@@ -93,7 +93,7 @@ If no route YAML files are found: ERROR "No Camel routes found. Run /camel-imple
 - Component skills as needed for component-specific validation
 
 **Anti-Pattern Guide (conditional):**
-- Load `skills/camel-validate/guides/anti-patterns.md` ONLY if:
+- Load `guides/anti-patterns.md` ONLY if:
   - User explicitly requests comprehensive validation
   - User asks to check for anti-patterns or best practices
   - Basic validation passes and you want to provide additional recommendations
@@ -123,6 +123,7 @@ Before dispatching to guides, resolve these variables:
 |----------|--------|-----------|
 | `FLOW_NAME` | From parameter | All guides |
 | `CAMEL_VERSION` | From `.camel-kit/config.yaml` (`project.camelVersion`) | All guides |
+| `RUNTIME` | From `.camel-kit/config.yaml` (`project.runtime`, default: `jbang`) | `endpoint-validation.md` (route file location) |
 
 All guides receive these variables and declare them in a header block.
 
@@ -149,7 +150,7 @@ Execute these guides in order:
 
 1. **→ Load `guides/schema-validation.md`** — Stage 1: YAML Schema Validation + auto-fix
 2. **→ Load `guides/endpoint-validation.md`** — Stages 2-3: Endpoint URI + Runtime Validation
-3. **→ Load `guides/quality-checks.md`** — Stages 4-7: Completeness, Correctness, Constitution, Configuration
+3. **→ Load `guides/quality-checks.md`** — Stages 4-7: Completeness, Correctness, Constitution (7 rules from `docs/constitution.md`), Configuration
 4. **→ Load `guides/security-analysis.md`** — Stage 8: MCP Security Analysis (47 checks)
 5. **→ Load `guides/anti-patterns.md`** — ONLY if user requests comprehensive validation or all stages pass and you want to provide additional recommendations
 

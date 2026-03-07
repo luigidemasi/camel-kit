@@ -412,6 +412,14 @@ Pass as context:
 
 ---
 
+## MCP Server Configuration
+
+→ **For MCP setup, version stripping, and fallback policy:** see `skills/shared/mcp-setup.md`
+
+Migration guides use the Camel MCP server for catalog verification and the camel-knowledge MCP server for migration-specific documentation. See individual guides for their specific MCP tool usage.
+
+---
+
 ## Notes
 
 - This skill performs detection, scanning, and confirmation only. All vendor-specific analysis and TDD generation happens in the migration guides.

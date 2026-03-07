@@ -68,9 +68,9 @@ Component: [component-name]
 
 Repeat for every component before writing any YAML.
 
-### 2.1b Red Hat Support Check (MANDATORY when camel-knowledge MCP is available)
+### 2.1b Red Hat Support Check (after 2.1, MANDATORY when camel-knowledge MCP is available)
 
-After loading component documentation, call `camel_rh_build_component_info` for each component to check whether it is supported by Red Hat Build of Apache Camel. If the tool call fails (tool not found, network error), skip this step silently.
+After loading component documentation via Step 2.1, call `camel_rh_build_component_info` for each component to check whether it is supported by Red Hat Build of Apache Camel. If the tool call fails (tool not found, network error), skip this step silently.
 
 ```
 Red Hat support check:
@@ -104,8 +104,8 @@ Do NOT guess a component name or proceed with an unverified component.
 Loading component documentation from bundled skills...
 
 Component: [component-name]
-  ✓ {skills.folder}/camel-component-[name]/SKILL.md
-  ✓ {skills.folder}/camel-component-[name]/schema.json
+  ✓ skills/camel-component-[name]/SKILL.md
+  ✓ skills/camel-component-[name]/schema.json
   - Syntax:   [from skill file]
   - Maven:    [from skill file]
 ```
@@ -194,7 +194,7 @@ Generate the route by translating the TDD to Camel YAML DSL:
 
    This rule applies once per outbound HTTP call — if the route calls two different HTTP backends, add `removeHeaders` before each one.
 
-   → For detailed implementation guidance and examples, load `guides/sequential-http-calls.md`.
+   → For detailed implementation guidance and examples, see orchestrator Step 5.5 which loads `guides/sequential-http-calls.md`.
 
 0f. **Use `toD` for dynamic URIs and dynamic parameters** — `to` resolves its URI **once at startup** as a static string. Any `${...}` Simple expression in a `to` URI **or** in its `parameters:` block is treated as a literal string and is never evaluated at runtime. This applies equally to the URI path and to every value in the `parameters:` map.
 

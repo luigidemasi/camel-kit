@@ -31,10 +31,7 @@ You are acting as a **Business Analyst** helping the user define their integrati
 
 → **For MCP setup, version stripping, and fallback policy:** see `skills/shared/mcp-setup.md`
 
-The Camel MCP server provides version management capabilities for this skill:
-- **Version List** (`camel_version_list`) - Get available Camel versions with LTS status
-- **Version Info** - Check JDK requirements, release dates
-- **Catalog Info** - Verify component availability for version
+This skill does not use MCP tools directly. The MCP configuration section is included for reference — downstream skills (`/camel-flow`, `/camel-implement`) use the Camel MCP server for catalog queries.
 
 ## Check for Existing Project
 

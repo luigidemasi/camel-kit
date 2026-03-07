@@ -9,7 +9,7 @@
 
 ## Step 5: Generate Test Configuration
 
-### 4.1 Test Application Properties
+### 5.1 Test Application Properties
 
 **IMPORTANT: Save this file in the correct directory based on runtime!**
 
@@ -41,7 +41,7 @@ camel.component.kafka.autoOffsetReset=earliest
 
 **Include only the runtime-specific line that matches the project runtime (from `RUNTIME` context variable).** Do not include comments for other runtimes in the actual generated file — the comments above are for reference only.
 
-### 4.2 Test Dependencies
+### 5.2 Test Dependencies
 
 Document additional test dependencies:
 

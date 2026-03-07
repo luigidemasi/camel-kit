@@ -48,7 +48,7 @@ Example: `/camel-flow order-to-warehouse`
 
 **Component selection (Questions 2 and 4) — MANDATORY:**
 - **Primary:** Call `camel_catalog_components` + `camel_catalog_component_doc` directly (with `CAMEL_VERSION`). Do not suggest component names from training data before attempting the catalog call.
-- **Fallback (tool call failed):** Load from `{skills.folder}/camel-component-[name]/SKILL.md`. Warn if no bundled skill exists.
+- **Fallback (tool call failed):** Load from `skills/camel-component-[name]/SKILL.md`. Warn if no bundled skill exists.
 
 ---
 
@@ -165,7 +165,7 @@ Example: "Kafka topic 'orders', consuming new messages as they arrive"
 **After user confirms component:**
 
 **If user unsure about integration pattern:**
-→ Load `guides/integration-patterns.md`
+→ **Load `guides/integration-patterns.md`**
 → Help classify pattern (Event-Driven, Request-Reply, Batch, Stream)
 
 ---

@@ -193,7 +193,7 @@ Execute these guides in order, passing all resolved context variables:
 TESTS GENERATED: {FLOW_NAME}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Test File: {TEST_DIR}{FLOW_NAME}.camel.it.yaml
+Test File: {TEST_DIR}{flow-name}.camel.it.yaml
 
 Test Scenarios:
   ✓ Happy path

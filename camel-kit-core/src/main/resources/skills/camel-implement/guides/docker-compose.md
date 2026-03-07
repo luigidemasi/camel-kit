@@ -24,7 +24,7 @@ Use this template when `RUNTIME == jbang`.
 | Image | `apache/camel-jbang:{{CAMEL_VERSION}}` -- Docker Hub, **NOT** `ghcr.io/apache/camel-jbang` (does not exist) |
 | Entrypoint | The image entrypoint is `camel`. The `command:` must start with the subcommand `run`, **NOT** `camel run` (otherwise it becomes `camel camel run`) |
 | Route file | Mount the `.camel.yaml` file and list it in `command:` |
-| XSL files | Mount **every** `kaoto-datamapper-*.xsl` file and list them in `command:` -- omitting them causes `FileNotFoundException: Cannot find resource: classpath:kaoto-datamapper-*.xsl` at startup |
+| XSL files | Mount **every** `kaoto-datamapper-*.xsl` file individually (one `volumes:` entry per file) and list each in `command:` — Docker volumes do not support glob patterns. Omitting any XSL file causes `FileNotFoundException` at startup |
 | Properties | Mount `application.properties` and pass it via `--properties=` |
 | Port | Use the port from `camel.server.port` in `application.properties` |
 | External services | Add service definitions for TDD "Dependencies" section dependencies and use `depends_on:` from the Camel service |

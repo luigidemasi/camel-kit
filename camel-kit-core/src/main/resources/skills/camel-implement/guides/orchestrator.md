@@ -89,8 +89,10 @@ Assign these as context variables for all subsequent steps:
 ### Step 5.5: Sequential HTTP Calls (CONDITIONAL)
 
 **IF** the TDD contains both an HTTP consumer (`platform-http`, `servlet`, `jetty`, `netty-http`) **AND** one or more outbound HTTP producer calls (`http`, `https`, `undertow`, `vertx-http`):
-- Load `guides/sequential-http-calls.md`
+- Load `guides/sequential-http-calls.md` for detailed implementation guidance
 - Apply header sanitization rules between HTTP endpoints
+
+**Note:** Rule 0e in `route-generation.md` already enforces the basic `removeHeaders` pattern inline during route generation. This guide provides additional context, edge cases, and examples beyond the inline rule.
 
 **SKIP** if the route does not involve multiple HTTP endpoints.
 

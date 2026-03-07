@@ -218,12 +218,6 @@ If `docs/constitution.md` does not exist, copy from `templates/constitution.md` 
 
 ---
 
-## CAMEL_VERSION Extraction (MANDATORY — before any MCP call)
-
-Read `.camel-kit/config.yaml` (written by `camel-migrate` orchestrator in Step 5) and extract `project.camelVersion` as `CAMEL_VERSION`. This variable is required for all MCP catalog calls throughout both phases.
-
----
-
 ## Phase 2 — Integration Architect
 
 ### Context Loading (MANDATORY at start)
@@ -231,7 +225,7 @@ Read `.camel-kit/config.yaml` (written by `camel-migrate` orchestrator in Step 5
 Re-read:
 - `docs/business-requirements.md`
 - `docs/constitution.md` (reference)
-- `.camel-kit/config.yaml` — verify `CAMEL_VERSION` is set (extracted above)
+- `.camel-kit/config.yaml` — **extract `project.camelVersion` as `CAMEL_VERSION`** (written by `camel-migrate` orchestrator in Step 5). If the file does not exist or `project.camelVersion` is not set, **STOP** and ask the user for the target Camel version before proceeding. This variable is required for all MCP catalog calls in this phase.
 - All guide files loaded in Phase 1 (keep in context)
 
 Conditionally load:
