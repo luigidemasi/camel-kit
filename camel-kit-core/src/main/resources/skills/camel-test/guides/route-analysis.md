@@ -129,7 +129,7 @@ Suggested Test Scenarios (from MCP analysis):
 
 ```
 MCP Tool: camel_catalog_component_doc
-Params: { "name": "kafka", "version": "{{VERSION}}" }
+Params: { "name": "kafka", "version": "{{CAMEL_VERSION}}" }
 
 Get testing recommendations for kafka component.
 ```

@@ -215,9 +215,9 @@ Do NOT proceed with a non-supported version. Ask again until the user selects a 
 After the user selects a base version (e.g., `4.14.4`), record the full Maven version with `.redhat-XXXXX` qualifier. Use the latest qualifier discovered from the repository listing (the one with the highest `-XXXXX` number for that base version). This version will be written to `.camel-kit/config.yaml` during the save step.
 
 ```
-Selected: Red Hat Build of Apache Camel {{VERSION}}
+Selected: Red Hat Build of Apache Camel {{CAMEL_VERSION}}
 
-Confirmed: Using Camel {{VERSION}}
+Confirmed: Using Camel {{CAMEL_VERSION}}
 ```
 
 ## Business Requirements Document Format

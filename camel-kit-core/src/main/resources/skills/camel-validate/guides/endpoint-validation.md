@@ -28,11 +28,11 @@ Found endpoints:
 ```
 == ENDPOINT URI VALIDATION (MCP) ==
 
-Validating URIs against Camel {{VERSION}} catalog...
+Validating URIs against Camel {{CAMEL_VERSION}} catalog...
 
 Endpoint 1: kafka:{{kafka.topic.input}}
   MCP Tool: camel_validate_route
-  Params: { "uri": "kafka:topic", "version": "{{VERSION}}" }
+  Params: { "uri": "kafka:topic", "version": "{{CAMEL_VERSION}}" }
 
   Result: ✅ VALID
   - Component: kafka exists
@@ -41,7 +41,7 @@ Endpoint 1: kafka:{{kafka.topic.input}}
 
 Endpoint 2: sql:{{sql.insert}}
   MCP Tool: camel_validate_route
-  Params: { "uri": "sql:INSERT INTO orders", "version": "{{VERSION}}" }
+  Params: { "uri": "sql:INSERT INTO orders", "version": "{{CAMEL_VERSION}}" }
 
   Result: ✅ VALID
   - Component: sql exists
@@ -50,7 +50,7 @@ Endpoint 2: sql:{{sql.insert}}
 
 Endpoint 3: http://{{api.endpoint}}
   MCP Tool: camel_validate_route
-  Params: { "uri": "http://api.example.com", "version": "{{VERSION}}" }
+  Params: { "uri": "http://api.example.com", "version": "{{CAMEL_VERSION}}" }
 
   Result: ⚠️ WARNING
   - Component: http exists

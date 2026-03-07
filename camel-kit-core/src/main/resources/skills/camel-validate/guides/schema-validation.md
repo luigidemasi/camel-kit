@@ -18,7 +18,7 @@ Replace `{{CAMEL_VERSION}}` with version from `.camel-kit/config.yaml`.
 
 If schema not cached, fetch from GitHub:
 ```
-URL: https://raw.githubusercontent.com/apache/camel/camel-{{VERSION}}/dsl/camel-yaml-dsl/camel-yaml-dsl/src/generated/resources/schema/camelYamlDsl.json
+URL: https://raw.githubusercontent.com/apache/camel/camel-{{CAMEL_VERSION}}/dsl/camel-yaml-dsl/camel-yaml-dsl/src/generated/resources/schema/camelYamlDsl.json
 ```
 
 ### 1.2 Validate YAML Files

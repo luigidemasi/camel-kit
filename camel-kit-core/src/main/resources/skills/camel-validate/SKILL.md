@@ -134,6 +134,19 @@ Example: `4.14.4.redhat-00008` → pass `4.14.4` to MCP calls. Keep the full `.r
 
 ---
 
+## Context Variable Resolution
+
+Before dispatching to guides, resolve these variables:
+
+| Variable | Source | Passed to |
+|----------|--------|-----------|
+| `FLOW_NAME` | From parameter | All guides |
+| `CAMEL_VERSION` | From `.camel-kit/config.yaml` (`project.camelVersion`) | All guides |
+
+All guides receive these variables and declare them in a header block.
+
+---
+
 ## Validation Process
 
 The validation proceeds through multiple stages:
@@ -318,9 +331,9 @@ Benefits:
 ⚠️ WARNING: Schema not cached locally
 
 Fetching from GitHub:
-https://raw.githubusercontent.com/apache/camel/camel-{{VERSION}}/...
+https://raw.githubusercontent.com/apache/camel/camel-{{CAMEL_VERSION}}/...
 
 [Download progress]
 
-✅ Schema cached to .camel-kit/.cache/camelYamlDsl-{{VERSION}}.json
+✅ Schema cached to .camel-kit/.cache/camelYamlDsl-{{CAMEL_VERSION}}.json
 ```
