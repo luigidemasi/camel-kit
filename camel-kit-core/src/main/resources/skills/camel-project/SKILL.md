@@ -45,14 +45,14 @@ Always attempt `camel_version_list` directly. If the call fails (tool not found,
       "args": [
         "--repos", "redhat=https://maven.repository.redhat.com/ga/",
         "-Dquarkus.log.level=WARN",
-        "org.apache.camel:camel-jbang-mcp:4.18.0:runner"
+        "org.apache.camel:camel-jbang-mcp:LATEST:runner"
       ]
     }
   }
 }
 ```
 
-The `--repos` flag adds the Red Hat Maven repository so the MCP server can resolve Camel catalog artifacts for Red Hat Build versions at runtime. Without it, catalog calls targeting Red Hat versions will fail with dependency resolution errors.
+Use the latest available community version for the MCP server artifact. The MCP server is a development tool (not a runtime dependency) — it can serve catalog data for any Camel version regardless of its own version. The `--repos` flag adds the Red Hat Maven repository so the MCP server can resolve Camel catalog artifacts for Red Hat Build versions at runtime.
 
 ## Check for Existing Project
 
@@ -133,7 +133,9 @@ Example:
 - "Customers should receive email confirmations when orders ship"
 ```
 
-After receiving integration goals, suggest flow names:
+After receiving integration goals, suggest flow names.
+
+**Flow name rules:** lowercase kebab-case matching `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`. Flow names become file names (`{flow-name}.camel.yaml`, `{flow-name}.tdd.md`), so they must be valid identifiers. If the user provides names with spaces, uppercase, or special characters, auto-correct and confirm.
 
 ```
 Based on your requirements, I suggest these flows:
@@ -210,7 +212,7 @@ Do NOT proceed with a non-supported version. Ask again until the user selects a 
 
 **Step 3 — Store with Maven qualifier:**
 
-After the user selects a base version (e.g., `4.14.4`), store the full Maven version with `.redhat-XXXXX` qualifier in `.camel-kit/config.yaml`. Use the latest qualifier discovered from the repository listing (the one with the highest `-XXXXX` number for that base version).
+After the user selects a base version (e.g., `4.14.4`), record the full Maven version with `.redhat-XXXXX` qualifier. Use the latest qualifier discovered from the repository listing (the one with the highest `-XXXXX` number for that base version). This version will be written to `.camel-kit/config.yaml` during the save step.
 
 ```
 Selected: Red Hat Build of Apache Camel {{VERSION}}
@@ -263,9 +265,9 @@ After gathering all information, create `docs/business-requirements.md` with thi
 
 ### 3.1 Flows to Implement
 
-| Flow Name | Description | Priority |
-|-----------|-------------|----------|
-| [flow-name] | [What data moves and why] | [High/Medium/Low] |
+| Flow Name | Description |
+|-----------|-------------|
+| [flow-name] | [What data moves and why] |
 
 ### 3.2 Detailed Flow Requirements
 
@@ -386,13 +388,21 @@ After user confirms:
 1. Create directory structure:
 ```
 .camel-kit/
-├── business-requirements.md
+├── config.yaml
 └── flows/ (empty, will be populated by /camel-flow)
 ```
 
-2. Save the BRD to `docs/business-requirements.md`
+2. Create `.camel-kit/config.yaml` with the selected Camel version:
+```yaml
+project:
+  camelVersion: "{full-maven-version}"  # e.g. 4.14.4.redhat-00008
+```
 
-3. Show next steps:
+The `project.runtime` field is NOT set here — it is set later by `/camel-flow` (Step 0: Target Runtime).
+
+3. Save the BRD to `docs/business-requirements.md`
+
+4. Show next steps:
 
 ```
 ✅ Business Requirements Document saved to docs/business-requirements.md
@@ -453,20 +463,3 @@ If critical info is missing, flag it:
 This is important for [reason]. Can you provide information about [what's needed]?
 ```
 
-## Tips for Effective BRD
-
-- Keep business language, avoid technical jargon
-- Focus on WHAT and WHY, not HOW
-- Document assumptions and constraints
-- Make sure all stakeholders are identified
-- Ensure flows align with business purpose
-- Validate that success criteria are measurable
-
----
-
-## Token Optimization
-
-**This skill is designed to minimize token usage:**
-
-- Core SKILL.md: ~200 lines (down from 555)
-**Total savings:** ~60% tokens for projects using default best practices
