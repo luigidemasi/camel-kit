@@ -52,7 +52,7 @@ Always attempt `camel_version_list` directly. If the call fails (tool not found,
 }
 ```
 
-Use the latest available community version for the MCP server artifact. The MCP server is a development tool (not a runtime dependency) — it can serve catalog data for any Camel version regardless of its own version. The `--repos` flag adds the Red Hat Maven repository so the MCP server can resolve Camel catalog artifacts for Red Hat Build versions at runtime.
+Use `LATEST` for the MCP server artifact (must resolve to ≥ 4.18.0). The MCP server is a development tool (not a runtime dependency) — it can serve catalog data for any Camel version regardless of its own version. If `LATEST` fails to resolve, fall back to `4.18.0`. The `--repos` flag adds the Red Hat Maven repository so the MCP server can resolve Camel catalog artifacts for Red Hat Build versions at runtime.
 
 ## Check for Existing Project
 

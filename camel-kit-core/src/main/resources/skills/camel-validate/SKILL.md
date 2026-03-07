@@ -72,7 +72,7 @@ Example: `4.14.4.redhat-00008` → pass `4.14.4` to MCP calls. Keep the full `.r
       "args": [
         "--repos", "redhat=https://maven.repository.redhat.com/ga/",
         "-Dquarkus.log.level=WARN",
-        "org.apache.camel:camel-jbang-mcp:{{CAMEL_VERSION}}:runner"
+        "org.apache.camel:camel-jbang-mcp:LATEST:runner"
       ]
     }
   }
@@ -271,7 +271,7 @@ Add to .mcp.json:
   "mcpServers": {
     "camel": {
       "command": "jbang",
-      "args": ["--repos", "redhat=https://maven.repository.redhat.com/ga/", "-Dquarkus.log.level=WARN", "org.apache.camel:camel-jbang-mcp:4.18.0:runner"]
+      "args": ["--repos", "redhat=https://maven.repository.redhat.com/ga/", "-Dquarkus.log.level=WARN", "org.apache.camel:camel-jbang-mcp:LATEST:runner"]
     }
   }
 }

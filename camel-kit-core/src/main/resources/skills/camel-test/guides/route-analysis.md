@@ -24,7 +24,7 @@ Always attempt MCP tool calls directly. If a call fails (tool not found, network
       "args": [
         "--repos", "redhat=https://maven.repository.redhat.com/ga/",
         "-Dquarkus.log.level=WARN",
-        "org.apache.camel:camel-jbang-mcp:{{CAMEL_VERSION}}:runner"
+        "org.apache.camel:camel-jbang-mcp:LATEST:runner"
       ]
     }
   }
