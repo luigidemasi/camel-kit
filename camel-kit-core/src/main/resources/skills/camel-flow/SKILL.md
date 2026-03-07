@@ -39,12 +39,12 @@ Example: `/camel-flow order-to-warehouse`
 3. `.camel-kit/config.yaml` - **REQUIRED** — extract `project.camelVersion` and store it as `CAMEL_VERSION`. Every `camel_catalog_components` and `camel_catalog_component_doc` call MUST use this exact version. If the file does not exist, ask the user for the Camel version before proceeding.
 
 **On-Demand Guides (load ONLY when needed):**
-- `skills/camel-flow/guides/data-formats.md` - If user asks about format choice
-- `skills/camel-flow/guides/integration-patterns.md` - If user unsure about pattern
-- `skills/camel-flow/guides/eip-catalog.md` - If user unsure about transformations
-- `skills/camel-flow/guides/performance.md` - If high throughput/latency mentioned
-- `skills/camel-flow/guides/security.md` - If security/compliance mentioned
-- `skills/camel-flow/guides/monitoring.md` - If observability needed
+- `guides/data-formats.md` - If user asks about format choice
+- `guides/integration-patterns.md` - If user unsure about pattern
+- `guides/eip-catalog.md` - If user unsure about transformations
+- `guides/performance.md` - If high throughput/latency mentioned
+- `guides/security.md` - If security/compliance mentioned
+- `guides/monitoring.md` - If observability needed
 
 **Component selection (Questions 2 and 4) — MANDATORY:**
 - **Primary:** Call `camel_catalog_components` + `camel_catalog_component_doc` directly (with `CAMEL_VERSION`). Do not suggest component names from training data before attempting the catalog call.
@@ -139,7 +139,7 @@ Example: "Process JSON order events and insert into warehouse database."
 → **Load `guides/catalog-lookups.md` § Data Format Lookup** and execute the data format verification procedure with the format mentioned by the user.
 
 **If user uncertain about format choice:**
-→ Show the list from `camel_catalog_dataformats`, optionally load `skills/camel-flow/guides/data-formats.md` for comparison guidance, then ask the user to choose.
+→ Show the list from `camel_catalog_dataformats`, optionally load `guides/data-formats.md` for comparison guidance, then ask the user to choose.
 
 ---
 
@@ -165,7 +165,7 @@ Example: "Kafka topic 'orders', consuming new messages as they arrive"
 **After user confirms component:**
 
 **If user unsure about integration pattern:**
-→ Load `skills/camel-flow/guides/integration-patterns.md`
+→ Load `guides/integration-patterns.md`
 → Help classify pattern (Event-Driven, Request-Reply, Batch, Stream)
 
 ---
@@ -203,7 +203,7 @@ Skip Question 3a (DataMapper) and all catalog lookups. Proceed directly to Quest
 → **Load `guides/catalog-lookups.md` § Expression Language Lookup** and execute the expression language selection procedure for any EIP that requires an expression.
 
 **If user unsure about EIP patterns:**
-→ Query `camel_catalog_eips` for relevant categories first, then optionally load `skills/camel-flow/guides/eip-catalog.md` for higher-level guidance.
+→ Query `camel_catalog_eips` for relevant categories first, then optionally load `guides/eip-catalog.md` for higher-level guidance.
 
 Do NOT include `unmarshal` or `marshal` steps unless the user explicitly said they need typed Java objects. Prefer Kaoto DataMapper via `camel-datamapper-interview`.
 
@@ -361,7 +361,7 @@ What are your performance requirements?
 ```
 
 **Then load:**
-→ `skills/camel-flow/guides/performance.md`
+→ `guides/performance.md`
 → Show throughput classification, throttling configuration, and Kubernetes scaling guidance
 
 **Throttling guidance (document in TDD if high-throughput):**
@@ -398,7 +398,7 @@ What are your security requirements?
 ```
 
 **Then load:**
-→ `skills/camel-flow/guides/security.md`
+→ `guides/security.md`
 → Show authentication methods and data protection
 
 **If NOT mentioned:**
@@ -424,7 +424,7 @@ What monitoring do you need?
 ```
 
 **Then load:**
-→ `skills/camel-flow/guides/monitoring.md`
+→ `guides/monitoring.md`
 → Show correlation IDs, metrics, and health checks
 
 **If NOT mentioned:**

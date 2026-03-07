@@ -120,33 +120,9 @@ Use the `removeHeaders` EIP right before setting up the request for the second `
 
 ---
 
-## 🔌 Producer Component URI Examples
+## 🔌 Producer Component URI Notes
 
-The same pattern applies regardless of which producer component is used. Only the URI scheme changes.
-
-```yaml
-# http / https (default choice)
-- to:
-    uri: "https://api.example.com/v1/resource"
-    variableReceive: "response1"
-
-# undertow (as producer)
-- to:
-    uri: "undertow:http://internal-service:8080/api/resource"
-    variableReceive: "response1"
-
-# netty-http (as producer)
-- to:
-    uri: "netty-http:http://internal-service:8080/api/resource"
-    variableReceive: "response1"
-
-# vertx-http (as producer)
-- to:
-    uri: "vertx-http:http://api.example.com/v1/resource"
-    variableReceive: "response1"
-```
-
-In every case: apply `removeHeaders` and `removeHeader: Authorization` before the next producer call. The rules do not change.
+The same pattern (removeHeaders + removeHeader + variableReceive) applies to **all** producer components: `http`/`https`, `undertow`, `netty-http`, `vertx-http`. Only the URI scheme changes — the sanitization rules are identical.
 
 ---
 
