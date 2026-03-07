@@ -195,7 +195,7 @@ Example: "concat(firstName, ' ', lastName) → fullName"
 
 ## Step 7: Canonicalize and Save
 
-Generate a unique 8-character hexadecimal mapping ID.
+Generate the mapping ID: take the first 8 hex characters of `SHA-256(flow-name + "-" + source-format + "-" + target-format)`. Example: flow `order-to-warehouse` with JSON→XML produces `SHA-256("order-to-warehouse-json-xml")` → first 8 hex chars → `kaoto-datamapper-a3f1b2c4`. If a flow has multiple DataMapper steps, append a sequential suffix to the hash input (e.g., `-1`, `-2`).
 
 Load `skills/shared/datamapper-canonicalize.md` and follow all steps, passing:
 - The semantic field mappings collected from Steps 4–6 (source field, src type, target field, tgt type, transformation, how)

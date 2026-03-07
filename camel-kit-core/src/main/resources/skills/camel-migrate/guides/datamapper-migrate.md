@@ -138,7 +138,7 @@ Analyze the DataWeave script and extract field mappings using these patterns. Us
 
 ## Step 4: Present Inferred Mappings for Confirmation
 
-Generate a unique 8-character hexadecimal mapping ID. Present all inferred mappings with confidence indicators:
+Generate the mapping ID: take the first 8 hex characters of `SHA-256(flow-name + "-" + source-format + "-" + target-format)`. If a flow has multiple DataMapper steps, append a sequential suffix to the hash input (e.g., `-1`, `-2`). Present all inferred mappings with confidence indicators:
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -207,7 +207,7 @@ If the DataWeave script contains constructs that cannot be mapped to the pattern
 
 ## Step 6: Canonicalize and Save
 
-Generate a unique 8-character hexadecimal mapping ID.
+Use the mapping ID generated in Step 4 (or generate one using the SHA-256 algorithm if not already generated).
 
 Load `skills/shared/datamapper-canonicalize.md` and follow all steps, passing:
 - The confirmed field mappings from Step 4 (source field, src type, target field, tgt type, transformation, how)
