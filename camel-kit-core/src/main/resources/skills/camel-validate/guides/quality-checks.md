@@ -14,7 +14,7 @@ Verify all required elements are present:
 | Source defined | Route has `from:` section |
 | Sink defined | Route has `to:` or ends with producer |
 | Error handling | Route declares error handling strategy |
-| Description | Route has meaningful description |
+| Description | Route has `description:` with at least 10 characters describing the flow's business purpose |
 
 Show results:
 
@@ -79,7 +79,15 @@ This is informational only — do NOT fail validation based on Red Hat support s
 
 ### 5.3 Expression Validation
 
-Validate expressions (Simple, JSONPath, etc.):
+Validate all expressions used in the route:
+
+| Language | Validation Rules |
+|----------|-----------------|
+| Simple | `${header.X}` / `${body}` / `${exchangeProperty.X}` — verify referenced headers/properties exist in the flow. No undefined variable references. |
+| JSONPath | Must start with `$` or `$.`. Verify valid JSONPath syntax (matched brackets, valid operators). |
+| XPath | Must be well-formed XPath 1.0/2.0. Verify namespace prefixes are declared if used. |
+| Constant | Literal values only. No expression syntax inside `constant` blocks. |
+| JQ | Must start with `.` — verify valid JQ filter syntax. |
 
 ```
 ✅ Simple expressions: Syntax valid
@@ -95,14 +103,14 @@ Validate against constitution rules from `docs/constitution.md`:
 
 ### 6.1 Standard Constitution Gates
 
-| Gate | Check |
-|------|-------|
-| Route Structure | Route ID follows pattern, single responsibility |
-| Configuration | All connections externalized to application.properties |
-| Error Handling | Every route has error strategy |
-| Security | No hardcoded secrets |
-| Naming | Route ID follows `domain-action` convention |
-| Clean Routes | No connection details in YAML |
+| Gate | Check | Formal Criteria |
+|------|-------|-----------------|
+| Route Structure | Single responsibility | Route has exactly ONE `from:` and its processing steps serve ONE business purpose. Fail if route contains multiple unrelated `from:` consumers or mixes unrelated business logic (e.g., order processing AND user notification in the same route). Multiple `to:` endpoints serving the same flow are acceptable. |
+| Configuration | Externalized connections | No hostname, port, IP address, database URL, or queue name literals in the route YAML. All must use `{{placeholder}}` syntax referencing `application.properties`. |
+| Error Handling | Error strategy present | Route declares `onException`, `errorHandler`, or `deadLetterChannel`. Global error handlers in the same file count. |
+| Security | No hardcoded secrets | No string values matching: passwords, API keys, tokens, or credentials. Detect patterns: `password=`, `apiKey=`, `secret=`, `token=`, Base64-encoded strings > 20 chars, `jdbc:` URLs with inline credentials (e.g., `user:pass@host`). All must use `{{placeholder}}` syntax. |
+| Naming | Route ID convention | Route ID matches pattern `{domain}-{action}` using lowercase kebab-case. Valid: `order-process`, `user-notify`, `inventory-sync`. Invalid: `route1`, `myRoute`, `OrderProcess`, `process_orders`. Regex: `^[a-z][a-z0-9]*(-[a-z][a-z0-9]*)+$` |
+| Clean Routes | No connection details | No inline connection strings, broker URLs, database endpoints, or file paths in route YAML. Everything via `{{placeholder}}`. |
 
 Show results:
 
