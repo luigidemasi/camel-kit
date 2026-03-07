@@ -51,16 +51,30 @@ When `all` or `--all` is specified:
    ✅ [current]/[total] — {flow-name} implemented
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    ```
-4. **Final summary:** After all flows, show combined summary:
+   **If a flow fails** (smoke test exhausted all 6 attempts, or unrecoverable error):
+   ```
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ❌ [current]/[total] — {flow-name} FAILED
+      Error: [one-line summary]
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ```
+   **Continue to the next flow.** Do NOT stop the batch on failure.
+
+4. **Final summary:** After all flows, show combined summary with pass/fail status:
    ```
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    BATCH IMPLEMENTATION COMPLETE
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-   Implemented [N] flows:
+   Results: [passed]/[total] flows implemented
      ✅ flow-name-1
-     ✅ flow-name-2
+     ❌ flow-name-2 — [error summary]
+     ✅ flow-name-3
      ...
+
+   [If any failed:]
+   Failed flows need manual investigation:
+     - flow-name-2: [error details]
 
    Next steps:
      /camel-validate --all    # Validate all flows
