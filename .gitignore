@@ -233,3 +233,6 @@ website/public/
 website/.hugo_build.lock
 website/_vendor/
 website/resources/_gen/
+
+# Worktrees
+.worktrees/
