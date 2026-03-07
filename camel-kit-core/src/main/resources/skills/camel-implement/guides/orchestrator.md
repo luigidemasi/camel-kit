@@ -22,7 +22,7 @@ Resolve paths based on runtime:
 | `.kaoto` | `{module}/` | `{module}/` |
 | `run.sh` (JBang only) | `{module}/` | N/A |
 
-Where `{module}` is the `Target Module` from TDD Section 1. For single-project setups, `{module}` is empty (files go in project root).
+Where `{module}` is the `Target Module` from the TDD "Overview" section. For single-project setups, `{module}` is empty (files go in project root).
 
 Assign these as context variables for all subsequent steps:
 - `ROUTE_DIR` — route/datamapper location from table above
@@ -183,42 +183,15 @@ Smoke Test: ✅ PASSED / ⚠️ FAILED
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RECOMMENDED NEXT STEPS
+NEXT STEPS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. Review generated files and validate configuration
+1. Review generated files
 
-2. Start external services:
-
-   docker compose up -d
-
-3. Validate the implementation:
-
+2. Validate the implementation:
    /camel-validate {flow-name}
 
-4. Generate integration tests:
-
+3. Generate integration tests:
    /camel-test {flow-name}
-
-5. Run the integration:
-
-   JBang:
-   ./run.sh
-   Or: camel run {flow-name}.camel.yaml application.properties
-
-   Spring Boot:
-   mvn spring-boot:run
-   Or: ./mvnw spring-boot:run
-
-   Quarkus:
-   mvn quarkus:dev
-   Or: ./mvnw quarkus:dev
-
-6. Monitor logs and verify behavior
-
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Need help?
-- /camel-validate {flow-name} - Validate implementation
-- /camel-test {flow-name} - Generate tests
 ```

@@ -65,7 +65,7 @@ source.endpoint=[value from TDD]
 sink.endpoint=[value from TDD]
 dlq.endpoint=[value from TDD]
 
-# Error handling configuration from TDD Section 5
+# Error handling configuration from TDD "Error Handling" section
 error.max.retries=[value from TDD]
 error.retry.delay=[value from TDD]
 error.backoff.multiplier=[value from TDD]

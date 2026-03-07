@@ -176,7 +176,7 @@ If gates fail, warn before proceeding.
 Read `project.runtime` from `.camel-kit/config.yaml`.
 If not set, default to `jbang`.
 
-**CRITICAL: Read `Target Module` from TDD Section 1 to determine the base directory.**
+**CRITICAL: Read `Target Module` from the TDD "Overview" section to determine the base directory.**
 
 If the TDD contains a `Target Module` field (e.g., `my-module/` or `services/order-service/`), pass it to the orchestrator. If not set or is `.` (dot), use empty string (single-project layout).
 
@@ -186,7 +186,7 @@ Pass to the orchestrator:
 - **RUNTIME**: `jbang`, `springboot`, or `quarkus` (from step above)
 - **FLOW_NAME**: `{flow-name}` from parameters
 - **CAMEL_VERSION**: from `.camel-kit/config.yaml` (or default)
-- **TARGET_MODULE**: from TDD Section 1 (`Target Module` field, empty for single-project)
+- **TARGET_MODULE**: from the TDD "Overview" section (`Target Module` field, empty for single-project)
 - **TDD**: full content of the Technical Design Document
 - **BRD**: summary of business requirements
 - **SCHEMAS_MISSING**: true/false from Step 1.2

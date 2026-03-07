@@ -8,7 +8,7 @@ This guide generates JSON schemas. Only loaded when schemas were missing and use
 
 ## Input Schema
 
-From TDD Section 2.3 (Data Contract - Input):
+From the TDD "Source System" section (Data Contract - Input):
 
 ```json
 {
@@ -29,7 +29,7 @@ From TDD Section 2.3 (Data Contract - Input):
 
 ## Output Schema
 
-From TDD Section 3.3 or 4.3 (Data Contract - Output):
+From the TDD "Processing Steps" or "Sink System" section (Data Contract - Output):
 
 ```json
 {

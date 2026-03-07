@@ -6,9 +6,18 @@ This guide generates `docker-compose.yaml`.
 
 ---
 
-Generate a `docker-compose.yaml` with the Camel service and any external services identified in TDD "Dependencies" section.
+Generate a `docker-compose.yaml` based on the target runtime. The purpose differs by runtime:
 
-## Mandatory Rules for the Camel Service
+- **JBang:** docker-compose runs the Camel application AND external services
+- **Spring Boot / Quarkus:** docker-compose runs external services ONLY (the app runs via Maven)
+
+---
+
+## JBang Template
+
+Use this template when `RUNTIME == jbang`.
+
+### Mandatory Rules for the Camel Service
 
 | Rule | Detail |
 |------|--------|
@@ -18,15 +27,11 @@ Generate a `docker-compose.yaml` with the Camel service and any external service
 | XSL files | Mount **every** `kaoto-datamapper-*.xsl` file and list them in `command:` -- omitting them causes `FileNotFoundException: Cannot find resource: classpath:kaoto-datamapper-*.xsl` at startup |
 | Properties | Mount `application.properties` and pass it via `--properties=` |
 | Port | Use the port from `camel.server.port` in `application.properties` |
-| External services | Add service definitions for TDD "Dependencies" section dependencies (SMTP dev server, databases, message brokers, etc.) and use `depends_on:` from the Camel service |
-
-## docker-compose.yaml Template
-
-Adapt to actual file names and dependencies:
+| External services | Add service definitions for TDD "Dependencies" section dependencies and use `depends_on:` from the Camel service |
 
 ```yaml
 # ============================================
-# Docker Compose for {FLOW_NAME}
+# Docker Compose for {FLOW_NAME} (JBang)
 # ============================================
 
 services:
@@ -58,8 +63,35 @@ services:
     restart: unless-stopped
 ```
 
-**Replace ALL `{placeholders}` with actual values.** Do NOT leave commented-out volume or command examples -- generate the real entries for each DataMapper XSL file in the project.
+---
 
-**Runtime-specific note:** `DOCKER_IMAGE` is provided by the orchestrator.
+## Spring Boot / Quarkus Template
+
+Use this template when `RUNTIME == springboot` or `RUNTIME == quarkus`.
+
+The Camel application is NOT included in docker-compose — it runs via `mvn spring-boot:run` or `mvn quarkus:dev`. Docker Compose only manages the external services the application depends on (databases, message brokers, mail servers, etc.).
+
+**If the TDD has no external service dependencies:** skip docker-compose generation entirely.
+
+```yaml
+# ============================================
+# Docker Compose for {FLOW_NAME} (External Services)
+# ============================================
+
+services:
+  # External services from TDD "Dependencies" section
+  {external-service}:
+    image: {image}
+    container_name: {FLOW_NAME}-{service-name}
+    ports:
+      - "{service-port}:{service-port}"
+    environment:
+      # Service-specific env vars (e.g., POSTGRES_DB, KAFKA_AUTO_CREATE_TOPICS_ENABLE)
+    restart: unless-stopped
+```
+
+---
+
+**Replace ALL `{placeholders}` with actual values.** Do NOT leave commented-out volume or command examples -- generate the real entries.
 
 **File location:** Use `MODULE_DIR` for file location.

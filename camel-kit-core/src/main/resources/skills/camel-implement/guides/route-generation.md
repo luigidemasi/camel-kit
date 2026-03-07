@@ -6,7 +6,7 @@
 > - `ROUTE_DIR` — directory where `{FLOW_NAME}.camel.yaml` and XSLT files are written
 > - `ROUTE_FILE` — full path to the route file (`{ROUTE_DIR}/{FLOW_NAME}.camel.yaml`)
 > - `CAMEL_VERSION` — Camel version from `.camel-kit/config.yaml`
-> - `TARGET_MODULE` — module prefix from TDD Section 1 (empty for single-project)
+> - `TARGET_MODULE` — module prefix from TDD "Overview" section (empty for single-project)
 
 ---
 
@@ -143,28 +143,28 @@ Create file: `{FLOW_NAME}.camel.yaml`
 
 Generate the route by translating the TDD to Camel YAML DSL:
 
-1. **Route Structure** (from TDD Section 1):
+1. **Route Structure** (from TDD "Overview"):
    - Route ID: `{FLOW_NAME}`
    - Description: from TDD overview
 
-2. **Source Configuration** (from TDD Section 2):
+2. **Source Configuration** (from TDD "Source System"):
    - Component: from TDD
    - URI: Use property placeholders for endpoints
    - Parameters: Only endpoint-specific (NOT connection details)
 
-3. **Processing Steps** (from TDD Section 3):
+3. **Processing Steps** (from TDD "Processing Steps"):
    - For each EIP in the TDD, call `camel_catalog_eip_doc` (with `CAMEL_VERSION`) to get the authoritative option names and YAML DSL structure before writing the step — see Rule 0d
    - Translate each step from TDD to Camel EIP using only catalog-verified option names
    - **If DataMapper artifacts were generated (by a prior guide)**, the DataMapper step block is already injected into the YAML — do not duplicate it
    - Preserve order from TDD
    - Use `steps:` array format for Kaoto compatibility
 
-4. **Sink Configuration** (from TDD Section 4):
+4. **Sink Configuration** (from TDD "Sink System"):
    - Component: from TDD
    - URI: Use property placeholders
    - Parameters: Only endpoint-specific
 
-5. **Error Handling** (from TDD Section 5):
+5. **Error Handling** (from TDD "Error Handling"):
    - Strategy: from TDD (Dead Letter Channel, onException, etc.)
    - DLQ: Use property placeholder
    - Retry policy: from TDD configuration
@@ -321,7 +321,7 @@ Generate the route by translating the TDD to Camel YAML DSL:
 
    **Component required:** `camel-xslt-saxon` (verified by the DataMapper guide)
 
-3b. **DataMapper Parameters** - Pass Camel Variables/Headers to XSLT (if TDD Section 3.3 defines parameters):
+3b. **DataMapper Parameters** - Pass Camel Variables/Headers to XSLT (if TDD "Processing Steps" section defines parameters):
    ```yaml
    steps:
      - step:
