@@ -46,13 +46,13 @@ For each component used, verify:
 == COMPONENT VALIDATION ==
 
 Kafka Component:
-  ✅ Valid component (Camel {{VERSION}})
+  ✅ Valid component (Camel {{CAMEL_VERSION}})
   ✅ Used as consumer: kafka:{{kafka.topic.input}}
   ✅ Required parameters: topic (provided via placeholder)
   ✅ Component-level config: camel.component.kafka.brokers (defined)
 
 SQL Component:
-  ✅ Valid component (Camel {{VERSION}})
+  ✅ Valid component (Camel {{CAMEL_VERSION}})
   ✅ Used as producer: sql:INSERT INTO...
   ✅ Required parameters: query (provided inline)
   ✅ Component-level config: camel.component.sql.dataSource (defined)
@@ -66,16 +66,19 @@ For each component, call `camel_rh_build_component_info` to check Red Hat suppor
 == RED HAT SUPPORT CHECK ==
 
 Kafka Component:
-  ℹ️ Red Hat supported (4.14)
+  ℹ️ Red Hat supported (4.14) — Production Support
 
 SQL Component:
-  ℹ️ Red Hat supported (4.14)
+  ℹ️ Red Hat supported (4.14) — Production Support
+
+Azure ServiceBus Component:
+  ⚠️ Red Hat supported (4.14) — Technology Preview (not for production use)
 
 Custom Component:
   ⚠️ Not found in Red Hat Build of Apache Camel docs (may still work, not officially supported)
 ```
 
-This is informational only — do NOT fail validation based on Red Hat support status.
+This is informational — results feed into the Stage 6 constitution check (Rule 7).
 
 ### 5.3 Expression Validation
 
@@ -99,35 +102,54 @@ Validate all expressions used in the route:
 
 ## Stage 6: Constitution Checks
 
-Validate against constitution rules from `docs/constitution.md`:
+Validate against the 7 rules in `docs/constitution.md`. Each gate maps 1:1 to a constitution rule.
 
-### 6.1 Standard Constitution Gates
+### 6.1 Constitution Gates
 
-| Gate | Check | Formal Criteria |
-|------|-------|-----------------|
-| Route Structure | Single responsibility | Route has exactly ONE `from:` and its processing steps serve ONE business purpose. Fail if route contains multiple unrelated `from:` consumers or mixes unrelated business logic (e.g., order processing AND user notification in the same route). Multiple `to:` endpoints serving the same flow are acceptable. |
-| Configuration | Externalized connections | No hostname, port, IP address, database URL, or queue name literals in the route YAML. All must use `{{placeholder}}` syntax referencing `application.properties`. |
-| Error Handling | Error strategy present | Route declares `onException`, `errorHandler`, or `deadLetterChannel`. Global error handlers in the same file count. |
-| Security | No hardcoded secrets | No string values matching: passwords, API keys, tokens, or credentials. Detect patterns: `password=`, `apiKey=`, `secret=`, `token=`, Base64-encoded strings > 20 chars, `jdbc:` URLs with inline credentials (e.g., `user:pass@host`). All must use `{{placeholder}}` syntax. |
-| Naming | Route ID convention | Route ID matches pattern `{domain}-{action}` using lowercase kebab-case. Valid: `order-process`, `user-notify`, `inventory-sync`. Invalid: `route1`, `myRoute`, `OrderProcess`, `process_orders`. Regex: `^[a-z][a-z0-9]*(-[a-z][a-z0-9]*)+$` |
-| Clean Routes | No connection details | No inline connection strings, broker URLs, database endpoints, or file paths in route YAML. Everything via `{{placeholder}}`. |
+| # | Rule | Check | Formal Criteria | Severity |
+|---|------|-------|-----------------|----------|
+| 1 | Route Structure | Source and sink present | Route has a `from:` (source) and ends with a `to:` or producer (sink). `direct:`/`seda:` sub-routes are exempt from needing an external sink. | FAIL |
+| 2 | Single Responsibility | One purpose per route | Route processing steps serve ONE business purpose, explainable in one sentence. Fail if route mixes unrelated business logic (e.g., order processing AND user notification in the same route). | WARNING if >7 processing steps |
+| 3 | Separation of Concerns | Decomposed architecture | For routes with >5 processing steps: verify decomposition into ingestion → processing → delivery using `direct:`/`seda:` internal routing. Business logic should be in beans, not inline in routes. Single-step routes are exempt. | WARNING |
+| 4 | Naming Conventions | Route ID convention | Route ID matches `{domain}-{action}` lowercase kebab-case. Valid: `order-process`, `user-notify`. Invalid: `route1`, `myRoute`, `OrderProcess`. Regex: `^[a-z][a-z0-9]*(-[a-z][a-z0-9]*)+$` | WARNING |
+| 5 | Observability | routeId + description | Every route declares both a `routeId` and a `description` (≥10 chars describing the flow's business purpose). These are essential for monitoring, logging, and tracing. | FAIL |
+| 6 | External Configuration | No hardcoded values | No hostnames, ports, IPs, database URLs, queue names, credentials, API keys, tokens, or secrets in route YAML. Detect patterns: `password=`, `apiKey=`, `secret=`, `token=`, Base64 strings >20 chars, `jdbc:` URLs with inline credentials. All must use `{{placeholder}}` syntax. | FAIL |
+| 7 | Component Support | Red Hat verified | Every component verified as supported by Red Hat Build of Apache Camel for the target version. **Primary:** Uses Stage 5.2 MCP results (`camel_rh_build_component_info`). **Fallback (MCP unavailable):** Consult the Red Hat Build of Apache Camel reference docs — Quarkus Reference or Spring Boot Reference for the target version — which list all supported extensions with their support level. Three warning levels: (1) **Not found** — component not in Red Hat docs at all; (2) **Tech Preview** — marked as Technology Preview (not for production, may not be functionally complete); (3) **Community Support** — tested upstream but not formally supported by Red Hat. Only "Production Support" passes without warning. | WARNING |
 
 Show results:
 
 ```
 == CONSTITUTION COMPLIANCE ==
 
-✅ Route Structure: Single responsibility
-✅ Route Naming: Follows 'domain-action' pattern
-✅ External Configuration: No hardcoded connections
-✅ Error Handling: Dead Letter Channel configured
-✅ Security: No hardcoded secrets found
-✅ Clean Routes: All configuration externalized
+Rule 1 — Route Structure:
+  ✅ Source (from: kafka:...) and sink (to: sql:...) present
+
+Rule 2 — Single Responsibility:
+  ✅ Single business purpose (4 processing steps)
+
+Rule 3 — Separation of Concerns:
+  ✅ Route uses direct: for internal decomposition
+
+Rule 4 — Naming Conventions:
+  ✅ Route ID 'order-process' matches domain-action pattern
+
+Rule 5 — Observability:
+  ✅ routeId and description present
+
+Rule 6 — External Configuration:
+  ✅ No hardcoded values — all configuration externalized
+
+Rule 7 — Component Support:
+  ✅ kafka: Production Support
+  ✅ sql: Production Support
+  [or: ⚠️ azure-servicebus: Technology Preview — not for production use, may not be functionally complete]
+  [or: ⚠️ custom-component: NOT FOUND in Red Hat Build docs — check supported extensions list]
+  [or: ⚠️ Could not verify — camel-knowledge MCP not available]
 ```
 
 ### 6.2 Custom Constitution Rules
 
-If constitution.md defines custom rules, validate those:
+If `docs/constitution.md` defines project-specific rules (under "Project Customizations"), validate those:
 
 ```
 ✅ Custom Rule: [rule name] - [result]
