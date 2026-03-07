@@ -3,6 +3,8 @@
 > **Context variables provided by master SKILL.md:**
 > - `FLOW_NAME` — the flow being validated
 > - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
+>
+> **Version stripping:** When calling MCP catalog tools, strip `.redhat-XXXXX` suffix from `CAMEL_VERSION` (see `skills/shared/mcp-setup.md`).
 
 ## Stage 4: Completeness Checks
 
@@ -60,7 +62,7 @@ SQL Component:
 
 ### 5.2 Red Hat Support Data Collection (optional, if camel-knowledge MCP is available)
 
-For each component, call `camel_rh_build_component_info` to collect Red Hat support status. If the tool call fails (tool not found, network error), skip this section silently.
+For each component, call `camel_rh_build_component_info` to collect Red Hat support status. If the tool call fails (tool not found, network error), skip this section with a note: `"Skipping Red Hat support check — camel-knowledge MCP not available."`
 
 **This step is data collection only.** Store the results (support level per component) for use in Stage 6 Constitution Rule 7, which evaluates and reports warnings.
 

@@ -1,5 +1,10 @@
 # DataMapper Interview Guide
 
+> **Context variables provided by `camel-flow`:**
+> - `FLOW_NAME` — the flow being designed
+> - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
+> - Source format and target format from the user's Q3 answer
+
 You are now acting as a **Data Mapping Specialist**. This guide is loaded by `camel-flow` when the user mentions data transformation or field mapping and the format pair is XML→XML, JSON→JSON, JSON→XML, or XML→JSON.
 
 Follow the steps below, then return control to `camel-flow` at Question 4.
@@ -197,7 +202,7 @@ Example: "concat(firstName, ' ', lastName) → fullName"
 
 Generate the mapping ID: take the first 8 hex characters of `SHA-256(flow-name + "-" + source-format + "-" + target-format)`. Example: flow `order-to-warehouse` with JSON→XML produces `SHA-256("order-to-warehouse-json-xml")` → first 8 hex chars → `kaoto-datamapper-a3f1b2c4`. If a flow has multiple DataMapper steps, append a sequential suffix to the hash input (e.g., `-1`, `-2`).
 
-Load `skills/shared/datamapper-canonicalize.md` and follow all steps, passing:
+→ **Load `skills/shared/datamapper-canonicalize.md`** and follow all steps, passing:
 - The semantic field mappings collected from Steps 4–6 (source field, src type, target field, tgt type, transformation, how)
 - Conditional and collection mappings from Step 6 (if any)
 - Source/target types and schema paths from Steps 1–3

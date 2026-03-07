@@ -94,9 +94,8 @@ If no route YAML files are found: ERROR "No Camel routes found. Run /camel-imple
 
 **Anti-Pattern Guide (conditional):**
 - Load `guides/anti-patterns.md` ONLY if:
-  - User explicitly requests comprehensive validation
-  - User asks to check for anti-patterns or best practices
-  - Basic validation passes and you want to provide additional recommendations
+  - User explicitly requests comprehensive validation (e.g., `--comprehensive` flag or "check for anti-patterns")
+  - All 8 validation stages pass without errors — load as an optional enhancement step
 
 ---
 

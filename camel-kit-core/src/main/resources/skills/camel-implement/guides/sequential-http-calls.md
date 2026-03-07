@@ -1,6 +1,6 @@
 # Sequential HTTP Calls & State Management
 
-## 📌 Context
+## Context
 When generating Apache Camel YAML DSL code that involves **two or more HTTP/S endpoint calls within the same route**, 
 you must ALWAYS manage the lifecycle of the Exchange headers and state.
 By default, Camel propagates message headers. If not explicitly cleared, response or request headers from the first 
@@ -10,7 +10,7 @@ you must utilize **Camel Variables** with the `variableReceive` feature (introdu
 
 ---
 
-## 🗂️ HTTP Component Quick Reference
+## HTTP Component Quick Reference
 
 Camel provides multiple HTTP-related components. Choose based on role (consumer vs. producer) and runtime.
 
@@ -44,7 +44,7 @@ Camel provides multiple HTTP-related components. Choose based on role (consumer 
 
 ---
 
-## 🤖 Agent Workflow & MCP Tool Usage
+## Agent Workflow & MCP Tool Usage
 You are connected to the `camel-jbang-mcp` server. Follow this strict workflow:
 1. **Verify (Optional):** Call `CatalogTools` to inspect the `http` component or EIP documentation if unsure about specific attributes (like `variableReceive`).
 2. **Generate:** Draft the YAML DSL code following the "Mandatory Rules" below.
@@ -52,7 +52,7 @@ You are connected to the `camel-jbang-mcp` server. Follow this strict workflow:
 4. **Security Check (Required):** Call the `HardenTools` on your generated route. Ensure the tool does not flag any header leakage between the HTTP calls.
 5. **Output:** Present the final, validated YAML to the user.
 
-## 🚨 Mandatory Rules for the Agent
+## Mandatory Rules for the Agent
 
 ### 1. Prevent Query Parameter Leakage (`CamelHttpQuery`)
 After an HTTP call, internal Camel headers remain in the Exchange.
@@ -69,7 +69,7 @@ Making an HTTP call normally overwrites the current Message Body with the HTTP r
 ### 4. Safe State Cleanup Pattern (`removeHeaders`)
 Use the `removeHeaders` EIP right before setting up the request for the second `<to>` endpoint. A wildcard pattern (`CamelHttp*`) is the safest approach.
 
-## 💻 YAML DSL Code Example (Best Practice Template)
+## YAML DSL Code Example (Best Practice Template)
 
 ```yaml
 - route:
@@ -120,13 +120,13 @@ Use the `removeHeaders` EIP right before setting up the request for the second `
 
 ---
 
-## 🔌 Producer Component URI Notes
+## Producer Component URI Notes
 
 The same pattern (removeHeaders + removeHeader + variableReceive) applies to **all** producer components: `http`/`https`, `undertow`, `netty-http`, `vertx-http`. Only the URI scheme changes — the sanitization rules are identical.
 
 ---
 
-## 🚪 When the Route Source is an HTTP Consumer
+## When the Route Source is an HTTP Consumer
 
 When a route is triggered by an HTTP consumer (`platform-http`, `servlet`, `jetty`, `undertow`, `netty-http`), the incoming HTTP request headers — including `Authorization`, `Content-Type`, `CamelHttpUri`, `CamelHttpQuery` — are already present on the Exchange before the first `to:` call.
 

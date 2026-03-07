@@ -114,7 +114,7 @@ Example:
 
 After receiving integration goals, suggest flow names.
 
-**Flow name rules:** lowercase kebab-case matching `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`. Flow names become file names (`{flow-name}.camel.yaml`, `{flow-name}.tdd.md`), so they must be valid identifiers. If the user provides names with spaces, uppercase, or special characters, auto-correct and confirm.
+**Flow name rules:** lowercase kebab-case matching `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`. Flow names become file names (`{flow-name}.camel.yaml`, `docs/flows/{flow-name}/{flow-name}.tdd.md`), so they must be valid identifiers. If the user provides names with spaces, uppercase, or special characters, auto-correct and confirm.
 
 ```
 Based on your requirements, I suggest these flows:
@@ -144,8 +144,6 @@ Type "defaults" to use standard Apache Camel best practices, or list your specif
 ```
 
 ### Question 6: Camel Version Selection
-
-**If tool call succeeds:**
 
 **CRITICAL — Only Red Hat supported versions are allowed.** The target Camel version MUST be a version supported by Red Hat Build of Apache Camel. Community-only versions (e.g., `4.18.0`, `4.12.0`) are NOT allowed.
 

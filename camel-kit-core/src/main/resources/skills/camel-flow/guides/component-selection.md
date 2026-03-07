@@ -74,7 +74,7 @@ Do not proceed with an unverified component.
 
 **Only use this path when the `camel_catalog_components` or `camel_catalog_component_doc` call fails (tool not found, network error, timeout).**
 
-**Tier 1:** Load `skills/camel-component-[name]/SKILL.md` if it exists. Use its documentation for URI syntax and options.
+**Tier 1:** → **Load `skills/camel-component-[name]/SKILL.md`** if it exists. Use its documentation for URI syntax and options.
 
 **Tier 2:** If no bundled skill exists, inform the user:
 

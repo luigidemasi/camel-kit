@@ -3,6 +3,8 @@
 > **Context variables provided by master SKILL.md:**
 > - `FLOW_NAME` — the flow being validated
 > - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
+>
+> **Version stripping:** When calling MCP catalog tools, strip `.redhat-XXXXX` suffix from `CAMEL_VERSION` (see `skills/shared/mcp-setup.md`).
 
 ## Stage 8: Security Analysis (MCP Enhanced)
 

@@ -159,7 +159,6 @@ If the TDD contains a `Target Module` field (e.g., `my-module/` or `services/ord
 | Variable | JBang (default) | Spring Boot / Quarkus |
 |----------|----------------|----------------------|
 | `TEST_DIR` | `{module}/` | `{module}/src/test/resources/` |
-| `TEST_DATA_DIR` | `{module}/` | `{module}/src/test/resources/data/` |
 | `RUNNER_DIR` | `{module}/` | `{module}/` |
 
 Where `{module}` is the `Target Module` from the TDD "Overview" section (empty for single-project layouts).

@@ -4,6 +4,7 @@
 > - `FLOW_NAME` — the flow being tested
 > - `RUNNER_DIR` — resolved runner script directory
 > - `TEST_DIR` — resolved test file directory
+> - `TARGET_MODULE` — from the TDD "Overview" section (empty for single-project)
 
 ---
 

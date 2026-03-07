@@ -3,7 +3,6 @@
 > **Context variables provided by master SKILL.md:**
 > - `FLOW_NAME` — the flow being tested
 > - `TEST_DIR` — resolved test file directory
-> - `TEST_DATA_DIR` — resolved test data directory
 > - `TARGET_MODULE` — from the TDD "Overview" section (empty for single-project)
 
 ---

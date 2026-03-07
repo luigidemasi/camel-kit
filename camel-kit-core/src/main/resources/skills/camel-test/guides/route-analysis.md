@@ -3,6 +3,8 @@
 > **Context variables provided by master SKILL.md:**
 > - `FLOW_NAME` — the flow being tested
 > - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
+>
+> **Version stripping:** When calling MCP catalog tools (`camel_route_context`, `camel_catalog_component_doc`), strip `.redhat-XXXXX` suffix from `CAMEL_VERSION` (see `skills/shared/mcp-setup.md`).
 
 ---
 

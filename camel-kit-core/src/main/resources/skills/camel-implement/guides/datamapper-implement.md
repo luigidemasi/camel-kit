@@ -60,9 +60,10 @@ The XSLT cannot be generated from an empty mapping table — an empty skeleton
 would be functionally useless and cannot be fixed by Kaoto IDE alone.
 
 Action required:
-1. If this is a migration: load 'guides/datamapper-migrate.md' and run
-   the DataWeave conversion analysis to extract field mappings from the
-   source DataWeave script, then update the TDD.
+1. If this is a migration: load the DataMapper migration guide from
+   the camel-migrate skill ('skills/camel-migrate/guides/datamapper-migrate.md')
+   and run the DataWeave conversion analysis to extract field mappings
+   from the source DataWeave script, then update the TDD.
 2. If this is a greenfield flow: run /camel-flow {flow-name} and complete
    the data transformation interview to define the field mappings.
 3. Then re-run /camel-implement {flow-name}.

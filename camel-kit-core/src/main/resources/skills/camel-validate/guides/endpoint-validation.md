@@ -4,6 +4,8 @@
 > - `FLOW_NAME` — the flow being validated
 > - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
 > - `RUNTIME` — project runtime from `.camel-kit/config.yaml` (affects route file location)
+>
+> **Version stripping:** When calling MCP catalog tools, strip `.redhat-XXXXX` suffix from `CAMEL_VERSION` (see `skills/shared/mcp-setup.md`).
 
 ## Stage 2: Endpoint URI Validation (MCP Enhanced)
 

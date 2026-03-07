@@ -289,7 +289,7 @@ For every migration decision, follow the **Verification Chain**:
 │    └─ NOT FOUND → go to step 5                                     │
 │                                                                     │
 │ 4. Call MCP catalog DOC tool to verify OPTIONS:                     │
-│    • Components: camel_catalog_component_doc(component=<name>)     │
+│    • Components: camel_catalog_component_doc(name=<name>)          │
 │    • EIPs:       camel_catalog_eip_doc(eip=<name>)                 │
 │    • Formats:    camel_catalog_dataformat_doc(dataformat=<name>)   │
 │    • Languages:  camel_catalog_language_doc(language=<name>)       │

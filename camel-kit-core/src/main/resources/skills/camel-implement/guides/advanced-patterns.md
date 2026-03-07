@@ -1,3 +1,28 @@
+# Advanced Patterns Guide
+
+> **Context variables provided by master SKILL.md:**
+> - `FLOW_NAME` — the flow being implemented
+> - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
+
+This guide implements advanced EIP patterns referenced in the TDD. Each pattern maps to a specific TDD section:
+
+| Pattern | TDD Section |
+|---------|-------------|
+| Idempotent Consumer | "Resilience / Circuit Breaker" or "Idempotent Consumer" |
+| Transactions | "Transactions" |
+| Circuit Breaker | "Resilience / Circuit Breaker" |
+| Retry with Backoff | "Error Handling" |
+| Correlation ID | "Monitoring & Observability" |
+| Content Enricher | "Processing Steps" |
+| Throttling | "Performance & Reliability" |
+| Batch Processing | "Performance & Reliability" |
+| Dead Letter Channel | "Error Handling" |
+| Schema Validation | "Processing Steps" |
+
+**Only implement patterns that appear in the TDD.** Skip patterns whose corresponding TDD section does not exist.
+
+---
+
 ### 8.1 Idempotent Consumer Pattern
 
 If TDD specifies exactly-once or at-least-once delivery:

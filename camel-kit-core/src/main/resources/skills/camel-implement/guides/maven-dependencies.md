@@ -121,6 +121,6 @@ Add dependencies from the TDD "Dependencies" section using the correct groupId a
 
 **Note:** No `<version>` tag needed — the BOM manages versions.
 
-**Note:** `camel-datamapper-implement` (Step 2.5) handles adding the XSLT dependency automatically. Do not add it manually here.
+**Note:** The DataMapper guide (Step 1 in the orchestrator) handles adding the `camel-xslt-saxon` dependency automatically. Do not add it manually here.
 
 **File location:** Use `MODULE_DIR` for `pom.xml` location.
