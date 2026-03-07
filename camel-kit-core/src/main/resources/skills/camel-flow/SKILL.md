@@ -547,6 +547,9 @@ Save this TDD? (yes/no)
 
 If confirmed:
 
+1. Save the TDD to `docs/flows/{flow-name}/{flow-name}.tdd.md`
+2. Delete the draft file if it exists: `docs/flows/{flow-name}/{flow-name}.tdd.draft.md`
+
 ```
 ✅ TDD saved to docs/flows/{flow-name}/{flow-name}.tdd.md
 
