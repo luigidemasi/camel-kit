@@ -98,13 +98,44 @@ For each file type, extract:
 
 ## Step 2b — Detect Project Layout
 
-After scanning all artifacts, determine whether this is a **single-project** or **multi-project** layout:
+After scanning all artifacts, determine whether this is a **single-project** or **multi-project** layout.
+
+**Single-project** — one integration application, possibly with multiple routes:
+
+```
+workspace/
+├── pom.xml                          # One build file
+├── src/main/resources/
+│   ├── camel/
+│   │   ├── order-route.xml          # Multiple routes, but ONE app
+│   │   └── notification-route.xml
+│   └── application.properties
+└── src/main/java/...
+```
+
+**Multi-project** — multiple independent integration applications in subdirectories:
+
+```
+workspace/
+├── fuse6-apps/
+│   ├── http/Https_jetty_Consumer/
+│   │   ├── pom.xml                  # Independent build file
+│   │   └── src/main/resources/...
+│   ├── rest/claimdemo/
+│   │   ├── pom.xml                  # Independent build file
+│   │   └── src/main/resources/...
+│   └── soap/claimdemo/
+│       ├── pom.xml                  # Independent build file
+│       └── src/main/resources/...
+```
 
 **Multi-project signals:**
 - Multiple `pom.xml` or `build.gradle` files in different subdirectories (not just a parent POM with `<modules>`)
-- Multiple independent route/flow definition directories (e.g., `fuse6-apps/http/MyApp/`, `fuse6-apps/rest/OtherApp/`)
+- Multiple independent route/flow definition directories
 - Multiple `mule-artifact.json` files in different subdirectories
 - A parent directory containing multiple independent integration projects as subfolders
+
+**Key distinction:** A single project with 5 routes in one `camel/` directory is still single-project. Multi-project means each sub-application has its own build file and can be deployed independently.
 
 **If multi-project:** Build a source-to-target module mapping. Each source sub-project becomes a separate target module. The target module name should be derived from the flow name (kebab-case). Example:
 
