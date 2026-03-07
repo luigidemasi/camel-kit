@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.luigidemasi</groupId>
+        <artifactId>camel-kit-knowledge</artifactId>
+        <version>0.3.2-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>camel-kit-knowledge-mcp</artifactId>
+    <name>camel-kit-knowledge-mcp</name>
+    <description>MCP server for camel-kit knowledge layer — domain-specific search tools backed by Lucene</description>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.redhat.quarkus.platform</groupId>
+                <artifactId>quarkus-bom</artifactId>
+                <version>${quarkus.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.redhat.quarkus.platform</groupId>
+                <artifactId>quarkus-mcp-server-bom</artifactId>
+                <version>${quarkus.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Quarkus MCP Server -->
+        <dependency>
+            <groupId>io.quarkiverse.mcp</groupId>
+            <artifactId>quarkus-mcp-server-stdio</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkiverse.mcp</groupId>
+            <artifactId>quarkus-mcp-server-sse</artifactId>
+        </dependency>
+
+        <!-- Knowledge schema (shared types) -->
+        <dependency>
+            <groupId>io.github.luigidemasi</groupId>
+            <artifactId>camel-kit-knowledge-schema</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Embedding provider for semantic search -->
+        <dependency>
+            <groupId>io.github.luigidemasi</groupId>
+            <artifactId>camel-kit-knowledge-embedding</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Lucene search -->
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-queryparser</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-analysis-common</artifactId>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-junit5</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>com.redhat.quarkus.platform</groupId>
+                <artifactId>quarkus-maven-plugin</artifactId>
+                <version>${quarkus.version}</version>
+                <extensions>true</extensions>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- Separate forks to avoid native library classloader conflicts
+                         between Quarkus tests and plain JUnit tests using ONNX Runtime -->
+                    <reuseForks>false</reuseForks>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -74,6 +74,8 @@
         <module>camel-kit-core</module>
         <module>camel-kit-plugins</module>
         <module>camel-jbang-plugin-kit</module>
+        <module>camel-kit-knowledge</module>
+        <module>camel-kit-standalone</module>
     </modules>
     <dependencyManagement>
         <dependencies>
