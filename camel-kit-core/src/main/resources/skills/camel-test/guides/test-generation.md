@@ -216,14 +216,26 @@ actions:
   - echo:
       message: "All tests passed for {flow-name}"
 
-  # Stop testcontainers
+  # Stop testcontainers (always runs, even if tests fail)
   - testcontainers:
       stop:
         kafka: {}
         postgresql: {}
 ```
 
-### 3.2 Citrus YAML Schema Rules
+### 3.2 Timing and Cleanup Guidelines
+
+**Sleep calibration:**
+- Use `2000ms` as default wait between send and verify
+- For Kafka consumer startup, use `3000ms` on first message
+- For database writes, `1000ms` is usually sufficient
+- If tests are flaky, increase sleep incrementally (not beyond `10000ms`)
+- Prefer `receive` with `timeout` over `sleep` when the framework supports it
+
+**Testcontainer cleanup:**
+Testcontainers stop must ALWAYS execute, regardless of test outcome. Place the `testcontainers: stop` action as the **last action** in the test YAML — Citrus executes all actions sequentially and will reach the stop even after assertion failures.
+
+### 3.3 Citrus YAML Schema Rules
 
 **CRITICAL: Follow these rules exactly:**
 
@@ -298,19 +310,33 @@ Citrus automatically exposes these variables:
 #### SQL Endpoints
 
 ```yaml
-# Execute SQL query with validation
+# Count validation (existence check)
 - sql:
     datasource:
       driver: "org.postgresql.Driver"
       url: "${CITRUS_TESTCONTAINERS_POSTGRESQL_URL}"
       username: "${CITRUS_TESTCONTAINERS_POSTGRESQL_USERNAME}"
       password: "${CITRUS_TESTCONTAINERS_POSTGRESQL_PASSWORD}"
-    query: "SELECT COUNT(*) as count FROM orders"
+    query: "SELECT COUNT(*) as count FROM orders WHERE order_id = 'ORD-001'"
     validate:
       - column: "count"
-        value: "5"
+        value: "1"
 
-# Execute SQL update
+# Value validation (verify actual data, not just existence)
+- sql:
+    datasource:
+      driver: "org.postgresql.Driver"
+      url: "${CITRUS_TESTCONTAINERS_POSTGRESQL_URL}"
+      username: "${CITRUS_TESTCONTAINERS_POSTGRESQL_USERNAME}"
+      password: "${CITRUS_TESTCONTAINERS_POSTGRESQL_PASSWORD}"
+    query: "SELECT status, total FROM orders WHERE order_id = 'ORD-001'"
+    validate:
+      - column: "status"
+        value: "PROCESSED"
+      - column: "total"
+        value: "99.95"
+
+# Execute SQL update (test data cleanup)
 - sql:
     datasource:
       driver: "org.postgresql.Driver"
@@ -319,6 +345,8 @@ Citrus automatically exposes these variables:
       password: "${CITRUS_TESTCONTAINERS_POSTGRESQL_PASSWORD}"
     statement: "DELETE FROM orders WHERE status = 'TEST'"
 ```
+
+**Best practice:** Prefer value assertions over COUNT. COUNT only confirms a row exists; value assertions confirm the route processed data correctly (e.g., transformations applied, fields mapped).
 
 #### HTTP Endpoints
 
