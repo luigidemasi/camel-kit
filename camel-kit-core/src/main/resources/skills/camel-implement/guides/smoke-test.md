@@ -57,7 +57,21 @@ The flags `-Dquarkus.analytics.disabled=true -Dquarkus.console.enabled=false` pr
 | Spring Boot | `Started` followed by `in` and `seconds`, `routes started` |
 | Quarkus | `Listening on:`, `installed features:`, `routes started` |
 
-**If a success marker is found → PASS.** Stop the application and go to Step 3.
+**If a success marker is found**, perform a secondary health check (Spring Boot / Quarkus only):
+
+```bash
+# Spring Boot (default actuator port)
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/health
+
+# Quarkus (default SmallRye Health port)
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/q/health/ready
+```
+
+- If HTTP 200 → **PASS.** Stop the application and go to Step 3.
+- If health endpoint fails (connection refused, 404, 503) → still count as PASS if log markers were found. The health endpoint may not be configured. Note it in the report.
+- **JBang:** No health endpoint available — log markers alone are sufficient.
+
+Stop the application and go to Step 3.
 
 ### 2.3 If Startup Failed
 
