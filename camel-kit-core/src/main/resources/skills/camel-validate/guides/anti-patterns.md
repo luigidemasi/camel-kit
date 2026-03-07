@@ -1,5 +1,9 @@
 # Anti-Pattern Detection Guide
 
+> **Context variables provided by master SKILL.md:**
+> - `FLOW_NAME` — the flow being validated
+> - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
+
 ## When to Load This Guide
 
 Load when user requests comprehensive validation with anti-pattern detection, or when basic validation passes but you want to check for best practices violations.

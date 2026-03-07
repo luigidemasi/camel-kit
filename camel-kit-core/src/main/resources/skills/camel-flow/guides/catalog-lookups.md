@@ -21,7 +21,7 @@ Params: { "name": "[format-name]", "version": "{{CAMEL_VERSION}}" }
 This returns: configuration options, Maven coordinates, model class information, and example usage. Record the Maven coordinates and any required configuration in the TDD.
 
 **If user uncertain about format choice:**
-→ Show the list from `camel_catalog_dataformats`, optionally load `skills/camel-flow/guides/data-formats.md` for comparison guidance, then ask the user to choose.
+→ Show the list from `camel_catalog_dataformats`, optionally load `guides/data-formats.md` for comparison guidance, then ask the user to choose.
 
 **If format is clear:**
 → Still call `camel_catalog_dataformat_doc` to confirm availability in {{CAMEL_VERSION}} and record the Maven dependency. Then skip to Question 2.
@@ -47,7 +47,7 @@ This returns: all configuration options, output type, required fields, and YAML 
 Repeat Step B for every EIP proposed — do not describe EIP options from training data.
 
 **If user unsure about EIP patterns:**
-→ Query `camel_catalog_eips` for relevant categories first, then optionally load `skills/camel-flow/guides/eip-catalog.md` for higher-level guidance.
+→ Query `camel_catalog_eips` for relevant categories first, then optionally load `guides/eip-catalog.md` for higher-level guidance.
 
 **If user clear on transformations:**
 → Query `camel_catalog_eips` to confirm the EIPs exist in {{CAMEL_VERSION}}, then call `camel_catalog_eip_doc` for each one. Present the confirmed list:

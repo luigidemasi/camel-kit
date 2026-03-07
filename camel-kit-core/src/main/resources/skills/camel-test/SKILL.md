@@ -168,6 +168,7 @@ Where `{module}` is the `Target Module` from the TDD "Overview" section (empty f
 
 - **FLOW_NAME**: `{flow-name}` from parameters
 - **CAMEL_VERSION**: from `.camel-kit/config.yaml` (or default)
+- **RUNTIME**: from `.camel-kit/config.yaml` `project.runtime` (default: `jbang`)
 - **TARGET_MODULE**: from the TDD "Overview" section (`Target Module` field, empty for single-project)
 
 ---
