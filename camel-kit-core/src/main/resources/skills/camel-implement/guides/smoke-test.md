@@ -1,6 +1,6 @@
 # Smoke Test Guide
 
-Try to start the application and verify it boots successfully. If startup fails, analyze the error, fix the issue, and retry.
+**MANDATORY — DO NOT SKIP.** Start the application and verify it boots. If it fails, fix the error and retry. Repeat until it starts cleanly or the attempt limit is reached.
 
 **Context variables:** `FLOW_NAME`, `MODULE_DIR`, `RUNTIME`, `CAMEL_VERSION`.
 
@@ -20,65 +20,48 @@ If no `docker-compose.yaml` exists, skip this step.
 
 ---
 
-## Step 2: Start the Application
+## Step 2: Smoke Test Loop
 
-Run the startup command for the runtime. Use a **timeout of 60 seconds** — the goal is to check if the application boots, not to run it indefinitely.
+**Maximum 6 attempts.** For each attempt:
 
-### JBang
+### 2.1 Run the Startup Command
 
+Use a **timeout of 60 seconds**.
+
+**JBang:**
 ```bash
 cd {MODULE_DIR} && timeout 60 camel run {flow-name}.camel.yaml application.properties 2>&1
 ```
 
-**Success markers** (any of these in output):
-- `Routes startup summary`
-- `routes started`
-- `Apache Camel (camel-jbang) started`
-
-### Spring Boot
-
+**Spring Boot:**
 ```bash
 cd {MODULE_DIR} && timeout 60 ./mvnw spring-boot:run 2>&1
 ```
-
 If `./mvnw` is not present, use `mvn spring-boot:run`.
 
-**Success markers** (any of these in output):
-- `Started` followed by `in` and `seconds`
-- `routes started`
-
-### Quarkus
-
+**Quarkus:**
 ```bash
 cd {MODULE_DIR} && timeout 60 ./mvnw quarkus:dev -Dquarkus.analytics.disabled=true -Dquarkus.console.enabled=false 2>&1
 ```
-
 If `./mvnw` is not present, use `mvn quarkus:dev`.
 
 The flags `-Dquarkus.analytics.disabled=true -Dquarkus.console.enabled=false` prevent interactive prompts that would block the process.
 
-**Success markers** (any of these in output):
-- `Listening on:`
-- `installed features:`
-- `routes started`
+### 2.2 Check for Success
 
----
+**Success markers** (any of these in output means the application started):
 
-## Step 3: Evaluate Result
+| Runtime | Success Markers |
+|---------|----------------|
+| JBang | `Routes startup summary`, `routes started`, `Apache Camel (camel-jbang) started` |
+| Spring Boot | `Started` followed by `in` and `seconds`, `routes started` |
+| Quarkus | `Listening on:`, `installed features:`, `routes started` |
 
-### If startup succeeds (success marker found):
+**If a success marker is found → PASS.** Stop the application and go to Step 3.
 
-```
-✅ SMOKE TEST PASSED: {flow-name}
+### 2.3 If Startup Failed
 
-Application started successfully on {RUNTIME} runtime.
-```
-
-Proceed to Implementation Summary.
-
-### If startup fails (error in output or timeout with no success marker):
-
-Analyze the error output and identify the root cause. Common issues:
+Analyze the error output. Common issues:
 
 | Error Pattern | Likely Cause | Fix |
 |--------------|-------------|-----|
@@ -89,24 +72,56 @@ Analyze the error output and identify the root cause. Common issues:
 | `Property placeholder` | Missing property | Add to `application.properties` |
 | `Invalid URI` | Malformed endpoint URI | Fix URI in route YAML |
 | `BUILD FAILURE` | Compilation error | Check pom.xml, plugin versions |
+| `bean with name ... not found` | Missing bean definition | Add bean to application.properties |
 
-**Fix the issue** in the relevant file (route YAML, `application.properties`, `pom.xml`), then **retry from Step 2**.
+**Fix the issue** in the relevant file (route YAML, `application.properties`, `pom.xml`), then report:
 
-**Maximum 3 attempts.** If the application still fails after 3 tries:
+```
+⚠️ Smoke test attempt [N]/6 failed.
+
+Error: [one-line error summary]
+Fix applied: [what was changed and in which file]
+
+Retrying...
+```
+
+**Go back to Step 2.1** for the next attempt.
+
+### 2.4 Attempt Limit Reached
+
+If the application still fails after 6 attempts:
 
 ```
 ⚠️ SMOKE TEST FAILED: {flow-name}
 
-The application failed to start after 3 attempts.
+The application failed to start after 6 attempts.
 
-Last error:
-  [error summary]
+Errors encountered:
+  1. [error] → [fix applied]
+  2. [error] → [fix applied]
+  ...
 
 Files modified during fix attempts:
-  [list of files changed]
+  - [file1]: [what changed]
+  - [file2]: [what changed]
 
-Manual investigation may be needed. Proceed to Implementation Summary.
+Manual investigation may be needed.
 ```
+
+---
+
+## Step 3: Report Result
+
+**On success:**
+
+```
+✅ SMOKE TEST PASSED: {flow-name}
+
+Application started successfully on {RUNTIME} runtime.
+Attempts: [N]/6
+```
+
+**On failure:** Use the report from Step 2.4.
 
 ---
 

@@ -184,7 +184,7 @@ Pass to the orchestrator:
 - **HAS_DATAMAPPER**: true/false (TDD contains `### DataMapper:` sections)
 - **HAS_ADVANCED_PATTERNS**: true/false (TDD contains Section 6 or Section 7)
 
-The orchestrator guide handles all remaining steps: component documentation, YAML generation, validation, properties, docker-compose, and runtime-specific artifacts.
+The orchestrator guide handles all remaining steps: component documentation, YAML generation, validation, properties, docker-compose, runtime-specific artifacts, and the **smoke test** (starts the application, fixes errors in a loop until it boots cleanly).
 
 ---
 

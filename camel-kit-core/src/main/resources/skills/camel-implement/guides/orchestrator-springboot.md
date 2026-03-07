@@ -89,7 +89,9 @@ Where `{module}` is the `Target Module` from TDD Section 1. For single-project s
 
 **SKIP** if schemas already exist or user declined generation.
 
-### Step 8: Smoke Test (ALWAYS)
+### Step 8: Smoke Test (ALWAYS — MANDATORY, DO NOT SKIP)
+
+**You MUST execute this step.** Load and follow `guides/smoke-test.md` completely before showing the Implementation Summary.
 
 - Load `guides/smoke-test.md`
 - Pass:
@@ -97,6 +99,8 @@ Where `{module}` is the `Target Module` from TDD Section 1. For single-project s
   - `MODULE_DIR` = `{module}/`
   - `RUNTIME` = `springboot`
   - `CAMEL_VERSION`
+
+The smoke test starts the application, checks if it boots, and if it fails, fixes the error and retries — up to 6 attempts. Do NOT proceed to the summary until the smoke test loop completes.
 
 ---
 
