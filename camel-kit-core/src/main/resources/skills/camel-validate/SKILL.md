@@ -26,6 +26,59 @@ This skill can validate a specific flow or all flows:
 
 Example: `/camel-validate order-to-warehouse`
 
+### Batch Mode (`all`)
+
+When `all`, `--all`, or no argument is specified:
+
+1. **Discover flows:** List all directories under `docs/flows/` that contain a `{flow-name}.tdd.md` file, and verify corresponding route YAML exists
+2. **Show plan:**
+   ```
+   Found [N] flows to validate:
+     1. flow-name-1  ({flow-name-1}.camel.yaml)
+     2. flow-name-2  ({flow-name-2}.camel.yaml)
+     ...
+
+   Proceed with validating all [N] flows? (yes/no)
+   ```
+3. **Process sequentially:** For each flow, run the full validation pipeline (Stages 1–8). Between flows, report progress:
+   ```
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ✅ [current]/[total] — {flow-name} PASSED
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ```
+   **If a flow fails validation:**
+   ```
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ❌ [current]/[total] — {flow-name} FAILED
+      Errors: [count] errors, [count] warnings
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ```
+   **Continue to the next flow.** Do NOT stop the batch on failure.
+
+4. **Final summary:** After all flows, show combined summary:
+   ```
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   BATCH VALIDATION COMPLETE
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   Results: [passed]/[total] flows validated
+     ✅ flow-name-1
+     ❌ flow-name-2 — [error summary]
+     ✅ flow-name-3
+     ...
+
+   [If any failed:]
+   Failed flows need fixes:
+     - flow-name-2: [error details]
+
+   Next steps:
+     /camel-test --all    # Generate tests for all passing flows
+   ```
+
+If no route YAML files are found: ERROR "No Camel routes found. Run /camel-implement first."
+
+---
+
 ## Context Loading
 
 **ALWAYS read at the start:**
@@ -133,10 +186,7 @@ Summary:
 The integration is ready for testing.
 
 Next steps:
-  1. Start external services: docker compose up -d
-  2. Run the integration: ./run.sh
-  3. Generate tests: /camel-test {flow-name}
-  4. Monitor and verify behavior
+  /camel-test {flow-name}    # Generate integration tests
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
@@ -220,26 +270,6 @@ Include all validation results with:
 Confirm:
 ```
 ✅ Validation report saved to .camel-kit/validation-report.md
-```
-
----
-
-## Quick Validation Commands
-
-For quick checks without full validation:
-
-```bash
-# Quick YAML syntax check
-camel run --check {flow-name}.camel.yaml application.properties
-
-# Validate all YAML files
-for f in *.camel.yaml; do
-  camel run --check "$f" application.properties
-done
-
-# Schema validation only
-./mvnw org.apache.camel:camel-yaml-dsl-validator:{{VERSION}}:validate \
-  -Dcamel.validator.files={flow-name}.camel.yaml
 ```
 
 ---
