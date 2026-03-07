@@ -25,6 +25,59 @@ This skill can test a specific flow or all flows:
 
 Example: `/camel-test order-to-warehouse`
 
+### Batch Mode (`all`)
+
+When `all` or `--all` is specified:
+
+1. **Discover flows:** List all directories under `docs/flows/` that contain both a `{flow-name}.tdd.md` and corresponding route YAML
+2. **Show plan:**
+   ```
+   Found [N] flows to generate tests for:
+     1. flow-name-1  (docs/flows/flow-name-1/flow-name-1.tdd.md)
+     2. flow-name-2  (docs/flows/flow-name-2/flow-name-2.tdd.md)
+     ...
+
+   Proceed with generating tests for all [N] flows? (yes/no)
+   ```
+3. **Process sequentially:** For each flow, run the full pipeline (Steps 1–2 below). Between flows, report progress:
+   ```
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ✅ [current]/[total] — {flow-name} tests generated
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ```
+   **If a flow fails:**
+   ```
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ❌ [current]/[total] — {flow-name} FAILED
+      Error: [one-line summary]
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ```
+   **Continue to the next flow.** Do NOT stop the batch on failure.
+
+4. **Final summary:** After all flows, show combined summary:
+   ```
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   BATCH TEST GENERATION COMPLETE
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+   Results: [passed]/[total] flows
+     ✅ flow-name-1
+     ❌ flow-name-2 — [error summary]
+     ✅ flow-name-3
+     ...
+
+   [If any failed:]
+   Failed flows need manual investigation:
+     - flow-name-2: [error details]
+
+   Next steps:
+     Run all tests: ./run-tests.sh
+   ```
+
+If no TDD files are found: ERROR "No TDD files found in docs/flows/. Run /camel-flow first."
+
+---
+
 ## Context Loading
 
 **ALWAYS read at the start:**
@@ -97,7 +150,7 @@ Start Docker and try again:
 ## Step 1: Detect Runtime and Resolve Paths
 
 Read `project.runtime` from `.camel-kit/config.yaml` (default: `jbang`).
-Read `Target Module` from TDD Section 1.
+Read `Target Module` from the TDD "Overview" section.
 
 If the TDD contains a `Target Module` field (e.g., `my-module/` or `services/order-service/`), use it as the base directory. If not set or is `.` (dot), use empty string (single-project layout).
 
@@ -109,13 +162,13 @@ If the TDD contains a `Target Module` field (e.g., `my-module/` or `services/ord
 | `TEST_DATA_DIR` | `{module}/` | `{module}/src/test/resources/data/` |
 | `RUNNER_DIR` | `{module}/` | `{module}/` |
 
-Where `{module}` is the `Target Module` from TDD Section 1 (empty for single-project layouts).
+Where `{module}` is the `Target Module` from the TDD "Overview" section (empty for single-project layouts).
 
 ### Additional Context Variables
 
 - **FLOW_NAME**: `{flow-name}` from parameters
 - **CAMEL_VERSION**: from `.camel-kit/config.yaml` (or default)
-- **TARGET_MODULE**: from TDD Section 1 (`Target Module` field, empty for single-project)
+- **TARGET_MODULE**: from the TDD "Overview" section (`Target Module` field, empty for single-project)
 
 ---
 
@@ -162,39 +215,14 @@ Supporting Files:
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RUNNING THE TESTS
+NEXT STEPS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. Ensure Docker is running:
-
-   docker --version
-   docker info
-
-2. Run the tests:
-
+1. Run the tests:
    ./{RUNNER_DIR}run-tests.sh
 
-   Or manually:
-   citrus run {TEST_DIR}{FLOW_NAME}.camel.it.yaml
-
-3. Review test results:
-
-   Tests will output success/failure for each scenario
-   Testcontainers will automatically clean up after tests
-
-4. Iterate on failures:
-
+2. Iterate on failures:
    - Review test logs
-   - Verify Camel route implementation
-   - Check TDD for expected behavior
    - Update tests or implementation as needed
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Integration test workflow complete!
-
-Next: Run tests and verify all scenarios pass before
-production deployment.
-
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
