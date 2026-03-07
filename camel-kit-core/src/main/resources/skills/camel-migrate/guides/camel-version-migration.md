@@ -320,8 +320,8 @@ For every migration decision, follow the **Verification Chain**:
 │    • Only MCP-verified names and options go into the TDD            │
 │    • [TODO]-marked components are acceptable — /camel-implement      │
 │      will flag them for resolution before generating code            │
-│    • Section 7 properties must only list properties from catalog    │
-│    • Section 8 dependencies use Maven coordinates from catalog      │
+│    • "Configuration Properties" must only list properties from catalog│
+│    • "Dependencies" section uses Maven coordinates from catalog      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -361,7 +361,7 @@ For each route in the BRD:
 7. **Handle custom transformations**:
    - If route uses `dozer` component → replace with DataMapper/XSLT, load `datamapper-canonicalize.md`
    - If route has custom XSLT → carry over to 4.x project (XSLT files are compatible)
-   - If route has custom Java processors → note in TDD Section 3 as "manual migration: update imports javax→jakarta"
+   - If route has custom Java processors → note in the TDD "Processing Steps" section as "manual migration: update imports javax→jakarta"
 
 ### Step 2.2 — Technical Interview (per route, only for unknowns)
 

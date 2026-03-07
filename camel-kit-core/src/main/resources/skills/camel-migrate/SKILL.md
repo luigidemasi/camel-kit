@@ -146,7 +146,7 @@ Source projects detected:
   fuse6-apps/soap/claimdemo/             → target: soap-claims-service/
 ```
 
-Include this mapping in the analysis summary (Step 4) and pass it to the sub-skill. Each TDD produced by the sub-skill MUST include `Source Module` and `Target Module` fields in Section 1 so that `/camel-implement` places generated files in the correct sub-project directory.
+Include this mapping in the analysis summary (Step 4) and pass it to the sub-skill. Each TDD produced by the sub-skill MUST include `Source Module` and `Target Module` fields in the "Overview" section so that `/camel-implement` places generated files in the correct sub-project directory.
 
 **If single-project:** Set layout to `single-project`. The `Target Module` in the TDD can be omitted or set to `.` — files will be placed at the workspace root.
 
