@@ -262,6 +262,37 @@ Example: "PostgreSQL 'warehouse' database, INSERT into orders table"
 
 ---
 
+### Question 4a: Multi-Path Routing (Conditional)
+
+**ONLY ask if** the user's answers to Q3 (Transformations) or Q4 (Sink) indicate multiple destinations, conditional routing, or fan-out (e.g., "route to different systems based on type", "send to both Kafka and database", "notify multiple services").
+
+```
+Does data need to be routed to different destinations based on conditions?
+
+Examples:
+- "Priority orders go to express queue, standard to normal queue"
+- "Send to both database AND notification service"
+- "Route by region: EU to one endpoint, US to another"
+
+Describe the routing conditions and each destination, or say "no" if
+all data goes to the single sink above.
+```
+
+**If user describes multiple paths:**
+
+For each additional sink, execute the component selection procedure:
+→ **Load `guides/component-selection.md`** with `SYSTEM_ROLE = "sink"` for each additional destination.
+
+Document in TDD Section 3 (Processing Steps) as a `choice` or `multicast` EIP:
+- **choice**: conditional routing (different destinations based on conditions)
+- **multicast**: fan-out (same message to multiple destinations)
+
+→ **Load `guides/catalog-lookups.md` § EIP Lookup** to verify the EIP.
+
+**If user says "no":** Skip to Question 5.
+
+---
+
 ### Question 5: Error Handling
 
 ```
