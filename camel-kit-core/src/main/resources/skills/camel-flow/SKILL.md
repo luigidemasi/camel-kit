@@ -352,6 +352,14 @@ If none of these conditions apply, skip directly to Question 6.
 
 ---
 
+### Mid-Interview Checkpoint
+
+After completing Questions 1–5 (core flow design), save a draft TDD to `docs/flows/{flow-name}/{flow-name}.tdd.draft.md` containing the data collected so far (source, sink, transformations, error handling). This allows resuming the interview if the session is interrupted.
+
+If this file already exists when starting the interview, offer to resume from where the draft left off.
+
+---
+
 ### Question 6: Performance & Throughput (Conditional)
 
 **Ask ONLY if user mentioned:**
