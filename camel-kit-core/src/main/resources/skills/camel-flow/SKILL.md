@@ -201,11 +201,21 @@ Examples:
 - Enrich with data
 - Transform/map message format
 - Route by condition
+- None (data passes through as-is)
 
-Describe your processing steps.
+Describe your processing steps, or say "none" if data flows through unchanged.
 ```
 
-**After response:**
+**If user says "none", "no transformations", "passthrough", or similar:**
+
+```
+Noted. Data passes through from source to sink unchanged.
+No transformations will be documented in the TDD.
+```
+
+Skip Question 3a (DataMapper) and all catalog lookups. Proceed directly to Question 4.
+
+**After response (if transformations ARE needed):**
 
 → **Load `guides/catalog-lookups.md` § EIP Lookup** and execute the EIP verification procedure for each transformation mentioned.
 
