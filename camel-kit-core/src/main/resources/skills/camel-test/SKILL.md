@@ -34,10 +34,11 @@ Example: `/camel-test order-to-warehouse`
 4. `.camel-kit/config.yaml` - Configuration (if exists)
 5. `{flow-name}.camel.yaml` - Implementation to test (REQUIRED)
 
-**CRITICAL - Citrus Schema Reference:**
-- **MUST READ FIRST:** `.camel-kit/.cache/citrus/{version}/citrus-quick-reference.md`
-- This contains all valid actions, endpoints, and testcontainer configurations
-- Never generate Citrus YAML without consulting this reference
+**Citrus Schema Reference (MANDATORY when available):**
+- **Read first:** `.camel-kit/.cache/citrus/{version}/citrus-quick-reference.md`
+- Contains all valid actions, endpoints, and testcontainer configurations
+- If found, never generate Citrus YAML without consulting this reference
+- If missing, proceed with WARNING (see error conditions below)
 
 ## Error Conditions
 

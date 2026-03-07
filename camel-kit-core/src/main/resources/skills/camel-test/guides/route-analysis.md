@@ -36,7 +36,7 @@ Example: `4.14.4.redhat-00008` → pass `4.14.4` to MCP calls. Keep the full `.r
 
 ---
 
-## Step 0: Load Citrus Quick Reference (MANDATORY)
+## Step 0: Load Citrus Quick Reference (MANDATORY when available)
 
 **Before generating any test, read:**
 
@@ -50,11 +50,19 @@ This file contains:
 - Testcontainer definitions with exposed variables
 - Valid YAML structure and syntax
 
-**Validate against reference:**
+**If file exists — validate all generated YAML against it:**
 - All action names exist in quick reference
 - All properties are valid for each action
 - All endpoint configurations match schema
 - All testcontainer variable names are correct
+
+**If file is missing:**
+```
+⚠️ WARNING: Citrus quick reference not found.
+Proceeding with standard Citrus patterns.
+Generated tests may require manual validation.
+```
+Proceed to Step 1 — do NOT hard-stop.
 
 ---
 
