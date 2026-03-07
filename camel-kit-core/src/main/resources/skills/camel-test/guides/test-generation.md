@@ -497,3 +497,41 @@ Validating test against Citrus schema...
 ```
 
 These examples ensure tests validate real integration behavior.
+
+---
+
+### DataMapper Test Pattern
+
+When a flow uses Kaoto DataMapper (XSLT transformation), add a test scenario that verifies the mapping:
+
+1. **Send** a source message with known field values
+2. **Receive** the transformed message at the sink
+3. **Assert** specific fields were mapped correctly — verify values, not just structure
+
+```yaml
+# DataMapper test: verify field mapping from source to target format
+- send:
+    endpoint:
+      kafka:
+        topic: "${kafka.topic.input}"
+        server: "${CITRUS_TESTCONTAINERS_KAFKA_BOOTSTRAP_SERVERS}"
+    message:
+      body: |
+        { "order": { "id": "ORD-001", "customer": "Acme Corp", "amount": 150.00 } }
+
+- sleep:
+    milliseconds: 3000
+
+- receive:
+    endpoint:
+      kafka:
+        topic: "${kafka.topic.output}"
+        server: "${CITRUS_TESTCONTAINERS_KAFKA_BOOTSTRAP_SERVERS}"
+        timeout: 10000
+    message:
+      type: "json"
+      body: |
+        { "orderId": "ORD-001", "customerName": "Acme Corp", "totalAmount": 150.00 }
+```
+
+Key: use the TDD "DataMapper" section's field mapping table to derive specific input→output value assertions.

@@ -88,6 +88,8 @@ Analyze the error output. Common issues:
 | `BUILD FAILURE` | Compilation error | Check pom.xml, plugin versions |
 | `bean with name ... not found` | Missing bean definition | Add bean to application.properties |
 
+**Before fixing:** Note the current state of the file being modified. If a fix introduces a NEW error that wasn't present before, revert that specific change and try a different approach.
+
 **Fix the issue** in the relevant file (route YAML, `application.properties`, `pom.xml`), then report:
 
 ```
