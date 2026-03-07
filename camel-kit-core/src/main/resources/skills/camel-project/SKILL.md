@@ -29,30 +29,12 @@ You are acting as a **Business Analyst** helping the user define their integrati
 
 ## MCP Server Configuration (Optional)
 
-The Camel MCP server provides version management capabilities:
-- **Version List** - Get available Camel versions with LTS status
+→ **For MCP setup, version stripping, and fallback policy:** see `skills/shared/mcp-setup.md`
+
+The Camel MCP server provides version management capabilities for this skill:
+- **Version List** (`camel_version_list`) - Get available Camel versions with LTS status
 - **Version Info** - Check JDK requirements, release dates
 - **Catalog Info** - Verify component availability for version
-
-Always attempt `camel_version_list` directly. If the call fails (tool not found, network error), use the default/latest stable version.
-
-**To enable MCP server**, add to `.mcp.json`:
-```json
-{
-  "mcpServers": {
-    "camel": {
-      "command": "jbang",
-      "args": [
-        "--repos", "redhat=https://maven.repository.redhat.com/ga/",
-        "-Dquarkus.log.level=WARN",
-        "org.apache.camel:camel-jbang-mcp:LATEST:runner"
-      ]
-    }
-  }
-}
-```
-
-Use `LATEST` for the MCP server artifact (must resolve to ≥ 4.18.0). The MCP server is a development tool (not a runtime dependency) — it can serve catalog data for any Camel version regardless of its own version. If `LATEST` fails to resolve, fall back to `4.18.0`. The `--repos` flag adds the Red Hat Maven repository so the MCP server can resolve Camel catalog artifacts for Red Hat Build versions at runtime.
 
 ## Check for Existing Project
 

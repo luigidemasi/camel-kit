@@ -102,35 +102,16 @@ If no route YAML files are found: ERROR "No Camel routes found. Run /camel-imple
 
 ## MCP Server Configuration (Recommended)
 
-The Camel MCP server provides powerful validation and security analysis tools:
-- **URI Validation** - Validate endpoint URIs against catalog (catches typos)
-- **Security Analysis** - 47 built-in security checks for hardcoded credentials, insecure protocols, etc.
-- **Route Understanding** - Extract and document components from routes
+→ **For MCP setup, version stripping, and fallback policy:** see `skills/shared/mcp-setup.md`
+
+The Camel MCP server provides validation and security analysis tools for this skill:
+- **URI Validation** (`camel_validate_route`) - Validate endpoint URIs against catalog (catches typos)
+- **Security Analysis** (`camel_route_harden_context`) - 47 built-in security checks for hardcoded credentials, insecure protocols, etc.
+- **Route Understanding** (`camel_route_context`) - Extract and document components from routes
 
 The camel-knowledge MCP server provides Red Hat Build of Apache Camel documentation:
 - **Red Hat Component Info** (`camel_rh_build_component_info`) - Check if a component is supported by Red Hat
 - **Red Hat Docs Search** (`camel_rh_build_search`) - Search Red Hat Build of Apache Camel docs
-
-Always attempt MCP tool calls directly. If a call fails (tool not found, network error), fall back to the manual anti-pattern guide or static validation rules.
-
-**CRITICAL — MCP version stripping:** If `CAMEL_VERSION` contains a `.redhat-XXXXX` suffix (e.g., `4.14.4.redhat-00008`), strip it before passing to MCP catalog tools (`camel_catalog_*`, `camel_validate_route`, `camel_route_harden_context`). The Camel Catalog MCP server uses community versions only.
-Example: `4.14.4.redhat-00008` → pass `4.14.4` to MCP calls. Keep the full `.redhat` version for Maven dependencies and `pom.xml`.
-
-**To enable MCP server**, add to `.mcp.json`:
-```json
-{
-  "mcpServers": {
-    "camel": {
-      "command": "jbang",
-      "args": [
-        "--repos", "redhat=https://maven.repository.redhat.com/ga/",
-        "-Dquarkus.log.level=WARN",
-        "org.apache.camel:camel-jbang-mcp:LATEST:runner"
-      ]
-    }
-  }
-}
-```
 
 ---
 

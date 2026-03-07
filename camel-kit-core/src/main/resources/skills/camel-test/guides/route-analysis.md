@@ -8,31 +8,11 @@
 
 ## MCP Server Configuration (Recommended)
 
-The Camel MCP server provides route analysis capabilities:
-- **Route Context** - Extract components and EIPs from routes automatically
-- **Component Documentation** - Get component test patterns
-- **Route Understanding** - Analyze route structure for test generation
+→ **For MCP setup, version stripping, and fallback policy:** see `skills/shared/mcp-setup.md`
 
-Always attempt MCP tool calls directly. If a call fails (tool not found, network error), fall back to manual analysis from TDD and route files.
-
-**To enable MCP server**, add to `.mcp.json`:
-```json
-{
-  "mcpServers": {
-    "camel": {
-      "command": "jbang",
-      "args": [
-        "--repos", "redhat=https://maven.repository.redhat.com/ga/",
-        "-Dquarkus.log.level=WARN",
-        "org.apache.camel:camel-jbang-mcp:LATEST:runner"
-      ]
-    }
-  }
-}
-```
-
-**CRITICAL — MCP version stripping:** If `CAMEL_VERSION` contains a `.redhat-XXXXX` suffix (e.g., `4.14.4.redhat-00008`), strip it before passing to MCP catalog tools (`camel_catalog_*`, `camel_route_context`). The Camel Catalog MCP server uses community versions only.
-Example: `4.14.4.redhat-00008` → pass `4.14.4` to MCP calls. Keep the full `.redhat` version for Maven dependencies and `pom.xml`.
+The Camel MCP server provides route analysis capabilities for this skill:
+- **Route Context** (`camel_route_context`) - Extract components and EIPs from routes automatically
+- **Component Documentation** (`camel_catalog_component_doc`) - Get component test patterns
 
 ---
 

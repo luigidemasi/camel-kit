@@ -12,40 +12,21 @@
 
 ## MCP Server Configuration (Recommended)
 
-The Camel MCP server provides powerful code generation and validation tools:
-- **Component Documentation** (`camel_catalog_component_doc`) - Full options and Maven coords for a component at the project Camel version
-- **Data Format Documentation** (`camel_catalog_dataformat_doc`) - Full options and Maven coords for a data format at the project Camel version
-- **Language Documentation** (`camel_catalog_language_doc`) - Full syntax, options, and Maven coords for an expression language at the project Camel version
-- **EIP List** (`camel_catalog_eips`) - All EIPs available in the project Camel version, filterable by category
-- **EIP Documentation** (`camel_catalog_eip_doc`) - Full options and YAML DSL usage for a specific EIP at the project Camel version
+→ **For MCP setup, version stripping, and fallback policy:** see `skills/shared/mcp-setup.md`
+
+The Camel MCP server provides code generation and validation tools for this skill:
+- **Component Documentation** (`camel_catalog_component_doc`) - Full options and Maven coords for a component
+- **Data Format Documentation** (`camel_catalog_dataformat_doc`) - Full options and Maven coords for a data format
+- **Language Documentation** (`camel_catalog_language_doc`) - Full syntax, options, and Maven coords for an expression language
+- **EIP List** (`camel_catalog_eips`) - All EIPs available, filterable by category
+- **EIP Documentation** (`camel_catalog_eip_doc`) - Full options and YAML DSL usage for a specific EIP
 - **URI Validation** (`camel_validate_route`) - Validate endpoint URIs and catch typos before runtime
 
-The camel-knowledge MCP server provides Red Hat Build of Apache Camel documentation:
-- **Red Hat Component Info** (`camel_rh_build_component_info`) - Check if a component is supported by Red Hat, get configuration reference and known issues
-- **Red Hat Docs Search** (`camel_rh_build_search`) - Search Red Hat Build of Apache Camel docs for supported configurations, release notes, migration info
+The camel-knowledge MCP server provides Red Hat Build documentation:
+- **Red Hat Component Info** (`camel_rh_build_component_info`) - Check if a component is supported by Red Hat
+- **Red Hat Docs Search** (`camel_rh_build_search`) - Search Red Hat Build docs for configurations, release notes, migration info
 
-All catalog calls MUST pass the Camel version from `.camel-kit/config.yaml` as the `version` parameter.
-
-**CRITICAL — MCP version stripping:** If `CAMEL_VERSION` contains a `.redhat-XXXXX` suffix (e.g., `4.14.4.redhat-00008`), strip it before passing to MCP catalog tools (`camel_catalog_*`, `camel_validate_route`, `camel_route_context`). The Camel Catalog MCP server uses community versions only.
-Example: `4.14.4.redhat-00008` → pass `4.14.4` to MCP calls. Keep the full `.redhat` version for Maven dependencies and `pom.xml`.
-
-Always attempt MCP tool calls directly — do not check for `.mcp.json` or try to detect MCP availability upfront. If a tool call fails (tool not found, network error, timeout), fall back to the bundled component skill files or proceed without validation with a warning.
-
-**To enable MCP server**, add to `.mcp.json`:
-```json
-{
-  "mcpServers": {
-    "camel": {
-      "command": "jbang",
-      "args": [
-        "--repos", "redhat=https://maven.repository.redhat.com/ga/",
-        "-Dquarkus.log.level=WARN",
-        "org.apache.camel:camel-jbang-mcp:LATEST:runner"
-      ]
-    }
-  }
-}
-```
+All catalog calls MUST pass `CAMEL_VERSION` from `.camel-kit/config.yaml` as the `version` parameter.
 
 ---
 

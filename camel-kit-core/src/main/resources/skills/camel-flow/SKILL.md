@@ -54,7 +54,9 @@ Example: `/camel-flow order-to-warehouse`
 
 ## MCP Server Configuration (Recommended)
 
-The Camel MCP server provides powerful catalog query capabilities:
+→ **For MCP setup, version stripping, and fallback policy:** see `skills/shared/mcp-setup.md`
+
+The Camel MCP server provides catalog query capabilities for this skill:
 - **Component Search** (`camel_catalog_components`) - Find components available in the project Camel version
 - **Component Documentation** (`camel_catalog_component_doc`) - Full docs, options, and Maven coords for a specific component
 - **Data Format List** (`camel_catalog_dataformats`) - All data formats available in the project Camel version
@@ -65,29 +67,6 @@ The Camel MCP server provides powerful catalog query capabilities:
 - **EIP Documentation** (`camel_catalog_eip_doc`) - Full options and YAML DSL usage for a specific EIP
 
 All catalog calls MUST pass `CAMEL_VERSION` (from `.camel-kit/config.yaml`) as the `version` parameter.
-
-Always attempt MCP tool calls directly — do not check for `.mcp.json` or try to detect MCP availability upfront. If a tool call fails (tool not found, network error, timeout), fall back to the bundled component skill files.
-
-**To enable MCP server**, add to `.mcp.json`:
-```json
-{
-  "mcpServers": {
-    "camel": {
-      "command": "jbang",
-      "args": [
-        "--repos", "redhat=https://maven.repository.redhat.com/ga/",
-        "-Dquarkus.log.level=WARN",
-        "org.apache.camel:camel-jbang-mcp:LATEST:runner"
-      ]
-    }
-  }
-}
-```
-
-Use `LATEST` for the MCP server artifact (must resolve to ≥ 4.18.0). If `LATEST` fails to resolve, fall back to `4.18.0`. The MCP server is a development tool — it can serve catalog data for any Camel version regardless of its own version.
-
-**CRITICAL — MCP version stripping:** If `CAMEL_VERSION` contains a `.redhat-XXXXX` suffix (e.g., `4.14.4.redhat-00008`), strip it before passing to MCP catalog tools (`camel_catalog_*`). The Camel Catalog MCP server uses community versions only.
-Example: `4.14.4.redhat-00008` → pass `4.14.4` to MCP calls. Keep the full `.redhat` version for Maven dependencies and `pom.xml`.
 
 ---
 
