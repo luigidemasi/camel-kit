@@ -180,15 +180,10 @@ If not set, default to `jbang`.
 
 If the TDD contains a `Target Module` field (e.g., `my-module/` or `services/order-service/`), pass it to the orchestrator. If not set or is `.` (dot), use empty string (single-project layout).
 
-Based on runtime, load the corresponding orchestrator guide:
-
-| Runtime | Guide |
-|---------|-------|
-| `jbang` (default) | → Load `guides/orchestrator-jbang.md` |
-| `springboot` or `spring-boot` | → Load `guides/orchestrator-springboot.md` |
-| `quarkus` | → Load `guides/orchestrator-quarkus.md` |
+Load `guides/orchestrator.md` — the unified orchestrator adapts to all runtimes.
 
 Pass to the orchestrator:
+- **RUNTIME**: `jbang`, `springboot`, or `quarkus` (from step above)
 - **FLOW_NAME**: `{flow-name}` from parameters
 - **CAMEL_VERSION**: from `.camel-kit/config.yaml` (or default)
 - **TARGET_MODULE**: from TDD Section 1 (`Target Module` field, empty for single-project)

@@ -1,25 +1,34 @@
-# Orchestrator Guide: Quarkus Runtime
+# Orchestrator Guide
 
-This orchestrator guide is for Quarkus runtime. It defines file paths and execution order for the implementation pipeline.
+This guide defines file paths and execution order for the implementation pipeline. It adapts to the target runtime.
 
-> **Note:** This guide is loaded when `project.runtime` is `quarkus` in `.camel-kit/config.yaml`.
+> **Context variables from master SKILL.md:**
+> - `RUNTIME` — `jbang` (default), `springboot`, or `quarkus`
+> - `FLOW_NAME`, `CAMEL_VERSION`, `TARGET_MODULE`
 
 ---
 
 ## File Path Table
 
-Files follow the standard Maven/Quarkus directory layout.
+Resolve paths based on runtime:
 
-| File Type | Location |
-|-----------|----------|
-| `{flow-name}.camel.yaml` | `{module}/src/main/resources/camel/` |
-| `kaoto-datamapper-*.xsl` | `{module}/src/main/resources/camel/` |
-| `application.properties` | `{module}/src/main/resources/` |
-| `schemas/{flow-name}-*.json` | `{module}/src/main/resources/schemas/` |
-| `docker-compose.yaml` | `{module}/` |
-| `.kaoto` | `{module}/` |
+| File Type | JBang | Spring Boot / Quarkus |
+|-----------|-------|-----------------------|
+| `{flow-name}.camel.yaml` | `{module}/` | `{module}/src/main/resources/camel/` |
+| `kaoto-datamapper-*.xsl` | `{module}/` | `{module}/src/main/resources/camel/` |
+| `application.properties` | `{module}/` | `{module}/src/main/resources/` |
+| `schemas/{flow-name}-*.json` | `{module}/schemas/` | `{module}/src/main/resources/schemas/` |
+| `docker-compose.yaml` | `{module}/` | `{module}/` |
+| `.kaoto` | `{module}/` | `{module}/` |
+| `run.sh` (JBang only) | `{module}/` | N/A |
 
 Where `{module}` is the `Target Module` from TDD Section 1. For single-project setups, `{module}` is empty (files go in project root).
+
+Assign these as context variables for all subsequent steps:
+- `ROUTE_DIR` — route/datamapper location from table above
+- `PROPS_DIR` — application.properties location from table above
+- `SCHEMA_DIR` — schemas location from table above
+- `MODULE_DIR` = `{module}/`
 
 ---
 
@@ -38,7 +47,7 @@ Where `{module}` is the `Target Module` from TDD Section 1. For single-project s
 - Load `guides/route-generation.md`
 - Pass:
   - `FLOW_NAME`
-  - `ROUTE_DIR` = `{module}/src/main/resources/camel/`
+  - `ROUTE_DIR` (from path table)
   - `ROUTE_FILE` = `{flow-name}.camel.yaml`
   - `CAMEL_VERSION`
   - `TARGET_MODULE`
@@ -48,29 +57,34 @@ Where `{module}` is the `Target Module` from TDD Section 1. For single-project s
 - Load `guides/properties-generation.md`
 - Pass:
   - `FLOW_NAME`
-  - `PROPS_DIR` = `{module}/src/main/resources/`
+  - `PROPS_DIR` (from path table)
   - `CAMEL_VERSION`
-  - `RUNTIME` = `quarkus`
-- Do **NOT** include `camel.jbang.dependencies` — dependencies are managed via Maven
+  - `RUNTIME`
+
+**JBang only:** INCLUDE `camel.jbang.dependencies` section listing all required Camel dependencies.
+**Spring Boot / Quarkus:** Do NOT include `camel.jbang.dependencies` — dependencies are managed via Maven.
 
 ### Step 4: Docker Compose (ALWAYS)
 
 - Load `guides/docker-compose.md`
 - Pass:
   - `FLOW_NAME`
-  - `MODULE_DIR` = `{module}/`
+  - `MODULE_DIR`
   - `CAMEL_VERSION`
-  - `RUNTIME` = `quarkus`
-  - `DOCKER_IMAGE` = application-specific (built from project, not a generic Camel image)
+  - `RUNTIME`
+  - `DOCKER_IMAGE`:
+    - JBang: `apache/camel-jbang:{CAMEL_VERSION}`
+    - Spring Boot / Quarkus: application-specific (built from project, not a generic Camel image)
 
-### Step 5: Maven Dependencies (ALWAYS — Spring Boot/Quarkus only)
+### Step 5: Runtime-Specific Artifacts (ALWAYS)
 
+**JBang:**
+- Load `guides/run-script.md`
+- Pass: `FLOW_NAME`, `MODULE_DIR`
+
+**Spring Boot / Quarkus:**
 - Load `guides/maven-dependencies.md`
-- Pass:
-  - `FLOW_NAME`
-  - `MODULE_DIR` = `{module}/`
-  - `CAMEL_VERSION`
-  - `RUNTIME` = `quarkus`
+- Pass: `FLOW_NAME`, `MODULE_DIR`, `CAMEL_VERSION`, `RUNTIME`
 
 ### Step 6: Advanced Patterns (CONDITIONAL)
 
@@ -85,7 +99,7 @@ Where `{module}` is the `Target Module` from TDD Section 1. For single-project s
 - Load `guides/schema-generation.md`
 - Pass:
   - `FLOW_NAME`
-  - `SCHEMA_DIR` = `{module}/src/main/resources/schemas/`
+  - `SCHEMA_DIR` (from path table)
 
 **SKIP** if schemas already exist or user declined generation.
 
@@ -96,8 +110,8 @@ Where `{module}` is the `Target Module` from TDD Section 1. For single-project s
 - Load `guides/smoke-test.md`
 - Pass:
   - `FLOW_NAME`
-  - `MODULE_DIR` = `{module}/`
-  - `RUNTIME` = `quarkus`
+  - `MODULE_DIR`
+  - `RUNTIME`
   - `CAMEL_VERSION`
 
 The smoke test starts the application, checks if it boots, and if it fails, fixes the error and retries — up to 6 attempts. Do NOT proceed to the summary until the smoke test loop completes.
@@ -113,40 +127,44 @@ After all steps complete, display:
 IMPLEMENTATION COMPLETE: {flow-name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Runtime: quarkus
+Runtime: {RUNTIME}
 
 Generated Files:
 
   ✓ {flow-name}.camel.yaml
-    Location: {module}/src/main/resources/camel/
+    Location: {ROUTE_DIR}
     Route ID: {flow-name}
     Source: [component]:{{source.endpoint}}
     Sink: [component]:{{sink.endpoint}}
     Validation: PASSED ✅ (MCP verified)
 
   ✓ DataMapper artifacts [IF Step 1 ran]
-    Location: {module}/src/main/resources/camel/
+    Location: {ROUTE_DIR}
     See datamapper-implement.md Step 7 checklist for details
 
   ✓ application.properties
-    Location: {module}/src/main/resources/
+    Location: {PROPS_DIR}
     Component config: [list components]
     Bean definitions: [list beans]
     Route placeholders: [count]
 
   ✓ docker-compose.yaml
-    Location: {module}/
+    Location: {MODULE_DIR}
     Services: [list services]
 
-  ✓ Maven dependencies added to pom.xml [IF Step 5 ran]
-    Location: {module}/pom.xml
+  ✓ run.sh [JBang only — IF Step 5 ran]
+    Location: {MODULE_DIR}
+    Executable script to start integration
+
+  ✓ Maven dependencies added to pom.xml [Spring Boot/Quarkus only — IF Step 5 ran]
+    Location: {MODULE_DIR}pom.xml
 
   ✓ schemas/{flow-name}-input.json [IF Step 7 ran]
-    Location: {module}/src/main/resources/schemas/
+    Location: {SCHEMA_DIR}
     Input data schema
 
   ✓ schemas/{flow-name}-output.json [IF Step 7 ran]
-    Location: {module}/src/main/resources/schemas/
+    Location: {SCHEMA_DIR}
     Output data schema
 
 Dependencies (from TDD):
@@ -184,10 +202,17 @@ RECOMMENDED NEXT STEPS
 
 5. Run the integration:
 
-   mvn quarkus:dev
+   JBang:
+   ./run.sh
+   Or: camel run {flow-name}.camel.yaml application.properties
 
-   Or with Maven wrapper:
-   ./mvnw quarkus:dev
+   Spring Boot:
+   mvn spring-boot:run
+   Or: ./mvnw spring-boot:run
+
+   Quarkus:
+   mvn quarkus:dev
+   Or: ./mvnw quarkus:dev
 
 6. Monitor logs and verify behavior
 
