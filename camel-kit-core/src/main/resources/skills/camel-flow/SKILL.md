@@ -504,20 +504,20 @@ Create `docs/flows/{flow-name}/{flow-name}.tdd.md`:
 5. Error Handling (strategy, DLQ, retries)
 
 **Conditional Sections (include only if the corresponding question was answered affirmatively):**
-5b. Resilience / Circuit Breaker (only if Q5b selected)
-5c. Idempotent Consumer (only if Q5c selected)
-5d. Transactions (only if Q5d selected)
-6. Performance & Reliability (only if Q6 triggered)
-7. Security (only if Q7 triggered)
-8. Monitoring & Observability (only if Q8 triggered)
+6. Resilience / Circuit Breaker (only if Q5b selected)
+7. Idempotent Consumer (only if Q5c selected)
+8. Transactions (only if Q5d selected)
+9. Performance & Reliability (only if Q6 triggered)
+10. Security (only if Q7 triggered)
+11. Monitoring & Observability (only if Q8 triggered)
 
 **Always include:**
-9. Sequence Diagram
-10. Configuration Properties
-11. Dependencies
-12. Constitution Gate Checks
-13. Testing Strategy
-14. Implementation Checklist
+12. Sequence Diagram
+13. Configuration Properties
+14. Dependencies
+15. Constitution Gate Checks
+16. Testing Strategy (high-level test scenarios — `/camel-test` reads this as input)
+17. Implementation Checklist
 
 For TDD templates, use minimal structure unless specific requirements need detailed sections.
 

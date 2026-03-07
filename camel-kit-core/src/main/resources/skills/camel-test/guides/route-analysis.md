@@ -144,6 +144,6 @@ Without MCP, extract test information manually:
 1. **Components:** Read the route YAML file, identify all `from:` and `to:` URIs, extract component names (the part before the first `:`)
 2. **EIPs:** Scan the route for `unmarshal`, `marshal`, `filter`, `choice`, `split`, `aggregate`, etc.
 3. **Error handler:** Look for `onException`, `errorHandler`, or `deadLetterChannel` in the route YAML
-4. **Test scenarios:** Derive from TDD Section 10.1 (Test Scenarios) — if TDD has fewer than 5 scenarios, generate additional ones based on the detected components and error handler
+4. **Test scenarios:** Derive from the TDD "Testing Strategy" section — if TDD has fewer than 5 scenarios, generate additional ones based on the detected components and error handler
 
 Proceed to Step 2 with the manually extracted analysis.

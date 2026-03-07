@@ -12,7 +12,7 @@
 
 ### 2.1 Extract Test Scenarios from TDD
 
-From TDD Section 10.1 (Test Scenarios), identify:
+From the TDD "Testing Strategy" section, identify:
 
 1. **Happy Path** - Normal successful flow
 2. **Invalid Input** - Malformed or invalid data
@@ -25,7 +25,7 @@ Show test plan:
 ```
 Test Plan for {flow-name}:
 
-Test Scenarios (from TDD Section 10):
+Test Scenarios (from TDD "Testing Strategy"):
   1. ✓ Happy path: Valid data flows through successfully
   2. ✓ Invalid input: Malformed JSON rejected to DLQ
   3. ✓ Filter condition: Orders < $50 filtered out

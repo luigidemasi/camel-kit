@@ -191,7 +191,7 @@ Pass to the orchestrator:
 - **BRD**: summary of business requirements
 - **SCHEMAS_MISSING**: true/false from Step 1.2
 - **HAS_DATAMAPPER**: true/false (TDD contains `### DataMapper:` sections)
-- **HAS_ADVANCED_PATTERNS**: true/false (TDD contains Section 6 or Section 7)
+- **HAS_ADVANCED_PATTERNS**: true/false (TDD contains "Performance & Reliability" or "Security" sections)
 
 The orchestrator guide handles all remaining steps: component documentation, YAML generation, validation, properties, docker-compose, runtime-specific artifacts, and the **smoke test** (starts the application, fixes errors in a loop until it boots cleanly).
 

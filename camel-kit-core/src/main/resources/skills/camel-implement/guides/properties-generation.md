@@ -78,14 +78,14 @@ error.backoff.multiplier=[value from TDD]
 # External libraries (NOT Camel components)
 # --------------------------------------------
 
-camel.jbang.dependencies=[dependencies from TDD Section 8]
+camel.jbang.dependencies=[dependencies from TDD "Dependencies" section]
 ```
 
 **Runtime-specific note:** If `RUNTIME` is `jbang`, include the `camel.jbang.dependencies` section. If `RUNTIME` is `springboot` or `quarkus`, omit it (dependencies are managed in `pom.xml`).
 
 ## 5.2 Environment-Specific Properties
 
-If TDD Section 7.2 defines environment-specific configuration, create templates:
+If the TDD "Configuration Properties" section defines environment-specific configuration, create templates:
 
 ```properties
 # Create:

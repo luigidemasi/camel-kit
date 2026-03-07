@@ -80,9 +80,9 @@ Match the Camel base version to the Camel Quarkus version using the mapping belo
 
 ## Step 2: Add Dependencies
 
-Add dependencies from TDD Section 8 using the correct groupId and artifactId pattern for the runtime.
+Add dependencies from the TDD "Dependencies" section using the correct groupId and artifactId pattern for the runtime.
 
-**IMPORTANT:** TDD Section 8 lists generic Camel artifact names (e.g., `camel-kafka`). Transform them to the runtime-specific pattern:
+**IMPORTANT:** The TDD "Dependencies" section lists generic Camel artifact names (e.g., `camel-kafka`). Transform them to the runtime-specific pattern:
 
 ### Spring Boot
 

@@ -259,7 +259,7 @@ Verify implementation of patterns from TDD:
 ```
 Advanced Patterns Implementation:
 
-From TDD Section 6 (Performance & Reliability):
+From TDD "Performance & Reliability" section:
   [✓] Idempotent consumer: [Implemented/Not needed]
   [✓] Transactions: [Implemented/Not needed]
   [✓] Circuit breaker: [Implemented/Not needed]
@@ -267,11 +267,11 @@ From TDD Section 6 (Performance & Reliability):
   [✓] Throttling: [Implemented/Not needed]
   [✓] Batching: [Implemented/Not needed]
 
-From TDD Section 7 (Security):
+From TDD "Security" section:
   [✓] Input validation: [Implemented/Not needed]
   [✓] Schema validation: [Implemented/Not needed]
 
-From TDD Section 8 (Monitoring):
+From TDD "Monitoring & Observability" section:
   [✓] Correlation ID: [Implemented]
   [✓] Structured logging: [Implemented]
   [✓] Metrics: [Implemented/Not needed]

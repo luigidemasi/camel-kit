@@ -23,7 +23,7 @@ What fallback should the route use when the circuit is open?
 - Fail fast with a specific error message
 ```
 
-Document in TDD under **Section 5b: Resilience** (load `skills/camel-flow/guides/performance.md` for circuit breaker configuration reference).
+Document in TDD under **Section 6: Resilience** (load `skills/camel-flow/guides/performance.md` for circuit breaker configuration reference).
 
 **If user selects (b) or question does not apply:**
 → Skip to Question 5c
@@ -55,7 +55,7 @@ c) Distributed cache (Infinispan / Hazelcast — clustered environments)
 Which field uniquely identifies a message? (e.g., "orderId", "messageId", "CamelKafkaOffset")
 ```
 
-Document in TDD under **Section 5c: Idempotency**.
+Document in TDD under **Section 7: Idempotency**.
 
 **If user selects (b) or question does not apply:**
 → Skip to Question 5d
@@ -83,7 +83,7 @@ b) Spring / Quarkus local transaction (single datasource)
 c) Saga pattern (compensating transactions, eventual consistency)
 ```
 
-Document in TDD under **Section 5d: Transactions**. Propagation policies: `PROPAGATION_REQUIRED` (default — join or create), `PROPAGATION_REQUIRES_NEW` (always new), `PROPAGATION_MANDATORY` (must exist). Combine with `onException` + `markRollbackOnly` for rollback on specific exceptions.
+Document in TDD under **Section 8: Transactions**. Propagation policies: `PROPAGATION_REQUIRED` (default — join or create), `PROPAGATION_REQUIRES_NEW` (always new), `PROPAGATION_MANDATORY` (must exist). Combine with `onException` + `markRollbackOnly` for rollback on specific exceptions.
 
 **If user selects (b) or question does not apply:**
 → Skip to Question 6

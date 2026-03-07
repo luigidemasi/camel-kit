@@ -86,4 +86,4 @@ This returns: syntax rules, configuration options, Maven coordinates (if the lan
 **Choosing the right language:**
 - Use the catalog list to match the data format and use case (e.g. JSON body → JsonPath or JQ; XML body → XPath; simple header/body checks → Simple)
 - Never default to `simple` without first confirming it is the best fit for the data format
-- If the chosen language requires an additional Maven dependency (e.g. `camel-jsonpath`, `camel-jq`), document it in TDD Section 8 (Dependencies)
+- If the chosen language requires an additional Maven dependency (e.g. `camel-jsonpath`, `camel-jq`), document it in the TDD "Dependencies" section

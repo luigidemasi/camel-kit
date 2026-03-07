@@ -88,7 +88,7 @@ Assign these as context variables for all subsequent steps:
 
 ### Step 6: Advanced Patterns (CONDITIONAL)
 
-**IF** the TDD contains Section 6 (Performance & Reliability) **OR** Section 7 (Security):
+**IF** the TDD contains a "Performance & Reliability" section **OR** a "Security" section:
 - Load `guides/advanced-patterns.md`
 
 **SKIP** if neither section exists in the TDD.

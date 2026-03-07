@@ -6,7 +6,7 @@ This guide generates `docker-compose.yaml`.
 
 ---
 
-Generate a `docker-compose.yaml` with the Camel service and any external services identified in TDD Section 8.2.
+Generate a `docker-compose.yaml` with the Camel service and any external services identified in TDD "Dependencies" section.
 
 ## Mandatory Rules for the Camel Service
 
@@ -18,7 +18,7 @@ Generate a `docker-compose.yaml` with the Camel service and any external service
 | XSL files | Mount **every** `kaoto-datamapper-*.xsl` file and list them in `command:` -- omitting them causes `FileNotFoundException: Cannot find resource: classpath:kaoto-datamapper-*.xsl` at startup |
 | Properties | Mount `application.properties` and pass it via `--properties=` |
 | Port | Use the port from `camel.server.port` in `application.properties` |
-| External services | Add service definitions for TDD Section 8.2 dependencies (SMTP dev server, databases, message brokers, etc.) and use `depends_on:` from the Camel service |
+| External services | Add service definitions for TDD "Dependencies" section dependencies (SMTP dev server, databases, message brokers, etc.) and use `depends_on:` from the Camel service |
 
 ## docker-compose.yaml Template
 
@@ -50,7 +50,7 @@ services:
       - {external-service}
     restart: unless-stopped
 
-  # External services from TDD Section 8.2
+  # External services from TDD "Dependencies" section
   {external-service}:
     image: {image}
     ports:
