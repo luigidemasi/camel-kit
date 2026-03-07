@@ -23,7 +23,7 @@ You are acting as a **Business Analyst** helping the user define their integrati
 ## Context Loading
 
 **ALWAYS read at the start:**
-- `docs/constitution.md` — if it exists, read for reference (do not generate or modify it)
+- `docs/constitution.md` — Best practices. If missing, copy from `templates/constitution.md` and continue.
 
 ---
 
@@ -377,7 +377,7 @@ After user confirms:
 2. Create `.camel-kit/config.yaml` with the selected Camel version:
 ```yaml
 project:
-  camelVersion: "{full-maven-version}"  # e.g. 4.14.4.redhat-00008
+  camelVersion: "{{CAMEL_VERSION}}"  # e.g. 4.14.4.redhat-00008
 ```
 
 The `project.runtime` field is NOT set here — it is set later by `/camel-flow` (Step 0: Target Runtime).

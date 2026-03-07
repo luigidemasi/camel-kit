@@ -68,9 +68,9 @@ Component: [component-name]
 
 Repeat for every component before writing any YAML.
 
-**Red Hat support check (MANDATORY when camel-knowledge MCP is available):**
+### 2.1b Red Hat Support Check (MANDATORY when camel-knowledge MCP is available)
 
-After loading component documentation, call `camel_rh_build_component_info` to check whether the component is supported by Red Hat Build of Apache Camel. If the tool call fails (tool not found, network error), skip this step silently.
+After loading component documentation, call `camel_rh_build_component_info` for each component to check whether it is supported by Red Hat Build of Apache Camel. If the tool call fails (tool not found, network error), skip this step silently.
 
 ```
 Red Hat support check:
@@ -312,7 +312,7 @@ Generate the route by translating the TDD to Camel YAML DSL:
                id: order-datamapper-xslt
                uri: "xslt-saxon:order-datamapper-a1b2c3d4.xsl"
                parameters:
-                 # Map from TDD Section 3.3 table
+                 # Map from TDD "Processing Steps" section table
                  userId: "${header.userId}"           # From Header
                  customerProfile: "${variable.customerProfile}"  # From Variable
                  tenantId: "${header.tenantId}"       # From Header
@@ -444,7 +444,7 @@ Create `{FLOW_NAME}.camel.yaml` in `ROUTE_DIR`:
 # ============================================
 
 # Global onException MUST be declared before any route (Rule 6).
-# Include ONLY if TDD Section 5 defines global (cross-route) onException handling.
+# Include ONLY if TDD "Error Handling" section defines global (cross-route) onException handling.
 # Route-scoped error handling (errorHandler:, doTry/doCatch) stays inside the route.
 - onException:
     exception:
@@ -460,7 +460,7 @@ Create `{FLOW_NAME}.camel.yaml` in `ROUTE_DIR`:
     id: {FLOW_NAME}
     description: [from TDD overview]
 
-    # Error handling strategy from TDD Section 5
+    # Error handling strategy from TDD "Error Handling" section
     errorHandler:
       deadLetterChannel:
         deadLetterUri: "[component]:{{dlq.endpoint}}"
@@ -469,12 +469,12 @@ Create `{FLOW_NAME}.camel.yaml` in `ROUTE_DIR`:
           redeliveryDelay: {{error.retry.delay}}
           backOffMultiplier: {{error.backoff.multiplier}}
 
-    # Source from TDD Section 2
+    # Source from TDD "Source System" section
     from:
       uri: "[component]:{{source.endpoint}}"
 
       steps:
-        # Processing steps from TDD Section 3
+        # Processing steps from TDD "Processing Steps" section
         # (unmarshal only if explicitly required — see Rule in Step 3.2)
 
         # DataMapper transformation (injected by DataMapper guide if applicable)
@@ -484,7 +484,7 @@ Create `{FLOW_NAME}.camel.yaml` in `ROUTE_DIR`:
               - to:
                   id: kaoto-datamapper-xslt-{4hexchars}
                   uri: xslt-saxon:kaoto-datamapper-{id}.xsl
-                  # Pass parameters to XSLT if TDD Section 3.3 defines parameters
+                  # Pass parameters to XSLT if TDD "Processing Steps" section defines parameters
                   parameters:
                     userId: "${header.userId}"
                     customerProfile: "${variable.customerProfile}"
@@ -498,7 +498,7 @@ Create `{FLOW_NAME}.camel.yaml` in `ROUTE_DIR`:
 
         # Additional steps from TDD...
 
-        # Sink from TDD Section 4
+        # Sink from TDD "Sink System" section
         - to:
             uri: "[component]:{{sink.endpoint}}"
 ```

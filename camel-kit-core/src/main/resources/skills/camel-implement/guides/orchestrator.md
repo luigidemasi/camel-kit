@@ -86,6 +86,14 @@ Assign these as context variables for all subsequent steps:
 - Load `guides/maven-dependencies.md`
 - Pass: `FLOW_NAME`, `MODULE_DIR`, `CAMEL_VERSION`, `RUNTIME`
 
+### Step 5.5: Sequential HTTP Calls (CONDITIONAL)
+
+**IF** the TDD contains both an HTTP consumer (`platform-http`, `servlet`, `jetty`, `netty-http`) **AND** one or more outbound HTTP producer calls (`http`, `https`, `undertow`, `vertx-http`):
+- Load `guides/sequential-http-calls.md`
+- Apply header sanitization rules between HTTP endpoints
+
+**SKIP** if the route does not involve multiple HTTP endpoints.
+
 ### Step 6: Advanced Patterns (CONDITIONAL)
 
 **IF** the TDD contains a "Performance & Reliability" section **OR** a "Security" section:

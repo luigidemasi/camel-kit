@@ -3,10 +3,11 @@
 > **Context variables provided by master SKILL.md:**
 > - `FLOW_NAME` — the flow being tested
 > - `TEST_DIR` — resolved test file directory
+> - `RUNTIME` — project runtime (`jbang`, `springboot`, or `quarkus`)
 
 ---
 
-## Step 4: Generate Test Configuration
+## Step 5: Generate Test Configuration
 
 ### 4.1 Test Application Properties
 

@@ -755,7 +755,7 @@ DATAMAPPER ARTIFACTS GENERATED
 
 Pattern:        {A | B | C | D} ({source-format} → {target-format})
 Approach:       {A (useJsonBody) | B (header param) | N/A}
-Fields mapped:  {N} ({auto} auto, {inferred} inferred, {manual} manual)
+Fields mapped:  {N}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 

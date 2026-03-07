@@ -16,7 +16,7 @@ Scan for common integration anti-patterns that could cause problems in productio
 
 ---
 
-## 7.1 Route Design Anti-Patterns
+## Route Design Anti-Patterns
 
 ### God Routes
 
@@ -132,7 +132,7 @@ Check: Duplicate message handling
 
 ---
 
-## 7.2 Integration Anti-Patterns
+## Integration Anti-Patterns
 
 ### Chatty Interfaces
 
@@ -216,7 +216,7 @@ Check: External dependency resilience
 
 ---
 
-## 7.3 Security Anti-Patterns
+## Security Anti-Patterns
 
 ### Hardcoded Credentials
 
@@ -347,7 +347,7 @@ kafka.maxMessageSize=1048576
 
 ---
 
-## 7.4 Performance Anti-Patterns
+## Performance Anti-Patterns
 
 ### No Connection Pooling
 

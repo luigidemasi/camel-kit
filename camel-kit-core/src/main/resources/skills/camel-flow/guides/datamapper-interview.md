@@ -58,12 +58,12 @@ Same handling as Step 2. If (c), ask format and set type to `JSON_SCHEMA` or `XM
 
 ## Step 3b: Source Parameters (Conditional)
 
-**Ask ONLY if** the TDD section 3.3 lists Camel Variables or Headers used in this transformation.
+**Ask ONLY if** the TDD "Processing Steps" section (subsection 3.3) lists Camel Variables or Headers used in this transformation.
 
 ```
 The flow TDD mentions these Camel Variables/Headers used in the mapping:
 
-{list from TDD section 3.3}
+{list from TDD "Processing Steps" section}
 
 For each one, do you have a schema?
 

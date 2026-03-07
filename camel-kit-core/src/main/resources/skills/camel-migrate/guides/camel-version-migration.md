@@ -218,6 +218,12 @@ If `docs/constitution.md` does not exist, copy from `templates/constitution.md` 
 
 ---
 
+## CAMEL_VERSION Extraction (MANDATORY — before any MCP call)
+
+Read `.camel-kit/config.yaml` (written by `camel-migrate` orchestrator in Step 5) and extract `project.camelVersion` as `CAMEL_VERSION`. This variable is required for all MCP catalog calls throughout both phases.
+
+---
+
 ## Phase 2 — Integration Architect
 
 ### Context Loading (MANDATORY at start)
@@ -225,7 +231,7 @@ If `docs/constitution.md` does not exist, copy from `templates/constitution.md` 
 Re-read:
 - `docs/business-requirements.md`
 - `docs/constitution.md` (reference)
-- `.camel-kit/config.yaml` — **EXTRACT `project.camelVersion` as `CAMEL_VERSION`** for all MCP catalog calls (REQUIRED)
+- `.camel-kit/config.yaml` — verify `CAMEL_VERSION` is set (extracted above)
 - All guide files loaded in Phase 1 (keep in context)
 
 Conditionally load:
@@ -236,10 +242,9 @@ Conditionally load:
 
 ### MCP Catalog Enforcement (MANDATORY when MCP configured)
 
-**CRITICAL:** All catalog calls MUST pass `CAMEL_VERSION` as version parameter. Never trust component/EIP/format/language names from training data without catalog verification.
+→ **For MCP setup, version stripping, and fallback policy:** see `skills/shared/mcp-setup.md`
 
-**CRITICAL — MCP version stripping:** If `CAMEL_VERSION` contains a `.redhat-XXXXX` suffix (e.g., `4.14.4.redhat-00008`), strip it before passing to MCP catalog tools (`camel_catalog_*`). The Camel Catalog MCP server uses community versions only.
-Example: `4.14.4.redhat-00008` → pass `4.14.4` to MCP calls. Keep the full `.redhat` version for Maven dependencies and `pom.xml`.
+**CRITICAL:** All catalog calls MUST pass `CAMEL_VERSION` (with `.redhat-XXXXX` stripped) as version parameter. Never trust component/EIP/format/language names from training data without catalog verification.
 
 For every migration decision, follow the **Verification Chain**:
 

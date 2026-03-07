@@ -30,7 +30,7 @@ Use a **timeout of 60 seconds**.
 
 **JBang:**
 ```bash
-cd {MODULE_DIR} && timeout 60 camel run {flow-name}.camel.yaml application.properties 2>&1
+cd {MODULE_DIR} && timeout 60 camel run {flow-name}.camel.yaml *.xsl application.properties 2>&1
 ```
 
 **Spring Boot:**

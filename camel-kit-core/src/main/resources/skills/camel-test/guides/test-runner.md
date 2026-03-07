@@ -3,10 +3,11 @@
 > **Context variables provided by master SKILL.md:**
 > - `FLOW_NAME` — the flow being tested
 > - `RUNNER_DIR` — resolved runner script directory
+> - `TEST_DIR` — resolved test file directory
 
 ---
 
-## Step 5: Generate Test Runner Script
+## Step 6: Generate Test Runner Script
 
 **IMPORTANT: Save this file in the correct directory based on runtime!**
 

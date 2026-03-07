@@ -171,6 +171,8 @@ Where `{module}` is the `Target Module` from the TDD "Overview" section (empty f
 - **RUNTIME**: from `.camel-kit/config.yaml` `project.runtime` (default: `jbang`)
 - **TARGET_MODULE**: from the TDD "Overview" section (`Target Module` field, empty for single-project)
 
+**Placeholder convention:** In guide templates, `{flow-name}` (lowercase, kebab-case) and `{FLOW_NAME}` (uppercase) both refer to this variable's value. Guides use `{flow-name}` in user-facing text and file content, `{FLOW_NAME}` in context variable references. Replace both with the actual flow name value.
+
 ---
 
 ## Step 2: Execute Test Generation Pipeline

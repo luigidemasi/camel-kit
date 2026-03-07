@@ -136,7 +136,7 @@ Example: "Process JSON order events and insert into warehouse database."
 
 **After response — data format lookup (MANDATORY):**
 
-→ **Load `guides/catalog-lookups.md` § Data Format Lookup** and execute the data format verification procedure with the format mentioned by the user.
+→ **Load `guides/catalog-lookups.md` (Data Format Lookup section)** and execute the data format verification procedure with the format mentioned by the user.
 
 **If user uncertain about format choice:**
 → Show the list from `camel_catalog_dataformats`, optionally load `guides/data-formats.md` for comparison guidance, then ask the user to choose.
@@ -198,9 +198,9 @@ Skip Question 3a (DataMapper) and all catalog lookups. Proceed directly to Quest
 
 **After response (if transformations ARE needed):**
 
-→ **Load `guides/catalog-lookups.md` § EIP Lookup** and execute the EIP verification procedure for each transformation mentioned.
+→ **Load `guides/catalog-lookups.md` (EIP Lookup section)** and execute the EIP verification procedure for each transformation mentioned.
 
-→ **Load `guides/catalog-lookups.md` § Expression Language Lookup** and execute the expression language selection procedure for any EIP that requires an expression.
+→ **Load `guides/catalog-lookups.md` (Expression Language Lookup section)** and execute the expression language selection procedure for any EIP that requires an expression.
 
 **If user unsure about EIP patterns:**
 → Query `camel_catalog_eips` for relevant categories first, then optionally load `guides/eip-catalog.md` for higher-level guidance.
@@ -274,11 +274,11 @@ all data goes to the single sink above.
 For each additional sink, execute the component selection procedure:
 → **Load `guides/component-selection.md`** with `SYSTEM_ROLE = "sink"` for each additional destination.
 
-Document in TDD Section 3 (Processing Steps) as a `choice` or `multicast` EIP:
+Document in TDD "Processing Steps" section as a `choice` or `multicast` EIP:
 - **choice**: conditional routing (different destinations based on conditions)
 - **multicast**: fan-out (same message to multiple destinations)
 
-→ **Load `guides/catalog-lookups.md` § EIP Lookup** to verify the EIP.
+→ **Load `guides/catalog-lookups.md` (EIP Lookup section)** to verify the EIP.
 
 **If user says "no":** Skip to Question 5.
 
@@ -306,7 +306,7 @@ Recommended:
 Strategy: Dead Letter Channel
 DLQ: [component]:{{dlq.endpoint}}
 
-Retry policy (document in TDD Section 5):
+Retry policy (document in TDD "Error Handling" section):
 - maximumRedeliveries: 3
 - redeliveryDelay: 1000ms
 - backOffMultiplier: 2  (1s → 2s → 4s)

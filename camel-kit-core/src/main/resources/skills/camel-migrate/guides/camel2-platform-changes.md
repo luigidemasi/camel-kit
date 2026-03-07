@@ -121,4 +121,4 @@ These affect Java `RouteBuilder` classes:
 | `context.getTypeConverterRegistry()` | `context.getTypeConverterRegistry()` | Unchanged |
 | `context.getEndpoint("uri")` | `context.getEndpoint("uri")` | Unchanged |
 
-**Note:** Flag Java DSL API changes in TDD Section 3 but do NOT attempt to auto-migrate Java source code. The TDD output is YAML DSL — Java changes are documented as manual follow-up tasks.
+**Note:** Flag Java DSL API changes in the TDD "Processing Steps" section but do NOT attempt to auto-migrate Java source code. The TDD output is YAML DSL — Java changes are documented as manual follow-up tasks.

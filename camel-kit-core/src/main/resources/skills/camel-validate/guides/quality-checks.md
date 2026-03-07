@@ -58,27 +58,20 @@ SQL Component:
   ✅ Component-level config: camel.component.sql.dataSource (defined)
 ```
 
-### 5.2 Red Hat Support Check (optional, if camel-knowledge MCP is available)
+### 5.2 Red Hat Support Data Collection (optional, if camel-knowledge MCP is available)
 
-For each component, call `camel_rh_build_component_info` to check Red Hat support status. If the tool call fails (tool not found, network error), skip this section silently.
+For each component, call `camel_rh_build_component_info` to collect Red Hat support status. If the tool call fails (tool not found, network error), skip this section silently.
+
+**This step is data collection only.** Store the results (support level per component) for use in Stage 6 Constitution Rule 7, which evaluates and reports warnings.
 
 ```
-== RED HAT SUPPORT CHECK ==
+Collecting Red Hat support data...
 
-Kafka Component:
-  ℹ️ Red Hat supported (4.14) — Production Support
-
-SQL Component:
-  ℹ️ Red Hat supported (4.14) — Production Support
-
-Azure ServiceBus Component:
-  ⚠️ Red Hat supported (4.14) — Technology Preview (not for production use)
-
-Custom Component:
-  ⚠️ Not found in Red Hat Build of Apache Camel docs (may still work, not officially supported)
+  kafka: Production Support
+  sql: Production Support
+  azure-servicebus: Technology Preview
+  custom-component: Not Found
 ```
-
-This is informational — results feed into the Stage 6 constitution check (Rule 7).
 
 ### 5.3 Expression Validation
 
@@ -114,7 +107,7 @@ Validate against the 7 rules in `docs/constitution.md`. Each gate maps 1:1 to a 
 | 4 | Naming Conventions | Route ID convention | Route ID matches `{domain}-{action}` lowercase kebab-case. Valid: `order-process`, `user-notify`. Invalid: `route1`, `myRoute`, `OrderProcess`. Regex: `^[a-z][a-z0-9]*(-[a-z][a-z0-9]*)+$` | WARNING |
 | 5 | Observability | routeId + description | Every route declares both a `routeId` and a `description` (≥10 chars describing the flow's business purpose). These are essential for monitoring, logging, and tracing. | FAIL |
 | 6 | External Configuration | No hardcoded values | No hostnames, ports, IPs, database URLs, queue names, credentials, API keys, tokens, or secrets in route YAML. Detect patterns: `password=`, `apiKey=`, `secret=`, `token=`, Base64 strings >20 chars, `jdbc:` URLs with inline credentials. All must use `{{placeholder}}` syntax. | FAIL |
-| 7 | Component Support | Red Hat verified | Every component verified as supported by Red Hat Build of Apache Camel for the target version. **Primary:** Uses Stage 5.2 MCP results (`camel_rh_build_component_info`). **Fallback (MCP unavailable):** Consult the Red Hat Build of Apache Camel reference docs — Quarkus Reference or Spring Boot Reference for the target version — which list all supported extensions with their support level. Three warning levels: (1) **Not found** — component not in Red Hat docs at all; (2) **Tech Preview** — marked as Technology Preview (not for production, may not be functionally complete); (3) **Community Support** — tested upstream but not formally supported by Red Hat. Only "Production Support" passes without warning. | WARNING |
+| 7 | Component Support | Red Hat verified | Every component verified as supported by Red Hat Build of Apache Camel for the target version. **Primary:** Uses Stage 5.2 collected data (from `camel_rh_build_component_info`). **Fallback (Stage 5.2 was skipped):** Consult the Red Hat Build of Apache Camel reference docs — Quarkus Reference or Spring Boot Reference for the target version — which list all supported extensions with their support level. Three warning levels: (1) **Not found** — component not in Red Hat docs at all; (2) **Tech Preview** — marked as Technology Preview (not for production, may not be functionally complete); (3) **Community Support** — tested upstream but not formally supported by Red Hat. Only "Production Support" passes without warning. | WARNING |
 
 Show results:
 

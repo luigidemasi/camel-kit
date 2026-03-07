@@ -122,7 +122,7 @@ errorHandler:
 
 ### 8.5 Correlation ID Propagation
 
-If TDD section 8 (Monitoring & Observability) requires correlation IDs:
+If TDD "Monitoring & Observability" section requires correlation IDs:
 
 ```yaml
 # Add at route entry point
@@ -162,7 +162,7 @@ camel.beans.customerEnricher=#class:com.example.CustomerEnricherStrategy
 
 ### 8.7 Throttling / Rate Limiting
 
-If TDD section 6.3 specifies throttling:
+If TDD "Performance & Reliability" section specifies throttling:
 
 ```yaml
 # Throttle message processing

@@ -203,8 +203,7 @@ Starting Phase 2 — Integration Architect...
 
 All catalog calls MUST pass `CAMEL_VERSION` as the `version` parameter. Never use a Camel component name, EIP name, data format name, or expression language name from training data or the mapping guide without first verifying it in the catalog.
 
-**CRITICAL — MCP version stripping:** If `CAMEL_VERSION` contains a `.redhat-XXXXX` suffix (e.g., `4.14.4.redhat-00008`), strip it before passing to MCP catalog tools (`camel_catalog_*`). The Camel Catalog MCP server uses community versions only.
-Example: `4.14.4.redhat-00008` → pass `4.14.4` to MCP calls. Keep the full `.redhat` version for Maven dependencies and `pom.xml`.
+→ **For MCP setup, version stripping, and fallback policy:** see `skills/shared/mcp-setup.md`
 
 | Decision | Tool to call first | Then call |
 |----------|--------------------|-----------|
