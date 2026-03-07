@@ -74,4 +74,19 @@ Do not proceed with an unverified component.
 
 **Only use this path when the `camel_catalog_components` or `camel_catalog_component_doc` call fails (tool not found, network error, timeout).**
 
-Load `{skills.folder}/camel-component-[name]/SKILL.md` if it exists. Warn the user if no bundled skill is available and ask for manual documentation.
+**Tier 1:** Load `{skills.folder}/camel-component-[name]/SKILL.md` if it exists. Use its documentation for URI syntax and options.
+
+**Tier 2:** If no bundled skill exists, inform the user:
+
+```
+⚠️ MCP catalog unavailable and no bundled skill for [component].
+
+I can proceed using general knowledge of [component], but:
+- Component options will NOT be verified against Camel {{CAMEL_VERSION}}
+- Red Hat Build support status is UNKNOWN
+- The component will be marked as [UNVERIFIED] in the TDD
+
+Proceed with unverified component? (yes/no)
+```
+
+If the user agrees, document the component in the TDD with a clear `[UNVERIFIED]` marker in the section header. `/camel-validate` will catch any errors later.

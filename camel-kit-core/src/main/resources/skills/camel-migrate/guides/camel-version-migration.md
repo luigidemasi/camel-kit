@@ -308,10 +308,18 @@ For every migration decision, follow the **Verification Chain**:
 │        source_version: "...",                                      │
 │        target_version: "4.x"                                       │
 │      )                                                              │
-│    If still nothing → STOP, ask user.                              │
+│    If still nothing → ask user for guidance:                        │
+│      "Component [X] not found in catalog or knowledge base.         │
+│       Options:                                                      │
+│       a) Provide the correct Camel 4.x component name               │
+│       b) Skip this component (mark as [TODO] in TDD)                │
+│       c) Remove this processing step from the migration"            │
+│    If user chooses (b), write TDD with [TODO] marker.               │
 │                                                                     │
 │ 6. Write verified result to TDD                                     │
 │    • Only MCP-verified names and options go into the TDD            │
+│    • [TODO]-marked components are acceptable — /camel-implement      │
+│      will flag them for resolution before generating code            │
 │    • Section 7 properties must only list properties from catalog    │
 │    • Section 8 dependencies use Maven coordinates from catalog      │
 └─────────────────────────────────────────────────────────────────────┘
