@@ -20,7 +20,9 @@ Create file: `{TEST_DIR}application-test.properties`
 # ============================================
 
 # Camel configuration for testing
-camel.springboot.name={flow-name}-test
+# Spring Boot only: camel.springboot.name={flow-name}-test
+# Quarkus only:     quarkus.camel.routes-discovery.enabled=true
+# JBang: no framework-specific config needed
 
 # Override with test-specific values
 kafka.topic.input=test-orders
@@ -35,6 +37,8 @@ camel.beans.dataSource.password=${CITRUS_TESTCONTAINERS_POSTGRESQL_PASSWORD}
 # Test-specific settings
 camel.component.kafka.autoOffsetReset=earliest
 ```
+
+**Include only the runtime-specific line that matches the project runtime (from `RUNTIME` context variable).** Do not include comments for other runtimes in the actual generated file — the comments above are for reference only.
 
 ### 4.2 Test Dependencies
 

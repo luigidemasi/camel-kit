@@ -221,12 +221,20 @@ Signals found across all scanned files:
 Currently supported vendors:
 - MuleSoft Mule (3.x and 4.x)
 - Apache Camel (2.x and 3.x → 4.x version migration)
-
-To request support for a new vendor, open a GitHub issue at:
-https://github.com/luigidemasi/camel-kit/issues
 ```
 
-Stop here — do not proceed.
+**Recovery options — present to user:**
+
+```
+How would you like to proceed?
+
+1. Specify vendor manually — Tell me which platform this is (e.g., "This is Mule 4")
+2. Try a different path — Point me to a specific config file that identifies the platform
+3. Abort — Open a GitHub issue for vendor support:
+   https://github.com/luigidemasi/camel-kit/issues
+```
+
+If the user specifies a vendor manually, validate it against the supported vendors list and proceed with that vendor. If the user points to a specific file, re-scan that file for vendor signals. If neither works, abort.
 
 ---
 
