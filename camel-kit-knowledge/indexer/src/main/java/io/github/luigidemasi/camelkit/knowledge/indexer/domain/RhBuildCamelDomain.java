@@ -444,6 +444,18 @@ public class RhBuildCamelDomain implements DocumentDomain {
                                 if (statement != null && !statement.isEmpty()) {
                                     content.append("\n  Red Hat Statement: ").append(statement);
                                 }
+
+                                if (cve.has("affected_release")) {
+                                    JSONArray releases = cve.getJSONArray("affected_release");
+                                    for (int r = 0; r < releases.length(); r++) {
+                                        JSONObject rel = releases.getJSONObject(r);
+                                        String pkg = rel.optString("package", "");
+                                        if (!pkg.isEmpty()) {
+                                            content.append("\n  Affected package: ").append(pkg);
+                                            break;
+                                        }
+                                    }
+                                }
                             } catch (Exception e) {
                                 System.out.printf("  WARN: Failed to parse CVE %s: %s%n",
                                         cveId, e.getMessage());
