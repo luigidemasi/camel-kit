@@ -5,13 +5,21 @@ import io.github.luigidemasi.camelkit.knowledge.indexer.chunker.SectionChunker.S
 import io.github.luigidemasi.camelkit.knowledge.indexer.parser.DoclingParser;
 import io.github.luigidemasi.camelkit.knowledge.schema.DomainMetadata;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -54,6 +62,20 @@ public class RhBuildCamelDomain implements DocumentDomain {
             new KbArticle("6970899", "spring-boot-supported-configs", "Spring Boot Supported Configs"),
             new KbArticle("6507531", "quarkus-supported-configs", "Quarkus Supported Configs")
     );
+
+    private static final List<String> ERRATA_PRODUCTS = List.of(
+            "Red Hat Build of Apache Camel",
+            "Red Hat Integration - Camel for Spring Boot",
+            "Red Hat Integration - Camel K",
+            "Red Hat Integration",
+            "Red Hat Fuse"
+    );
+
+    private static final String HYDRA_ERRATA_URL =
+            "https://access.redhat.com/hydra/rest/search/kcs";
+
+    private static final String HYDRA_CVE_URL =
+            "https://access.redhat.com/hydra/rest/securitydata/cve/";
 
     private final DocumentFetcher fetcher;
     private final DoclingParser doclingParser;
@@ -134,6 +156,12 @@ public class RhBuildCamelDomain implements DocumentDomain {
                     : doc.version() + "/" + doc.shortName();
             System.out.printf("  Chunked %s: %d sections%n", label, sections.size());
         }
+
+        // Phase 3: Fetch errata + CVEs and build errata chunks
+        fetchErrata();
+        List<DocumentChunk> errataChunks = buildErrataChunks();
+        chunks.addAll(errataChunks);
+        System.out.printf("  Errata: %d documents indexed%n", errataChunks.size());
 
         return chunks;
     }
@@ -251,6 +279,198 @@ public class RhBuildCamelDomain implements DocumentDomain {
                 cacheHits.get(), conversions.get());
 
         return new ArrayList<>(results);
+    }
+
+    /**
+     * Fetch errata from the Hydra API for all ERRATA_PRODUCTS, plus CVE details
+     * for any security advisories. Results are cached as JSON files in
+     * resourcesDir/rh-build-camel/errata/ (and errata/cves/ for CVEs).
+     */
+    private void fetchErrata() throws IOException {
+        Path errataDir = resourcesDir.resolve("rh-build-camel/errata");
+        Path cvesDir = errataDir.resolve("cves");
+        Files.createDirectories(errataDir);
+        Files.createDirectories(cvesDir);
+
+        Set<String> seenIds = new HashSet<>();
+        int downloaded = 0;
+        int cacheHits = 0;
+        int cveDownloaded = 0;
+        int cveCacheHits = 0;
+
+        for (String product : ERRATA_PRODUCTS) {
+            int start = 0;
+            int numFound = Integer.MAX_VALUE;
+
+            while (start < numFound) {
+                String url = HYDRA_ERRATA_URL + "?q=" +
+                        URLEncoder.encode(product, StandardCharsets.UTF_8) +
+                        "&rows=100&start=" + start + "&fq=documentKind:Errata";
+
+                String responseBody;
+                try {
+                    responseBody = fetcher.fetchText(url);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Interrupted fetching errata for " + product, e);
+                } catch (IOException e) {
+                    System.out.printf("  WARN: Failed to fetch errata page for %s (start=%d): %s%n",
+                            product, start, e.getMessage());
+                    break;
+                }
+
+                JSONObject json = new JSONObject(responseBody);
+                JSONObject response = json.getJSONObject("response");
+                numFound = response.getInt("numFound");
+                JSONArray docs = response.getJSONArray("docs");
+
+                if (docs.isEmpty()) break;
+
+                for (int i = 0; i < docs.length(); i++) {
+                    JSONObject doc = docs.getJSONObject(i);
+                    String id = doc.getString("id");
+
+                    if (!seenIds.add(id)) continue; // deduplicate across products
+
+                    String sanitizedId = id.replace(":", "-");
+                    Path errataFile = errataDir.resolve(sanitizedId + ".json");
+
+                    if (!Files.exists(errataFile)) {
+                        Files.writeString(errataFile, doc.toString(2));
+                        downloaded++;
+                    } else {
+                        cacheHits++;
+                    }
+
+                    // Fetch CVEs for security advisories
+                    if ("Security Advisory".equals(doc.optString("portal_advisory_type"))
+                            && doc.has("portal_CVE")) {
+                        JSONArray cves = doc.getJSONArray("portal_CVE");
+                        for (int c = 0; c < cves.length(); c++) {
+                            String cveId = cves.getString(c);
+                            Path cveFile = cvesDir.resolve(cveId + ".json");
+
+                            if (Files.exists(cveFile)) {
+                                cveCacheHits++;
+                                continue;
+                            }
+
+                            try {
+                                String cveJson = fetcher.fetchText(HYDRA_CVE_URL + cveId + ".json");
+                                Files.writeString(cveFile, cveJson);
+                                cveDownloaded++;
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                throw new IOException("Interrupted fetching CVE " + cveId, e);
+                            } catch (IOException e) {
+                                System.out.printf("  WARN: Failed to fetch CVE %s: %s%n",
+                                        cveId, e.getMessage());
+                            }
+                        }
+                    }
+                }
+
+                start += docs.length();
+            }
+
+            System.out.printf("  Errata scan: %s — %d total found%n", product, numFound == Integer.MAX_VALUE ? 0 : numFound);
+        }
+
+        System.out.printf("  Errata fetch complete: %d downloaded, %d cached, %d CVEs downloaded, %d CVEs cached%n",
+                downloaded, cacheHits, cveDownloaded, cveCacheHits);
+    }
+
+    /**
+     * Build DocumentChunk objects from cached errata JSON files,
+     * enriching security advisories with CVE details.
+     */
+    private List<DocumentChunk> buildErrataChunks() throws IOException {
+        Path errataDir = resourcesDir.resolve("rh-build-camel/errata");
+        Path cvesDir = errataDir.resolve("cves");
+        List<DocumentChunk> chunks = new ArrayList<>();
+
+        if (!Files.isDirectory(errataDir)) return chunks;
+
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(errataDir, "*.json")) {
+            for (Path file : stream) {
+                try {
+                    String raw = Files.readString(file);
+                    JSONObject doc = new JSONObject(raw);
+
+                    String id = doc.getString("id");
+                    String sanitizedId = id.replace(":", "-");
+                    String severity = doc.optString("portal_severity", "Unknown");
+                    String synopsis = doc.optString("portal_synopsis", "");
+                    String pubDate = doc.optString("portal_publication_date", "");
+                    String productNames = doc.optString("portal_product_names", "");
+                    String description = doc.optString("portal_description", "");
+
+                    StringBuilder content = new StringBuilder();
+                    content.append("[Erratum ").append(id).append("] ")
+                            .append(severity).append(": ").append(synopsis)
+                            .append("\nPublished: ").append(pubDate)
+                            .append("\nProducts: ").append(productNames)
+                            .append("\n\n").append(description);
+
+                    // Enrich with CVE details for security advisories
+                    if ("Security Advisory".equals(doc.optString("portal_advisory_type"))
+                            && doc.has("portal_CVE")) {
+                        JSONArray cves = doc.getJSONArray("portal_CVE");
+                        for (int i = 0; i < cves.length(); i++) {
+                            String cveId = cves.getString(i);
+                            Path cveFile = cvesDir.resolve(cveId + ".json");
+                            if (!Files.exists(cveFile)) continue;
+
+                            try {
+                                JSONObject cve = new JSONObject(Files.readString(cveFile));
+                                String cvss = "";
+                                if (cve.has("cvss3") && cve.getJSONObject("cvss3").has("cvss3_base_score")) {
+                                    cvss = cve.getJSONObject("cvss3").get("cvss3_base_score").toString();
+                                }
+                                String threatSeverity = cve.optString("threat_severity", "");
+                                String cwe = cve.optString("cwe", "");
+                                String details = "";
+                                if (cve.has("details") && cve.getJSONArray("details").length() > 0) {
+                                    details = cve.getJSONArray("details").getString(0);
+                                }
+
+                                content.append("\n\n").append(cveId)
+                                        .append(" (CVSS ").append(cvss)
+                                        .append(" ").append(threatSeverity)
+                                        .append(", ").append(cwe).append("):")
+                                        .append("\n  ").append(details);
+
+                                String statement = cve.optString("statement", null);
+                                if (statement != null && !statement.isEmpty()) {
+                                    content.append("\n  Red Hat Statement: ").append(statement);
+                                }
+                            } catch (Exception e) {
+                                System.out.printf("  WARN: Failed to parse CVE %s: %s%n",
+                                        cveId, e.getMessage());
+                            }
+                        }
+                    }
+
+                    String extractedVersion = extractVersionFromHeading(synopsis);
+
+                    chunks.add(new DocumentChunk(
+                            "rh-build-camel-errata-" + sanitizedId,
+                            "red-hat-build-camel",
+                            "errata",
+                            extractedVersion,
+                            null,
+                            null,
+                            synopsis,
+                            content.toString()
+                    ));
+                } catch (Exception e) {
+                    System.out.printf("  WARN: Failed to process erratum %s: %s%n",
+                            file.getFileName(), e.getMessage());
+                }
+            }
+        }
+
+        return chunks;
     }
 
     // Package-private accessors for testing
