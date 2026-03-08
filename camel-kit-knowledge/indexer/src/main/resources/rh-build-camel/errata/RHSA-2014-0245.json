@@ -1,0 +1,79 @@
+{
+  "year": 2014,
+  "language": "en",
+  "caseCount_365": 0,
+  "portal_synopsis": "Important: activemq security update",
+  "solution_resolution": "subscriber_only",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nThis update is available via the Red Hat Network. Details on how to\nuse the Red Hat Network to apply this update are available at\nhttps://access.redhat.com/site/articles/11258\n",
+  "id": "RHSA-2014:0245",
+  "view_uri": "https://access.redhat.com/errata/RHSA-2014:0245",
+  "portal_BZ": [
+    "958618",
+    "1000186",
+    "1011726",
+    "1049692"
+  ],
+  "[elevated]": false,
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "resource_uri": "https://access.redhat.com/errata/RHSA-2014:0245",
+  "portal_publication_date": "2014-03-03T00:00:00Z",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "boostBaseVersion": "6",
+  "displayDate": "2014-03-03T00:00:00Z",
+  "allTitle": "(RHSA-2014:0245) Important: activemq security update",
+  "large_text_store": "",
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "6",
+  "portal_severity_level": 4,
+  "portal_other_references": ["https://access.redhat.com/security/updates/classification/#important"],
+  "portal_advisory_type": "Security Advisory",
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHSA-2014:0245) Important: activemq security update",
+  "detectedProducts": [
+    "rhel",
+    "rhel6"
+  ],
+  "portal_summary": "An updated activemq package that fixes multiple security issues is now\navailable for Red Hat OpenShift Enterprise 2.0.\n\nThe Red Hat Security Response Team has rated this update as having\nImportant security impact. Common Vulnerability Scoring System (CVSS) base\nscores, which give detailed severity ratings, are available for each\nvulnerability from the CVE links in the References section.\n",
+  "portal_package": [
+    "activemq-client-5.9.0-4.redhat.610328.el6op.x86_64.rpm",
+    "activemq-5.9.0-4.redhat.610328.el6op.src.rpm",
+    "activemq-5.9.0-4.redhat.610328.el6op.x86_64.rpm"
+  ],
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Enterprise Application Node|Red Hat OpenShift Enterprise Application Node|2.0|x86_64",
+    "Red Hat OpenShift Enterprise Infrastructure|Red Hat OpenShift Enterprise Infrastructure|2.0|x86_64"
+  ],
+  "portal_CVE": [
+    "CVE-2013-2035",
+    "CVE-2013-4330",
+    "CVE-2013-4152",
+    "CVE-2014-0003"
+  ],
+  "docs_text_store": "",
+  "portal_severity": "Important",
+  "timestamp": "2026-02-25T14:05:23.226Z",
+  "documentKind": "Errata",
+  "portal_description": "Apache ActiveMQ provides a SOA infrastructure to connect processes across\nheterogeneous systems.\n\nA flaw was found in Apache Camel's parsing of the FILE_NAME header.\nA remote attacker able to submit messages to a Camel route, which would\nwrite the provided message to a file, could provide expression language\n(EL) expressions in the FILE_NAME header, which would be evaluated on the\nserver. This could lead to arbitrary remote code execution in the context\nof the Camel server process. (CVE-2013-4330)\n\nIt was found that the Apache Camel XSLT component allowed XSL stylesheets\nto call external Java methods. A remote attacker able to submit messages to\na Camel route could use this flaw to perform arbitrary remote code\nexecution in the context of the Camel server process. (CVE-2014-0003)\n\nIt was discovered that the Spring OXM wrapper did not expose any property\nfor disabling entity resolution when using the JAXB unmarshaller. A remote\nattacker could use this flaw to conduct XML External Entity (XXE) attacks\non web sites, and read files in the context of the user running the\napplication server. The patch for this flaw disables external entity\nprocessing by default, and provides a configuration directive to re-enable\nit. (CVE-2013-4152)\n\nThe HawtJNI Library class wrote native libraries to a predictable file name\nin /tmp/ when the native libraries were bundled in a JAR file, and no\ncustom library path was specified. A local attacker could overwrite these\nnative libraries with malicious versions during the window between when\nHawtJNI writes them and when they are executed. (CVE-2013-2035)\n\nThe CVE-2013-2035 issue was discovered by Florian Weimer of the Red Hat\nProduct Security Team, and the CVE-2014-0003 issue was discovered by David\nJorm of the Red Hat Security Response Team.\n\nAll users of Red Hat OpenShift Enterprise 2.0 are advised to upgrade to\nthis updated package, which corrects these issues.\n",
+  "lastModifiedDate": "2014-03-03T00:00:00Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Enterprise Application Node",
+    "Red Hat OpenShift Enterprise Infrastructure"
+  ],
+  "abstract": "Apache ActiveMQ provides a SOA infrastructure to connect processes across\nheterogeneous systems.\n\nA flaw was found in Apache Camel's parsing of the FILE_NAME header.\nA remote attacker able to submit messages to a Camel route, which would\nwrite the provided message to a file, could provide expression language\n(EL) expressions in the FILE_NAME header, which would be evaluated on the\nserver. This could lead to arbitrary remote code execution in the context\nof the Camel server process. (CVE-2013-4330)\n\nIt was found that the Apache Camel XSLT component allowed XSL stylesheets\nto call external Java methods. A remote attacker able to submit messages to\na Camel route could use this flaw to perform arbitrary remote code\nexecution in the context of the Camel server process. (CVE-2014-0003)\n\nIt was discovered that the Spring OXM wrapper did not expose any property\nfor disabling entity resolution when using the JAXB unmarshaller. A remote\nattacker could use this flaw to conduct XML External Entity (XXE) attacks\non web sites, and read files in the context of the user running the\napplication server. The patch for this flaw disables external entity\nprocessing by default, and provides a configuration directive to re-enable\nit. (CVE-2013-4152)\n\nThe HawtJNI Library class wrote native libraries to a predictable file name\nin /tmp/ when the native libraries were bundled in a JAR file, and no\ncustom library path was specified. A local attacker could overwrite these\nnative libraries with malicious versions during the window between when\nHawtJNI writes them and when they are executed. (CVE-2013-2035)\n\nThe CVE-2013-2035 issue was discovered by Florian Weimer of the Red Hat\nProduct Security Team, and the CVE-2014-0003 issue was discovered by David\nJorm of the Red Hat Security Response Team.\n\nAll users of Red Hat OpenShift Enterprise 2.0 are advised to upgrade to\nthis updated package, which corrects these issues.\n",
+  "uri": "downloads_https://access.redhat.com/errata/RHSA-2014:0245",
+  "sortTitle": "(RHSA-2014:0245) Important: activemq security update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2014-03-03T00:00:00Z"],
+  "_version_": 1858106371053977600,
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "194|rhel|6|2.0|x86_64",
+    "193|rhel|6|2.0|x86_64"
+  ],
+  "portal_title": ["(RHSA-2014:0245) Important: activemq security update"]
+}

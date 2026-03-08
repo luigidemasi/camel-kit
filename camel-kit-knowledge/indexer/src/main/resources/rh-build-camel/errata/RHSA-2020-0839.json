@@ -1,0 +1,98 @@
+{
+  "year": 2020,
+  "language": "en",
+  "caseCount_365": 0,
+  "portal_synopsis": "Important: kernel-rt security and bug fix update",
+  "solution_resolution": "subscriber_only",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nThe system must be rebooted for this update to take effect.",
+  "id": "RHSA-2020:0839",
+  "view_uri": "https://access.redhat.com/errata/RHSA-2020:0839",
+  "portal_BZ": [
+    "1703063",
+    "1763690",
+    "1781514"
+  ],
+  "[elevated]": false,
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "resource_uri": "https://access.redhat.com/errata/RHSA-2020:0839",
+  "portal_publication_date": "2020-03-17T13:09:52Z",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "boostBaseVersion": "7",
+  "displayDate": "2020-03-17T13:09:50Z",
+  "allTitle": "(RHSA-2020:0839) Important: kernel-rt security and bug fix update",
+  "large_text_store": "",
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "7",
+  "portal_severity_level": 4,
+  "portal_other_references": [
+    "https://access.redhat.com/security/updates/classification/#important",
+    "https://access.redhat.com/solutions/tsx-asynchronousabort"
+  ],
+  "portal_advisory_type": "Security Advisory",
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHSA-2020:0839) Important: kernel-rt security and bug fix update",
+  "detectedProducts": [
+    "rhel",
+    "rhel7"
+  ],
+  "portal_summary": "An update for kernel-rt is now available for Red Hat Enterprise Linux 7.\n\nRed Hat Product Security has rated this update as having a security impact of Important. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability from the CVE link(s) in the References section.",
+  "portal_package": [
+    "kernel-rt-3.10.0-1062.18.1.rt56.1044.el7.src.rpm",
+    "kernel-rt-debuginfo-common-x86_64-3.10.0-1062.18.1.rt56.1044.el7.x86_64.rpm",
+    "kernel-rt-trace-debuginfo-3.10.0-1062.18.1.rt56.1044.el7.x86_64.rpm",
+    "kernel-rt-kvm-debuginfo-3.10.0-1062.18.1.rt56.1044.el7.x86_64.rpm",
+    "kernel-rt-devel-3.10.0-1062.18.1.rt56.1044.el7.x86_64.rpm",
+    "kernel-rt-trace-3.10.0-1062.18.1.rt56.1044.el7.x86_64.rpm",
+    "kernel-rt-trace-kvm-3.10.0-1062.18.1.rt56.1044.el7.x86_64.rpm",
+    "kernel-rt-trace-kvm-debuginfo-3.10.0-1062.18.1.rt56.1044.el7.x86_64.rpm",
+    "kernel-rt-3.10.0-1062.18.1.rt56.1044.el7.x86_64.rpm",
+    "kernel-rt-debug-3.10.0-1062.18.1.rt56.1044.el7.x86_64.rpm",
+    "kernel-rt-debug-kvm-debuginfo-3.10.0-1062.18.1.rt56.1044.el7.x86_64.rpm",
+    "kernel-rt-debug-debuginfo-3.10.0-1062.18.1.rt56.1044.el7.x86_64.rpm",
+    "kernel-rt-doc-3.10.0-1062.18.1.rt56.1044.el7.noarch.rpm",
+    "kernel-rt-debug-kvm-3.10.0-1062.18.1.rt56.1044.el7.x86_64.rpm",
+    "kernel-rt-trace-devel-3.10.0-1062.18.1.rt56.1044.el7.x86_64.rpm",
+    "kernel-rt-debuginfo-3.10.0-1062.18.1.rt56.1044.el7.x86_64.rpm",
+    "kernel-rt-kvm-3.10.0-1062.18.1.rt56.1044.el7.x86_64.rpm",
+    "kernel-rt-debug-devel-3.10.0-1062.18.1.rt56.1044.el7.x86_64.rpm"
+  ],
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux for Real Time for NFV|7|x86_64",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux for Real Time for x86_64 - Extended Life Cycle Support|7|x86_64",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux for Real Time|7|x86_64"
+  ],
+  "portal_CVE": [
+    "CVE-2019-11487",
+    "CVE-2019-17666",
+    "CVE-2019-19338"
+  ],
+  "docs_text_store": "",
+  "portal_severity": "Important",
+  "timestamp": "2026-02-25T10:04:58.434Z",
+  "documentKind": "Errata",
+  "portal_description": "The kernel-rt packages provide the Real Time Linux Kernel, which enables fine-tuning for systems with extremely high determinism requirements.\n\nSecurity Fix(es):\n\n* kernel: Count overflow in FUSE request leading to use-after-free issues. (CVE-2019-11487)\n\n* kernel: rtl_p2p_noa_ie in drivers/net/wireless/realtek/rtlwifi/ps.c in the Linux kernel lacks a certain upper-bound check, leading to a buffer overflow (CVE-2019-17666)\n\n* Kernel: KVM: export MSR_IA32_TSX_CTRL to guest - incomplete fix for TAA (CVE-2019-11135) (CVE-2019-19338)\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.\n\nBug Fix(es):\n\n* kernel-rt: update to the RHEL7.7.z batch#5 source tree (BZ#1794131)",
+  "lastModifiedDate": "2020-03-17T13:09:50Z",
+  "portal_product_names": [
+    "Red Hat Enterprise Linux for Real Time for NFV",
+    "Red Hat Enterprise Linux for Real Time for x86_64 - Extended Life Cycle Support",
+    "Red Hat Enterprise Linux for Real Time"
+  ],
+  "abstract": "The kernel-rt packages provide the Real Time Linux Kernel, which enables fine-tuning for systems with extremely high determinism requirements.\n\nSecurity Fix(es):\n\n* kernel: Count overflow in FUSE request leading to use-after-free issues. (CVE-2019-11487)\n\n* kernel: rtl_p2p_noa_ie in drivers/net/wireless/realtek/rtlwifi/ps.c in the Linux kernel lacks a certain upper-bound check, leading to a buffer overflow (CVE-2019-17666)\n\n* Kernel: KVM: export MSR_IA32_TSX_CTRL to guest - incomplete fix for TAA (CVE-2019-11135) (CVE-2019-19338)\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.\n\nBug Fix(es):\n\n* kernel-rt: update to the RHEL7.7.z batch#5 source tree (BZ#1794131)",
+  "uri": "downloads_https://access.redhat.com/errata/RHSA-2020:0839",
+  "sortTitle": "(RHSA-2020:0839) Important: kernel-rt security and bug fix update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2020-03-17T13:09:50Z"],
+  "_version_": 1858091245584252928,
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "313|rhel|7|7|x86_64",
+    "940|rhel|7|7|x86_64",
+    "287|rhel|7|7|x86_64"
+  ],
+  "portal_title": ["(RHSA-2020:0839) Important: kernel-rt security and bug fix update"]
+}

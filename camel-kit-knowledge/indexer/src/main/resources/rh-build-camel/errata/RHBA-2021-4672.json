@@ -1,0 +1,68 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "year": 2021,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2021:4672) OCS 4.8.4 bug fix RPM update",
+  "detectedProducts": [
+    "rhel",
+    "rhel8"
+  ],
+  "portal_summary": "Updated images that fix several bugs are now available for Red Hat\nOpenShift Container Storage 4.8.4 on Red Hat Enterprise Linux 8 from Red\nHat Container Registry.",
+  "portal_package": [
+    "mcg-5.8.0-32.8ea58b6.5.8.el8.src.rpm",
+    "mcg-5.8.0-32.8ea58b6.5.8.el8.ppc64le.rpm",
+    "mcg-5.8.0-32.8ea58b6.5.8.el8.x86_64.rpm",
+    "mcg-5.8.0-32.8ea58b6.5.8.el8.s390x.rpm"
+  ],
+  "portal_synopsis": "OCS 4.8.4 bug fix RPM update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation|4|x86_64",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Power, little endian|4|ppc64le",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Z and LinuxONE|4|s390x"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHBA-2021:4672",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2021:4672",
+  "timestamp": "2026-02-25T10:38:35.337Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat OpenShift Container Storage is software-defined storage integrated\nwith and optimized for the Red Hat OpenShift Container Platform. Red Hat\nOpenShift Container Storage is a highly scalable, production-grade\npersistent storage for stateful applications running in the Red Hat\nOpenShift Container Platform. In addition to persistent storage, Red Hat\nOpenShift Container Storage provisions a multicloud data management service\nwith an S3 compatible API.\n\nBug Fix(es):\n\n* Previously, when OpenShift Container Storage was updated from version 4.6 to 4.7 you had to retain the old and new noobaa-db StatefulSets for migration purposes. A failure message was generated on the old noobaa-db StatefulSet due to a small issue in the code which caused the operator to check the status of the old noobaa-db StatefulSet even though it is no longer relevant. With this update, the operator stops checking the status of the old noobaa-db StatefulSet. (BZ#2004130)\n\nAll users of OpenShift Container Storage are advised to upgrade to this\nupdated package, which provides this bug fix.",
+  "lastModifiedDate": "2021-11-15T13:09:18Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2021:4672",
+  "portal_publication_date": "2021-11-15T13:09:30Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Data Foundation",
+    "Red Hat OpenShift Data Foundation for IBM Power, little endian",
+    "Red Hat OpenShift Data Foundation for IBM Z and LinuxONE"
+  ],
+  "abstract": "Red Hat OpenShift Container Storage is software-defined storage integrated\nwith and optimized for the Red Hat OpenShift Container Platform. Red Hat\nOpenShift Container Storage is a highly scalable, production-grade\npersistent storage for stateful applications running in the Red Hat\nOpenShift Container Platform. In addition to persistent storage, Red Hat\nOpenShift Container Storage provisions a multicloud data management service\nwith an S3 compatible API.\n\nBug Fix(es):\n\n* Previously, when OpenShift Container Storage was updated from version 4.6 to 4.7 you had to retain the old and new noobaa-db StatefulSets for migration purposes. A failure message was generated on the old noobaa-db StatefulSet due to a small issue in the code which caused the operator to check the status of the old noobaa-db StatefulSet even though it is no longer relevant. With this update, the operator stops checking the status of the old noobaa-db StatefulSet. (BZ#2004130)\n\nAll users of OpenShift Container Storage are advised to upgrade to this\nupdated package, which provides this bug fix.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2021:4672",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHBA-2021:4672) OCS 4.8.4 bug fix RPM update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2021-11-15T13:09:18Z"],
+  "_version_": 1858093360478158848,
+  "displayDate": "2021-11-15T13:09:18Z",
+  "allTitle": "(RHBA-2021:4672) OCS 4.8.4 bug fix RPM update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "547|rhel|8|4|x86_64",
+    "634|rhel|8|4|ppc64le",
+    "635|rhel|8|4|s390x"
+  ],
+  "portal_title": ["(RHBA-2021:4672) OCS 4.8.4 bug fix RPM update"]
+}

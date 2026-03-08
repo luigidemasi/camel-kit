@@ -1,0 +1,83 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "year": 2023,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2023:1230) Red Hat OpenShift Data Foundation 4.11.6 Bug Fix Update",
+  "detectedProducts": [
+    "rhel",
+    "rhel8",
+    "openshift"
+  ],
+  "portal_summary": "Updated images that fix several bugs are now available for Red Hat OpenShift Data Foundation 4.11.6 on Red Hat Enterprise Linux 8 from Red Hat Container Registry.",
+  "portal_synopsis": "Red Hat OpenShift Data Foundation 4.11.6 Bug Fix Update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Z and LinuxONE|4|s390x",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation|4|x86_64",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Power, little endian|4|ppc64le"
+  ],
+  "portal_CVE": [
+    "CVE-2020-10735",
+    "CVE-2021-28861",
+    "CVE-2022-3650",
+    "CVE-2022-4415",
+    "CVE-2022-40897",
+    "CVE-2022-45061",
+    "CVE-2022-47629"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHBA-2023:1230",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2023:1230",
+  "portal_BZ": [
+    "2152856",
+    "2154163",
+    "2154164",
+    "2160445",
+    "2161655",
+    "2168035",
+    "2170419",
+    "2170450",
+    "2174835"
+  ],
+  "timestamp": "2026-03-02T01:39:26.643Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat OpenShift Data Foundation is software-defined storage integrated with and optimized for the Red Hat OpenShift Data Foundation. Red Hat OpenShift Data Foundation is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Data Foundation provisions a multicloud data management service with an S3 compatible API.\n\nBug Fixes:\n\n* Previously, due to an override of the OpenShift Data Foundation operator to the Multicloud Object Gateway (MCG) requested resources, incorrect resources were requested. With this release, the OpenShift Data Foundation operator is stopped from reconciling the MCG requested resources. (BZ#2170419)\n\n* With this update, the read operations performance of the Multicloud Object Gateway database is improved. To achieve this, certain regular expressions that are used by some of the queries that run against the database to serve the required data are pre-compiled which saves time when running in real time. (BZ#2149864)\n\n* Previously, the default container created in Azure was with public access enabled. With this fix, the default container created will not have public access enabled which means `AllowBlobPublicAccess` is set to false. (BZ#2168839)\n\nAll Red Hat OpenShift Container Storage users are advised to upgrade to these updated images.",
+  "lastModifiedDate": "2023-03-14T15:19:14Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2023:1230",
+  "portal_publication_date": "2023-03-14T15:19:14Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Data Foundation for IBM Z and LinuxONE",
+    "Red Hat OpenShift Data Foundation",
+    "Red Hat OpenShift Data Foundation for IBM Power, little endian"
+  ],
+  "abstract": "Red Hat OpenShift Data Foundation is software-defined storage integrated with and optimized for the Red Hat OpenShift Data Foundation. Red Hat OpenShift Data Foundation is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Data Foundation provisions a multicloud data management service with an S3 compatible API.\n\nBug Fixes:\n\n* Previously, due to an override of the OpenShift Data Foundation operator to the Multicloud Object Gateway (MCG) requested resources, incorrect resources were requested. With this release, the OpenShift Data Foundation operator is stopped from reconciling the MCG requested resources. (BZ#2170419)\n\n* With this update, the read operations performance of the Multicloud Object Gateway database is improved. To achieve this, certain regular expressions that are used by some of the queries that run against the database to serve the required data are pre-compiled which saves time when running in real time. (BZ#2149864)\n\n* Previously, the default container created in Azure was with public access enabled. With this fix, the default container created will not have public access enabled which means `AllowBlobPublicAccess` is set to false. (BZ#2168839)\n\nAll Red Hat OpenShift Container Storage users are advised to upgrade to these updated images.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2023:1230",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHBA-2023:1230) Red Hat OpenShift Data Foundation 4.11.6 Bug Fix Update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2023-03-14T15:19:14Z"],
+  "_version_": 1858512425356099584,
+  "displayDate": "2023-03-14T15:19:14Z",
+  "allTitle": "(RHBA-2023:1230) Red Hat OpenShift Data Foundation 4.11.6 Bug Fix Update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "635|rhel|8|4|s390x",
+    "547|rhel|8|4|x86_64",
+    "634|rhel|8|4|ppc64le"
+  ],
+  "portal_title": ["(RHBA-2023:1230) Red Hat OpenShift Data Foundation 4.11.6 Bug Fix Update"]
+}

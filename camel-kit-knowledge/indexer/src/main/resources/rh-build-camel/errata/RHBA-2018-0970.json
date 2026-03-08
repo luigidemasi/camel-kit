@@ -1,0 +1,69 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "7",
+  "year": 2018,
+  "portal_other_references": ["https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/7.5_Release_Notes/index.html"],
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2018:0970) rt-tests bug fix update",
+  "detectedProducts": [
+    "rhel",
+    "rhel7"
+  ],
+  "portal_summary": "An update for rt-tests is now available for Red Hat Enterprise Linux 7.",
+  "portal_package": [
+    "rt-tests-debuginfo-1.0-12.el7.x86_64.rpm",
+    "rt-tests-1.0-12.el7.src.rpm",
+    "rt-tests-1.0-12.el7.x86_64.rpm"
+  ],
+  "portal_synopsis": "rt-tests bug fix update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux for Real Time for NFV|7|x86_64",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux for Real Time|7|x86_64",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux for Real Time for x86_64 - Extended Life Cycle Support|7|x86_64"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "For details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHBA-2018:0970",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2018:0970",
+  "portal_BZ": ["1473786"],
+  "timestamp": "2026-02-25T09:27:10.497Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "The rt-tests packages include a set of programs that test and measure various components of real-time kernel behavior. These packages measure timer, signal, and hardware latency and test the functioning of priority-inheritance mutexes.\n\nFor detailed information on changes in this release, see the Red Hat Enterprise Linux 7.5 Release Notes linked from the References section.\n\nUsers of rt-tests are advised to upgrade to these updated packages.",
+  "lastModifiedDate": "2018-04-10T05:07:35Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2018:0970",
+  "portal_publication_date": "2018-04-10T05:04:45Z",
+  "portal_product_names": [
+    "Red Hat Enterprise Linux for Real Time for NFV",
+    "Red Hat Enterprise Linux for Real Time",
+    "Red Hat Enterprise Linux for Real Time for x86_64 - Extended Life Cycle Support"
+  ],
+  "abstract": "The rt-tests packages include a set of programs that test and measure various components of real-time kernel behavior. These packages measure timer, signal, and hardware latency and test the functioning of priority-inheritance mutexes.\n\nFor detailed information on changes in this release, see the Red Hat Enterprise Linux 7.5 Release Notes linked from the References section.\n\nUsers of rt-tests are advised to upgrade to these updated packages.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2018:0970",
+  "boostBaseVersion": "7",
+  "sortTitle": "(RHBA-2018:0970) rt-tests bug fix update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2018-04-10T05:07:35Z"],
+  "_version_": 1858088867556491264,
+  "displayDate": "2018-04-10T05:07:35Z",
+  "allTitle": "(RHBA-2018:0970) rt-tests bug fix update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "313|rhel|7|7|x86_64",
+    "287|rhel|7|7|x86_64",
+    "940|rhel|7|7|x86_64"
+  ],
+  "portal_title": ["(RHBA-2018:0970) rt-tests bug fix update"]
+}

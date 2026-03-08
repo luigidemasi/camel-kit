@@ -1,0 +1,88 @@
+{
+  "year": 2013,
+  "language": "en",
+  "caseCount_365": 0,
+  "portal_synopsis": "Important: JBoss Enterprise Application Platform 5.2.0 security update",
+  "solution_resolution": "subscriber_only",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously-released errata\nrelevant to your system have been applied.\n\nThis update is available via the Red Hat Network. Details on how to\nuse the Red Hat Network to apply this update are available at\nhttps://access.redhat.com/knowledge/articles/11258\n",
+  "id": "RHSA-2013:0257",
+  "view_uri": "https://access.redhat.com/errata/RHSA-2013:0257",
+  "portal_BZ": [
+    "851896",
+    "889008"
+  ],
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "resource_uri": "https://access.redhat.com/errata/RHSA-2013:0257",
+  "portal_publication_date": "2013-02-13T00:00:00Z",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "boostBaseVersion": "6",
+  "displayDate": "2013-02-13T00:00:00Z",
+  "allTitle": "(RHSA-2013:0257) Important: JBoss Enterprise Application Platform 5.2.0 security update",
+  "large_text_store": "",
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "6",
+  "portal_severity_level": 4,
+  "portal_other_references": [
+    "https://access.redhat.com/security/updates/classification/#important",
+    "http://cxf.apache.org/security-advisories.html"
+  ],
+  "portal_advisory_type": "Security Advisory",
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHSA-2013:0257) Important: JBoss Enterprise Application Platform 5.2.0 security update",
+  "detectedProducts": [
+    "rhel",
+    "rhel6",
+    "jbosseap",
+    "jbosseap5"
+  ],
+  "portal_summary": "An updated apache-cxf package for JBoss Enterprise Application Platform\n5.2.0 that fixes two security issues is now available for Red Hat\nEnterprise Linux 4, 5, and 6.\n\nThe Red Hat Security Response Team has rated this update as having\nimportant security impact. Common Vulnerability Scoring System (CVSS) base\nscores, which give detailed severity ratings, are available for each\nvulnerability from the CVE links in the References section.\n",
+  "portal_package": [
+    "apache-cxf-2.2.12-10.patch_06.ep5.el5.src.rpm",
+    "apache-cxf-2.2.12-10.patch_06.ep5.el6.noarch.rpm",
+    "apache-cxf-2.2.12-10.patch_06.ep5.el6.src.rpm",
+    "apache-cxf-2.2.12-10.patch_06.ep5.el5.noarch.rpm"
+  ],
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "JBoss Enterprise Application Platform|JBoss Enterprise Application Platform|5|x86_64",
+    "JBoss Enterprise Application Platform from RHUI|JBoss Enterprise Application Platform from RHUI|5|x86_64",
+    "JBoss Enterprise Application Platform|JBoss Enterprise Application Platform|5|x86_64",
+    "JBoss Enterprise Application Platform|JBoss Enterprise Application Platform|5|i386",
+    "JBoss Enterprise Application Platform from RHUI|JBoss Enterprise Application Platform from RHUI|5|i386",
+    "JBoss Enterprise Application Platform|JBoss Enterprise Application Platform|5|i386"
+  ],
+  "portal_CVE": [
+    "CVE-2012-3451",
+    "CVE-2012-5633"
+  ],
+  "docs_text_store": "",
+  "portal_severity": "Important",
+  "timestamp": "2026-02-25T14:13:47.988Z",
+  "documentKind": "Errata",
+  "portal_description": "JBoss Enterprise Application Platform is a platform for Java applications,\nwhich integrates the JBoss Application Server with JBoss Hibernate and\nJBoss Seam.\n\nIf web services were deployed using Apache CXF with the WSS4JInInterceptor\nenabled to apply WS-Security processing, HTTP GET requests to these\nservices were always granted access, without applying authentication\nchecks. The URIMappingInterceptor is a legacy mechanism for allowing\nREST-like access (via GET requests) to simple SOAP services. A remote\nattacker could use this flaw to access the REST-like interface of a simple\nSOAP service using GET requests that bypass the security constraints\napplied by WSS4JInInterceptor. This flaw was only exploitable if\nWSS4JInInterceptor was used to apply WS-Security processing. Services that\nuse WS-SecurityPolicy to apply security were not affected. (CVE-2012-5633)\n\nIt was found that Apache CXF was vulnerable to SOAPAction spoofing attacks\nunder certain conditions. If web services were exposed via Apache CXF that\nuse a unique SOAPAction for each service operation, then a remote attacker\ncould perform SOAPAction spoofing to call a forbidden operation if it\naccepts the same parameters as an allowed operation. WS-Policy validation\nwas performed against the operation being invoked, and an attack must pass\nvalidation to be successful. (CVE-2012-3451)\n\nNote that the CVE-2012-3451 and CVE-2012-5633 issues only affected\nenvironments that have JBoss Web Services CXF installed.\n\nRed Hat would like to thank the Apache CXF project for reporting\nCVE-2012-3451.\n\nWarning: Before applying this update, back up your existing JBoss\nEnterprise Application Platform installation (including all applications\nand configuration files).\n\nAll users of JBoss Enterprise Application Platform 5.2.0 on Red Hat\nEnterprise Linux 4, 5, and 6 are advised to upgrade to this updated\npackage. The JBoss server process must be restarted for the update to take\neffect.\n",
+  "lastModifiedDate": "2013-02-13T00:00:00Z",
+  "portal_product_names": [
+    "JBoss Enterprise Application Platform",
+    "JBoss Enterprise Application Platform from RHUI"
+  ],
+  "abstract": "JBoss Enterprise Application Platform is a platform for Java applications,\nwhich integrates the JBoss Application Server with JBoss Hibernate and\nJBoss Seam.\n\nIf web services were deployed using Apache CXF with the WSS4JInInterceptor\nenabled to apply WS-Security processing, HTTP GET requests to these\nservices were always granted access, without applying authentication\nchecks. The URIMappingInterceptor is a legacy mechanism for allowing\nREST-like access (via GET requests) to simple SOAP services. A remote\nattacker could use this flaw to access the REST-like interface of a simple\nSOAP service using GET requests that bypass the security constraints\napplied by WSS4JInInterceptor. This flaw was only exploitable if\nWSS4JInInterceptor was used to apply WS-Security processing. Services that\nuse WS-SecurityPolicy to apply security were not affected. (CVE-2012-5633)\n\nIt was found that Apache CXF was vulnerable to SOAPAction spoofing attacks\nunder certain conditions. If web services were exposed via Apache CXF that\nuse a unique SOAPAction for each service operation, then a remote attacker\ncould perform SOAPAction spoofing to call a forbidden operation if it\naccepts the same parameters as an allowed operation. WS-Policy validation\nwas performed against the operation being invoked, and an attack must pass\nvalidation to be successful. (CVE-2012-3451)\n\nNote that the CVE-2012-3451 and CVE-2012-5633 issues only affected\nenvironments that have JBoss Web Services CXF installed.\n\nRed Hat would like to thank the Apache CXF project for reporting\nCVE-2012-3451.\n\nWarning: Before applying this update, back up your existing JBoss\nEnterprise Application Platform installation (including all applications\nand configuration files).\n\nAll users of JBoss Enterprise Application Platform 5.2.0 on Red Hat\nEnterprise Linux 4, 5, and 6 are advised to upgrade to this updated\npackage. The JBoss server process must be restarted for the update to take\neffect.\n",
+  "uri": "downloads_https://access.redhat.com/errata/RHSA-2013:0257",
+  "sortTitle": "(RHSA-2013:0257) Important: JBoss Enterprise Application Platform 5.2.0 security update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2013-02-13T00:00:00Z"],
+  "_version_": 1858106900336345088,
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "183|rhel|6|5|x86_64",
+    "151|rhel|6|5|x86_64",
+    "183|rhel|5|5|x86_64",
+    "183|rhel|6|5|i386",
+    "151|rhel|6|5|i386",
+    "183|rhel|5|5|i386"
+  ],
+  "portal_title": ["(RHSA-2013:0257) Important: JBoss Enterprise Application Platform 5.2.0 security update"]
+}

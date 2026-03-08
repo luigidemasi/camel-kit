@@ -1,0 +1,73 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "year": 2021,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2021:2632) Red Hat OpenShift Container Storage 4.7.2 bug fix update",
+  "detectedProducts": [
+    "rhel",
+    "rhel8",
+    "storage",
+    "storage4"
+  ],
+  "portal_summary": "Updated images that fix several bugs are now available for Red Hat OpenShift Container Storage 4.7.2 on Red Hat Enterprise Linux 8 from Red Hat Container Registry.",
+  "portal_synopsis": "Red Hat OpenShift Container Storage 4.7.2 bug fix update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Power, little endian|4|ppc64le",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation|4|x86_64",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Z and LinuxONE|4|s390x"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHBA-2021:2632",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2021:2632",
+  "portal_BZ": [
+    "1962161",
+    "1970583",
+    "1972800",
+    "1974399",
+    "1974477",
+    "1974748",
+    "1974816"
+  ],
+  "timestamp": "2026-02-25T10:32:10.797Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat OpenShift Container Storage is software-defined storage integrated with and optimized for the Red Hat OpenShift Container Platform. Red Hat OpenShift Container Storage is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Container Storage provisions a multicloud data management service with an S3 compatible API.\n\nBug Fix(es):\n\n* Currently, the ClusterObjectStoreState alert message is not generated if the RADOS Object Gateway (RGW) is not available or is unhealthy. In this update, a fix implemented in the OpenShift Container Storage operator, and users can now see the ClusterObjectStoreState alert when RADOS Object Gateway (RGW) is not available or is unhealthy. (BZ#1962161)\n\n* Previously, Multicloud Object Gateway (MCG) db pod crashed as the Postgres failed to run on kubernetes when hugepages were enabled. With the current update, the hugepages for the MCG Postgres pods are disabled, and hence the MCG db pods do not crash. (BZ#1968438)\n\n* Currently, only HashiCorp Key/Value (KV) Secret Engine API, version 1 is supported for cluster-wide encryption with Key Management System (KMS). With this update, support for HashiCorp KV Secret Engine API, version 2 is added. (BZ#1970583)\n\n* Previously, certificate validation failed as the directory that stores the certificates was not c_rehash by openssl when curl was called with --capath. The full chain of certificates had only one self-signed certificate and no client certificate or the private key was provided. With this update, curl is called with --cacert, and hence the certificates are validated correctly and the encryption key can be retrieved. (BZ#1974399)\n\nAll users of Red Hat OpenShift Container Storage are advised to pull these updated images from the Red Hat Container Registry.",
+  "lastModifiedDate": "2021-06-30T19:17:51Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2021:2632",
+  "portal_publication_date": "2021-06-30T19:17:51Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Data Foundation for IBM Power, little endian",
+    "Red Hat OpenShift Data Foundation",
+    "Red Hat OpenShift Data Foundation for IBM Z and LinuxONE"
+  ],
+  "abstract": "Red Hat OpenShift Container Storage is software-defined storage integrated with and optimized for the Red Hat OpenShift Container Platform. Red Hat OpenShift Container Storage is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Container Storage provisions a multicloud data management service with an S3 compatible API.\n\nBug Fix(es):\n\n* Currently, the ClusterObjectStoreState alert message is not generated if the RADOS Object Gateway (RGW) is not available or is unhealthy. In this update, a fix implemented in the OpenShift Container Storage operator, and users can now see the ClusterObjectStoreState alert when RADOS Object Gateway (RGW) is not available or is unhealthy. (BZ#1962161)\n\n* Previously, Multicloud Object Gateway (MCG) db pod crashed as the Postgres failed to run on kubernetes when hugepages were enabled. With the current update, the hugepages for the MCG Postgres pods are disabled, and hence the MCG db pods do not crash. (BZ#1968438)\n\n* Currently, only HashiCorp Key/Value (KV) Secret Engine API, version 1 is supported for cluster-wide encryption with Key Management System (KMS). With this update, support for HashiCorp KV Secret Engine API, version 2 is added. (BZ#1970583)\n\n* Previously, certificate validation failed as the directory that stores the certificates was not c_rehash by openssl when curl was called with --capath. The full chain of certificates had only one self-signed certificate and no client certificate or the private key was provided. With this update, curl is called with --cacert, and hence the certificates are validated correctly and the encryption key can be retrieved. (BZ#1974399)\n\nAll users of Red Hat OpenShift Container Storage are advised to pull these updated images from the Red Hat Container Registry.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2021:2632",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHBA-2021:2632) Red Hat OpenShift Container Storage 4.7.2 bug fix update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2021-06-30T19:17:51Z"],
+  "_version_": 1858092957315366912,
+  "displayDate": "2021-06-30T19:17:51Z",
+  "allTitle": "(RHBA-2021:2632) Red Hat OpenShift Container Storage 4.7.2 bug fix update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "634|rhel|8|4|ppc64le",
+    "547|rhel|8|4|x86_64",
+    "635|rhel|8|4|s390x"
+  ],
+  "portal_title": ["(RHBA-2021:2632) Red Hat OpenShift Container Storage 4.7.2 bug fix update"]
+}

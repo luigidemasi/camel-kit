@@ -1,0 +1,73 @@
+{
+  "year": 2005,
+  "language": "en",
+  "caseCount_365": 0,
+  "portal_synopsis": "RealPlayer security update",
+  "solution_resolution": "subscriber_only",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nTo update all RPMs for your particular architecture, run:\n\nrpm -Fvh [filenames]\n\nwhere [filenames] is a list of the RPMs you wish to upgrade.  Only those\nRPMs which are currently installed will be updated.  Those RPMs which are\nnot installed but included in the list will not be updated.  Note that you\ncan also use wildcards (*.rpm) if your current directory *only* contains the\ndesired RPMs.\n\nPlease note that this update is also available via Red Hat Network.  Many\npeople find this an easier way to apply updates.  To use Red Hat Network,\nlaunch the Red Hat Update Agent with the following command:\n\nup2date\n\nThis will start an interactive process that will result in the appropriate\nRPMs being upgraded on your system.",
+  "id": "RHSA-2005:265",
+  "view_uri": "https://access.redhat.com/errata/RHSA-2005:265",
+  "portal_BZ": [
+    "150050",
+    "150078"
+  ],
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "resource_uri": "https://access.redhat.com/errata/RHSA-2005:265",
+  "portal_publication_date": "2005-03-03T00:00:00Z",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "boostBaseVersion": "4",
+  "displayDate": "2005-03-03T00:00:00Z",
+  "allTitle": "(RHSA-2005:265) RealPlayer security update",
+  "large_text_store": "",
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "4",
+  "portal_severity_level": 5,
+  "portal_other_references": ["http://service.real.com/help/faq/security/050224_player/EN/"],
+  "portal_advisory_type": "Security Advisory",
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHSA-2005:265) RealPlayer security update",
+  "detectedProducts": [
+    "rhel",
+    "rhel4"
+  ],
+  "portal_summary": "An updated RealPlayer package that fixes two buffer overflow issues is now\navailable.\n\nThis update has been rated as having critical security impact by the Red\nHat Security Response Team.",
+  "portal_package": ["RealPlayer-10.0.3-1.i386.rpm"],
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Workstation|4|i386",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Server|4|i386",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Desktop|4|i386"
+  ],
+  "portal_CVE": [
+    "CVE-2005-0455",
+    "CVE-2005-0611"
+  ],
+  "docs_text_store": "",
+  "portal_severity": "Critical",
+  "timestamp": "2026-02-25T14:53:04.843Z",
+  "documentKind": "Errata",
+  "portal_description": "RealPlayer is a media player.\n\nA stack based buffer overflow bug was found in RealPlayer's Synchronized\nMultimedia Integration Language (SMIL) file processor. An attacker could\ncreate a specially crafted SMIL file which would execute arbitrary code\nwhen opened by a user. The Common Vulnerabilities and Exposures project\n(cve.mitre.org) has assigned the name CAN-2005-0455 to this issue.\n\nA buffer overflow bug was found in the way RealPlayer decodes WAV sound\nfiles.  An attacker could create a specially crafted WAV file which could\nexecute arbitrary code when opened by a user. The Common Vulnerabilities\nand Exposures project (cve.mitre.org) has assigned the name CAN-2005-0611\nto this issue.\n\nAll users of RealPlayer are advised to upgrade to this updated package,\nwhich contains RealPlayer version 10.0.3 and is not vulnerable to these issues.",
+  "lastModifiedDate": "2005-03-03T00:00:00Z",
+  "portal_product_names": [
+    "Red Hat Enterprise Linux Workstation",
+    "Red Hat Enterprise Linux Server",
+    "Red Hat Enterprise Linux Desktop"
+  ],
+  "abstract": "RealPlayer is a media player.\n\nA stack based buffer overflow bug was found in RealPlayer's Synchronized\nMultimedia Integration Language (SMIL) file processor. An attacker could\ncreate a specially crafted SMIL file which would execute arbitrary code\nwhen opened by a user. The Common Vulnerabilities and Exposures project\n(cve.mitre.org) has assigned the name CAN-2005-0455 to this issue.\n\nA buffer overflow bug was found in the way RealPlayer decodes WAV sound\nfiles.  An attacker could create a specially crafted WAV file which could\nexecute arbitrary code when opened by a user. The Common Vulnerabilities\nand Exposures project (cve.mitre.org) has assigned the name CAN-2005-0611\nto this issue.\n\nAll users of RealPlayer are advised to upgrade to this updated package,\nwhich contains RealPlayer version 10.0.3 and is not vulnerable to these issues.",
+  "uri": "downloads_https://access.redhat.com/errata/RHSA-2005:265",
+  "sortTitle": "(RHSA-2005:265) RealPlayer security update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2005-03-03T00:00:00Z"],
+  "_version_": 1858109371876114432,
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "71|rhel|4|4|i386",
+    "69|rhel|4|4|i386",
+    "68|rhel|4|4|i386"
+  ],
+  "portal_title": ["(RHSA-2005:265) RealPlayer security update"]
+}

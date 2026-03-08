@@ -1,0 +1,85 @@
+{
+  "year": 2023,
+  "language": "en",
+  "caseCount_365": 0,
+  "portal_synopsis": "Important: Red Hat Virtualization Host 4.4.z SP 1 security update batch#5 (oVirt-4.5.3-5)",
+  "solution_resolution": "subscriber_only",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/2974891",
+  "id": "RHSA-2023:1677",
+  "view_uri": "https://access.redhat.com/errata/RHSA-2023:1677",
+  "portal_BZ": [
+    "2159505",
+    "2162055",
+    "2162056",
+    "2163379",
+    "2170377"
+  ],
+  "[elevated]": false,
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "resource_uri": "https://access.redhat.com/errata/RHSA-2023:1677",
+  "portal_publication_date": "2023-04-10T01:04:13Z",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "boostBaseVersion": "8",
+  "displayDate": "2023-04-10T01:04:12Z",
+  "allTitle": "(RHSA-2023:1677) Important: Red Hat Virtualization Host 4.4.z SP 1 security update batch#5 (oVirt-4.5.3-5)",
+  "large_text_store": "",
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "portal_severity_level": 4,
+  "portal_other_references": ["https://access.redhat.com/security/updates/classification/#important"],
+  "portal_advisory_type": "Security Advisory",
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHSA-2023:1677) Important: Red Hat Virtualization Host 4.4.z SP 1 security update batch#5 (oVirt-4.5.3-5)",
+  "detectedProducts": [
+    "rhel",
+    "rhel8",
+    "rhv"
+  ],
+  "portal_summary": "An update for redhat-release-virtualization-host and redhat-virtualization-host is now available for Red Hat Virtualization 4 for Red Hat Enterprise Linux 8.\n\nRed Hat Product Security has rated this update as having a security impact of Important. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability from the CVE link(s) in the References section.",
+  "portal_package": [
+    "redhat-virtualization-host-4.5.3-202304051438_8.6.src.rpm",
+    "redhat-release-virtualization-host-content-4.5.3-6.el8ev.x86_64.rpm",
+    "redhat-virtualization-host-image-update-4.5.3-202304051438_8.6.x86_64.rpm",
+    "redhat-virtualization-host-image-update-placeholder-4.5.3-6.el8ev.noarch.rpm",
+    "redhat-release-virtualization-host-4.5.3-6.el8ev.src.rpm",
+    "redhat-release-virtualization-host-4.5.3-6.el8ev.x86_64.rpm"
+  ],
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Virtualization|Red Hat Virtualization|4|x86_64",
+    "Red Hat Virtualization|Red Hat Virtualization Host|4|x86_64"
+  ],
+  "portal_CVE": [
+    "CVE-2022-23521",
+    "CVE-2022-41903",
+    "CVE-2023-0266",
+    "CVE-2023-0386",
+    "CVE-2023-0767"
+  ],
+  "docs_text_store": "",
+  "portal_severity": "Important",
+  "timestamp": "2026-03-02T01:39:59.043Z",
+  "documentKind": "Errata",
+  "portal_description": "The redhat-virtualization-host packages provide the Red Hat Virtualization Host. These packages include redhat-release-virtualization-host, ovirt-node, and rhev-hypervisor. Red Hat Virtualization Hosts (RHVH) are installed using a special build of Red Hat Enterprise Linux with only the packages required to host virtual machines. RHVH features a Cockpit user interface for monitoring the host's resources and performing administrative tasks. \n\nThe ovirt-node-ng packages provide the Red Hat Virtualization Host. These packages include redhat-release-virtualization-host, ovirt-node, and rhev-hypervisor. Red Hat Virtualization Hosts (RHVH) are installed using a special build of Red Hat Enterprise Linux with only the packages required to host virtual machines. RHVH features a Cockpit user interface for monitoring the host's resources and performing administrative tasks.\n\nSecurity Fix(es):\n\n* git: gitattributes parsing integer overflow (CVE-2022-23521)\n\n* git: Heap overflow in `git archive`, `git log --format` leading to RCE (CVE-2022-41903)\n\n* ALSA: pcm: Move rwsem lock inside snd_ctl_elem_read to prevent UAF (CVE-2023-0266)\n\n* kernel: FUSE filesystem low-privileged user privileges escalation (CVE-2023-0386)\n\n* nss: Arbitrary memory write via PKCS 12 (CVE-2023-0767)\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.",
+  "lastModifiedDate": "2023-04-10T01:04:12Z",
+  "portal_product_names": [
+    "Red Hat Virtualization",
+    "Red Hat Virtualization Host"
+  ],
+  "abstract": "The redhat-virtualization-host packages provide the Red Hat Virtualization Host. These packages include redhat-release-virtualization-host, ovirt-node, and rhev-hypervisor. Red Hat Virtualization Hosts (RHVH) are installed using a special build of Red Hat Enterprise Linux with only the packages required to host virtual machines. RHVH features a Cockpit user interface for monitoring the host's resources and performing administrative tasks. \n\nThe ovirt-node-ng packages provide the Red Hat Virtualization Host. These packages include redhat-release-virtualization-host, ovirt-node, and rhev-hypervisor. Red Hat Virtualization Hosts (RHVH) are installed using a special build of Red Hat Enterprise Linux with only the packages required to host virtual machines. RHVH features a Cockpit user interface for monitoring the host's resources and performing administrative tasks.\n\nSecurity Fix(es):\n\n* git: gitattributes parsing integer overflow (CVE-2022-23521)\n\n* git: Heap overflow in `git archive`, `git log --format` leading to RCE (CVE-2022-41903)\n\n* ALSA: pcm: Move rwsem lock inside snd_ctl_elem_read to prevent UAF (CVE-2023-0266)\n\n* kernel: FUSE filesystem low-privileged user privileges escalation (CVE-2023-0386)\n\n* nss: Arbitrary memory write via PKCS 12 (CVE-2023-0767)\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.",
+  "uri": "downloads_https://access.redhat.com/errata/RHSA-2023:1677",
+  "sortTitle": "(RHSA-2023:1677) Important: Red Hat Virtualization Host 4.4.z SP 1 security update batch#5 (oVirt-4.5.3-5)",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2023-04-10T01:04:12Z"],
+  "_version_": 1858512459314233344,
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "150|rhel|8|4|x86_64",
+    "328|rhel|8|4|x86_64"
+  ],
+  "portal_title": ["(RHSA-2023:1677) Important: Red Hat Virtualization Host 4.4.z SP 1 security update batch#5 (oVirt-4.5.3-5)"]
+}

@@ -1,0 +1,77 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "year": 2022,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2022:6888) Red Hat OpenShift Data Foundation 4.11.2 Bug Fix Update",
+  "detectedProducts": [
+    "rhel",
+    "rhel8",
+    "openshift"
+  ],
+  "portal_summary": "Updated images that fix several bugs are now available for Red Hat OpenShift Data Foundation 4.11.2 on Red Hat Enterprise Linux 8 from Red Hat Container Registry.",
+  "portal_synopsis": "Red Hat OpenShift Data Foundation 4.11.2 Bug Fix Update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation|4|x86_64",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Z and LinuxONE|4|s390x",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Power, little endian|4|ppc64le"
+  ],
+  "portal_CVE": [
+    "CVE-2015-20107",
+    "CVE-2022-0391",
+    "CVE-2022-34903"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHBA-2022:6888",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2022:6888",
+  "portal_BZ": [
+    "2123626",
+    "2124827",
+    "2125147",
+    "2129734",
+    "2130110",
+    "2130900",
+    "2130904"
+  ],
+  "timestamp": "2026-02-25T15:18:00.115Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat OpenShift Data Foundation is software-defined storage integrated\nwith and optimized for the Red Hat OpenShift Data Foundation. Red Hat\nOpenShift Data Foundation is a highly scalable, production-grade persistent\nstorage for stateful applications running in the Red Hat OpenShift\nContainer Platform. In addition to persistent storage, Red Hat OpenShift\nData Foundation provisions a multicloud data management service with an S3\ncompatible API.\n\nBug Fixes:\n\n* Previously, due to certain changes in OpenShift Container Platform 4.11, the custom certificates that were loaded into Multicloud Object Gateway (MCG) were not taking effect. This update changes the way the custom certificates are injected into the MCG pods. (BZ#2124268)\n\n* Previously, in OpenShift Data Foundation 4.10 and 4.11 versions, the `odf-operator` removed the taints (non-ocs) in the subscriptions that were changed or edited. This prevented the scheduling of the pods. With this update, the `odf-operator` does not remove the taints from the subscriptions. (BZ#2125147)\n\n* Previously, the Rook CSI controller looked for the configmap changes for keys starting with ROOK_CSI or CSI_ using regex only for single line values or configuration in the configmap. If the value was multiline, the regex was not able to identify the change as the regex was not valid for multiline formats and hence no configurations were applied to the CSI driver. With this update, removing the regex check identifies any change in the configmap. Now, if there is any update to the configmap, the CSI driver gets reconciled. (BZ#2122215)\n\n* Previously, when OpenShift Data Foundation was deployed with Multus networking, the CephFS and RBD Persistent Volume Claims (PVCs) were not getting mounted. This was due to the CephFS and RBD holder pod daemonset not getting deployed due to the missing ServiceAccount name daemonset. This update adds the missing ServiceAccount name for CephFS and RBD holder pod daemonset. (BZ#2123626)\n\nAll Red Hat OpenShift Container Storage users are advised to upgrade to these updated images.",
+  "lastModifiedDate": "2022-10-11T14:21:09Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2022:6888",
+  "portal_publication_date": "2022-10-11T14:21:09Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Data Foundation",
+    "Red Hat OpenShift Data Foundation for IBM Z and LinuxONE",
+    "Red Hat OpenShift Data Foundation for IBM Power, little endian"
+  ],
+  "abstract": "Red Hat OpenShift Data Foundation is software-defined storage integrated\nwith and optimized for the Red Hat OpenShift Data Foundation. Red Hat\nOpenShift Data Foundation is a highly scalable, production-grade persistent\nstorage for stateful applications running in the Red Hat OpenShift\nContainer Platform. In addition to persistent storage, Red Hat OpenShift\nData Foundation provisions a multicloud data management service with an S3\ncompatible API.\n\nBug Fixes:\n\n* Previously, due to certain changes in OpenShift Container Platform 4.11, the custom certificates that were loaded into Multicloud Object Gateway (MCG) were not taking effect. This update changes the way the custom certificates are injected into the MCG pods. (BZ#2124268)\n\n* Previously, in OpenShift Data Foundation 4.10 and 4.11 versions, the `odf-operator` removed the taints (non-ocs) in the subscriptions that were changed or edited. This prevented the scheduling of the pods. With this update, the `odf-operator` does not remove the taints from the subscriptions. (BZ#2125147)\n\n* Previously, the Rook CSI controller looked for the configmap changes for keys starting with ROOK_CSI or CSI_ using regex only for single line values or configuration in the configmap. If the value was multiline, the regex was not able to identify the change as the regex was not valid for multiline formats and hence no configurations were applied to the CSI driver. With this update, removing the regex check identifies any change in the configmap. Now, if there is any update to the configmap, the CSI driver gets reconciled. (BZ#2122215)\n\n* Previously, when OpenShift Data Foundation was deployed with Multus networking, the CephFS and RBD Persistent Volume Claims (PVCs) were not getting mounted. This was due to the CephFS and RBD holder pod daemonset not getting deployed due to the missing ServiceAccount name daemonset. This update adds the missing ServiceAccount name for CephFS and RBD holder pod daemonset. (BZ#2123626)\n\nAll Red Hat OpenShift Container Storage users are advised to upgrade to these updated images.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2022:6888",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHBA-2022:6888) Red Hat OpenShift Data Foundation 4.11.2 Bug Fix Update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2022-10-11T14:21:09Z"],
+  "_version_": 1858110939983773696,
+  "displayDate": "2022-10-11T14:21:09Z",
+  "allTitle": "(RHBA-2022:6888) Red Hat OpenShift Data Foundation 4.11.2 Bug Fix Update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "547|rhel|8|4|x86_64",
+    "635|rhel|8|4|s390x",
+    "634|rhel|8|4|ppc64le"
+  ],
+  "portal_title": ["(RHBA-2022:6888) Red Hat OpenShift Data Foundation 4.11.2 Bug Fix Update"]
+}

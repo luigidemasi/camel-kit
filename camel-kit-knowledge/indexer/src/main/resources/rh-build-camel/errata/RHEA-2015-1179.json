@@ -1,0 +1,78 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "6",
+  "year": 2015,
+  "portal_other_references": [
+    "https://access.redhat.com/insights/info",
+    "https://access.redhat.com/support/offerings/techpreview/"
+  ],
+  "language": "en",
+  "portal_advisory_type": "Product Enhancement Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHEA-2015:1179) Technology Preview: Update Satellite 5 to include Red Hat Access Insights ",
+  "detectedProducts": [
+    "rhel",
+    "rhel6",
+    "satellite",
+    "satellite5",
+    "insights"
+  ],
+  "portal_summary": "Technology Preview of the new Red Hat Access Insights service is now available\nfor Red Hat Satellite 5.7.\n",
+  "portal_package": [
+    "spacewalk-java-config-2.3.8-106.el6sat.noarch.rpm",
+    "spacewalk-java-lib-2.3.8-106.el6sat.noarch.rpm",
+    "spacewalk-taskomatic-2.3.8-106.el6sat.noarch.rpm",
+    "spacewalk-java-oracle-2.3.8-106.el6sat.noarch.rpm",
+    "redhat-access-plugin-sat5-1.0.5-16.el6.src.rpm",
+    "spacewalk-java-postgresql-2.3.8-106.el6sat.noarch.rpm",
+    "redhat-access-plugin-sat5-1.0.5-16.el6.noarch.rpm",
+    "spacewalk-java-2.3.8-106.el6sat.noarch.rpm",
+    "spacewalk-java-2.3.8-106.el6sat.src.rpm"
+  ],
+  "portal_synopsis": "Technology Preview: Update Satellite 5 to include Red Hat Access Insights ",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Satellite|Red Hat Satellite|5.7|x86_64",
+    "Red Hat Satellite|Red Hat Satellite|5.7|s390x"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258\n",
+  "id": "RHEA-2015:1179",
+  "view_uri": "https://access.redhat.com/errata/RHEA-2015:1179",
+  "portal_BZ": [
+    "1217740",
+    "1233357"
+  ],
+  "timestamp": "2026-02-26T00:02:14.808Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat Satellite is a systems management tool for Linux-based infrastructures.\nIt allows for provisioning, remote management and monitoring of multiple Linux\ndeployments with a single, centralized tool.\n\nThis enhancement update adds the powerful new Red Hat Access Insights service to\nRed Hat Satellite 5.7. With Red Hat Access Insights subscribers will be able to\nquickly identify key risks to stability, security, or performance in Red Hat\nEnterprise Linux. (BZ#1217740)\n\nMore information about Red Hat Access Insights is available here:\nhttps://access.redhat.com/insights/info\n\nMore information about Red Hat Technology Previews is available here:\nhttps://access.redhat.com/support/offerings/techpreview/\n\nAll users who want to use the Red Hat Access Insights Technology Preview should\ninstall this newly-released package, which adds this enhancement.\n",
+  "lastModifiedDate": "2015-06-23T00:00:00Z",
+  "resource_uri": "https://access.redhat.com/errata/RHEA-2015:1179",
+  "portal_publication_date": "2015-06-23T00:00:00Z",
+  "portal_product_names": ["Red Hat Satellite"],
+  "abstract": "Red Hat Satellite is a systems management tool for Linux-based infrastructures.\nIt allows for provisioning, remote management and monitoring of multiple Linux\ndeployments with a single, centralized tool.\n\nThis enhancement update adds the powerful new Red Hat Access Insights service to\nRed Hat Satellite 5.7. With Red Hat Access Insights subscribers will be able to\nquickly identify key risks to stability, security, or performance in Red Hat\nEnterprise Linux. (BZ#1217740)\n\nMore information about Red Hat Access Insights is available here:\nhttps://access.redhat.com/insights/info\n\nMore information about Red Hat Technology Previews is available here:\nhttps://access.redhat.com/support/offerings/techpreview/\n\nAll users who want to use the Red Hat Access Insights Technology Preview should\ninstall this newly-released package, which adds this enhancement.\n",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHEA-2015:1179",
+  "boostBaseVersion": "6",
+  "sortTitle": "(RHEA-2015:1179) Technology Preview: Update Satellite 5 to include Red Hat Access Insights ",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2015-06-23T00:00:00Z"],
+  "_version_": 1858143922220433408,
+  "displayDate": "2015-06-23T00:00:00Z",
+  "allTitle": "(RHEA-2015:1179) Technology Preview: Update Satellite 5 to include Red Hat Access Insights ",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "250|rhel|6|5.7|x86_64",
+    "250|rhel|6|5.7|s390x"
+  ],
+  "portal_title": ["(RHEA-2015:1179) Technology Preview: Update Satellite 5 to include Red Hat Access Insights "]
+}

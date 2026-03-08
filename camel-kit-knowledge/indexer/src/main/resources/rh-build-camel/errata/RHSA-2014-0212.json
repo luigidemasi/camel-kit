@@ -1,0 +1,62 @@
+{
+  "boostProduct": "jboss",
+  "year": 2014,
+  "portal_severity_level": 3,
+  "portal_other_references": [
+    "https://access.redhat.com/security/updates/classification/#moderate",
+    "https://access.redhat.com/jbossnetwork/restricted/listSoftware.html?product=soaplatform&downloadType=securityPatches&version=5.3.1+GA"
+  ],
+  "language": "en",
+  "portal_advisory_type": "Security Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHSA-2014:0212) Moderate: Red Hat JBoss SOA Platform 5.3.1 update",
+  "detectedProducts": [
+    "jboss",
+    "bpm",
+    "bpm5"
+  ],
+  "portal_summary": "Red Hat JBoss SOA Platform 5.3.1 roll up patch 4, which fixes two security\nissues and various bugs, is now available from the Red Hat Customer Portal.\n\nThe Red Hat Security Response Team has rated this update as having Moderate\nsecurity impact. Common Vulnerability Scoring System (CVSS) base scores,\nwhich give detailed severity ratings, are available for each vulnerability\nfrom the CVE links in the References section.",
+  "portal_synopsis": "Moderate: Red Hat JBoss SOA Platform 5.3.1 update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": ["Red Hat JBoss Middleware|Red Hat JBoss Middleware|Text-Only Advisories|x86_64"],
+  "portal_CVE": [
+    "CVE-2013-2172",
+    "CVE-2013-4152"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "Moderate",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "The References section of this erratum contains a download link (you must\nlog in to download the update). Before applying the update, back up your\nexisting Red Hat JBoss SOA Platform installation (including its databases,\napplications, configuration files, and so on).\n\nNote that it is recommended to halt the Red Hat JBoss SOA Platform server\nby stopping the JBoss Application Server process before installing this\nupdate, and then after installing the update, restart the Red Hat JBoss SOA\nPlatform server by starting the JBoss Application Server process.",
+  "id": "RHSA-2014:0212",
+  "view_uri": "https://access.redhat.com/errata/RHSA-2014:0212",
+  "portal_BZ": [
+    "999263",
+    "1000186"
+  ],
+  "timestamp": "2026-02-25T14:05:23.226Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat JBoss SOA Platform is the next-generation ESB and business process\nautomation infrastructure. Red Hat JBoss SOA Platform allows IT to leverage\nexisting (MoM and EAI), modern (SOA and BPM-Rules), and future (EDA and\nCEP) integration methodologies to dramatically improve business process\nexecution speed and quality.\n\nThis roll up patch serves as a cumulative upgrade for Red Hat JBoss SOA\nPlatform 5.3.1. It includes various bug fixes. The following security\nissues are also fixed with this release:\n\nA flaw was found in the way Apache Santuario XML Security for Java\nvalidated XML signatures. Santuario allowed a signature to specify an\narbitrary canonicalization algorithm, which would be applied to the\nSignedInfo XML fragment. A remote attacker could exploit this to spoof an\nXML signature via a specially-crafted XML signature block. (CVE-2013-2172)\n\nIt was discovered that the Spring OXM wrapper did not expose any property\nfor disabling entity resolution when using the JAXB unmarshaller. A remote\nattacker could use this flaw to conduct XML External Entity (XXE) attacks\non web sites, and read files in the context of the user running the\napplication server. The patch for this flaw disables external entity\nprocessing by default, and provides a configuration directive to re-enable\nit. (CVE-2013-4152)\n\nWarning: Before applying the update, back up your existing Red Hat JBoss\nSOA Platform installation (including its databases, applications,\nconfiguration files, and so on).\n\nAll users of Red Hat JBoss SOA Platform 5.3.1 as provided from the Red Hat\nCustomer Portal are advised to apply this roll up patch.",
+  "lastModifiedDate": "2014-02-25T16:33:00Z",
+  "resource_uri": "https://access.redhat.com/errata/RHSA-2014:0212",
+  "portal_publication_date": "2014-02-25T16:33:00Z",
+  "portal_product_names": ["Red Hat JBoss Middleware"],
+  "abstract": "Red Hat JBoss SOA Platform is the next-generation ESB and business process\nautomation infrastructure. Red Hat JBoss SOA Platform allows IT to leverage\nexisting (MoM and EAI), modern (SOA and BPM-Rules), and future (EDA and\nCEP) integration methodologies to dramatically improve business process\nexecution speed and quality.\n\nThis roll up patch serves as a cumulative upgrade for Red Hat JBoss SOA\nPlatform 5.3.1. It includes various bug fixes. The following security\nissues are also fixed with this release:\n\nA flaw was found in the way Apache Santuario XML Security for Java\nvalidated XML signatures. Santuario allowed a signature to specify an\narbitrary canonicalization algorithm, which would be applied to the\nSignedInfo XML fragment. A remote attacker could exploit this to spoof an\nXML signature via a specially-crafted XML signature block. (CVE-2013-2172)\n\nIt was discovered that the Spring OXM wrapper did not expose any property\nfor disabling entity resolution when using the JAXB unmarshaller. A remote\nattacker could use this flaw to conduct XML External Entity (XXE) attacks\non web sites, and read files in the context of the user running the\napplication server. The patch for this flaw disables external entity\nprocessing by default, and provides a configuration directive to re-enable\nit. (CVE-2013-4152)\n\nWarning: Before applying the update, back up your existing Red Hat JBoss\nSOA Platform installation (including its databases, applications,\nconfiguration files, and so on).\n\nAll users of Red Hat JBoss SOA Platform 5.3.1 as provided from the Red Hat\nCustomer Portal are advised to apply this roll up patch.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHSA-2014:0212",
+  "sortTitle": "(RHSA-2014:0212) Moderate: Red Hat JBoss SOA Platform 5.3.1 update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2014-02-25T16:33:00Z"],
+  "_version_": 1858106371232235520,
+  "displayDate": "2014-02-25T16:33:00Z",
+  "allTitle": "(RHSA-2014:0212) Moderate: Red Hat JBoss SOA Platform 5.3.1 update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": ["348|middleware|1|Text-Only Advisories|x86_64"],
+  "portal_title": ["(RHSA-2014:0212) Moderate: Red Hat JBoss SOA Platform 5.3.1 update"]
+}

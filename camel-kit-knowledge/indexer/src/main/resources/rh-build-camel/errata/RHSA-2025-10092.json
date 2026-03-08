@@ -1,0 +1,81 @@
+{
+  "year": 2025,
+  "language": "en",
+  "caseCount_365": 0,
+  "portal_synopsis": "Important: Red Hat Product OCP Tools 4.18 OpenShift Jenkins security update",
+  "solution_resolution": "subscriber_only",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\nhttps://access.redhat.com/articles/11258",
+  "id": "RHSA-2025:10092",
+  "view_uri": "https://access.redhat.com/errata/RHSA-2025:10092",
+  "portal_BZ": [
+    "2344073",
+    "2353507",
+    "2365137",
+    "2374804"
+  ],
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "resource_uri": "https://access.redhat.com/errata/RHSA-2025:10092",
+  "portal_publication_date": "2025-07-01T13:28:00Z",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "boostBaseVersion": "9",
+  "displayDate": "2025-07-01T13:28:00Z",
+  "allTitle": "(RHSA-2025:10092) Important: Red Hat Product OCP Tools 4.18 OpenShift Jenkins security update",
+  "large_text_store": "",
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "9",
+  "portal_severity_level": 4,
+  "portal_other_references": ["https://access.redhat.com/security/updates/classification/#important"],
+  "portal_advisory_type": "Security Advisory",
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHSA-2025:10092) Important: Red Hat Product OCP Tools 4.18 OpenShift Jenkins security update",
+  "detectedProducts": [
+    "rhel",
+    "rhel9",
+    "openshift"
+  ],
+  "portal_summary": "An update for Openshift Jenkins is now available for Red Hat Product OCP \nTools 4.18. Red Hat Product Security has rated this update as having a \nsecurity impact of important.\nA Common Vulnerability Scoring System (CVSS) base score, which gives a \ndetailed severity rating, is available for each vulnerability from the CVE \nlink(s) in the References section.",
+  "portal_package": [
+    "jenkins-2.504.2.1750846524-3.el9.src.rpm",
+    "jenkins-2.504.2.1750846524-3.el9.noarch.rpm",
+    "jenkins-2-plugins-4.18.1750846854-1.el9.src.rpm",
+    "jenkins-2-plugins-4.18.1750846854-1.el9.noarch.rpm"
+  ],
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "OpenShift Developer Tools and Services|OpenShift Developer Tools and Services|4.18|aarch64",
+    "OpenShift Developer Tools and Services|OpenShift Developer Tools and Services|4.18|x86_64",
+    "OpenShift Developer Tools and Services|OpenShift Developer Tools and Services|4.18|ppc64le",
+    "OpenShift Developer Tools and Services|OpenShift Developer Tools and Services|4.18|s390x"
+  ],
+  "portal_CVE": [
+    "CVE-2024-57699",
+    "CVE-2025-1948",
+    "CVE-2025-22228",
+    "CVE-2025-52999"
+  ],
+  "docs_text_store": "",
+  "portal_severity": "Important",
+  "timestamp": "2026-03-02T02:48:42.701Z",
+  "documentKind": "Errata",
+  "portal_description": "Jenkins is a continuous integration server that monitors executions of \nrepeated jobs, such as building a software project or jobs run by cron.\n\nSecurity Fix(es):\n\n* jenkins-2-plugins: Potential DoS via stack exhaustion (incomplete fix for\nCVE-2023-1370) (CVE-2024-57699)\n* jenkins: CVE-2025-22228: Spring Security BCryptPasswordEncoder does not\nenforce maximum password length (CVE-2025-22228)\n* jenkins: Jetty HTTP/2 Header List Size Vulnerability (CVE-2025-1948)\n* jenkins: jackson-core Potential StackoverflowError (CVE-2025-52999)\n* jenkins-2-plugins: jackson-core Potential StackoverflowError\n(CVE-2025-52999)\n\nFor more details about the security issue(s), including the impact, a CVSS \nscore, acknowledgments, and other related information, refer to the CVE \npage listed in the References section.",
+  "lastModifiedDate": "2025-07-01T13:28:00Z",
+  "portal_product_names": ["OpenShift Developer Tools and Services"],
+  "abstract": "Jenkins is a continuous integration server that monitors executions of \nrepeated jobs, such as building a software project or jobs run by cron.\n\nSecurity Fix(es):\n\n* jenkins-2-plugins: Potential DoS via stack exhaustion (incomplete fix for\nCVE-2023-1370) (CVE-2024-57699)\n* jenkins: CVE-2025-22228: Spring Security BCryptPasswordEncoder does not\nenforce maximum password length (CVE-2025-22228)\n* jenkins: Jetty HTTP/2 Header List Size Vulnerability (CVE-2025-1948)\n* jenkins: jackson-core Potential StackoverflowError (CVE-2025-52999)\n* jenkins-2-plugins: jackson-core Potential StackoverflowError\n(CVE-2025-52999)\n\nFor more details about the security issue(s), including the impact, a CVSS \nscore, acknowledgments, and other related information, refer to the CVE \npage listed in the References section.",
+  "uri": "downloads_https://access.redhat.com/errata/RHSA-2025:10092",
+  "sortTitle": "(RHSA-2025:10092) Important: Red Hat Product OCP Tools 4.18 OpenShift Jenkins security update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2025-07-01T13:28:00Z"],
+  "_version_": 1858516783149875200,
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "603|rhel|9|4.18|aarch64",
+    "603|rhel|9|4.18|x86_64",
+    "603|rhel|9|4.18|ppc64le",
+    "603|rhel|9|4.18|s390x"
+  ],
+  "portal_title": ["(RHSA-2025:10092) Important: Red Hat Product OCP Tools 4.18 OpenShift Jenkins security update"]
+}

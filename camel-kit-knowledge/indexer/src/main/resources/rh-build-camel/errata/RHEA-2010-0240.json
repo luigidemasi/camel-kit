@@ -1,0 +1,67 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "5",
+  "year": 2010,
+  "language": "en",
+  "portal_advisory_type": "Product Enhancement Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHEA-2010:0240) new package: gpxe",
+  "detectedProducts": [
+    "rhel",
+    "rhel5"
+  ],
+  "portal_summary": "A new package, gPXE, is now available for Red Hat Enterprise Linux 5.5",
+  "portal_package": [
+    "gpxe-roms-qemu-0.9.7-8.el5.x86_64.rpm",
+    "gpxe-0.9.7-8.el5.src.rpm"
+  ],
+  "portal_synopsis": "new package: gpxe",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Server|5|x86_64",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Workstation|5|x86_64"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously-released errata\nrelevant to your system have been applied.\n\nThis update is available via the Red Hat Network. Details on how to\nuse the Red Hat Network to apply this update are available at\nhttp://kbase.redhat.com/faq/docs/DOC-11259",
+  "id": "RHEA-2010:0240",
+  "view_uri": "https://access.redhat.com/errata/RHEA-2010:0240",
+  "portal_BZ": [
+    "545886",
+    "546606"
+  ],
+  "timestamp": "2026-02-25T14:34:40.704Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "gPXE is an open source Preboot Execution Environment (PXE) implementation\nand bootloader. Designed to be direct replacement for proprietary PXE ROMs,\ngPXE also supports additional protocols such as DNS, HTTP, iSCSI and ATA\nover Ethernet. gPXE is a significantly restructured update to the original\nEtherboot package.\n\nPreviously gPXE was available as a separate, and not officially supported,\nISO image. As part of the Red Hat Enterprise Linux 5.5 update, a gPXE\npackage containing ROMs for devices emulated by QEMU is now available as an\nintegrated and supported Red Hat Enterprise Linux package. (BZ#512045 &\nBZ#545886)\n\nNote: gPXE does not replace etherboot. Both packages, howver, write their\n.zrom files to the same directory --  /usr/share/pxe-boot. KVM links to\nwhatever ROM files are present in /usr/share/pxe-boot and installing gPXE\nprovides support for several specific PXE servers that are not supported by\nEtherboot.\n\nKVM users wanting PXE server support not provided by Etherboot should\ninstall this new package.",
+  "lastModifiedDate": "2010-03-30T08:07:30Z",
+  "resource_uri": "https://access.redhat.com/errata/RHEA-2010:0240",
+  "portal_publication_date": "2010-03-30T08:07:30Z",
+  "portal_product_names": [
+    "Red Hat Enterprise Linux Server",
+    "Red Hat Enterprise Linux Workstation"
+  ],
+  "abstract": "gPXE is an open source Preboot Execution Environment (PXE) implementation\nand bootloader. Designed to be direct replacement for proprietary PXE ROMs,\ngPXE also supports additional protocols such as DNS, HTTP, iSCSI and ATA\nover Ethernet. gPXE is a significantly restructured update to the original\nEtherboot package.\n\nPreviously gPXE was available as a separate, and not officially supported,\nISO image. As part of the Red Hat Enterprise Linux 5.5 update, a gPXE\npackage containing ROMs for devices emulated by QEMU is now available as an\nintegrated and supported Red Hat Enterprise Linux package. (BZ#512045 &\nBZ#545886)\n\nNote: gPXE does not replace etherboot. Both packages, howver, write their\n.zrom files to the same directory --  /usr/share/pxe-boot. KVM links to\nwhatever ROM files are present in /usr/share/pxe-boot and installing gPXE\nprovides support for several specific PXE servers that are not supported by\nEtherboot.\n\nKVM users wanting PXE server support not provided by Etherboot should\ninstall this new package.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHEA-2010:0240",
+  "boostBaseVersion": "5",
+  "sortTitle": "(RHEA-2010:0240) new package: gpxe",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2010-03-30T08:07:30Z"],
+  "_version_": 1858108214206267395,
+  "displayDate": "2010-03-30T08:07:30Z",
+  "allTitle": "(RHEA-2010:0240) new package: gpxe",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "69|rhel|5|5|x86_64",
+    "71|rhel|5|5|x86_64"
+  ],
+  "portal_title": ["(RHEA-2010:0240) new package: gpxe"]
+}

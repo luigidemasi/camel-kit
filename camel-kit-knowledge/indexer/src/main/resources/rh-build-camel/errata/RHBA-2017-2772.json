@@ -1,0 +1,61 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "7",
+  "year": 2017,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2017:2772) Red Hat Development Suite 2.0.1 release",
+  "detectedProducts": [
+    "rhel",
+    "rhel7",
+    "developer",
+    "developer2"
+  ],
+  "portal_summary": "Red Hat Development Suite 2.0.1 has been released",
+  "portal_synopsis": "Red Hat Development Suite 2.0.1 release",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Developer Tools|Red Hat Developer Tools (for RHEL Server)|1|x86_64",
+    "Red Hat Developer Tools|Red Hat Developer Tools (for RHEL Workstation)|1|x86_64"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Development Suite 2.0.1 uses updated components that fix bugs.",
+  "id": "RHBA-2017:2772",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2017:2772",
+  "timestamp": "2026-02-25T09:16:04.711Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat Development Suite integrates and delivers Red Hat development tools as a comprehensive development environment on Microsoft Windows, Apple macOS, and Red Hat Enterprise Linux.\n\n* Prior to this update, Red Hat Development Suite installed Red Hat Container Development Kit (CDK) 3.1, which was incapable of provisioning OpenShift Container Platform 3.6, the latest release. The bug in CDK has been fixed, and the updated Development Suite installs the new version of CDK, 3.1.1.",
+  "lastModifiedDate": "2017-09-19T20:24:48Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2017:2772",
+  "portal_publication_date": "2017-09-19T20:24:48Z",
+  "portal_product_names": [
+    "Red Hat Developer Tools (for RHEL Server)",
+    "Red Hat Developer Tools (for RHEL Workstation)"
+  ],
+  "abstract": "Red Hat Development Suite integrates and delivers Red Hat development tools as a comprehensive development environment on Microsoft Windows, Apple macOS, and Red Hat Enterprise Linux.\n\n* Prior to this update, Red Hat Development Suite installed Red Hat Container Development Kit (CDK) 3.1, which was incapable of provisioning OpenShift Container Platform 3.6, the latest release. The bug in CDK has been fixed, and the updated Development Suite installs the new version of CDK, 3.1.1.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2017:2772",
+  "boostBaseVersion": "7",
+  "sortTitle": "(RHBA-2017:2772) Red Hat Development Suite 2.0.1 release",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2017-09-19T20:24:48Z"],
+  "_version_": 1858088169594945536,
+  "displayDate": "2017-09-19T20:24:48Z",
+  "allTitle": "(RHBA-2017:2772) Red Hat Development Suite 2.0.1 release",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "394|rhel|7|1|x86_64",
+    "396|rhel|7|1|x86_64"
+  ],
+  "portal_title": ["(RHBA-2017:2772) Red Hat Development Suite 2.0.1 release"]
+}

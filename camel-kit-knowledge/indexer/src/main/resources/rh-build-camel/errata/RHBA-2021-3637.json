@@ -1,0 +1,68 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "year": 2021,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2021:3637) The Red Hat OpenShift Pipelines 1.5.2 General Availability",
+  "detectedProducts": [
+    "rhel",
+    "rhel8",
+    "openshift"
+  ],
+  "portal_summary": "Red Hat OpenShift Pipelines 1.5.2 General Availability release - A cloud-native Continuous Integration and Delivery solution on OpenShift.",
+  "portal_synopsis": "The Red Hat OpenShift Pipelines 1.5.2 General Availability",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Pipelines|Red Hat OpenShift Pipelines for IBM Power, little endian|1.5|ppc64le",
+    "Red Hat OpenShift Pipelines|Red Hat OpenShift Pipelines|1.5|x86_64",
+    "Red Hat OpenShift Pipelines|Red Hat OpenShift Pipelines for IBM Z and LinuxONE|1.5|s390x"
+  ],
+  "portal_CVE": [
+    "CVE-2021-27218",
+    "CVE-2021-33910"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata relevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHBA-2021:3637",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2021:3637",
+  "timestamp": "2026-02-25T10:34:13.229Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat OpenShift Pipelines is a cloud-native continuous integration and delivery (CI/CD) solution for building pipelines using Tekton. Tekton is a flexible, Kubernetes-native, open-source, CI/CD framework, which enables automating deployments across multiple platforms (Kubernetes, Serverless, VMs, etc.) by abstracting away the underlying details.\n\nRed Hat OpenShift Pipelines 1.5.2 consists of:\n\n- Tekton Pipelines 0.24.3\n- Tekton Triggers 0.14.2\n- ClusterTasks based on Tekton Catalog 0.24\n- Tekton tkn CLI 0.19.1\n\n## Features\n\n- Standard CI/CD pipelines definition\n\n- Build images with Kubernetes tools such as S2I, Buildah, Buildpacks, Kaniko, etc.\n\n- Deploy applications to multiple platforms such as Kubernetes, Serverless, and VMs\n\n- Easy to extend and integrate with existing tools\n\n- Scale pipelines on-demand\n\n- Portable across any Kubernetes platform\n\n- Designed for microservices and decentralized teams\n\n- Integrated with OpenShift Developer Console\n\n## Fixed Issues\n\n- This release fixes the automatic upgrade which didn't work in 1.5.1",
+  "lastModifiedDate": "2021-09-22T07:33:16Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2021:3637",
+  "portal_publication_date": "2021-09-22T07:33:16Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Pipelines for IBM Power, little endian",
+    "Red Hat OpenShift Pipelines",
+    "Red Hat OpenShift Pipelines for IBM Z and LinuxONE"
+  ],
+  "abstract": "Red Hat OpenShift Pipelines is a cloud-native continuous integration and delivery (CI/CD) solution for building pipelines using Tekton. Tekton is a flexible, Kubernetes-native, open-source, CI/CD framework, which enables automating deployments across multiple platforms (Kubernetes, Serverless, VMs, etc.) by abstracting away the underlying details.\n\nRed Hat OpenShift Pipelines 1.5.2 consists of:\n\n- Tekton Pipelines 0.24.3\n- Tekton Triggers 0.14.2\n- ClusterTasks based on Tekton Catalog 0.24\n- Tekton tkn CLI 0.19.1\n\n## Features\n\n- Standard CI/CD pipelines definition\n\n- Build images with Kubernetes tools such as S2I, Buildah, Buildpacks, Kaniko, etc.\n\n- Deploy applications to multiple platforms such as Kubernetes, Serverless, and VMs\n\n- Easy to extend and integrate with existing tools\n\n- Scale pipelines on-demand\n\n- Portable across any Kubernetes platform\n\n- Designed for microservices and decentralized teams\n\n- Integrated with OpenShift Developer Console\n\n## Fixed Issues\n\n- This release fixes the automatic upgrade which didn't work in 1.5.1",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2021:3637",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHBA-2021:3637) The Red Hat OpenShift Pipelines 1.5.2 General Availability",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2021-09-22T07:33:16Z"],
+  "_version_": 1858093085720838145,
+  "displayDate": "2021-09-22T07:33:16Z",
+  "allTitle": "(RHBA-2021:3637) The Red Hat OpenShift Pipelines 1.5.2 General Availability",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "632|rhel|8|1.5|ppc64le",
+    "604|rhel|8|1.5|x86_64",
+    "633|rhel|8|1.5|s390x"
+  ],
+  "portal_title": ["(RHBA-2021:3637) The Red Hat OpenShift Pipelines 1.5.2 General Availability"],
+  "portal_jira": ["SRVKP-1693"]
+}

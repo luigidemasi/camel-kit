@@ -1,0 +1,78 @@
+{
+  "year": 2010,
+  "language": "en",
+  "caseCount_365": 0,
+  "portal_synopsis": "Low: JBoss Enterprise Application Platform 5.1.0 security and bug fix update",
+  "solution_resolution": "subscriber_only",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously-released errata\nrelevant to your system have been applied.\n\nThis update is available via the Red Hat Network. Details on how to\nuse the Red Hat Network to apply this update are available at\nhttp://kbase.redhat.com/faq/docs/DOC-11259\n",
+  "id": "RHSA-2010:0960",
+  "view_uri": "https://access.redhat.com/errata/RHSA-2010:0960",
+  "portal_BZ": [
+    "641389",
+    "645470"
+  ],
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "resource_uri": "https://access.redhat.com/errata/RHSA-2010:0960",
+  "portal_publication_date": "2010-12-08T00:00:00Z",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "boostBaseVersion": "5",
+  "displayDate": "2010-12-08T00:00:00Z",
+  "allTitle": "(RHSA-2010:0960) Low: JBoss Enterprise Application Platform 5.1.0 security and bug fix update",
+  "large_text_store": "",
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "5",
+  "portal_severity_level": 2,
+  "portal_other_references": [
+    "https://access.redhat.com/security/updates/classification/#low",
+    "http://docs.redhat.com/docs/en-US/JBoss_Enterprise_Application_Platform/5/html-single/Release_Notes_5.1.0/index.html"
+  ],
+  "portal_advisory_type": "Security Advisory",
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHSA-2010:0960) Low: JBoss Enterprise Application Platform 5.1.0 security and bug fix update",
+  "detectedProducts": [
+    "rhel",
+    "rhel5",
+    "jbosseap",
+    "jbosseap5"
+  ],
+  "portal_summary": "Updated JBoss Enterprise Application Platform 5.1 packages that fix one\nsecurity issue and various bugs are now available for Red Hat Enterprise\nLinux 5.\n\nThe Red Hat Security Response Team has rated this update as having low\nsecurity impact. A Common Vulnerability Scoring System (CVSS) base score,\nwhich gives a detailed severity rating, is available from the CVE link in\nthe References section.\n",
+  "portal_package": [
+    "jboss-remoting-2.5.3-5.SP1.1.ep5.el5.src.rpm",
+    "jopr-embedded-1.3.4-16.SP1.7.ep5.el5.noarch.rpm",
+    "jbossas-security-policy-cc-5.1.0-1.ep5.el5.src.rpm",
+    "jbossws-cxf-3.1.2-4.SP7.6.jdk6.ep5.el5.noarch.rpm",
+    "jopr-embedded-1.3.4-16.SP1.7.ep5.el5.src.rpm",
+    "jbossas-security-policy-cc-5.1.0-1.ep5.el5.noarch.rpm",
+    "jbossws-cxf-3.1.2-4.SP7.6.jdk6.ep5.el5.src.rpm",
+    "jboss-remoting-2.5.3-5.SP1.1.ep5.el5.noarch.rpm"
+  ],
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "JBoss Enterprise Application Platform|JBoss Enterprise Application Platform|5|i386",
+    "JBoss Enterprise Application Platform|JBoss Enterprise Application Platform|5|x86_64"
+  ],
+  "portal_CVE": ["CVE-2010-3862"],
+  "docs_text_store": "",
+  "portal_severity": "Low",
+  "timestamp": "2026-02-25T14:34:01.823Z",
+  "documentKind": "Errata",
+  "portal_description": "JBoss Enterprise Application Platform is the market leading platform for\ninnovative and scalable Java applications; integrating the JBoss\nApplication Server, with JBoss Hibernate and JBoss Seam into a complete,\nsimple enterprise solution.\n\nA flaw was found in the JBoss Remoting component. A remote attacker could\nuse specially-crafted input to cause the JBoss Remoting listeners to become\nunresponsive, resulting in a denial of service condition for services\ncommunicating via JBoss Remoting sockets. (CVE-2010-3862)\n\nRed Hat would like to thank Ole Husgaard of eXerp.com for reporting this\nissue.\n\nThese updated packages include multiple bug fixes. Documentation for these\nbug fixes will be available shortly from the Release Notes, linked to in\nthe References section.\n\nAs well, this update adds a new jbossws-cxf package to JBoss Enterprise\nApplication Platform 5.1.0, to provide the sources for jbossws-cxf.\n(BZ#645470)\n\nWarning: Before applying this update, please backup the JBoss Enterprise\nApplication Platform \"jboss-as/server/$PROFILE/deploy/\" directory, along\nwith all other customized configuration files.\n\nAll users of JBoss Enterprise Application Platform 5.0 on Red Hat\nEnterprise Linux 5 are advised to upgrade to these updated packages. The\nJBoss server process must be restarted for the update to take effect.\n",
+  "lastModifiedDate": "2010-12-08T00:00:00Z",
+  "portal_product_names": ["JBoss Enterprise Application Platform"],
+  "abstract": "JBoss Enterprise Application Platform is the market leading platform for\ninnovative and scalable Java applications; integrating the JBoss\nApplication Server, with JBoss Hibernate and JBoss Seam into a complete,\nsimple enterprise solution.\n\nA flaw was found in the JBoss Remoting component. A remote attacker could\nuse specially-crafted input to cause the JBoss Remoting listeners to become\nunresponsive, resulting in a denial of service condition for services\ncommunicating via JBoss Remoting sockets. (CVE-2010-3862)\n\nRed Hat would like to thank Ole Husgaard of eXerp.com for reporting this\nissue.\n\nThese updated packages include multiple bug fixes. Documentation for these\nbug fixes will be available shortly from the Release Notes, linked to in\nthe References section.\n\nAs well, this update adds a new jbossws-cxf package to JBoss Enterprise\nApplication Platform 5.1.0, to provide the sources for jbossws-cxf.\n(BZ#645470)\n\nWarning: Before applying this update, please backup the JBoss Enterprise\nApplication Platform \"jboss-as/server/$PROFILE/deploy/\" directory, along\nwith all other customized configuration files.\n\nAll users of JBoss Enterprise Application Platform 5.0 on Red Hat\nEnterprise Linux 5 are advised to upgrade to these updated packages. The\nJBoss server process must be restarted for the update to take effect.\n",
+  "uri": "downloads_https://access.redhat.com/errata/RHSA-2010:0960",
+  "sortTitle": "(RHSA-2010:0960) Low: JBoss Enterprise Application Platform 5.1.0 security and bug fix update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2010-12-08T00:00:00Z"],
+  "_version_": 1858108173405126656,
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "183|rhel|5|5|i386",
+    "183|rhel|5|5|x86_64"
+  ],
+  "portal_title": ["(RHSA-2010:0960) Low: JBoss Enterprise Application Platform 5.1.0 security and bug fix update"]
+}

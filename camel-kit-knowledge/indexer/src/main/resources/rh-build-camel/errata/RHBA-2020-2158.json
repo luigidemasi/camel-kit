@@ -1,0 +1,68 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "year": 2020,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2020:2158) openstack-sahara bug fix advisory",
+  "detectedProducts": [
+    "rhel",
+    "rhel8"
+  ],
+  "portal_summary": "Updated OpenStack Sahara packages that resolve various issues are now\navailable for Red Hat OpenStack Platform 16.0 (Train) for Red Hat Enterprise Linux (RHEL) 8.1.",
+  "portal_package": [
+    "python-saharaclient-2.3.0-0.20200221220502.3107b45.el8ost.src.rpm",
+    "python3-saharaclient-2.3.0-0.20200221220502.3107b45.el8ost.noarch.rpm"
+  ],
+  "portal_synopsis": "openstack-sahara bug fix advisory",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux for x86_64|8|x86_64",
+    "Red Hat OpenStack Platform|Red Hat OpenStack for IBM Power|16|ppc64le",
+    "Red Hat OpenStack Platform|Red Hat OpenStack|16|x86_64"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, ensure all previously released errata relevant\nto your system have been applied.\n\nRed Hat OpenStack Platform 16 runs on RHEL 8.1.\n\nThe Red Hat OpenStack Platform 16 Release Notes contain the following:\n* An explanation of the way in which the provided components interact to\nform a working cloud computing environment.\n* Technology Previews, Recommended Practices, and Known Issues.\n* The channels required for Red Hat OpenStack Platform 16, including which\nchannels need to be enabled and disabled.\n\nThe Release Notes are available at:\nhttps://access.redhat.com/documentation/en/red-hat-openstack-platform/\n\nThis update is available through 'yum update' on systems registered through\nRed Hat Subscription Manager. For more information about Red Hat\nSubscription Manager, see:\n\nhttps://access.redhat.com/documentation/en-US/Red_Hat_Subscription_Management/1/html/RHSM/index.html",
+  "id": "RHBA-2020:2158",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2020:2158",
+  "portal_BZ": ["1824763"],
+  "timestamp": "2026-02-25T10:12:14.834Z",
+  "[elevated]": false,
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat OpenStack Platform provides the facilities for building, deploying\nand monitoring a private or public infrastructure-as-a-service (IaaS) cloud\nrunning on commonly available physical hardware. This advisory includes\npackages for:\n\n* OpenStack Sahara\n\nOpenStack Sahara provides the ability to elastically manage Apache Hadoop\nclusters on OpenStack.",
+  "lastModifiedDate": "2020-05-14T10:06:11Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2020:2158",
+  "portal_publication_date": "2020-05-14T10:06:11Z",
+  "portal_product_names": [
+    "Red Hat Enterprise Linux for x86_64",
+    "Red Hat OpenStack for IBM Power",
+    "Red Hat OpenStack"
+  ],
+  "abstract": "Red Hat OpenStack Platform provides the facilities for building, deploying\nand monitoring a private or public infrastructure-as-a-service (IaaS) cloud\nrunning on commonly available physical hardware. This advisory includes\npackages for:\n\n* OpenStack Sahara\n\nOpenStack Sahara provides the ability to elastically manage Apache Hadoop\nclusters on OpenStack.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2020:2158",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHBA-2020:2158) openstack-sahara bug fix advisory",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2020-05-14T10:06:11Z"],
+  "_version_": 1858091703255171072,
+  "displayDate": "2020-05-14T10:06:11Z",
+  "allTitle": "(RHBA-2020:2158) openstack-sahara bug fix advisory",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "479|rhel|8|8|x86_64",
+    "425|rhel|8|16|ppc64le",
+    "191|rhel|8|16|x86_64"
+  ],
+  "portal_title": ["(RHBA-2020:2158) openstack-sahara bug fix advisory"]
+}

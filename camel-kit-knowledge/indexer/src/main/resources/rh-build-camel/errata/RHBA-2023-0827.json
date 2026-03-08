@@ -1,0 +1,81 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "year": 2023,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2023:0827) Red Hat OpenShift Data Foundation 4.10.10 Bug Fix Update",
+  "detectedProducts": [
+    "rhel",
+    "rhel8",
+    "openshift"
+  ],
+  "portal_summary": "Updated images that fix several bugs are now available for Red Hat OpenShift Data Foundation 4.10.10 on Red Hat Enterprise Linux 8 from Red Hat Container Registry.",
+  "portal_synopsis": "Red Hat OpenShift Data Foundation 4.10.10 Bug Fix Update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Power, little endian|4|ppc64le",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation|4|x86_64",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Z and LinuxONE|4|s390x"
+  ],
+  "portal_CVE": [
+    "CVE-2021-46848",
+    "CVE-2022-35737",
+    "CVE-2022-40303",
+    "CVE-2022-40304",
+    "CVE-2022-42010",
+    "CVE-2022-42011",
+    "CVE-2022-42012",
+    "CVE-2022-43680",
+    "CVE-2023-22809"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHBA-2023:0827",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2023:0827",
+  "portal_BZ": [
+    "2135632",
+    "2142902",
+    "2150005",
+    "2153695",
+    "2168565"
+  ],
+  "timestamp": "2026-03-02T01:37:54.438Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat OpenShift Data Foundation is software-defined storage integrated with and optimized for the Red Hat OpenShift Data Foundation. Red Hat OpenShift Data Foundation is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Data Foundation provisions a multicloud data management service with an S3 compatible API.\n\n* Previously, the listing operations would fail depending on the number of objects in the bucket due to incorrect mapping of indexes in the Multicloud Object Gateway database (MCG DB). This incorrect mapping caused certain queries to take longer time than needed and fails the specific actions as a result. With this fix, the indexes are updated to fix the listing queries. (BZ#2150005)\n\n* Previously, in some environments, the `ceph-osd` did not run as `PID 1` which resulted in a non-random nonce value used for starting the OSD. When an OSD was restarted after a node restart, the OSD stays \"down\" in Ceph instead of coming back online as it looks like the stale OSD. With this update, the nonce number is ensured to be randomized now by setting the environment variable CEPH_USE_RANDOM_NONCE on the OSD pods, to ensure Ceph always knows ODF is running in a containerized environment and to randomize the nonce values. This allows the OSDs to start properly after node restart. (BZ#2150411)\n\n* Previously, services running without the TLS were problematic if security was the main concern for the customers. This was due to a Liveness sidecar container deployed with the CSI pods to check if the CSI driver is responding appropriately or not without TLS. With this fix, the Liveness container in all Ceph CSI pods is disabled and as a result, no service runs in the Ceph CSI pods without TLS, and one less container in Ceph CSI pods. (BZ#2142902)\n\n* Previously, the `rook-ceph-osd-prepare` job sometimes would be stuck in `CrashLoopBackOff` (CLBO) state and would never come up. This was due to the deletion of OSD deployment in an encrypted cluster backed by CSI provisioned PVC which caused the `rook-ceph-osd-prepare` job for that OSD\nto be stuck in `CrashLoopBackOff` state. With this fix, the `rook-ceph-osd-prepare` job removes the stale encrypted device and opens it again avoiding the CLBO state. As a result, the `rook-ceph-osd-prepare` job runs as expected and the OSD comes up. (BZ#2153695)\n\nAll Red Hat OpenShift Data Foundation users are advised to upgrade to these\nupdated images that provide these bug fixes.",
+  "lastModifiedDate": "2023-02-20T14:47:01Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2023:0827",
+  "portal_publication_date": "2023-02-20T14:47:01Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Data Foundation for IBM Power, little endian",
+    "Red Hat OpenShift Data Foundation",
+    "Red Hat OpenShift Data Foundation for IBM Z and LinuxONE"
+  ],
+  "abstract": "Red Hat OpenShift Data Foundation is software-defined storage integrated with and optimized for the Red Hat OpenShift Data Foundation. Red Hat OpenShift Data Foundation is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Data Foundation provisions a multicloud data management service with an S3 compatible API.\n\n* Previously, the listing operations would fail depending on the number of objects in the bucket due to incorrect mapping of indexes in the Multicloud Object Gateway database (MCG DB). This incorrect mapping caused certain queries to take longer time than needed and fails the specific actions as a result. With this fix, the indexes are updated to fix the listing queries. (BZ#2150005)\n\n* Previously, in some environments, the `ceph-osd` did not run as `PID 1` which resulted in a non-random nonce value used for starting the OSD. When an OSD was restarted after a node restart, the OSD stays \"down\" in Ceph instead of coming back online as it looks like the stale OSD. With this update, the nonce number is ensured to be randomized now by setting the environment variable CEPH_USE_RANDOM_NONCE on the OSD pods, to ensure Ceph always knows ODF is running in a containerized environment and to randomize the nonce values. This allows the OSDs to start properly after node restart. (BZ#2150411)\n\n* Previously, services running without the TLS were problematic if security was the main concern for the customers. This was due to a Liveness sidecar container deployed with the CSI pods to check if the CSI driver is responding appropriately or not without TLS. With this fix, the Liveness container in all Ceph CSI pods is disabled and as a result, no service runs in the Ceph CSI pods without TLS, and one less container in Ceph CSI pods. (BZ#2142902)\n\n* Previously, the `rook-ceph-osd-prepare` job sometimes would be stuck in `CrashLoopBackOff` (CLBO) state and would never come up. This was due to the deletion of OSD deployment in an encrypted cluster backed by CSI provisioned PVC which caused the `rook-ceph-osd-prepare` job for that OSD\nto be stuck in `CrashLoopBackOff` state. With this fix, the `rook-ceph-osd-prepare` job removes the stale encrypted device and opens it again avoiding the CLBO state. As a result, the `rook-ceph-osd-prepare` job runs as expected and the OSD comes up. (BZ#2153695)\n\nAll Red Hat OpenShift Data Foundation users are advised to upgrade to these\nupdated images that provide these bug fixes.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2023:0827",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHBA-2023:0827) Red Hat OpenShift Data Foundation 4.10.10 Bug Fix Update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2023-02-20T14:47:01Z"],
+  "_version_": 1858512328627060736,
+  "displayDate": "2023-02-20T14:47:01Z",
+  "allTitle": "(RHBA-2023:0827) Red Hat OpenShift Data Foundation 4.10.10 Bug Fix Update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "634|rhel|8|4|ppc64le",
+    "547|rhel|8|4|x86_64",
+    "635|rhel|8|4|s390x"
+  ],
+  "portal_title": ["(RHBA-2023:0827) Red Hat OpenShift Data Foundation 4.10.10 Bug Fix Update"]
+}

@@ -1,0 +1,93 @@
+{
+  "year": 2021,
+  "language": "en",
+  "caseCount_365": 0,
+  "portal_synopsis": "Important: kernel-rt security and bug fix update",
+  "solution_resolution": "subscriber_only",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nThe system must be rebooted for this update to take effect.",
+  "id": "RHSA-2021:4648",
+  "view_uri": "https://access.redhat.com/errata/RHSA-2021:4648",
+  "portal_BZ": [
+    "1941762",
+    "2005258",
+    "2020362"
+  ],
+  "[elevated]": false,
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "resource_uri": "https://access.redhat.com/errata/RHSA-2021:4648",
+  "portal_publication_date": "2021-11-15T09:57:42Z",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "boostBaseVersion": "8",
+  "displayDate": "2021-11-15T09:57:42Z",
+  "allTitle": "(RHSA-2021:4648) Important: kernel-rt security and bug fix update",
+  "large_text_store": "",
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8.4",
+  "portal_severity_level": 4,
+  "portal_other_references": ["https://access.redhat.com/security/updates/classification/#important"],
+  "portal_advisory_type": "Security Advisory",
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHSA-2021:4648) Important: kernel-rt security and bug fix update",
+  "detectedProducts": [
+    "rhel",
+    "rhel8"
+  ],
+  "portal_summary": "An update for kernel-rt is now available for Red Hat Enterprise Linux 8.4 Extended Update Support.\n\nRed Hat Product Security has rated this update as having a security impact of Important. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability from the CVE link(s) in the References section.",
+  "portal_package": [
+    "kernel-rt-core-4.18.0-305.28.1.rt7.100.el8_4.x86_64.rpm",
+    "kernel-rt-debug-modules-4.18.0-305.28.1.rt7.100.el8_4.x86_64.rpm",
+    "kernel-rt-debuginfo-4.18.0-305.28.1.rt7.100.el8_4.x86_64.rpm",
+    "kernel-rt-devel-4.18.0-305.28.1.rt7.100.el8_4.x86_64.rpm",
+    "kernel-rt-kvm-4.18.0-305.28.1.rt7.100.el8_4.x86_64.rpm",
+    "kernel-rt-debuginfo-common-x86_64-4.18.0-305.28.1.rt7.100.el8_4.x86_64.rpm",
+    "kernel-rt-4.18.0-305.28.1.rt7.100.el8_4.src.rpm",
+    "kernel-rt-4.18.0-305.28.1.rt7.100.el8_4.x86_64.rpm",
+    "kernel-rt-debug-debuginfo-4.18.0-305.28.1.rt7.100.el8_4.x86_64.rpm",
+    "kernel-rt-debug-core-4.18.0-305.28.1.rt7.100.el8_4.x86_64.rpm",
+    "kernel-rt-modules-extra-4.18.0-305.28.1.rt7.100.el8_4.x86_64.rpm",
+    "kernel-rt-debug-4.18.0-305.28.1.rt7.100.el8_4.x86_64.rpm",
+    "kernel-rt-modules-4.18.0-305.28.1.rt7.100.el8_4.x86_64.rpm",
+    "kernel-rt-debug-kvm-4.18.0-305.28.1.rt7.100.el8_4.x86_64.rpm",
+    "kernel-rt-debug-modules-extra-4.18.0-305.28.1.rt7.100.el8_4.x86_64.rpm",
+    "kernel-rt-debug-devel-4.18.0-305.28.1.rt7.100.el8_4.x86_64.rpm"
+  ],
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux for x86_64 - Extended Update Support Extension|8.4|x86_64",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux for Real Time for NFV - Telecommunications Update Service|8.4|x86_64",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux for Real Time - Telecommunications Update Service|8.4|x86_64"
+  ],
+  "portal_CVE": [
+    "CVE-2021-20317",
+    "CVE-2021-28950",
+    "CVE-2021-43267"
+  ],
+  "docs_text_store": "",
+  "portal_severity": "Important",
+  "timestamp": "2026-02-25T10:38:18.261Z",
+  "documentKind": "Errata",
+  "portal_description": "The kernel-rt packages provide the Real Time Linux Kernel, which enables fine-tuning for systems with extremely high determinism requirements.\n\nSecurity Fix(es):\n\n* kernel: Insufficient validation of user-supplied sizes for the MSG_CRYPTO message type (CVE-2021-43267)\n\n* kernel: timer tree corruption leads to missing wakeup and system freeze (CVE-2021-20317)\n\n* kernel: fuse: stall on CPU can occur because a retry loop continually finds the same bad inode (CVE-2021-28950)\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.\n\nBug Fix(es):\n\n* kernel-rt: update RT source tree to the RHEL-8.4.z5 source tree (BZ#2017122)",
+  "lastModifiedDate": "2021-11-15T09:57:42Z",
+  "portal_product_names": [
+    "Red Hat Enterprise Linux for x86_64 - Extended Update Support Extension",
+    "Red Hat Enterprise Linux for Real Time for NFV - Telecommunications Update Service",
+    "Red Hat Enterprise Linux for Real Time - Telecommunications Update Service"
+  ],
+  "abstract": "The kernel-rt packages provide the Real Time Linux Kernel, which enables fine-tuning for systems with extremely high determinism requirements.\n\nSecurity Fix(es):\n\n* kernel: Insufficient validation of user-supplied sizes for the MSG_CRYPTO message type (CVE-2021-43267)\n\n* kernel: timer tree corruption leads to missing wakeup and system freeze (CVE-2021-20317)\n\n* kernel: fuse: stall on CPU can occur because a retry loop continually finds the same bad inode (CVE-2021-28950)\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.\n\nBug Fix(es):\n\n* kernel-rt: update RT source tree to the RHEL-8.4.z5 source tree (BZ#2017122)",
+  "uri": "downloads_https://access.redhat.com/errata/RHSA-2021:4648",
+  "sortTitle": "(RHSA-2021:4648) Important: kernel-rt security and bug fix update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2021-11-15T09:57:42Z"],
+  "_version_": 1858093342591549440,
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "1006|rhel|8.4|8.4|x86_64",
+    "624|rhel|8.4|8.4|x86_64",
+    "623|rhel|8.4|8.4|x86_64"
+  ],
+  "portal_title": ["(RHSA-2021:4648) Important: kernel-rt security and bug fix update"]
+}

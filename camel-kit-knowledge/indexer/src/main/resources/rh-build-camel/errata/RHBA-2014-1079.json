@@ -1,0 +1,70 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "6",
+  "year": 2014,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2014:1079) hwcert-client-1.6.5 bug fix update",
+  "detectedProducts": [
+    "rhel",
+    "rhel6"
+  ],
+  "portal_summary": "Updated hwcert-client-1.6.5 packages that fix bugs are now available for Red Hat\nEnterprise Linux Hardware Certification.\n",
+  "portal_package": [
+    "hwcert-server-1.6.5.2-20140817.el6.noarch.rpm",
+    "hwcert-client-1.6.5.2-20140817.el6.noarch.rpm",
+    "hwcert-client-1.6.5.2-20140817.el6.src.rpm"
+  ],
+  "portal_synopsis": "hwcert-client-1.6.5 bug fix update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Hardware Certification Test Suite|Red Hat Hardware Certification Test Suite|6|i386",
+    "Red Hat Hardware Certification Test Suite|Red Hat Hardware Certification Test Suite|6|ppc64",
+    "Red Hat Hardware Certification Test Suite|Red Hat Hardware Certification Test Suite|6|s390x",
+    "Red Hat Hardware Certification Test Suite|Red Hat Hardware Certification Test Suite|6|x86_64"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure that all previously released errata\nrelevant to your system have been applied.\n\nThis update is available via Red Hat Network. Details on how to use the Red\nHat Network to apply this update are available at \nhttps://access.redhat.com/site/articles/11258\n",
+  "id": "RHBA-2014:1079",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2014:1079",
+  "portal_BZ": [
+    "1045307",
+    "1125411",
+    "1127097"
+  ],
+  "timestamp": "2026-02-17T09:07:40.544Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "The hwcert-client packages contain the Red Hat Enterprise Linux Hardware\nCertification Test Suite which verifies the compatibility of hardware devices.\nEach hwcert-client test run builds a results database for submission to the Red\nHat Hardware Catalog as an XML file. hwcert-client replaces v7 and the Red Hat\nHardware Test Suite (HTS) for certifying hardware for use with Red Hat\nEnterprise Linux.\n\nThis update fixes the following bugs:\n\n* Previously, support of the PulseAudio server for multiple High-Definition\nMulti-media Interface (HDMI) devices per sound card was limited. As a\nconsequence, the HDMI audio output test did not always perform properly on\ncertain Intel and Nvidia configurations, such as the 4th Generation Intel Core\nprocessors. This update adds support for multiple HDMI devices per sound card\nfor PulseAudio, and the HDMI audio output test now works as expected.\n(BZ#1045307, BZ#1127097)\n\n* Previously, when using the hwcert command to start the test, the Hardware\nCertification Test Suite terminated unexpectedly before displaying the test\nplan. This prevented running the Test Suite on a HP ProLiant DL580 Generation 8\nhardware. This bug is now fixed and the Test Suite successfully displays the\ntest plan without crashing. (BZ#1122994)\n\n* Previously, the hwcert-client packages required the hwcert-client-info package\nto be the same version and release number or later as hwcert-client. This update\nremoves the unnecessary release requirement and hwcert-client now works with\nhwcert-client-info packages of same version but different release. (BZ#1125411)\n\n* Previously, the cpuscaling test failed with a traceback error on some systems\nusing AMD processors. This bug has been fixed and now the cpuscaling test\nexecutes successfully. (BZ#1114543)\n\n* Previously, the storage test did not include SD cards in the test plan. This\nupdate adds SD cards to the test plan and also enables testing for devices which\nhave an \"unknown\" host. (BZ#1127393)\n\n* Previously, the hwcert-backend tool did not support the integrated HDMI audio\ntest on certain audio devices. As a consequence, running the audio test could\nfail with the following error message:\n\n    \"Error: aplay command failed\"\n\nThis bug has been fixed and tests now execute successfully on all devices.\n(BZ#1127097)\n\nUsers of Hardware Certification Test Suite are advised to upgrade to these\nupdated packages, which fix this bug.\n",
+  "lastModifiedDate": "2014-08-20T00:00:00Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2014:1079",
+  "portal_publication_date": "2014-08-20T00:00:00Z",
+  "portal_product_names": ["Red Hat Hardware Certification Test Suite"],
+  "abstract": "The hwcert-client packages contain the Red Hat Enterprise Linux Hardware\nCertification Test Suite which verifies the compatibility of hardware devices.\nEach hwcert-client test run builds a results database for submission to the Red\nHat Hardware Catalog as an XML file. hwcert-client replaces v7 and the Red Hat\nHardware Test Suite (HTS) for certifying hardware for use with Red Hat\nEnterprise Linux.\n\nThis update fixes the following bugs:\n\n* Previously, support of the PulseAudio server for multiple High-Definition\nMulti-media Interface (HDMI) devices per sound card was limited. As a\nconsequence, the HDMI audio output test did not always perform properly on\ncertain Intel and Nvidia configurations, such as the 4th Generation Intel Core\nprocessors. This update adds support for multiple HDMI devices per sound card\nfor PulseAudio, and the HDMI audio output test now works as expected.\n(BZ#1045307, BZ#1127097)\n\n* Previously, when using the hwcert command to start the test, the Hardware\nCertification Test Suite terminated unexpectedly before displaying the test\nplan. This prevented running the Test Suite on a HP ProLiant DL580 Generation 8\nhardware. This bug is now fixed and the Test Suite successfully displays the\ntest plan without crashing. (BZ#1122994)\n\n* Previously, the hwcert-client packages required the hwcert-client-info package\nto be the same version and release number or later as hwcert-client. This update\nremoves the unnecessary release requirement and hwcert-client now works with\nhwcert-client-info packages of same version but different release. (BZ#1125411)\n\n* Previously, the cpuscaling test failed with a traceback error on some systems\nusing AMD processors. This bug has been fixed and now the cpuscaling test\nexecutes successfully. (BZ#1114543)\n\n* Previously, the storage test did not include SD cards in the test plan. This\nupdate adds SD cards to the test plan and also enables testing for devices which\nhave an \"unknown\" host. (BZ#1127393)\n\n* Previously, the hwcert-backend tool did not support the integrated HDMI audio\ntest on certain audio devices. As a consequence, running the audio test could\nfail with the following error message:\n\n    \"Error: aplay command failed\"\n\nThis bug has been fixed and tests now execute successfully on all devices.\n(BZ#1127097)\n\nUsers of Hardware Certification Test Suite are advised to upgrade to these\nupdated packages, which fix this bug.\n",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2014:1079",
+  "boostBaseVersion": "6",
+  "sortTitle": "(RHBA-2014:1079) hwcert-client-1.6.5 bug fix update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2014-08-20T00:00:00Z"],
+  "_version_": 1857362865129783296,
+  "displayDate": "2014-08-20T00:00:00Z",
+  "allTitle": "(RHBA-2014:1079) hwcert-client-1.6.5 bug fix update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "199|rhel|6|6|i386",
+    "199|rhel|6|6|ppc64",
+    "199|rhel|6|6|s390x",
+    "199|rhel|6|6|x86_64"
+  ],
+  "portal_title": ["(RHBA-2014:1079) hwcert-client-1.6.5 bug fix update"]
+}

@@ -1,0 +1,71 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "year": 2022,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2022:4621) ODF 4.10.2 bug fix and enhancement update",
+  "detectedProducts": [
+    "rhel",
+    "rhel8"
+  ],
+  "portal_summary": "Updated images that fix several bugs are now available for Red Hat\nOpenShift Data Foundation 4.10.2 on Red Hat Enterprise Linux 8 from Red Hat\nContainer Registry.",
+  "portal_synopsis": "ODF 4.10.2 bug fix and enhancement update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation|4|x86_64",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Z and LinuxONE|4|s390x",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Power, little endian|4|ppc64le"
+  ],
+  "portal_CVE": [
+    "CVE-2018-25032",
+    "CVE-2021-3634",
+    "CVE-2021-3737",
+    "CVE-2021-4189",
+    "CVE-2021-25219",
+    "CVE-2021-41617",
+    "CVE-2021-43818"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHBA-2022:4621",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2022:4621",
+  "timestamp": "2026-03-02T01:23:39.515Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat OpenShift Data Foundation is software-defined storage integrated\nwith and optimized for the Red Hat OpenShift Data Foundation. Red Hat\nOpenShift Data Foundation is a highly scalable, production-grade persistent\nstorage for stateful applications running in the Red Hat OpenShift\nContainer Platform. In addition to persistent storage, Red Hat OpenShift\nData Foundation provisions a multicloud data management service with an S3\ncompatible API.\n\nAll users of Red Hat OpenShift Data Foundation are advised to upgrade to\nthese updated images, which provide these bug fixes.",
+  "lastModifiedDate": "2022-05-18T06:40:27Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2022:4621",
+  "portal_publication_date": "2022-05-18T06:40:27Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Data Foundation",
+    "Red Hat OpenShift Data Foundation for IBM Z and LinuxONE",
+    "Red Hat OpenShift Data Foundation for IBM Power, little endian"
+  ],
+  "abstract": "Red Hat OpenShift Data Foundation is software-defined storage integrated\nwith and optimized for the Red Hat OpenShift Data Foundation. Red Hat\nOpenShift Data Foundation is a highly scalable, production-grade persistent\nstorage for stateful applications running in the Red Hat OpenShift\nContainer Platform. In addition to persistent storage, Red Hat OpenShift\nData Foundation provisions a multicloud data management service with an S3\ncompatible API.\n\nAll users of Red Hat OpenShift Data Foundation are advised to upgrade to\nthese updated images, which provide these bug fixes.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2022:4621",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHBA-2022:4621) ODF 4.10.2 bug fix and enhancement update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2022-05-18T06:40:27Z"],
+  "_version_": 1858511432138620928,
+  "displayDate": "2022-05-18T06:40:27Z",
+  "allTitle": "(RHBA-2022:4621) ODF 4.10.2 bug fix and enhancement update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "547|rhel|8|4|x86_64",
+    "635|rhel|8|4|s390x",
+    "634|rhel|8|4|ppc64le"
+  ],
+  "portal_title": ["(RHBA-2022:4621) ODF 4.10.2 bug fix and enhancement update"]
+}

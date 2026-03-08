@@ -1,0 +1,59 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "year": 2020,
+  "language": "en",
+  "portal_advisory_type": "Product Enhancement Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHEA-2020:3622) RHSSO 7.4.2 JDK11 + OpenJ9 0.21.0 on RHEL8 IBM Power [MULTIARCH]",
+  "detectedProducts": [
+    "rhel",
+    "rhel8"
+  ],
+  "portal_summary": "A new image is available for Red Hat Single Sign-On 7.4.2 on OpenJ9, running on OpenShift Container Platform 4.3.",
+  "portal_synopsis": "RHSSO 7.4.2 JDK11 + OpenJ9 0.21.0 on RHEL8 IBM Power [MULTIARCH]",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Container Platform|Red Hat OpenShift Container Platform for Power|4.3|ppc64le",
+    "Red Hat OpenShift Container Platform|Red Hat OpenShift Container Platform for IBM Z and LinuxONE|4.3|s390x"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHEA-2020:3622",
+  "view_uri": "https://access.redhat.com/errata/RHEA-2020:3622",
+  "timestamp": "2026-02-25T10:16:17.344Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat Single Sign-On is an integrated sign-on solution available as a\nRed Hat JBoss Middleware for OpenShift containerized image. The Red Hat\nSingle Sign-On for OpenShift image provides an authentication server for\nusers to centrally log in, log out, register, and manage user accounts\nfor web applications, mobile applications, and RESTful web services.\n\nThis erratum releases a new image for Red Hat Single Sign-On 7.4.2 for\nuse within the OpenShift Container Platform 3.10, OpenShift Container Platform 3.11, and within the\nOpenShift Container Platform 4.3 cloud computing Platform-as-a-Service\n(PaaS) for on-premise or private cloud deployments, aligning with the\nstandalone product release.",
+  "lastModifiedDate": "2020-09-03T12:35:23Z",
+  "resource_uri": "https://access.redhat.com/errata/RHEA-2020:3622",
+  "portal_publication_date": "2020-09-03T12:35:23Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Container Platform for Power",
+    "Red Hat OpenShift Container Platform for IBM Z and LinuxONE"
+  ],
+  "abstract": "Red Hat Single Sign-On is an integrated sign-on solution available as a\nRed Hat JBoss Middleware for OpenShift containerized image. The Red Hat\nSingle Sign-On for OpenShift image provides an authentication server for\nusers to centrally log in, log out, register, and manage user accounts\nfor web applications, mobile applications, and RESTful web services.\n\nThis erratum releases a new image for Red Hat Single Sign-On 7.4.2 for\nuse within the OpenShift Container Platform 3.10, OpenShift Container Platform 3.11, and within the\nOpenShift Container Platform 4.3 cloud computing Platform-as-a-Service\n(PaaS) for on-premise or private cloud deployments, aligning with the\nstandalone product release.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHEA-2020:3622",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHEA-2020:3622) RHSSO 7.4.2 JDK11 + OpenJ9 0.21.0 on RHEL8 IBM Power [MULTIARCH]",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2020-09-03T12:35:23Z"],
+  "_version_": 1858091957532753920,
+  "displayDate": "2020-09-03T12:35:23Z",
+  "allTitle": "(RHEA-2020:3622) RHSSO 7.4.2 JDK11 + OpenJ9 0.21.0 on RHEL8 IBM Power [MULTIARCH]",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "482|rhel|8|4.3|ppc64le",
+    "582|rhel|8|4.3|s390x"
+  ],
+  "portal_title": ["(RHEA-2020:3622) RHSSO 7.4.2 JDK11 + OpenJ9 0.21.0 on RHEL8 IBM Power [MULTIARCH]"]
+}

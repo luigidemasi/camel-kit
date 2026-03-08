@@ -1,0 +1,72 @@
+{
+  "year": 2014,
+  "language": "en",
+  "caseCount_365": 0,
+  "portal_synopsis": "Moderate: devtoolset-2-axis security update",
+  "solution_resolution": "subscriber_only",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nThis update is available via the Red Hat Network. Details on how to use the\nRed Hat Network to apply this update are available at\nhttps://access.redhat.com/articles/11258\n",
+  "id": "RHSA-2014:1123",
+  "view_uri": "https://access.redhat.com/errata/RHSA-2014:1123",
+  "portal_BZ": ["873252"],
+  "[elevated]": false,
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "resource_uri": "https://access.redhat.com/errata/RHSA-2014:1123",
+  "portal_publication_date": "2014-09-02T00:00:00Z",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "boostBaseVersion": "6",
+  "displayDate": "2014-09-02T00:00:00Z",
+  "allTitle": "(RHSA-2014:1123) Moderate: devtoolset-2-axis security update",
+  "large_text_store": "",
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "6",
+  "portal_severity_level": 3,
+  "portal_other_references": ["https://access.redhat.com/security/updates/classification/#moderate"],
+  "portal_advisory_type": "Security Advisory",
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHSA-2014:1123) Moderate: devtoolset-2-axis security update",
+  "detectedProducts": [
+    "rhel",
+    "rhel6"
+  ],
+  "portal_summary": "An updated devtoolset-2-axis package that fixes one security issue is now\navailable for Red Hat Developer Toolset 2.\n\nRed Hat Product Security has rated this update as having Moderate security\nimpact. A Common Vulnerability Scoring System (CVSS) base score, which\ngives a detailed severity rating, is available from the CVE link in the\nReferences section.\n",
+  "portal_package": [
+    "devtoolset-2-axis-1.4-23.el6.noarch.rpm",
+    "devtoolset-2-axis-1.4-23.el6.src.rpm"
+  ],
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Developer Toolset (for RHEL Workstation)|Red Hat Developer Toolset (for RHEL Workstation)|2|i386",
+    "Red Hat Developer Toolset (for RHEL Server)|Red Hat Developer Toolset (for RHEL Server)|2|x86_64",
+    "Red Hat Developer Toolset (for RHEL Workstation)|Red Hat Developer Toolset (for RHEL Workstation)|2|x86_64",
+    "Red Hat Developer Toolset (for RHEL Server)|Red Hat Developer Toolset (for RHEL Server)|2|i386"
+  ],
+  "portal_CVE": ["CVE-2012-5784"],
+  "docs_text_store": "",
+  "portal_severity": "Moderate",
+  "timestamp": "2026-02-26T00:52:56.896Z",
+  "documentKind": "Errata",
+  "portal_description": "Apache Axis is an implementation of SOAP (Simple Object Access Protocol).\nIt can be used to build both web service clients and servers.\n\nApache Axis did not verify that the server host name matched the domain\nname in the subject's Common Name (CN) or subjectAltName field in X.509\ncertificates. This could allow a man-in-the-middle attacker to spoof an SSL\nserver if they had a certificate that was valid for any domain name.\n(CVE-2012-5784)\n\nAll devtoolset-2-axis users are advised to upgrade to this updated package,\nwhich contains a backported patch to correct this issue.\n",
+  "lastModifiedDate": "2014-09-02T00:00:00Z",
+  "portal_product_names": [
+    "Red Hat Developer Toolset (for RHEL Workstation)",
+    "Red Hat Developer Toolset (for RHEL Server)"
+  ],
+  "abstract": "Apache Axis is an implementation of SOAP (Simple Object Access Protocol).\nIt can be used to build both web service clients and servers.\n\nApache Axis did not verify that the server host name matched the domain\nname in the subject's Common Name (CN) or subjectAltName field in X.509\ncertificates. This could allow a man-in-the-middle attacker to spoof an SSL\nserver if they had a certificate that was valid for any domain name.\n(CVE-2012-5784)\n\nAll devtoolset-2-axis users are advised to upgrade to this updated package,\nwhich contains a backported patch to correct this issue.\n",
+  "uri": "downloads_https://access.redhat.com/errata/RHSA-2014:1123",
+  "sortTitle": "(RHSA-2014:1123) Moderate: devtoolset-2-axis security update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2014-09-02T00:00:00Z"],
+  "_version_": 1858147113290956800,
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "179|rhel|6|2|i386",
+    "176|rhel|6|2|x86_64",
+    "179|rhel|6|2|x86_64",
+    "176|rhel|6|2|i386"
+  ],
+  "portal_title": ["(RHSA-2014:1123) Moderate: devtoolset-2-axis security update"]
+}

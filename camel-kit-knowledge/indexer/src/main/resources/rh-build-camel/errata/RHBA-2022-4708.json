@@ -1,0 +1,71 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "year": 2022,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2022:4708) OCS 4.8.11 bug fix and enhancement update",
+  "detectedProducts": [
+    "rhel",
+    "rhel8"
+  ],
+  "portal_summary": "Updated images that fix several bugs are now available for Red Hat OpenShift Container Storage 4.8.11 on Red Hat Enterprise Linux 8 from Red Hat Container Registry.",
+  "portal_synopsis": "OCS 4.8.11 bug fix and enhancement update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Z and LinuxONE|4|s390x",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation|4|x86_64",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Power, little endian|4|ppc64le"
+  ],
+  "portal_CVE": [
+    "CVE-2018-25032",
+    "CVE-2022-1154",
+    "CVE-2022-1271"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHBA-2022:4708",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2022:4708",
+  "portal_BZ": [
+    "2079481",
+    "2080464"
+  ],
+  "timestamp": "2026-03-02T01:23:53.130Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat OpenShift Container Storage is software-defined storage integrated with and optimized for the Red Hat OpenShift Container Platform. Red Hat OpenShift Container Storage is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Container Storage provisions a multicloud data management service with an S3 compatible API.\n\n* Previously, the default backing store was faulty, and the overall system health was degraded. This is because the Multicloud Object Gateway (MCG) creates a default backing store on the platform where OpenShift Container Storage was deployed. The default backing store was created with the wrong values due to an issue in identifying the Microsoft Azure Government (MAG). \nWith this update, a Persistent Volume (PV) pool is created when identifying the MAG instead of creating the usual Azure backing store, and later on, you can create a backing store on top of the MAG environment and use that new backing store. (Bug#2079516)\n\nAll Red Hat OpenShift Container Storage users are advised to upgrade to these updated images.",
+  "lastModifiedDate": "2022-05-23T16:34:55Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2022:4708",
+  "portal_publication_date": "2022-05-23T16:34:55Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Data Foundation for IBM Z and LinuxONE",
+    "Red Hat OpenShift Data Foundation",
+    "Red Hat OpenShift Data Foundation for IBM Power, little endian"
+  ],
+  "abstract": "Red Hat OpenShift Container Storage is software-defined storage integrated with and optimized for the Red Hat OpenShift Container Platform. Red Hat OpenShift Container Storage is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Container Storage provisions a multicloud data management service with an S3 compatible API.\n\n* Previously, the default backing store was faulty, and the overall system health was degraded. This is because the Multicloud Object Gateway (MCG) creates a default backing store on the platform where OpenShift Container Storage was deployed. The default backing store was created with the wrong values due to an issue in identifying the Microsoft Azure Government (MAG). \nWith this update, a Persistent Volume (PV) pool is created when identifying the MAG instead of creating the usual Azure backing store, and later on, you can create a backing store on top of the MAG environment and use that new backing store. (Bug#2079516)\n\nAll Red Hat OpenShift Container Storage users are advised to upgrade to these updated images.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2022:4708",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHBA-2022:4708) OCS 4.8.11 bug fix and enhancement update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2022-05-23T16:34:55Z"],
+  "_version_": 1858511446397157376,
+  "displayDate": "2022-05-23T16:34:55Z",
+  "allTitle": "(RHBA-2022:4708) OCS 4.8.11 bug fix and enhancement update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "635|rhel|8|4|s390x",
+    "547|rhel|8|4|x86_64",
+    "634|rhel|8|4|ppc64le"
+  ],
+  "portal_title": ["(RHBA-2022:4708) OCS 4.8.11 bug fix and enhancement update"]
+}

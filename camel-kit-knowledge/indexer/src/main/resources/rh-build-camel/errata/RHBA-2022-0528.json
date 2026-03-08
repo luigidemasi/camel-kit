@@ -1,0 +1,68 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "year": 2022,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2022:0528) Red Hat OpenShift Container Storage 4.7.8 bug fix update",
+  "detectedProducts": [
+    "rhel",
+    "rhel8",
+    "storage",
+    "storage4"
+  ],
+  "portal_summary": "Updated container images that add various bug fixes are now available for Red Hat OpenShift Container Storage 4.7.8 on Red Hat Enterprise Linux 8 from Red Hat Container Registry.",
+  "portal_synopsis": "Red Hat OpenShift Container Storage 4.7.8 bug fix update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Z and LinuxONE|4|s390x",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation|4|x86_64",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Power, little endian|4|ppc64le"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHBA-2022:0528",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2022:0528",
+  "portal_BZ": [
+    "2030291",
+    "2043185"
+  ],
+  "timestamp": "2026-02-25T10:41:16.944Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat OpenShift Container Storage is software-defined storage integrated with and optimized for the Red Hat OpenShift Container Platform. Red Hat OpenShift Container Storage is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Container Storage provisions a multicloud data management service with an S3 compatible API.\n\n* Previously, when you configured the cluster with cluster-wide encryption, it was impossible to identify whether or not an encrypted volume was part of the cluster as there was no label set and the encrypted nature of the volume did not allow you to open its content. Before you attempted to use it, you had to read the Linux Unified Key System (LUKS) header or label to determine whether or not the encrypted device is an Object Storage Device (OSD). With this update, the 'fsid' label is set on the cluster. Now, it is possible to identify whether or not an encrypted volume is part of your cluster. (BZ#2030291)\n\nAll Red Hat OpenShift Container Storage users are advised to upgrade to these updated images.",
+  "lastModifiedDate": "2022-02-15T06:29:14Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2022:0528",
+  "portal_publication_date": "2022-02-15T06:29:14Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Data Foundation for IBM Z and LinuxONE",
+    "Red Hat OpenShift Data Foundation",
+    "Red Hat OpenShift Data Foundation for IBM Power, little endian"
+  ],
+  "abstract": "Red Hat OpenShift Container Storage is software-defined storage integrated with and optimized for the Red Hat OpenShift Container Platform. Red Hat OpenShift Container Storage is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Container Storage provisions a multicloud data management service with an S3 compatible API.\n\n* Previously, when you configured the cluster with cluster-wide encryption, it was impossible to identify whether or not an encrypted volume was part of the cluster as there was no label set and the encrypted nature of the volume did not allow you to open its content. Before you attempted to use it, you had to read the Linux Unified Key System (LUKS) header or label to determine whether or not the encrypted device is an Object Storage Device (OSD). With this update, the 'fsid' label is set on the cluster. Now, it is possible to identify whether or not an encrypted volume is part of your cluster. (BZ#2030291)\n\nAll Red Hat OpenShift Container Storage users are advised to upgrade to these updated images.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2022:0528",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHBA-2022:0528) Red Hat OpenShift Container Storage 4.7.8 bug fix update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2022-02-15T06:29:14Z"],
+  "_version_": 1858093530155581440,
+  "displayDate": "2022-02-15T06:29:14Z",
+  "allTitle": "(RHBA-2022:0528) Red Hat OpenShift Container Storage 4.7.8 bug fix update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "635|rhel|8|4|s390x",
+    "547|rhel|8|4|x86_64",
+    "634|rhel|8|4|ppc64le"
+  ],
+  "portal_title": ["(RHBA-2022:0528) Red Hat OpenShift Container Storage 4.7.8 bug fix update"]
+}

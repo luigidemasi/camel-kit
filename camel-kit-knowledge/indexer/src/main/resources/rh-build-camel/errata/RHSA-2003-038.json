@@ -1,0 +1,70 @@
+{
+  "year": 2003,
+  "language": "en",
+  "caseCount_365": 0,
+  "portal_synopsis": "im security update",
+  "solution_resolution": "subscriber_only",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nPlease note that this update is available via Red Hat Network.  To use Red\nHat Network, launch the Red Hat Update Agent with the following command:\n\nup2date\n\nThis will start an interactive process that will result in the appropriate\nRPMs being upgraded on your system.",
+  "id": "RHSA-2003:038",
+  "view_uri": "https://access.redhat.com/errata/RHSA-2003:038",
+  "portal_BZ": ["79079"],
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "resource_uri": "https://access.redhat.com/errata/RHSA-2003:038",
+  "portal_publication_date": "2003-02-07T00:00:00Z",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "boostBaseVersion": "2",
+  "displayDate": "2003-05-22T00:00:00Z",
+  "allTitle": "(RHSA-2003:038) im security update",
+  "large_text_store": "",
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "2",
+  "portal_severity_level": 2,
+  "portal_advisory_type": "Security Advisory",
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHSA-2003:038) im security update",
+  "detectedProducts": [
+    "rhel",
+    "rhel2"
+  ],
+  "portal_summary": "Updated Internet Message packages are available that fix the insecure\nhandling of temporary files.\n\n[Updated 9 April 2003]\nAdded packages for Red Hat Linux Advanced Workstation, Red Hat Enterprise\nLinux ES, and Red Hat Enterprise Linux WS.",
+  "portal_package": [
+    "im-140-3.21AS.3.ia64.rpm",
+    "im-140-3.21AS.3.i386.rpm"
+  ],
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Server|2|i386",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Workstation|2|ia64",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Workstation|2|i386",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Server|2|ia64"
+  ],
+  "portal_CVE": ["CVE-2002-1395"],
+  "docs_text_store": "",
+  "portal_severity": "Low",
+  "timestamp": "2026-02-17T10:53:23.883Z",
+  "documentKind": "Errata",
+  "portal_description": "Internet Message (IM) consists of a set of user interface commands and\nbackend Perl5 libraries to integrate email and the NetNews user interface.\nThese commands are designed to be used from both the Mew mail reader for\nEmacs and the command line.\n\nA vulnerability has been discovered by Tatsuya Kinoshita in the way two IM\nutilities create temporary files. By anticipating the names used to\ncreate files and directories stored in the /tmp directory, it may be\npossible for a local attacker to corrupt or modify data as another user.\n\nUsers of IM are advised to install these packages which contain a\nbackported patch to correct these issues.",
+  "lastModifiedDate": "2003-05-22T00:00:00Z",
+  "portal_product_names": [
+    "Red Hat Enterprise Linux Server",
+    "Red Hat Enterprise Linux Workstation"
+  ],
+  "abstract": "Internet Message (IM) consists of a set of user interface commands and\nbackend Perl5 libraries to integrate email and the NetNews user interface.\nThese commands are designed to be used from both the Mew mail reader for\nEmacs and the command line.\n\nA vulnerability has been discovered by Tatsuya Kinoshita in the way two IM\nutilities create temporary files. By anticipating the names used to\ncreate files and directories stored in the /tmp directory, it may be\npossible for a local attacker to corrupt or modify data as another user.\n\nUsers of IM are advised to install these packages which contain a\nbackported patch to correct these issues.",
+  "uri": "downloads_https://access.redhat.com/errata/RHSA-2003:038",
+  "sortTitle": "(RHSA-2003:038) im security update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2003-05-22T00:00:00Z"],
+  "_version_": 1857369516840845312,
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "69|rhel|2|2|i386",
+    "71|rhel|2|2|ia64",
+    "71|rhel|2|2|i386",
+    "69|rhel|2|2|ia64"
+  ],
+  "portal_title": ["(RHSA-2003:038) im security update"]
+}

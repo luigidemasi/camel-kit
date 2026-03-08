@@ -1,0 +1,70 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "year": 2022,
+  "portal_other_references": [
+    "https://access.redhat.com/errata/RHBA-2022:5170",
+    "https://catalog.redhat.com/software/containers/registry/registry.access.redhat.com/repository/integration/service-registry-rhel8-operator-metadata"
+  ],
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2022:5437) updated integration/service-registry-rhel8-operator-metadata container image",
+  "detectedProducts": [
+    "rhel",
+    "rhel8"
+  ],
+  "portal_summary": "Updated integration/service-registry-rhel8-operator-metadata container image is now available for RHEL 8-based Middleware Containers.",
+  "portal_synopsis": "updated integration/service-registry-rhel8-operator-metadata container image",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Container Platform|Red Hat OpenShift Container Platform|4.6|x86_64",
+    "Red Hat OpenShift Container Platform|Red Hat OpenShift Container Platform|4.10|x86_64"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "You can download the RHEL 8-based Middleware Containers image provided by this update from the Red Hat Container Registry at registry.access.redhat.com. Installation instructions for your platform are\navailable from the Red Hat Container Catalog (see References).\n\nYou must update Dockerfiles and scripts either to refer to this new image\nspecifically, or to the latest image generally.",
+  "id": "RHBA-2022:5437",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2022:5437",
+  "portal_BZ": [
+    "1991685",
+    "1991686",
+    "1991687",
+    "2083339",
+    "2090463",
+    "2090857",
+    "2090899",
+    "2092613"
+  ],
+  "timestamp": "2026-03-02T01:26:26.661Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "The integration/service-registry-rhel8-operator-metadata container image has\nbeen updated for RHEL 8-based Middleware Containers to address the following\nsecurity advisory: RHBA-2022:5170 (see References)\n\nUsers of integration/service-registry-rhel8-operator-metadata container images\nare advised to upgrade to these updated images, which contain backported patches to correct these security issues, fix these bugs, and add these enhancements.\n\nUsers of these images are also encouraged to rebuild all container images that\ndepend on these images.\n\nYou can find images updated by this advisory in Red Hat Container Catalog (see\nReferences).",
+  "lastModifiedDate": "2022-06-30T06:18:32Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2022:5437",
+  "portal_publication_date": "2022-06-30T06:18:32Z",
+  "portal_product_names": ["Red Hat OpenShift Container Platform"],
+  "abstract": "The integration/service-registry-rhel8-operator-metadata container image has\nbeen updated for RHEL 8-based Middleware Containers to address the following\nsecurity advisory: RHBA-2022:5170 (see References)\n\nUsers of integration/service-registry-rhel8-operator-metadata container images\nare advised to upgrade to these updated images, which contain backported patches to correct these security issues, fix these bugs, and add these enhancements.\n\nUsers of these images are also encouraged to rebuild all container images that\ndepend on these images.\n\nYou can find images updated by this advisory in Red Hat Container Catalog (see\nReferences).",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2022:5437",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHBA-2022:5437) updated integration/service-registry-rhel8-operator-metadata container image",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2022-06-30T06:18:32Z"],
+  "_version_": 1858511607366156288,
+  "displayDate": "2022-06-30T06:18:32Z",
+  "allTitle": "(RHBA-2022:5437) updated integration/service-registry-rhel8-operator-metadata container image",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "290|rhel|8|4.6|x86_64",
+    "290|rhel|8|4.10|x86_64"
+  ],
+  "portal_title": ["(RHBA-2022:5437) updated integration/service-registry-rhel8-operator-metadata container image"]
+}

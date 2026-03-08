@@ -1,0 +1,69 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "7",
+  "year": 2016,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2016:1951) ovirt-image-uploader bug fix update for RHV 4.0.4",
+  "detectedProducts": [
+    "rhel",
+    "rhel7",
+    "rhv",
+    "rhv4"
+  ],
+  "portal_summary": "Updated ovirt-image-uploader packages that fix several bugs are now available.",
+  "portal_package": [
+    "ovirt-image-uploader-4.0.1-1.el7ev.noarch.rpm",
+    "ovirt-image-uploader-4.0.1-1.el7ev.src.rpm"
+  ],
+  "portal_synopsis": "ovirt-image-uploader bug fix update for RHV 4.0.4",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Virtualization|Red Hat Virtualization for IBM Power LE|4|x86_64",
+    "Red Hat Virtualization|Red Hat Virtualization|4.0|x86_64"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHBA-2016:1951",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2016:1951",
+  "portal_BZ": [
+    "1340963",
+    "1371477"
+  ],
+  "timestamp": "2026-02-25T13:25:51.906Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "The ovirt-image-uploader package provides a streamlined process for uploading a virtual appliance stored as an OVF archive to a Red Hat Virtualization export storage domain.\n\nChanges to the ovirt-image-uploader component:\n* With this update, the authentication and image upload to ovirt-engine instances with Kerberos SSO enabled has been fixed. (BZ#1340963)",
+  "lastModifiedDate": "2016-09-28T20:44:41Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2016:1951",
+  "portal_publication_date": "2016-09-28T20:44:00Z",
+  "portal_product_names": [
+    "Red Hat Virtualization for IBM Power LE",
+    "Red Hat Virtualization"
+  ],
+  "abstract": "The ovirt-image-uploader package provides a streamlined process for uploading a virtual appliance stored as an OVF archive to a Red Hat Virtualization export storage domain.\n\nChanges to the ovirt-image-uploader component:\n* With this update, the authentication and image upload to ovirt-engine instances with Kerberos SSO enabled has been fixed. (BZ#1340963)",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2016:1951",
+  "boostBaseVersion": "7",
+  "sortTitle": "(RHBA-2016:1951) ovirt-image-uploader bug fix update for RHV 4.0.4",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2016-09-28T20:44:41Z"],
+  "_version_": 1858103884618137600,
+  "displayDate": "2016-09-28T20:44:41Z",
+  "allTitle": "(RHBA-2016:1951) ovirt-image-uploader bug fix update for RHV 4.0.4",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "276|rhel|7|4|x86_64",
+    "150|rhel|7|4.0|x86_64"
+  ],
+  "portal_title": ["(RHBA-2016:1951) ovirt-image-uploader bug fix update for RHV 4.0.4"]
+}

@@ -1,0 +1,75 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "year": 2021,
+  "portal_other_references": [
+    "https://access.redhat.com/errata/RHSA-2020:5416",
+    "https://access.redhat.com/containers"
+  ],
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2021:0179) Updated Red Hat OpenStack Platform 16.1 container images",
+  "detectedProducts": [
+    "rhel",
+    "rhel8",
+    "openstack",
+    "openstack16"
+  ],
+  "portal_summary": "Updated Red Hat OpenStack Platform 16.1 (Train) container images are now available.",
+  "portal_synopsis": "Updated Red Hat OpenStack Platform 16.1 container images",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenStack Platform|Red Hat OpenStack for IBM Power|16.1|ppc64le",
+    "Red Hat OpenStack Platform|Red Hat OpenStack|16.1|x86_64"
+  ],
+  "portal_CVE": [
+    "CVE-2020-25641",
+    "CVE-2020-25660",
+    "CVE-2020-25677",
+    "CVE-2020-27781"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "The Red Hat OpenStack Platform 16.1 container images provided by this update can be downloaded from the Red Hat Container Registry at registry.access.redhat.com. Installation instructions for your platform are available at Red Hat Container Catalog (see References).\n\nDockerfiles and scripts should be amended either to refer to this new image specifically, or to the latest image generally.",
+  "id": "RHBA-2021:0179",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2021:0179",
+  "portal_BZ": [
+    "1890354",
+    "1900109"
+  ],
+  "timestamp": "2026-02-25T10:23:40.889Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "The Red Hat OpenStack Platform 16.1 container images have been updated to address the following security advisory: RHSA-2020:5416 (see References)\n\nUsers of Red Hat OpenStack Platform 16.1 container images are advised to upgrade to these updated images, which contain backported patches to correct these security issues, fix these bugs and add these enhancements. Users of these images are also encouraged to rebuild all container images that depend on these images.\n\nYou can find images updated by this advisory in Red Hat Container Catalog (see References).\n\nChanges to the vulnerability component:\n\n* User credentials can be manipulated and stolen by Native CephFS consumers of OpenStack Manila, resulting in potential privilege escalation. An Open Stack Manila user can request access to a share to an arbitrary cephx user, including existing users. The access key is retrieved via the interface drivers. Then, all users of the requesting OpenStack project can view the access key. This enables the attacker to target any resource that the user has access to. This can be done to even \"admin\" users, compromising the ceph administrator. (BZ#1900109)\n\n* A flaw was found in the Cephx authentication protocol, where it does not verify Ceph clients correctly and is then vulnerable to replay attacks in Nautilus. This flaw allows an attacker with access to the Ceph cluster network to authenticate with the Ceph service via a packet sniffer and perform actions allowed by the Ceph service. This issue is a reintroduction of CVE-2018-1128, affecting the msgr2 protocol. The msgr 2 protocol is used for all communication except older clients that do not support the msgr2 protocol. The msgr1 protocol is not affected. The highest threat from this vulnerability is to confidentiality, integrity, and system availability. (BZ#1890354)",
+  "lastModifiedDate": "2021-01-18T15:09:30Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2021:0179",
+  "portal_publication_date": "2021-01-18T15:09:30Z",
+  "portal_product_names": [
+    "Red Hat OpenStack for IBM Power",
+    "Red Hat OpenStack"
+  ],
+  "abstract": "The Red Hat OpenStack Platform 16.1 container images have been updated to address the following security advisory: RHSA-2020:5416 (see References)\n\nUsers of Red Hat OpenStack Platform 16.1 container images are advised to upgrade to these updated images, which contain backported patches to correct these security issues, fix these bugs and add these enhancements. Users of these images are also encouraged to rebuild all container images that depend on these images.\n\nYou can find images updated by this advisory in Red Hat Container Catalog (see References).\n\nChanges to the vulnerability component:\n\n* User credentials can be manipulated and stolen by Native CephFS consumers of OpenStack Manila, resulting in potential privilege escalation. An Open Stack Manila user can request access to a share to an arbitrary cephx user, including existing users. The access key is retrieved via the interface drivers. Then, all users of the requesting OpenStack project can view the access key. This enables the attacker to target any resource that the user has access to. This can be done to even \"admin\" users, compromising the ceph administrator. (BZ#1900109)\n\n* A flaw was found in the Cephx authentication protocol, where it does not verify Ceph clients correctly and is then vulnerable to replay attacks in Nautilus. This flaw allows an attacker with access to the Ceph cluster network to authenticate with the Ceph service via a packet sniffer and perform actions allowed by the Ceph service. This issue is a reintroduction of CVE-2018-1128, affecting the msgr2 protocol. The msgr 2 protocol is used for all communication except older clients that do not support the msgr2 protocol. The msgr1 protocol is not affected. The highest threat from this vulnerability is to confidentiality, integrity, and system availability. (BZ#1890354)",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2021:0179",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHBA-2021:0179) Updated Red Hat OpenStack Platform 16.1 container images",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2021-01-18T15:09:30Z"],
+  "_version_": 1858092422711476224,
+  "displayDate": "2021-01-18T15:09:30Z",
+  "allTitle": "(RHBA-2021:0179) Updated Red Hat OpenStack Platform 16.1 container images",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "425|rhel|8|16.1|ppc64le",
+    "191|rhel|8|16.1|x86_64"
+  ],
+  "portal_title": ["(RHBA-2021:0179) Updated Red Hat OpenStack Platform 16.1 container images"]
+}

@@ -1,0 +1,72 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "year": 2021,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2021:3881) OCS 4.8.3 bug fix update",
+  "detectedProducts": [
+    "rhel",
+    "rhel8"
+  ],
+  "portal_summary": "Updated images that fix several bugs are now available for Red Hat OpenShift Container Storage 4.8.3 on Red Hat Enterprise Linux 8 from Red Hat Container Registry.",
+  "portal_synopsis": "OCS 4.8.3 bug fix update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation|4|x86_64",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Power, little endian|4|ppc64le",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Z and LinuxONE|4|s390x"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHBA-2021:3881",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2021:3881",
+  "portal_BZ": [
+    "1999158",
+    "1999605",
+    "2002235",
+    "2005970",
+    "2006323",
+    "2006623",
+    "2006800",
+    "2014167"
+  ],
+  "timestamp": "2026-02-25T10:34:45.440Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat OpenShift Container Storage is software-defined storage integrated with and optimized for the Red Hat OpenShift Container Platform. Red Hat OpenShift Container Storage is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Container Storage provisions a multicloud data management service with an S3 compatible API.\n\nBug Fix(es):\n\n* Previously, while updating OpenShift Container Storage from v4.6 to v4.7 several configuration actions such as creating buckets failed due to a duplicate entry in MongoDB. This was due to the migration of MongoDB to PostgreSQL. With this update, a duplicate entry is prevented and hence configuration failures are avoided. (BZ#2006800)\n\n* Previously, pods could not be scheduled on non OpenShift Container Storage taints as the tolerations were not applied. With this update, tolerations are applied successfully and the pods can be scheduled on non OpenShift Container Storage taints. (BZ#1999158)\n\nAll users of OpenShift Container Storage are advised to upgrade to these updated packages, which provide these bug fixes.",
+  "lastModifiedDate": "2021-10-18T12:11:44Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2021:3881",
+  "portal_publication_date": "2021-10-18T12:11:44Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Data Foundation",
+    "Red Hat OpenShift Data Foundation for IBM Power, little endian",
+    "Red Hat OpenShift Data Foundation for IBM Z and LinuxONE"
+  ],
+  "abstract": "Red Hat OpenShift Container Storage is software-defined storage integrated with and optimized for the Red Hat OpenShift Container Platform. Red Hat OpenShift Container Storage is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Container Storage provisions a multicloud data management service with an S3 compatible API.\n\nBug Fix(es):\n\n* Previously, while updating OpenShift Container Storage from v4.6 to v4.7 several configuration actions such as creating buckets failed due to a duplicate entry in MongoDB. This was due to the migration of MongoDB to PostgreSQL. With this update, a duplicate entry is prevented and hence configuration failures are avoided. (BZ#2006800)\n\n* Previously, pods could not be scheduled on non OpenShift Container Storage taints as the tolerations were not applied. With this update, tolerations are applied successfully and the pods can be scheduled on non OpenShift Container Storage taints. (BZ#1999158)\n\nAll users of OpenShift Container Storage are advised to upgrade to these updated packages, which provide these bug fixes.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2021:3881",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHBA-2021:3881) OCS 4.8.3 bug fix update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2021-10-18T12:11:44Z"],
+  "_version_": 1858093119566774272,
+  "displayDate": "2021-10-18T12:11:44Z",
+  "allTitle": "(RHBA-2021:3881) OCS 4.8.3 bug fix update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "547|rhel|8|4|x86_64",
+    "634|rhel|8|4|ppc64le",
+    "635|rhel|8|4|s390x"
+  ],
+  "portal_title": ["(RHBA-2021:3881) OCS 4.8.3 bug fix update"]
+}

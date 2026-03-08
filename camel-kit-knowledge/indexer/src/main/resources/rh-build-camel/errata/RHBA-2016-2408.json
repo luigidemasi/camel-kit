@@ -1,0 +1,73 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "7",
+  "year": 2016,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2016:2408) rhythmbox bug fix update",
+  "detectedProducts": [
+    "rhel",
+    "rhel7"
+  ],
+  "portal_summary": "An update for rhythmbox is now available for Red Hat Enterprise Linux 7.",
+  "portal_package": [
+    "rhythmbox-debuginfo-3.3.1-5.el7.i686.rpm",
+    "rhythmbox-3.3.1-5.el7.x86_64.rpm",
+    "rhythmbox-3.3.1-5.el7.src.rpm",
+    "rhythmbox-devel-3.3.1-5.el7.i686.rpm",
+    "rhythmbox-debuginfo-3.3.1-5.el7.x86_64.rpm",
+    "rhythmbox-devel-3.3.1-5.el7.x86_64.rpm"
+  ],
+  "portal_synopsis": "rhythmbox bug fix update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Desktop|7|x86_64",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Workstation|7|x86_64"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "For details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHBA-2016:2408",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2016:2408",
+  "portal_BZ": [
+    "1036203",
+    "1241924",
+    "1241925",
+    "1298233"
+  ],
+  "timestamp": "2026-02-25T08:38:59.609Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Rhythmbox is an integrated music management application based on the GStreamer media framework.\n\nFor detailed information on changes in this release, see the Red Hat Enterprise Linux 7.3 Release Notes linked from the References section.\n\nUsers of rhythmbox are advised to upgrade to these updated packages.",
+  "lastModifiedDate": "2016-11-03T06:10:43Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2016:2408",
+  "portal_publication_date": "2016-11-03T06:09:20Z",
+  "portal_product_names": [
+    "Red Hat Enterprise Linux Desktop",
+    "Red Hat Enterprise Linux Workstation"
+  ],
+  "abstract": "Rhythmbox is an integrated music management application based on the GStreamer media framework.\n\nFor detailed information on changes in this release, see the Red Hat Enterprise Linux 7.3 Release Notes linked from the References section.\n\nUsers of rhythmbox are advised to upgrade to these updated packages.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2016:2408",
+  "boostBaseVersion": "7",
+  "sortTitle": "(RHBA-2016:2408) rhythmbox bug fix update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2016-11-03T06:10:43Z"],
+  "_version_": 1858085836199821312,
+  "displayDate": "2016-11-03T06:10:43Z",
+  "allTitle": "(RHBA-2016:2408) rhythmbox bug fix update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "68|rhel|7|7|x86_64",
+    "71|rhel|7|7|x86_64"
+  ],
+  "portal_title": ["(RHBA-2016:2408) rhythmbox bug fix update"]
+}

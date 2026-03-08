@@ -1,0 +1,86 @@
+{
+  "year": 2020,
+  "language": "en",
+  "caseCount_365": 0,
+  "portal_synopsis": "Moderate: Red Hat OpenShift Container Storage 4.6 bug fix and enhancement update",
+  "solution_resolution": "subscriber_only",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHSA-2020:5606",
+  "view_uri": "https://access.redhat.com/errata/RHSA-2020:5606",
+  "portal_BZ": [
+    "1853652",
+    "1856953",
+    "1867099"
+  ],
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "resource_uri": "https://access.redhat.com/errata/RHSA-2020:5606",
+  "portal_publication_date": "2020-12-17T05:34:15Z",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "boostBaseVersion": "8",
+  "displayDate": "2020-12-17T05:34:15Z",
+  "allTitle": "(RHSA-2020:5606) Moderate: Red Hat OpenShift Container Storage 4.6 bug fix and enhancement update",
+  "large_text_store": "",
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "portal_severity_level": 3,
+  "portal_other_references": ["https://access.redhat.com/security/updates/classification/#moderate"],
+  "portal_advisory_type": "Security Advisory",
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHSA-2020:5606) Moderate: Red Hat OpenShift Container Storage 4.6 bug fix and enhancement update",
+  "detectedProducts": [
+    "rhel",
+    "rhel8",
+    "storage",
+    "storage4"
+  ],
+  "portal_summary": "An update for mcg is now available for Red Hat OpenShift Container Storage 4.6.0 on RHEL-8.\n\nRed Hat Product Security has rated this update as having a security impact of Moderate. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability from the CVE link(s) in the References section.",
+  "portal_package": [
+    "tini-0.18.0-5.el8.x86_64.rpm",
+    "tini-0.18.0-5.el8.s390x.rpm",
+    "mcg-5.6.0-39.2279a46.5.6.el8.x86_64.rpm",
+    "tini-0.18.0-5.el8.src.rpm",
+    "mcg-5.6.0-39.2279a46.5.6.el8.src.rpm",
+    "mcg-5.6.0-39.2279a46.5.6.el8.ppc64le.rpm",
+    "tini-0.18.0-5.el8.ppc64le.rpm",
+    "mcg-5.6.0-39.2279a46.5.6.el8.s390x.rpm"
+  ],
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Z and LinuxONE|4|s390x",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Power, little endian|4|ppc64le",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation|4|x86_64"
+  ],
+  "portal_CVE": [
+    "CVE-2020-14040",
+    "CVE-2020-15586",
+    "CVE-2020-16845"
+  ],
+  "docs_text_store": "",
+  "portal_severity": "Moderate",
+  "timestamp": "2026-02-25T10:23:03.839Z",
+  "documentKind": "Errata",
+  "portal_description": "Red Hat OpenShift Container Storage is software-defined storage integrated with and optimized for the Red Hat OpenShift Container Platform. Red Hat OpenShift Container Storage is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Container Storage provisions a multicloud data management service with an S3 compatible API.\n\nThese updated packages include numerous security fixes, bug fixes, and\nenhancements.\n\nSecurity Fix(es):\n\n* golang.org/x/text: possibility to trigger an infinite loop in encoding/unicode could lead to crash (CVE-2020-14040)\n\n* golang: data race in certain net/http servers including ReverseProxy can lead to DoS (CVE-2020-15586)\n\n* golang: ReadUvarint and ReadVarint can read an unlimited number of bytes from invalid inputs (CVE-2020-16845)\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.\n\nThese updated packages include numerous bug fixes and enhancements. Users are\ndirected to the Red Hat OpenShift Container Storage Release Notes for\ninformation on the most significant of these changes:\n\nhttps://access.redhat.com/documentation/en-us/red_hat_openshift_container_storage/4.6/html/4.6_release_notes/index\n\nAll Red Hat OpenShift Container Storage users are advised to upgrade to these\nupdated packages.",
+  "lastModifiedDate": "2020-12-17T05:34:15Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Data Foundation for IBM Z and LinuxONE",
+    "Red Hat OpenShift Data Foundation for IBM Power, little endian",
+    "Red Hat OpenShift Data Foundation"
+  ],
+  "abstract": "Red Hat OpenShift Container Storage is software-defined storage integrated with and optimized for the Red Hat OpenShift Container Platform. Red Hat OpenShift Container Storage is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Container Storage provisions a multicloud data management service with an S3 compatible API.\n\nThese updated packages include numerous security fixes, bug fixes, and\nenhancements.\n\nSecurity Fix(es):\n\n* golang.org/x/text: possibility to trigger an infinite loop in encoding/unicode could lead to crash (CVE-2020-14040)\n\n* golang: data race in certain net/http servers including ReverseProxy can lead to DoS (CVE-2020-15586)\n\n* golang: ReadUvarint and ReadVarint can read an unlimited number of bytes from invalid inputs (CVE-2020-16845)\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.\n\nThese updated packages include numerous bug fixes and enhancements. Users are\ndirected to the Red Hat OpenShift Container Storage Release Notes for\ninformation on the most significant of these changes:\n\nhttps://access.redhat.com/documentation/en-us/red_hat_openshift_container_storage/4.6/html/4.6_release_notes/index\n\nAll Red Hat OpenShift Container Storage users are advised to upgrade to these\nupdated packages.",
+  "uri": "downloads_https://access.redhat.com/errata/RHSA-2020:5606",
+  "sortTitle": "(RHSA-2020:5606) Moderate: Red Hat OpenShift Container Storage 4.6 bug fix and enhancement update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2020-12-17T05:34:15Z"],
+  "_version_": 1858092383848103936,
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "635|rhel|8|4|s390x",
+    "634|rhel|8|4|ppc64le",
+    "547|rhel|8|4|x86_64"
+  ],
+  "portal_title": ["(RHSA-2020:5606) Moderate: Red Hat OpenShift Container Storage 4.6 bug fix and enhancement update"]
+}

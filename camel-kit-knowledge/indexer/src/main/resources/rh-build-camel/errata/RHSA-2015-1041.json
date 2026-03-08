@@ -1,0 +1,63 @@
+{
+  "boostProduct": "fuse",
+  "year": 2015,
+  "portal_severity_level": 3,
+  "portal_other_references": [
+    "https://access.redhat.com/security/updates/classification/#moderate",
+    "https://access.redhat.com/jbossnetwork/restricted/listSoftware.html?product=jboss.fuse&downloadType=securityPatches&version=6.1.0"
+  ],
+  "language": "en",
+  "portal_advisory_type": "Security Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHSA-2015:1041) Moderate: Red Hat JBoss Fuse/A-MQ 6.1.0 update",
+  "detectedProducts": [
+    "fuse",
+    "amq",
+    "amq6"
+  ],
+  "portal_summary": "Red Hat JBoss Fuse and A-MQ 6.1.0 Patch 4 on Rollup Patch 2 (R2P4), which\nfixes two security issues, several bugs, and adds various enhancements, is\nnow available from the Red Hat Customer Portal.\n\nRed Hat Product Security has rated this update as having Moderate security\nimpact. Common Vulnerability Scoring System (CVSS) base scores, which give\ndetailed severity ratings, are available for each vulnerability from the\nCVE links in the References section.",
+  "portal_synopsis": "Moderate: Red Hat JBoss Fuse/A-MQ 6.1.0 update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": ["Red Hat Fuse|Red Hat Fuse|1|x86_64"],
+  "portal_CVE": [
+    "CVE-2015-0263",
+    "CVE-2015-0264"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "Moderate",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "The References section of this erratum contains a download link (you must\nlog in to download the update).",
+  "id": "RHSA-2015:1041",
+  "view_uri": "https://access.redhat.com/errata/RHSA-2015:1041",
+  "portal_BZ": [
+    "1203341",
+    "1203344"
+  ],
+  "timestamp": "2026-02-25T13:48:45.330Z",
+  "[elevated]": false,
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat JBoss Fuse, based on Apache ServiceMix, provides a small-footprint,\nflexible, open source enterprise service bus and integration platform.\nRed Hat JBoss A-MQ, based on Apache ActiveMQ, is a standards compliant\nmessaging system that is tailored for use in mission critical applications.\n\nThis patch is an update to Red Hat JBoss Fuse 6.1.0 and Red Hat JBoss A-MQ\n6.1.0. It includes several bug fixes, which are documented in the\nreadme.txt file included with the patch files. The following security\nissues are addressed in this release:\n\nIt was found that Apache Camel's XML converter performed XML External\nEntity (XXE) expansion. A remote attacker able to submit an SAXSource\ncontaining an XXE declaration could use this flaw to read files accessible\nto the user running the application server, and potentially perform other\nmore advanced XXE attacks. (CVE-2015-0263)\n\nIt was found that Apache Camel performed XML External Entity (XXE)\nexpansion when evaluating invalid XML Strings or invalid XML GenericFile\nobjects. A remote attacker able to submit a crafted XML message could use\nthis flaw to read files accessible to the user running the application\nserver, and potentially perform other more advanced XXE attacks.\n(CVE-2015-0264)\n\nRefer to the readme.txt file included with the patch files for\ninstallation instructions.\n\nAll users of Red Hat JBoss Fuse 6.1.0 and Red Hat JBoss A-MQ 6.1.0 as\nprovided from the Red Hat Customer Portal are advised to apply this update.",
+  "lastModifiedDate": "2015-06-01T17:01:50Z",
+  "resource_uri": "https://access.redhat.com/errata/RHSA-2015:1041",
+  "portal_publication_date": "2015-06-01T17:01:50Z",
+  "portal_product_names": ["Red Hat Fuse"],
+  "abstract": "Red Hat JBoss Fuse, based on Apache ServiceMix, provides a small-footprint,\nflexible, open source enterprise service bus and integration platform.\nRed Hat JBoss A-MQ, based on Apache ActiveMQ, is a standards compliant\nmessaging system that is tailored for use in mission critical applications.\n\nThis patch is an update to Red Hat JBoss Fuse 6.1.0 and Red Hat JBoss A-MQ\n6.1.0. It includes several bug fixes, which are documented in the\nreadme.txt file included with the patch files. The following security\nissues are addressed in this release:\n\nIt was found that Apache Camel's XML converter performed XML External\nEntity (XXE) expansion. A remote attacker able to submit an SAXSource\ncontaining an XXE declaration could use this flaw to read files accessible\nto the user running the application server, and potentially perform other\nmore advanced XXE attacks. (CVE-2015-0263)\n\nIt was found that Apache Camel performed XML External Entity (XXE)\nexpansion when evaluating invalid XML Strings or invalid XML GenericFile\nobjects. A remote attacker able to submit a crafted XML message could use\nthis flaw to read files accessible to the user running the application\nserver, and potentially perform other more advanced XXE attacks.\n(CVE-2015-0264)\n\nRefer to the readme.txt file included with the patch files for\ninstallation instructions.\n\nAll users of Red Hat JBoss Fuse 6.1.0 and Red Hat JBoss A-MQ 6.1.0 as\nprovided from the Red Hat Customer Portal are advised to apply this update.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHSA-2015:1041",
+  "sortTitle": "(RHSA-2015:1041) Moderate: Red Hat JBoss Fuse/A-MQ 6.1.0 update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2015-06-01T17:01:50Z"],
+  "_version_": 1858105324669501441,
+  "displayDate": "2015-06-01T17:01:50Z",
+  "allTitle": "(RHSA-2015:1041) Moderate: Red Hat JBoss Fuse/A-MQ 6.1.0 update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": ["688|middleware|1|1|x86_64"],
+  "portal_title": ["(RHSA-2015:1041) Moderate: Red Hat JBoss Fuse/A-MQ 6.1.0 update"]
+}

@@ -1,0 +1,72 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "year": 2022,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2022:0032) Red Hat OpenShift Data Foundation 4.9.1 Bug Fix Update",
+  "detectedProducts": [
+    "rhel",
+    "rhel8",
+    "openshift"
+  ],
+  "portal_summary": "Updated images that fix several bugs are now available for Red Hat\nOpenShift Data Foundation 4.9.1 on Red Hat Enterprise Linux 8 from Red\nHat Container Registry.",
+  "portal_synopsis": "Red Hat OpenShift Data Foundation 4.9.1 Bug Fix Update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Power, little endian|4|ppc64le",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Z and LinuxONE|4|s390x",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation|4|x86_64"
+  ],
+  "portal_CVE": [
+    "CVE-2021-3712",
+    "CVE-2021-42574"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHBA-2022:0032",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2022:0032",
+  "portal_BZ": [
+    "2034098",
+    "2034181",
+    "2036009"
+  ],
+  "timestamp": "2026-02-25T10:40:15.102Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat OpenShift Data Foundation is software-defined storage integrated\nwith and optimized for the Red Hat OpenShift Data Foundation. Red Hat\nOpenShift Data Foundation is a highly scalable, production-grade\npersistent storage for stateful applications running in the Red Hat\nOpenShift Container Platform. In addition to persistent storage, Red Hat\nOpenShift Data Foundation provisions a multicloud data management service\nwith an S3 compatible API.\n\nThese updated images include numerous bug fixes. Space precludes documenting all of these changes in this advisory. Users are directed to the Red Hat OpenShift Data Foundation Release Notes for information on the most significant of these changes:\n\nhttps://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.9/html-single/4.9_release_notes/index\n\nAll users of OpenShift Data Foundation are advised to upgrade to these\nupdated images, which provide these bug fixes.",
+  "lastModifiedDate": "2022-01-05T16:19:24Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2022:0032",
+  "portal_publication_date": "2022-01-05T16:19:24Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Data Foundation for IBM Power, little endian",
+    "Red Hat OpenShift Data Foundation for IBM Z and LinuxONE",
+    "Red Hat OpenShift Data Foundation"
+  ],
+  "abstract": "Red Hat OpenShift Data Foundation is software-defined storage integrated\nwith and optimized for the Red Hat OpenShift Data Foundation. Red Hat\nOpenShift Data Foundation is a highly scalable, production-grade\npersistent storage for stateful applications running in the Red Hat\nOpenShift Container Platform. In addition to persistent storage, Red Hat\nOpenShift Data Foundation provisions a multicloud data management service\nwith an S3 compatible API.\n\nThese updated images include numerous bug fixes. Space precludes documenting all of these changes in this advisory. Users are directed to the Red Hat OpenShift Data Foundation Release Notes for information on the most significant of these changes:\n\nhttps://access.redhat.com/documentation/en-us/red_hat_openshift_data_foundation/4.9/html-single/4.9_release_notes/index\n\nAll users of OpenShift Data Foundation are advised to upgrade to these\nupdated images, which provide these bug fixes.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2022:0032",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHBA-2022:0032) Red Hat OpenShift Data Foundation 4.9.1 Bug Fix Update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2022-01-05T16:19:24Z"],
+  "_version_": 1858093465235095552,
+  "displayDate": "2022-01-05T16:19:24Z",
+  "allTitle": "(RHBA-2022:0032) Red Hat OpenShift Data Foundation 4.9.1 Bug Fix Update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "634|rhel|8|4|ppc64le",
+    "635|rhel|8|4|s390x",
+    "547|rhel|8|4|x86_64"
+  ],
+  "portal_title": ["(RHBA-2022:0032) Red Hat OpenShift Data Foundation 4.9.1 Bug Fix Update"]
+}

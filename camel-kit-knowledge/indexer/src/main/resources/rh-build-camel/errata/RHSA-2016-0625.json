@@ -1,0 +1,88 @@
+{
+  "year": 2016,
+  "language": "en",
+  "caseCount_365": 0,
+  "portal_synopsis": "Important: samba security update",
+  "solution_resolution": "subscriber_only",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "For details on how to apply this update, which includes the changes described in\nthis advisory, refer to:\n\nhttps://access.redhat.com/articles/11258\n\nAfter installing this update, the smb service will be restarted automatically.\n",
+  "id": "RHSA-2016:0625",
+  "view_uri": "https://access.redhat.com/errata/RHSA-2016:0625",
+  "portal_BZ": [
+    "1311893",
+    "1311902",
+    "1317990"
+  ],
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "resource_uri": "https://access.redhat.com/errata/RHSA-2016:0625",
+  "portal_publication_date": "2016-04-14T00:00:00Z",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "boostBaseVersion": "4",
+  "displayDate": "2016-04-14T00:00:00Z",
+  "allTitle": "(RHSA-2016:0625) Important: samba security update",
+  "large_text_store": "",
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "4",
+  "portal_severity_level": 4,
+  "portal_other_references": [
+    "https://access.redhat.com/security/updates/classification/#important",
+    "https://access.redhat.com/security/vulnerabilities/badlock",
+    "https://access.redhat.com/articles/2253041",
+    "http://badlock.org/",
+    "https://access.redhat.com/articles/2243351"
+  ],
+  "portal_advisory_type": "Security Advisory",
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHSA-2016:0625) Important: samba security update",
+  "detectedProducts": [
+    "rhel",
+    "rhel4"
+  ],
+  "portal_summary": "An update for samba is now available for Red Hat Enterprise Linux 4 Extended\nLifecycle Support.\n\nRed Hat Product Security has rated this update as having a security impact of\nImportant. A Common Vulnerability Scoring System (CVSS) base score, which gives\na detailed severity rating, is available for each vulnerability from the CVE\nlink(s) in the References section.\n\n[Updated 14 April 2016]\nThis advisory previously incorrectly listed the CVE-2016-2112 issue as addressed\nby this update. However, this issue did not affect the samba packages on Red Hat\nEnterprise Linux 4 Extended Lifecycle Support. The CVE-2016-2115 was also\nincorrectly listed as addressed by this update. This issue does affect the samba\npackages on Red Hat Enterprise Linux 4 Extended Lifecycle Support. Customers are\nadvised to use the \"client signing = required\" configuration option in the\nsmb.conf file to mitigate CVE-2016-2115. No changes have been made to the\npackages.\n",
+  "portal_package": [
+    "samba-common-3.0.33-3.37.el4.i386.rpm",
+    "samba-3.0.33-3.37.el4.x86_64.rpm",
+    "samba-common-3.0.33-3.37.el4.x86_64.rpm",
+    "samba-common-3.0.33-3.37.el4.ia64.rpm",
+    "samba-client-3.0.33-3.37.el4.ia64.rpm",
+    "samba-swat-3.0.33-3.37.el4.ia64.rpm",
+    "samba-3.0.33-3.37.el4.ia64.rpm",
+    "samba-3.0.33-3.37.el4.src.rpm",
+    "samba-swat-3.0.33-3.37.el4.x86_64.rpm",
+    "samba-client-3.0.33-3.37.el4.x86_64.rpm"
+  ],
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Server - Extended Life Cycle Support|4|i386",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Server - Extended Life Cycle Support|4|x86_64",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Server - Extended Life Cycle Support|4|ia64"
+  ],
+  "portal_CVE": [
+    "CVE-2016-2118",
+    "CVE-2016-2111",
+    "CVE-2016-2110"
+  ],
+  "docs_text_store": "",
+  "portal_severity": "Important",
+  "timestamp": "2026-02-25T13:31:12.542Z",
+  "documentKind": "Errata",
+  "portal_description": "Samba is an open-source implementation of the Server Message Block (SMB)\nprotocol and the related Common Internet File System (CIFS) protocol, which\nallow PC-compatible machines to share files, printers, and various information.\n\nSecurity Fix(es):\n\n* A protocol flaw, publicly referred to as Badlock, was found in the Security\nAccount Manager Remote Protocol (MS-SAMR) and the Local Security Authority\n(Domain Policy) Remote Protocol (MS-LSAD). Any authenticated DCE/RPC connection\nthat a client initiates against a server could be used by a man-in-the-middle\nattacker to impersonate the authenticated user against the SAMR or LSA service\non the server. As a result, the attacker would be able to get read/write access\nto the Security Account Manager database, and use this to reveal all passwords\nor any other potentially sensitive information in that database. (CVE-2016-2118)\n\n* Several flaws were found in Samba's implementation of NTLMSSP authentication.\nAn unauthenticated, man-in-the-middle attacker could use this flaw to clear the\nencryption and integrity flags of a connection, causing data to be transmitted\nin plain text. The attacker could also force the client or server into sending\ndata in plain text even if encryption was explicitly requested for that\nconnection. (CVE-2016-2110)\n\n* It was discovered that Samba configured as a Domain Controller would establish\na secure communication channel with a machine using a spoofed computer name. A\nremote attacker able to observe network traffic could use this flaw to obtain\nsession-related information about the spoofed machine. (CVE-2016-2111)\n\nRed Hat would like to thank the Samba project for reporting these issues.\nUpstream acknowledges Stefan Metzmacher (SerNet) as the original reporter of\nCVE-2016-2118 and CVE-2016-2110.\n",
+  "lastModifiedDate": "2016-04-14T00:00:00Z",
+  "portal_product_names": ["Red Hat Enterprise Linux Server - Extended Life Cycle Support"],
+  "abstract": "Samba is an open-source implementation of the Server Message Block (SMB)\nprotocol and the related Common Internet File System (CIFS) protocol, which\nallow PC-compatible machines to share files, printers, and various information.\n\nSecurity Fix(es):\n\n* A protocol flaw, publicly referred to as Badlock, was found in the Security\nAccount Manager Remote Protocol (MS-SAMR) and the Local Security Authority\n(Domain Policy) Remote Protocol (MS-LSAD). Any authenticated DCE/RPC connection\nthat a client initiates against a server could be used by a man-in-the-middle\nattacker to impersonate the authenticated user against the SAMR or LSA service\non the server. As a result, the attacker would be able to get read/write access\nto the Security Account Manager database, and use this to reveal all passwords\nor any other potentially sensitive information in that database. (CVE-2016-2118)\n\n* Several flaws were found in Samba's implementation of NTLMSSP authentication.\nAn unauthenticated, man-in-the-middle attacker could use this flaw to clear the\nencryption and integrity flags of a connection, causing data to be transmitted\nin plain text. The attacker could also force the client or server into sending\ndata in plain text even if encryption was explicitly requested for that\nconnection. (CVE-2016-2110)\n\n* It was discovered that Samba configured as a Domain Controller would establish\na secure communication channel with a machine using a spoofed computer name. A\nremote attacker able to observe network traffic could use this flaw to obtain\nsession-related information about the spoofed machine. (CVE-2016-2111)\n\nRed Hat would like to thank the Samba project for reporting these issues.\nUpstream acknowledges Stefan Metzmacher (SerNet) as the original reporter of\nCVE-2016-2118 and CVE-2016-2110.\n",
+  "uri": "downloads_https://access.redhat.com/errata/RHSA-2016:0625",
+  "sortTitle": "(RHSA-2016:0625) Important: samba security update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2016-04-14T00:00:00Z"],
+  "_version_": 1858104220851372032,
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "204|rhel|4|4|i386",
+    "204|rhel|4|4|x86_64",
+    "204|rhel|4|4|ia64"
+  ],
+  "portal_title": ["(RHSA-2016:0625) Important: samba security update"]
+}

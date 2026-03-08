@@ -1,0 +1,88 @@
+{
+  "year": 2023,
+  "language": "en",
+  "caseCount_365": 0,
+  "portal_synopsis": "Important: Red Hat OpenShift Pipelines 1.12.1 release and security update",
+  "solution_resolution": "subscriber_only",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata relevant to your system have been applied.\n\nIf you selected the Automatic update strategy when you installed the Red Hat OpenShift Pipelines operator, the operator applies this update automatically. If you selected the Manual update strategy, use the OpenShift Container Platform web console to approve the update. For instructions about approving\nthe update, see:\n\nhttps://docs.openshift.com/container-platform/4.10/operators/admin/olm-upgrading-operators.html#olm-approving-pending-up[\u2026]e_olm-upgrading-operators",
+  "id": "RHSA-2023:6061",
+  "view_uri": "https://access.redhat.com/errata/RHSA-2023:6061",
+  "portal_BZ": [
+    "2242803",
+    "2243296"
+  ],
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "resource_uri": "https://access.redhat.com/errata/RHSA-2023:6061",
+  "portal_publication_date": "2023-10-23T21:55:50Z",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "boostBaseVersion": "8",
+  "displayDate": "2023-10-23T21:55:50Z",
+  "allTitle": "(RHSA-2023:6061) Important: Red Hat OpenShift Pipelines 1.12.1 release and security update",
+  "large_text_store": "",
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "portal_severity_level": 4,
+  "portal_other_references": [
+    "https://access.redhat.com/security/updates/classification/#important",
+    "https://access.redhat.com/security/vulnerabilities/RHSB-2023-003",
+    "https://docs.openshift.com/pipelines/1.12/about/understanding-openshift-pipelines.html"
+  ],
+  "portal_advisory_type": "Security Advisory",
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHSA-2023:6061) Important: Red Hat OpenShift Pipelines 1.12.1 release and security update",
+  "detectedProducts": [
+    "rhel",
+    "rhel8",
+    "openshift"
+  ],
+  "portal_summary": "Red Hat OpenShift Pipelines 1.12.1 has been released.\n\nRed Hat Product Security has rated this update as having a security impact of Important. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability from the CVE link(s) in the References section.",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Pipelines|Red Hat OpenShift Pipelines for IBM Z and LinuxONE|1.12|s390x",
+    "Red Hat OpenShift Pipelines|Red Hat OpenShift Pipelines for IBM Power, little endian|1.12|ppc64le",
+    "Red Hat OpenShift Pipelines|Red Hat OpenShift Pipelines|1.12|x86_64",
+    "Red Hat OpenShift Pipelines|Red Hat OpenShift Pipelines for ARM|1.12|aarch64"
+  ],
+  "portal_CVE": [
+    "CVE-2023-3341",
+    "CVE-2023-4527",
+    "CVE-2023-4806",
+    "CVE-2023-4813",
+    "CVE-2023-4911",
+    "CVE-2023-29491",
+    "CVE-2023-30630",
+    "CVE-2023-39325",
+    "CVE-2023-44487"
+  ],
+  "docs_text_store": "",
+  "portal_severity": "Important",
+  "timestamp": "2026-03-02T01:52:28.696Z",
+  "documentKind": "Errata",
+  "portal_description": "Red Hat OpenShift Pipelines is a cloud-native continuous integration and delivery (CI/CD) solution for building pipelines using Tekton. Tekton is a flexible, Kubernetes-native, open-source CI/CD framework which enables automating deployments across multiple platforms such as Kubernetes, Serverless, and VMs by abstracting away the underlying details.\n\nSecurity Fix(es):\n\n* golang: net/http, x/net/http2: rapid stream resets can cause excessive work (Rapid Reset Attack) (CVE-2023-39325)\n\n* HTTP/2: Multiple HTTP/2 enabled web servers are vulnerable to a DDoS attack (Rapid Reset Attack) (CVE-2023-44487)\n\nA Red Hat Security Bulletin which addresses further details about the Rapid Reset flaw is available in the References section.\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.\n\nRed Hat OpenShift Pipelines consists of:\n\n- Tekton Pipelines 0.50.x\n- Tekton Triggers 0.25.x\n- ClusterTasks based on Tekton Catalog\n- Tekton tkn CLI 0.32.x\n- Tekton Operator 0.68.x\n- Tekton Chains 0.17.x (GA)\n- Tekton Hub 1.14.x (TP)\n- Tekton Result 0.8.x (TP)\n- Pipelines-as-Code 0.21.x (GA)\n\nFor more information, see the Release Notes on any one of the following platforms:\n\n- Customer Portal: https://access.redhat.com/documentation/en-us/openshift_container_platform/4.13/html/cicd/pipelines#op-release-notes-1-12_op-release-notes\n\n- OpenShift documentation: https://docs.openshift.com/container-platform/4.13/cicd/pipelines/op-release-notes.html#op-release-notes-1-12_op-release-notes",
+  "lastModifiedDate": "2023-10-23T21:55:50Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Pipelines for IBM Z and LinuxONE",
+    "Red Hat OpenShift Pipelines for IBM Power, little endian",
+    "Red Hat OpenShift Pipelines",
+    "Red Hat OpenShift Pipelines for ARM"
+  ],
+  "abstract": "Red Hat OpenShift Pipelines is a cloud-native continuous integration and delivery (CI/CD) solution for building pipelines using Tekton. Tekton is a flexible, Kubernetes-native, open-source CI/CD framework which enables automating deployments across multiple platforms such as Kubernetes, Serverless, and VMs by abstracting away the underlying details.\n\nSecurity Fix(es):\n\n* golang: net/http, x/net/http2: rapid stream resets can cause excessive work (Rapid Reset Attack) (CVE-2023-39325)\n\n* HTTP/2: Multiple HTTP/2 enabled web servers are vulnerable to a DDoS attack (Rapid Reset Attack) (CVE-2023-44487)\n\nA Red Hat Security Bulletin which addresses further details about the Rapid Reset flaw is available in the References section.\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.\n\nRed Hat OpenShift Pipelines consists of:\n\n- Tekton Pipelines 0.50.x\n- Tekton Triggers 0.25.x\n- ClusterTasks based on Tekton Catalog\n- Tekton tkn CLI 0.32.x\n- Tekton Operator 0.68.x\n- Tekton Chains 0.17.x (GA)\n- Tekton Hub 1.14.x (TP)\n- Tekton Result 0.8.x (TP)\n- Pipelines-as-Code 0.21.x (GA)\n\nFor more information, see the Release Notes on any one of the following platforms:\n\n- Customer Portal: https://access.redhat.com/documentation/en-us/openshift_container_platform/4.13/html/cicd/pipelines#op-release-notes-1-12_op-release-notes\n\n- OpenShift documentation: https://docs.openshift.com/container-platform/4.13/cicd/pipelines/op-release-notes.html#op-release-notes-1-12_op-release-notes",
+  "uri": "downloads_https://access.redhat.com/errata/RHSA-2023:6061",
+  "sortTitle": "(RHSA-2023:6061) Important: Red Hat OpenShift Pipelines 1.12.1 release and security update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2023-10-23T21:55:50Z"],
+  "_version_": 1858513245348823040,
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "633|rhel|8|1.12|s390x",
+    "632|rhel|8|1.12|ppc64le",
+    "604|rhel|8|1.12|x86_64",
+    "719|rhel|8|1.12|aarch64"
+  ],
+  "portal_title": ["(RHSA-2023:6061) Important: Red Hat OpenShift Pipelines 1.12.1 release and security update"],
+  "portal_jira": ["SRVKP-3550"]
+}

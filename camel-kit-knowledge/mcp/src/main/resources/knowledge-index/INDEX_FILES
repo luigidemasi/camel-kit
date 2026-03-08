@@ -1,6 +1,3 @@
-_0.cfe
-_0.cfs
-_0.si
 _1.cfe
 _1.cfs
 _1.si
@@ -10,5 +7,11 @@ _2.si
 _3.cfe
 _3.cfs
 _3.si
+_4.cfe
+_4.cfs
+_4.si
+_5.cfe
+_5.cfs
+_5.si
 segments_1
 write.lock

@@ -1,0 +1,72 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8.4",
+  "year": 2022,
+  "language": "en",
+  "portal_advisory_type": "Product Enhancement Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHEA-2022:1412) resource-agents-sap-hana-scaleout bug fix and enhancement update",
+  "detectedProducts": [
+    "rhel",
+    "rhel8"
+  ],
+  "portal_summary": "An update for resource-agents-sap-hana-scaleout is now available for Red\nHat Enterprise Linux 8.4 Extended Update Support.",
+  "portal_package": [
+    "resource-agents-sap-hana-scaleout-0.180.0-0.el8_4.5.noarch.rpm",
+    "resource-agents-sap-hana-scaleout-0.180.0-0.el8_4.5.src.rpm"
+  ],
+  "portal_synopsis": "resource-agents-sap-hana-scaleout bug fix and enhancement update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux for SAP Solutions for x86_64 - Extended Update Support|8.4|x86_64",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux for SAP Solutions for x86_64 - Update Services for SAP Solutions|8.4|x86_64",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux for SAP Solutions for x86_64 - Extended Update Support Extension|8.4|x86_64",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux for SAP Solutions for Power LE - Update Services for SAP Solutions|8.4|ppc64le",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux for SAP Solutions for Power, little endian - Extended Update Support|8.4|ppc64le"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHEA-2022:1412",
+  "view_uri": "https://access.redhat.com/errata/RHEA-2022:1412",
+  "timestamp": "2026-02-25T10:43:34.634Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "The resource-agents-sap-hana-scaleout packages provide an SAP HANA scale-out resource agent interface with Pacemaker that allows SAP HANA scale-out instances to be managed in a cluster environment.\n\nBug Fix(es) and Enhancement(s):\n\n* SAPHanaController: Integrating systemd based SAP Start-Up Framework for HA solutions for SAP HANA Scale-Out. (BZ#2043015)",
+  "lastModifiedDate": "2022-04-19T13:47:30Z",
+  "resource_uri": "https://access.redhat.com/errata/RHEA-2022:1412",
+  "portal_publication_date": "2022-04-19T13:47:35Z",
+  "portal_product_names": [
+    "Red Hat Enterprise Linux for SAP Solutions for x86_64 - Extended Update Support",
+    "Red Hat Enterprise Linux for SAP Solutions for x86_64 - Update Services for SAP Solutions",
+    "Red Hat Enterprise Linux for SAP Solutions for x86_64 - Extended Update Support Extension",
+    "Red Hat Enterprise Linux for SAP Solutions for Power LE - Update Services for SAP Solutions",
+    "Red Hat Enterprise Linux for SAP Solutions for Power, little endian - Extended Update Support"
+  ],
+  "abstract": "The resource-agents-sap-hana-scaleout packages provide an SAP HANA scale-out resource agent interface with Pacemaker that allows SAP HANA scale-out instances to be managed in a cluster environment.\n\nBug Fix(es) and Enhancement(s):\n\n* SAPHanaController: Integrating systemd based SAP Start-Up Framework for HA solutions for SAP HANA Scale-Out. (BZ#2043015)",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHEA-2022:1412",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHEA-2022:1412) resource-agents-sap-hana-scaleout bug fix and enhancement update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2022-04-19T13:47:30Z"],
+  "_version_": 1858093674527719424,
+  "displayDate": "2022-04-19T13:47:30Z",
+  "allTitle": "(RHEA-2022:1412) resource-agents-sap-hana-scaleout bug fix and enhancement update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "248|rhel|8.4|8.4|x86_64",
+    "389|rhel|8.4|8.4|x86_64",
+    "1009|rhel|8.4|8.4|x86_64",
+    "385|rhel|8.4|8.4|ppc64le",
+    "339|rhel|8.4|8.4|ppc64le"
+  ],
+  "portal_title": ["(RHEA-2022:1412) resource-agents-sap-hana-scaleout bug fix and enhancement update"]
+}

@@ -1,0 +1,62 @@
+{
+  "boostProduct": "fuse",
+  "year": 2015,
+  "portal_severity_level": 4,
+  "portal_other_references": [
+    "https://access.redhat.com/security/updates/classification/#important",
+    "https://access.redhat.com/jbossnetwork/restricted/listSoftware.html?product=fuse.esb.enterprise&downloadType=securityPatches&version=7.1.0",
+    "https://access.redhat.com/jbossnetwork/restricted/listSoftware.html?product=fuse.mq.enterprise&downloadType=securityPatches&version=7.1.0"
+  ],
+  "language": "en",
+  "portal_advisory_type": "Security Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHSA-2015:0138) Important: Fuse ESB Enterprise/Fuse MQ Enterprise 7.1.0 security update",
+  "detectedProducts": [
+    "fuse",
+    "fuse7"
+  ],
+  "portal_summary": "Fuse ESB Enterprise/MQ Enterprise 7.1.0 R1 P8 (Patch 8 on Rollup Patch 1),\nwhich fixes two security issues, is now available from the Red Hat Customer\nPortal.\n\nRed Hat Product Security has rated this update as having Important security\nimpact. Common Vulnerability Scoring System (CVSS) base scores, which give\ndetailed severity ratings, are available for each vulnerability from the\nCVE links in the References section.\n",
+  "portal_synopsis": "Important: Fuse ESB Enterprise/Fuse MQ Enterprise 7.1.0 security update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": ["Red Hat Fuse|Red Hat Fuse|1|x86_64"],
+  "portal_CVE": [
+    "CVE-2014-3600",
+    "CVE-2014-3612"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "Important",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "The References section of this erratum contains a download link (you must\nlog in to download the update).\n",
+  "id": "RHSA-2015:0138",
+  "view_uri": "https://access.redhat.com/errata/RHSA-2015:0138",
+  "portal_BZ": [
+    "1133649",
+    "1135912"
+  ],
+  "timestamp": "2026-02-25T13:56:32.170Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Fuse ESB Enterprise is an integration platform based on Apache ServiceMix.\nFuse MQ Enterprise, based on Apache ActiveMQ, is a standards-compliant\nmessaging system that is tailored for use in mission critical applications.\n\nThis release of Fuse ESB Enterprise/MQ Enterprise 7.1.0 Patch 8 on Rollup\nPatch 1 (R1 P8) is an update to Fuse ESB Enterprise 7.1.0 and Fuse MQ\nEnterprise 7.1.0. The following security issues are addressed with this\nrelease:\n\nIt was found that if a configured LDAP server supported the unauthenticated\nauthentication mechanism (as described by RFC 4513), the LDAPLoginModule\nimplementation, provided by ActiveMQ Java Authentication and Authorization\nService (JAAS), would consider an authentication attempt to be successful\nfor a valid user that provided an empty password. A remote attacker could\nuse this flaw to bypass the authentication mechanism of an application\nusing LDAPLoginModule, and assume a role of any valid user within\nthat application. (CVE-2014-3612)\n\nIt was discovered that Apache ActiveMQ performed XML External Entity (XXE)\nexpansion when evaluating XPath expressions. A remote, attacker-controlled\nconsumer able to specify an XPath-based selector to dequeue XML messages\nfrom an Apache ActiveMQ broker could use this flaw to read files accessible\nto the user running the broker, and potentially perform other more advanced\nXXE attacks. (CVE-2014-3600)\n\nRed Hat would like to thank Georgi Geshev of MWR Labs for reporting these\nissues.\n\nRefer to the readme.txt file included with the patch files for\ninstallation instructions.\n\nAll users of Fuse ESB Enterprise/MQ Enterprise 7.1.0 as provided from the\nRed Hat Customer Portal are advised to upgrade to Fuse ESB Enterprise/MQ\nEnterprise 7.1.0 R1 P8.\n",
+  "lastModifiedDate": "2015-02-05T00:00:00Z",
+  "resource_uri": "https://access.redhat.com/errata/RHSA-2015:0138",
+  "portal_publication_date": "2015-02-05T00:00:00Z",
+  "portal_product_names": ["Red Hat Fuse"],
+  "abstract": "Fuse ESB Enterprise is an integration platform based on Apache ServiceMix.\nFuse MQ Enterprise, based on Apache ActiveMQ, is a standards-compliant\nmessaging system that is tailored for use in mission critical applications.\n\nThis release of Fuse ESB Enterprise/MQ Enterprise 7.1.0 Patch 8 on Rollup\nPatch 1 (R1 P8) is an update to Fuse ESB Enterprise 7.1.0 and Fuse MQ\nEnterprise 7.1.0. The following security issues are addressed with this\nrelease:\n\nIt was found that if a configured LDAP server supported the unauthenticated\nauthentication mechanism (as described by RFC 4513), the LDAPLoginModule\nimplementation, provided by ActiveMQ Java Authentication and Authorization\nService (JAAS), would consider an authentication attempt to be successful\nfor a valid user that provided an empty password. A remote attacker could\nuse this flaw to bypass the authentication mechanism of an application\nusing LDAPLoginModule, and assume a role of any valid user within\nthat application. (CVE-2014-3612)\n\nIt was discovered that Apache ActiveMQ performed XML External Entity (XXE)\nexpansion when evaluating XPath expressions. A remote, attacker-controlled\nconsumer able to specify an XPath-based selector to dequeue XML messages\nfrom an Apache ActiveMQ broker could use this flaw to read files accessible\nto the user running the broker, and potentially perform other more advanced\nXXE attacks. (CVE-2014-3600)\n\nRed Hat would like to thank Georgi Geshev of MWR Labs for reporting these\nissues.\n\nRefer to the readme.txt file included with the patch files for\ninstallation instructions.\n\nAll users of Fuse ESB Enterprise/MQ Enterprise 7.1.0 as provided from the\nRed Hat Customer Portal are advised to upgrade to Fuse ESB Enterprise/MQ\nEnterprise 7.1.0 R1 P8.\n",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHSA-2015:0138",
+  "sortTitle": "(RHSA-2015:0138) Important: Fuse ESB Enterprise/Fuse MQ Enterprise 7.1.0 security update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2015-02-05T00:00:00Z"],
+  "_version_": 1858105814497099778,
+  "displayDate": "2015-02-05T00:00:00Z",
+  "allTitle": "(RHSA-2015:0138) Important: Fuse ESB Enterprise/Fuse MQ Enterprise 7.1.0 security update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": ["688|middleware|1|1|x86_64"],
+  "portal_title": ["(RHSA-2015:0138) Important: Fuse ESB Enterprise/Fuse MQ Enterprise 7.1.0 security update"]
+}

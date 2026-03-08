@@ -1,0 +1,77 @@
+{
+  "year": 2019,
+  "language": "en",
+  "caseCount_365": 0,
+  "portal_synopsis": "Important: Red Hat OpenShift Container Platform 3.11 jenkins-2-plugins security update",
+  "solution_resolution": "subscriber_only",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "See the following documentation, which will be updated shortly for this release, for important instructions on how to upgrade your cluster and fully apply this asynchronous errata update:\n\nhttps://docs.openshift.com/container-platform/3.11/release_notes/ocp_3_11_release_notes.html",
+  "id": "RHSA-2019:1423",
+  "view_uri": "https://access.redhat.com/errata/RHSA-2019:1423",
+  "portal_BZ": [
+    "1694532",
+    "1694536",
+    "1694538"
+  ],
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "resource_uri": "https://access.redhat.com/errata/RHSA-2019:1423",
+  "portal_publication_date": "2019-06-10T16:48:24Z",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "boostBaseVersion": "7",
+  "displayDate": "2019-06-10T16:48:24Z",
+  "allTitle": "(RHSA-2019:1423) Important: Red Hat OpenShift Container Platform 3.11 jenkins-2-plugins security update",
+  "large_text_store": "",
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "7",
+  "portal_severity_level": 4,
+  "portal_other_references": ["https://access.redhat.com/security/updates/classification/#important"],
+  "portal_advisory_type": "Security Advisory",
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHSA-2019:1423) Important: Red Hat OpenShift Container Platform 3.11 jenkins-2-plugins security update",
+  "detectedProducts": [
+    "rhel",
+    "rhel7",
+    "openshift",
+    "openshift3"
+  ],
+  "portal_summary": "An update for jenkins-2-plugins is now available for Red Hat OpenShift Container Platform 3.11.\n\nRed Hat Product Security has rated this update as having a security impact of Important. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability from the CVE link(s) in the References section.",
+  "portal_package": [
+    "jenkins-2-plugins-3.11.1553788831-1.el7.noarch.rpm",
+    "jenkins-2-plugins-3.11.1553788831-1.el7.src.rpm"
+  ],
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Container Platform|Red Hat OpenShift Container Platform for Power|3.11|ppc64le",
+    "Red Hat OpenShift Container Platform|Red Hat OpenShift Container Platform|3.11|x86_64"
+  ],
+  "portal_CVE": [
+    "CVE-2019-1003040",
+    "CVE-2019-1003041",
+    "CVE-2019-1003042"
+  ],
+  "docs_text_store": "",
+  "portal_severity": "Important",
+  "timestamp": "2026-02-25T09:43:10.292Z",
+  "documentKind": "Errata",
+  "portal_description": "Red Hat OpenShift Container Platform is Red Hat's cloud computing Kubernetes application platform solution designed for on-premise or private cloud deployments.\n\nJenkins is a continuous integration server that monitors executions of repeated jobs, such as building a software project or jobs run by cron.\n\nSecurity Fix(es):\n\n* jenkins-plugin-script-security: Sandbox bypass in Script Security Plugin and Pipeline: Groovy Plugin (CVE-2019-1003040)\n\n* jenkins-plugin-workflow-cps: Sandbox bypass in Script Security Plugin and Pipeline: Groovy Plugin (CVE-2019-1003041)\n\n* jenkins-plugin-lockable-resources: XSS vulnerability in Lockable Resources Plugin (CVE-2019-1003042)\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.",
+  "lastModifiedDate": "2019-06-10T16:48:24Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Container Platform for Power",
+    "Red Hat OpenShift Container Platform"
+  ],
+  "abstract": "Red Hat OpenShift Container Platform is Red Hat's cloud computing Kubernetes application platform solution designed for on-premise or private cloud deployments.\n\nJenkins is a continuous integration server that monitors executions of repeated jobs, such as building a software project or jobs run by cron.\n\nSecurity Fix(es):\n\n* jenkins-plugin-script-security: Sandbox bypass in Script Security Plugin and Pipeline: Groovy Plugin (CVE-2019-1003040)\n\n* jenkins-plugin-workflow-cps: Sandbox bypass in Script Security Plugin and Pipeline: Groovy Plugin (CVE-2019-1003041)\n\n* jenkins-plugin-lockable-resources: XSS vulnerability in Lockable Resources Plugin (CVE-2019-1003042)\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.",
+  "uri": "downloads_https://access.redhat.com/errata/RHSA-2019:1423",
+  "sortTitle": "(RHSA-2019:1423) Important: Red Hat OpenShift Container Platform 3.11 jenkins-2-plugins security update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2019-06-10T16:48:24Z"],
+  "_version_": 1858089874018533376,
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "482|rhel|7|3.11|ppc64le",
+    "290|rhel|7|3.11|x86_64"
+  ],
+  "portal_title": ["(RHSA-2019:1423) Important: Red Hat OpenShift Container Platform 3.11 jenkins-2-plugins security update"]
+}

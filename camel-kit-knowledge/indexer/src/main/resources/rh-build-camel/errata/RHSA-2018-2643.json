@@ -1,0 +1,85 @@
+{
+  "year": 2018,
+  "language": "en",
+  "caseCount_365": 0,
+  "portal_synopsis": "Important: rhvm-appliance security update",
+  "solution_resolution": "subscriber_only",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/2974891",
+  "id": "RHSA-2018:2643",
+  "view_uri": "https://access.redhat.com/errata/RHSA-2018:2643",
+  "portal_BZ": [
+    "1550671",
+    "1573045",
+    "1573391",
+    "1588306",
+    "1593527",
+    "1595332",
+    "1609891",
+    "1616249"
+  ],
+  "[elevated]": false,
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "resource_uri": "https://access.redhat.com/errata/RHSA-2018:2643",
+  "portal_publication_date": "2018-08-15T11:36:43Z",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "boostBaseVersion": "7",
+  "displayDate": "2018-09-04T13:16:16Z",
+  "allTitle": "(RHSA-2018:2643) Important: rhvm-appliance security update",
+  "large_text_store": "",
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "7",
+  "portal_severity_level": 4,
+  "portal_other_references": ["https://access.redhat.com/security/updates/classification/#important"],
+  "portal_advisory_type": "Security Advisory",
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHSA-2018:2643) Important: rhvm-appliance security update",
+  "detectedProducts": [
+    "rhel",
+    "rhel7"
+  ],
+  "portal_summary": "An update for rhvm-appliance is now available for Red Hat Virtualization 4 for Red Hat Enterprise Linux 7.\n\nRed Hat Product Security has rated this update as having a security impact of Important. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability from the CVE link(s) in the References section.",
+  "portal_package": [
+    "rhvm-appliance-4.2-20180828.0.el7.noarch.rpm",
+    "rhvm-appliance-4.2-20180828.0.el7.src.rpm"
+  ],
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Virtualization|Red Hat Virtualization|4|x86_64",
+    "Red Hat Virtualization|Red Hat Virtualization Host|4|x86_64"
+  ],
+  "portal_CVE": [
+    "CVE-2018-1067",
+    "CVE-2018-1114",
+    "CVE-2018-8039",
+    "CVE-2018-10237",
+    "CVE-2018-10862",
+    "CVE-2018-10915",
+    "CVE-2018-1000180"
+  ],
+  "docs_text_store": "",
+  "portal_severity": "Important",
+  "timestamp": "2026-02-25T09:33:41.803Z",
+  "documentKind": "Errata",
+  "portal_description": "The RHV-M Virtual Appliance automates the process of installing and configuring the Red Hat Virtualization Manager. The appliance is available to download as an OVA file from the Customer Portal.\n\nThe following packages have been upgraded to a later upstream version: rhvm-appliance (4.2). (BZ#1590658, BZ#1591095, BZ#1591096, BZ#1592655, BZ#1594636, BZ#1597534, BZ#1612683)\n\nRed Hat would like to thank the PostgreSQL project for reporting CVE-2018-10915 and Ammarit Thongthua (Deloitte Thailand Pentest team) and Nattakit Intarasorn (Deloitte Thailand Pentest team) for reporting CVE-2018-1067. Upstream acknowledges Andrew Krasichkov as the original reporter of CVE-2018-10915.\n\nSecurity fixes:\n\n* vulnerability: wildfly-core: Path traversal can allow the extraction of .war archives to write arbitrary files (Zip Slip) (CVE-2018-10862)\n\n* vulnerability: apache-cxf: TLS hostname verification does not work correctly with com.sun.net.ssl.* (CVE-2018-8039)\n\n* vulnerability: postgresql: Certain host connection parameters defeat client-side security defenses (CVE-2018-10915)\n\n* vulnerability: undertow: HTTP header injection using CRLF with UTF-8 Encoding (incomplete fix of ) (CVE-2018-1067, CVE-2016-4993)\n\n* vulnerability: undertow: File descriptor leak caused by JarURLConnection.getLastModified() allows attacker to cause a denial of service (CVE-2018-1114)\n\n* vulnerability: guava: Unbounded memory allocation in AtomicDoubleArray and CompoundOrdering classes allow remote attackers to cause a denial of service (CVE-2018-10237)\n\n* vulnerability: bouncycastle: flaw in the low-level interface to RSA key pair generator (CVE-2018-1000180)\n\nFor more details about the security issues, including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE pages listed in the References section.",
+  "lastModifiedDate": "2018-09-04T13:16:16Z",
+  "portal_product_names": [
+    "Red Hat Virtualization",
+    "Red Hat Virtualization Host"
+  ],
+  "abstract": "The RHV-M Virtual Appliance automates the process of installing and configuring the Red Hat Virtualization Manager. The appliance is available to download as an OVA file from the Customer Portal.\n\nThe following packages have been upgraded to a later upstream version: rhvm-appliance (4.2). (BZ#1590658, BZ#1591095, BZ#1591096, BZ#1592655, BZ#1594636, BZ#1597534, BZ#1612683)\n\nRed Hat would like to thank the PostgreSQL project for reporting CVE-2018-10915 and Ammarit Thongthua (Deloitte Thailand Pentest team) and Nattakit Intarasorn (Deloitte Thailand Pentest team) for reporting CVE-2018-1067. Upstream acknowledges Andrew Krasichkov as the original reporter of CVE-2018-10915.\n\nSecurity fixes:\n\n* vulnerability: wildfly-core: Path traversal can allow the extraction of .war archives to write arbitrary files (Zip Slip) (CVE-2018-10862)\n\n* vulnerability: apache-cxf: TLS hostname verification does not work correctly with com.sun.net.ssl.* (CVE-2018-8039)\n\n* vulnerability: postgresql: Certain host connection parameters defeat client-side security defenses (CVE-2018-10915)\n\n* vulnerability: undertow: HTTP header injection using CRLF with UTF-8 Encoding (incomplete fix of ) (CVE-2018-1067, CVE-2016-4993)\n\n* vulnerability: undertow: File descriptor leak caused by JarURLConnection.getLastModified() allows attacker to cause a denial of service (CVE-2018-1114)\n\n* vulnerability: guava: Unbounded memory allocation in AtomicDoubleArray and CompoundOrdering classes allow remote attackers to cause a denial of service (CVE-2018-10237)\n\n* vulnerability: bouncycastle: flaw in the low-level interface to RSA key pair generator (CVE-2018-1000180)\n\nFor more details about the security issues, including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE pages listed in the References section.",
+  "uri": "downloads_https://access.redhat.com/errata/RHSA-2018:2643",
+  "sortTitle": "(RHSA-2018:2643) Important: rhvm-appliance security update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2018-09-04T13:16:16Z"],
+  "_version_": 1858089277883154432,
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "150|rhel|7|4|x86_64",
+    "328|rhel|7|4|x86_64"
+  ],
+  "portal_title": ["(RHSA-2018:2643) Important: rhvm-appliance security update"]
+}

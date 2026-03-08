@@ -1,0 +1,83 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "6",
+  "year": 2014,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2014:1903) Red Hat OpenShift Enterprise 2.2.1 bug fix and enhancement update",
+  "detectedProducts": [
+    "rhel",
+    "rhel6",
+    "openshift"
+  ],
+  "portal_summary": "Red Hat OpenShift Enterprise release 2.2.1 is now available with updates to\npackages that fix several bugs and introduce a feature enhancement.\n",
+  "portal_package": [
+    "openshift-enterprise-upgrade-broker-2.2.1-1.el6op.noarch.rpm",
+    "openshift-enterprise-upgrade-2.2.1-1.el6op.src.rpm",
+    "rubygem-openshift-origin-frontend-apache-vhost-0.10.1.4-1.el6op.noarch.rpm",
+    "openshift-enterprise-upgrade-node-2.2.1-1.el6op.noarch.rpm",
+    "jenkins-plugin-openshift-0.6.40.2-0.el6op.src.rpm",
+    "openshift-origin-cartridge-mongodb-1.23.2.2-1.el6op.src.rpm",
+    "rubygem-openshift-origin-frontend-apache-vhost-0.10.1.4-1.el6op.src.rpm",
+    "openshift-origin-cartridge-mongodb-1.23.2.2-1.el6op.noarch.rpm",
+    "openshift-enterprise-yum-validator-2.2.1-1.el6op.noarch.rpm",
+    "openshift-enterprise-release-2.2.1-1.el6op.noarch.rpm",
+    "jenkins-plugin-openshift-0.6.40.2-0.el6op.x86_64.rpm",
+    "rubygem-openshift-origin-node-1.31.3.7-1.el6op.src.rpm",
+    "rubygem-openshift-origin-node-1.31.3.7-1.el6op.noarch.rpm"
+  ],
+  "portal_synopsis": "Red Hat OpenShift Enterprise 2.2.1 bug fix and enhancement update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Enterprise Application Node|Red Hat OpenShift Enterprise Application Node|2.2|x86_64",
+    "Red Hat OpenShift Enterprise Infrastructure|Red Hat OpenShift Enterprise Infrastructure|2.2|x86_64"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata relevant\nto your system have been applied.\n\nSee the OpenShift Enterprise 2.2 Release Notes, which will be updated shortly\nfor release 2.2.1, for important instructions on how to fully apply this\nasynchronous errata update:\n\nhttps://access.redhat.com/documentation/en-US/OpenShift_Enterprise/2/html-single/2.2_Release_Notes/index.html#chap-Asynchronous_Errata_Updates\n\nThis update is available via the Red Hat Network. Details on how to use the Red\nHat Network to apply this update are available at\nhttps://access.redhat.com/articles/11258.\n",
+  "id": "RHBA-2014:1903",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2014:1903",
+  "portal_BZ": [
+    "1156106",
+    "1157643",
+    "1160300",
+    "1161372",
+    "1163500"
+  ],
+  "timestamp": "2026-02-25T13:59:56.465Z",
+  "[elevated]": false,
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "OpenShift Enterprise by Red Hat is the company's cloud computing\nPlatform-as-a-Service (PaaS) solution designed for on-premise or private cloud\ndeployments.\n\nThis update fixes the following bugs:\n\n* During application or gear restarts, the MongoDB cartridge did not ensure that\nusers could authenticate to MongoDB prior to reporting a successful connection.\nAs a result, applications that made use of MongoDB could attempt to connect to\nMongoDB before it was finished initializing, causing a \"command denied\" error.\nThis bug fix updates the MongoDB cartridge, and now applications that make use\nof MongoDB wait until MongoDB is fully initialized before attempting to connect.\nAfter applying this fix, a cartridge upgrade is required. (BZ#1156106)\n\n* Previously, the jenkins-plugin-openshift package did not require the wget\npackage. When the jenkins-plugin-openshift package was installed using a method\nthat did not require wget, such as Puppet, this caused the Jenkins plug-in to\nfail to retrieve remote resources due to the missing wget package, and Jenkins\nbuilds failed as a result. This bug fix updates the jenkins-plugin-openshift\npackage to add the wget package as a dependency, and Jenkins builds now trigger\nproperly regardless of the installation method. (BZ#1161372)\n\n* When Red Hat Enterprise Linux (RHEL) Server 6.6 was released, the ose-upgrade\ntool required an update for compatibility with the latest subscription-manager\nRPM package. Because the ose-upgrade tool ships with the\nopenshift-enterprise-release package, adding the dependency in that package\ncauses problems for administrators that maintain their own stream of RHEL 6.\nThis bug fix updates the openshift-enterprise-release package to remove the\nexplicit dependency on the subscription-manager package. As a result, the\nose-upgrade tool now works with all RHEL 6 versions of the subscription-manager\npackage. (BZ#1163500)\n\n* A race condition existed between destroy-app and configure actions for the\nsame application. When the configure action timed out in MCollective and the\nbroker tried to destroy the application, it was possible for artifacts to be\nleft behind in apache-vhost configuration files. As a result, applications could\nbecome unreachable. This bug fix updates the apache-vhost front-end server\nplug-in to verify whether the directory exists before configuring apache-vhost\nconfiguration files, and the artifacts are no longer left behind. (BZ#1157643)\n\nThis update also adds the following enhancement:\n\n* Previously in the apache-vhost front-end server plug-in, the\nSSLCertificateChainFile setting in the frontend-vhost-https-template.erb file\nwas set to the same value as the SSLCertificateFile setting. This enhancement\nupdates the plug-in so that SSLCertificateChainFile is a configurable setting.\nAs part of this enhancement, the following new configuration parameters have\nbeen added to the /etc/openshift/node.conf file on node hosts, which use the\nfollowing default values when undefined:\n\nOPENSHIFT_DEFAULT_SSL_KEY_PATH=\"/etc/pki/tls/private/localhost.key\"\nOPENSHIFT_DEFAULT_SSL_CRT_PATH=\"/etc/pki/tls/certs/localhost.crt\"\nOPENSHIFT_DEFAULT_SSL_CRT_CHAIN_PATH=\"/etc/pki/tls/certs/localhost.crt\"\n\n(BZ#1160300)\n\nAll OpenShift Enterprise users are advised to upgrade to these updated packages.\n",
+  "lastModifiedDate": "2014-11-25T00:00:00Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2014:1903",
+  "portal_publication_date": "2014-11-25T00:00:00Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Enterprise Application Node",
+    "Red Hat OpenShift Enterprise Infrastructure"
+  ],
+  "abstract": "OpenShift Enterprise by Red Hat is the company's cloud computing\nPlatform-as-a-Service (PaaS) solution designed for on-premise or private cloud\ndeployments.\n\nThis update fixes the following bugs:\n\n* During application or gear restarts, the MongoDB cartridge did not ensure that\nusers could authenticate to MongoDB prior to reporting a successful connection.\nAs a result, applications that made use of MongoDB could attempt to connect to\nMongoDB before it was finished initializing, causing a \"command denied\" error.\nThis bug fix updates the MongoDB cartridge, and now applications that make use\nof MongoDB wait until MongoDB is fully initialized before attempting to connect.\nAfter applying this fix, a cartridge upgrade is required. (BZ#1156106)\n\n* Previously, the jenkins-plugin-openshift package did not require the wget\npackage. When the jenkins-plugin-openshift package was installed using a method\nthat did not require wget, such as Puppet, this caused the Jenkins plug-in to\nfail to retrieve remote resources due to the missing wget package, and Jenkins\nbuilds failed as a result. This bug fix updates the jenkins-plugin-openshift\npackage to add the wget package as a dependency, and Jenkins builds now trigger\nproperly regardless of the installation method. (BZ#1161372)\n\n* When Red Hat Enterprise Linux (RHEL) Server 6.6 was released, the ose-upgrade\ntool required an update for compatibility with the latest subscription-manager\nRPM package. Because the ose-upgrade tool ships with the\nopenshift-enterprise-release package, adding the dependency in that package\ncauses problems for administrators that maintain their own stream of RHEL 6.\nThis bug fix updates the openshift-enterprise-release package to remove the\nexplicit dependency on the subscription-manager package. As a result, the\nose-upgrade tool now works with all RHEL 6 versions of the subscription-manager\npackage. (BZ#1163500)\n\n* A race condition existed between destroy-app and configure actions for the\nsame application. When the configure action timed out in MCollective and the\nbroker tried to destroy the application, it was possible for artifacts to be\nleft behind in apache-vhost configuration files. As a result, applications could\nbecome unreachable. This bug fix updates the apache-vhost front-end server\nplug-in to verify whether the directory exists before configuring apache-vhost\nconfiguration files, and the artifacts are no longer left behind. (BZ#1157643)\n\nThis update also adds the following enhancement:\n\n* Previously in the apache-vhost front-end server plug-in, the\nSSLCertificateChainFile setting in the frontend-vhost-https-template.erb file\nwas set to the same value as the SSLCertificateFile setting. This enhancement\nupdates the plug-in so that SSLCertificateChainFile is a configurable setting.\nAs part of this enhancement, the following new configuration parameters have\nbeen added to the /etc/openshift/node.conf file on node hosts, which use the\nfollowing default values when undefined:\n\nOPENSHIFT_DEFAULT_SSL_KEY_PATH=\"/etc/pki/tls/private/localhost.key\"\nOPENSHIFT_DEFAULT_SSL_CRT_PATH=\"/etc/pki/tls/certs/localhost.crt\"\nOPENSHIFT_DEFAULT_SSL_CRT_CHAIN_PATH=\"/etc/pki/tls/certs/localhost.crt\"\n\n(BZ#1160300)\n\nAll OpenShift Enterprise users are advised to upgrade to these updated packages.\n",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2014:1903",
+  "boostBaseVersion": "6",
+  "sortTitle": "(RHBA-2014:1903) Red Hat OpenShift Enterprise 2.2.1 bug fix and enhancement update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2014-11-25T00:00:00Z"],
+  "_version_": 1858106028453789696,
+  "displayDate": "2014-11-25T00:00:00Z",
+  "allTitle": "(RHBA-2014:1903) Red Hat OpenShift Enterprise 2.2.1 bug fix and enhancement update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "194|rhel|6|2.2|x86_64",
+    "193|rhel|6|2.2|x86_64"
+  ],
+  "portal_title": ["(RHBA-2014:1903) Red Hat OpenShift Enterprise 2.2.1 bug fix and enhancement update"]
+}

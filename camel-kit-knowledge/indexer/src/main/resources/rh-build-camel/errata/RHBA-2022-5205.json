@@ -1,0 +1,80 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "year": 2022,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2022:5205) Red Hat OpenShift Container Storage 4.8.13 Bug Fix Update",
+  "detectedProducts": [
+    "rhel",
+    "rhel8",
+    "storage",
+    "storage4"
+  ],
+  "portal_summary": "Updated images that fix various bugs are now available for Red Hat OpenShift Container Storage 4.8.13 on Red Hat Enterprise Linux 8 from Red Hat Container Registry.",
+  "portal_synopsis": "Red Hat OpenShift Container Storage 4.8.13 Bug Fix Update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation|4|x86_64",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Power, little endian|4|ppc64le",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Z and LinuxONE|4|s390x"
+  ],
+  "portal_CVE": [
+    "CVE-2021-3695",
+    "CVE-2021-3696",
+    "CVE-2021-3697",
+    "CVE-2022-1271",
+    "CVE-2022-24903",
+    "CVE-2022-28733",
+    "CVE-2022-28734",
+    "CVE-2022-28735",
+    "CVE-2022-28736",
+    "CVE-2022-28737"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "For details on how to apply this update, which includes the changes described in this advisory, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHBA-2022:5205",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2022:5205",
+  "portal_BZ": [
+    "2096337",
+    "2097473"
+  ],
+  "timestamp": "2026-03-02T01:25:31.470Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat OpenShift Container Storage is software-defined storage integrated with and optimized for the Red Hat OpenShift Container Platform. Red Hat OpenShift Container Storage is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Container Storage provisions a multicloud data management service with an S3 compatible API.\n\nAll users of Red Hat OpenShift Container Storage are advised to upgrade to\nthese updated images, which provide these bug fixes.",
+  "lastModifiedDate": "2022-06-27T14:00:38Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2022:5205",
+  "portal_publication_date": "2022-06-27T14:00:38Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Data Foundation",
+    "Red Hat OpenShift Data Foundation for IBM Power, little endian",
+    "Red Hat OpenShift Data Foundation for IBM Z and LinuxONE"
+  ],
+  "abstract": "Red Hat OpenShift Container Storage is software-defined storage integrated with and optimized for the Red Hat OpenShift Container Platform. Red Hat OpenShift Container Storage is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Container Storage provisions a multicloud data management service with an S3 compatible API.\n\nAll users of Red Hat OpenShift Container Storage are advised to upgrade to\nthese updated images, which provide these bug fixes.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2022:5205",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHBA-2022:5205) Red Hat OpenShift Container Storage 4.8.13 Bug Fix Update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2022-06-27T14:00:38Z"],
+  "_version_": 1858511549521461248,
+  "displayDate": "2022-06-27T14:00:38Z",
+  "allTitle": "(RHBA-2022:5205) Red Hat OpenShift Container Storage 4.8.13 Bug Fix Update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "547|rhel|8|4|x86_64",
+    "634|rhel|8|4|ppc64le",
+    "635|rhel|8|4|s390x"
+  ],
+  "portal_title": ["(RHBA-2022:5205) Red Hat OpenShift Container Storage 4.8.13 Bug Fix Update"]
+}

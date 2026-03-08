@@ -1,0 +1,79 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "year": 2023,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2023:3293) Red Hat OpenShift Data Foundation 4.11.8 Bug Fix Update",
+  "detectedProducts": [
+    "rhel",
+    "rhel8",
+    "openshift"
+  ],
+  "portal_summary": "Updated images that fix several bugs are now available for Red Hat OpenShift Data Foundation 4.11.8 on Red Hat Enterprise Linux 8 from Red Hat Container Registry.",
+  "portal_synopsis": "Red Hat OpenShift Data Foundation 4.11.8 Bug Fix Update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Z and LinuxONE|4|s390x",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Power, little endian|4|ppc64le",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation|4|x86_64"
+  ],
+  "portal_CVE": [
+    "CVE-2022-36227",
+    "CVE-2022-40023",
+    "CVE-2023-0361",
+    "CVE-2023-27535",
+    "CVE-2023-28617"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata relevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHBA-2023:3293",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2023:3293",
+  "portal_BZ": [
+    "2180728",
+    "2185191",
+    "2186485",
+    "2190141",
+    "2190394",
+    "2192823",
+    "2193398"
+  ],
+  "timestamp": "2026-03-02T01:45:54.573Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat OpenShift Data Foundation is software-defined storage integrated with and optimized for the Red Hat OpenShift Data Foundation. Red Hat OpenShift Data Foundation is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Data Foundation provisions a multicloud data management service with an S3 compatible API.\n\nBug Fixes:\n\n* Previously, non optimized database related flows on deletions caused Multicloud Object Gateway to spike in CPU usage and perform slowly on mass delete scenarios. For example, reclaiming a deleted object bucket claim (OBC). With this fix, indexes for the bucket reclaimer process are optimized, a new index is added to the database to speed up the database cleaner flows, and bucket reclaimer changes are introduced to work on batches of objects. (BZ#2186485)\n\n* Previously, the list of regions for creating the default Multicloud Object Gateway backing store on AWS did not have the new regions that were added recently to AWS. With this fix, the new regions are included to the list of regions and it is possible to deploy default backing store on the new regions. (BZ#2187639)\n\n* Previously, creating a storage system in OpenShift Data Foundation using an external Ceph cluster would fail if the RADOS block device (RBD) pool name contained an underscore (_) or a period(.). With this fix, the Python script (`ceph-external-cluster-details-exporter.py`) is enhanced to contain underscore (_) and period (.) so that an alias for the RBD pool names can be passed in. This alias allows the OpenShift Data Foundation to adopt an external Ceph cluster with RBD pool names containing an underscore(_) or a period(.). (BZ#2188381)\n\nAll users of Red Hat OpenShift Data Foundation are advised to upgrade to these updated images, which provide these bug fixes.",
+  "lastModifiedDate": "2023-05-24T11:03:11Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2023:3293",
+  "portal_publication_date": "2023-05-24T11:03:11Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Data Foundation for IBM Z and LinuxONE",
+    "Red Hat OpenShift Data Foundation for IBM Power, little endian",
+    "Red Hat OpenShift Data Foundation"
+  ],
+  "abstract": "Red Hat OpenShift Data Foundation is software-defined storage integrated with and optimized for the Red Hat OpenShift Data Foundation. Red Hat OpenShift Data Foundation is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Data Foundation provisions a multicloud data management service with an S3 compatible API.\n\nBug Fixes:\n\n* Previously, non optimized database related flows on deletions caused Multicloud Object Gateway to spike in CPU usage and perform slowly on mass delete scenarios. For example, reclaiming a deleted object bucket claim (OBC). With this fix, indexes for the bucket reclaimer process are optimized, a new index is added to the database to speed up the database cleaner flows, and bucket reclaimer changes are introduced to work on batches of objects. (BZ#2186485)\n\n* Previously, the list of regions for creating the default Multicloud Object Gateway backing store on AWS did not have the new regions that were added recently to AWS. With this fix, the new regions are included to the list of regions and it is possible to deploy default backing store on the new regions. (BZ#2187639)\n\n* Previously, creating a storage system in OpenShift Data Foundation using an external Ceph cluster would fail if the RADOS block device (RBD) pool name contained an underscore (_) or a period(.). With this fix, the Python script (`ceph-external-cluster-details-exporter.py`) is enhanced to contain underscore (_) and period (.) so that an alias for the RBD pool names can be passed in. This alias allows the OpenShift Data Foundation to adopt an external Ceph cluster with RBD pool names containing an underscore(_) or a period(.). (BZ#2188381)\n\nAll users of Red Hat OpenShift Data Foundation are advised to upgrade to these updated images, which provide these bug fixes.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2023:3293",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHBA-2023:3293) Red Hat OpenShift Data Foundation 4.11.8 Bug Fix Update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2023-05-24T11:03:11Z"],
+  "_version_": 1858512832029523969,
+  "displayDate": "2023-05-24T11:03:11Z",
+  "allTitle": "(RHBA-2023:3293) Red Hat OpenShift Data Foundation 4.11.8 Bug Fix Update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "635|rhel|8|4|s390x",
+    "634|rhel|8|4|ppc64le",
+    "547|rhel|8|4|x86_64"
+  ],
+  "portal_title": ["(RHBA-2023:3293) Red Hat OpenShift Data Foundation 4.11.8 Bug Fix Update"]
+}

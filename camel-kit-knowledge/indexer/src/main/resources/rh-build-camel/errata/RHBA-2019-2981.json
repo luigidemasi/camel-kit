@@ -1,0 +1,73 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "7",
+  "year": 2019,
+  "portal_other_references": ["https://access.redhat.com/documentation/en-us/red_hat_developer_tools/1/html-single/using_eclipse_4.13.0/index"],
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2019:2981) rh-eclipse bug fix and enhancement update",
+  "detectedProducts": [
+    "rhel",
+    "rhel7"
+  ],
+  "portal_summary": "Updated rh-eclipse packages are now available as a part of Red Hat Developer\nTools for Red Hat Enterprise Linux.",
+  "portal_package": [
+    "rh-eclipse-eclipse-debuginfo-4.13-4.4.el7.x86_64.rpm",
+    "rh-eclipse-eclipse-platform-4.13-4.4.el7.x86_64.rpm",
+    "rh-eclipse-eclipse-p2-discovery-4.13-4.4.el7.noarch.rpm",
+    "rh-eclipse-eclipse-tests-4.13-4.4.el7.x86_64.rpm",
+    "rh-eclipse-eclipse-swt-4.13-4.4.el7.x86_64.rpm",
+    "rh-eclipse-eclipse-jdt-4.13-4.4.el7.noarch.rpm",
+    "rh-eclipse-eclipse-pde-4.13-4.4.el7.x86_64.rpm",
+    "rh-eclipse-eclipse-equinox-osgi-4.13-4.4.el7.x86_64.rpm",
+    "rh-eclipse-eclipse-4.13-4.4.el7.src.rpm",
+    "rh-eclipse-eclipse-contributor-tools-4.13-4.4.el7.x86_64.rpm"
+  ],
+  "portal_synopsis": "rh-eclipse bug fix and enhancement update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Developer Tools|Red Hat Developer Tools (for RHEL Server)|1|x86_64",
+    "Red Hat Developer Tools|Red Hat Developer Tools (for RHEL Workstation)|1|x86_64"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata relevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\nhttps://access.redhat.com/articles/11258",
+  "id": "RHBA-2019:2981",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2019:2981",
+  "portal_BZ": ["1529771"],
+  "timestamp": "2026-02-25T09:49:17.301Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "The rh-eclipse4.13 packages include Eclipse 4.13, an integrated development environment (IDE), which is based on the Eclipse Foundation's 2019-09 release train.\n\nBug Fixes:\n\n* Eclipse 4.7 from SCL breaks when installing Checkstyle (BZ#1529771)\n\nFor instructions on how to use rh-eclipse, see Using Eclipse linked from the References section.",
+  "lastModifiedDate": "2019-10-08T12:05:50Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2019:2981",
+  "portal_publication_date": "2019-10-08T12:05:50Z",
+  "portal_product_names": [
+    "Red Hat Developer Tools (for RHEL Server)",
+    "Red Hat Developer Tools (for RHEL Workstation)"
+  ],
+  "abstract": "The rh-eclipse4.13 packages include Eclipse 4.13, an integrated development environment (IDE), which is based on the Eclipse Foundation's 2019-09 release train.\n\nBug Fixes:\n\n* Eclipse 4.7 from SCL breaks when installing Checkstyle (BZ#1529771)\n\nFor instructions on how to use rh-eclipse, see Using Eclipse linked from the References section.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2019:2981",
+  "boostBaseVersion": "7",
+  "sortTitle": "(RHBA-2019:2981) rh-eclipse bug fix and enhancement update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2019-10-08T12:05:50Z"],
+  "_version_": 1858090258966511616,
+  "displayDate": "2019-10-08T12:05:50Z",
+  "allTitle": "(RHBA-2019:2981) rh-eclipse bug fix and enhancement update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "394|rhel|7|1|x86_64",
+    "396|rhel|7|1|x86_64"
+  ],
+  "portal_title": ["(RHBA-2019:2981) rh-eclipse bug fix and enhancement update"]
+}

@@ -1,0 +1,82 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "year": 2020,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2020:2156) openstack-heat bug fix advisory",
+  "detectedProducts": [
+    "rhel",
+    "rhel8"
+  ],
+  "portal_summary": "Updated OpenStack Orchestration packages that resolve various issues are\nnow available for Red Hat OpenStack Platform 16.0 (Train) for Red Hat Enterprise Linux (RHEL) 8.1.",
+  "portal_package": [
+    "openstack-heat-api-13.0.1-0.20200327175242.8fc8034.el8ost.noarch.rpm",
+    "openstack-heat-monolith-13.0.1-0.20200327175242.8fc8034.el8ost.noarch.rpm",
+    "python-heatclient-1.18.0-0.20200221161824.eca1637.el8ost.src.rpm",
+    "openstack-heat-13.0.1-0.20200327175242.8fc8034.el8ost.src.rpm",
+    "openstack-heat-api-cfn-13.0.1-0.20200327175242.8fc8034.el8ost.noarch.rpm",
+    "python3-heatclient-1.18.0-0.20200221161824.eca1637.el8ost.noarch.rpm",
+    "openstack-heat-common-13.0.1-0.20200327175242.8fc8034.el8ost.noarch.rpm",
+    "openstack-heat-engine-13.0.1-0.20200327175242.8fc8034.el8ost.noarch.rpm"
+  ],
+  "portal_synopsis": "openstack-heat bug fix advisory",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux for x86_64|8|x86_64",
+    "Red Hat OpenStack Director Deployment Tools|Red Hat OpenStack Director Deployment Tools|16|x86_64",
+    "Red Hat OpenStack Platform|Red Hat OpenStack for IBM Power|16|ppc64le",
+    "Red Hat OpenStack Platform|Red Hat OpenStack|16|x86_64",
+    "Red Hat OpenStack Director Deployment Tools for IBM Power LE|Red Hat OpenStack Director Deployment Tools for IBM Power LE|16|ppc64le"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, ensure all previously released errata relevant\nto your system have been applied.\n\nRed Hat OpenStack Platform 16 runs on RHEL 8.1.\n\nThe Red Hat OpenStack Platform 16 Release Notes contain the following:\n* An explanation of the way in which the provided components interact to\nform a working cloud computing environment.\n* Technology Previews, Recommended Practices, and Known Issues.\n* The channels required for Red Hat OpenStack Platform 16, including which\nchannels need to be enabled and disabled.\n\nThe Release Notes are available at:\nhttps://access.redhat.com/documentation/en/red-hat-openstack-platform/\n\nThis update is available through 'yum update' on systems registered through\nRed Hat Subscription Manager. For more information about Red Hat\nSubscription Manager, see:\n\nhttps://access.redhat.com/documentation/en-US/Red_Hat_Subscription_Management/1/html/RHSM/index.html",
+  "id": "RHBA-2020:2156",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2020:2156",
+  "portal_BZ": [
+    "1824507",
+    "1824664"
+  ],
+  "timestamp": "2026-02-25T10:12:14.837Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat OpenStack Platform provides the facilities for building, deploying\nand monitoring a private or public infrastructure-as-a-service (IaaS) cloud\nrunning on commonly available physical hardware. This advisory includes\npackages for:\n\n* OpenStack Orchestration service\n\nOpenStack Orchestration (heat) is a template-driven engine used to specify\nand deploy configurations for Compute, Storage, and OpenStack Networking.\nIt can also be used to automate post-deployment actions, which in turn\nallows automated provisioning of infrastructure, services, and\napplications. Orchestration can also be integrated with Telemetry alarms to\nimplement auto-scaling for certain infrastructure resources.",
+  "lastModifiedDate": "2020-05-14T10:06:07Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2020:2156",
+  "portal_publication_date": "2020-05-14T10:06:07Z",
+  "portal_product_names": [
+    "Red Hat Enterprise Linux for x86_64",
+    "Red Hat OpenStack Director Deployment Tools",
+    "Red Hat OpenStack for IBM Power",
+    "Red Hat OpenStack",
+    "Red Hat OpenStack Director Deployment Tools for IBM Power LE"
+  ],
+  "abstract": "Red Hat OpenStack Platform provides the facilities for building, deploying\nand monitoring a private or public infrastructure-as-a-service (IaaS) cloud\nrunning on commonly available physical hardware. This advisory includes\npackages for:\n\n* OpenStack Orchestration service\n\nOpenStack Orchestration (heat) is a template-driven engine used to specify\nand deploy configurations for Compute, Storage, and OpenStack Networking.\nIt can also be used to automate post-deployment actions, which in turn\nallows automated provisioning of infrastructure, services, and\napplications. Orchestration can also be integrated with Telemetry alarms to\nimplement auto-scaling for certain infrastructure resources.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2020:2156",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHBA-2020:2156) openstack-heat bug fix advisory",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2020-05-14T10:06:07Z"],
+  "_version_": 1858091703200645120,
+  "displayDate": "2020-05-14T10:06:07Z",
+  "allTitle": "(RHBA-2020:2156) openstack-heat bug fix advisory",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "479|rhel|8|8|x86_64",
+    "466|rhel|8|16|x86_64",
+    "425|rhel|8|16|ppc64le",
+    "191|rhel|8|16|x86_64",
+    "467|rhel|8|16|ppc64le"
+  ],
+  "portal_title": ["(RHBA-2020:2156) openstack-heat bug fix advisory"]
+}

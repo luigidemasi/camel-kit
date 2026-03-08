@@ -1,0 +1,63 @@
+{
+  "year": 2023,
+  "language": "en",
+  "caseCount_365": 0,
+  "portal_synopsis": "Important: Red Hat Integration Camel for Spring Boot 3.20.2 release and security update",
+  "solution_resolution": "subscriber_only",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHSA-2023:5148",
+  "view_uri": "https://access.redhat.com/errata/RHSA-2023:5148",
+  "portal_BZ": [
+    "2215445",
+    "2231491"
+  ],
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "resource_uri": "https://access.redhat.com/errata/RHSA-2023:5148",
+  "portal_publication_date": "2023-09-13T16:08:39Z",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "boostBaseVersion": "3",
+  "displayDate": "2023-09-13T16:08:39Z",
+  "allTitle": "(RHSA-2023:5148) Important: Red Hat Integration Camel for Spring Boot 3.20.2 release and security update",
+  "large_text_store": "",
+  "boostProduct": "springboot",
+  "boostDetectedVersion": "3.20",
+  "portal_severity_level": 4,
+  "portal_other_references": [
+    "https://access.redhat.com/security/updates/classification/#important",
+    "https://access.redhat.com/jbossnetwork/restricted/listSoftware.html?downloadType=distributions&product=red.hat.integration&version=2023-Q3"
+  ],
+  "portal_advisory_type": "Security Advisory",
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHSA-2023:5148) Important: Red Hat Integration Camel for Spring Boot 3.20.2 release and security update",
+  "detectedProducts": [
+    "springboot",
+    "springboot3"
+  ],
+  "portal_summary": "Red Hat Integration Camel for Spring Boot 3.20.2 release and security update is now available.\n\nRed Hat Product Security has rated this update as having an impact of Important. A Common Vulnerability Scoring System (CVSS) base score, which gives a detailed severity rating, is available for each vulnerability from the CVE link(s) in the References section.",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": ["Red Hat Integration - Camel for Spring Boot|Red Hat Integration - Camel for Spring Boot|1|x86_64"],
+  "portal_CVE": [
+    "CVE-2023-20873",
+    "CVE-2023-34455"
+  ],
+  "docs_text_store": "",
+  "portal_severity": "Important",
+  "timestamp": "2026-03-02T01:49:44.902Z",
+  "documentKind": "Errata",
+  "portal_description": "Red Hat Integration Camel for Spring Boot 3.20.2 is now available. The purpose of this text-only errata is to inform you about the security issues fixed.\n\nSecurity Fix(es):\n\n* spring-boot: Security Bypass With Wildcard Pattern Matching on Cloud Foundry (CVE-2023-20873)\n\n* snappy-java: Unchecked chunk length leads to DoS (CVE-2023-34455)\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.",
+  "lastModifiedDate": "2023-09-13T16:08:39Z",
+  "portal_product_names": ["Red Hat Integration - Camel for Spring Boot"],
+  "abstract": "Red Hat Integration Camel for Spring Boot 3.20.2 is now available. The purpose of this text-only errata is to inform you about the security issues fixed.\n\nSecurity Fix(es):\n\n* spring-boot: Security Bypass With Wildcard Pattern Matching on Cloud Foundry (CVE-2023-20873)\n\n* snappy-java: Unchecked chunk length leads to DoS (CVE-2023-34455)\n\nFor more details about the security issue(s), including the impact, a CVSS score, acknowledgments, and other related information, refer to the CVE page(s) listed in the References section.",
+  "uri": "downloads_https://access.redhat.com/errata/RHSA-2023:5148",
+  "sortTitle": "(RHSA-2023:5148) Important: Red Hat Integration Camel for Spring Boot 3.20.2 release and security update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2023-09-13T16:08:39Z"],
+  "_version_": 1858513073511333888,
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": ["839|middleware|1|1|x86_64"],
+  "portal_title": ["(RHSA-2023:5148) Important: Red Hat Integration Camel for Spring Boot 3.20.2 release and security update"]
+}

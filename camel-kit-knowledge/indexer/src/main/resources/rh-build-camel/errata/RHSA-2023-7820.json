@@ -1,0 +1,78 @@
+{
+  "year": 2023,
+  "language": "en",
+  "caseCount_365": 0,
+  "portal_synopsis": "Moderate: Red Hat OpenShift Data Foundation 4.12.10 Bug Fix Update",
+  "solution_resolution": "subscriber_only",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata relevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHSA-2023:7820",
+  "view_uri": "https://access.redhat.com/errata/RHSA-2023:7820",
+  "portal_BZ": [
+    "2126299",
+    "2244765",
+    "2246334",
+    "2247112"
+  ],
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "resource_uri": "https://access.redhat.com/errata/RHSA-2023:7820",
+  "portal_publication_date": "2023-12-14T06:06:38Z",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "boostBaseVersion": "8",
+  "displayDate": "2023-12-14T06:06:37Z",
+  "allTitle": "(RHSA-2023:7820) Moderate: Red Hat OpenShift Data Foundation 4.12.10 Bug Fix Update",
+  "large_text_store": "",
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "portal_severity_level": 3,
+  "portal_other_references": ["https://access.redhat.com/security/updates/classification/#moderate"],
+  "portal_advisory_type": "Security Advisory",
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHSA-2023:7820) Moderate: Red Hat OpenShift Data Foundation 4.12.10 Bug Fix Update",
+  "detectedProducts": [
+    "rhel",
+    "rhel8",
+    "openshift"
+  ],
+  "portal_summary": "Updated images that fix several bugs are now available for Red Hat OpenShift Data Foundation 4.12.10 on Red Hat Enterprise Linux 8 from Red Hat Container Registry.",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation|4|x86_64",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Power, little endian|4|ppc64le",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Z and LinuxONE|4|s390x"
+  ],
+  "portal_CVE": [
+    "CVE-2007-4559",
+    "CVE-2020-12762",
+    "CVE-2021-3765",
+    "CVE-2023-4641",
+    "CVE-2023-22745"
+  ],
+  "docs_text_store": "",
+  "portal_severity": "Moderate",
+  "timestamp": "2026-03-02T02:00:27.546Z",
+  "documentKind": "Errata",
+  "portal_description": "Red Hat OpenShift Data Foundation is software-defined storage integrated with and optimized for the Red Hat OpenShift Data Foundation. Red Hat OpenShift Data Foundation is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Data Foundation provisions a multi-cloud data management service with an S3-compatible API.\n\nAll users of Red Hat OpenShift Data Foundation are advised to upgrade to these updated images, which provide these bug fixes.",
+  "lastModifiedDate": "2023-12-14T06:06:37Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Data Foundation",
+    "Red Hat OpenShift Data Foundation for IBM Power, little endian",
+    "Red Hat OpenShift Data Foundation for IBM Z and LinuxONE"
+  ],
+  "abstract": "Red Hat OpenShift Data Foundation is software-defined storage integrated with and optimized for the Red Hat OpenShift Data Foundation. Red Hat OpenShift Data Foundation is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Data Foundation provisions a multi-cloud data management service with an S3-compatible API.\n\nAll users of Red Hat OpenShift Data Foundation are advised to upgrade to these updated images, which provide these bug fixes.",
+  "uri": "downloads_https://access.redhat.com/errata/RHSA-2023:7820",
+  "sortTitle": "(RHSA-2023:7820) Moderate: Red Hat OpenShift Data Foundation 4.12.10 Bug Fix Update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2023-12-14T06:06:37Z"],
+  "_version_": 1858513747561152514,
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "547|rhel|8|4|x86_64",
+    "634|rhel|8|4|ppc64le",
+    "635|rhel|8|4|s390x"
+  ],
+  "portal_title": ["(RHSA-2023:7820) Moderate: Red Hat OpenShift Data Foundation 4.12.10 Bug Fix Update"]
+}

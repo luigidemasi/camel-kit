@@ -1,0 +1,61 @@
+{
+  "boostProduct": "debezium",
+  "boostDetectedVersion": "3.2",
+  "year": 2026,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2026:2574) Red Hat build of Debezium 3.2.6 release",
+  "detectedProducts": [
+    "debezium",
+    "debezium3"
+  ],
+  "portal_summary": "Red Hat build of Debezium connectors in version 3.2.6 are now available for Red Hat Application Foundations.",
+  "portal_synopsis": "Red Hat build of Debezium 3.2.6 release",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Integration|Red Hat Integration|Text-Only Advisories|x86_64",
+    "Red Hat Integration|Red Hat Integration|1|x86_64"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "To apply this update, follow the standard installation procedure for your platform:\n\n* https://docs.redhat.com/en/documentation/red_hat_build_of_debezium/3.2.6/html-single/installing_debezium_on_openshift/index\n*\nhttps://docs.redhat.com/en/documentation/red_hat_build_of_debezium/3.2.6/html-single/installing_debezium_on_rhel/index",
+  "id": "RHBA-2026:2574",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2026:2574",
+  "timestamp": "2026-02-25T14:56:56.989Z",
+  "[elevated]": false,
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Debezium is a distributed platform that turns your existing databases into event streams, so applications can see and respond immediately to each row-level change in the databases.\n\nDebezium is built on top of Apache Kafka and provides Kafka Connect compatible connectors that monitor specific database management systems. Debezium records the history of data changes in Kafka logs, from where your application consumes them. This makes it possible for your application to easily consume all of the events correctly and completely. Even if your application stops unexpectedly, it will not miss anything: when the application restarts, it will resume consuming the events where it left off.",
+  "lastModifiedDate": "2026-02-11T16:21:57Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2026:2574",
+  "portal_publication_date": "2026-02-11T16:21:57Z",
+  "portal_product_names": ["Red Hat Integration"],
+  "abstract": "Debezium is a distributed platform that turns your existing databases into event streams, so applications can see and respond immediately to each row-level change in the databases.\n\nDebezium is built on top of Apache Kafka and provides Kafka Connect compatible connectors that monitor specific database management systems. Debezium records the history of data changes in Kafka logs, from where your application consumes them. This makes it possible for your application to easily consume all of the events correctly and completely. Even if your application stops unexpectedly, it will not miss anything: when the application restarts, it will resume consuming the events where it left off.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2026:2574",
+  "boostBaseVersion": "3",
+  "sortTitle": "(RHBA-2026:2574) Red Hat build of Debezium 3.2.6 release",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2026-02-11T16:21:57Z"],
+  "_version_": 1858109615117434880,
+  "displayDate": "2026-02-11T16:21:57Z",
+  "allTitle": "(RHBA-2026:2574) Red Hat build of Debezium 3.2.6 release",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "611|middleware|1|Text-Only Advisories|x86_64",
+    "611|middleware|1|1|x86_64"
+  ],
+  "portal_title": ["(RHBA-2026:2574) Red Hat build of Debezium 3.2.6 release"],
+  "portal_jira": [
+    "DBZ-9504",
+    "DBZ-9659"
+  ]
+}

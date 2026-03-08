@@ -1,0 +1,63 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8.1",
+  "year": 2021,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2021:5220) resource-agents-sap bug fix and enhancement update",
+  "detectedProducts": [
+    "rhel",
+    "rhel8"
+  ],
+  "portal_summary": "An update for resource-agents-sap is now available for Red Hat Enterprise\nLinux 8.1 Update Services for SAP Solutions.",
+  "portal_package": [
+    "resource-agents-sap-4.1.1-28.el8_1.2.noarch.rpm",
+    "resource-agents-sap-4.1.1-28.el8_1.2.src.rpm"
+  ],
+  "portal_synopsis": "resource-agents-sap bug fix and enhancement update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux for SAP Applications for x86_64 - Update Services for SAP Solutions|8.1|x86_64",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux for SAP Applications for Power LE - Update Services for SAP Solutions|8.1|ppc64le"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHBA-2021:5220",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2021:5220",
+  "timestamp": "2026-02-25T09:45:44.789Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "The rhel-system-roles-sap package contains collection of Ansible roles\nwhich configures a RHEL system according to applicable SAP notes so that\nany SAP software can be installed.\n\nBug Fix(es) and Ehancement(s):\n\n* SAPInstance: Integrating the upstream patch for systemd based SAP Start-Up Framework (BZ#2024182)",
+  "lastModifiedDate": "2021-12-21T08:54:35Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2021:5220",
+  "portal_publication_date": "2021-12-21T08:54:54Z",
+  "portal_product_names": [
+    "Red Hat Enterprise Linux for SAP Applications for x86_64 - Update Services for SAP Solutions",
+    "Red Hat Enterprise Linux for SAP Applications for Power LE - Update Services for SAP Solutions"
+  ],
+  "abstract": "The rhel-system-roles-sap package contains collection of Ansible roles\nwhich configures a RHEL system according to applicable SAP notes so that\nany SAP software can be installed.\n\nBug Fix(es) and Ehancement(s):\n\n* SAPInstance: Integrating the upstream patch for systemd based SAP Start-Up Framework (BZ#2024182)",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2021:5220",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHBA-2021:5220) resource-agents-sap bug fix and enhancement update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2021-12-21T08:54:35Z"],
+  "_version_": 1858090036086439936,
+  "displayDate": "2021-12-21T08:54:35Z",
+  "allTitle": "(RHBA-2021:5220) resource-agents-sap bug fix and enhancement update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "388|rhel|8.1|8.1|x86_64",
+    "383|rhel|8.1|8.1|ppc64le"
+  ],
+  "portal_title": ["(RHBA-2021:5220) resource-agents-sap bug fix and enhancement update"]
+}

@@ -1,0 +1,73 @@
+{
+  "year": 2023,
+  "language": "en",
+  "caseCount_365": 0,
+  "portal_synopsis": "updated fuse7/fuse-eap-openshift-jdk8-rhel7 container image",
+  "solution_resolution": "subscriber_only",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "The RHEL-7 based Middleware Containers container image provided by this update can be downloaded from the Red Hat Container Registry at registry.access.redhat.com. Installation instructions for your platform are available at Red Hat Container Catalog (see References).\n\nDockerfiles and scripts should be amended either to refer to this new image specifically, or to the latest image generally.",
+  "id": "RHBA-2023:1350",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2023:1350",
+  "portal_BZ": ["2164440"],
+  "[elevated]": false,
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2023:1350",
+  "portal_publication_date": "2023-03-20T14:24:01Z",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "boostBaseVersion": "8",
+  "displayDate": "2023-03-20T14:24:01Z",
+  "allTitle": "(RHBA-2023:1350) updated fuse7/fuse-eap-openshift-jdk8-rhel7 container image",
+  "large_text_store": "",
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "portal_other_references": [
+    "https://access.redhat.com/errata/RHSA-2023:1335",
+    "https://catalog.redhat.com/software/containers/registry/registry.access.redhat.com/repository/fuse7/fuse-eap-openshift-jdk8-rhel7"
+  ],
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2023:1350) updated fuse7/fuse-eap-openshift-jdk8-rhel7 container image",
+  "detectedProducts": [
+    "rhel",
+    "rhel8",
+    "fuse",
+    "fuse7"
+  ],
+  "portal_summary": "Updated fuse7/fuse-eap-openshift-jdk8-rhel7 container image is now available for RHEL-7 based Middleware Containers.",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Container Platform|Red Hat OpenShift Container Platform|4.10|x86_64",
+    "Red Hat OpenShift Container Platform|Red Hat OpenShift Container Platform|4.9|x86_64",
+    "Red Hat OpenShift Container Platform|Red Hat OpenShift Container Platform|4.8|x86_64",
+    "Red Hat OpenShift Container Platform|Red Hat OpenShift Container Platform|4.9|x86_64"
+  ],
+  "portal_CVE": [
+    "CVE-2022-37434",
+    "CVE-2023-0286",
+    "CVE-2023-0767"
+  ],
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "timestamp": "2026-03-02T01:39:35.772Z",
+  "documentKind": "Errata",
+  "portal_description": "The fuse7/fuse-eap-openshift-jdk8-rhel7 container image has been updated for RHEL-7 based Middleware Containers to address the following security advisory: RHSA-2023:1335 (see References)\n\nUsers of fuse7/fuse-eap-openshift-jdk8-rhel7 container images are advised to upgrade to these updated images, which contain backported patches to correct these security issues, fix these bugs and add these enhancements. Users of these images are also encouraged to rebuild all container images that depend on these images.\n\nYou can find images updated by this advisory in Red Hat Container Catalog (see References).",
+  "lastModifiedDate": "2023-03-20T14:24:01Z",
+  "portal_product_names": ["Red Hat OpenShift Container Platform"],
+  "abstract": "The fuse7/fuse-eap-openshift-jdk8-rhel7 container image has been updated for RHEL-7 based Middleware Containers to address the following security advisory: RHSA-2023:1335 (see References)\n\nUsers of fuse7/fuse-eap-openshift-jdk8-rhel7 container images are advised to upgrade to these updated images, which contain backported patches to correct these security issues, fix these bugs and add these enhancements. Users of these images are also encouraged to rebuild all container images that depend on these images.\n\nYou can find images updated by this advisory in Red Hat Container Catalog (see References).",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2023:1350",
+  "sortTitle": "(RHBA-2023:1350) updated fuse7/fuse-eap-openshift-jdk8-rhel7 container image",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2023-03-20T14:24:01Z"],
+  "_version_": 1858512434954764288,
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "290|rhel|8|4.10|x86_64",
+    "290|rhel|8|4.9|x86_64",
+    "290|rhel|7|4.8|x86_64",
+    "290|rhel|7|4.9|x86_64"
+  ],
+  "portal_title": ["(RHBA-2023:1350) updated fuse7/fuse-eap-openshift-jdk8-rhel7 container image"]
+}

@@ -1,0 +1,73 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "5",
+  "year": 2010,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2010:0536) kvm bug fix update",
+  "detectedProducts": [
+    "rhel",
+    "rhel5"
+  ],
+  "portal_summary": "Updated kvm packages that resolve several issues are now available.\n",
+  "portal_package": [
+    "kvm-83-164.el5_5.15.x86_64.rpm",
+    "kvm-qemu-img-83-164.el5_5.15.x86_64.rpm",
+    "kvm-tools-83-164.el5_5.15.x86_64.rpm",
+    "kvm-83-164.el5_5.15.src.rpm",
+    "kmod-kvm-83-164.el5_5.15.x86_64.rpm"
+  ],
+  "portal_synopsis": "kvm bug fix update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Server|5|x86_64",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Workstation|5|x86_64"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously-released errata\nrelevant to your system have been applied.\n\nThis update is available via the Red Hat Network. Details on how to\nuse the Red Hat Network to apply this update are available at\nhttp://kbase.redhat.com/faq/docs/DOC-11259\n",
+  "id": "RHBA-2010:0536",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2010:0536",
+  "portal_BZ": [
+    "604159",
+    "610341",
+    "610344",
+    "612507",
+    "612508"
+  ],
+  "timestamp": "2026-02-25T14:34:37.041Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "KVM (Kernel-based Virtual Machine) is a full virtualization solution for Linux\non AMD64 and Intel 64 systems. KVM is a Linux kernel module built for the\nstandard Red Hat Enterprise Linux kernel. KVM can run multiple unmodified,\nvirtualized guest Windows and Linux operating systems.\n\nThese updated kvm packages provide fixes for the following bugs:\n\n* the virtio-blk back end for qemu-kvm performed unnecessary zeroing of memory\non every I/O request, which reduced virtual guest performance. With this update,\nthe virtio-blk back end avoids spurious zeroing of request structures on each\nI/O request, with the result that guest performance is increased. (BZ#604159)\n\n* in the kvm kernel module, some internal KVM memory slots were incorrectly\nbeing handled by copy-on-write after a fork() function call, which caused issues\nwhen qemu-kvm ran child processes. This update fixes the handling of internal\nKVM memory slots on fork() to avoid those issues. (BZ#610341)\n\n* when using the Network File System (NFS), lseek(SEEK_END) operations resulted\nin a GETATTR command being sent to th eserver, with the result that performance\nwas reduced on disk images over NFS. With this update, the pread() and pwrite()\nfunctions are used instead of lseek(), read() and write(), with the result that\nperformance is increased when using NFS. (BZ#610344)\n\n* following writing metadata to a QCOW2 disk image, metadata was not flushed,\nwhich could have potentially caused the disk image to become corrupted in the\nevent of system disruption (such as a power outage). With this update, metadata\nis flushed after being written, thus increasing QCOW2 image integrity, and\ndecreasing the likelihood of image corruption. (BZ#612507)\n\n* when using QCOW2 disk images, certain I/O operation or disk space depletion\nerrors could potentially have caused image corruption or a virtual guest to stop\nrunning. This was due to the improper error-handling code for QCOW2 disk images.\nThis has been fixed with this update so that the aforementioned types of errors\nare handled correctly, thus increasing QCOW2 disk integrity in such situations.\n(BZ#612508)\n\nAll KVM users should upgrade to these updated packages, which contain backported\npatches to resolve these issues.\n",
+  "lastModifiedDate": "2010-07-29T00:00:00Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2010:0536",
+  "portal_publication_date": "2010-07-29T00:00:00Z",
+  "portal_product_names": [
+    "Red Hat Enterprise Linux Server",
+    "Red Hat Enterprise Linux Workstation"
+  ],
+  "abstract": "KVM (Kernel-based Virtual Machine) is a full virtualization solution for Linux\non AMD64 and Intel 64 systems. KVM is a Linux kernel module built for the\nstandard Red Hat Enterprise Linux kernel. KVM can run multiple unmodified,\nvirtualized guest Windows and Linux operating systems.\n\nThese updated kvm packages provide fixes for the following bugs:\n\n* the virtio-blk back end for qemu-kvm performed unnecessary zeroing of memory\non every I/O request, which reduced virtual guest performance. With this update,\nthe virtio-blk back end avoids spurious zeroing of request structures on each\nI/O request, with the result that guest performance is increased. (BZ#604159)\n\n* in the kvm kernel module, some internal KVM memory slots were incorrectly\nbeing handled by copy-on-write after a fork() function call, which caused issues\nwhen qemu-kvm ran child processes. This update fixes the handling of internal\nKVM memory slots on fork() to avoid those issues. (BZ#610341)\n\n* when using the Network File System (NFS), lseek(SEEK_END) operations resulted\nin a GETATTR command being sent to th eserver, with the result that performance\nwas reduced on disk images over NFS. With this update, the pread() and pwrite()\nfunctions are used instead of lseek(), read() and write(), with the result that\nperformance is increased when using NFS. (BZ#610344)\n\n* following writing metadata to a QCOW2 disk image, metadata was not flushed,\nwhich could have potentially caused the disk image to become corrupted in the\nevent of system disruption (such as a power outage). With this update, metadata\nis flushed after being written, thus increasing QCOW2 image integrity, and\ndecreasing the likelihood of image corruption. (BZ#612507)\n\n* when using QCOW2 disk images, certain I/O operation or disk space depletion\nerrors could potentially have caused image corruption or a virtual guest to stop\nrunning. This was due to the improper error-handling code for QCOW2 disk images.\nThis has been fixed with this update so that the aforementioned types of errors\nare handled correctly, thus increasing QCOW2 disk integrity in such situations.\n(BZ#612508)\n\nAll KVM users should upgrade to these updated packages, which contain backported\npatches to resolve these issues.\n",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2010:0536",
+  "boostBaseVersion": "5",
+  "sortTitle": "(RHBA-2010:0536) kvm bug fix update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2010-07-29T00:00:00Z"],
+  "_version_": 1858108210103189504,
+  "displayDate": "2010-07-29T00:00:00Z",
+  "allTitle": "(RHBA-2010:0536) kvm bug fix update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "69|rhel|5|5|x86_64",
+    "71|rhel|5|5|x86_64"
+  ],
+  "portal_title": ["(RHBA-2010:0536) kvm bug fix update"]
+}

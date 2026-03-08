@@ -1,0 +1,71 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "year": 2021,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2021:3695) Red Hat OpenShift Container Storage 4.8.2 bug fix update",
+  "detectedProducts": [
+    "rhel",
+    "rhel8",
+    "storage",
+    "storage4"
+  ],
+  "portal_summary": "Updated images that fix several bugs are now available for Red Hat OpenShift Container Storage 4.8.2 on Red Hat Enterprise Linux 8 from Red Hat Container Registry.",
+  "portal_synopsis": "Red Hat OpenShift Container Storage 4.8.2 bug fix update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Power, little endian|4|ppc64le",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Z and LinuxONE|4|s390x",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation|4|x86_64"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHBA-2021:3695",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2021:3695",
+  "portal_BZ": [
+    "1982805",
+    "1994588",
+    "1995047",
+    "1995635",
+    "1997125"
+  ],
+  "timestamp": "2026-02-25T10:34:29.418Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat OpenShift Container Storage is software-defined storage integrated with and optimized for the Red Hat OpenShift Container Platform. Red Hat OpenShift Container Storage is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Container Storage provisions a multicloud data management service with an S3 compatible API.\n\nBug Fix(es):\n\n* Previously, a false alert (KubePersistentVolumeFillingUp) was generated for the PVCs with volumeMode as a block which was due to a regression in a Prometheus alert of OpenShift Container Platform. With this update, the false alert is no longer generated. (BZ#1984817)\n\n* Previously, OSD logs were not generated when OpenShift Container Storage v4.4 was deployed. With this update, the OSDs are logging correctly. (BZ#1989988)\n\nAll users of Red Hat OpenShift Container Storage are advised to pull these updated images from Red Hat Container Registry.",
+  "lastModifiedDate": "2021-09-29T14:46:52Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2021:3695",
+  "portal_publication_date": "2021-09-29T14:46:52Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Data Foundation for IBM Power, little endian",
+    "Red Hat OpenShift Data Foundation for IBM Z and LinuxONE",
+    "Red Hat OpenShift Data Foundation"
+  ],
+  "abstract": "Red Hat OpenShift Container Storage is software-defined storage integrated with and optimized for the Red Hat OpenShift Container Platform. Red Hat OpenShift Container Storage is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Container Storage provisions a multicloud data management service with an S3 compatible API.\n\nBug Fix(es):\n\n* Previously, a false alert (KubePersistentVolumeFillingUp) was generated for the PVCs with volumeMode as a block which was due to a regression in a Prometheus alert of OpenShift Container Platform. With this update, the false alert is no longer generated. (BZ#1984817)\n\n* Previously, OSD logs were not generated when OpenShift Container Storage v4.4 was deployed. With this update, the OSDs are logging correctly. (BZ#1989988)\n\nAll users of Red Hat OpenShift Container Storage are advised to pull these updated images from Red Hat Container Registry.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2021:3695",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHBA-2021:3695) Red Hat OpenShift Container Storage 4.8.2 bug fix update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2021-09-29T14:46:52Z"],
+  "_version_": 1858093102585085952,
+  "displayDate": "2021-09-29T14:46:52Z",
+  "allTitle": "(RHBA-2021:3695) Red Hat OpenShift Container Storage 4.8.2 bug fix update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "634|rhel|8|4|ppc64le",
+    "635|rhel|8|4|s390x",
+    "547|rhel|8|4|x86_64"
+  ],
+  "portal_title": ["(RHBA-2021:3695) Red Hat OpenShift Container Storage 4.8.2 bug fix update"]
+}

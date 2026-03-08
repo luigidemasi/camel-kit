@@ -1,0 +1,70 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "year": 2021,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2021:3312) Red Hat OpenShift Container Storage 4.8.1 bug fix update",
+  "detectedProducts": [
+    "rhel",
+    "rhel8",
+    "storage",
+    "storage4"
+  ],
+  "portal_summary": "Updated images that fix several bugs are now available for Red Hat OpenShift Container Storage 4.8.1 on Red Hat Enterprise Linux 8 from Red Hat Container Registry.",
+  "portal_synopsis": "Red Hat OpenShift Container Storage 4.8.1 bug fix update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Z and LinuxONE|4|s390x",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation for IBM Power, little endian|4|ppc64le",
+    "Red Hat OpenShift Data Foundation|Red Hat OpenShift Data Foundation|4|x86_64"
+  ],
+  "portal_CVE": ["CVE-2021-27218"],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHBA-2021:3312",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2021:3312",
+  "portal_BZ": [
+    "1977329",
+    "1984282",
+    "1984333"
+  ],
+  "timestamp": "2026-02-25T10:33:31.337Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "Red Hat OpenShift Container Storage is software-defined storage integrated with and optimized for the Red Hat OpenShift Container Platform. Red Hat OpenShift Container Storage is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Container Storage provisions a multicloud data management service with an S3 compatible API.\n\nBug Fix(es):\n\n* Improved backend vault parameter configuration allows configuring of the `VAULT_BACKEND` parameter for selecting the type of backend used by Hashicorp Vault. The autodetection of the backend used by Hashicorp Vault is not always working as expected. In case, if a non-common configuration is used, the automatically detected configuration parameter might be set incorrectly. By allowing users to configure the `VAULT_BACKEND` (or `vaultBackend`) parameter, non-common configurations can now be forced to use a particular type of backend. (BZ#1984333)\n\n* Previously, while upgrading from OpenShift Container Storage v4.6 to v4.7, the Multicloud Object Gateway (MCG) exposed the Prometheus metrics only from its core pod as the old route was not removed, and thus provides incorrect information on the MCG health status. With this update, during the OpenShift Container Storage upgrade, the old route is removed, and the Prometheus metrics provide accurate information on the health status of all the MCG pods. (BZ#1989557)\n\n* Previously, it was not possible to deploy the Multicloud Object Gateway (MCG) with other storage classes as the noobaa-db pod consumed storage from the `ocs-ceph-rbd` storage class. With this update, you can set the noobaa-db storageclass name from the Storage Cluster CR. This allows MCG deployment without storage consumption from the `ocs-ceph-rbd` as the Storage Cluster spec includes `DbStorageClassName` in the `MultiCloudGatewaySpec`. (BZ#1977329)\n\nAll users of OpenShift Container Storage are advised to upgrade to these updated packages, which provide these bug fixes.",
+  "lastModifiedDate": "2021-08-30T13:22:39Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2021:3312",
+  "portal_publication_date": "2021-08-30T13:22:39Z",
+  "portal_product_names": [
+    "Red Hat OpenShift Data Foundation for IBM Z and LinuxONE",
+    "Red Hat OpenShift Data Foundation for IBM Power, little endian",
+    "Red Hat OpenShift Data Foundation"
+  ],
+  "abstract": "Red Hat OpenShift Container Storage is software-defined storage integrated with and optimized for the Red Hat OpenShift Container Platform. Red Hat OpenShift Container Storage is a highly scalable, production-grade persistent storage for stateful applications running in the Red Hat OpenShift Container Platform. In addition to persistent storage, Red Hat OpenShift Container Storage provisions a multicloud data management service with an S3 compatible API.\n\nBug Fix(es):\n\n* Improved backend vault parameter configuration allows configuring of the `VAULT_BACKEND` parameter for selecting the type of backend used by Hashicorp Vault. The autodetection of the backend used by Hashicorp Vault is not always working as expected. In case, if a non-common configuration is used, the automatically detected configuration parameter might be set incorrectly. By allowing users to configure the `VAULT_BACKEND` (or `vaultBackend`) parameter, non-common configurations can now be forced to use a particular type of backend. (BZ#1984333)\n\n* Previously, while upgrading from OpenShift Container Storage v4.6 to v4.7, the Multicloud Object Gateway (MCG) exposed the Prometheus metrics only from its core pod as the old route was not removed, and thus provides incorrect information on the MCG health status. With this update, during the OpenShift Container Storage upgrade, the old route is removed, and the Prometheus metrics provide accurate information on the health status of all the MCG pods. (BZ#1989557)\n\n* Previously, it was not possible to deploy the Multicloud Object Gateway (MCG) with other storage classes as the noobaa-db pod consumed storage from the `ocs-ceph-rbd` storage class. With this update, you can set the noobaa-db storageclass name from the Storage Cluster CR. This allows MCG deployment without storage consumption from the `ocs-ceph-rbd` as the Storage Cluster spec includes `DbStorageClassName` in the `MultiCloudGatewaySpec`. (BZ#1977329)\n\nAll users of OpenShift Container Storage are advised to upgrade to these updated packages, which provide these bug fixes.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2021:3312",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHBA-2021:3312) Red Hat OpenShift Container Storage 4.8.1 bug fix update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2021-08-30T13:22:39Z"],
+  "_version_": 1858093041806475264,
+  "displayDate": "2021-08-30T13:22:39Z",
+  "allTitle": "(RHBA-2021:3312) Red Hat OpenShift Container Storage 4.8.1 bug fix update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "635|rhel|8|4|s390x",
+    "634|rhel|8|4|ppc64le",
+    "547|rhel|8|4|x86_64"
+  ],
+  "portal_title": ["(RHBA-2021:3312) Red Hat OpenShift Container Storage 4.8.1 bug fix update"]
+}

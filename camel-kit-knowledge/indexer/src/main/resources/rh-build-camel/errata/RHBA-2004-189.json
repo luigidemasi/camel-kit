@@ -1,0 +1,82 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "3",
+  "year": 2004,
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2004:189) Updated OpenOffice.org packages fix font and help issues",
+  "detectedProducts": [
+    "rhel",
+    "rhel3"
+  ],
+  "portal_summary": "Updated OpenOffice.org packages fix the Help display content for\nnon-English languages. Font substitution problems for CJK and additional\nfonts, which make some documents appear as if they are blank, have also\nbeen fixed.",
+  "portal_package": [
+    "openoffice.org-i18n-1.1.0-16.7.EL.i386.rpm",
+    "openoffice.org-libs-1.1.0-16.7.EL.i386.rpm",
+    "openoffice.org-1.1.0-16.7.EL.i386.rpm"
+  ],
+  "portal_synopsis": "Updated OpenOffice.org packages fix font and help issues",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Server|3|i386",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Desktop|3|i386",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Workstation|3|i386",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Workstation|3|x86_64",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Server|3|x86_64",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Desktop|3|x86_64"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nTo update all RPMs for your particular architecture, run:\n\nrpm -Fvh [filenames]\n\nwhere [filenames] is a list of the RPMs you wish to upgrade.  Only those\nRPMs which are currently installed will be updated.  Those RPMs which are\nnot installed but included in the list will not be updated.  Note that you\ncan also use wildcards (*.rpm) if your current directory *only* contains the\ndesired RPMs.\n\nPlease note that this update is also available via Red Hat Network.  Many\npeople find this an easier way to apply updates.  To use Red Hat Network,\nlaunch the Red Hat Update Agent with the following command:\n\nup2date\n\nThis will start an interactive process that will result in the appropriate\nRPMs being upgraded on your system.\n\nIf up2date fails to connect to Red Hat Network due to SSL\nCertificate Errors, you need to install a version of the\nup2date client with an updated certificate.  The latest version of\nup2date is available from the Red Hat FTP site and may also be\ndownloaded directly from the RHN website:\n\nhttps://rhn.redhat.com/help/latest-up2date.pxt",
+  "id": "RHBA-2004:189",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2004:189",
+  "portal_BZ": [
+    "117929",
+    "118874",
+    "119062",
+    "120971",
+    "121282",
+    "122369",
+    "122502"
+  ],
+  "timestamp": "2026-02-25T14:55:58.322Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "OpenOffice.org is an open source, community-developed, multi-platform\noffice productivity suite.  OpenOffice.org internally uses inbuilt code\nfrom neon, an HTTP and WebDAV client library.\n\nSeveral users noticed, after updating to OpenOffice.org version\n1.1.0-15.EL, that some documents using common fonts, such as Arial,\nappeared blank, and that other fonts, such as CJK Mincho and Gothic, did\nnot display properly. For some non-English users, Help content also did not\ndisplay properly.  Mozilla address book integration also caused conflicts\non x86-64 architectures during upgrades, and was generally unstable.\n\nGeneral font replacement and substitution have been improved in this\nrelease.  The Mozilla address book integration feature has also been\nremoved until replacement functionality can be delivered.\n\nUsers of OpenOffice.org are advised to upgrade to these updated packages,\nwhich contain patches correcting these font and Help issues.",
+  "lastModifiedDate": "2004-05-19T00:00:00Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2004:189",
+  "portal_publication_date": "2004-05-19T00:00:00Z",
+  "portal_product_names": [
+    "Red Hat Enterprise Linux Server",
+    "Red Hat Enterprise Linux Desktop",
+    "Red Hat Enterprise Linux Workstation"
+  ],
+  "abstract": "OpenOffice.org is an open source, community-developed, multi-platform\noffice productivity suite.  OpenOffice.org internally uses inbuilt code\nfrom neon, an HTTP and WebDAV client library.\n\nSeveral users noticed, after updating to OpenOffice.org version\n1.1.0-15.EL, that some documents using common fonts, such as Arial,\nappeared blank, and that other fonts, such as CJK Mincho and Gothic, did\nnot display properly. For some non-English users, Help content also did not\ndisplay properly.  Mozilla address book integration also caused conflicts\non x86-64 architectures during upgrades, and was generally unstable.\n\nGeneral font replacement and substitution have been improved in this\nrelease.  The Mozilla address book integration feature has also been\nremoved until replacement functionality can be delivered.\n\nUsers of OpenOffice.org are advised to upgrade to these updated packages,\nwhich contain patches correcting these font and Help issues.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2004:189",
+  "boostBaseVersion": "3",
+  "sortTitle": "(RHBA-2004:189) Updated OpenOffice.org packages fix font and help issues",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2004-05-19T00:00:00Z"],
+  "_version_": 1858109553689755648,
+  "displayDate": "2004-05-19T00:00:00Z",
+  "allTitle": "(RHBA-2004:189) Updated OpenOffice.org packages fix font and help issues",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "69|rhel|3|3|i386",
+    "68|rhel|3|3|i386",
+    "71|rhel|3|3|i386",
+    "71|rhel|3|3|x86_64",
+    "69|rhel|3|3|x86_64",
+    "68|rhel|3|3|x86_64"
+  ],
+  "portal_title": ["(RHBA-2004:189) Updated OpenOffice.org packages fix font and help issues"]
+}

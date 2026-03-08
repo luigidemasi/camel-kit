@@ -1,0 +1,73 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "8",
+  "year": 2025,
+  "portal_other_references": ["https://docs.redhat.com/en/documentation/red_hat_advanced_cluster_security_for_kubernetes/4.7/html/release_notes/release-notes-47"],
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2025:7656) ACS 4.7 bug fix update",
+  "detectedProducts": [
+    "rhel",
+    "rhel8"
+  ],
+  "portal_summary": "Updated images are now available for Red Hat Advanced Cluster Security for\nKubernetes (RHACS). The updated image includes bug fixes.",
+  "portal_synopsis": "ACS 4.7 bug fix update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Advanced Cluster Security for Kubernetes|Red Hat Advanced Cluster Security for Kubernetes for IBM Z and LinuxONE|4|s390x",
+    "Red Hat Advanced Cluster Security for Kubernetes|Red Hat Advanced Cluster Security for Kubernetes for IBM Power, little endian|4|ppc64le",
+    "Red Hat Advanced Cluster Security for Kubernetes|Red Hat Advanced Cluster Security for Kubernetes|4|x86_64",
+    "Red Hat Advanced Cluster Security for Kubernetes|Red Hat Advanced Cluster Security for Kubernetes for ARM|4|aarch64"
+  ],
+  "portal_CVE": [
+    "CVE-2024-8176",
+    "CVE-2024-12133",
+    "CVE-2024-12243",
+    "CVE-2025-0395"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "If you are using an earlier version of RHACS 4.7.0, you are advised to upgrade to patch release 4.7.3.",
+  "id": "RHBA-2025:7656",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2025:7656",
+  "timestamp": "2026-03-02T02:46:15.501Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "This release of RHACS includes the following bug fixes:\n\n* Fixed an issue where you could approve global exception requests without having the global access scope, potentially affecting clusters you don't have access to. (ROX-27669)\n\n* Fixed an issue where disabling TLS certificate validation in the email notifier settings did not skip TLS verification even if you selected the option. (ROX-28250)\n\n* Fixed an issue where API responses from Central would not include the \"Content-Length\" HTTP response header on successful requests, which could affect your integrations that rely on this header. (ROX-28931)\n\n* Fixed an issue where the number of failed policies reported in Configuration Management for a deployment were calculated incorrectly. (ROX-28878)\n\n* Increased the default client timeout from 60 seconds to 180 seconds for GraphQL-based requests to avoid long-running request timeouts. (ROX-28954)",
+  "lastModifiedDate": "2025-05-15T08:37:35Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2025:7656",
+  "portal_publication_date": "2025-05-15T08:37:35Z",
+  "portal_product_names": [
+    "Red Hat Advanced Cluster Security for Kubernetes for IBM Z and LinuxONE",
+    "Red Hat Advanced Cluster Security for Kubernetes for IBM Power, little endian",
+    "Red Hat Advanced Cluster Security for Kubernetes",
+    "Red Hat Advanced Cluster Security for Kubernetes for ARM"
+  ],
+  "abstract": "This release of RHACS includes the following bug fixes:\n\n* Fixed an issue where you could approve global exception requests without having the global access scope, potentially affecting clusters you don't have access to. (ROX-27669)\n\n* Fixed an issue where disabling TLS certificate validation in the email notifier settings did not skip TLS verification even if you selected the option. (ROX-28250)\n\n* Fixed an issue where API responses from Central would not include the \"Content-Length\" HTTP response header on successful requests, which could affect your integrations that rely on this header. (ROX-28931)\n\n* Fixed an issue where the number of failed policies reported in Configuration Management for a deployment were calculated incorrectly. (ROX-28878)\n\n* Increased the default client timeout from 60 seconds to 180 seconds for GraphQL-based requests to avoid long-running request timeouts. (ROX-28954)",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2025:7656",
+  "boostBaseVersion": "8",
+  "sortTitle": "(RHBA-2025:7656) ACS 4.7 bug fix update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2025-05-15T08:37:35Z"],
+  "_version_": 1858516628991377408,
+  "displayDate": "2025-05-15T08:37:35Z",
+  "allTitle": "(RHBA-2025:7656) ACS 4.7 bug fix update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "837|rhel|8|4|s390x",
+    "838|rhel|8|4|ppc64le",
+    "665|rhel|8|4|x86_64",
+    "980|rhel|8|4|aarch64"
+  ],
+  "portal_title": ["(RHBA-2025:7656) ACS 4.7 bug fix update"],
+  "portal_jira": ["ROX-29206"]
+}

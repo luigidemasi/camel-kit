@@ -1,0 +1,71 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "7",
+  "year": 2018,
+  "language": "en",
+  "portal_advisory_type": "Product Enhancement Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHEA-2018:1533) ovirt-host bug fix and enhancement update",
+  "detectedProducts": [
+    "rhel",
+    "rhel7"
+  ],
+  "portal_summary": "Updated ovirt-host packages that fix several bugs and add various enhancements are now available.",
+  "portal_package": [
+    "ovirt-host-dependencies-4.2.2-2.el7ev.ppc64le.rpm",
+    "ovirt-host-4.2.2-2.el7ev.src.rpm",
+    "ovirt-host-4.2.2-2.el7ev.ppc64le.rpm",
+    "ovirt-host-4.2.2-2.el7ev.x86_64.rpm",
+    "ovirt-host-dependencies-4.2.2-2.el7ev.x86_64.rpm"
+  ],
+  "portal_synopsis": "ovirt-host bug fix and enhancement update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Virtualization|Red Hat Virtualization|4|x86_64",
+    "Red Hat Virtualization|Red Hat Virtualization for IBM Power LE|4|ppc64le"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "Before applying this update, make sure all previously released errata\nrelevant to your system have been applied.\n\nFor details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/2974891",
+  "id": "RHEA-2018:1533",
+  "view_uri": "https://access.redhat.com/errata/RHEA-2018:1533",
+  "portal_BZ": [
+    "1425032",
+    "1460708",
+    "1490041"
+  ],
+  "timestamp": "2026-02-25T09:29:09.759Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "The ovirt-host package consolidates host package requirements into a single meta package.\n\nChanges to the ovirt-host component:\n\n* katello-agent is now installed by default on Red Hat Virtualization and Red Hat Virtualization Hosts (RHVH) and is included in the RHVH image.\n\nKatello Agent sends information about installed rpms to Satellite. (BZ#1425032)\n\n* A new package ovirt-host has been provided. The package is a meta-package, and pulls all dependencies required to run as a Red Hat Virtualization hypervisor. (BZ#1460708)\n\n* The ipa-client package is now installed on hosts by default and is included in Red Hat Virtualization Host.\n\nIPA Client allows integration of Cockpit certificate signing and SSO with Red Hat IdM, and adds the host to the IdM realm. (BZ#1490041)",
+  "lastModifiedDate": "2018-05-15T17:18:21Z",
+  "resource_uri": "https://access.redhat.com/errata/RHEA-2018:1533",
+  "portal_publication_date": "2018-05-15T17:18:21Z",
+  "portal_product_names": [
+    "Red Hat Virtualization",
+    "Red Hat Virtualization for IBM Power LE"
+  ],
+  "abstract": "The ovirt-host package consolidates host package requirements into a single meta package.\n\nChanges to the ovirt-host component:\n\n* katello-agent is now installed by default on Red Hat Virtualization and Red Hat Virtualization Hosts (RHVH) and is included in the RHVH image.\n\nKatello Agent sends information about installed rpms to Satellite. (BZ#1425032)\n\n* A new package ovirt-host has been provided. The package is a meta-package, and pulls all dependencies required to run as a Red Hat Virtualization hypervisor. (BZ#1460708)\n\n* The ipa-client package is now installed on hosts by default and is included in Red Hat Virtualization Host.\n\nIPA Client allows integration of Cockpit certificate signing and SSO with Red Hat IdM, and adds the host to the IdM realm. (BZ#1490041)",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHEA-2018:1533",
+  "boostBaseVersion": "7",
+  "sortTitle": "(RHEA-2018:1533) ovirt-host bug fix and enhancement update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2018-05-15T17:18:21Z"],
+  "_version_": 1858088992663142400,
+  "displayDate": "2018-05-15T17:18:21Z",
+  "allTitle": "(RHEA-2018:1533) ovirt-host bug fix and enhancement update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "150|rhel|7|4|x86_64",
+    "276|rhel|7|4|ppc64le"
+  ],
+  "portal_title": ["(RHEA-2018:1533) ovirt-host bug fix and enhancement update"]
+}

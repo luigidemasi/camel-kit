@@ -1,0 +1,75 @@
+{
+  "boostProduct": "rhel",
+  "boostDetectedVersion": "6",
+  "year": 2017,
+  "portal_other_references": [
+    "https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/6.9_Release_Notes/index.html",
+    "https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/6.9_Technical_Notes/index.html"
+  ],
+  "language": "en",
+  "portal_advisory_type": "Bug Fix Advisory",
+  "caseCount_365": 0,
+  "caseCount": 0,
+  "portal_type": "errata",
+  "solution_rootcause": "subscriber_only",
+  "title": "(RHBA-2017:0681) sbd bug fix update",
+  "detectedProducts": [
+    "rhel",
+    "rhel6"
+  ],
+  "portal_summary": "An update for sbd is now available for Red Hat Enterprise Linux 6.",
+  "portal_package": [
+    "sbd-1.2.1-31.el6.x86_64.rpm",
+    "sbd-1.2.1-31.el6.i686.rpm",
+    "sbd-debuginfo-1.2.1-31.el6.i686.rpm",
+    "sbd-1.2.1-31.el6.src.rpm",
+    "sbd-debuginfo-1.2.1-31.el6.x86_64.rpm"
+  ],
+  "portal_synopsis": "sbd bug fix update",
+  "solution_environment": "subscriber_only",
+  "portal_product_filter": [
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Resilient Storage for x86_64|6|x86_64",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux High Availability for x86_64|6|x86_64",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux Resilient Storage for x86_64|6|i386",
+    "Red Hat Enterprise Linux|Red Hat Enterprise Linux High Availability for x86_64|6|i386"
+  ],
+  "solution_resolution": "subscriber_only",
+  "docs_text_store": "",
+  "portal_severity": "None",
+  "granite_r2_vector_field_set": true,
+  "portal_solution": "For details on how to apply this update, refer to:\n\nhttps://access.redhat.com/articles/11258",
+  "id": "RHBA-2017:0681",
+  "view_uri": "https://access.redhat.com/errata/RHBA-2017:0681",
+  "portal_BZ": ["1375244"],
+  "timestamp": "2026-02-25T08:56:11.379Z",
+  "vector_psfa_all-MiniLM-L6-v2_set": false,
+  "documentKind": "Errata",
+  "portal_description": "The sbd packages provide integration with hardware-based watchdogs allowing the SBD utility to be used as a cluster-fencing device. SBD watches the cluster process and initiates a hardware reset if one of the processes fails or the node loses quorum.\n\nFor detailed information on changes in this release, see the Red Hat Enterprise Linux 6.9 Release Notes and Red Hat Enterprise Linux 6.9 Technical Notes linked from the References section.\n\nUsers of sbd are advised to upgrade to these updated packages.",
+  "lastModifiedDate": "2017-03-21T06:18:31Z",
+  "resource_uri": "https://access.redhat.com/errata/RHBA-2017:0681",
+  "portal_publication_date": "2017-03-21T06:17:46Z",
+  "portal_product_names": [
+    "Red Hat Enterprise Linux Resilient Storage for x86_64",
+    "Red Hat Enterprise Linux High Availability for x86_64"
+  ],
+  "abstract": "The sbd packages provide integration with hardware-based watchdogs allowing the SBD utility to be used as a cluster-fencing device. SBD watches the cluster process and initiates a hardware reset if one of the processes fails or the node loses quorum.\n\nFor detailed information on changes in this release, see the Red Hat Enterprise Linux 6.9 Release Notes and Red Hat Enterprise Linux 6.9 Technical Notes linked from the References section.\n\nUsers of sbd are advised to upgrade to these updated packages.",
+  "authorSSOName": "redhat_only",
+  "solution_diagnosticsteps": "subscriber_only",
+  "uri": "downloads_https://access.redhat.com/errata/RHBA-2017:0681",
+  "boostBaseVersion": "6",
+  "sortTitle": "(RHBA-2017:0681) sbd bug fix update",
+  "portal_requires_subscription": "no",
+  "portal_update_date": ["2017-03-21T06:18:31Z"],
+  "_version_": 1858086918107955200,
+  "displayDate": "2017-03-21T06:18:31Z",
+  "allTitle": "(RHBA-2017:0681) sbd bug fix update",
+  "large_text_store": "",
+  "miniLM_vector_field_set": true,
+  "portal_child_ids": [
+    "90|rhel|6|6|x86_64",
+    "83|rhel|6|6|x86_64",
+    "90|rhel|6|6|i386",
+    "83|rhel|6|6|i386"
+  ],
+  "portal_title": ["(RHBA-2017:0681) sbd bug fix update"]
+}
