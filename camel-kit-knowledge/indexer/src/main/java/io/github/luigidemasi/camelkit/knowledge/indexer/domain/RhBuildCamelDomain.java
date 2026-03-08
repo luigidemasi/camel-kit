@@ -319,10 +319,19 @@ public class RhBuildCamelDomain implements DocumentDomain {
                     break;
                 }
 
-                JSONObject json = new JSONObject(responseBody);
-                JSONObject response = json.getJSONObject("response");
-                numFound = response.getInt("numFound");
-                JSONArray docs = response.getJSONArray("docs");
+                JSONObject json;
+                JSONObject response;
+                JSONArray docs;
+                try {
+                    json = new JSONObject(responseBody);
+                    response = json.getJSONObject("response");
+                    numFound = response.getInt("numFound");
+                    docs = response.getJSONArray("docs");
+                } catch (org.json.JSONException e) {
+                    System.out.printf("  WARN: Unexpected JSON response for %s (start=%d): %s%n",
+                            product, start, e.getMessage());
+                    break;
+                }
 
                 if (docs.isEmpty()) break;
 
@@ -402,7 +411,18 @@ public class RhBuildCamelDomain implements DocumentDomain {
                     String severity = doc.optString("portal_severity", "Unknown");
                     String synopsis = doc.optString("portal_synopsis", "");
                     String pubDate = doc.optString("portal_publication_date", "");
-                    String productNames = doc.optString("portal_product_names", "");
+                    String productNames;
+                    if (doc.has("portal_product_names") && doc.get("portal_product_names") instanceof JSONArray) {
+                        JSONArray arr = doc.getJSONArray("portal_product_names");
+                        StringBuilder pn = new StringBuilder();
+                        for (int p = 0; p < arr.length(); p++) {
+                            if (p > 0) pn.append(", ");
+                            pn.append(arr.getString(p));
+                        }
+                        productNames = pn.toString();
+                    } else {
+                        productNames = doc.optString("portal_product_names", "");
+                    }
                     String description = doc.optString("portal_description", "");
 
                     StringBuilder content = new StringBuilder();
@@ -446,7 +466,10 @@ public class RhBuildCamelDomain implements DocumentDomain {
                                 }
 
                                 if (cve.has("affected_release")) {
-                                    JSONArray releases = cve.getJSONArray("affected_release");
+                                    Object relObj = cve.get("affected_release");
+                                    JSONArray releases = relObj instanceof JSONArray
+                                            ? (JSONArray) relObj
+                                            : new JSONArray().put(relObj);
                                     for (int r = 0; r < releases.length(); r++) {
                                         JSONObject rel = releases.getJSONObject(r);
                                         String pkg = rel.optString("package", "");
