@@ -95,6 +95,28 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- Download ONNX model if not present (needed for semantic search at runtime) -->
+            <plugin>
+                <groupId>com.googlecode.maven-download-plugin</groupId>
+                <artifactId>download-maven-plugin</artifactId>
+                <version>1.12.1</version>
+                <executions>
+                    <execution>
+                        <id>download-onnx-model</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>wget</goal>
+                        </goals>
+                        <configuration>
+                            <url>https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx</url>
+                            <outputDirectory>${project.basedir}/src/main/resources/models</outputDirectory>
+                            <outputFileName>model.onnx</outputFileName>
+                            <skipCache>true</skipCache>
+                            <overwrite>false</overwrite>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
