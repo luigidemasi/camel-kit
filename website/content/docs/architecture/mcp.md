@@ -107,6 +107,7 @@ The Camel MCP server provides **15 tools** organized into 6 categories:
 | **camel-implement** | `camel_catalog_component_doc`, `camel_catalog_dataformat_doc`, `camel_catalog_eip_doc`, `camel_catalog_language_doc`, `camel_route_context`, `camel_validate_route` | 6 |
 | **camel-validate** | `camel_validate_route`, `camel_route_harden_context` | 2 |
 | **camel-test** | `camel_route_context`, `camel_catalog_component_doc` | 2 |
+| **camel-knowledge** | `camel_rh_build_search`, `camel_rh_build_component_info`, `camel_migration_search`, `camel_migration_lookup` | 4 |
 
 ## Tool Invocation Flow
 

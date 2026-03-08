@@ -13,6 +13,7 @@ This document provides detailed reference for all Camel-Kit commands.
   - [/camel-implement](#camel-implement)
   - [/camel-validate](#camel-validate)
   - [/camel-test](#camel-test)
+  - [/camel-knowledge](#camel-knowledge)
 
 ---
 
@@ -439,6 +440,55 @@ camel test run test/<flow-name>.camel.it.yaml
 
 ---
 
+### /camel-knowledge
+
+Ask questions about Red Hat Build of Apache Camel documentation — supported configurations, migration guides, release notes, security advisories, errata, CVEs, and general product information.
+
+**Usage:**
+
+```
+/camel-knowledge <question>     # Ask a question about Red Hat Camel documentation
+/camel-knowledge                # No question — prompt user to ask one
+```
+
+**Examples:**
+
+```
+/camel-knowledge is camel-kafka supported in Red Hat Build of Apache Camel 4.14?
+/camel-knowledge what CVEs affect camel-http in version 4.10?
+/camel-knowledge how do I migrate from Fuse 7 to RHBAC 4.14?
+```
+
+**Prerequisites:**
+
+- The knowledge MCP server must be available (configured during `camel-kit init`)
+
+**How it works:**
+
+1. **Parse question** — Extracts topic keywords, version, runtime, and classifies the question type
+2. **Select MCP tools** — Routes to the appropriate knowledge MCP tool based on question type:
+
+| Question Type | Primary Tool | Fallback Tool |
+|---|---|---|
+| Component support | `camel_rh_build_component_info` | `camel_rh_build_search` |
+| General product question | `camel_rh_build_search` | — |
+| Migration | `camel_migration_search` | `camel_rh_build_search` |
+| Component migration | `camel_migration_lookup` | `camel_migration_search` |
+| Security / CVEs / errata | `camel_rh_build_search` | — |
+
+3. **Evaluate and retry** — Broadens query or tries fallback tool if results are poor
+4. **Synthesize answer** — Composes answer with source citations
+5. **Suggest follow-ups** — Proposes 2-3 related questions
+
+**Data sources:**
+
+- Product guides from docs.redhat.com (5 product versions: 4.0, 4.4, 4.8, 4.10, 4.14)
+- Knowledge base articles (release schedule, component details, supported configurations)
+- Red Hat errata (RHSA/RHBA/RHEA) enriched with CVE details (CVSS, CWE, affected packages)
+- Migration guides
+
+---
+
 All commands use the Apache Camel MCP Server when available. See [MCP Integration](user-guide.md#mcp-integration) for details, or [Architecture Guide](architecture.md#mcp-integration-internal-details) for tool parameters and internals.
 
 ---
@@ -460,4 +510,7 @@ camel-kit init my-project --ai bob     # Create project with MCP config
 /camel-implement order-ingestion       # Generate YAML with MCP validation
 /camel-validate                        # Check specs and run security analysis
 /camel-test order-ingestion            # Generate tests with validation
+
+# Knowledge Q&A (in AI assistant)
+/camel-knowledge is camel-kafka supported in 4.14?   # Ask about Red Hat docs
 ```

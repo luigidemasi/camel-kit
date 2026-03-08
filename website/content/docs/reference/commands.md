@@ -256,6 +256,35 @@ Generate Citrus integration tests for routes with automated validation.
 
 ---
 
+### /camel-knowledge
+
+Ask questions about Red Hat Build of Apache Camel documentation — supported configurations, migration guides, release notes, security advisories, errata, CVEs, and general product information.
+
+**Usage:**
+
+```
+/camel-knowledge <question>     # Ask a question about Red Hat Camel documentation
+/camel-knowledge                # No question — prompt user to ask one
+```
+
+**How it works:**
+
+1. Parses your question to extract topic, version, and question type
+2. Selects the right knowledge MCP tool (search, component lookup, or migration lookup)
+3. Retrieves relevant documentation chunks via hybrid semantic search
+4. Synthesizes an answer with source citations
+5. Suggests 2-3 follow-up questions
+
+**Data sources:** Product guides (5 versions), KB articles, Red Hat errata with CVE enrichment, migration guides.
+
+**MCP Tools Used:**
+- `camel_rh_build_search` — General documentation search
+- `camel_rh_build_component_info` — Component support queries
+- `camel_migration_search` — Migration guide search
+- `camel_migration_lookup` — Component migration lookup
+
+---
+
 ## Command Cheat Sheet
 
 ```bash
@@ -273,4 +302,7 @@ camel-kit init my-project --ai bob     # Create project with MCP config
 /camel-implement order-ingestion       # Generate YAML with MCP validation
 /camel-validate                        # Check specs and run security analysis
 /camel-test order-ingestion            # Generate tests with validation
+
+# Knowledge Q&A (in AI assistant)
+/camel-knowledge is camel-kafka supported in 4.14?   # Ask about Red Hat docs
 ```
