@@ -31,7 +31,7 @@
         <minimalJavaBuildVersion>${jdk.version}</minimalJavaBuildVersion>
         <picocli.version>4.7.7</picocli.version>
         <ascii-table.version>1.9.0</ascii-table.version>
-        <jackson.version>2.21.0</jackson.version>
+        <jackson.version>2.19.2.redhat-00003</jackson.version>
         <jline.version>3.30.6</jline.version>
         <tamboui.version>0.1.0</tamboui.version>
     </properties>
@@ -67,7 +67,22 @@
                 <enabled>true</enabled>
             </releases>
         </repository>
+        <repository>
+            <id>redhat-ga</id>
+            <url>https://maven.repository.redhat.com/ga/</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
     </repositories>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <id>redhat-ga</id>
+            <url>https://maven.repository.redhat.com/ga/</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </pluginRepository>
+    </pluginRepositories>
 
     <modules>
         <module>camel-kit-main</module>

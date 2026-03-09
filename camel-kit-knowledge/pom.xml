@@ -78,22 +78,4 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-
-    <repositories>
-        <repository>
-            <id>redhat-ga</id>
-            <url>https://maven.repository.redhat.com/ga/</url>
-            <releases><enabled>true</enabled></releases>
-            <snapshots><enabled>false</enabled></snapshots>
-        </repository>
-    </repositories>
-
-    <pluginRepositories>
-        <pluginRepository>
-            <id>redhat-ga</id>
-            <url>https://maven.repository.redhat.com/ga/</url>
-            <releases><enabled>true</enabled></releases>
-            <snapshots><enabled>false</enabled></snapshots>
-        </pluginRepository>
-    </pluginRepositories>
 </project>
