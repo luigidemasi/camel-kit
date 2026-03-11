@@ -24,7 +24,7 @@ Example: `/camel-knowledge is camel-kafka supported in Red Hat Build of Apache C
 
 ## Prerequisites
 
-Ensure the knowledge MCP server is available. If MCP tools (`camel_rh_build_search`, `camel_rh_build_component_info`, `camel_migration_search`, `camel_migration_lookup`) are not accessible, inform the user:
+Ensure the knowledge MCP server is available. If MCP tools (`camel_rh_build_search`, `camel_rh_build_component_info`, `camel_rh_build_cve_search`, `camel_rh_build_bugfix_search`, `camel_rh_build_release_info`, `camel_rh_build_supported_configs`, `camel_migration_search`, `camel_migration_lookup`) are not accessible, inform the user:
 
 ```
 The knowledge MCP server is not available. Run `camel-kit init` to configure it,
@@ -41,10 +41,14 @@ Extract from the user's question:
 - **Runtime** — any runtime mentioned (e.g., "Spring Boot", "Quarkus"). If none, leave empty
 - **Question type** — classify as one of:
   - `component-support` — Is a component supported? What config options?
-  - `general` — General product question (release notes, supported configs, errata)
+  - `supported-configs` — Supported platforms, databases, JDKs, operating systems
+  - `general` — General product question (release notes, getting started)
   - `migration` — Migration from older Camel/Fuse versions
   - `component-migration` — Migration of a specific component
-  - `security` — CVEs, security advisories, errata
+  - `cve-lookup` — Question about a specific CVE ID (e.g., "is CVE-2021-44228 fixed?")
+  - `security` — Security advisories by severity/version (no specific CVE ID)
+  - `bugfix` — Bug fix advisories, non-security fixes
+  - `release-info` — What was fixed/released in a specific version
 
 ### Step 2: Select and Call MCP Tools
 
@@ -53,10 +57,14 @@ Based on question type, call the appropriate MCP tool(s):
 | Question Type | Primary Tool | Parameters | Fallback Tool |
 |---|---|---|---|
 | `component-support` | `camel_rh_build_component_info` | `component=<topic>`, `version=<version or empty>` | `camel_rh_build_search` |
+| `supported-configs` | `camel_rh_build_supported_configs` | `query=<topic keywords>`, `version=<version or empty>`, `max_results=5` | `camel_rh_build_search` |
 | `general` | `camel_rh_build_search` | `query=<topic keywords>`, `version=<version or empty>`, `max_results=5` | — |
 | `migration` | `camel_migration_search` | `query=<topic>`, `source_version=<old>`, `target_version=<new>`, `max_results=5` | `camel_rh_build_search` |
 | `component-migration` | `camel_migration_lookup` | `component=<name>`, `source_version=<old>` | `camel_migration_search` |
-| `security` | `camel_rh_build_search` | `query=<CVE or topic>`, `version=<version or empty>`, `max_results=5` | — |
+| `cve-lookup` | `camel_rh_build_cve_search` | `cve_id=<CVE-YYYY-NNNNN>` | `camel_rh_build_bugfix_search` |
+| `security` | `camel_rh_build_bugfix_search` | `advisory_type=Security Advisory`, `severity=<if specified>`, `version=<if specified>` | `camel_rh_build_search` |
+| `bugfix` | `camel_rh_build_bugfix_search` | `advisory_type=Bug Fix`, `version=<if specified>`, `query=<topic>` | `camel_rh_build_search` |
+| `release-info` | `camel_rh_build_release_info` | `version=<version>`, `advisory_type=<if specified>`, `max_results=20` | `camel_rh_build_search` |
 
 **Important for all MCP calls:**
 - If version contains a `.redhat-XXXXX` suffix, strip it before calling (e.g., `4.14.4.redhat-00008` → `4.14`)

@@ -70,6 +70,34 @@ public class IndexBuilder {
                         doc.component(chunk.component());
                     }
 
+                    // Runtime (multi-valued)
+                    if (chunk.runtimes() != null) {
+                        for (String runtime : chunk.runtimes()) {
+                            doc.runtime(runtime);
+                        }
+                    }
+
+                    // Errata-specific structured fields
+                    if (chunk.erratumId() != null) {
+                        doc.erratumId(chunk.erratumId());
+                    }
+                    if (chunk.advisoryType() != null) {
+                        doc.advisoryType(chunk.advisoryType());
+                    }
+                    if (chunk.severity() != null) {
+                        doc.severity(chunk.severity());
+                    }
+                    if (chunk.cveIds() != null) {
+                        for (String cveId : chunk.cveIds()) {
+                            doc.cveId(cveId);
+                        }
+                    }
+                    if (chunk.fixedInVersions() != null) {
+                        for (String ver : chunk.fixedInVersions()) {
+                            doc.fixedInVersion(ver);
+                        }
+                    }
+
                     // Generate embedding if provider is available
                     if (embeddingProvider != null) {
                         String textToEmbed = chunk.sectionTitle() + " " + chunk.content();

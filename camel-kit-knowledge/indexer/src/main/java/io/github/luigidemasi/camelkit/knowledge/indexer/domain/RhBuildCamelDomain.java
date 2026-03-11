@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -52,6 +53,9 @@ public class RhBuildCamelDomain implements DocumentDomain {
             System.getProperty("docling.parallelism", "4"));
 
     private static final Pattern VERSION_PATTERN = Pattern.compile("\\b(4\\.(?:0|4|8|10|14))\\b");
+
+    private static final Pattern FIXED_VERSION_PATTERN =
+            Pattern.compile("(?:Apache Camel|Fuse)\\s+(\\d+\\.\\d+)");
 
     private static final Map<String, List<GuideInfo>> GUIDE_MAP = buildGuideMap();
 
@@ -126,6 +130,8 @@ public class RhBuildCamelDomain implements DocumentDomain {
         for (ConvertedDoc doc : convertedDocs) {
             List<Section> sections = doclingParser.chunkMarkdown(doc.markdown());
 
+            List<String> runtimes = inferRuntimes(doc.shortName());
+
             for (Section section : sections) {
                 if (doc.isKbArticle()) {
                     String extractedVersion = extractVersionFromHeading(section.title());
@@ -136,7 +142,8 @@ public class RhBuildCamelDomain implements DocumentDomain {
                     chunks.add(new DocumentChunk(
                             id, "red-hat-build-camel", doc.shortName(),
                             extractedVersion, null, component,
-                            section.title(), section.content()
+                            section.title(), section.content(),
+                            runtimes, null, null, null, null, null
                     ));
                 } else {
                     String id = "rh-build-camel-" + doc.version() + "-" + doc.shortName() + "-" +
@@ -146,7 +153,8 @@ public class RhBuildCamelDomain implements DocumentDomain {
                     chunks.add(new DocumentChunk(
                             id, "red-hat-build-camel", doc.shortName(),
                             doc.version(), null, component,
-                            section.title(), section.content()
+                            section.title(), section.content(),
+                            runtimes, null, null, null, null, null
                     ));
                 }
             }
@@ -188,12 +196,10 @@ public class RhBuildCamelDomain implements DocumentDomain {
 
             Path versionResourceDir = resourcesDir.resolve("rh-build-camel/" + version);
             Files.createDirectories(versionResourceDir);
-            Path versionCacheDir = cacheDir.resolve("rh-build-camel/" + version);
-            Files.createDirectories(versionCacheDir);
 
             for (GuideInfo guide : guides) {
                 Path htmlFile = versionResourceDir.resolve(guide.shortName() + ".html");
-                Path mdFile = versionCacheDir.resolve(guide.shortName() + ".md");
+                Path mdFile = versionResourceDir.resolve(guide.shortName() + ".md");
 
                 if (Files.exists(mdFile) && Files.size(mdFile) > 0) {
                     // Cache hit — read synchronously (fast)
@@ -231,12 +237,12 @@ public class RhBuildCamelDomain implements DocumentDomain {
         }
 
         // Submit KB article conversions (from local resources directory)
-        Path kbCacheDir = cacheDir.resolve("rh-build-camel/kb-articles");
-        Files.createDirectories(kbCacheDir);
+        Path kbResourceDir = resourcesDir.resolve("rh-build-camel/kb-articles");
+        Files.createDirectories(kbResourceDir);
 
         for (KbArticle article : KB_ARTICLES) {
-            Path htmlFile = resourcesDir.resolve("rh-build-camel/kb-articles/" + article.id() + ".html");
-            Path mdFile = kbCacheDir.resolve(article.id() + ".md");
+            Path htmlFile = kbResourceDir.resolve(article.id() + ".html");
+            Path mdFile = kbResourceDir.resolve(article.id() + ".md");
 
             if (Files.exists(mdFile) && Files.size(mdFile) > 0) {
                 String markdown = Files.readString(mdFile);
@@ -391,7 +397,8 @@ public class RhBuildCamelDomain implements DocumentDomain {
 
     /**
      * Build DocumentChunk objects from cached errata JSON files,
-     * enriching security advisories with CVE details.
+     * enriching security advisories with CVE details and populating
+     * structured fields for precise MCP tool queries.
      */
     private List<DocumentChunk> buildErrataChunks() throws IOException {
         Path errataDir = resourcesDir.resolve("rh-build-camel/errata");
@@ -408,6 +415,7 @@ public class RhBuildCamelDomain implements DocumentDomain {
 
                     String id = doc.getString("id");
                     String sanitizedId = id.replace(":", "-");
+                    String advisoryType = doc.optString("portal_advisory_type", "Unknown");
                     String severity = doc.optString("portal_severity", "Unknown");
                     String synopsis = doc.optString("portal_synopsis", "");
                     String pubDate = doc.optString("portal_publication_date", "");
@@ -425,6 +433,18 @@ public class RhBuildCamelDomain implements DocumentDomain {
                     }
                     String description = doc.optString("portal_description", "");
 
+                    // Extract CVE IDs
+                    List<String> cveIds = new ArrayList<>();
+                    if ("Security Advisory".equals(advisoryType) && doc.has("portal_CVE")) {
+                        JSONArray cves = doc.getJSONArray("portal_CVE");
+                        for (int i = 0; i < cves.length(); i++) {
+                            cveIds.add(cves.getString(i));
+                        }
+                    }
+
+                    // Extract fixed-in versions from product names
+                    List<String> fixedInVersions = extractFixedInVersions(productNames);
+
                     StringBuilder content = new StringBuilder();
                     content.append("[Erratum ").append(id).append("] ")
                             .append(severity).append(": ").append(synopsis)
@@ -433,60 +453,57 @@ public class RhBuildCamelDomain implements DocumentDomain {
                             .append("\n\n").append(description);
 
                     // Enrich with CVE details for security advisories
-                    if ("Security Advisory".equals(doc.optString("portal_advisory_type"))
-                            && doc.has("portal_CVE")) {
-                        JSONArray cves = doc.getJSONArray("portal_CVE");
-                        for (int i = 0; i < cves.length(); i++) {
-                            String cveId = cves.getString(i);
-                            Path cveFile = cvesDir.resolve(cveId + ".json");
-                            if (!Files.exists(cveFile)) continue;
+                    for (String cveId : cveIds) {
+                        Path cveFile = cvesDir.resolve(cveId + ".json");
+                        if (!Files.exists(cveFile)) continue;
 
-                            try {
-                                JSONObject cve = new JSONObject(Files.readString(cveFile));
-                                String cvss = "";
-                                if (cve.has("cvss3") && cve.getJSONObject("cvss3").has("cvss3_base_score")) {
-                                    cvss = cve.getJSONObject("cvss3").get("cvss3_base_score").toString();
-                                }
-                                String threatSeverity = cve.optString("threat_severity", "");
-                                String cwe = cve.optString("cwe", "");
-                                String details = "";
-                                if (cve.has("details") && cve.getJSONArray("details").length() > 0) {
-                                    details = cve.getJSONArray("details").getString(0);
-                                }
+                        try {
+                            JSONObject cve = new JSONObject(Files.readString(cveFile));
+                            String cvss = "";
+                            if (cve.has("cvss3") && cve.getJSONObject("cvss3").has("cvss3_base_score")) {
+                                cvss = cve.getJSONObject("cvss3").get("cvss3_base_score").toString();
+                            }
+                            String threatSeverity = cve.optString("threat_severity", "");
+                            String cwe = cve.optString("cwe", "");
+                            String details = "";
+                            if (cve.has("details") && cve.getJSONArray("details").length() > 0) {
+                                details = cve.getJSONArray("details").getString(0);
+                            }
 
-                                content.append("\n\n").append(cveId)
-                                        .append(" (CVSS ").append(cvss)
-                                        .append(" ").append(threatSeverity)
-                                        .append(", ").append(cwe).append("):")
-                                        .append("\n  ").append(details);
+                            content.append("\n\n").append(cveId)
+                                    .append(" (CVSS ").append(cvss)
+                                    .append(" ").append(threatSeverity)
+                                    .append(", ").append(cwe).append("):")
+                                    .append("\n  ").append(details);
 
-                                String statement = cve.optString("statement", null);
-                                if (statement != null && !statement.isEmpty()) {
-                                    content.append("\n  Red Hat Statement: ").append(statement);
-                                }
+                            String statement = cve.optString("statement", null);
+                            if (statement != null && !statement.isEmpty()) {
+                                content.append("\n  Red Hat Statement: ").append(statement);
+                            }
 
-                                if (cve.has("affected_release")) {
-                                    Object relObj = cve.get("affected_release");
-                                    JSONArray releases = relObj instanceof JSONArray
-                                            ? (JSONArray) relObj
-                                            : new JSONArray().put(relObj);
-                                    for (int r = 0; r < releases.length(); r++) {
-                                        JSONObject rel = releases.getJSONObject(r);
-                                        String pkg = rel.optString("package", "");
-                                        if (!pkg.isEmpty()) {
-                                            content.append("\n  Affected package: ").append(pkg);
-                                            break;
-                                        }
+                            if (cve.has("affected_release")) {
+                                Object relObj = cve.get("affected_release");
+                                JSONArray releases = relObj instanceof JSONArray
+                                        ? (JSONArray) relObj
+                                        : new JSONArray().put(relObj);
+                                for (int r = 0; r < releases.length(); r++) {
+                                    JSONObject rel = releases.getJSONObject(r);
+                                    String pkg = rel.optString("package", "");
+                                    if (!pkg.isEmpty()) {
+                                        content.append("\n  Affected package: ").append(pkg);
+                                        break;
                                     }
                                 }
-                            } catch (Exception e) {
-                                System.out.printf("  WARN: Failed to parse CVE %s: %s%n",
-                                        cveId, e.getMessage());
                             }
+                        } catch (Exception e) {
+                            System.out.printf("  WARN: Failed to parse CVE %s: %s%n",
+                                    cveId, e.getMessage());
                         }
                     }
 
                     String extractedVersion = extractVersionFromHeading(synopsis);
+
+                    List<String> errataRuntimes = inferRuntimesFromProductNames(productNames);
 
                     chunks.add(new DocumentChunk(
                             "rh-build-camel-errata-" + sanitizedId,
@@ -496,7 +513,13 @@ public class RhBuildCamelDomain implements DocumentDomain {
                             null,
                             null,
                             synopsis,
-                            content.toString()
+                            content.toString(),
+                            errataRuntimes.isEmpty() ? null : errataRuntimes,
+                            id,
+                            advisoryType,
+                            severity,
+                            cveIds.isEmpty() ? null : cveIds,
+                            fixedInVersions.isEmpty() ? null : fixedInVersions
                     ));
                 } catch (Exception e) {
                     System.out.printf("  WARN: Failed to process erratum %s: %s%n",
@@ -506,6 +529,51 @@ public class RhBuildCamelDomain implements DocumentDomain {
         }
 
         return chunks;
+    }
+
+    /**
+     * Infer runtime(s) from guide short name.
+     * e.g., "quarkus-reference" → ["quarkus"], "spring-boot-migration" → ["spring-boot"]
+     * Guides without a clear runtime affinity return null (applies to all).
+     */
+    static List<String> inferRuntimes(String shortName) {
+        if (shortName == null) return null;
+        String lower = shortName.toLowerCase();
+        if (lower.contains("quarkus") && lower.contains("spring-boot")) {
+            return List.of("quarkus", "spring-boot");
+        }
+        if (lower.contains("quarkus")) return List.of("quarkus");
+        if (lower.contains("spring-boot")) return List.of("spring-boot");
+        return null; // general docs (hawtio, tooling, kaoto, etc.)
+    }
+
+    /**
+     * Infer runtime(s) from errata product names string.
+     * e.g., "Red Hat Build of Apache Camel 4.14 for Spring Boot" → ["spring-boot"]
+     */
+    static List<String> inferRuntimesFromProductNames(String productNames) {
+        if (productNames == null || productNames.isEmpty()) return List.of();
+        Set<String> runtimes = new LinkedHashSet<>();
+        String lower = productNames.toLowerCase();
+        if (lower.contains("quarkus")) runtimes.add("quarkus");
+        if (lower.contains("spring boot") || lower.contains("spring-boot")) runtimes.add("spring-boot");
+        // Fuse and Integration products pre-date the runtime split
+        if (lower.contains("camel k") || lower.contains("camel-k")) runtimes.add("quarkus");
+        return new ArrayList<>(runtimes);
+    }
+
+    /**
+     * Extract product versions from product names string.
+     * Matches patterns like "Apache Camel 4.14" and "Fuse 7.12".
+     */
+    List<String> extractFixedInVersions(String productNames) {
+        if (productNames == null || productNames.isEmpty()) return List.of();
+        Set<String> versions = new LinkedHashSet<>();
+        Matcher matcher = FIXED_VERSION_PATTERN.matcher(productNames);
+        while (matcher.find()) {
+            versions.add(matcher.group(1));
+        }
+        return new ArrayList<>(versions);
     }
 
     // Package-private accessors for testing

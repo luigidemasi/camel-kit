@@ -197,15 +197,102 @@ public class LuceneSearchService {
         for (int i = 0; i < Math.min(combined.size(), maxResults); i++) {
             Map.Entry<Integer, Float> entry = combined.get(i);
             Document doc = searcher.doc(entry.getKey());
+            String[] rtVals = doc.getValues(KnowledgeFields.RUNTIME);
+            List<String> runtimes = rtVals != null && rtVals.length > 0 ? List.of(rtVals) : List.of();
             results.add(new SearchResult(
                     doc.get(KnowledgeFields.ID),
                     doc.get(KnowledgeFields.SOURCE),
                     doc.get(KnowledgeFields.DOC_TYPE),
                     doc.get(KnowledgeFields.SOURCE_VERSION),
                     doc.get(KnowledgeFields.TARGET_VERSION),
+                    runtimes,
                     doc.get(KnowledgeFields.SECTION_TITLE),
                     doc.get(KnowledgeFields.CONTENT),
                     entry.getValue()
+            ));
+        }
+
+        return results;
+    }
+
+    /**
+     * Search errata by CVE ID (exact match on multi-valued cve_ids field).
+     */
+    public List<ErrataSearchResult> searchByCve(String cveId) throws IOException {
+        BooleanQuery query = new BooleanQuery.Builder()
+                .add(new TermQuery(new Term(KnowledgeFields.DOMAIN, "rh_build_camel")), BooleanClause.Occur.MUST)
+                .add(new TermQuery(new Term(KnowledgeFields.DOC_TYPE, "errata")), BooleanClause.Occur.MUST)
+                .add(new TermQuery(new Term(KnowledgeFields.CVE_IDS, cveId)), BooleanClause.Occur.MUST)
+                .build();
+
+        return executeErrataSearch(query, 20);
+    }
+
+    /**
+     * Search errata with structured filters (advisory type, severity, version) and optional free-text.
+     */
+    public List<ErrataSearchResult> searchErrata(String advisoryType, String severity,
+                                                  String version, String freeText, int maxResults)
+            throws IOException, ParseException {
+
+        BooleanQuery.Builder qb = new BooleanQuery.Builder()
+                .add(new TermQuery(new Term(KnowledgeFields.DOMAIN, "rh_build_camel")), BooleanClause.Occur.MUST)
+                .add(new TermQuery(new Term(KnowledgeFields.DOC_TYPE, "errata")), BooleanClause.Occur.MUST);
+
+        if (advisoryType != null) {
+            qb.add(new TermQuery(new Term(KnowledgeFields.ADVISORY_TYPE, advisoryType)), BooleanClause.Occur.MUST);
+        }
+        if (severity != null) {
+            qb.add(new TermQuery(new Term(KnowledgeFields.SEVERITY, severity)), BooleanClause.Occur.MUST);
+        }
+        if (version != null) {
+            qb.add(new TermQuery(new Term(KnowledgeFields.FIXED_IN_VERSIONS, version)), BooleanClause.Occur.MUST);
+        }
+        if (freeText != null && !freeText.isBlank()) {
+            QueryParser parser = new QueryParser(KnowledgeFields.CONTENT, analyzer);
+            qb.add(parser.parse(freeText), BooleanClause.Occur.MUST);
+        }
+
+        return executeErrataSearch(qb.build(), maxResults);
+    }
+
+    /**
+     * Search errata by fixed-in version (exact match on multi-valued fixed_in_versions field).
+     */
+    public List<ErrataSearchResult> searchByVersion(String version, String advisoryType, int maxResults)
+            throws IOException {
+
+        BooleanQuery.Builder qb = new BooleanQuery.Builder()
+                .add(new TermQuery(new Term(KnowledgeFields.DOMAIN, "rh_build_camel")), BooleanClause.Occur.MUST)
+                .add(new TermQuery(new Term(KnowledgeFields.DOC_TYPE, "errata")), BooleanClause.Occur.MUST)
+                .add(new TermQuery(new Term(KnowledgeFields.FIXED_IN_VERSIONS, version)), BooleanClause.Occur.MUST);
+
+        if (advisoryType != null) {
+            qb.add(new TermQuery(new Term(KnowledgeFields.ADVISORY_TYPE, advisoryType)), BooleanClause.Occur.MUST);
+        }
+
+        return executeErrataSearch(qb.build(), maxResults);
+    }
+
+    private List<ErrataSearchResult> executeErrataSearch(Query query, int maxResults) throws IOException {
+        TopDocs topDocs = searcher.search(query, maxResults);
+        List<ErrataSearchResult> results = new ArrayList<>();
+
+        for (ScoreDoc scoreDoc : topDocs.scoreDocs) {
+            Document doc = searcher.doc(scoreDoc.doc);
+            String[] cveIds = doc.getValues(KnowledgeFields.CVE_IDS);
+            String[] fixedIn = doc.getValues(KnowledgeFields.FIXED_IN_VERSIONS);
+
+            results.add(new ErrataSearchResult(
+                    doc.get(KnowledgeFields.ID),
+                    doc.get(KnowledgeFields.ERRATUM_ID),
+                    doc.get(KnowledgeFields.ADVISORY_TYPE),
+                    doc.get(KnowledgeFields.SEVERITY),
+                    doc.get(KnowledgeFields.SECTION_TITLE),
+                    doc.get(KnowledgeFields.CONTENT),
+                    cveIds != null ? List.of(cveIds) : List.of(),
+                    fixedIn != null ? List.of(fixedIn) : List.of(),
+                    scoreDoc.score
             ));
         }
 
@@ -218,12 +305,15 @@ public class LuceneSearchService {
 
         for (ScoreDoc scoreDoc : topDocs.scoreDocs) {
             Document doc = searcher.doc(scoreDoc.doc);
+            String[] rtVals = doc.getValues(KnowledgeFields.RUNTIME);
+            List<String> runtimes = rtVals != null && rtVals.length > 0 ? List.of(rtVals) : List.of();
             results.add(new SearchResult(
                     doc.get(KnowledgeFields.ID),
                     doc.get(KnowledgeFields.SOURCE),
                     doc.get(KnowledgeFields.DOC_TYPE),
                     doc.get(KnowledgeFields.SOURCE_VERSION),
                     doc.get(KnowledgeFields.TARGET_VERSION),
+                    runtimes,
                     doc.get(KnowledgeFields.SECTION_TITLE),
                     doc.get(KnowledgeFields.CONTENT),
                     scoreDoc.score
@@ -272,8 +362,24 @@ public class LuceneSearchService {
             String docType,
             String sourceVersion,
             String targetVersion,
+            List<String> runtimes,
             String sectionTitle,
             String content,
+            float score
+    ) {}
+
+    /**
+     * Errata-specific search result with structured fields.
+     */
+    public record ErrataSearchResult(
+            String id,
+            String erratumId,
+            String advisoryType,
+            String severity,
+            String sectionTitle,
+            String content,
+            List<String> cveIds,
+            List<String> fixedInVersions,
             float score
     ) {}
 }

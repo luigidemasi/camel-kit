@@ -26,6 +26,16 @@ public final class KnowledgeFields {
     // Vector embedding for semantic search (KnnFloatVectorField)
     public static final String EMBEDDING = "embedding";
 
+    // Runtime (multi-valued: "quarkus", "spring-boot", "main")
+    public static final String RUNTIME = "runtime";
+
+    // Errata-specific structured fields
+    public static final String ERRATUM_ID = "erratum_id";
+    public static final String ADVISORY_TYPE = "advisory_type";
+    public static final String SEVERITY = "severity";
+    public static final String CVE_IDS = "cve_ids";                 // multi-valued
+    public static final String FIXED_IN_VERSIONS = "fixed_in_versions"; // multi-valued
+
     // Domain metadata (stored once per domain, JSON-encoded)
     public static final String DOMAIN_META = "_domain_meta";
 }

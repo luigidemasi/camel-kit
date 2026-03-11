@@ -54,6 +54,39 @@ public class KnowledgeDocument {
         return this;
     }
 
+    /** Adds a single runtime. Call multiple times for multi-valued field. */
+    public KnowledgeDocument runtime(String runtime) {
+        doc.add(new StringField(KnowledgeFields.RUNTIME, runtime, Store.YES));
+        return this;
+    }
+
+    public KnowledgeDocument erratumId(String erratumId) {
+        doc.add(new StringField(KnowledgeFields.ERRATUM_ID, erratumId, Store.YES));
+        return this;
+    }
+
+    public KnowledgeDocument advisoryType(String advisoryType) {
+        doc.add(new StringField(KnowledgeFields.ADVISORY_TYPE, advisoryType, Store.YES));
+        return this;
+    }
+
+    public KnowledgeDocument severity(String severity) {
+        doc.add(new StringField(KnowledgeFields.SEVERITY, severity, Store.YES));
+        return this;
+    }
+
+    /** Adds a single CVE ID. Call multiple times for multi-valued field. */
+    public KnowledgeDocument cveId(String cveId) {
+        doc.add(new StringField(KnowledgeFields.CVE_IDS, cveId, Store.YES));
+        return this;
+    }
+
+    /** Adds a single fixed-in version. Call multiple times for multi-valued field. */
+    public KnowledgeDocument fixedInVersion(String version) {
+        doc.add(new StringField(KnowledgeFields.FIXED_IN_VERSIONS, version, Store.YES));
+        return this;
+    }
+
     public KnowledgeDocument embedding(float[] vector) {
         doc.add(new KnnFloatVectorField(KnowledgeFields.EMBEDDING, vector));
         return this;

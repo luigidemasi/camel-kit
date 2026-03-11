@@ -243,4 +243,5 @@ camel-kit-knowledge/mcp/src/main/resources/models/model.onnx
 camel-kit-knowledge/mcp/src/test/resources/models/model.onnx
 camel-kit-knowledge/indexer/src/main/resources/rh-build-camel/**/*.pdf
 camel-kit-knowledge/indexer/src/main/resources/rh-build-camel/**/*.html
+camel-kit-knowledge/indexer/src/main/resources/rh-build-camel/**/*.md
 !camel-kit-knowledge/indexer/src/main/resources/rh-build-camel/kb-articles/*.html
