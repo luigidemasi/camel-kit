@@ -92,6 +92,18 @@ See [Migration Workflow](docs/user-guide.md#migration-workflow) for details.
 
 ---
 
+## Expose routes as MCP tools via Wanaku
+
+After implementing your routes, expose them to AI agents through the [Wanaku MCP Router](https://wanaku.ai/):
+
+```
+/camel-wanaku
+```
+
+This generates a Wanaku rules file (`{flow-name}.wanaku-rules.yaml`) that maps your Camel routes to MCP tools, ready for deployment to Wanaku's Camel Integration Capability.
+
+---
+
 ## Documentation
 
 - **[Project Website](https://luigidemasi.github.io/camel-kit/)** — getting started, user guide, architecture

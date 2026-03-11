@@ -1,0 +1,33 @@
+# Wanaku Rules File
+#
+# This file maps Camel route IDs to MCP tools and resources,
+# defining how each route is exposed to AI agents via the
+# Wanaku MCP Router's Camel Integration Capability.
+#
+# For each tool:
+#   - route.id: must match the route ID in your .camel.yaml file
+#   - description: human-readable description for the AI agent
+#   - properties: input parameters the AI agent can provide
+#   - mapping: how each property maps to a Camel message header or body
+#
+# See: https://wanaku.ai/docs/
+
+mcp:
+  tools:
+    - example-tool:
+        route:
+          id: "route-id"
+        description: "Description of what this tool does"
+        properties:
+          - name: parameterName
+            type: string
+            description: "Description of this parameter"
+            required: true
+            mapping:
+              type: header
+              name: HEADER_NAME
+  resources:
+    - example-resource:
+        route:
+          id: "route-id"
+        description: "Description of the resource"

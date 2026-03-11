@@ -239,7 +239,7 @@ public class InitCommand extends CamelKitCommand {
     }
 
     private void createCommandTemplates(Path dir, AgentConfig agent) throws Exception {
-        List<String> commands = List.of("project", "flow", "implement", "validate", "test", "migrate");
+        List<String> commands = List.of("project", "flow", "implement", "validate", "test", "migrate", "wanaku");
 
         // Extract agent base folder (e.g., ".bob" from ".bob/commands")
         String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf("/"));
