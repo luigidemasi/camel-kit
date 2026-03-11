@@ -8,11 +8,9 @@ This document describes Camel-Kit's internal architecture for contributors and e
 - [Skills Architecture](#skills-architecture)
   - [What Are Skills](#what-are-skills)
   - [Skill Structure](#skill-structure)
-  - [Pre-Generated Skills](#pre-generated-skills)
-  - [Progressive Disclosure](#progressive-disclosure)
+  - [How Component Knowledge Works](#how-component-knowledge-works)
   - [How Commands Use Skills](#how-commands-use-skills)
   - [Claude Code Skill Standard](#claude-code-skill-standard)
-  - [Examples](#examples)
 - [MCP Integration (Internal Details)](#mcp-integration-internal-details)
   - [Configuration](#configuration)
   - [Available MCP Tools](#available-mcp-tools)
@@ -22,7 +20,8 @@ This document describes Camel-Kit's internal architecture for contributors and e
   - [Token Savings Statistics](#token-savings-statistics)
 - [Skills + MCP: How They Work Together](#skills--mcp-how-they-work-together)
 - [Extending Camel-Kit](#extending-camel-kit)
-  - [Adding a New Skill](#adding-a-new-skill)
+  - [Adding a New Command Skill](#adding-a-new-command-skill)
+  - [Adding a New Migration Vendor](#adding-a-new-migration-vendor)
   - [Future Enhancements](#future-enhancements)
 - [References](#references)
 
@@ -32,10 +31,10 @@ This document describes Camel-Kit's internal architecture for contributors and e
 
 Camel-Kit combines two mechanisms to give AI agents accurate, efficient access to the Apache Camel ecosystem:
 
-1. **Skills** — bundled component documentation loaded on-demand during implementation (complete schemas, usage patterns)
-2. **MCP Server** — real-time queries against the live Camel catalog during design and validation (lightweight, always current)
+1. **Skills** — bundled command and workflow skills that guide the AI agent through design, implementation, validation, and testing workflows
+2. **MCP Server** — real-time queries against the live Camel catalog for component documentation, validation, and security analysis (on-demand, always current)
 
-Together they achieve **99% reduction** in context usage compared to loading all 396 component catalogs.
+The MCP server is the **primary source** of component knowledge. Instead of bundling documentation for all 396+ Camel components (which would bloat context windows), component information is fetched on-demand via MCP tool calls only when the AI agent needs it. This achieves a **99% reduction** in context usage compared to loading all component catalogs upfront.
 
 ---
 
@@ -43,21 +42,40 @@ Together they achieve **99% reduction** in context usage compared to loading all
 
 ### What Are Skills
 
-Camel Kit uses [Anthropic Agent Skills](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview) to provide component-specific documentation and configuration guidance. Instead of loading all 396 Camel component catalogs into context, skills are loaded on-demand only when needed.
+Camel Kit uses [Anthropic Agent Skills](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview) to provide structured workflows for designing, implementing, and validating Apache Camel integrations.
 
-- **Commands** (like `/camel-flow`, `/camel-implement`) ask interactive questions about the integration
-- **Skills** (one per Camel component, 396 total) provide component knowledge: description, capabilities, usage patterns, URI syntax, parameters, Maven dependencies, and reference to the complete JSON schema
+- **Command skills** (like `camel-flow`, `camel-implement`) are user-invocable slash commands that guide the AI agent through interactive workflows
+- **Workflow skills** (like `camel-migrate-mule`) are internal skills loaded by commands to handle specific tasks (e.g., vendor-specific migration logic)
+- **Shared skills** (like `datamapper-canonicalize`) provide reusable logic used across multiple workflows
 
-Skills are `user-invocable: false` — they are only loaded by commands when specific components are selected.
+Component-specific knowledge (documentation, configuration options, URI syntax) is **not bundled as skills**. Instead, it is fetched on-demand from the Camel MCP server at runtime via tools like `camel_catalog_component_doc`. This avoids bloating the AI agent's context window with 396+ component catalogs and ensures documentation always matches the target Camel version.
 
 ### Skill Structure
 
-Each skill directory contains:
+Skills are stored in `camel-kit-core/src/main/resources/skills/` and copied to the AI agent's skills folder during `camel-kit init`:
 
 ```
-{agent-folder}/skills/camel-component-{name}/
-├── SKILL.md          # Component documentation with YAML frontmatter
-└── schema.json       # Complete component schema from Camel catalog
+{agent-folder}/skills/
+├── camel-project/SKILL.md         # Define integration landscape
+├── camel-flow/                    # Design a flow
+│   ├── SKILL.md
+│   └── guides/                    # Sub-guides loaded on-demand
+│       ├── integration-patterns.md
+│       ├── eip-catalog.md
+│       └── ...
+├── camel-implement/               # Generate YAML DSL
+│   ├── SKILL.md
+│   └── guides/
+├── camel-validate/                # Validate routes
+│   ├── SKILL.md
+│   └── guides/
+├── camel-test/SKILL.md            # Generate tests
+├── camel-migrate/SKILL.md         # Migration orchestrator
+├── camel-migrate-mule/            # MuleSoft migration sub-skill
+│   ├── SKILL.md
+│   └── guides/
+└── shared/                        # Shared utilities
+    └── datamapper-canonicalize.md
 ```
 
 Where `{agent-folder}` is:
@@ -69,99 +87,63 @@ Where `{agent-folder}` is:
 
 ```markdown
 ---
-name: camel-component-{name}
-description: {component description}
-user-invocable: false
+name: camel-flow
+description: Design a Camel integration flow
+user-invocable: true
 ---
 
-# {Component Title}
+# /camel-flow
 
-{Component description}
+> Design an integration flow's requirements and technical design.
 
-## Component Information
-- Scheme: {scheme}
-- Syntax: {syntax}
-- Type: Consumer/Producer/Both
+## Workflow
+1. Step one...
+2. Step two...
 
-## Usage Patterns
-### Consumer (from)
-- from:
-    uri: {scheme}:name
-    parameters:
-      # See schema.json
-
-### Producer (to)
-- to:
-    uri: {scheme}:name
-    parameters:
-      # See schema.json
-
-## Configuration Reference
-See [schema.json](schema.json) for complete options.
-
-## Maven Dependency
-<dependency>
-  <groupId>org.apache.camel</groupId>
-  <artifactId>{artifactId}</artifactId>
-</dependency>
+## MCP Integration
+- `camel_catalog_components` — search components by category
+- `camel_catalog_component_doc` — get component documentation
 ```
 
-### Pre-Generated Skills
+### How Component Knowledge Works
 
-All 396 Camel component skills are **pre-generated** and bundled in the `camel-kit-core` module:
+Instead of bundling 396+ component skill files (which would add ~40K+ tokens to the AI agent's context index), Camel-Kit relies on the **MCP server** for all component-specific knowledge:
 
-**Source location**: `camel-kit-core/src/main/resources/skills/`
-
-During `camel-kit init`, skills are copied to the appropriate AI agent folder:
-- `camel-kit init --ai bob` → copies to `.bob/skills/`
-- `camel-kit init --ai gemini` → copies to `.gemini/skills/`
-- `camel-kit init --ai claude` → copies to `.claude/skills/`
-
-Each skill is generated from the official Apache Camel component catalog and contains:
-- SKILL.md with YAML frontmatter and component documentation
-- schema.json with complete component configuration from Camel catalog
-
-**Why pre-generated?**
-
-1. **Zero setup** — Users get skills immediately during init
-2. **Version locked** — Skills match the Camel version used by camel-kit
-3. **Offline ready** — No need to download Camel catalog or clone repositories
-4. **Consistent** — All users have identical component knowledge
-5. **Single source** — One set of skills for all AI agents
-
-Skills were generated from Apache Camel catalog component JSON files (`/path/to/camel/catalog/camel-catalog/src/generated/resources/org/apache/camel/catalog/components/{component}.json`).
-
-### Progressive Disclosure
-
-Skills use a three-level progressive disclosure model:
-
-| Level | Content | Token Cost |
-|-------|---------|------------|
-| **Level 1 — Metadata** | YAML frontmatter with name and description | ~100 tokens |
-| **Level 2 — Instructions** | SKILL.md content when skill is loaded | <5k tokens |
-| **Level 3 — Resources** | schema.json loaded only when needed | Zero context cost |
+| Need | MCP Tool | Token Cost |
+|------|----------|------------|
+| Search components by category | `camel_catalog_components` | ~100 tokens |
+| Get component documentation | `camel_catalog_component_doc` | ~200 tokens |
+| Get data format options | `camel_catalog_dataformat_doc` | ~200 tokens |
+| Get EIP documentation | `camel_catalog_eip_doc` | ~200 tokens |
+| Validate endpoint URIs | `camel_validate_route` | ~100 tokens |
 
 **Example flow:**
 1. User runs `/camel-flow order-processing`
-2. Command asks questions, user mentions "Kafka" and "SQL"
-3. Command loads ONLY the kafka and sql skills (2 of 396)
-4. Context stays small, focused on relevant components
+2. User mentions "Kafka" and "SQL"
+3. AI agent calls `camel_catalog_component_doc("kafka")` via MCP → gets full Kafka documentation
+4. AI agent calls `camel_catalog_component_doc("sql")` via MCP → gets full SQL documentation
+5. Context contains only what's needed (~400 tokens), not all 396 component catalogs
+
+This on-demand approach means component documentation is always current for the target Camel version, and the AI agent's context stays small and focused.
 
 ### How Commands Use Skills
 
 #### /camel-flow
-When user selects a component:
-1. Ask: "For [source], I suggest using: Component: kafka"
-2. Reference: "For detailed documentation, see: .claude/skills/camel-component-kafka/SKILL.md"
-3. Load skill: Read SKILL.md for usage patterns and capabilities
+When user describes an integration:
+1. AI agent reads `camel-flow/SKILL.md` for the workflow
+2. Calls MCP `camel_catalog_components` to search for matching components
+3. Calls MCP `camel_catalog_component_doc` to get component details
+4. Loads sub-guides (e.g., `guides/eip-catalog.md`) only when relevant EIPs are discussed
+5. Produces a TDD spec file
 
 #### /camel-implement
 When generating YAML:
-1. Identify components from flow design
-2. Load skills: `.claude/skills/camel-component-{name}/SKILL.md`
-3. Read schemas: `.claude/skills/camel-component-{name}/schema.json`
-4. Generate YAML with correct syntax and parameters
-5. Validate against Camel YAML DSL schema
+1. AI agent reads `camel-implement/SKILL.md` for the workflow
+2. Reads the TDD spec from `/camel-flow`
+3. Calls MCP `camel_catalog_component_doc` for each component's options
+4. Generates YAML DSL with correct syntax and parameters
+5. Calls MCP `camel_validate_route` to validate the generated route
+6. Fixes errors in a validate→fix→retry loop
 
 ### Claude Code Skill Standard
 
@@ -169,67 +151,18 @@ Camel Kit follows the [Claude Code Skill Standard](https://code.claude.com/docs/
 
 ```yaml
 ---
-name: camel-component-{name}
-description: {one-line description}
-user-invocable: false  # Only loaded by commands
+name: camel-flow
+description: Design a Camel integration flow with trigger keywords
+user-invocable: true   # User-invocable command
 ---
 ```
 
-### Examples
-
-#### Kafka Component
-
-**Skill path**: `{agent-folder}/skills/camel-component-kafka/SKILL.md`
-
-**Metadata**:
 ```yaml
-name: camel-component-kafka
-description: Send and receive messages to/from an Apache Kafka broker.
-user-invocable: false
-```
-
-**Usage Pattern**:
-```yaml
-- from:
-    uri: kafka:topic
-    parameters:
-      brokers: "{{kafka.brokers}}"
-      groupId: "{{kafka.groupId}}"
-```
-
-**Maven**:
-```xml
-<dependency>
-  <groupId>org.apache.camel</groupId>
-  <artifactId>camel-kafka</artifactId>
-</dependency>
-```
-
-#### SQL Component
-
-**Skill path**: `{agent-folder}/skills/camel-component-sql/SKILL.md`
-
-**Metadata**:
-```yaml
-name: camel-component-sql
-description: Perform SQL queries using JDBC.
-user-invocable: false
-```
-
-**Usage Pattern**:
-```yaml
-- to:
-    uri: "sql:INSERT INTO orders VALUES (:#id, :#amount)"
-    parameters:
-      dataSource: "#dataSource"
-```
-
-**Maven**:
-```xml
-<dependency>
-  <groupId>org.apache.camel</groupId>
-  <artifactId>camel-sql</artifactId>
-</dependency>
+---
+name: camel-migrate-mule
+description: MuleSoft Mule migration sub-skill
+user-invocable: false  # Only loaded by camel-migrate command
+---
 ```
 
 ---
@@ -418,7 +351,7 @@ Endpoint Options:
 Maven: org.apache.camel:camel-kafka:4.18.0
 ```
 
-**Fallback:** Load from local component skills at `{agent.folder}/skills/camel-component-{name}/SKILL.md`
+**Fallback:** Prompt user to specify component details manually
 
 ---
 
@@ -570,8 +503,7 @@ The **AI agent** invokes MCP tools, NOT the Java code. Here's the complete flow:
    ──────────────────
    If .bob/mcp.json missing:
      → Skill detects MCP not available
-     → Loads local component skills
-     → Prompts user for component name
+     → Prompts user for component name and details
      → Continues with degraded functionality
 ```
 
@@ -606,55 +538,63 @@ The **AI agent** invokes MCP tools, NOT the Java code. Here's the complete flow:
 
 ## Skills + MCP: How They Work Together
 
-| Use Case | Mechanism | Token Cost | Best For |
-|----------|-----------|------------|----------|
-| Component search | MCP | ~100 tokens per query | Flow design, quick lookups |
-| Component docs | MCP | ~200 tokens per query | Design-time configuration |
-| Implementation | Skills | ~5k tokens (2-5 components) | Complete schemas, full config |
+Skills provide **workflow structure** (what steps to follow, what questions to ask, what artifacts to produce), while MCP provides **component knowledge** (documentation, validation, security analysis). Neither mechanism works well alone:
+
+| Use Case | Mechanism | Token Cost | Why |
+|----------|-----------|------------|-----|
+| Workflow guidance | Skills | ~2-5k tokens per command | Structured step-by-step process |
+| Component search | MCP | ~100 tokens per query | On-demand, version-specific |
+| Component docs | MCP | ~200 tokens per query | Full documentation without bundling |
 | URI validation | MCP | ~100 tokens per call | Real-time correctness checks |
 | Security analysis | MCP | ~300 tokens per call | 47 automated checks |
 
-**Combined token efficiency:**
+**Token efficiency:**
 
 | Approach | Token Cost |
 |----------|------------|
-| Without skills or MCP | ~500k tokens (all 396 component catalogs) |
-| With skills only | ~10k tokens (2-5 components loaded) |
-| With skills + MCP | ~6k tokens (skills for implementation, MCP for queries) |
+| Without skills or MCP | ~500k tokens (all 396 component catalogs loaded upfront) |
+| With MCP only (current) | ~1-6k tokens (on-demand queries for only the components needed) |
 | **Overall savings** | **99% reduction** |
 
 **Example: Full workflow for a Kafka-to-SQL integration**
 
 | Phase | What happens | Tokens |
 |-------|-------------|--------|
-| Flow design (`/camel-flow`) | MCP `camel_catalog_components` searches by category, `camel_catalog_component_doc` retrieves basic info | ~300 |
-| Implementation (`/camel-implement`) | Load bundled kafka + sql skills (full schemas), MCP `camel_route_context` + `camel_validate_route` | ~5,200 |
-| Validation (`/camel-validate`) | MCP `camel_route_harden_context` runs 47 security checks | ~300 |
-| **Total** | | **~5,800 tokens** |
+| Flow design (`/camel-flow`) | Skill guides the interview; MCP `camel_catalog_components` searches by category, `camel_catalog_component_doc` retrieves Kafka and SQL docs | ~300 |
+| Implementation (`/camel-implement`) | Skill guides YAML generation; MCP `camel_catalog_component_doc` for component options, `camel_route_context` + `camel_validate_route` for validation | ~800 |
+| Validation (`/camel-validate`) | Skill guides the checklist; MCP `camel_route_harden_context` runs 47 security checks | ~300 |
+| **Total** | | **~1,400 tokens** |
 
 ---
 
 ## Extending Camel-Kit
 
-### Adding a New Skill
+### Adding a New Command Skill
 
 1. Create a skill directory in `camel-kit-core/src/main/resources/skills/`:
 
 ```
-skills/camel-component-{name}/
-├── SKILL.md
-└── schema.json
+skills/camel-yourcommand/
+├── SKILL.md              # Main workflow with YAML frontmatter
+└── guides/               # Optional sub-guides loaded on-demand
+    └── specific-topic.md
 ```
 
 2. Follow the SKILL.md format (see [Skill Structure](#skill-structure))
-3. Add MCP tool usage instructions if applicable
-4. Register the skill in the appropriate command templates
-5. Update `docs/commands.md` if it's a major command
+3. Add MCP tool usage instructions for any component lookups or validation
+4. Register the command in `InitCommand.createCommandTemplates()`
+5. Update `docs/commands.md`
+
+### Adding a New Migration Vendor
+
+1. Create a vendor sub-skill: `skills/camel-migrate-{vendor}/SKILL.md`
+2. Add vendor-specific guides in `skills/camel-migrate-{vendor}/guides/`
+3. Update the orchestrator (`skills/camel-migrate/SKILL.md`) with detection rules
+4. Follow the two-phase pattern: Phase 1 (Business Analyst) → Phase 2 (Integration Architect)
+5. See `camel-migrate-mule/` for the reference implementation
 
 ### Future Enhancements
 
-- **Component Documentation Integration** — enhance skills with content from Camel AsciiDoc documentation (code examples, common use cases, configuration best practices)
-- **Skill Categories** — organize skills by category for easier discovery (Messaging, Database, Cloud, API)
 - **Skill Recommendations** — add command intelligence to suggest components ("For message queues, consider: kafka, jms, or amqp")
 
 ---
@@ -671,6 +611,6 @@ skills/camel-component-{name}/
 
 ---
 
-**Last Updated:** 2026-03-02
+**Last Updated:** 2026-03-11
 **Camel Version:** 4.18.0
 **MCP Server:** camel-jbang-mcp:4.18.0
