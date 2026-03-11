@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "camel": {
+      "command": "jbang",
+      "args": [
+        "-Dquarkus.log.level=WARN",
+        "org.apache.camel:camel-jbang-mcp:{{CAMEL_VERSION}}:runner"
+      ],
+      "description": "Apache Camel MCP Server - Component catalog, validation, and security analysis"
+    }
+  }
+}

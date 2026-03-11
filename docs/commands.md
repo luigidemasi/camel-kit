@@ -41,7 +41,7 @@ camel-kit init --here [options]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--ai`, `-a` | `bob` | AI coding assistant to configure (bob, gemini, claude) |
+| `--ai`, `-a` | `bob` | AI coding assistant to configure (bob, gemini, claude, copilot, cursor) |
 | `--camel-version`, `-v` | `4.18.0` | Apache Camel version to target |
 | `--citrus-version` | `4.9.2` | Citrus Framework version for test schemas |
 | `--here` | `false` | Initialize in current directory |
@@ -59,6 +59,12 @@ camel-kit init my-integration --ai gemini
 
 # Create new project for Claude Code
 camel-kit init my-integration --ai claude
+
+# Create new project for GitHub Copilot
+camel-kit init my-integration --ai copilot
+
+# Create new project for Cursor
+camel-kit init my-integration --ai cursor
 
 # Use specific Camel version
 camel-kit init my-integration --camel-version 4.18.0
@@ -98,7 +104,9 @@ my-integration/
 │   └── camel-migrate.md
 ├── .mcp.json                    # Claude Code MCP configuration
 ├── .bob/mcp.json                # IBM Bob MCP configuration
-└── .gemini/mcp.json             # Gemini CLI MCP configuration
+├── .gemini/mcp.json             # Gemini CLI MCP configuration
+├── .vscode/mcp.json             # GitHub Copilot MCP configuration
+├── .cursor/mcp.json             # Cursor MCP configuration
 └── .camel-kit/
     ├── config.yaml              # Project configuration
     ├── constitution.md          # Best practices

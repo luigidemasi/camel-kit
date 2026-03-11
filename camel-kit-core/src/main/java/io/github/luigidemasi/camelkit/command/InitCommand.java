@@ -34,7 +34,7 @@ public class InitCommand extends CamelKitCommand {
     @Parameters(index = "0", description = "Project name", arity = "0..1")
     public String projectName;
 
-    @Option(names = {"-a", "--ai"}, description = "AI agent: bob, gemini, claude",
+    @Option(names = {"-a", "--ai"}, description = "AI agent: bob, gemini, claude, copilot, cursor",
             defaultValue = "bob")
     public String ai;
 
@@ -440,6 +440,24 @@ public class InitCommand extends CamelKitCommand {
                     Files.createDirectories(geminiDir);
                     Files.writeString(geminiDir.resolve("settings.json"), processedTemplate);
                     agentName = "Gemini CLI";
+                }
+                case "copilot" -> {
+                    // GitHub Copilot - .vscode/mcp.json
+                    String copilotTemplate = TemplateUtils.readTemplate("templates/mcp-configs/copilot-mcp.json");
+                    String processedTemplate = copilotTemplate.replace("{{CAMEL_VERSION}}", camelVersion);
+                    Path vscodeDir = projectDir.resolve(".vscode");
+                    Files.createDirectories(vscodeDir);
+                    Files.writeString(vscodeDir.resolve("mcp.json"), processedTemplate);
+                    agentName = "GitHub Copilot";
+                }
+                case "cursor" -> {
+                    // Cursor - .cursor/mcp.json
+                    String cursorTemplate = TemplateUtils.readTemplate("templates/mcp-configs/cursor-mcp.json");
+                    String processedTemplate = cursorTemplate.replace("{{CAMEL_VERSION}}", camelVersion);
+                    Path cursorDir = projectDir.resolve(".cursor");
+                    Files.createDirectories(cursorDir);
+                    Files.writeString(cursorDir.resolve("mcp.json"), processedTemplate);
+                    agentName = "Cursor";
                 }
                 default -> {
                     printer().println(yellow("  Warning: Unknown agent '" + selectedAgent + "', skipping MCP config"));

@@ -45,7 +45,7 @@ camel kit init my-integration
 # Initialize in current directory
 camel kit init --here
 
-# Specify AI agent (bob, gemini, or claude)
+# Specify AI agent (bob, gemini, claude, copilot, or cursor)
 camel kit init my-integration --ai claude
 
 # Specify Camel version

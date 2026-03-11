@@ -9,7 +9,7 @@
 
 > Design and migrate Apache Camel integrations with AI coding assistants.
 
-Camel-Kit adds structured slash commands to your AI assistant (Claude Code, IBM Project Bob, Gemini CLI) that guide you through designing, implementing, and testing Apache Camel routes — whether you are starting from scratch or migrating from another platform.
+Camel-Kit adds structured slash commands to your AI assistant (Claude Code, IBM Project Bob, Gemini CLI, GitHub Copilot, Cursor) that guide you through designing, implementing, and testing Apache Camel routes — whether you are starting from scratch or migrating from another platform.
 
 **Inspired by [GitHub Spec-Kit](https://github.com/github/spec-kit)**, adapted for the Apache Camel ecosystem.
 
@@ -60,6 +60,8 @@ camel kit init my-integration --ai bob
 camel-kit init my-integration --ai claude     # Claude Code
 camel-kit init my-integration --ai bob        # IBM Project Bob
 camel-kit init my-integration --ai gemini     # Gemini CLI
+camel-kit init my-integration --ai copilot    # GitHub Copilot
+camel-kit init my-integration --ai cursor     # Cursor
 
 # Options
 camel-kit init my-integration --ai claude --camel-version 4.14.5

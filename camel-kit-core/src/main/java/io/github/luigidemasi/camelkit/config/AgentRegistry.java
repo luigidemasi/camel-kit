@@ -29,6 +29,20 @@ public final class AgentRegistry {
             "md",
             "$ARGUMENTS",
             "Anthropic's Claude Code CLI"
+        ),
+        "copilot", new AgentConfig(
+            "GitHub Copilot",
+            ".github/prompts",
+            "prompt.md",
+            "$ARGUMENTS",
+            "GitHub Copilot coding assistant"
+        ),
+        "cursor", new AgentConfig(
+            "Cursor",
+            ".cursor/commands",
+            "md",
+            "$ARGUMENTS",
+            "Cursor AI-powered IDE"
         )
     );
 

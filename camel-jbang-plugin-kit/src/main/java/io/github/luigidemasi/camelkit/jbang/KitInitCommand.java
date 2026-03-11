@@ -17,7 +17,7 @@ public class KitInitCommand extends CamelCommand {
     @Parameters(index = "0", description = "Project name", arity = "0..1")
     String projectName;
 
-    @Option(names = {"-a", "--ai"}, description = "AI agent: bob, gemini, claude",
+    @Option(names = {"-a", "--ai"}, description = "AI agent: bob, gemini, claude, copilot, cursor",
             defaultValue = "bob")
     String ai;
 
