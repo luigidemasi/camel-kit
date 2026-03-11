@@ -194,6 +194,7 @@ Migrate an existing integration from another platform to Apache Camel. Detects t
 | Platform | Versions | Detection method |
 |----------|---------|-----------------|
 | MuleSoft Mule | 3.x, 4.x | XML namespace `mulesoft.org`, `pom.xml` groupId `org.mule` / `com.mulesoft` |
+| Spring Integration | 4.x, 5.x, 6.x | XML namespace `springframework.org/schema/integration`, Maven `spring-integration-core` / `spring-boot-starter-integration`, Java DSL `IntegrationFlow` / `@ServiceActivator` |
 
 **How it works (generic orchestration):**
 
@@ -250,6 +251,21 @@ Migrate an existing integration from another platform to Apache Camel. Detects t
 | NetSuite | NetSuite REST/SOAP APIs via `camel-http` |
 
 For connectors with no direct equivalent, the command stops and asks the user before proceeding.
+
+**Spring Integration sub-skill (Phase 1 — Business Analyst):**
+
+1. Parses Spring Integration XML config (`<int:*>` namespaces) and Java DSL (`IntegrationFlow`, annotations).
+2. Inventories channels, adapters, gateways, transformers, filters, routers, splitters, aggregators, and service-activators.
+3. Flags custom service-activators and beans for user decision (keep as `bean:`, re-implement, or TODO).
+4. Produces `.camel-kit/business-requirements.md` and `.camel-kit/constitution.md`.
+
+**Spring Integration sub-skill (Phase 2 — Integration Architect):**
+
+1. Maps each SI component to its catalog-verified Camel equivalent (calls `camel_catalog_component_doc` for every component).
+2. Converts SpEL expressions into TDD field mapping tables.
+3. Maps error channels to Camel error handlers, pollers to timer/scheduler.
+4. Produces one TDD file per flow:
+   - `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md`
 
 ---
 
