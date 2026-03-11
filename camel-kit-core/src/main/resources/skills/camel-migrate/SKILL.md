@@ -105,10 +105,12 @@ Using ALL the information collected in Step 2, identify the integration platform
 | Vendor | Key Signals |
 |--------|-------------|
 | **MuleSoft Mule** | XML namespace `mulesoft.org`, groupId `org.mule`/`com.mulesoft`, `mule-artifact.json`, deps starting with `mule-` |
+| **Spring Integration** | XML namespace `springframework.org/schema/integration`, deps `spring-integration-core`/`spring-boot-starter-integration`, Java DSL classes `IntegrationFlow`/`IntegrationFlows`, annotations `@MessagingGateway`/`@ServiceActivator`/`@Transformer` |
 
 **Determine version from collected content:**
 - Mule 3.x: namespace `http://www.mulesoft.org/schema/mule/core/3.*` or connector version attributes < 4.0
 - Mule 4.x: namespace without version path segment, or `<mule xmlns:ee=...` (EE 4.x)
+- Spring Integration: version from `spring-integration-core` dependency in `pom.xml` / `build.gradle`, or `spring-boot-starter-integration` parent version
 
 ### If Vendor Detected
 
@@ -129,6 +131,7 @@ Signals found across all scanned files:
 
 Currently supported vendors:
 - MuleSoft Mule (3.x and 4.x)
+- Spring Integration
 
 To request support for a new vendor, open a GitHub issue at:
 https://github.com/luigidemasi/camel-kit/issues
@@ -226,6 +229,23 @@ Handing off to the Mule migration sub-skill...
 ```
 
 > Read `{agentBaseFolder}/skills/camel-migrate-mule/SKILL.md` and follow those instructions.
+> Pass as context:
+> - The confirmed analysis summary from Step 5
+> - The full list of source artifact paths
+> - `CAMEL_VERSION` from `.camel-kit/config.yaml` (or ask the user if not found)
+
+### Spring Integration → `camel-migrate-spring`
+
+```
+🌱 → 🐪
+
+Vendor: Spring Integration [version]
+Flows:  [N] flows ready for migration
+
+Handing off to the Spring Integration migration sub-skill...
+```
+
+> Read `{agentBaseFolder}/skills/camel-migrate-spring/SKILL.md` and follow those instructions.
 > Pass as context:
 > - The confirmed analysis summary from Step 5
 > - The full list of source artifact paths
