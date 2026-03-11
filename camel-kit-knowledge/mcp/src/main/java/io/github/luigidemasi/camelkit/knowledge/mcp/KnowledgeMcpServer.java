@@ -28,7 +28,7 @@ public class KnowledgeMcpServer {
             "Call this for EVERY component during Camel migration.")
     public String camel_migration_lookup(
             @ToolArg(description = "Component name to look up, e.g., 'http4', 'camel-cxf', 'netty4'") String component,
-            @ToolArg(description = "Source Camel version, e.g., '2.x' or '3.x'") String source_version
+            @ToolArg(description = "Source Camel version, e.g., '2.x' or '3.x'", required = false) String source_version
     ) {
         try {
             List<LuceneSearchService.SearchResult> results =
@@ -49,9 +49,9 @@ public class KnowledgeMcpServer {
             "like 'Blueprint XML migration', 'javax to jakarta', or 'ChangeType http4'.")
     public String camel_migration_search(
             @ToolArg(description = "Search query, e.g., 'Blueprint XML property placeholder migration'") String query,
-            @ToolArg(description = "Source version filter, e.g., '2.x'") String source_version,
-            @ToolArg(description = "Target version filter, e.g., '4.x'") String target_version,
-            @ToolArg(description = "Maximum results to return (default 5)") String max_results
+            @ToolArg(description = "Source version filter, e.g., '2.x'", required = false) String source_version,
+            @ToolArg(description = "Target version filter, e.g., '4.x'", required = false) String target_version,
+            @ToolArg(description = "Maximum results to return (default 5)", required = false) String max_results
     ) {
         try {
             int maxResults = max_results != null ? Integer.parseInt(max_results) : 5;
@@ -69,7 +69,7 @@ public class KnowledgeMcpServer {
             "Use this to check if a component is supported by Red Hat.")
     public String camel_rh_build_component_info(
             @ToolArg(description = "Component name, e.g., 'camel-kafka', 'camel-amqp', 'kafka'") String component,
-            @ToolArg(description = "Product version, e.g., '4.14'. Optional — omit for all versions.") String version
+            @ToolArg(description = "Product version, e.g., '4.14'. Optional — omit for all versions.", required = false) String version
     ) {
         try {
             List<LuceneSearchService.SearchResult> results =
@@ -90,8 +90,8 @@ public class KnowledgeMcpServer {
             "migration guides, or any Red Hat-specific Camel information.")
     public String camel_rh_build_search(
             @ToolArg(description = "Search query, e.g., 'supported databases PostgreSQL'") String query,
-            @ToolArg(description = "Product version filter, e.g., '4.14'. Optional.") String version,
-            @ToolArg(description = "Maximum results to return (default 5)") String max_results
+            @ToolArg(description = "Product version filter, e.g., '4.14'. Optional.", required = false) String version,
+            @ToolArg(description = "Maximum results to return (default 5)", required = false) String max_results
     ) {
         try {
             int maxResults = max_results != null ? Integer.parseInt(max_results) : 5;

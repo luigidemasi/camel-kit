@@ -2,6 +2,7 @@ package io.github.luigidemasi.camelkit.command;
 
 import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.catalog.CitrusSchemaDownloader;
+import io.github.luigidemasi.camelkit.catalog.OfflineRepoPopulator;
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
@@ -50,6 +51,9 @@ public class InitCommand extends CamelKitCommand {
             description = "Citrus version for test schemas",
             defaultValue = "default")
     public String citrusVersion;
+
+    @Option(names = {"--offline"}, description = "Download MCP server and catalog JARs for fully offline operation")
+    public boolean offline;
 
     @Option(names = {"--no-fetch"}, description = "Skip external catalog fetching")
     public boolean noFetch;
@@ -167,10 +171,24 @@ public class InitCommand extends CamelKitCommand {
         // 5 — MCP + Maven Wrapper
         tracker.startTask("🔌", "Configuring MCP & Maven wrapper");
         createMavenWrapper(targetDir);
-        createMcpConfigs(targetDir, version, ai);
+        createMcpConfigs(targetDir, version, ai, offline);
         tracker.finishTask();
 
-        // 6 — Citrus schemas
+        // 6 — Offline repo (if requested)
+        if (offline) {
+            tracker.startTask("⬇️", "Downloading MCP JARs for offline use");
+            try {
+                Path repoDir = camelKitDir.resolve("repo");
+                OfflineRepoPopulator populator = new OfflineRepoPopulator(repoDir, printer()::println);
+                int count = populator.populate(version, CamelKitMain.DEFAULT_KNOWLEDGE_MCP_VERSION);
+                printer().println(green("✓") + " Downloaded " + count + " artifacts to .camel-kit/repo/");
+            } catch (Exception e) {
+                printer().println(yellow("  Warning: Could not populate offline repo: " + e.getMessage()));
+            }
+            tracker.finishTask();
+        }
+
+        // 7 — Citrus schemas
         int citrusSchemaCount = 0;
         if (!noFetch) {
             tracker.startTask("⬇️", "Downloading Citrus schemas");
@@ -411,38 +429,49 @@ public class InitCommand extends CamelKitCommand {
         printer().println(green("✓") + " Maven Wrapper created (portable Maven " + mavenVersion + ")");
     }
 
-    private void createMcpConfigs(Path projectDir, String camelVersion, String selectedAgent) throws Exception {
+    private void createMcpConfigs(Path projectDir, String camelVersion, String selectedAgent,
+                                   boolean offlineMode) throws Exception {
+        // Resolve repos, MCP GAV, and maven.repo.local based on offline mode
+        String repos;
+        String camelMcpGav;
+        String mavenLocalArg;
+        if (offlineMode) {
+            Path repoDir = projectDir.resolve(".camel-kit/repo");
+            String repoPath = repoDir.toAbsolutePath().toString();
+            repos = "camel-kit=file://" + repoPath;
+            camelMcpGav = "org.apache.camel:camel-jbang-mcp:" + OfflineRepoPopulator.CAMEL_MCP_VERSION + ":runner";
+            mavenLocalArg = "\n        \"-Dmaven.repo.local=" + repoPath + "\",";
+        } else {
+            repos = "redhat=https://maven.repository.redhat.com/ga/";
+            camelMcpGav = "org.apache.camel:camel-jbang-mcp:LATEST:runner";
+            mavenLocalArg = "";
+        }
+
         String agentName = "";
 
         // Create MCP config only for the selected agent
         try {
             switch (selectedAgent.toLowerCase()) {
                 case "claude" -> {
-                    // Claude Code - .mcp.json in project root (standard MCP location)
-                    String claudeTemplate = TemplateUtils.readTemplate("templates/mcp-configs/claude-code-mcp.json");
-                    String processedTemplate = claudeTemplate.replace("{{CAMEL_VERSION}}", camelVersion)
-                            .replace("{{KNOWLEDGE_VERSION}}", CamelKitMain.DEFAULT_KNOWLEDGE_MCP_VERSION);
-                    Files.writeString(projectDir.resolve(".mcp.json"), processedTemplate);
+                    String template = TemplateUtils.readTemplate("templates/mcp-configs/claude-code-mcp.json");
+                    String processed = replaceMcpPlaceholders(template, repos, camelMcpGav, mavenLocalArg);
+                    Files.writeString(projectDir.resolve(".mcp.json"), processed);
                     agentName = "Claude Code";
                 }
                 case "bob" -> {
-                    // IBM Bob - .bob/mcp.json
-                    String bobTemplate = TemplateUtils.readTemplate("templates/mcp-configs/bob-mcp.json");
-                    String processedTemplate = bobTemplate.replace("{{CAMEL_VERSION}}", camelVersion)
-                            .replace("{{KNOWLEDGE_VERSION}}", CamelKitMain.DEFAULT_KNOWLEDGE_MCP_VERSION);
+                    String template = TemplateUtils.readTemplate("templates/mcp-configs/bob-mcp.json");
+                    String processed = replaceMcpPlaceholders(template, repos, camelMcpGav, mavenLocalArg);
                     Path bobDir = projectDir.resolve(".bob");
                     Files.createDirectories(bobDir);
-                    Files.writeString(bobDir.resolve("mcp.json"), processedTemplate);
+                    Files.writeString(bobDir.resolve("mcp.json"), processed);
                     agentName = "IBM Bob";
                 }
                 case "gemini" -> {
-                    // Gemini CLI - .gemini/mcp.json
-                    String geminiTemplate = TemplateUtils.readTemplate("templates/mcp-configs/gemini-mcp.json");
-                    String processedTemplate = geminiTemplate.replace("{{CAMEL_VERSION}}", camelVersion)
-                            .replace("{{KNOWLEDGE_VERSION}}", CamelKitMain.DEFAULT_KNOWLEDGE_MCP_VERSION);
+                    String template = TemplateUtils.readTemplate("templates/mcp-configs/gemini-mcp.json");
+                    String processed = replaceMcpPlaceholders(template, repos, camelMcpGav, mavenLocalArg);
                     Path geminiDir = projectDir.resolve(".gemini");
                     Files.createDirectories(geminiDir);
-                    Files.writeString(geminiDir.resolve("settings.json"), processedTemplate);
+                    Files.writeString(geminiDir.resolve("settings.json"), processed);
                     agentName = "Gemini CLI";
                 }
                 default -> {
@@ -451,9 +480,19 @@ public class InitCommand extends CamelKitCommand {
                 }
             }
 
-            printer().println(green("✓") + " MCP config created for " + agentName);
+            printer().println(green("✓") + " MCP config created for " + agentName
+                    + (offlineMode ? " (offline)" : ""));
         } catch (Exception e) {
             printer().println(yellow("  Warning: Could not create MCP config: " + e.getMessage()));
         }
+    }
+
+    private String replaceMcpPlaceholders(String template, String repos, String camelMcpGav,
+                                           String mavenLocalArg) {
+        return template
+                .replace("{{REPOS}}", repos)
+                .replace("{{MAVEN_LOCAL_ARG}}", mavenLocalArg)
+                .replace("{{CAMEL_MCP_GAV}}", camelMcpGav)
+                .replace("{{KNOWLEDGE_VERSION}}", CamelKitMain.DEFAULT_KNOWLEDGE_MCP_VERSION);
     }
 }
