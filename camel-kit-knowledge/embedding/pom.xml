@@ -11,7 +11,7 @@
     </parent>
 
     <artifactId>camel-kit-knowledge-embedding</artifactId>
-    <name>camel-kit-knowledge-embedding</name>
+    <name>Camel Kit :: Knowledge :: Embedding</name>
     <description>ONNX-based embedding provider for semantic search (all-MiniLM-L6-v2)</description>
 
     <dependencies>

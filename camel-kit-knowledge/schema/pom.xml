@@ -11,7 +11,7 @@
     </parent>
 
     <artifactId>camel-kit-knowledge-schema</artifactId>
-    <name>camel-kit-knowledge-schema</name>
+    <name>Camel Kit :: Knowledge :: Schema</name>
     <description>Shared Lucene field definitions and domain metadata types</description>
 
     <dependencies>

@@ -8,23 +8,37 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Downloads Maven artifacts into a local file-based repository for offline use.
- * The local repo uses standard Maven layout so JBang and Maven Resolver can resolve from it.
+ * Populates a local Maven repository with artifacts needed for offline operation.
+ * <p>
+ * Artifacts are first looked up on the classpath (under {@code offline-repo/}) where
+ * they are placed at build time by {@code maven-dependency-plugin}. If not found on
+ * the classpath, they are downloaded from Maven Central or Red Hat GA.
+ * <p>
+ * The local repo uses standard Maven layout with minimal POMs (no parent references),
+ * {@code _remote.repositories} markers, and SHA-1 checksums so that JBang's Maven
+ * Resolver can resolve artifacts from a {@code file://} repository.
  */
 public class OfflineRepoPopulator {
 
     private static final String RED_HAT_GA = "https://maven.repository.redhat.com/ga";
     private static final String MAVEN_CENTRAL = "https://repo1.maven.org/maven2";
+    private static final String CLASSPATH_PREFIX = "offline-repo/";
     private static final Duration TIMEOUT = Duration.ofSeconds(60);
 
     /** The MCP runner version to download (community release). */
-    public static final String CAMEL_MCP_VERSION = "4.18.0";
+    public static final String CAMEL_MCP_VERSION = io.github.luigidemasi.camelkit.CamelKitMain.CAMEL_MCP_VERSION;
+
+    /** Repo ID used in _remote.repositories markers. Must match the --repos ID in MCP configs. */
+    public static final String REPO_ID = "camel-kit";
 
     private final Path repoDir;
     private final HttpClient httpClient;
@@ -41,10 +55,11 @@ public class OfflineRepoPopulator {
 
     /**
      * Populate the local repo with all artifacts needed for offline operation.
+     * Extracts from classpath first (build-time bundled), falls back to HTTP download.
      *
-     * @param camelVersion the Camel version to resolve catalogs for (e.g., "4.14.4.redhat-00008" or "4.14")
-     * @param knowledgeMcpVersion the knowledge MCP version (null to skip)
-     * @return number of artifacts downloaded
+     * @param camelVersion the Camel version to resolve catalogs for
+     * @param knowledgeMcpVersion the knowledge MCP version (unused, reserved for future)
+     * @return number of artifacts installed
      */
     public int populate(String camelVersion, String knowledgeMcpVersion) throws Exception {
         Files.createDirectories(repoDir);
@@ -71,29 +86,61 @@ public class OfflineRepoPopulator {
                     versions.quarkusCatalog(), null, "jar"));
         }
 
-        int downloaded = 0;
+        int installed = 0;
         for (ArtifactSpec spec : artifacts) {
-            if (downloadArtifact(spec)) {
-                downloaded++;
+            if (installArtifact(spec)) {
+                installed++;
             }
         }
 
-        return downloaded;
+        return installed;
     }
 
-    private boolean downloadArtifact(ArtifactSpec spec) throws Exception {
-        Path localPath = artifactPath(spec);
+    private boolean installArtifact(ArtifactSpec spec) throws Exception {
+        Path jarPath = artifactPath(spec);
 
-        if (Files.exists(localPath)) {
+        if (Files.exists(jarPath)) {
             log.accept("  Already cached: " + spec.artifactId() + ":" + spec.version()
                     + (spec.classifier() != null ? ":" + spec.classifier() : ""));
             return false;
         }
 
-        String url = spec.remoteUrl();
-        log.accept("  Downloading: " + spec.artifactId() + ":" + spec.version()
-                + (spec.classifier() != null ? ":" + spec.classifier() : ""));
+        Files.createDirectories(jarPath.getParent());
 
+        // Try classpath first (build-time bundled by maven-dependency-plugin)
+        String resourceName = CLASSPATH_PREFIX + spec.jarFilename();
+        try (InputStream classpathJar = getClass().getClassLoader().getResourceAsStream(resourceName)) {
+            if (classpathJar != null) {
+                log.accept("  Extracting: " + spec.artifactId() + ":" + spec.version()
+                        + (spec.classifier() != null ? ":" + spec.classifier() : ""));
+                Files.copy(classpathJar, jarPath, StandardCopyOption.REPLACE_EXISTING);
+            } else {
+                // Fall back to HTTP download
+                log.accept("  Downloading: " + spec.artifactId() + ":" + spec.version()
+                        + (spec.classifier() != null ? ":" + spec.classifier() : ""));
+                if (!downloadFile(spec.remoteUrl(), jarPath)) {
+                    return false;
+                }
+            }
+        }
+        writeSha1(jarPath);
+
+        // Write minimal POM without parent references — Maven Resolver
+        // would otherwise try to walk the entire parent POM chain
+        Path pomPath = pomPath(spec);
+        if (!Files.exists(pomPath)) {
+            writeMinimalPom(spec, pomPath);
+            writeSha1(pomPath);
+        }
+
+        // Write _remote.repositories marker so Maven Resolver
+        // recognises this artifact as properly installed
+        writeRemoteRepositories(spec);
+
+        return true;
+    }
+
+    private boolean downloadFile(String url, Path target) throws Exception {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
                 .timeout(TIMEOUT)
@@ -108,38 +155,47 @@ public class OfflineRepoPopulator {
             return false;
         }
 
-        Files.createDirectories(localPath.getParent());
         try (InputStream in = response.body()) {
-            Files.copy(in, localPath, StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
         }
-
-        // Write minimal POM so Maven resolver is happy
-        writePom(spec);
-
         return true;
     }
 
     private Path artifactPath(ArtifactSpec spec) {
-        String filename = spec.classifier() != null
-                ? spec.artifactId() + "-" + spec.version() + "-" + spec.classifier() + "." + spec.type()
-                : spec.artifactId() + "-" + spec.version() + "." + spec.type();
+        return versionDir(spec).resolve(spec.jarFilename());
+    }
+
+    private Path pomPath(ArtifactSpec spec) {
+        return versionDir(spec).resolve(spec.pomFilename());
+    }
+
+    private Path versionDir(ArtifactSpec spec) {
         return repoDir
                 .resolve(spec.groupId().replace('.', '/'))
                 .resolve(spec.artifactId())
-                .resolve(spec.version())
-                .resolve(filename);
+                .resolve(spec.version());
     }
 
-    private void writePom(ArtifactSpec spec) throws Exception {
-        String pomFilename = spec.artifactId() + "-" + spec.version() + ".pom";
-        Path pomPath = repoDir
-                .resolve(spec.groupId().replace('.', '/'))
-                .resolve(spec.artifactId())
-                .resolve(spec.version())
-                .resolve(pomFilename);
+    private void writeRemoteRepositories(ArtifactSpec spec) throws Exception {
+        Path marker = versionDir(spec).resolve("_remote.repositories");
 
-        if (Files.exists(pomPath)) return;
+        StringBuilder sb = new StringBuilder();
+        sb.append("#NOTE: This is a Maven Resolver internal implementation file, its format can be changed without prior notice.\n");
+        sb.append("#").append(Instant.now()).append("\n");
+        sb.append(spec.jarFilename()).append(">").append(REPO_ID).append("=\n");
+        sb.append(spec.pomFilename()).append(">").append(REPO_ID).append("=\n");
 
+        Files.writeString(marker, sb.toString());
+    }
+
+    private void writeSha1(Path file) throws Exception {
+        byte[] content = Files.readAllBytes(file);
+        MessageDigest digest = MessageDigest.getInstance("SHA-1");
+        byte[] hash = digest.digest(content);
+        Files.writeString(Path.of(file + ".sha1"), HexFormat.of().formatHex(hash));
+    }
+
+    private void writeMinimalPom(ArtifactSpec spec, Path pomPath) throws Exception {
         String pom = """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <project>
@@ -157,10 +213,18 @@ public class OfflineRepoPopulator {
             String version, String classifier, String type) {
 
         String remoteUrl() {
-            String filename = classifier != null
+            return repoUrl + "/" + groupId.replace('.', '/') + "/" + artifactId
+                    + "/" + version + "/" + jarFilename();
+        }
+
+        String jarFilename() {
+            return classifier != null
                     ? artifactId + "-" + version + "-" + classifier + "." + type
                     : artifactId + "-" + version + "." + type;
-            return repoUrl + "/" + groupId.replace('.', '/') + "/" + artifactId + "/" + version + "/" + filename;
+        }
+
+        String pomFilename() {
+            return artifactId + "-" + version + ".pom";
         }
     }
 }

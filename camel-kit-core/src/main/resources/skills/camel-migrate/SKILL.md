@@ -15,6 +15,8 @@ You are acting as a **Migration Specialist** that analyses existing integration 
 
 This skill is the generic entry point for all migrations. It detects the vendor, scans all available artifacts to build a pre-populated analysis summary, confirms the summary with the user, and then delegates to the appropriate vendor-specific migration guide — passing the confirmed summary so the guide never re-asks questions that have already been answered.
 
+> **"Load" means READ and FOLLOW.** When this document says "Load `guides/xyz.md`", you MUST read that file from the `guides/` subdirectory next to this SKILL.md and execute its instructions. The guide files are always present — do NOT report them as missing.
+
 ## Parameters
 
 ```
@@ -95,12 +97,18 @@ For each file type, extract:
 - Mock endpoints → system landscape confirmation
 
 ---
-
+e
 ## Step 2b — Detect Project Layout
 
 After scanning all artifacts, determine whether this is a **single-project** or **multi-project** layout.
 
-**Single-project** — one integration application, possibly with multiple routes:
+**CRITICAL — Use `pom.xml` discovery to find ALL projects:**
+
+Run a recursive search for ALL `pom.xml` (or `build.gradle`, `mule-artifact.json`) files under the source path. Projects can be nested multiple levels deep (e.g., `sssds/sdfsf/sfsfsfwe/pom.xml` is 3 levels deep). Do NOT rely on listing only the first level of subdirectories.
+
+For each `pom.xml` found, check if it is a **leaf project** (has `src/` directory or route files) vs a **parent POM** (has `<modules>` element and no `src/`). Only leaf projects are independent applications to migrate.
+
+**Single-project** — only one leaf `pom.xml` found:
 
 ```
 workspace/
@@ -113,38 +121,45 @@ workspace/
 └── src/main/java/...
 ```
 
-**Multi-project** — multiple independent integration applications in subdirectories:
+**Multi-project** — multiple leaf `pom.xml` files in different subdirectories:
 
 ```
 workspace/
-├── fuse6-apps/
-│   ├── http/Https_jetty_Consumer/
-│   │   ├── pom.xml                  # Independent build file
+├── aaaaa/
+│   ├── bbbbb/bberw/
+│   │   ├── pom.xml                  # Leaf project (has src/)
 │   │   └── src/main/resources/...
-│   ├── rest/claimdemo/
-│   │   ├── pom.xml                  # Independent build file
+│   ├── sdadasdas/wer43rgdg/
+│   │   ├── pom.xml                  # Leaf project (has src/)
 │   │   └── src/main/resources/...
-│   └── soap/claimdemo/
-│       ├── pom.xml                  # Independent build file
-│       └── src/main/resources/...
+│   └── fsdfq/
+│       ├── 5435fsdsac/
+│       │   ├── pom.xml              # Leaf project (has src/)
+│       │   └── src/main/resources/...
+│       └── hlaskfdsdakl/
+│           ├── pom.xml              # Leaf project — DO NOT MISS siblings!
+│           └── src/main/resources/...
 ```
 
 **Multi-project signals:**
-- Multiple `pom.xml` or `build.gradle` files in different subdirectories (not just a parent POM with `<modules>`)
+- Multiple leaf `pom.xml` or `build.gradle` files in different subdirectories
 - Multiple independent route/flow definition directories
 - Multiple `mule-artifact.json` files in different subdirectories
 - A parent directory containing multiple independent integration projects as subfolders
 
 **Key distinction:** A single project with 5 routes in one `camel/` directory is still single-project. Multi-project means each sub-application has its own build file and can be deployed independently.
 
-**If multi-project:** Build a source-to-target module mapping. Each source sub-project becomes a separate target module. The target module name should be derived from the flow name (kebab-case). Example:
+**If multi-project:** List ALL discovered leaf projects and build a source-to-target module mapping. Each source sub-project becomes a separate target module. The target module name should be derived from the flow name (kebab-case). Example:
 
 ```
-Source projects detected:
-  fuse6-apps/http/Https_jetty_Consumer/  → target: https-jetty-consumer/
-  fuse6-apps/rest/claimdemo/             → target: rest-claims-status/
-  fuse6-apps/soap/claimdemo/             → target: soap-claims-service/
+Source projects detected (4 projects):
+  aaaaa/bbbbb/  → target: https-jetty-consumer/
+  wewrerewq/rwerwer/rewrwwr/             → target: migrated/wewrerewq-rwerwer-rewrwwr/
+  reweior/twetq/qwewqwrwqr/              → target: migrated/reweior-twetq-qwewqwrwqr
+  rewwqerk/dfask/sdafaaft/               → target: rewwqerk-dfask-sdafaaft/
 ```
+
+**Verify completeness:** Cross-check the count of discovered projects against the recursive `pom.xml` search. If you found N `pom.xml` files but only listed M < N projects, you missed some. Go back and check.
 
 Include this mapping in the analysis summary (Step 4) and pass it to the sub-skill. Each TDD produced by the sub-skill MUST include `Source Module` and `Target Module` fields in the "Overview" section so that `/camel-implement` places generated files in the correct sub-project directory.
 
@@ -414,7 +429,7 @@ Pass as context:
 
 ## MCP Server Configuration
 
-→ **For MCP setup, version stripping, and fallback policy:** see `skills/shared/mcp-setup.md`
+→ **For MCP setup, version mapping, and fallback policy:** see `skills/shared/mcp-setup.md`
 
 Migration guides use the Camel MCP server for catalog verification and the camel-knowledge MCP server for migration-specific documentation. See individual guides for their specific MCP tool usage.
 

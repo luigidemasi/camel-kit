@@ -70,7 +70,7 @@ class KnowledgeMcpServerTest {
 
     @Test
     void migrationSearchTool_returnsJson() {
-        String json = mcpServer.camel_migration_search("blueprint XML", null, null, "3");
+        String json = mcpServer.camel_migration_search("blueprint XML", null, null, 3);
 
         assertFalse(json.contains("\"error\""), "Should not return error: " + json);
         assertTrue(json.contains("\"found\""), "Should contain found field");
@@ -107,7 +107,7 @@ class KnowledgeMcpServerTest {
 
     @Test
     void rhBuildSearchTool_returnsJson() {
-        String json = mcpServer.camel_rh_build_search("release notes", "4.14", "5");
+        String json = mcpServer.camel_rh_build_search("release notes", "4.14", 5);
 
         assertFalse(json.contains("\"error\""), "Should not return error: " + json);
         assertTrue(json.contains("\"found\""), "Should contain found field");

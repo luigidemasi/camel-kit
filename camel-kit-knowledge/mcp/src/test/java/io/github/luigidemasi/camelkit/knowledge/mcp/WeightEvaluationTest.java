@@ -28,7 +28,7 @@ class WeightEvaluationTest {
 
     static boolean modelExists() {
         return WeightEvaluationTest.class.getClassLoader()
-                .getResource("models/model.onnx") != null;
+                .getResource("models/model_quantized.onnx") != null;
     }
 
     @BeforeAll
@@ -69,6 +69,10 @@ class WeightEvaluationTest {
                     "CamelTestSupport updated. Use CamelQuarkusTestSupport for Quarkus. Mock endpoints and test assertions unchanged.",
                     "2.x", "4.x");
 
+            addDoc(writer, "cve-2025-27636", "camel_migration", "CVE-2025-27636 security advisory",
+                    "Red Hat Build of Apache Camel 4.8 and 4.10 are affected by CVE-2025-27636, a header injection vulnerability in camel-bean component. Fixed in Red Hat Build of Apache Camel 4.10.2.redhat-00001 and 4.8.7.redhat-00002. CVSS 6.5 Important. Upgrade to patched version.",
+                    "4.8", "4.10");
+
             writer.commit();
         }
 
@@ -106,15 +110,18 @@ class WeightEvaluationTest {
                 new EvalQuery("convert XML routes to YAML", "xml-to-yaml", "Mixed: some keyword overlap + semantic"),
                 new EvalQuery("dealing with failures and retries", "error-handling", "Semantic: paraphrase of error handling"),
                 new EvalQuery("update unit tests for new version", "testing-migration", "Semantic: paraphrase of testing changes"),
-                new EvalQuery("ActiveMQ connection pooling", "jms-config", "Keyword: direct match")
+                new EvalQuery("ActiveMQ connection pooling", "jms-config", "Keyword: direct match"),
+                new EvalQuery("which version of red hat build of apache camel is affected by CVE-2025-27636", "cve-2025-27636", "Mixed: CVE ID keyword + semantic context")
         );
 
         List<WeightConfig> configs = List.of(
+                new WeightConfig(1.0f, 0.0f, "BM25 100"),
                 new WeightConfig(0.6f, 0.4f, "BM25 60/Vec 40"),
                 new WeightConfig(0.5f, 0.5f, "BM25 50/Vec 50"),
                 new WeightConfig(0.4f, 0.6f, "BM25 40/Vec 60"),
                 new WeightConfig(0.3f, 0.7f, "BM25 30/Vec 70"),
-                new WeightConfig(0.2f, 0.8f, "BM25 20/Vec 80")
+                new WeightConfig(0.2f, 0.8f, "BM25 20/Vec 80"),
+                new WeightConfig(0.0f, 1.0f, "Vec 100")
         );
 
         // results[queryIdx][configIdx]
@@ -162,9 +169,10 @@ class WeightEvaluationTest {
 
         // Print summary table
         System.out.println("=== SUMMARY ===");
+        int col = 16;
         System.out.printf("%-20s", "");
         for (WeightConfig wc : configs) {
-            System.out.printf("  %-12s", wc.label());
+            System.out.printf("  %-" + col + "s", wc.label());
         }
         System.out.println();
 
@@ -183,7 +191,7 @@ class WeightEvaluationTest {
                     count++;
                 }
             }
-            System.out.printf("  %-12.1f", sum / count);
+            System.out.printf("  %-" + col + ".1f", sum / count);
         }
         System.out.println();
 
@@ -194,7 +202,7 @@ class WeightEvaluationTest {
             for (int qi = 0; qi < queries.size(); qi++) {
                 if (results[qi][ci].rank() == 1) hits++;
             }
-            System.out.printf("  %-12s", hits + "/" + queries.size());
+            System.out.printf("  %-" + col + "s", hits + "/" + queries.size());
         }
         System.out.println();
 
@@ -207,7 +215,7 @@ class WeightEvaluationTest {
                 if (rank == 0) rank = queries.size() + 1;
                 worst = Math.max(worst, rank);
             }
-            System.out.printf("  %-12d", worst);
+            System.out.printf("  %-" + col + "d", worst);
         }
         System.out.println();
 
@@ -218,7 +226,7 @@ class WeightEvaluationTest {
             for (int qi = 0; qi < queries.size(); qi++) {
                 sum += results[qi][ci].score();
             }
-            System.out.printf("  %-12.4f", sum / queries.size());
+            System.out.printf("  %-" + col + ".4f", sum / queries.size());
         }
         System.out.println();
         System.out.println();

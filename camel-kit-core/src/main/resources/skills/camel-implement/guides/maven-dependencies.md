@@ -78,6 +78,31 @@ Match the Camel base version to the Camel Quarkus version using the mapping belo
 
 ---
 
+## Step 1b: Verify Red Hat Maven Repository
+
+Red Hat Build artifacts (versions with `.redhat-XXXXX` suffix) are hosted on the **public** Red Hat Maven GA repository. This repository does NOT require authentication — it is freely accessible.
+
+Verify that `pom.xml` contains this repository definition. If missing, add it:
+
+```xml
+<repositories>
+  <repository>
+    <id>redhat-ga</id>
+    <url>https://maven.repository.redhat.com/ga/</url>
+  </repository>
+</repositories>
+<pluginRepositories>
+  <pluginRepository>
+    <id>redhat-ga-plugins</id>
+    <url>https://maven.repository.redhat.com/ga/</url>
+  </pluginRepository>
+</pluginRepositories>
+```
+
+**IMPORTANT:** This is a public repository, not behind the Red Hat customer portal. All Red Hat Build of Apache Camel artifacts are available here without credentials.
+
+---
+
 ## Step 2: Add Dependencies
 
 Add dependencies from the TDD "Dependencies" section using the correct groupId and artifactId pattern for the runtime.

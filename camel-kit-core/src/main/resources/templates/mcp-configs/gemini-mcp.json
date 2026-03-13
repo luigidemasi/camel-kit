@@ -1,11 +1,11 @@
 {
   "mcpServers": {
     "camel": {
-      "command": "jbang",
+      "command": "java",
       "args": [
-        "--repos", "{{REPOS}}",{{MAVEN_LOCAL_ARG}}
+        "-Dcamel.catalog.repos=https://maven.repository.redhat.com/ga/",
         "-Dquarkus.log.level=WARN",
-        "{{CAMEL_MCP_GAV}}"
+        "-jar", ".camel-kit/mcp/camel-jbang-mcp-runner.jar"
       ],
       "description": "Apache Camel MCP Server - Component catalog, validation, and security analysis"
     },

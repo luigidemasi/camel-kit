@@ -17,6 +17,8 @@ public record DocumentChunk(
     String content,         // chunk text content
     // Runtime (multi-valued: "quarkus", "spring-boot", "main")
     List<String> runtimes,
+    // JIRA issue IDs referenced in this chunk (multi-valued, nullable)
+    List<String> jiraIds,
     // Errata-specific fields (all nullable for non-errata chunks)
     String erratumId,       // e.g., "RHSA-2026:0467"
     String advisoryType,    // e.g., "Security Advisory", "Bug Fix", "Enhancement"
@@ -29,6 +31,6 @@ public record DocumentChunk(
                          String sourceVersion, String targetVersion, String component,
                          String sectionTitle, String content) {
         this(id, source, docType, sourceVersion, targetVersion, component,
-             sectionTitle, content, null, null, null, null, null, null);
+             sectionTitle, content, null, null, null, null, null, null, null);
     }
 }

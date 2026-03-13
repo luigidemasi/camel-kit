@@ -28,9 +28,12 @@ import java.util.concurrent.Callable;
     description = "Design Apache Camel integrations with AI coding assistants")
 public class CamelKitMain implements Callable<Integer> {
 
-    public static final String LATEST_CAMEL_LTS_VERSION = "4.18.0";
+    private static final java.util.Properties BUILD_PROPS = loadBuildProperties();
+
+    public static final String LATEST_CAMEL_LTS_VERSION = "4.14.4.redhat-00008";
+    public static final String CAMEL_MCP_VERSION = BUILD_PROPS.getProperty("camel.mcp.version", "4.19.0-SNAPSHOT");
     public static final String DEFAULT_CITRUS_VERSION = "4.9.2";
-    public static final String DEFAULT_KNOWLEDGE_MCP_VERSION = "1.0.0";
+    public static final String DEFAULT_KNOWLEDGE_MCP_VERSION = BUILD_PROPS.getProperty("version", "0.0.0");
 
     private Terminal terminal;
     private Printer printer;
@@ -91,6 +94,18 @@ public class CamelKitMain implements Callable<Integer> {
 
     public Terminal getTerminal() {
         return terminal;
+    }
+
+    private static java.util.Properties loadBuildProperties() {
+        var props = new java.util.Properties();
+        try (var in = CamelKitMain.class.getClassLoader()
+                .getResourceAsStream("camel-kit-version.properties")) {
+            if (in != null) {
+                props.load(in);
+            }
+        } catch (Exception ignored) {
+        }
+        return props;
     }
 
     public static void main(String[] args) {

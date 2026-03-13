@@ -20,7 +20,7 @@ class OnnxEmbeddingProviderTest {
 
     static boolean modelExists() {
         return OnnxEmbeddingProviderTest.class.getClassLoader()
-                .getResource("models/model.onnx") != null;
+                .getResource("models/model_quantized.onnx") != null;
     }
 
     @BeforeAll

@@ -13,7 +13,7 @@
     <artifactId>camel-kit-knowledge</artifactId>
     <packaging>pom</packaging>
 
-    <name>camel-kit-knowledge</name>
+    <name>Camel Kit :: Knowledge</name>
     <description>Knowledge layer aggregator — shared schema, embedding, indexer, and MCP server</description>
 
     <modules>

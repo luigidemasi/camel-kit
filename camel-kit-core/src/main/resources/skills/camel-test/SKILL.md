@@ -30,14 +30,14 @@ Example: `/camel-test order-to-warehouse`
 When `all` or `--all` is specified:
 
 1. **Discover flows:** List all directories under `docs/flows/` that contain both a `{flow-name}.tdd.md` and corresponding route YAML
-2. **Show plan:**
+2. **Show plan and proceed immediately** (the user already confirmed by passing `--all`):
    ```
    Found [N] flows to generate tests for:
      1. flow-name-1  (docs/flows/flow-name-1/flow-name-1.tdd.md)
      2. flow-name-2  (docs/flows/flow-name-2/flow-name-2.tdd.md)
      ...
 
-   Proceed with generating tests for all [N] flows? (yes/no)
+   Generating tests for all [N] flows sequentially...
    ```
 3. **Process sequentially:** For each flow, run the full pipeline (Steps 1–2 below). Between flows, report progress:
    ```
@@ -176,7 +176,9 @@ Where `{module}` is the `Target Module` from the TDD "Overview" section (empty f
 
 ## Step 2: Execute Test Generation Pipeline
 
-Execute these guides in order, passing all resolved context variables:
+Execute these guides in order, passing all resolved context variables.
+
+> **"Load" means READ and FOLLOW.** When this document says "Load `guides/xyz.md`", you MUST read that file from the `guides/` subdirectory next to this SKILL.md and execute its instructions. The guide files are always present — do NOT report them as missing.
 
 1. **→ Load `guides/route-analysis.md`** — MCP route analysis + Citrus reference loading
 2. **→ Load `guides/test-generation.md`** — Test plan design + Citrus YAML generation + validation

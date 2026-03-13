@@ -1,10 +1,14 @@
 # Orchestrator Guide
 
-This guide defines file paths and execution order for the implementation pipeline. It adapts to the target runtime.
+This guide defines file paths and execution order for the implementation pipeline. It adapts to the target runtime and works with both greenfield and migration TDDs.
+
+> **"Load" means READ and FOLLOW.** Every time this guide says "Load `guides/xyz.md`", you MUST read that file from the skill directory where this guide lives and execute its instructions. Do NOT skip a step because you haven't read the guide yet — read it, then do what it says. The guide files ARE present in the same directory as this file.
 
 > **Context variables from master SKILL.md:**
 > - `RUNTIME` — `jbang` (default), `springboot`, or `quarkus`
 > - `FLOW_NAME`, `CAMEL_VERSION`, `TARGET_MODULE`
+
+**Migration TDDs:** If the TDD contains a "Migrated From" field, Java source files, WSDL/XSD files, or Maven plugin configuration, handle them as additional artifacts alongside the standard pipeline steps. Copy referenced files to `TARGET_MODULE`, create Java classes, and configure pom.xml as specified in the TDD. Do NOT skip the standard pipeline — migration TDDs still need route YAML, properties, docker-compose, and all other standard artifacts.
 
 ---
 
@@ -86,7 +90,21 @@ Assign these as context variables for all subsequent steps:
 - Load `guides/maven-dependencies.md`
 - Pass: `FLOW_NAME`, `MODULE_DIR`, `CAMEL_VERSION`, `RUNTIME`
 
-### Step 5.5: Sequential HTTP Calls (CONDITIONAL)
+### Step 5.5: Migration Artifacts (CONDITIONAL)
+
+**IF** the TDD contains a "Migrated From" field (migration scenario):
+
+1. **Java source files:** If the TDD references Java processors, beans, or configuration classes, create them in `{module}/src/main/java/` using the package structure from the TDD. For migration, copy the logic from the source and adapt it to Camel 4.x (jakarta imports, updated API calls).
+
+2. **Non-route files:** If the TDD references WSDL, XSD, or other resource files, copy them to `{module}/src/main/resources/` preserving the directory structure specified in the TDD.
+
+3. **Maven plugins:** If the TDD specifies build plugins (e.g., CXF codegen, JAXB), add them to the `<build><plugins>` section of `{module}/pom.xml`.
+
+4. **CDI/Spring configuration:** If the TDD specifies configuration classes or bean definitions beyond `application.properties`, create them.
+
+**SKIP** if the TDD does not contain a "Migrated From" field.
+
+### Step 5.6: Sequential HTTP Calls (CONDITIONAL)
 
 **IF** the TDD contains both an HTTP consumer (`platform-http`, `servlet`, `jetty`, `netty-http`) **AND** one or more outbound HTTP producer calls (`http`, `https`, `undertow`, `vertx-http`):
 - Load `guides/sequential-http-calls.md` for detailed implementation guidance
@@ -115,20 +133,29 @@ Assign these as context variables for all subsequent steps:
 
 ### Step 8: Smoke Test (ALWAYS — MANDATORY, DO NOT SKIP)
 
-**You MUST execute this step.** Load and follow `guides/smoke-test.md` completely before showing the Implementation Summary.
+**You MUST execute this step.** Read `guides/smoke-test.md` (in the same directory as this file) and follow its instructions completely before showing the Implementation Summary.
 
-- Load `guides/smoke-test.md`
-- Pass:
+**What to do concretely:**
+1. Read the file `guides/smoke-test.md`
+2. Start docker-compose if present (`docker compose up -d`)
+3. Run the application startup command for the runtime (JBang/Spring Boot/Quarkus) with a 60-second timeout
+4. Check the output for success markers
+5. If startup failed, analyze the error, fix it, and retry (up to 6 attempts)
+6. Report PASS or FAIL
+
+Pass these context variables:
   - `FLOW_NAME`
   - `MODULE_DIR`
   - `RUNTIME`
   - `CAMEL_VERSION`
 
-The smoke test starts the application, checks if it boots, and if it fails, fixes the error and retries — up to 6 attempts. Do NOT proceed to the summary until the smoke test loop completes.
+**HARD GATE:** Do NOT show the Implementation Summary until you have actually executed the startup command and observed the output. Showing the summary without running the smoke test is a skill violation.
 
 ---
 
 ## Implementation Summary
+
+**PREREQUISITE:** You can only show this summary if you have run Step 8 (Smoke Test) and observed the actual application output. If you skipped the smoke test, go back and run it now.
 
 After all steps complete, display:
 

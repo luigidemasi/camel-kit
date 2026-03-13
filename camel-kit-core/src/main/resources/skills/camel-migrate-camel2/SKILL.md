@@ -235,7 +235,7 @@ Conditionally load:
 
 ### MCP Catalog Enforcement (MANDATORY when MCP configured)
 
-**CRITICAL:** All catalog calls MUST pass `CAMEL_VERSION` as version parameter. Never trust component/EIP/format/language names from training data without catalog verification.
+**CRITICAL:** All catalog calls MUST translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` parameter using the version mapping table in `skills/shared/mcp-setup.md`. Never pass the raw version or a stripped minor version directly. Never trust component/EIP/format/language names from training data without catalog verification.
 
 For every migration decision, follow the **Verification Chain**:
 

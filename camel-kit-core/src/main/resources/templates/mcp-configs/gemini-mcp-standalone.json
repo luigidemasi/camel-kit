@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "camel": {
+      "command": "java",
+      "args": [
+        "-Dcamel.catalog.repos=https://maven.repository.redhat.com/ga/",
+        "-Dquarkus.log.level=WARN",
+        "-jar", ".camel-kit/mcp/camel-jbang-mcp-runner.jar"
+      ],
+      "description": "Apache Camel MCP Server - Component catalog, validation, and security analysis"
+    },
+    "camel-knowledge": {
+      "command": "java",
+      "args": [
+        "-Dquarkus.http.port=9090",
+        "-Dquarkus.log.level=WARN",
+        "-jar", ".camel-kit/mcp/camel-kit-knowledge-mcp-runner.jar"
+      ],
+      "description": "camel-kit Knowledge Server - Migration documentation search for Camel, Fuse, MuleSoft"
+    }
+  }
+}

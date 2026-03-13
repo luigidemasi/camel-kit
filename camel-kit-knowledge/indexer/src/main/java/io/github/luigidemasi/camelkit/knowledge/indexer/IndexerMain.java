@@ -17,34 +17,37 @@ import java.util.List;
  *
  * Usage: java -cp indexer.jar io.github.luigidemasi.camelkit.knowledge.indexer.IndexerMain [output-dir]
  *
+ * System properties (override automatic path resolution):
+ *   -Dindex.output=path        Output directory for the Lucene index
+ *   -Dindex.resources=path     Indexer resources directory (HTML guides, errata JSON)
+ *   -Dindex.cache=path         Docling markdown cache directory
+ *
  * Requires DOCLING_URL environment variable pointing to a running docling-serve instance.
  */
 public class IndexerMain {
 
     public static void main(String[] args) throws Exception {
-        // Resolve base directory from class location to ensure consistency
-        // regardless of the JVM working directory.
-        // classesDir is typically .../indexer/target/classes
+        // Resolve base directories. System properties override automatic resolution.
         Path classesDir = Path.of(
                 IndexerMain.class.getProtectionDomain().getCodeSource().getLocation().toURI());
         Path targetDir = classesDir.getParent();
-        // Module root: .../indexer/
         Path moduleDir = targetDir.getParent();
 
-        Path outputDir = args.length > 0
-                ? Path.of(args[0]).toAbsolutePath()
-                : targetDir.resolve("knowledge-index");
+        Path outputDir = resolvePath("index.output",
+                args.length > 0 ? args[0] : null,
+                targetDir.resolve("knowledge-index").toString());
 
-        // doc-cache lives in target/ (ephemeral, gitignored)
-        Path cacheDir = targetDir.resolve("doc-cache");
+        Path cacheDir = resolvePath("index.cache",
+                null,
+                targetDir.resolve("doc-cache").toString());
 
-        // Resources dir: .../indexer/src/main/resources/
-        // Downloaded HTML guides are persisted here so they survive mvn clean
-        Path resourcesDir = moduleDir.resolve("src/main/resources");
+        Path resourcesDir = resolvePath("index.resources",
+                null,
+                moduleDir.resolve("src/main/resources").toString());
 
-        String doclingUrl = System.getenv("DOCLING_URL");
+        String doclingUrl = System.getProperty("docling.url", System.getenv("DOCLING_URL"));
         if (doclingUrl == null || doclingUrl.isBlank()) {
-            System.err.println("ERROR: DOCLING_URL environment variable is required.");
+            System.err.println("ERROR: DOCLING_URL environment variable or -Ddocling.url system property is required.");
             System.err.println("Start docling-serve: docker run -p 5001:5001 quay.io/docling-project/docling-serve");
             System.exit(1);
         }
@@ -52,6 +55,7 @@ public class IndexerMain {
         System.out.println("Building camel-kit knowledge index...");
         System.out.println("Output: " + outputDir);
         System.out.println("Resources: " + resourcesDir);
+        System.out.println("Cache: " + cacheDir);
         System.out.println("Docling: " + doclingUrl);
 
         Files.createDirectories(outputDir);
@@ -79,13 +83,19 @@ public class IndexerMain {
                 total, domains.size());
     }
 
+    private static Path resolvePath(String sysProp, String argValue, String defaultValue) {
+        String value = System.getProperty(sysProp);
+        if (value != null && !value.isBlank()) return Path.of(value).toAbsolutePath();
+        if (argValue != null && !argValue.isBlank()) return Path.of(argValue).toAbsolutePath();
+        return Path.of(defaultValue).toAbsolutePath();
+    }
+
     private static List<DocumentDomain> buildDomains(Path cacheDir, Path resourcesDir, String doclingUrl) throws IOException {
         List<DocumentDomain> domains = new ArrayList<>();
 
         // Add all registered domains here
         domains.add(new CamelMigrationDomain(cacheDir, doclingUrl));
         domains.add(new RhBuildCamelDomain(cacheDir, resourcesDir, doclingUrl));
-        // Future: domains.add(new RhFuseMigrationDomain(cacheDir, resourcesDir, doclingUrl));
 
         return domains;
     }

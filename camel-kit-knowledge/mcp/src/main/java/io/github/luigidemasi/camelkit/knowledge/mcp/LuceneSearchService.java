@@ -216,6 +216,17 @@ public class LuceneSearchService {
     }
 
     /**
+     * Search by JIRA issue ID (exact match on multi-valued jira_id field).
+     */
+    public List<SearchResult> searchByJiraId(String jiraId) throws IOException {
+        BooleanQuery query = new BooleanQuery.Builder()
+                .add(new TermQuery(new Term(KnowledgeFields.JIRA_ID, jiraId)), BooleanClause.Occur.MUST)
+                .build();
+
+        return executeSearch(query, 20);
+    }
+
+    /**
      * Search errata by CVE ID (exact match on multi-valued cve_ids field).
      */
     public List<ErrataSearchResult> searchByCve(String cveId) throws IOException {

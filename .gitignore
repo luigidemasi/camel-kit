@@ -243,5 +243,10 @@ camel-kit-knowledge/mcp/src/main/resources/models/model.onnx
 camel-kit-knowledge/mcp/src/test/resources/models/model.onnx
 camel-kit-knowledge/indexer/src/main/resources/rh-build-camel/**/*.pdf
 camel-kit-knowledge/indexer/src/main/resources/rh-build-camel/**/*.html
+camel-kit-knowledge/indexer/src/main/resources/rh-build-camel/errata/*.json
+camel-kit-knowledge/indexer/src/main/resources/rh-build-camel/errata/cves/*.json
+camel-kit-knowledge/indexer/src/main/resources/rh-build-camel/jira-cache/*.json
+camel-kit-knowledge/indexer/src/main/resources/rh-build-camel/kb-articles/
+camel-kit-knowledge/mcp/src/main/resources/knowledge-index/
 camel-kit-knowledge/indexer/src/main/resources/rh-build-camel/**/*.md
 !camel-kit-knowledge/indexer/src/main/resources/rh-build-camel/kb-articles/*.html

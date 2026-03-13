@@ -4,7 +4,7 @@
 > - `FLOW_NAME` — the flow being validated
 > - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
 >
-> **Version stripping:** When calling MCP catalog tools, strip `.redhat-XXXXX` suffix from `CAMEL_VERSION` (see `skills/shared/mcp-setup.md`).
+> **Version mapping:** When calling MCP catalog tools, translate `CAMEL_VERSION` to the correct catalog version using the version mapping table in `skills/shared/mcp-setup.md`.
 
 ## Stage 8: Security Analysis (MCP Enhanced)
 

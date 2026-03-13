@@ -29,6 +29,9 @@ public final class KnowledgeFields {
     // Runtime (multi-valued: "quarkus", "spring-boot", "main")
     public static final String RUNTIME = "runtime";
 
+    // JIRA issue ID for exact lookup (multi-valued: may have upstream + downstream IDs)
+    public static final String JIRA_ID = "jira_id";
+
     // Errata-specific structured fields
     public static final String ERRATUM_ID = "erratum_id";
     public static final String ADVISORY_TYPE = "advisory_type";

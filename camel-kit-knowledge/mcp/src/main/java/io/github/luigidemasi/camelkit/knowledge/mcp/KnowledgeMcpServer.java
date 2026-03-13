@@ -51,10 +51,10 @@ public class KnowledgeMcpServer {
             @ToolArg(description = "Search query, e.g., 'Blueprint XML property placeholder migration'") String query,
             @ToolArg(description = "Source version filter, e.g., '2.x'", required = false) String source_version,
             @ToolArg(description = "Target version filter, e.g., '4.x'", required = false) String target_version,
-            @ToolArg(description = "Maximum results to return (default 5)", required = false) String max_results
+            @ToolArg(description = "Maximum results to return (default 5)", required = false) Integer max_results
     ) {
         try {
-            int maxResults = max_results != null ? Integer.parseInt(max_results) : 5;
+            int maxResults = max_results != null ? max_results : 5;
             List<LuceneSearchService.SearchResult> results =
                     searchService.search("camel_migration", query, source_version, target_version, maxResults);
 
@@ -91,16 +91,36 @@ public class KnowledgeMcpServer {
     public String camel_rh_build_search(
             @ToolArg(description = "Search query, e.g., 'supported databases PostgreSQL'") String query,
             @ToolArg(description = "Product version filter, e.g., '4.14'. Optional.", required = false) String version,
-            @ToolArg(description = "Maximum results to return (default 5)", required = false) String max_results
+            @ToolArg(description = "Maximum results to return (default 5)", required = false) Integer max_results
     ) {
         try {
-            int maxResults = max_results != null ? Integer.parseInt(max_results) : 5;
+            int maxResults = max_results != null ? max_results : 5;
             List<LuceneSearchService.SearchResult> results =
                     searchService.search("rh_build_camel", query, version, null, maxResults);
 
             return formatResults(results);
         } catch (Exception e) {
             return "{\"error\":\"" + e.getMessage() + "\"}";
+        }
+    }
+
+    @Tool(description = "Look up a JIRA issue to find in which Red Hat Build of Apache Camel release " +
+            "it was fixed or implemented. Accepts JIRA issue IDs like CEQ-12480, CSB-8351, RHBAC-127, " +
+            "CAMEL-22784, or ENTESB-*. Returns the release version, runtime, description, and context.")
+    public String camel_rh_build_jira_lookup(
+            @ToolArg(description = "JIRA issue ID, e.g., 'CSB-8351', 'CEQ-12480', 'CAMEL-22784', 'RHBAC-127'") String jira_id
+    ) {
+        try {
+            List<LuceneSearchService.SearchResult> results =
+                    searchService.searchByJiraId(jira_id.toUpperCase());
+
+            if (results.isEmpty()) {
+                return "{\"found\":false,\"jira_id\":\"" + escape(jira_id) + "\",\"results\":[]}";
+            }
+
+            return formatResults(results);
+        } catch (Exception e) {
+            return "{\"error\":\"" + escape(e.getMessage()) + "\"}";
         }
     }
 
@@ -132,10 +152,10 @@ public class KnowledgeMcpServer {
             @ToolArg(description = "Severity: 'Critical', 'Important', 'Moderate', or 'Low'", required = false) String severity,
             @ToolArg(description = "Product version, e.g., '4.14'", required = false) String version,
             @ToolArg(description = "Optional free-text search within errata content", required = false) String query,
-            @ToolArg(description = "Maximum results to return (default 10)", required = false) String max_results
+            @ToolArg(description = "Maximum results to return (default 10)", required = false) Integer max_results
     ) {
         try {
-            int maxResults = max_results != null ? Integer.parseInt(max_results) : 10;
+            int maxResults = max_results != null ? max_results : 10;
             List<LuceneSearchService.ErrataSearchResult> results =
                     searchService.searchErrata(advisory_type, severity, version, query, maxResults);
 
@@ -151,10 +171,10 @@ public class KnowledgeMcpServer {
     public String camel_rh_build_release_info(
             @ToolArg(description = "Product version, e.g., '4.14', '4.8', '7.12'") String version,
             @ToolArg(description = "Optional advisory type filter: 'Security Advisory', 'Bug Fix', or 'Enhancement'", required = false) String advisory_type,
-            @ToolArg(description = "Maximum results to return (default 20)", required = false) String max_results
+            @ToolArg(description = "Maximum results to return (default 20)", required = false) Integer max_results
     ) {
         try {
-            int maxResults = max_results != null ? Integer.parseInt(max_results) : 20;
+            int maxResults = max_results != null ? max_results : 20;
             List<LuceneSearchService.ErrataSearchResult> results =
                     searchService.searchByVersion(version, advisory_type, maxResults);
 
@@ -171,10 +191,10 @@ public class KnowledgeMcpServer {
     public String camel_rh_build_supported_configs(
             @ToolArg(description = "Search query, e.g., 'PostgreSQL 16 supported', 'JDK 21'") String query,
             @ToolArg(description = "Product version filter, e.g., '4.14'. Optional.", required = false) String version,
-            @ToolArg(description = "Maximum results to return (default 5)", required = false) String max_results
+            @ToolArg(description = "Maximum results to return (default 5)", required = false) Integer max_results
     ) {
         try {
-            int maxResults = max_results != null ? Integer.parseInt(max_results) : 5;
+            int maxResults = max_results != null ? max_results : 5;
             List<LuceneSearchService.SearchResult> results =
                     searchService.search("rh_build_camel", query, version, null, maxResults);
 

@@ -10,6 +10,8 @@ You are acting as a **Migration Specialist** that migrates Apache Camel 2.x or 3
 
 This guide is loaded ONLY by `camel-migrate` (never directly by the user). You receive a pre-populated analysis summary from the orchestrator — **never re-ask questions that have already been answered**.
 
+**CRITICAL — Both phases run in a single session.** After completing Phase 1, you MUST immediately proceed to Phase 2. Do NOT stop after the BRD, do NOT present "next steps" options, do NOT suggest continuing in a follow-up session. This applies regardless of how many routes or projects need migration.
+
 ## Input Context (from `camel-migrate`)
 
 You receive:
@@ -216,6 +218,8 @@ TDD files will be created in Phase 2. Then run `/camel-implement` for each flow.
 
 If `docs/constitution.md` does not exist, copy from `templates/constitution.md` and continue.
 
+**⚠️ DO NOT STOP HERE.** Proceed immediately to Phase 2 below. Do NOT present "next steps" options, do NOT ask the user whether to continue, do NOT suggest a "follow-up session". Phase 2 is mandatory and runs in the same session — regardless of how many routes need TDD files.
+
 ---
 
 ## Phase 2 — Integration Architect
@@ -225,7 +229,7 @@ If `docs/constitution.md` does not exist, copy from `templates/constitution.md` 
 Re-read:
 - `docs/business-requirements.md`
 - `docs/constitution.md` (reference)
-- `.camel-kit/config.yaml` — **extract `project.camelVersion` as `CAMEL_VERSION`** (written by `camel-migrate` orchestrator in Step 5). If the file does not exist or `project.camelVersion` is not set, **STOP** and ask the user for the target Camel version before proceeding. This variable is required for all MCP catalog calls in this phase.
+- `.camel-kit/config.yaml` — **extract `project.camelVersion` as `CAMEL_VERSION`** and `project.runtime` as `RUNTIME` (written by `camel-migrate` orchestrator in Step 5). If the file does not exist or `project.camelVersion` is not set, **STOP** and ask the user for the target Camel version before proceeding. Before every MCP catalog call, translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` parameter using the version mapping table in `skills/shared/mcp-setup.md`.
 - All guide files loaded in Phase 1 (keep in context)
 
 Conditionally load:
@@ -236,9 +240,9 @@ Conditionally load:
 
 ### MCP Catalog Enforcement (MANDATORY when MCP configured)
 
-→ **For MCP setup, version stripping, and fallback policy:** see `skills/shared/mcp-setup.md`
+→ **For MCP setup, version mapping, and fallback policy:** see `skills/shared/mcp-setup.md`
 
-**CRITICAL:** All catalog calls MUST pass `CAMEL_VERSION` (with `.redhat-XXXXX` stripped) as version parameter. Never trust component/EIP/format/language names from training data without catalog verification.
+**CRITICAL:** All catalog calls MUST pass the translated `camelVersion` from the version mapping table (see `skills/shared/mcp-setup.md`). Never trust component/EIP/format/language names from training data without catalog verification.
 
 For every migration decision, follow the **Verification Chain**:
 

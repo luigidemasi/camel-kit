@@ -26,6 +26,7 @@ import java.util.zip.ZipInputStream;
 public class CatalogDownloader {
 
     private static final String MAVEN_CENTRAL = "https://repo1.maven.org/maven2";
+    private static final String REDHAT_GA = "https://maven.repository.redhat.com/ga";
     private static final String GITHUB_RAW = "https://raw.githubusercontent.com/apache/camel";
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
@@ -56,8 +57,9 @@ public class CatalogDownloader {
         Files.createDirectories(cacheDir);
 
         // Download camel-catalog JAR and extract component list
+        String repo = version.contains(".redhat-") ? REDHAT_GA : MAVEN_CENTRAL;
         String jarUrl = String.format("%s/org/apache/camel/camel-catalog/%s/camel-catalog-%s.jar",
-            MAVEN_CENTRAL, version, version);
+            repo, version, version);
 
         System.out.println("  Downloading component catalog for Camel " + version + "...");
 

@@ -77,6 +77,13 @@ public class IndexBuilder {
                         }
                     }
 
+                    // JIRA IDs (multi-valued)
+                    if (chunk.jiraIds() != null) {
+                        for (String jiraId : chunk.jiraIds()) {
+                            doc.jiraId(jiraId);
+                        }
+                    }
+
                     // Errata-specific structured fields
                     if (chunk.erratumId() != null) {
                         doc.erratumId(chunk.erratumId());

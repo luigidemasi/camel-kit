@@ -10,6 +10,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 
 /**
@@ -29,6 +30,11 @@ import java.util.List;
  * </pre>
  */
 public class DoclingParser {
+
+    private static final Duration REQUEST_TIMEOUT = Duration.ofMinutes(
+            Long.parseLong(System.getProperty("docling.timeout.minutes", "10")));
+    private static final int MAX_RETRIES = Integer.parseInt(
+            System.getProperty("docling.retries", "3"));
 
     private final String doclingUrl;
     private final HttpClient httpClient;
@@ -68,13 +74,28 @@ public class DoclingParser {
 
     /**
      * Convert a local file to Markdown via docling-serve without chunking.
-     * Use this when you need the raw Markdown output (e.g., to cache it to disk).
+     * Retries up to {@link #MAX_RETRIES} times on failure before giving up.
      *
      * @param filePath path to the document file
      * @return the Markdown content
      */
     public String toMarkdown(Path filePath) throws IOException, InterruptedException {
-        return convertToMarkdown(filePath);
+        IOException lastException = null;
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                return convertToMarkdown(filePath);
+            } catch (IOException e) {
+                lastException = e;
+                if (attempt < MAX_RETRIES) {
+                    System.out.printf("  WARN: Docling conversion failed (attempt %d/%d) for %s: %s — retrying...%n",
+                            attempt, MAX_RETRIES, filePath.toAbsolutePath(), e.getMessage());
+                    Thread.sleep(2000L * attempt); // backoff: 2s, 4s
+                }
+            }
+        }
+        System.out.printf("  ERROR: Docling conversion failed after %d attempts for: %s — %s%n",
+                MAX_RETRIES, filePath.toAbsolutePath(), lastException.getMessage());
+        throw lastException;
     }
 
     /**
@@ -104,6 +125,7 @@ public class DoclingParser {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(doclingUrl + "/v1/convert/file"))
                 .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                .timeout(REQUEST_TIMEOUT)
                 .POST(HttpRequest.BodyPublishers.ofByteArray(body))
                 .build();
 
@@ -132,6 +154,7 @@ public class DoclingParser {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(doclingUrl + "/v1/convert/source"))
                 .header("Content-Type", "application/json")
+                .timeout(REQUEST_TIMEOUT)
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
                 .build();
 

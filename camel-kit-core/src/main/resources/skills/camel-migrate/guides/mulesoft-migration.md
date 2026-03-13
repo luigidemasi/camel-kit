@@ -6,6 +6,8 @@
 > - Full list of source artifact paths
 > - Detected vendor: MuleSoft Mule (3.x or 4.x)
 
+> **"Load" means READ and FOLLOW.** When this guide says "Load `path/to/file.md`", read that file relative to the skill directory and execute its instructions. The files are always present — do NOT report them as missing.
+
 This guide is loaded by `camel-migrate` after it has already:
 1. Detected the vendor (MuleSoft Mule 3.x / 4.x)
 2. Scanned all project artifacts
@@ -17,6 +19,8 @@ This guide is loaded by `camel-migrate` after it has already:
 You will work in two phases:
 - **Phase 1 (Business Analyst):** Deep-dive into Mule XML flows, resolve proprietary connectors, fill any remaining gaps, produce BRD.
 - **Phase 2 (Integration Architect):** Design catalog-verified Camel route architecture and produce TDD files.
+
+**CRITICAL — Both phases run in a single session.** After completing Phase 1, you MUST immediately proceed to Phase 2. Do NOT stop after the BRD, do NOT present "next steps" options, do NOT suggest continuing in a follow-up session. This applies regardless of how many flows or projects need migration.
 
 The outputs are identical in format to `/camel-project` + `/camel-flow`, making them fully compatible with `/camel-implement`.
 
@@ -181,6 +185,8 @@ Flows to migrate: [list flow names]
 Starting Phase 2 — Integration Architect...
 ```
 
+**⚠️ DO NOT STOP HERE.** Proceed immediately to Phase 2 below. Do NOT present "next steps" options, do NOT ask the user whether to continue, do NOT suggest a "follow-up session". Phase 2 is mandatory and runs in the same session — regardless of how many flows need TDD files.
+
 ---
 
 ## Phase 2 — Integration Architect
@@ -191,7 +197,7 @@ Starting Phase 2 — Integration Architect...
 - Load `skills/camel-migrate/guides/mule-dataweave-conversion.md` — required for DataWeave analysis
 - Re-read `docs/business-requirements.md`
 - Read `docs/constitution.md` if it exists (for reference)
-- Re-read `.camel-kit/config.yaml` — **REQUIRED**: extract `project.camelVersion` and store it as `CAMEL_VERSION`. Every MCP catalog call in Phase 2 MUST use this exact version. If the file does not exist, ask the user for the Camel version before proceeding.
+- Re-read `.camel-kit/config.yaml` — **REQUIRED**: extract `project.camelVersion` as `CAMEL_VERSION` and `project.runtime` as `RUNTIME`. If the file does not exist, ask the user for the Camel version before proceeding.
 
 **Conditionally load:**
 - `skills/camel-migrate/guides/datamapper-migrate.md` — load once per flow that contains a DataWeave transformation (see Step 2.2)
@@ -201,9 +207,9 @@ Starting Phase 2 — Integration Architect...
 
 **MCP catalog tools — MANDATORY when MCP is configured (same rules as `/camel-flow`):**
 
-All catalog calls MUST pass `CAMEL_VERSION` as the `version` parameter. Never use a Camel component name, EIP name, data format name, or expression language name from training data or the mapping guide without first verifying it in the catalog.
+Before every MCP catalog call, translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` parameter using the version mapping table in `skills/shared/mcp-setup.md`. Never pass the raw `CAMEL_VERSION` or a stripped minor version (e.g., `4.14`) directly — always use the translated Red Hat artifact version from the table. Never use a Camel component name, EIP name, data format name, or expression language name from training data or the mapping guide without first verifying it in the catalog.
 
-→ **For MCP setup, version stripping, and fallback policy:** see `skills/shared/mcp-setup.md`
+→ **For MCP setup, version mapping, and fallback policy:** see `skills/shared/mcp-setup.md`
 
 | Decision | Tool to call first | Then call |
 |----------|--------------------|-----------|

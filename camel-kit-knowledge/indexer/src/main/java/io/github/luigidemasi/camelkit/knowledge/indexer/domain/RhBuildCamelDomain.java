@@ -1,6 +1,9 @@
 package io.github.luigidemasi.camelkit.knowledge.indexer.domain;
 
 import io.github.luigidemasi.camelkit.knowledge.indexer.DocumentFetcher;
+import io.github.luigidemasi.camelkit.knowledge.indexer.JiraFetcher;
+import io.github.luigidemasi.camelkit.knowledge.indexer.chunker.ReleaseNotesChunker;
+import io.github.luigidemasi.camelkit.knowledge.indexer.chunker.ReleaseNotesChunker.ResolvedIssue;
 import io.github.luigidemasi.camelkit.knowledge.indexer.chunker.SectionChunker.Section;
 import io.github.luigidemasi.camelkit.knowledge.indexer.parser.DoclingParser;
 import io.github.luigidemasi.camelkit.knowledge.schema.DomainMetadata;
@@ -83,6 +86,7 @@ public class RhBuildCamelDomain implements DocumentDomain {
 
     private final DocumentFetcher fetcher;
     private final DoclingParser doclingParser;
+    private final JiraFetcher jiraFetcher;
     private final Path cacheDir;
     private final Path resourcesDir;
 
@@ -105,6 +109,16 @@ public class RhBuildCamelDomain implements DocumentDomain {
         this.doclingParser = new DoclingParser(doclingUrl);
         this.cacheDir = cacheDir;
         this.resourcesDir = resourcesDir;
+
+        Path jiraCacheDir = resourcesDir.resolve("rh-build-camel/jira-cache");
+        Files.createDirectories(jiraCacheDir);
+        this.jiraFetcher = new JiraFetcher(jiraCacheDir);
+
+        if (jiraFetcher.hasRhToken()) {
+            System.out.println("  JIRA enrichment: Red Hat token found — will fetch CEQ/CSB/RHBAC/ENTESB issues");
+        } else {
+            System.out.println("  JIRA enrichment: No JIRA_RH_TOKEN — only CAMEL-* issues from Apache JIRA");
+        }
     }
 
     @Override
@@ -126,26 +140,50 @@ public class RhBuildCamelDomain implements DocumentDomain {
 
         // Phase 2: Chunk and build DocumentChunk objects (fast, sequential)
         List<DocumentChunk> chunks = new ArrayList<>();
+        ReleaseNotesChunker releaseNotesChunker = new ReleaseNotesChunker();
 
         for (ConvertedDoc doc : convertedDocs) {
-            List<Section> sections = doclingParser.chunkMarkdown(doc.markdown());
-
             List<String> runtimes = inferRuntimes(doc.shortName());
 
-            for (Section section : sections) {
-                if (doc.isKbArticle()) {
-                    String extractedVersion = extractVersionFromHeading(section.title());
-                    String id = "rh-build-camel-kb-" + doc.kbArticleId() + "-" +
-                            section.title().toLowerCase().replaceAll("[^a-z0-9]+", "-");
-                    String component = extractComponentName(section.title());
+            if (!doc.isKbArticle() && doc.shortName().startsWith("release-notes-")) {
+                // Use specialized chunker for release notes — splits JIRA issues into individual chunks
+                ReleaseNotesChunker.ChunkResult result = releaseNotesChunker.chunk(doc.markdown());
+
+                int enriched = 0;
+                for (ResolvedIssue issue : result.issues()) {
+                    String primaryId = issue.jiraIds().get(0);
+                    String id = "rh-build-camel-" + doc.version() + "-" + doc.shortName() + "-" +
+                            primaryId.toLowerCase();
+
+                    // Try to enrich with full JIRA description
+                    String content;
+                    String component;
+                    List<String> allJiraIds = new ArrayList<>(issue.jiraIds());
+
+                    JiraFetcher.JiraIssue jiraIssue = jiraFetcher.fetch(primaryId);
+                    if (jiraIssue != null) {
+                        content = jiraIssue.toEnrichedContent();
+                        component = jiraIssue.components().isEmpty()
+                                ? extractComponentName(issue.description())
+                                : jiraIssue.components().get(0).toLowerCase()
+                                        .replaceFirst("^camel-", "");
+                        enriched++;
+                    } else {
+                        content = primaryId + ": " + issue.description();
+                        component = extractComponentName(issue.description());
+                    }
 
                     chunks.add(new DocumentChunk(
                             id, "red-hat-build-camel", doc.shortName(),
-                            extractedVersion, null, component,
-                            section.title(), section.content(),
-                            runtimes, null, null, null, null, null
+                            doc.version(), null, component,
+                            issue.sectionTitle() + " — " + primaryId,
+                            content,
+                            runtimes, allJiraIds, null, null, null, null, null
                     ));
-                } else {
+                }
+
+                // Also index non-table sections (features, known issues, etc.)
+                for (Section section : result.otherSections()) {
                     String id = "rh-build-camel-" + doc.version() + "-" + doc.shortName() + "-" +
                             section.title().toLowerCase().replaceAll("[^a-z0-9]+", "-");
                     String component = extractComponentName(section.title());
@@ -154,15 +192,48 @@ public class RhBuildCamelDomain implements DocumentDomain {
                             id, "red-hat-build-camel", doc.shortName(),
                             doc.version(), null, component,
                             section.title(), section.content(),
-                            runtimes, null, null, null, null, null
+                            runtimes, null, null, null, null, null, null
                     ));
                 }
-            }
 
-            String label = doc.isKbArticle()
-                    ? "KB " + doc.kbArticleId() + " (" + doc.shortName() + ")"
-                    : doc.version() + "/" + doc.shortName();
-            System.out.printf("  Chunked %s: %d sections%n", label, sections.size());
+                System.out.printf("  Chunked %s/%s: %d JIRA issues (%d enriched) + %d sections%n",
+                        doc.version(), doc.shortName(), result.issues().size(), enriched, result.otherSections().size());
+            } else {
+                // Standard section-based chunking for guides and KB articles
+                List<Section> sections = doclingParser.chunkMarkdown(doc.markdown());
+
+                for (Section section : sections) {
+                    if (doc.isKbArticle()) {
+                        String extractedVersion = extractVersionFromHeading(section.title());
+                        String id = "rh-build-camel-kb-" + doc.kbArticleId() + "-" +
+                                section.title().toLowerCase().replaceAll("[^a-z0-9]+", "-");
+                        String component = extractComponentName(section.title());
+
+                        chunks.add(new DocumentChunk(
+                                id, "red-hat-build-camel", doc.shortName(),
+                                extractedVersion, null, component,
+                                section.title(), section.content(),
+                                runtimes, null, null, null, null, null, null
+                        ));
+                    } else {
+                        String id = "rh-build-camel-" + doc.version() + "-" + doc.shortName() + "-" +
+                                section.title().toLowerCase().replaceAll("[^a-z0-9]+", "-");
+                        String component = extractComponentName(section.title());
+
+                        chunks.add(new DocumentChunk(
+                                id, "red-hat-build-camel", doc.shortName(),
+                                doc.version(), null, component,
+                                section.title(), section.content(),
+                                runtimes, null, null, null, null, null, null
+                        ));
+                    }
+                }
+
+                String label = doc.isKbArticle()
+                        ? "KB " + doc.kbArticleId() + " (" + doc.shortName() + ")"
+                        : doc.version() + "/" + doc.shortName();
+                System.out.printf("  Chunked %s: %d sections%n", label, sections.size());
+            }
         }
 
         // Phase 3: Fetch errata + CVEs and build errata chunks
@@ -515,6 +586,7 @@ public class RhBuildCamelDomain implements DocumentDomain {
                             synopsis,
                             content.toString(),
                             errataRuntimes.isEmpty() ? null : errataRuntimes,
+                            null,
                             id,
                             advisoryType,
                             severity,

@@ -60,6 +60,12 @@ public class KnowledgeDocument {
         return this;
     }
 
+    /** Adds a single JIRA ID. Call multiple times for multi-valued field. */
+    public KnowledgeDocument jiraId(String jiraId) {
+        doc.add(new StringField(KnowledgeFields.JIRA_ID, jiraId, Store.YES));
+        return this;
+    }
+
     public KnowledgeDocument erratumId(String erratumId) {
         doc.add(new StringField(KnowledgeFields.ERRATUM_ID, erratumId, Store.YES));
         return this;

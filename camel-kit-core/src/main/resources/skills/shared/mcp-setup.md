@@ -6,42 +6,73 @@ This file documents the common MCP server configuration used by all camel-kit sk
 
 ## Camel Catalog MCP Server
 
-**To enable**, add to `.mcp.json`:
+The Camel MCP server is a Quarkus uber-jar started with `java -jar`. It is extracted to `.camel-kit/mcp/` during `camel-kit init`.
+
+**Configuration** (`.mcp.json`):
 ```json
 {
   "mcpServers": {
     "camel": {
-      "command": "jbang",
+      "command": "java",
       "args": [
-        "--repos", "redhat=https://maven.repository.redhat.com/ga/",
+        "-Dcamel.catalog.repos=https://maven.repository.redhat.com/ga/",
         "-Dquarkus.log.level=WARN",
-        "org.apache.camel:camel-jbang-mcp:LATEST:runner"
-      ]
+        "-jar", ".camel-kit/mcp/camel-jbang-mcp-runner.jar"
+      ],
+      "description": "Apache Camel MCP Server"
     }
   }
 }
 ```
 
-Use `LATEST` for the MCP server artifact (must resolve to >= 4.18.0). If `LATEST` fails to resolve, fall back to `4.18.0`. The MCP server is a development tool — it can serve catalog data for any Camel version regardless of its own version. The `--repos` flag adds the Red Hat Maven repository so the MCP server can resolve Camel catalog artifacts for Red Hat Build versions at runtime.
+**Why `java -jar` instead of JBang:** The Quarkus runner JAR is a self-contained uber-jar. Using `java -jar` avoids JBang's `--repos` issues (replaces default repos, `mavenlocal` connector bug, SNAPSHOT resolution failures).
 
 ---
 
-## Red Hat Build Version Mapping
+## MCP Tool Call Rules (MANDATORY)
 
-The upstream Camel MCP catalog resolves artifacts from Maven repositories at runtime.
-When using Red Hat Build versions, pass the **exact Red Hat artifact version** from the table below to MCP catalog tools (`camelVersion` parameter).
+### Rule 1: Use `platformBom` for versioned catalog queries
 
-| Camel Minor | camel-catalog | camel-catalog-provider-springboot | camel-quarkus-catalog | Quarkus Platform BOM |
-|-------------|---------------|-----------------------------------|-----------------------|----------------------|
-| 4.0 | 4.0.0.redhat-00036 | 4.0.0.redhat-00045 | 3.2.0.redhat-00030 | 3.2.12.SP1-redhat-00003 |
-| 4.4 | 4.4.0.redhat-00046 | 4.4.0.redhat-00039 | 3.8.0.redhat-00014 | 3.8.6.redhat-00005 |
-| 4.8 | 4.8.5.redhat-00008 | 4.8.5.redhat-00008 | 3.15.0.redhat-00010 | 3.15.7.redhat-00001 |
-| 4.10 | 4.10.7.redhat-00009 | 4.10.7.redhat-00013 | 3.20.0.redhat-00011 | 3.20.5.redhat-00002 |
-| 4.14 | 4.14.4.redhat-00008 | 4.14.4.redhat-00010 | 3.27.1.redhat-00004 | 3.27.2.redhat-00002 |
+The `platformBom` parameter accepts a full Maven GAV (`groupId:artifactId:version`) and is the preferred way to query a specific catalog version. It works for all runtimes:
 
-**How to use this table:** When calling `camel_catalog_*` MCP tools with `runtime=default`, pass the `camel-catalog` version as `camelVersion`. For `runtime=spring-boot`, the server resolves the Spring Boot provider automatically. For `runtime=quarkus`, the server resolves the Quarkus catalog automatically.
+- **main**: `org.apache.camel:camel-catalog:4.14.4.redhat-00008`
+- **spring-boot**: `org.apache.camel.springboot:camel-catalog-provider-springboot:4.14.4.redhat-00010`
+- **quarkus**: `com.redhat.quarkus.platform:quarkus-camel-bom:3.27.2.redhat-00002`
 
-This table is derived from `catalog/versions.properties` (the single source of truth).
+The correct `platformBom` value for each Camel version and runtime is in `catalog/versions.properties` (the single source of truth), loaded by `VersionMapping.resolve(camelVersion).platformBom(runtime)`.
+
+When `platformBom` is provided, `camelVersion` is ignored.
+
+### Rule 2: Pass the correct `runtime`
+
+The MCP tool schema accepts `main`, `spring-boot`, or `quarkus` — **NOT** `default`. Pass the runtime that matches the project:
+
+- Quarkus project → `runtime=quarkus`
+- Spring Boot project → `runtime=spring-boot`
+- Plain Camel / Camel Main / YAML DSL → `runtime=main`
+
+The runtime affects which components are returned (e.g., Quarkus extensions vs Spring Boot starters) and how `platformBom` is resolved.
+
+### Rule 3: Omitting `platformBom` and `camelVersion`
+
+When both are omitted, the MCP server uses its built-in catalog (4.19.0). This is a superset of all supported Red Hat versions — component schemas are backwards-compatible. Use this as a fallback when the exact version doesn't matter.
+
+**Examples:**
+- Project has `camelVersion: 4.14.4.redhat-00008`, `runtime: quarkus` → `runtime=quarkus`, `platformBom=com.redhat.quarkus.platform:quarkus-camel-bom:3.27.2.redhat-00002`
+- Project has `camelVersion: 4.8.5.redhat-00008`, `runtime: spring-boot` → `runtime=spring-boot`, `platformBom=org.apache.camel.springboot:camel-catalog-provider-springboot:4.8.5.redhat-00008`
+- Quick lookup, version doesn't matter → `runtime=main`, omit `platformBom`
+
+### Version mapping reference
+
+`catalog/versions.properties` maps each Camel minor version to the exact `platformBom` GAV per runtime. The `VersionMapping` Java class loads this file.
+
+| Camel Minor | Main platformBom | Spring Boot platformBom | Quarkus platformBom |
+|-------------|-----------------|------------------------|---------------------|
+| 4.0 | `org.apache.camel:camel-catalog:4.0.0.redhat-00036` | `o.a.c.springboot:camel-catalog-provider-springboot:4.0.0.redhat-00045` | `com.redhat.quarkus.platform:quarkus-camel-bom:3.2.12.SP1-redhat-00003` |
+| 4.4 | `org.apache.camel:camel-catalog:4.4.0.redhat-00046` | `o.a.c.springboot:...:4.4.0.redhat-00039` | `com.redhat.quarkus.platform:quarkus-camel-bom:3.8.6.redhat-00005` |
+| 4.8 | `org.apache.camel:camel-catalog:4.8.5.redhat-00008` | `o.a.c.springboot:...:4.8.5.redhat-00008` | `com.redhat.quarkus.platform:quarkus-camel-bom:3.15.7.redhat-00001` |
+| 4.10 | `org.apache.camel:camel-catalog:4.10.7.redhat-00009` | `o.a.c.springboot:...:4.10.7.redhat-00013` | `com.redhat.quarkus.platform:quarkus-camel-bom:3.20.5.redhat-00002` |
+| 4.14 | `org.apache.camel:camel-catalog:4.14.4.redhat-00008` | `o.a.c.springboot:...:4.14.4.redhat-00010` | `com.redhat.quarkus.platform:quarkus-camel-bom:3.27.2.redhat-00002` |
 
 ---
 

@@ -37,6 +37,8 @@ public final class VersionMapping {
                     props.getProperty(minor + ".camelCatalog"),
                     props.getProperty(minor + ".springBootProvider"),
                     props.getProperty(minor + ".quarkusCatalog"),
+                    props.getProperty(minor + ".mainPlatformBom"),
+                    props.getProperty(minor + ".springBootPlatformBom"),
                     props.getProperty(minor + ".quarkusPlatformBom")));
         }
         VERSIONS = map;
@@ -48,8 +50,24 @@ public final class VersionMapping {
             String camelCatalog,
             String springBootProvider,
             String quarkusCatalog,
+            String mainPlatformBom,
+            String springBootPlatformBom,
             String quarkusPlatformBom
-    ) {}
+    ) {
+
+        /**
+         * Returns the platformBom GAV for the given runtime.
+         * @param runtime "main", "spring-boot", or "quarkus"
+         */
+        public String platformBom(String runtime) {
+            if (runtime == null) return mainPlatformBom;
+            return switch (runtime.toLowerCase()) {
+                case "spring-boot" -> springBootPlatformBom;
+                case "quarkus" -> quarkusPlatformBom;
+                default -> mainPlatformBom;
+            };
+        }
+    }
 
     /**
      * Resolve a Camel version string to catalog artifact versions.

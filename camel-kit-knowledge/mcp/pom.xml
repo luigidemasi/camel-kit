@@ -11,7 +11,7 @@
     </parent>
 
     <artifactId>camel-kit-knowledge-mcp</artifactId>
-    <name>camel-kit-knowledge-mcp</name>
+    <name>Camel Kit :: Knowledge :: MCP</name>
     <description>MCP server for camel-kit knowledge layer — domain-specific search tools backed by Lucene</description>
 
     <dependencyManagement>
@@ -95,22 +95,36 @@
                     </execution>
                 </executions>
             </plugin>
-            <!-- Download ONNX model if not present (needed for semantic search at runtime) -->
+            <!-- Download Granite embedding ONNX model (Q8 quantized, external data format) -->
             <plugin>
                 <groupId>com.googlecode.maven-download-plugin</groupId>
                 <artifactId>download-maven-plugin</artifactId>
                 <version>1.12.1</version>
                 <executions>
                     <execution>
-                        <id>download-onnx-model</id>
+                        <id>download-onnx-model-graph</id>
                         <phase>generate-resources</phase>
                         <goals>
                             <goal>wget</goal>
                         </goals>
                         <configuration>
-                            <url>https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/onnx/model.onnx</url>
+                            <url>https://huggingface.co/onnx-community/granite-embedding-small-english-r2-ONNX/resolve/main/onnx/model_quantized.onnx</url>
                             <outputDirectory>${project.basedir}/src/main/resources/models</outputDirectory>
-                            <outputFileName>model.onnx</outputFileName>
+                            <outputFileName>model_quantized.onnx</outputFileName>
+                            <skipCache>true</skipCache>
+                            <overwrite>false</overwrite>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>download-onnx-model-data</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>wget</goal>
+                        </goals>
+                        <configuration>
+                            <url>https://huggingface.co/onnx-community/granite-embedding-small-english-r2-ONNX/resolve/main/onnx/model_quantized.onnx_data</url>
+                            <outputDirectory>${project.basedir}/src/main/resources/models</outputDirectory>
+                            <outputFileName>model_quantized.onnx_data</outputFileName>
                             <skipCache>true</skipCache>
                             <overwrite>false</overwrite>
                         </configuration>
@@ -128,4 +142,105 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <!-- Rebuild the knowledge index from source documents.
+             Usage: mvn package -pl camel-kit-knowledge/mcp -Prebuild-index -am
+             Requires Docker for the Docling container. -->
+        <profile>
+            <id>rebuild-index</id>
+            <dependencies>
+                <!-- Indexer classes needed to run IndexerMain -->
+                <dependency>
+                    <groupId>io.github.luigidemasi</groupId>
+                    <artifactId>camel-kit-knowledge-indexer</artifactId>
+                    <version>${project.version}</version>
+                </dependency>
+            </dependencies>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.5.0</version>
+                        <executions>
+                            <!-- Start Docling container and wait for readiness -->
+                            <execution>
+                                <id>start-docling</id>
+                                <phase>generate-resources</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>bash</executable>
+                                    <arguments>
+                                        <argument>-c</argument>
+                                        <argument>
+docker rm -f camel-kit-docling 2>/dev/null || true
+docker run -d --name camel-kit-docling -p 5001:5001 quay.io/docling-project/docling-serve:latest
+echo "Waiting for Docling to start..."
+for i in $(seq 1 60); do
+  if curl -sf http://localhost:5001/health > /dev/null 2>&amp;1; then
+    echo "Docling is ready."
+    exit 0
+  fi
+  sleep 2
+done
+echo "ERROR: Docling failed to start within 120s"
+docker logs camel-kit-docling
+docker rm -f camel-kit-docling 2>/dev/null
+exit 1
+                                        </argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <!-- Run the indexer to generate the Lucene index -->
+                            <execution>
+                                <id>build-index</id>
+                                <phase>process-classes</phase>
+                                <goals>
+                                    <goal>java</goal>
+                                </goals>
+                                <configuration>
+                                    <mainClass>io.github.luigidemasi.camelkit.knowledge.indexer.IndexerMain</mainClass>
+                                    <systemProperties>
+                                        <systemProperty>
+                                            <key>index.output</key>
+                                            <value>${project.basedir}/src/main/resources/knowledge-index</value>
+                                        </systemProperty>
+                                        <systemProperty>
+                                            <key>index.resources</key>
+                                            <value>${project.basedir}/../indexer/src/main/resources</value>
+                                        </systemProperty>
+                                        <systemProperty>
+                                            <key>index.cache</key>
+                                            <value>${project.build.directory}/doc-cache</value>
+                                        </systemProperty>
+                                        <systemProperty>
+                                            <key>docling.url</key>
+                                            <value>http://localhost:5001</value>
+                                        </systemProperty>
+                                    </systemProperties>
+                                </configuration>
+                            </execution>
+                            <!-- Stop Docling container after index is built -->
+                            <execution>
+                                <id>stop-docling</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>bash</executable>
+                                    <arguments>
+                                        <argument>-c</argument>
+                                        <argument>docker rm -f camel-kit-docling 2>/dev/null || true</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

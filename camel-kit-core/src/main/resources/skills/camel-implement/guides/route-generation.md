@@ -12,7 +12,7 @@
 
 ## MCP Server Configuration (Recommended)
 
-→ **For MCP setup, version stripping, and fallback policy:** see `skills/shared/mcp-setup.md`
+→ **For MCP setup, version mapping, and fallback policy:** see `skills/shared/mcp-setup.md`
 
 The Camel MCP server provides code generation and validation tools for this skill:
 - **Component Documentation** (`camel_catalog_component_doc`) - Full options and Maven coords for a component
@@ -26,7 +26,7 @@ The camel-knowledge MCP server provides Red Hat Build documentation:
 - **Red Hat Component Info** (`camel_rh_build_component_info`) - Check if a component is supported by Red Hat
 - **Red Hat Docs Search** (`camel_rh_build_search`) - Search Red Hat Build docs for configurations, release notes, migration info
 
-All catalog calls MUST pass `CAMEL_VERSION` from `.camel-kit/config.yaml` as the `version` parameter.
+All catalog calls MUST translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` parameter using the version mapping table in `skills/shared/mcp-setup.md`. Never pass the raw version or a stripped minor version directly.
 
 ---
 

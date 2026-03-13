@@ -11,7 +11,7 @@
     </parent>
 
     <artifactId>camel-kit-knowledge-indexer</artifactId>
-    <name>camel-kit-knowledge-indexer</name>
+    <name>Camel Kit :: Knowledge :: Indexer</name>
     <description>Build-time document indexer for camel-kit knowledge layer</description>
 
     <dependencies>
@@ -62,6 +62,13 @@
                             <mainClass>io.github.luigidemasi.camelkit.knowledge.indexer.IndexerMain</mainClass>
                         </manifest>
                     </archive>
+                    <!-- Exclude source documents from the JAR — they are only needed
+                         at index-build time (via exec:java which uses the filesystem),
+                         not as a dependency. -->
+                    <excludes>
+                        <exclude>rh-build-camel/**</exclude>
+                        <exclude>camel-migration/**</exclude>
+                    </excludes>
                 </configuration>
             </plugin>
         </plugins>

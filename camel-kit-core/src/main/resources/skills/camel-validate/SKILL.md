@@ -31,14 +31,14 @@ Example: `/camel-validate order-to-warehouse`
 When `all`, `--all`, or no argument is specified:
 
 1. **Discover flows:** List all directories under `docs/flows/` that contain a `{flow-name}.tdd.md` file, and verify corresponding route YAML exists
-2. **Show plan:**
+2. **Show plan and proceed immediately** (the user already confirmed by passing `--all`):
    ```
    Found [N] flows to validate:
      1. flow-name-1  ({flow-name-1}.camel.yaml)
      2. flow-name-2  ({flow-name-2}.camel.yaml)
      ...
 
-   Proceed with validating all [N] flows? (yes/no)
+   Validating all [N] flows sequentially...
    ```
 3. **Process sequentially:** For each flow, run the full validation pipeline (Stages 1–8). Between flows, report progress:
    ```
@@ -101,7 +101,7 @@ If no route YAML files are found: ERROR "No Camel routes found. Run /camel-imple
 
 ## MCP Server Configuration (Recommended)
 
-→ **For MCP setup, version stripping, and fallback policy:** see `skills/shared/mcp-setup.md`
+→ **For MCP setup, version mapping, and fallback policy:** see `skills/shared/mcp-setup.md`
 
 The Camel MCP server provides validation and security analysis tools for this skill:
 - **URI Validation** (`camel_validate_route`) - Validate endpoint URIs against catalog (catches typos)
@@ -145,7 +145,9 @@ The validation proceeds through multiple stages:
 
 ## Execute Validation Pipeline
 
-Execute these guides in order:
+Execute these guides in order.
+
+> **"Load" means READ and FOLLOW.** When this document says "Load `guides/xyz.md`", you MUST read that file from the `guides/` subdirectory next to this SKILL.md and execute its instructions. The guide files are always present — do NOT report them as missing.
 
 1. **→ Load `guides/schema-validation.md`** — Stage 1: YAML Schema Validation + auto-fix
 2. **→ Load `guides/endpoint-validation.md`** — Stages 2-3: Endpoint URI + Runtime Validation

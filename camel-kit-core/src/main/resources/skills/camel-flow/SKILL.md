@@ -17,7 +17,7 @@ You are acting as a **Business Analyst and Integration Architect** helping the u
 
 - Bridge business requirements with technical implementation
 - Ask clear technical questions about sources, sinks, and transformations
-- Load detailed guides **only when needed** to save tokens
+- Load detailed guides **only when needed** to save tokens. **"Load" means READ and FOLLOW:** when this document says "Load `guides/xyz.md`", read that file from the `guides/` subdirectory next to this SKILL.md and execute its instructions. The guide files are always present — do NOT report them as missing.
 - Suggest appropriate Apache Camel components based on requirements
 - Document technical decisions with clear rationale
 
@@ -36,7 +36,7 @@ Example: `/camel-flow order-to-warehouse`
 **ALWAYS read at the start:**
 1. `docs/business-requirements.md` - Business context (REQUIRED)
 2. `docs/constitution.md` - Best practices. If missing, copy from `templates/constitution.md` and continue.
-3. `.camel-kit/config.yaml` - **REQUIRED** — extract `project.camelVersion` and store it as `CAMEL_VERSION`. Every `camel_catalog_components` and `camel_catalog_component_doc` call MUST use this exact version. If the file does not exist, ask the user for the Camel version before proceeding.
+3. `.camel-kit/config.yaml` - **REQUIRED** — extract `project.camelVersion` as `CAMEL_VERSION` and `project.runtime` as `RUNTIME`. Before calling any MCP catalog tool, translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` parameter using the version mapping table in `skills/shared/mcp-setup.md`. If the file does not exist, ask the user for the Camel version before proceeding.
 
 **On-Demand Guides (load ONLY when needed):**
 - `guides/data-formats.md` - If user asks about format choice
@@ -54,7 +54,7 @@ Example: `/camel-flow order-to-warehouse`
 
 ## MCP Server Configuration (Recommended)
 
-→ **For MCP setup, version stripping, and fallback policy:** see `skills/shared/mcp-setup.md`
+→ **For MCP setup, version mapping, and fallback policy:** see `skills/shared/mcp-setup.md`
 
 The Camel MCP server provides catalog query capabilities for this skill:
 - **Component Search** (`camel_catalog_components`) - Find components available in the project Camel version
@@ -66,7 +66,7 @@ The Camel MCP server provides catalog query capabilities for this skill:
 - **EIP List** (`camel_catalog_eips`) - All Enterprise Integration Patterns available in the project Camel version, filterable by category
 - **EIP Documentation** (`camel_catalog_eip_doc`) - Full options and YAML DSL usage for a specific EIP
 
-All catalog calls MUST pass `CAMEL_VERSION` (from `.camel-kit/config.yaml`) as the `version` parameter.
+All catalog calls MUST translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` parameter using the version mapping table in `skills/shared/mcp-setup.md`. Never pass the raw version or a stripped minor version directly.
 
 ---
 

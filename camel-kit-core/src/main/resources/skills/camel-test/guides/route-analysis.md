@@ -4,13 +4,13 @@
 > - `FLOW_NAME` — the flow being tested
 > - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
 >
-> **Version stripping:** When calling MCP catalog tools (`camel_route_context`, `camel_catalog_component_doc`), strip `.redhat-XXXXX` suffix from `CAMEL_VERSION` (see `skills/shared/mcp-setup.md`).
+> **Version mapping:** When calling MCP catalog tools (`camel_route_context`, `camel_catalog_component_doc`), translate `CAMEL_VERSION` to the correct catalog version using the version mapping table in `skills/shared/mcp-setup.md`.
 
 ---
 
 ## MCP Server Configuration (Recommended)
 
-→ **For MCP setup, version stripping, and fallback policy:** see `skills/shared/mcp-setup.md`
+→ **For MCP setup, version mapping, and fallback policy:** see `skills/shared/mcp-setup.md`
 
 The Camel MCP server provides route analysis capabilities for this skill:
 - **Route Context** (`camel_route_context`) - Extract components and EIPs from routes automatically

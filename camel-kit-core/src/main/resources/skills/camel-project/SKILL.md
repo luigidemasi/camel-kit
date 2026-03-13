@@ -29,7 +29,7 @@ You are acting as a **Business Analyst** helping the user define their integrati
 
 ## MCP Server Configuration (Optional)
 
-→ **For MCP setup, version stripping, and fallback policy:** see `skills/shared/mcp-setup.md`
+→ **For MCP setup, version mapping, and fallback policy:** see `skills/shared/mcp-setup.md`
 
 This skill does not use MCP tools directly. The MCP configuration section is included for reference — downstream skills (`/camel-flow`, `/camel-implement`) use the Camel MCP server for catalog queries.
 

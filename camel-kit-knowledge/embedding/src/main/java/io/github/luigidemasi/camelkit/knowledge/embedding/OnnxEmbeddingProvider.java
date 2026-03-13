@@ -7,16 +7,23 @@ import ai.onnxruntime.*;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.LongBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Embeds text using all-MiniLM-L6-v2 via ONNX Runtime.
+ * Embeds text using granite-embedding-small-english-r2 via ONNX Runtime.
  * Thread-safe. Model loaded lazily on first call.
  */
 public class OnnxEmbeddingProvider implements EmbeddingProvider {
 
     private static final int DIMENSIONS = 384;
-    private static final int MAX_SEQ_LENGTH = 256;
+    private static final int MAX_SEQ_LENGTH = 512;
+    private static final String MODEL_FILE = "models/model_quantized.onnx";
+    private static final String MODEL_DATA_FILE = "models/model_quantized.onnx_data";
+    private static final String TOKENIZER_FILE = "models/tokenizer.json";
 
     private volatile OrtSession session;
     private volatile OrtEnvironment env;
@@ -45,31 +52,31 @@ public class OnnxEmbeddingProvider implements EmbeddingProvider {
                     LongBuffer.wrap(truncatedIds), shape);
             OnnxTensor attentionMaskTensor = OnnxTensor.createTensor(env,
                     LongBuffer.wrap(truncatedMask), shape);
-            // token_type_ids: all zeros for single-sentence encoding
-            long[] tokenTypeIds = new long[seqLen];
-            OnnxTensor tokenTypeIdsTensor = OnnxTensor.createTensor(env,
-                    LongBuffer.wrap(tokenTypeIds), shape);
 
-            Map<String, OnnxTensor> inputs = Map.of(
-                    "input_ids", inputIdsTensor,
-                    "attention_mask", attentionMaskTensor,
-                    "token_type_ids", tokenTypeIdsTensor
-            );
+            Map<String, OnnxTensor> inputs = new LinkedHashMap<>();
+            inputs.put("input_ids", inputIdsTensor);
+            inputs.put("attention_mask", attentionMaskTensor);
 
             // Run inference
             try (OrtSession.Result result = session.run(inputs)) {
-                // Output shape: [1, seqLen, 384] — token embeddings
-                float[][][] tokenEmbeddings = (float[][][]) result.get(0).getValue();
+                Object output = result.get(0).getValue();
+                float[] pooled;
 
-                // Mean pooling with attention mask
-                float[] pooled = meanPool(tokenEmbeddings[0], truncatedMask);
+                if (output instanceof float[][][]) {
+                    // Token-level output [1, seqLen, dims] — mean pooling needed
+                    pooled = meanPool(((float[][][]) output)[0], truncatedMask);
+                } else if (output instanceof float[][]) {
+                    // Already pooled [1, dims]
+                    pooled = ((float[][]) output)[0];
+                } else {
+                    throw new RuntimeException("Unexpected ONNX output shape: " + output.getClass());
+                }
 
                 // L2 normalize
                 return l2Normalize(pooled);
             } finally {
                 inputIdsTensor.close();
                 attentionMaskTensor.close();
-                tokenTypeIdsTensor.close();
             }
 
         } catch (OrtException e) {
@@ -123,7 +130,7 @@ public class OnnxEmbeddingProvider implements EmbeddingProvider {
                     try {
                         // Load tokenizer from classpath
                         try (InputStream is = getClass().getClassLoader()
-                                .getResourceAsStream("models/tokenizer.json")) {
+                                .getResourceAsStream(TOKENIZER_FILE)) {
                             if (is == null) {
                                 throw new RuntimeException("tokenizer.json not found on classpath");
                             }
@@ -134,24 +141,44 @@ public class OnnxEmbeddingProvider implements EmbeddingProvider {
                             ));
                         }
 
-                        // Load ONNX model from classpath
+                        // Extract ONNX model files to temp dir (external data format
+                        // requires both files in the same directory for file-based loading)
                         env = OrtEnvironment.getEnvironment();
-                        try (InputStream is = getClass().getClassLoader()
-                                .getResourceAsStream("models/model.onnx")) {
-                            if (is == null) {
-                                throw new RuntimeException("model.onnx not found on classpath");
-                            }
-                            // OrtSession needs a file path or byte array
-                            byte[] modelBytes = is.readAllBytes();
-                            session = env.createSession(modelBytes);
-                        }
+                        Path tempDir = Files.createTempDirectory("camel-kit-onnx-");
+                        tempDir.toFile().deleteOnExit();
 
-                        System.out.println("  ONNX embedding model loaded (all-MiniLM-L6-v2, " + DIMENSIONS + " dims)");
+                        Path modelPath = extractClasspathResource(MODEL_FILE, tempDir, "model_quantized.onnx");
+                        Path dataPath = extractClasspathResource(MODEL_DATA_FILE, tempDir, "model_quantized.onnx_data");
+                        modelPath.toFile().deleteOnExit();
+                        dataPath.toFile().deleteOnExit();
+
+                        int threads = Integer.parseInt(
+                                System.getProperty("onnx.threads",
+                                        String.valueOf(Runtime.getRuntime().availableProcessors())));
+                        OrtSession.SessionOptions opts = new OrtSession.SessionOptions();
+                        opts.setIntraOpNumThreads(threads);
+                        opts.setInterOpNumThreads(threads);
+                        opts.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
+                        session = env.createSession(modelPath.toString(), opts);
+
+                        System.out.println("  ONNX embedding model loaded (granite-embedding-small-english-r2, "
+                                + DIMENSIONS + " dims, Q8, " + threads + " threads)");
                     } catch (IOException | OrtException e) {
                         throw new RuntimeException("Failed to load ONNX embedding model", e);
                     }
                 }
             }
+        }
+    }
+
+    private Path extractClasspathResource(String resourcePath, Path targetDir, String fileName) throws IOException {
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+            if (is == null) {
+                throw new RuntimeException(resourcePath + " not found on classpath");
+            }
+            Path target = targetDir.resolve(fileName);
+            Files.copy(is, target, StandardCopyOption.REPLACE_EXISTING);
+            return target;
         }
     }
 }

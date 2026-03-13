@@ -2,8 +2,12 @@
   "catalogs": {},
   "aliases": {
     "camel-kit": {
+      "gav": "io.github.luigidemasi:camel-kit-standalone:RELEASE",
+      "description": "Camel Kit all-in-one — includes embedded MCP servers and knowledge index"
+    },
+    "camel-kit-lite": {
       "script-ref": "camel-kit-main/src/main/jbang/main/CamelKit.java",
-      "description": "Design Apache Camel integrations with AI coding assistants"
+      "description": "Camel Kit lightweight — no embedded MCP servers, requires external setup"
     }
   }
 }

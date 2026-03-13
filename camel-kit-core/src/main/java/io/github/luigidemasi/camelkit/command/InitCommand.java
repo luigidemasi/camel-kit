@@ -258,7 +258,7 @@ public class InitCommand extends CamelKitCommand {
     }
 
     private void createCommandTemplates(Path dir, AgentConfig agent) throws Exception {
-        List<String> commands = List.of("project", "flow", "implement", "validate", "test", "migrate");
+        List<String> commands = List.of("project", "flow", "implement", "validate", "test", "migrate", "knowledge");
 
         // Extract agent base folder (e.g., ".bob" from ".bob/commands")
         String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf("/"));
@@ -431,47 +431,45 @@ public class InitCommand extends CamelKitCommand {
 
     private void createMcpConfigs(Path projectDir, String camelVersion, String selectedAgent,
                                    boolean offlineMode) throws Exception {
-        // Resolve repos, MCP GAV, and maven.repo.local based on offline mode
-        String repos;
-        String camelMcpGav;
-        String mavenLocalArg;
-        if (offlineMode) {
-            Path repoDir = projectDir.resolve(".camel-kit/repo");
-            String repoPath = repoDir.toAbsolutePath().toString();
-            repos = "camel-kit=file://" + repoPath;
-            camelMcpGav = "org.apache.camel:camel-jbang-mcp:" + OfflineRepoPopulator.CAMEL_MCP_VERSION + ":runner";
-            mavenLocalArg = "\n        \"-Dmaven.repo.local=" + repoPath + "\",";
-        } else {
-            repos = "redhat=https://maven.repository.redhat.com/ga/";
-            camelMcpGav = "org.apache.camel:camel-jbang-mcp:LATEST:runner";
-            mavenLocalArg = "";
-        }
-
         String agentName = "";
 
-        // Create MCP config only for the selected agent
+        // Always extract the Camel MCP runner JAR — it's started with java -jar,
+        // avoiding JBang's classloader and repo resolution issues entirely.
+        Path mcpDir = projectDir.resolve(".camel-kit/mcp");
+        Files.createDirectories(mcpDir);
+        extractRunnerJar(mcpDir);
+
+        // Knowledge server repos (still uses JBang for now)
+        String repos = "redhat=https://maven.repository.redhat.com/ga/";
+
         try {
+            String templatePath;
+            Path configFile;
+
             switch (selectedAgent.toLowerCase()) {
                 case "claude" -> {
-                    String template = TemplateUtils.readTemplate("templates/mcp-configs/claude-code-mcp.json");
-                    String processed = replaceMcpPlaceholders(template, repos, camelMcpGav, mavenLocalArg);
-                    Files.writeString(projectDir.resolve(".mcp.json"), processed);
+                    templatePath = offlineMode
+                            ? "templates/mcp-configs/claude-code-mcp-standalone.json"
+                            : "templates/mcp-configs/claude-code-mcp.json";
+                    configFile = projectDir.resolve(".mcp.json");
                     agentName = "Claude Code";
                 }
                 case "bob" -> {
-                    String template = TemplateUtils.readTemplate("templates/mcp-configs/bob-mcp.json");
-                    String processed = replaceMcpPlaceholders(template, repos, camelMcpGav, mavenLocalArg);
+                    templatePath = offlineMode
+                            ? "templates/mcp-configs/bob-mcp-standalone.json"
+                            : "templates/mcp-configs/bob-mcp.json";
                     Path bobDir = projectDir.resolve(".bob");
                     Files.createDirectories(bobDir);
-                    Files.writeString(bobDir.resolve("mcp.json"), processed);
+                    configFile = bobDir.resolve("mcp.json");
                     agentName = "IBM Bob";
                 }
                 case "gemini" -> {
-                    String template = TemplateUtils.readTemplate("templates/mcp-configs/gemini-mcp.json");
-                    String processed = replaceMcpPlaceholders(template, repos, camelMcpGav, mavenLocalArg);
+                    templatePath = offlineMode
+                            ? "templates/mcp-configs/gemini-mcp-standalone.json"
+                            : "templates/mcp-configs/gemini-mcp.json";
                     Path geminiDir = projectDir.resolve(".gemini");
                     Files.createDirectories(geminiDir);
-                    Files.writeString(geminiDir.resolve("settings.json"), processed);
+                    configFile = geminiDir.resolve("settings.json");
                     agentName = "Gemini CLI";
                 }
                 default -> {
@@ -480,19 +478,33 @@ public class InitCommand extends CamelKitCommand {
                 }
             }
 
-            printer().println(green("✓") + " MCP config created for " + agentName
-                    + (offlineMode ? " (offline)" : ""));
+            String template = TemplateUtils.readTemplate(templatePath);
+            String processed = template
+                    .replace("{{REPOS}}", repos)
+                    .replace("{{KNOWLEDGE_VERSION}}", CamelKitMain.DEFAULT_KNOWLEDGE_MCP_VERSION);
+            Files.writeString(configFile, processed);
+
+            printer().println(green("✓") + " MCP config created for " + agentName);
         } catch (Exception e) {
             printer().println(yellow("  Warning: Could not create MCP config: " + e.getMessage()));
         }
     }
 
-    private String replaceMcpPlaceholders(String template, String repos, String camelMcpGav,
-                                           String mavenLocalArg) {
-        return template
-                .replace("{{REPOS}}", repos)
-                .replace("{{MAVEN_LOCAL_ARG}}", mavenLocalArg)
-                .replace("{{CAMEL_MCP_GAV}}", camelMcpGav)
-                .replace("{{KNOWLEDGE_VERSION}}", CamelKitMain.DEFAULT_KNOWLEDGE_MCP_VERSION);
+    private void extractRunnerJar(Path mcpDir) throws Exception {
+        String jarName = "camel-jbang-mcp-runner.jar";
+        Path target = mcpDir.resolve(jarName);
+        if (Files.exists(target)) return;
+
+        // The runner JAR is bundled on the classpath by maven-dependency-plugin
+        String resourceName = "offline-repo/" + "camel-jbang-mcp-"
+                + CamelKitMain.CAMEL_MCP_VERSION + "-runner.jar";
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream(resourceName)) {
+            if (in != null) {
+                Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
+                printer().println(green("✓") + " Extracted Camel MCP runner JAR");
+            } else {
+                printer().println(yellow("  Warning: MCP runner JAR not found on classpath: " + resourceName));
+            }
+        }
     }
 }
