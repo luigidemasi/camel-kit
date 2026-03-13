@@ -6,6 +6,7 @@ import io.github.luigidemasi.camelkit.knowledge.schema.KnowledgeFields;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
@@ -33,6 +34,9 @@ public class LuceneSearchService {
     private static final float BM25_WEIGHT = 0.2f;
     private static final float VECTOR_WEIGHT = 0.8f;
 
+    @Inject
+    IndexResolver indexResolver;
+
     private IndexReader reader;
     private IndexSearcher searcher;
     private EmbeddingProvider embeddingProvider;
@@ -41,10 +45,10 @@ public class LuceneSearchService {
     @PostConstruct
     void init() {
         try {
-            Path indexDir = extractIndexFromClasspath();
+            Path indexDir = resolveIndex();
             reader = DirectoryReader.open(FSDirectory.open(indexDir));
             searcher = new IndexSearcher(reader);
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new RuntimeException("Failed to open knowledge index", e);
         }
 
@@ -332,6 +336,23 @@ public class LuceneSearchService {
         }
 
         return results;
+    }
+
+    /**
+     * Resolve the knowledge index. Tries IndexResolver first (Maven artifact download),
+     * falls back to classpath extraction for backward compatibility.
+     */
+    private Path resolveIndex() throws IOException {
+        // Try IndexResolver (downloads from Maven repo)
+        try {
+            return indexResolver.resolve();
+        } catch (IndexResolver.IndexResolverException e) {
+            System.out.println("WARNING: IndexResolver failed (" + e.getMessage() +
+                    "), falling back to classpath extraction");
+        }
+
+        // Fallback: extract from classpath (legacy — index bundled in uber-jar)
+        return extractIndexFromClasspath();
     }
 
     private Path extractIndexFromClasspath() throws IOException {
