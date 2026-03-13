@@ -20,6 +20,7 @@
         <module>schema</module>
         <module>embedding</module>
         <module>indexer</module>
+        <module>index</module>
         <module>mcp</module>
     </modules>
 

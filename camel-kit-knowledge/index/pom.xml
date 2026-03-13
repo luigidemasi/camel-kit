@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.luigidemasi</groupId>
+        <artifactId>camel-kit-knowledge</artifactId>
+        <version>0.3.2-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>camel-kit-knowledge-index</artifactId>
+    <name>Camel Kit :: Knowledge :: Index</name>
+    <description>Pre-built Lucene knowledge index — independently versioned artifact</description>
+
+    <!-- Version is overridden at build time: -Drevision=202603131454 -->
+    <version>${revision}</version>
+
+    <properties>
+        <revision>0.0.0-LOCAL</revision>
+    </properties>
+
+    <!-- No Java code — only index resources -->
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

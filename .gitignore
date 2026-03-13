@@ -248,5 +248,7 @@ camel-kit-knowledge/indexer/src/main/resources/rh-build-camel/errata/cves/*.json
 camel-kit-knowledge/indexer/src/main/resources/rh-build-camel/jira-cache/*.json
 camel-kit-knowledge/indexer/src/main/resources/rh-build-camel/kb-articles/
 camel-kit-knowledge/mcp/src/main/resources/knowledge-index/
+camel-kit-knowledge/index/src/main/resources/knowledge-index/
+!camel-kit-knowledge/index/src/main/resources/knowledge-index/.gitkeep
 camel-kit-knowledge/indexer/src/main/resources/rh-build-camel/**/*.md
 !camel-kit-knowledge/indexer/src/main/resources/rh-build-camel/kb-articles/*.html
