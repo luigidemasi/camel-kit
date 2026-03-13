@@ -31,6 +31,7 @@
         <junit.version>5.11.4</junit.version>
         <snakeyaml.version>2.3</snakeyaml.version>
         <json.version>20250107</json.version>
+        <maven.resolver.version>2.0.0-alpha-8</maven.resolver.version>
         <quarkus.version>3.27.2.redhat-00002</quarkus.version>
     </properties>
 
@@ -70,6 +71,11 @@
                 <groupId>org.json</groupId>
                 <artifactId>json</artifactId>
                 <version>${json.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.maven.resolver</groupId>
+                <artifactId>maven-resolver-supplier</artifactId>
+                <version>${maven.resolver.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.junit.jupiter</groupId>

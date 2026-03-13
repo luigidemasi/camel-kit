@@ -72,6 +72,11 @@
             <artifactId>lucene-analysis-common</artifactId>
         </dependency>
 
+        <!-- Maven Resolver for runtime index download -->
+        <dependency>
+            <groupId>org.apache.maven.resolver</groupId>
+            <artifactId>maven-resolver-supplier</artifactId>
+        </dependency>
         <!-- Test -->
         <dependency>
             <groupId>io.quarkus</groupId>
