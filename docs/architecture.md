@@ -64,6 +64,8 @@ Where `{agent-folder}` is:
 - `.bob/skills/` for IBM Project Bob
 - `.gemini/skills/` for Gemini CLI
 - `.claude/skills/` for Claude Code
+- `.github/prompts/` for GitHub Copilot (file format: `.prompt.md`)
+- `.cursor/commands/` for Cursor (file format: `.md`)
 
 #### SKILL.md Format
 
@@ -116,6 +118,8 @@ During `camel-kit init`, skills are copied to the appropriate AI agent folder:
 - `camel-kit init --ai bob` → copies to `.bob/skills/`
 - `camel-kit init --ai gemini` → copies to `.gemini/skills/`
 - `camel-kit init --ai claude` → copies to `.claude/skills/`
+- `camel-kit init --ai copilot` → copies to `.github/prompts/`
+- `camel-kit init --ai cursor` → copies to `.cursor/commands/`
 
 Each skill is generated from the official Apache Camel component catalog and contains:
 - SKILL.md with YAML frontmatter and component documentation
@@ -247,6 +251,8 @@ The MCP server is configured in project-specific configuration files created dur
 | Claude Code | `.mcp.json` |
 | IBM Bob | `.bob/mcp.json` |
 | Gemini CLI | `.gemini/mcp.json` |
+| GitHub Copilot | `.github/mcp.json` |
+| Cursor | `.cursor/mcp.json` |
 
 **Content:**
 ```json

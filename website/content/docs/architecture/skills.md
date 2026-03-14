@@ -26,6 +26,8 @@ Where `{agent-folder}` is:
 - `.bob/skills/` for IBM Project Bob
 - `.gemini/skills/` for Gemini CLI
 - `.claude/skills/` for Claude Code
+- `.github/prompts/` for GitHub Copilot (file format: `.prompt.md`)
+- `.cursor/commands/` for Cursor (file format: `.md`)
 
 ### SKILL.md Format
 
@@ -72,6 +74,8 @@ During `camel-kit init`, skills are copied to the appropriate AI agent folder:
 - `camel-kit init --ai bob` copies to `.bob/skills/`
 - `camel-kit init --ai gemini` copies to `.gemini/skills/`
 - `camel-kit init --ai claude` copies to `.claude/skills/`
+- `camel-kit init --ai copilot` copies to `.github/prompts/`
+- `camel-kit init --ai cursor` copies to `.cursor/commands/`
 
 **Why pre-generated?**
 
