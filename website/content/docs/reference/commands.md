@@ -272,7 +272,7 @@ Generate Wanaku rules files to expose Camel routes as MCP tools via the Wanaku M
 2. **Determine Exposure** — Classify each route as tool, resource, or skip (event-driven)
 3. **Map Parameters** — Map route input parameters to Camel headers or body
 4. **Generate Rules** — Produce `{flow-name}.wanaku-rules.yaml` with tool/resource definitions
-5. **Deployment Instructions** — Provide commands for deploying to Wanaku (data store, CLI, or kubectl)
+5. **Deployment Instructions** — Provide commands for registering with Wanaku (the CIC handles deployment automatically)
 
 **Exposure strategy:**
 
@@ -298,7 +298,7 @@ wanaku data-store add --read-from-file order-api.wanaku-rules.yaml
 wanaku tools list
 ```
 
-See [Wanaku MCP Router Documentation](https://wanaku.ai/docs/) for details on the Camel Integration Capability.
+The [Camel Integration Capability (CIC)](https://wanaku.ai/docs/camel-integration-capability/) will automatically deploy your routes after registration — no manual pod or Kubernetes steps needed.
 
 ---
 

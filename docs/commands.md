@@ -502,7 +502,7 @@ wanaku data-store add --read-from-file order-api.wanaku-rules.yaml
 wanaku tools list
 ```
 
-See [Wanaku MCP Router Documentation](https://wanaku.ai/docs/) for details on the Camel Integration Capability.
+The [Camel Integration Capability (CIC)](https://wanaku.ai/docs/camel-integration-capability/) will automatically deploy your routes after registration — no manual pod or Kubernetes steps needed.
 
 ---
 

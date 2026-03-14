@@ -145,37 +145,27 @@ mcp:
 
 ### Step 5 — Provide Deployment Instructions
 
-After generating the rules file, provide deployment instructions:
+After generating the rules file, provide deployment instructions.
+
+The Wanaku **Camel Integration Capability (CIC)** handles route deployment automatically — once the route and rules files are registered, the CIC downloads and deploys them without manual intervention.
 
 ```
 ## Deployment to Wanaku
 
-### Option A: Via Wanaku Data Store (recommended)
 Upload your route and rules files to the Wanaku data store:
 
   wanaku data-store add --read-from-file {flow-name}.camel.yaml
   wanaku data-store add --read-from-file {flow-name}.wanaku-rules.yaml
 
-### Option B: Via CLI tool registration
-Register each tool individually:
+The Camel Integration Capability will automatically pick up and deploy
+your routes after registration.
 
-  wanaku tools add -n "{tool-name}" \
-    --description "{description}" \
-    --type camel-route \
-    --property "{param}:{type},{description}" \
-    --required {param}
-
-### Option C: Copy to capability pod
-Copy files directly to your Wanaku Camel Integration Capability deployment:
-
-  kubectl cp {flow-name}.camel.yaml <pod>:/deployments/routes/
-  kubectl cp {flow-name}.wanaku-rules.yaml <pod>:/deployments/routes/
-
-### Verify
-After deployment, verify your tools are registered:
+Verify your tools are registered:
 
   wanaku tools list
 ```
+
+See [Camel Integration Capability documentation](https://wanaku.ai/docs/camel-integration-capability/) for full details on how the CIC manages route lifecycle.
 
 ---
 
