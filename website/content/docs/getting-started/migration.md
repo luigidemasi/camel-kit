@@ -9,7 +9,7 @@ Use `/camel-migrate` when you have an existing integration built on another plat
 
 | Platform | Versions | Notes |
 |----------|---------|-------|
-| MuleSoft Mule | 3.x, 4.x | XML flows, DataWeave transformations, all standard connectors |
+| MuleSoft Mule | 3.x, 4.x | XML flows, DataWeave transformations, all standard connectors, deployment migration (CloudHub to Kubernetes) |
 
 ## Running a Migration
 
