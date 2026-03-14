@@ -9,7 +9,7 @@ Use `/camel-migrate` when you have an existing integration built on another plat
 
 | Platform | Versions | Notes |
 |----------|---------|-------|
-| MuleSoft Mule | 3.x, 4.x | XML flows, DataWeave transformations, all standard connectors |
+| MuleSoft Mule | 3.x, 4.x | XML flows, DataWeave transformations, all standard connectors, observability migration (Anypoint Monitoring to Prometheus/OpenTelemetry) |
 
 ## Running a Migration
 

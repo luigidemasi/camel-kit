@@ -215,7 +215,8 @@ Migrate an existing integration from another platform to Apache Camel. Detects t
 1. Maps each Mule component to its catalog-verified Camel equivalent (calls `camel_catalog_component_doc` for every component).
 2. Converts DataWeave transformations into TDD Section 3 field mapping tables.
 3. Asks only what the XML cannot answer (DataWeave intent, missing endpoints, auth mechanisms, retry strategy).
-4. Produces one TDD file per Mule flow:
+4. When monitoring requirements are detected (e.g., Anypoint Monitoring usage), the observability migration guide is automatically loaded to map metrics and dashboards to Prometheus/OpenTelemetry equivalents.
+5. Produces one TDD file per Mule flow:
    - `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md`
 
 **Output:**
