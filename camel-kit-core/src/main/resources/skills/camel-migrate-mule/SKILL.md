@@ -203,6 +203,7 @@ Starting Phase 2 — Integration Architect...
 - `skills/camel-flow/guides/performance.md` — if SLA requirements are strict
 - `skills/camel-flow/guides/security.md` — if compliance requirements exist
 - `skills/camel-flow/guides/monitoring.md` — if observability requirements exist
+- `skills/camel-migrate-mule/guides/deployment-migration.md` — if migrating from CloudHub or Runtime Fabric to Kubernetes
 
 **MCP catalog tools — MANDATORY when MCP is configured (same rules as `/camel-flow`):**
 
