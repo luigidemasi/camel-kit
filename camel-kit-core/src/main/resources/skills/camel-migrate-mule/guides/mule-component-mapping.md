@@ -75,6 +75,66 @@ This guide maps MuleSoft Mule components to their Apache Camel equivalents. It i
 
 ---
 
+## Cloud & SaaS Connector Mapping
+
+These Mule connectors have **direct** Apache Camel equivalents and should be mapped automatically — no user decision required.
+
+### AWS Connectors
+
+| Mule Component | Mule Version | Camel Equivalent | Camel Artifact | Notes |
+|----------------|-------------|------------------|----------------|-------|
+| Amazon S3 | 4.x | `aws2-s3` | `camel-aws2-s3` | Bucket operations, streaming, multipart upload. |
+| Amazon SQS | 4.x | `aws2-sqs` | `camel-aws2-sqs` | Standard and FIFO queues. |
+| Amazon SNS | 4.x | `aws2-sns` | `camel-aws2-sns` | Topic publish (producer only). |
+| Amazon Lambda | 4.x | `aws2-lambda` | `camel-aws2-lambda` | Invoke Lambda functions. |
+| Amazon DynamoDB | 4.x | `aws2-ddb` | `camel-aws2-ddb` | CRUD operations. Use `aws2-ddbstream` for change streams. |
+| Amazon EC2 | 4.x | `aws2-ec2` | `camel-aws2-ec2` | Instance management operations. |
+| Amazon Kinesis | 4.x | `aws2-kinesis` | `camel-aws2-kinesis` | Stream consumer/producer. |
+| Amazon CloudWatch | 4.x | `aws2-cw` | `camel-aws2-cw` | Metric publishing (producer only). |
+| Amazon EventBridge | 4.x | `aws2-eventbridge` | `camel-aws2-eventbridge` | Event bus operations. |
+| Amazon Secrets Manager | 4.x | `aws-secrets-manager` | `camel-aws-secrets-manager` | Secret retrieval. |
+
+### Azure Connectors
+
+| Mule Component | Mule Version | Camel Equivalent | Camel Artifact | Notes |
+|----------------|-------------|------------------|----------------|-------|
+| Azure Blob Storage | 4.x | `azure-storage-blob` | `camel-azure-storage-blob` | Container and blob operations. |
+| Azure Queue Storage | 4.x | `azure-storage-queue` | `camel-azure-storage-queue` | Queue send/receive. |
+| Azure Service Bus | 4.x | `azure-servicebus` | `camel-azure-servicebus` | Queues and topics. |
+| Azure Event Hubs | 4.x | `azure-eventhubs` | `camel-azure-eventhubs` | Event streaming. |
+| Azure Cosmos DB | 4.x | `azure-cosmosdb` | `camel-azure-cosmosdb` | Document CRUD. |
+
+### Google Cloud Connectors
+
+| Mule Component | Mule Version | Camel Equivalent | Camel Artifact | Notes |
+|----------------|-------------|------------------|----------------|-------|
+| Google Cloud Storage | 4.x | `google-storage` | `camel-google-storage` | Bucket and object operations. |
+| Google Pub/Sub | 4.x | `google-pubsub` | `camel-google-pubsub` | Topic publish/subscribe. |
+| Google BigQuery | 4.x | `google-bigquery` | `camel-google-bigquery` | Query and insert operations. |
+
+### Database & NoSQL Connectors
+
+| Mule Component | Mule Version | Camel Equivalent | Camel Artifact | Notes |
+|----------------|-------------|------------------|----------------|-------|
+| MongoDB | 4.x | `mongodb` | `camel-mongodb` | Full CRUD, change streams, aggregation pipeline. |
+| Redis | 4.x | `spring-redis` | `camel-spring-redis` | Key-value operations, pub/sub. |
+| Elasticsearch | 4.x | `elasticsearch` | `camel-elasticsearch` | Index, search, bulk operations. |
+| Cassandra (CQL) | 4.x | `cql` | `camel-cassandraql` | CQL queries. |
+| Neo4j | 4.x | `neo4j` | `camel-neo4j` | Cypher queries. |
+
+### Other Standard Connectors
+
+| Mule Component | Mule Version | Camel Equivalent | Camel Artifact | Notes |
+|----------------|-------------|------------------|----------------|-------|
+| LDAP | 4.x | `ldap` | `camel-ldap` | LDAP search and bind. |
+| Slack | 4.x | `slack` | `camel-slack` | Send/receive messages. |
+| Twilio | 4.x | `twilio` | `camel-twilio` | SMS and voice. |
+| MQTT | 4.x | `paho-mqtt5` | `camel-paho-mqtt5` | MQTT 5.0. Use `paho` for MQTT 3.1. |
+| GraphQL | 4.x | `graphql` | `camel-graphql` | GraphQL queries (producer only). |
+| gRPC | 4.x | `grpc` | `camel-grpc` | gRPC client/server. |
+
+---
+
 ### HTTP Listener Port Conversion
 
 Mule's `<http:listener-config>` defines `host` and `port` attributes. Camel's `platform-http` component does NOT have `host` or `port` component options — these properties do not exist in the catalog.
