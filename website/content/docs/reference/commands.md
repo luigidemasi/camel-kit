@@ -252,6 +252,56 @@ Generate Citrus integration tests for routes with automated validation.
 
 ---
 
+### /camel-wanaku
+
+Generate Wanaku rules files to expose Camel routes as MCP tools via the Wanaku MCP Router's Camel Integration Capability.
+
+**Usage:**
+
+```
+/camel-wanaku
+```
+
+**Prerequisites:**
+
+- At least one generated Camel route (`.camel.yaml`) from `/camel-implement`
+
+**Process:**
+
+1. **Identify Routes** — Parse all `.camel.yaml` files, extract route IDs and endpoints
+2. **Determine Exposure** — Classify each route as tool, resource, or skip (event-driven)
+3. **Map Parameters** — Map route input parameters to Camel headers or body
+4. **Generate Rules** — Produce `{flow-name}.wanaku-rules.yaml` with tool/resource definitions
+5. **Deployment Instructions** — Provide commands for deploying to Wanaku (data store, CLI, or kubectl)
+
+**Exposure strategy:**
+
+| Route Source | Exposed As | Reason |
+|---|---|---|
+| `platform-http:`, `rest:`, `servlet:` | Tool | Request/response callable by AI |
+| `direct:` (standalone) | Tool | Directly invocable |
+| `file:`, `sql:` SELECT | Resource | Read-only data retrieval |
+| `kafka:`, `jms:`, `timer:` | Skip | Event-driven, not callable |
+
+**Output:**
+
+- Rules file: `{flow-name}.wanaku-rules.yaml`
+
+**Deploying to Wanaku:**
+
+```bash
+# Upload to Wanaku data store
+wanaku data-store add --read-from-file order-api.camel.yaml
+wanaku data-store add --read-from-file order-api.wanaku-rules.yaml
+
+# Verify tools are registered
+wanaku tools list
+```
+
+See [Wanaku MCP Router Documentation](https://wanaku.ai/docs/) for details on the Camel Integration Capability.
+
+---
+
 ## Command Cheat Sheet
 
 ```bash
@@ -269,4 +319,7 @@ camel-kit init my-project --ai bob     # Create project with MCP config
 /camel-implement order-ingestion       # Generate YAML with MCP validation
 /camel-validate                        # Check specs and run security analysis
 /camel-test order-ingestion            # Generate tests with validation
+
+# Wanaku deployment
+/camel-wanaku                          # Generate Wanaku rules to expose routes as MCP tools
 ```

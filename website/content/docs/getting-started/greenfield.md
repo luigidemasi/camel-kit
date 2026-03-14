@@ -11,7 +11,7 @@ The greenfield workflow walks you through designing an integration step by step:
 
 ```mermaid
 flowchart LR
-    A["/camel-project\n(optional)"] --> B["/camel-flow"] --> C["/camel-implement"] --> D["/camel-validate"] --> E["/camel-test"]
+    A["/camel-project\n(optional)"] --> B["/camel-flow"] --> C["/camel-implement"] --> D["/camel-validate"] --> E["/camel-test"] --> F["/camel-wanaku\n(optional)"]
 ```
 
 ## Step 1 — Initialize the Project
@@ -90,6 +90,18 @@ Runs completeness checks, URI validation, 47 automated security checks, and cons
 Generates Citrus integration tests based on the flow design — happy path, error handling, DLQ, and scenario-specific tests (filter, split, circuit breaker).
 
 **Output:** `test/order-ingestion.camel.it.yaml`
+
+## Step 7 — Expose as MCP Tools via Wanaku (Optional)
+
+```
+/camel-wanaku
+```
+
+If you want AI agents to call your Camel routes as MCP tools, use `/camel-wanaku` to generate Wanaku rules files. The command inspects your `.camel.yaml` routes, classifies each one (tool, resource, or skip), maps input parameters, and produces a `{flow-name}.wanaku-rules.yaml` file ready for deployment to the [Wanaku MCP Router](https://wanaku.ai/docs/).
+
+**Output:** `order-ingestion.wanaku-rules.yaml`
+
+Skip this step if your routes do not need to be exposed to AI agents.
 
 ## Run the Route
 
