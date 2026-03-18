@@ -3,8 +3,10 @@
 > **Context variables provided by master SKILL.md:**
 > - `FLOW_NAME` — the flow being validated
 > - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
+> - `RUNTIME` — project runtime from `.camel-kit/config.yaml`
+> - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via the version mapping table in `skills/shared/mcp-setup.md`
 >
-> **Version mapping:** When calling MCP catalog tools, translate `CAMEL_VERSION` to the correct catalog version using the version mapping table in `skills/shared/mcp-setup.md`.
+> **Version mapping:** When calling MCP catalog tools, translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` and `platformBom` parameters using the version mapping table in `skills/shared/mcp-setup.md`.
 
 ## Stage 8: Security Analysis (MCP Enhanced)
 
@@ -22,7 +24,9 @@ Running comprehensive security scan...
 MCP Tool: camel_route_harden_context
 Params: {
   "route": "[route-yaml-content]",
-  "version": "{{CAMEL_VERSION}}"
+  "camelVersion": "{{CAMEL_VERSION}}",
+  "platformBom": "{{PLATFORM_BOM}}",
+  "runtime": "{{RUNTIME}}"
 }
 
 Analyzing route for security vulnerabilities...

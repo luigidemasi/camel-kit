@@ -1,6 +1,6 @@
 ---
 name: camel-test
-description: Create integration tests when user wants to test routes, generate test cases, set up Citrus tests, configure Testcontainers, verify behavior, or write test suites
+description: Create integration tests when user wants to test routes, generate test cases, verify route behavior, or write tests for a Camel integration. Use this when the user says things like "test my route", "write tests for order-to-warehouse", "generate tests", or "how do I test this flow", even if they don't mention Citrus or Testcontainers specifically.
 user-invocable: true
 metadata:
   version: "1.0.0"
@@ -93,6 +93,12 @@ If no TDD files are found: ERROR "No TDD files found in docs/flows/. Run /camel-
 - If found, never generate Citrus YAML without consulting this reference
 - If missing, proceed with WARNING (see error conditions below)
 
+## Pre-flight Checks
+
+Before generating tests, verify a container runtime is available by executing `docker info` or `podman info`. Testcontainers requires a running container daemon — if neither is available, fail early with the "Docker Not Running" error below rather than letting the user go through the entire generation pipeline only to discover it's down when they try to run the tests.
+
+---
+
 ## Error Conditions
 
 ### Missing TDD
@@ -168,6 +174,7 @@ Where `{module}` is the `Target Module` from the TDD "Overview" section (empty f
 - **FLOW_NAME**: `{flow-name}` from parameters
 - **CAMEL_VERSION**: from `.camel-kit/config.yaml` (or default)
 - **RUNTIME**: from `.camel-kit/config.yaml` `project.runtime` (default: `jbang`)
+- **PLATFORM_BOM**: resolved from `CAMEL_VERSION` + `RUNTIME` via `skills/shared/mcp-setup.md`
 - **TARGET_MODULE**: from the TDD "Overview" section (`Target Module` field, empty for single-project)
 
 **Placeholder convention:** In guide templates, `{flow-name}` (lowercase, kebab-case) and `{FLOW_NAME}` (uppercase) both refer to this variable's value. Guides use `{flow-name}` in user-facing text and file content, `{FLOW_NAME}` in context variable references. Replace both with the actual flow name value.

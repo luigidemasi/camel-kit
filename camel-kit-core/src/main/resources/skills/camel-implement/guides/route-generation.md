@@ -6,6 +6,8 @@
 > - `ROUTE_DIR` — directory where `{FLOW_NAME}.camel.yaml` and XSLT files are written
 > - `ROUTE_FILE` — full path to the route file (`{ROUTE_DIR}/{FLOW_NAME}.camel.yaml`)
 > - `CAMEL_VERSION` — Camel version from `.camel-kit/config.yaml`
+> - `RUNTIME` — from `.camel-kit/config.yaml` (`project.runtime`, default: `main`)
+> - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via the version mapping table in `skills/shared/mcp-setup.md`
 > - `TARGET_MODULE` — module prefix from TDD "Overview" section (empty for single-project)
 
 ---
@@ -57,7 +59,7 @@ Loading component documentation via MCP...
 
 Component: [component-name]
   MCP Tool: camel_catalog_component_doc
-  Params: { "name": "[component-name]", "version": "{{CAMEL_VERSION}}" }
+  Params: { "component": "[component-name]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
 
   ✓ Syntax:            [exact URI syntax from catalog]
   ✓ Path parameters:   [list with order]
@@ -75,7 +77,7 @@ After loading component documentation via Step 2.1, call `camel_rh_build_compone
 ```
 Red Hat support check:
   MCP Tool: camel_rh_build_component_info
-  Params: { "component": "[component-name]" }
+  Params: { "component": "[component-name]", "runtime": "{{RUNTIME}}" }
 
   Result: [supported / not found in Red Hat docs]
 ```
@@ -159,14 +161,14 @@ Generate the route by translating the TDD to Camel YAML DSL:
 0b. **Data format names and options must also be catalog-verified** — If the TDD requires `unmarshal` or `marshal`, call `camel_catalog_dataformat_doc` for the data format (e.g. `jackson`, `jaxb`, `csv`, `avro`) with the project Camel version before generating the YAML block. Never assume the data format name, its configuration options, or its Maven coordinates from training data. Example:
    ```
    MCP Tool: camel_catalog_dataformat_doc
-   Params: { "name": "jackson", "version": "{{CAMEL_VERSION}}" }
+   Params: { "dataformat": "jackson", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
    → Use the returned options and Maven coordinates in the generated YAML and application.properties
    ```
 
 0c. **Expression language names and options must also be catalog-verified** — Before writing any expression language value in the YAML (`simple`, `jsonpath`, `xpath`, `jq`, `groovy`, etc.), call `camel_catalog_language_doc` for that language with the project Camel version. This ensures the language is available in the project's Camel version, its syntax is correct, and any required Maven dependency (e.g. `camel-jsonpath`, `camel-jq`) is included. Never assume a language name or its syntax from training data. Example:
    ```
    MCP Tool: camel_catalog_language_doc
-   Params: { "name": "jsonpath", "version": "{{CAMEL_VERSION}}" }
+   Params: { "language": "jsonpath", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
    → Use the returned syntax rules and Maven coordinates in the generated YAML
    ```
    If the language requires a separate Maven artifact, add it to `application.properties` (`camel.jbang.dependencies`) and `pom.xml`.
@@ -174,7 +176,7 @@ Generate the route by translating the TDD to Camel YAML DSL:
 0d. **EIP names and options must also be catalog-verified** — Before writing any EIP step in the YAML (`filter`, `split`, `aggregate`, `choice`, `multicast`, `enrich`, `wireTap`, `throttle`, `idempotentConsumer`, etc.), call `camel_catalog_eip_doc` for that EIP with the project Camel version. This ensures the EIP exists in the project's version and that all option names and their types are correct. Never assume EIP option names from training data. Example:
    ```
    MCP Tool: camel_catalog_eip_doc
-   Params: { "name": "filter", "version": "{{CAMEL_VERSION}}" }
+   Params: { "eip": "filter", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
    → Use the returned options and YAML DSL structure in the generated YAML
    ```
 
@@ -535,7 +537,9 @@ MCP Tool: camel_validate_route
 Params:
 {
   "route": "<full YAML file content>",
-  "version": "{{CAMEL_VERSION}}"
+  "camelVersion": "{{CAMEL_VERSION}}",
+  "platformBom": "{{PLATFORM_BOM}}",
+  "runtime": "{{RUNTIME}}"
 }
 ```
 
@@ -584,7 +588,7 @@ Attempt N/3: camel_validate_route returned errors:
 1. **Re-query the failing component** with `camel_catalog_component_doc` to get the authoritative option list:
    ```
    MCP Tool: camel_catalog_component_doc
-   Params: { "name": "[component-name]", "version": "{{CAMEL_VERSION}}" }
+   Params: { "component": "[component-name]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
    ```
 2. **Identify the correct option name/value** from the catalog response — do not guess.
 3. **Apply the fix** to `{FLOW_NAME}.camel.yaml`.
@@ -607,7 +611,7 @@ These errors require manual intervention. Possible causes:
 
 Action required:
 1. Review the errors above
-2. Check component docs: camel_catalog_component_doc { "name": "...", "version": "{{CAMEL_VERSION}}" }
+2. Check component docs: camel_catalog_component_doc { "component": "...", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
 3. Update the TDD if the component choice needs to change
 4. Re-run /camel-implement once the TDD is corrected
 ```

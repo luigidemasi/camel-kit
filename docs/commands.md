@@ -472,8 +472,7 @@ Ask questions about Red Hat Build of Apache Camel documentation — supported co
 |---|---|---|
 | Component support | `camel_rh_build_component_info` | `camel_rh_build_search` |
 | General product question | `camel_rh_build_search` | — |
-| Migration | `camel_migration_search` | `camel_rh_build_search` |
-| Component migration | `camel_migration_lookup` | `camel_migration_search` |
+| Migration | `camel_rh_build_search` | — |
 | Security / CVEs / errata | `camel_rh_build_search` | — |
 
 3. **Evaluate and retry** — Broadens query or tries fallback tool if results are poor

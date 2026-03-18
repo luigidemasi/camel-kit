@@ -236,10 +236,13 @@ If the TDD contains a `Target Module` field (e.g., `my-module/` or `services/ord
 
 **Read the file `guides/orchestrator.md` (in the same directory as this SKILL.md) and follow its instructions step by step.** The orchestrator adapts to all runtimes and drives actual code generation: route YAML files, application.properties, docker-compose, runtime artifacts, and smoke test. When the orchestrator says "Load `guides/xyz.md`", read that file from the `guides/` subdirectory next to this SKILL.md and execute its instructions — do NOT report guides as missing, they are always present.
 
+**After reading the orchestrator, your next action MUST be executing its first applicable step (writing a file or loading a guide). If your next action after reading the orchestrator is outputting text to the user (discussing complexity, presenting alternatives, summarizing what the orchestrator says), you are violating this skill.**
+
 Pass to the orchestrator:
 - **RUNTIME**: `jbang`, `springboot`, or `quarkus` (from step above)
 - **FLOW_NAME**: `{flow-name}` from parameters
 - **CAMEL_VERSION**: from `.camel-kit/config.yaml` (or default)
+- **PLATFORM_BOM**: resolved from `CAMEL_VERSION` + `RUNTIME` via the version mapping table in `skills/shared/mcp-setup.md`
 - **TARGET_MODULE**: from the TDD "Overview" section (`Target Module` field, empty for single-project)
 - **TDD**: full content of the Technical Design Document
 - **BRD**: summary of business requirements

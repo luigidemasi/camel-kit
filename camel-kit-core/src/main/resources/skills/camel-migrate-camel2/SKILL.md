@@ -22,6 +22,8 @@ You receive:
 - Full list of source artifact paths
 - Detected Camel source version (2.x or 3.x) and platform type (ServiceMix/Karaf, Spring Boot, Spring XML, Plain Java)
 - `CAMEL_VERSION` — target Camel version from `.camel-kit/config.yaml`
+- `RUNTIME` — from `.camel-kit/config.yaml` (`project.runtime`, default: `main`)
+- `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via `skills/shared/mcp-setup.md`
 
 ## Output Contract
 
@@ -37,11 +39,11 @@ Your output is identical to `/camel-project` + `/camel-flow` — fully compatibl
 ### Context Loading (MANDATORY at start)
 
 Load these guides — they are needed throughout the migration:
-- `skills/camel-migrate-camel2/guides/camel2-component-mapping.md`
-- `skills/camel-migrate-camel2/guides/camel2-eip-mapping.md`
-- `skills/camel-migrate-camel2/guides/camel2-dataformat-mapping.md`
-- `skills/camel-migrate-camel2/guides/camel2-language-mapping.md`
-- `skills/camel-migrate-camel2/guides/camel2-platform-changes.md`
+- `skills/camel-migrate/guides/camel2-component-mapping.md`
+- `skills/camel-migrate/guides/camel2-eip-mapping.md`
+- `skills/camel-migrate/guides/camel2-dataformat-mapping.md`
+- `skills/camel-migrate/guides/camel2-language-mapping.md`
+- `skills/camel-migrate/guides/camel2-platform-changes.md`
 
 Read ALL source project files (routes, configs, build files).
 Read the confirmed analysis summary from `camel-migrate`.
@@ -250,9 +252,10 @@ For every migration decision, follow the **Verification Chain**:
 │                                                                     │
 │ 2. Knowledge docs lookup (ALWAYS, if camel-knowledge MCP is        │
 │    configured) — Call:                                              │
-│      camel_migration_lookup(                                │
-│        component: "<name>",                                        │
-│        source_version: "<detected_version>"                        │
+│      camel_rh_build_search(                                        │
+│        query: "<name> migration",                                  │
+│        version: "<target_rh_version>",                             │
+│        max_results: 5                                              │
 │      )                                                              │
 │    Read the returned migration context. This provides detailed     │
 │    information about:                                               │
@@ -264,6 +267,12 @@ For every migration decision, follow the **Verification Chain**:
 │    context.                                                         │
 │    If the MCP server is not available, skip this step (graceful    │
 │    degradation).                                                    │
+│                                                                     │
+│ NOTE: All catalog calls in steps 3-4 MUST also pass:               │
+│   camelVersion=<target_version>,                                   │
+│   platformBom=<platform_bom>,                                      │
+│   runtime=<runtime>                                                │
+│ (translated from CAMEL_VERSION+RUNTIME via mcp-setup.md table)     │
 │                                                                     │
 │ 3. Call MCP catalog LIST tool:                                      │
 │    • Components: camel_catalog_components(filter=<name>)           │
@@ -287,10 +296,9 @@ For every migration decision, follow the **Verification Chain**:
 │                                                                     │
 │ 5. Broader knowledge search (only if steps 1-2 returned nothing)   │
 │    — Call:                                                          │
-│      camel_migration_search(                                │
-│        query: "<name> migration",                                  │
-│        source_version: "...",                                      │
-│        target_version: "4.x"                                       │
+│      camel_rh_build_search(                                        │
+│        query: "<name> migration camel 4",                          │
+│        max_results: 5                                              │
 │      )                                                              │
 │    If still nothing → STOP, ask user.                              │
 │                                                                     │

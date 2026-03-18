@@ -2,6 +2,8 @@
 
 > **Context variables provided by master SKILL.md:**
 > - `CAMEL_VERSION` — target Camel version from `.camel-kit/config.yaml`
+> - `RUNTIME` — from `.camel-kit/config.yaml` (`project.runtime`, default: `main`)
+> - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via the version mapping table in `skills/shared/mcp-setup.md`
 > - Confirmed analysis summary (with ✓/~/? markers) from `camel-migrate`
 > - Full list of source artifact paths
 > - Detected Camel source version (2.x or 3.x) and platform type
@@ -257,9 +259,10 @@ For every migration decision, follow the **Verification Chain**:
 │                                                                     │
 │ 2. Knowledge docs lookup (ALWAYS, if camel-knowledge MCP is        │
 │    configured) — Call:                                              │
-│      camel_migration_lookup(                                        │
-│        component: "<name>",                                        │
-│        source_version: "<detected_version>"                        │
+│      camel_rh_build_search(                                        │
+│        query: "<name> migration",                                  │
+│        version: "<target_rh_version>",                             │
+│        max_results: 5                                              │
 │      )                                                              │
 │    Read the returned migration context. This provides detailed     │
 │    information about:                                               │
@@ -276,13 +279,20 @@ For every migration decision, follow the **Verification Chain**:
 │    — Call:                                                          │
 │      camel_rh_build_component_info(                                │
 │        component: "<4.x-name>",                                    │
-│        version: "<target_rh_version>"                              │
+│        version: "<target_rh_version>",                             │
+│        runtime: "<runtime>"                                        │
 │      )                                                              │
 │    Check whether the target component is supported in the Red Hat  │
 │    Build of Apache Camel. If supported, note it in the TDD. If    │
 │    NOT supported, flag it as a migration concern — the component   │
 │    works in community Camel but has no Red Hat support.             │
 │    If the MCP server is not available, skip this step.             │
+│                                                                     │
+│ NOTE: All catalog calls in steps 3-4 MUST also pass:               │
+│   camelVersion=<target_version>,                                   │
+│   platformBom=<platform_bom>,                                      │
+│   runtime=<runtime>                                                │
+│ (translated from CAMEL_VERSION+RUNTIME via mcp-setup.md table)     │
 │                                                                     │
 │ 3. Call MCP catalog LIST tool:                                      │
 │    • Components: camel_catalog_components(filter=<name>)           │
@@ -293,7 +303,7 @@ For every migration decision, follow the **Verification Chain**:
 │    └─ NOT FOUND → go to step 5                                     │
 │                                                                     │
 │ 4. Call MCP catalog DOC tool to verify OPTIONS:                     │
-│    • Components: camel_catalog_component_doc(name=<name>)          │
+│    • Components: camel_catalog_component_doc(component=<name>)     │
 │    • EIPs:       camel_catalog_eip_doc(eip=<name>)                 │
 │    • Formats:    camel_catalog_dataformat_doc(dataformat=<name>)   │
 │    • Languages:  camel_catalog_language_doc(language=<name>)       │
@@ -306,10 +316,9 @@ For every migration decision, follow the **Verification Chain**:
 │                                                                     │
 │ 5. Broader knowledge search (only if steps 1-2 returned nothing)   │
 │    — Call:                                                          │
-│      camel_migration_search(                                │
-│        query: "<name> migration",                                  │
-│        source_version: "...",                                      │
-│        target_version: "4.x"                                       │
+│      camel_rh_build_search(                                        │
+│        query: "<name> migration camel 4",                          │
+│        max_results: 5                                              │
 │      )                                                              │
 │    If still nothing → ask user for guidance:                        │
 │      "Component [X] not found in catalog or knowledge base.         │

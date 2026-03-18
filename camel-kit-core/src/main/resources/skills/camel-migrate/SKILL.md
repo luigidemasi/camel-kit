@@ -398,6 +398,8 @@ Pass as context:
 - The confirmed analysis summary from Step 5
 - The full list of source artifact paths
 - `CAMEL_VERSION` from `.camel-kit/config.yaml` (or ask the user if not found)
+- `RUNTIME` from `.camel-kit/config.yaml` (`project.runtime`)
+- `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via `skills/shared/mcp-setup.md`
 
 ### Apache Camel (older version)
 
@@ -424,6 +426,8 @@ Pass as context:
 - The full list of source artifact paths
 - The detected Camel source version (2.x or 3.x) and platform type
 - `CAMEL_VERSION` from `.camel-kit/config.yaml` (target version — or ask the user if not found)
+- `RUNTIME` from `.camel-kit/config.yaml` (`project.runtime`)
+- `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via `skills/shared/mcp-setup.md`
 
 ---
 

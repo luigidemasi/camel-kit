@@ -4,8 +4,9 @@
 > - `FLOW_NAME` — the flow being validated
 > - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
 > - `RUNTIME` — project runtime from `.camel-kit/config.yaml` (affects route file location)
+> - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via the version mapping table in `skills/shared/mcp-setup.md`
 >
-> **Version mapping:** When calling MCP catalog tools, translate `CAMEL_VERSION` to the correct catalog version using the version mapping table in `skills/shared/mcp-setup.md`.
+> **Version mapping:** When calling MCP catalog tools, translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` and `platformBom` parameters using the version mapping table in `skills/shared/mcp-setup.md`.
 
 ## Stage 2: Endpoint URI Validation (MCP Enhanced)
 
@@ -35,7 +36,7 @@ Validating URIs against Camel {{CAMEL_VERSION}} catalog...
 
 Endpoint 1: kafka:{{kafka.topic.input}}
   MCP Tool: camel_validate_route
-  Params: { "uri": "kafka:topic", "version": "{{CAMEL_VERSION}}" }
+  Params: { "uri": "kafka:topic", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
 
   Result: ✅ VALID
   - Component: kafka exists
@@ -44,7 +45,7 @@ Endpoint 1: kafka:{{kafka.topic.input}}
 
 Endpoint 2: sql:{{sql.insert}}
   MCP Tool: camel_validate_route
-  Params: { "uri": "sql:INSERT INTO orders", "version": "{{CAMEL_VERSION}}" }
+  Params: { "uri": "sql:INSERT INTO orders", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
 
   Result: ✅ VALID
   - Component: sql exists
@@ -53,7 +54,7 @@ Endpoint 2: sql:{{sql.insert}}
 
 Endpoint 3: http://{{api.endpoint}}
   MCP Tool: camel_validate_route
-  Params: { "uri": "http://api.example.com", "version": "{{CAMEL_VERSION}}" }
+  Params: { "uri": "http://api.example.com", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
 
   Result: ⚠️ WARNING
   - Component: http exists

@@ -3,6 +3,8 @@
 > **Context variables provided by master SKILL.md:**
 > - `FLOW_NAME` — the flow being tested
 > - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
+> - `RUNTIME` — from `.camel-kit/config.yaml` (`project.runtime`, default: `main`)
+> - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via the version mapping table in `skills/shared/mcp-setup.md`
 >
 > **Version mapping:** When calling MCP catalog tools (`camel_route_context`, `camel_catalog_component_doc`), translate `CAMEL_VERSION` to the correct catalog version using the version mapping table in `skills/shared/mcp-setup.md`.
 
@@ -58,7 +60,9 @@ Analyzing route structure with MCP...
 MCP Tool: camel_route_context
 Params: {
   "route": "[route-yaml-content]",
-  "version": "{{CAMEL_VERSION}}"
+  "camelVersion": "{{CAMEL_VERSION}}",
+  "platformBom": "{{PLATFORM_BOM}}",
+  "runtime": "{{RUNTIME}}"
 }
 
 Extracting components and EIPs from route...
@@ -111,7 +115,7 @@ Suggested Test Scenarios (from MCP analysis):
 
 ```
 MCP Tool: camel_catalog_component_doc
-Params: { "name": "kafka", "version": "{{CAMEL_VERSION}}" }
+Params: { "component": "kafka", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
 
 Get testing recommendations for kafka component.
 ```

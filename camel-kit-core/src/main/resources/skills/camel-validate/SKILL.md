@@ -1,6 +1,6 @@
 ---
 name: camel-validate
-description: Validate routes when user wants to check YAML syntax, verify security compliance, analyze route quality, find issues, perform security hardening, or ensure best practices
+description: Validate routes when user wants to check YAML syntax, review a route, verify it works correctly, find issues or bugs, check for security problems, ensure best practices, or get a quality assessment of their Camel integration. Use this when the user says things like "check my route", "is this correct", "review my YAML", "validate order-to-warehouse", or "what's wrong with my route".
 user-invocable: true
 metadata:
   version: "1.0.0"
@@ -122,7 +122,8 @@ Before dispatching to guides, resolve these variables:
 |----------|--------|-----------|
 | `FLOW_NAME` | From parameter | All guides |
 | `CAMEL_VERSION` | From `.camel-kit/config.yaml` (`project.camelVersion`) | All guides |
-| `RUNTIME` | From `.camel-kit/config.yaml` (`project.runtime`, default: `jbang`) | `endpoint-validation.md` (route file location) |
+| `RUNTIME` | From `.camel-kit/config.yaml` (`project.runtime`, default: `jbang`) | All guides (MCP catalog calls + route file location) |
+| `PLATFORM_BOM` | Resolved from `CAMEL_VERSION` + `RUNTIME` via `skills/shared/mcp-setup.md` | All guides (MCP catalog calls) |
 
 All guides receive these variables and declare them in a header block.
 
