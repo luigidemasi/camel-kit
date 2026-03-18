@@ -15,6 +15,7 @@ import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStyle;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
+import test.Testing;
 
 import java.util.concurrent.Callable;
 
@@ -33,8 +34,10 @@ public class CamelKitMain implements Callable<Integer> {
     public static final String LATEST_CAMEL_LTS_VERSION = "4.14.4.redhat-00008";
     public static final String CAMEL_MCP_VERSION = BUILD_PROPS.getProperty("camel.mcp.version", "4.19.0-SNAPSHOT");
     public static final String DEFAULT_CITRUS_VERSION = "4.9.2";
-    public static final String DEFAULT_KNOWLEDGE_MCP_VERSION = BUILD_PROPS.getProperty("version", "0.0.0");
-
+    public static final String KNOWLEDGE_MCP_VERSION = BUILD_PROPS.getProperty("knowledge.mcp.version", "0.0.1-SNAPSHOT");
+    public static final String CAMEL_MCP_REPOS = BUILD_PROPS.getProperty("camel.mcp.repos", "maven");
+    public static final String KNOWLEDGE_MCP_REPOS = BUILD_PROPS.getProperty("knowledge.mcp.repos", "redhat=https://maven.repository.redhat.com/ga/");
+    public static final String CAMEL_CATALOG_REPOS = BUILD_PROPS.getProperty("camel.catalog.repos", "maven");
     private Terminal terminal;
     private Printer printer;
     private boolean tuiEnabled = true;

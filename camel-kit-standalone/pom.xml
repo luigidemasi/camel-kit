@@ -15,7 +15,7 @@
     <description>All-in-one portable executable for Camel Kit — requires only Java 17+</description>
 
     <properties>
-        <knowledge.mcp.version>${project.version}</knowledge.mcp.version>
+        <knowledge.mcp.version>0.0.1-SNAPSHOT</knowledge.mcp.version>
         <citrus.version>4.9.2</citrus.version>
     </properties>
 

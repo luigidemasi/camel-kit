@@ -15,7 +15,6 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
@@ -180,7 +179,7 @@ public class InitCommand extends CamelKitCommand {
             try {
                 Path repoDir = camelKitDir.resolve("repo");
                 OfflineRepoPopulator populator = new OfflineRepoPopulator(repoDir, printer()::println);
-                int count = populator.populate(version, CamelKitMain.DEFAULT_KNOWLEDGE_MCP_VERSION);
+                int count = populator.populate(version, CamelKitMain.KNOWLEDGE_MCP_VERSION);
                 printer().println(green("✓") + " Downloaded " + count + " artifacts to .camel-kit/repo/");
             } catch (Exception e) {
                 printer().println(yellow("  Warning: Could not populate offline repo: " + e.getMessage()));
@@ -440,7 +439,8 @@ public class InitCommand extends CamelKitCommand {
         extractRunnerJar(mcpDir);
 
         // Knowledge server repos (still uses JBang for now)
-        String repos = "redhat=https://maven.repository.redhat.com/ga/";
+        String knowledgeMcpRepos = CamelKitMain.KNOWLEDGE_MCP_REPOS;
+        String camelMcpRepos = CamelKitMain.CAMEL_MCP_REPOS;
 
         try {
             String templatePath;
@@ -480,8 +480,11 @@ public class InitCommand extends CamelKitCommand {
 
             String template = TemplateUtils.readTemplate(templatePath);
             String processed = template
-                    .replace("{{REPOS}}", repos)
-                    .replace("{{KNOWLEDGE_VERSION}}", CamelKitMain.DEFAULT_KNOWLEDGE_MCP_VERSION);
+                    .replace("{{CAMEL_MCP_VERSION}}", CamelKitMain.CAMEL_MCP_VERSION)
+                    .replace("{{KNOWLEDGE_VERSION}}", CamelKitMain.KNOWLEDGE_MCP_VERSION)
+                    .replace("{{CAMEL_MCP_REPOS}}", camelMcpRepos)
+                    .replace("{{KNOWLEDGE_MCP_REPOS}}", knowledgeMcpRepos)
+                    .replace("{{CAMEL_CATALOG_REPOS}}", CamelKitMain.CAMEL_CATALOG_REPOS);
             Files.writeString(configFile, processed);
 
             printer().println(green("✓") + " MCP config created for " + agentName);

@@ -1,6 +1,9 @@
 # Catalog Lookup Procedures
 
-> **Context variable:** `CAMEL_VERSION` — from `.camel-kit/config.yaml`
+> **Context variables:**
+> - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
+> - `RUNTIME` — from `.camel-kit/config.yaml` (`project.runtime`)
+> - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via the version mapping table in `skills/shared/mcp-setup.md`
 
 ## Data Format Lookup (after Question 1)
 
@@ -9,14 +12,14 @@ Whenever a data format is mentioned or needs to be chosen (JSON, XML, CSV, Avro,
 **Step A — List available data formats for the project version:**
 ```
 MCP Tool: camel_catalog_dataformats
-Params: { "version": "{{CAMEL_VERSION}}" }
+Params: { "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
 ```
 This returns all data formats available in Camel {{CAMEL_VERSION}}. Use this list to confirm the format the user mentioned exists in their version, and to suggest alternatives when needed.
 
 **Step B — Get full documentation for the chosen format:**
 ```
 MCP Tool: camel_catalog_dataformat_doc
-Params: { "name": "[format-name]", "version": "{{CAMEL_VERSION}}" }
+Params: { "dataformat": "[format-name]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
 ```
 This returns: configuration options, Maven coordinates, model class information, and example usage. Record the Maven coordinates and any required configuration in the TDD.
 
@@ -33,14 +36,14 @@ This returns: configuration options, Maven coordinates, model class information,
 **Step A — List available EIPs for the project version, filtered by the relevant category:**
 ```
 MCP Tool: camel_catalog_eips
-Params: { "category": "[routing|transformation|routing|messaging|error|…]", "version": "{{CAMEL_VERSION}}" }
+Params: { "label": "[routing|transformation|routing|messaging|error|…]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
 ```
 This returns all EIPs available in Camel {{CAMEL_VERSION}} for the given category. Use this list to confirm the EIP exists in the project's version and to select the most appropriate one.
 
 **Step B — Get full documentation for the chosen EIP:**
 ```
 MCP Tool: camel_catalog_eip_doc
-Params: { "name": "[eip-name]", "version": "{{CAMEL_VERSION}}" }
+Params: { "eip": "[eip-name]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
 ```
 This returns: all configuration options, output type, required fields, and YAML DSL usage. Record any non-obvious options in the TDD.
 
@@ -72,14 +75,14 @@ Whenever the flow requires an expression inside an EIP — `filter`, `choice`/`w
 **Step A — List available expression languages for the project version:**
 ```
 MCP Tool: camel_catalog_languages
-Params: { "version": "{{CAMEL_VERSION}}" }
+Params: { "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
 ```
 This returns all expression languages available in Camel {{CAMEL_VERSION}} (Simple, JsonPath, XPath, JQ, Groovy, OGNL, SpEL, and others). Use this list to confirm the language exists in the project's version and to suggest the most appropriate one.
 
 **Step B — Get full documentation for the chosen language:**
 ```
 MCP Tool: camel_catalog_language_doc
-Params: { "name": "[language-name]", "version": "{{CAMEL_VERSION}}" }
+Params: { "language": "[language-name]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
 ```
 This returns: syntax rules, configuration options, Maven coordinates (if the language is in a separate artifact), and example usage. Record any non-default Maven dependency in the TDD.
 

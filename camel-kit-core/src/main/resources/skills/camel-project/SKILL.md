@@ -1,6 +1,6 @@
 ---
 name: camel-project
-description: Create integration project requirements when user wants to start a new Camel project, define business context, set up BRD, initialize integration flows, or configure project structure
+description: Create integration project requirements when user wants to start a new Camel project, connect systems together, build an integration, define business context, set up BRD, initialize integration flows, or configure project structure. Use this when the user describes systems they want to integrate (e.g., "I need to connect Salesforce to SAP", "build an integration between Kafka and a database") even if they don't mention Camel or BRD explicitly.
 user-invocable: true
 metadata:
   version: "1.0.0"

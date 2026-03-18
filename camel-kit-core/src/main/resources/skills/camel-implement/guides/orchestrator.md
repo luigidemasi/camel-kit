@@ -2,11 +2,15 @@
 
 This guide defines file paths and execution order for the implementation pipeline. It adapts to the target runtime and works with both greenfield and migration TDDs.
 
+> **YOUR JOB IS TO GENERATE FILES, NOT TO DISCUSS WHAT FILES YOU WOULD GENERATE.**
+> After reading this guide, immediately start executing Step 1 (or Step 2 if no DataMapper). Do NOT summarize what you read, do NOT discuss the complexity of the task, do NOT present alternatives, do NOT say "this would involve..." — just start writing code. Every step below produces concrete files on disk. If you reach the end of this guide without having written files, you have failed.
+
 > **"Load" means READ and FOLLOW.** Every time this guide says "Load `guides/xyz.md`", you MUST read that file from the skill directory where this guide lives and execute its instructions. Do NOT skip a step because you haven't read the guide yet — read it, then do what it says. The guide files ARE present in the same directory as this file.
 
 > **Context variables from master SKILL.md:**
 > - `RUNTIME` — `jbang` (default), `springboot`, or `quarkus`
 > - `FLOW_NAME`, `CAMEL_VERSION`, `TARGET_MODULE`
+> - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via `skills/shared/mcp-setup.md`
 
 **Migration TDDs:** If the TDD contains a "Migrated From" field, Java source files, WSDL/XSD files, or Maven plugin configuration, handle them as additional artifacts alongside the standard pipeline steps. Copy referenced files to `TARGET_MODULE`, create Java classes, and configure pom.xml as specified in the TDD. Do NOT skip the standard pipeline — migration TDDs still need route YAML, properties, docker-compose, and all other standard artifacts.
 
@@ -153,9 +157,60 @@ Pass these context variables:
 
 ---
 
+## Step 9: Completion Gate (ALWAYS — MANDATORY, DO NOT SKIP)
+
+Before showing the Implementation Summary, verify that implementation actually happened by checking files on disk. Run `ls` or `test -f` for each expected file. This is the final defense against showing a success summary when no files were generated.
+
+### 9.1 Required Files Check
+
+Verify these files exist and are non-empty:
+
+| Check | Path | Condition |
+|-------|------|-----------|
+| Route YAML | `{ROUTE_DIR}{flow-name}.camel.yaml` | MUST exist, MUST be non-empty |
+| Properties | `{PROPS_DIR}application.properties` | MUST exist |
+| Docker Compose | `{MODULE_DIR}docker-compose.yaml` | MUST exist if TDD lists external services |
+| Maven POM | `{MODULE_DIR}pom.xml` | MUST exist (Spring Boot / Quarkus only) |
+| Run script | `{MODULE_DIR}run.sh` | MUST exist (JBang only) |
+
+**If the route YAML does not exist, STOP.** Do not show the Implementation Summary. Go back to Step 2 (Route Generation) and actually generate the file. This check exists because the most common failure mode is the AI reading guides without executing them.
+
+### 9.2 TDD Conformance Check
+
+Open the generated `{flow-name}.camel.yaml` and verify it against the TDD:
+
+| Check | What to verify | How |
+|-------|---------------|-----|
+| Source component | Route `from:` uses the component specified in TDD "Source System" | Read route YAML, check `from.uri` |
+| Sink component | Route contains a `to:` step using the component specified in TDD "Sink System" | Read route YAML, check `to.uri` |
+| Route ID | Route declares `id: {flow-name}` | Read route YAML, check `id` field |
+| Error handling | Route includes error handling matching TDD strategy (DLC, retry, etc.) | Read route YAML, check for `onException` or `errorHandler` |
+| Placeholders | No hardcoded hostnames, ports, or credentials in route YAML — all use `{{placeholder}}` syntax | Scan route YAML for literal URLs or credentials |
+
+Report each check as PASS or FAIL. Failing checks are **warnings** (do not block the summary), but they must be visible in the output so the user knows what to review.
+
+### 9.3 Gate Result
+
+```
+Completion Gate:
+  Files:
+    ✓ {flow-name}.camel.yaml exists ({N} lines)
+    ✓ application.properties exists
+    ✓ docker-compose.yaml exists
+    ✓ pom.xml exists [Spring Boot/Quarkus]
+  TDD Conformance:
+    ✓ Source: [component] matches TDD
+    ✓ Sink: [component] matches TDD
+    ✓ Route ID: {flow-name}
+    ✓ Error handling: [strategy] matches TDD
+    ⚠ Hardcoded value found: [detail]  ← example warning
+```
+
+---
+
 ## Implementation Summary
 
-**PREREQUISITE:** You can only show this summary if you have run Step 8 (Smoke Test) and observed the actual application output. If you skipped the smoke test, go back and run it now.
+**PREREQUISITE:** You can only show this summary if you have completed Step 8 (Smoke Test) and Step 9 (Completion Gate). If the route YAML does not exist on disk, go back and generate it.
 
 After all steps complete, display:
 
@@ -209,6 +264,7 @@ Dependencies (from TDD):
   - camel-[component2]
   - [external dependencies]
 
+Completion Gate: ✅ ALL CHECKS PASSED / ⚠️ [N] warnings
 Smoke Test: ✅ PASSED / ⚠️ FAILED
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

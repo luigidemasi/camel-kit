@@ -2,6 +2,8 @@
 
 > **Context variables provided by master SKILL.md:**
 > - `CAMEL_VERSION` — target Camel version from `.camel-kit/config.yaml`
+> - `RUNTIME` — from `.camel-kit/config.yaml` (`project.runtime`, default: `main`)
+> - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via the version mapping table in `skills/shared/mcp-setup.md`
 > - Confirmed analysis summary (with ✓/~/? markers) from `camel-migrate`
 > - Full list of source artifact paths
 > - Detected vendor: MuleSoft Mule (3.x or 4.x)
@@ -217,7 +219,7 @@ Before every MCP catalog call, translate `CAMEL_VERSION` + `RUNTIME` to the corr
 | Camel EIP for a Mule routing construct | `camel_catalog_eips` | `camel_catalog_eip_doc` |
 | Data format for unmarshal/marshal | `camel_catalog_dataformats` | `camel_catalog_dataformat_doc` |
 | Expression language for conditions/predicates | `camel_catalog_languages` | `camel_catalog_language_doc` |
-| Migration context for mapped Camel component | `camel_migration_lookup` | — |
+| Migration context for mapped Camel component | `camel_rh_build_search` | — |
 
 The static `mule-component-mapping.md` guide provides a **starting point** (the suggested Camel component name). It does NOT replace catalog verification — always confirm availability and option names in `CAMEL_VERSION` before writing the TDD.
 
@@ -231,7 +233,7 @@ For each Mule flow identified in Phase 1:
    Use `mule-component-mapping.md` to find the suggested Camel component name, then — **before writing anything to the TDD** — MUST verify it in the catalog that the component exist for the camel version in use:
    ```
    MCP Tool: camel_catalog_component_doc
-   Params: { "name": "[suggested-camel-component]", "version": "{{CAMEL_VERSION}}" }
+   Params: { "component": "[suggested-camel-component]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
    ```
    Record the URI syntax, endpoint options, component-level options, and Maven coordinates from the catalog response. If the component is not found in `CAMEL_VERSION`, call `camel_catalog_components` to search for an alternative and notify the user.
 
@@ -239,13 +241,13 @@ For each Mule flow identified in Phase 1:
    After verifying a component in the catalog, call `camel_rh_build_component_info` to check Red Hat support:
    ```
    MCP Tool: camel_rh_build_component_info
-   Params: { "component": "[camel-component-name]" }
+   Params: { "component": "[camel-component-name]", "runtime": "{{RUNTIME}}" }
    ```
    If the component is NOT supported by Red Hat, raise a WARNING to the user, search for a Red Hat-supported alternative that provides equivalent functionality, and present both options. Let the user decide. If the MCP server is not available, skip this step.
 
    After mapping a Mule connector to a Camel component, ALWAYS call:
    ```
-   camel_migration_lookup(component: "{mapped_camel_component}")
+   camel_rh_build_search(query: "{mapped_camel_component} migration", max_results: 5)
    ```
    This provides migration context that may be relevant even for MuleSoft migrations —
    the Camel component may have changed between versions.
@@ -263,19 +265,19 @@ For each Mule flow identified in Phase 1:
    When the translation requires `unmarshal`/`marshal` (e.g. no DataMapper XSLT coverage), verify the data format in the catalog before documenting it in the TDD:
    ```
    MCP Tool: camel_catalog_dataformat_doc
-   Params: { "name": "[format-name]", "version": "{{CAMEL_VERSION}}" }
+   Params: { "dataformat": "[format-name]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
    ```
 
 4. **Map Mule routing constructs → Camel EIPs (catalog-verified).**
    Use `mule-component-mapping.md` for the initial EIP suggestion (choice → `choice`, scatter-gather → `multicast`, forEach → `split`, etc.), then verify each EIP in the catalog:
    ```
    MCP Tool: camel_catalog_eip_doc
-   Params: { "name": "[eip-name]", "version": "{{CAMEL_VERSION}}" }
+   Params: { "eip": "[eip-name]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
    ```
    If any condition or predicate expression is required inside the EIP, also verify the expression language:
    ```
    MCP Tool: camel_catalog_language_doc
-   Params: { "name": "[language-name]", "version": "{{CAMEL_VERSION}}" }
+   Params: { "language": "[language-name]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
    ```
 
 5. **Map Mule sub-flows → Camel `direct:` routes.**

@@ -4,6 +4,8 @@
 > - `SYSTEM_DESCRIPTION` — what the user described (e.g., "Kafka topic", "PostgreSQL database")
 > - `SYSTEM_ROLE` — "source" or "sink"
 > - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
+> - `RUNTIME` — from `.camel-kit/config.yaml` (`project.runtime`, default: `main`)
+> - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via the version mapping table in `skills/shared/mcp-setup.md`
 
 ## Procedure: Select and Verify Component
 
@@ -15,7 +17,7 @@
 Searching Camel {{CAMEL_VERSION}} catalog for matching components...
 
 MCP Tool: camel_catalog_components
-Params: { "category": "[best matching category]", "version": "{{CAMEL_VERSION}}" }
+Params: { "label": "[best matching category]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
 
 Found components available in Camel {{CAMEL_VERSION}}:
 1. [component-name] - [description]
@@ -28,7 +30,7 @@ Then immediately retrieve the full documentation for the suggested component:
 
 ```
 MCP Tool: camel_catalog_component_doc
-Params: { "name": "[component-name]", "version": "{{CAMEL_VERSION}}" }
+Params: { "component": "[component-name]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
 
 Component: [component-name]
 URI syntax:  [exact syntax from catalog]
@@ -49,7 +51,7 @@ After selecting a component, call `camel_rh_build_component_info` to verify it i
 
 ```
 MCP Tool: camel_rh_build_component_info
-Params: { "component": "[component-name]" }
+Params: { "component": "[component-name]", "runtime": "{{RUNTIME}}" }
 ```
 
 - **If supported:** note it in the TDD and proceed.

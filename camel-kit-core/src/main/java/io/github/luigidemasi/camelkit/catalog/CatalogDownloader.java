@@ -78,7 +78,7 @@ public class CatalogDownloader {
 
         // Extract component JSON files from JAR
         ObjectNode catalog = mapper.createObjectNode();
-        catalog.put("version", version);
+        catalog.put("knowledge.mcp.version", version);
         catalog.put("fetchedAt", Instant.now().toString());
         ArrayNode components = catalog.putArray("components");
 
@@ -135,7 +135,7 @@ public class CatalogDownloader {
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         ObjectNode catalog = mapper.createObjectNode();
-        catalog.put("version", version);
+        catalog.put("knowledge.mcp.version", version);
         catalog.put("fetchedAt", Instant.now().toString());
         ArrayNode kamelets = catalog.putArray("kamelets");
 

@@ -36,7 +36,7 @@ Example: `/camel-flow order-to-warehouse`
 **ALWAYS read at the start:**
 1. `docs/business-requirements.md` - Business context (REQUIRED)
 2. `docs/constitution.md` - Best practices. If missing, copy from `templates/constitution.md` and continue.
-3. `.camel-kit/config.yaml` - **REQUIRED** — extract `project.camelVersion` as `CAMEL_VERSION` and `project.runtime` as `RUNTIME`. Before calling any MCP catalog tool, translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` parameter using the version mapping table in `skills/shared/mcp-setup.md`. If the file does not exist, ask the user for the Camel version before proceeding.
+3. `.camel-kit/config.yaml` - **REQUIRED** — extract `project.camelVersion` as `CAMEL_VERSION` and `project.runtime` as `RUNTIME`. Then derive `PLATFORM_BOM` from `CAMEL_VERSION` + `RUNTIME` using the version mapping table in `skills/shared/mcp-setup.md`. All MCP catalog calls must pass `camelVersion`, `platformBom`, and `runtime`. If the file does not exist, ask the user for the Camel version before proceeding.
 
 **On-Demand Guides (load ONLY when needed):**
 - `guides/data-formats.md` - If user asks about format choice
@@ -66,7 +66,7 @@ The Camel MCP server provides catalog query capabilities for this skill:
 - **EIP List** (`camel_catalog_eips`) - All Enterprise Integration Patterns available in the project Camel version, filterable by category
 - **EIP Documentation** (`camel_catalog_eip_doc`) - Full options and YAML DSL usage for a specific EIP
 
-All catalog calls MUST translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` parameter using the version mapping table in `skills/shared/mcp-setup.md`. Never pass the raw version or a stripped minor version directly.
+All catalog calls MUST pass `camelVersion`, `platformBom`, and `runtime`. Derive `PLATFORM_BOM` from `CAMEL_VERSION` + `RUNTIME` using the version mapping table in `skills/shared/mcp-setup.md`. Never pass the raw version or a stripped minor version directly.
 
 ---
 

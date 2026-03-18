@@ -270,7 +270,7 @@ Ask questions about Red Hat Build of Apache Camel documentation — supported co
 **How it works:**
 
 1. Parses your question to extract topic, version, and question type
-2. Selects the right knowledge MCP tool (search, component lookup, or migration lookup)
+2. Selects the right knowledge MCP tool (search, component lookup, CVE search, etc.)
 3. Retrieves relevant documentation chunks via hybrid semantic search
 4. Synthesizes an answer with source citations
 5. Suggests 2-3 follow-up questions
@@ -278,10 +278,8 @@ Ask questions about Red Hat Build of Apache Camel documentation — supported co
 **Data sources:** Product guides (5 versions), KB articles, Red Hat errata with CVE enrichment, migration guides.
 
 **MCP Tools Used:**
-- `camel_rh_build_search` — General documentation search
+- `camel_rh_build_search` — General documentation search (including migration guides)
 - `camel_rh_build_component_info` — Component support queries
-- `camel_migration_search` — Migration guide search
-- `camel_migration_lookup` — Component migration lookup
 
 ---
 
