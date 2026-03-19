@@ -34,7 +34,7 @@ public class InitCommand extends CamelKitCommand {
     @Parameters(index = "0", description = "Project name", arity = "0..1")
     public String projectName;
 
-    @Option(names = {"-a", "--ai"}, description = "AI agent: bob, gemini, claude",
+    @Option(names = {"-a", "--ai"}, description = "AI agent: bob, gemini, claude, qwen, opencode",
             defaultValue = "bob")
     public String ai;
 
@@ -471,6 +471,22 @@ public class InitCommand extends CamelKitCommand {
                     Files.createDirectories(geminiDir);
                     configFile = geminiDir.resolve("settings.json");
                     agentName = "Gemini CLI";
+                }
+                case "qwen" -> {
+                    templatePath = offlineMode
+                            ? "templates/mcp-configs/qwen-mcp-standalone.json"
+                            : "templates/mcp-configs/qwen-mcp.json";
+                    Path qwenDir = projectDir.resolve(".qwen");
+                    Files.createDirectories(qwenDir);
+                    configFile = qwenDir.resolve("settings.json");
+                    agentName = "Qwen Code";
+                }
+                case "opencode" -> {
+                    templatePath = offlineMode
+                            ? "templates/mcp-configs/opencode-mcp-standalone.json"
+                            : "templates/mcp-configs/opencode-mcp.json";
+                    configFile = projectDir.resolve("opencode.json");
+                    agentName = "OpenCode";
                 }
                 default -> {
                     printer().println(yellow("  Warning: Unknown agent '" + selectedAgent + "', skipping MCP config"));

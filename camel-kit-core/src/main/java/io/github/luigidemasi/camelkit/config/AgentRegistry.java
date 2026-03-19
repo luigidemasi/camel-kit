@@ -29,6 +29,20 @@ public final class AgentRegistry {
             "md",
             "$ARGUMENTS",
             "Anthropic's Claude Code CLI"
+        ),
+        "qwen", new AgentConfig(
+            "Qwen Code",
+            ".qwen/commands",
+            "md",
+            "$ARGUMENTS",
+            "Alibaba's Qwen Code CLI"
+        ),
+        "opencode", new AgentConfig(
+            "OpenCode",
+            ".opencode/commands",
+            "md",
+            "$ARGUMENTS",
+            "AI coding agent for the terminal"
         )
     );
 
