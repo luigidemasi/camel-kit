@@ -240,7 +240,8 @@ For each Mule flow identified in Phase 1:
 2. **Apply proprietary connector decisions from Step 1.2** using the same catalog verification above.
 
 3. **Translate DataWeave transformations** using `mule-dataweave-conversion.md`.
-   When the translation requires `unmarshal`/`marshal` (e.g. no DataMapper XSLT coverage), verify the data format in the catalog before documenting it in the TDD:
+   For each DataWeave script, ask the user which approach they prefer (DataSonnet, Kaoto DataMapper, or Simple language). DataSonnet (`camel-datasonnet`) is recommended as the default — its syntax is closest to DataWeave and it can be used inline in YAML DSL.
+   When the translation requires `unmarshal`/`marshal`, verify the data format in the catalog before documenting it in the TDD:
    ```
    MCP Tool: camel_catalog_dataformat_doc
    Params: { "name": "[format-name]", "version": "{{CAMEL_VERSION}}" }

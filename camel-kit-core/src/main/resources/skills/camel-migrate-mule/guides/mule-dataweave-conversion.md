@@ -1,6 +1,6 @@
 # Mule DataWeave Conversion Guide
 
-This guide helps convert MuleSoft DataWeave transformation scripts into the TDD Section 3 field mapping tables understood by `/camel-implement`. The guide is used by the `camel-migrate-mule` sub-skill during Phase 2 (Integration Architect).
+This guide helps convert MuleSoft DataWeave transformation scripts to Apache Camel equivalents. It is used by the `camel-migrate-mule` sub-skill during Phase 2 (Integration Architect).
 
 ---
 
@@ -34,40 +34,141 @@ This guide helps convert MuleSoft DataWeave transformation scripts into the TDD 
 
 ---
 
-## Decision Matrix: Which Camel Technology to Use
+## Choosing the Transformation Approach
 
-When replacing a DataWeave transformation, choose the approach based on complexity:
+For each DataWeave transformation found in the Mule project, **ask the user** which approach they prefer:
 
-| Transformation Complexity | Recommended Approach | Camel Component | Notes |
-|--------------------------|---------------------|-----------------|-------|
-| Simple field rename / direct copy | `setBody` + Simple language | built-in | No external file needed. Express in TDD Section 3.2 as Direct Copy rows. |
-| Single-field type coercion | Simple language expression | built-in | `${body.field}` with type conversion. |
-| Set a fixed value | `setHeader` or `setBody(constant(...))` | built-in | |
-| Complex JSON→JSON transformation | XSLT via Kaoto DataMapper | `camel-xslt-saxon` | Describe field mappings in TDD Section 3.2 table; `/camel-implement` generates XSLT. |
-| Complex XML→JSON or JSON→XML | XSLT | `camel-xslt-saxon` | |
-| Conditional field selection | `choice` EIP + `setBody` | built-in | Express as routing in Section 3.3. |
-| Array/collection iteration | `split` EIP + per-item processing | built-in | Express in Section 3.5. |
-| Lookup / enrichment | `enrich` or `pollEnrich` EIP | built-in | |
-| Multi-step complex script | XSLT or Groovy script | `camel-xslt-saxon` / `camel-groovy` | Use Groovy only for logic that cannot be expressed in XSLT. Document in Section 3.2. |
-
-**Rule of thumb:** If you can express it as rows in the TDD Section 3.2–3.6 tables, do so. `/camel-implement` will generate the XSLT automatically from the tables.
-
----
-
-## Common DataWeave Patterns → TDD Table Equivalents
-
-### Pattern 1: Direct Field Copy
-
-**DataWeave 1.0:**
-```dataweave
-%dw 1.0
-%output application/json
----
-{
-  orderId: payload.order_id,
-  customerName: payload.customer.name
-}
 ```
+I found a DataWeave transformation in {flow-name}.
+Complexity: {simple / moderate / complex}
+
+How would you like to handle it?
+
+  a) DataSonnet — similar syntax to DataWeave, inline in YAML DSL (recommended)
+  b) Kaoto DataMapper — visual drag-and-drop mapping in VS Code, generates XSLT
+  c) Simple language — only for trivial field renames / constants
+  d) Keep as TODO placeholder
+
+Your choice?
+```
+
+### When to suggest each option
+
+| Scenario | Suggest | Why |
+|----------|---------|-----|
+| Any DataWeave script (default) | **DataSonnet** | Closest syntax to DataWeave, inline in YAML, handles JSON/XML/CSV, supports map/filter/reduce |
+| User has formal schemas (XSD, JSON Schema) and prefers visual editing | **Kaoto DataMapper** | Visual drag-and-drop, good for large schema-to-schema mappings (EDI, HL7, SWIFT) |
+| Trivial: single field rename, constant value, one-liner | **Simple language** | No dependency needed |
+| Script uses custom DW modules or unsupported patterns | **TODO placeholder** | Flag for manual implementation |
+
+---
+
+## DataSonnet Conversion
+
+DataSonnet (`camel-datasonnet`) is a Jsonnet-based transformation language already included in Apache Camel. Its syntax is very close to DataWeave, making conversion mostly mechanical.
+
+**Dependency:** `org.apache.camel:camel-datasonnet`
+
+**YAML DSL usage:**
+```yaml
+- transform:
+    datasonnet:
+      expression: |
+        {
+          orderId: body.order_id,
+          customer: body.customer.name
+        }
+      outputMediaType: application/json
+```
+
+### DataWeave → DataSonnet Conversion Reference
+
+| DataWeave | DataSonnet | Notes |
+|-----------|-----------|-------|
+| `payload.field` | `body.field` | `payload` → `body` |
+| `payload.nested.field` | `body.nested.field` | Same dot notation |
+| `vars.myVar` | `cml.variable('myVar')` | Via CML library |
+| `attributes.headers.X` | `cml.header('X')` | Via CML library |
+| `attributes.queryParams.X` | `cml.header('X')` | Query params are headers in Camel |
+| `p('config.key')` | `cml.properties('config.key')` | Property placeholders |
+| `flowVars.x` (DW 1.0) | `cml.variable('x')` | Mule 3.x flow vars |
+
+#### Operators
+
+| DataWeave | DataSonnet | Notes |
+|-----------|-----------|-------|
+| `"a" ++ " " ++ "b"` | `"a" + " " + "b"` | `++` → `+` for string concat |
+| `+`, `-`, `*`, `/` | `+`, `-`, `*`, `/` | Same |
+| `==`, `!=`, `>`, `<`, `>=`, `<=` | `==`, `!=`, `>`, `<`, `>=`, `<=` | Same |
+| `and`, `or`, `not` | `&&`, `\|\|`, `!` | Symbolic operators |
+
+#### Null handling & defaults
+
+| DataWeave | DataSonnet |
+|-----------|-----------|
+| `payload.x default "y"` | `cml.default(body.x, "y")` |
+| `payload.x default 0` | `cml.default(body.x, 0)` |
+| `if (payload.x != null) payload.x else "y"` | `if body.x != null then body.x else "y"` |
+
+#### Type coercion
+
+| DataWeave | DataSonnet |
+|-----------|-----------|
+| `payload.x as Number` | `cml.toInteger(body.x)` or `cml.toDecimal(body.x)` |
+| `payload.x as String` | `std.toString(body.x)` |
+| `payload.x as String {format: "yyyy-MM-dd"}` | `cml.formatDate(body.x, "yyyy-MM-dd")` |
+
+#### Collections
+
+| DataWeave | DataSonnet |
+|-----------|-----------|
+| `arr map ((item) -> expr)` | `std.map(function(item) expr, arr)` or `[expr for item in arr]` |
+| `arr map ((item, idx) -> expr)` | `std.mapWithIndex(function(item, idx) expr, arr)` |
+| `arr filter ((item) -> cond)` | `std.filter(function(item) cond, arr)` |
+| `arr reduce ((item, acc = 0) -> expr)` | `std.foldl(function(acc, item) expr, arr, 0)` — **acc and item are swapped!** |
+| `arr flatMap ((item) -> expr)` | `std.flatMap(function(item) expr, arr)` |
+| `sizeOf(arr)` | `std.length(arr)` |
+| `arr distinctBy ((item) -> item.id)` | Manual `std.foldl` or `camel.distinct(arr)` if using `camel.libsonnet` |
+| `arr groupBy ((item) -> item.cat)` | `camel.groupBy(arr, function(item) item.cat)` via `camel.libsonnet` |
+| `arr orderBy ((item) -> item.name)` | `std.sort(arr, function(a, b) a.name < b.name)` |
+
+**Important:** In `std.foldl`, the parameter order is `function(accumulator, item)` — the **opposite** of DataWeave's `reduce ((item, accumulator) -> ...)`.
+
+#### String functions
+
+| DataWeave | DataSonnet |
+|-----------|-----------|
+| `upper(s)` | `std.asciiUpper(s)` |
+| `lower(s)` | `std.asciiLower(s)` |
+| `trim(s)` | `std.stripChars(s, " \t\n\r")` |
+| `s contains "sub"` | `std.length(std.findSubstr("sub", s)) > 0` |
+| `s splitBy ","` | `std.split(s, ",")` |
+| `arr joinBy ","` | `std.join(",", arr)` |
+
+#### Date/time
+
+| DataWeave | DataSonnet |
+|-----------|-----------|
+| `now()` | `cml.now()` |
+| `now() as String {format: "..."}` | `cml.now("...")` |
+| `uuid()` | `cml.uuid()` |
+
+#### Conditionals
+
+| DataWeave | DataSonnet |
+|-----------|-----------|
+| `if (cond) val1 else val2` | `if cond then val1 else val2` |
+| `payload.x match { case is String -> ... }` | `if std.isString(body.x) then ... else ...` |
+
+#### Header & output format
+
+| DataWeave | DataSonnet |
+|-----------|-----------|
+| `%dw 2.0` | `/** DataSonnet` |
+| `output application/json` | `version=2.0` |
+| | `output application/json */` |
+
+### Full Conversion Example
 
 **DataWeave 2.0:**
 ```dataweave
@@ -75,221 +176,130 @@ When replacing a DataWeave transformation, choose the approach based on complexi
 output application/json
 ---
 {
-  orderId: payload.order_id,
-  customerName: payload.customer.name
+    orderId: payload.order_id,
+    customerName: payload.customer.first_name ++ " " ++ payload.customer.last_name,
+    items: payload.line_items map ((item) -> {
+        sku: item.product_sku,
+        quantity: item.qty as Number,
+        unitPrice: item.unit_price as Number,
+        lineTotal: (item.qty as Number) * (item.unit_price as Number)
+    }),
+    totalAmount: payload.line_items reduce ((item, acc = 0) ->
+        acc + ((item.qty as Number) * (item.unit_price as Number))
+    ),
+    currency: payload.currency default "USD",
+    correlationId: vars.correlationId,
+    orderDate: now() as String {format: "yyyy-MM-dd'T'HH:mm:ss'Z'"},
+    status: "RECEIVED"
 }
 ```
 
-**TDD Section 3.2 Row:**
+**Equivalent DataSonnet:**
+```datasonnet
+/** DataSonnet
+version=2.0
+output application/json
+*/
+{
+    orderId: body.order_id,
+    customerName: body.customer.first_name + " " + body.customer.last_name,
+    items: std.map(function(item) {
+        sku: item.product_sku,
+        quantity: cml.toInteger(item.qty),
+        unitPrice: cml.toDecimal(item.unit_price),
+        lineTotal: cml.toInteger(item.qty) * cml.toDecimal(item.unit_price)
+    }, body.line_items),
+    totalAmount: std.foldl(function(acc, item)
+        acc + (cml.toInteger(item.qty) * cml.toDecimal(item.unit_price)),
+        body.line_items, 0),
+    currency: cml.default(body.currency, "USD"),
+    correlationId: cml.variable('correlationId'),
+    orderDate: cml.now("yyyy-MM-dd'T'HH:mm:ss'Z'"),
+    status: "RECEIVED"
+}
+```
+
+**YAML DSL route:**
+```yaml
+- route:
+    id: order-ingestion
+    from:
+      uri: platform-http:/api/orders
+      steps:
+        - transform:
+            datasonnet:
+              expression: |
+                /** DataSonnet
+                version=2.0
+                output application/json
+                */
+                {
+                    orderId: body.order_id,
+                    customerName: body.customer.first_name + " " + body.customer.last_name,
+                    currency: cml.default(body.currency, "USD"),
+                    status: "RECEIVED"
+                }
+              outputMediaType: application/json
+```
+
+---
+
+## TDD Documentation
+
+Regardless of the chosen approach (DataSonnet, DataMapper, or Simple), document the transformation in the TDD so the intent is preserved:
+
+### Section 3.2 — Field Mapping Table (Migration Audit Trail)
 
 | Source Field | Target Field | Transformation | Type | Mule Origin |
 |---|---|---|---|---|
 | `order_id` | `orderId` | Direct Copy | String | `payload.order_id` |
-| `customer.name` | `customerName` | Direct Copy | String | `payload.customer.name` |
+| `customer.first_name` + `customer.last_name` | `customerName` | String concat | String | `payload.customer.first_name ++ " " ++ payload.customer.last_name` |
+| `currency` | `currency` | Default `"USD"` if null | String | `payload.currency default "USD"` |
 
----
+### Section 3.7 — Transformation Implementation
 
-### Pattern 2: Type Coercion
+Document the chosen approach:
 
-**DataWeave 2.0:**
-```dataweave
-amount: payload.amount as Number,
-createdAt: payload.created_ts as String {format: "yyyy-MM-dd"}
+```markdown
+### Transformation Approach
+
+**Approach:** DataSonnet (inline in YAML DSL)
+**Dependency:** `org.apache.camel:camel-datasonnet`
+**Script:** Inline `datasonnet:` expression in route step
+
+Converted from DataWeave 2.0 script in `<ee:transform>` element.
+Original DataWeave: [reference to Mule XML file and line number]
 ```
 
-**TDD Section 3.2 Row:**
+Or for Kaoto DataMapper:
 
-| Source Field | Target Field | Transformation | Type | Mule Origin |
-|---|---|---|---|---|
-| `amount` | `amount` | `as Number` | Number | `payload.amount as Number` |
-| `created_ts` | `createdAt` | Format `yyyy-MM-dd` | String (Date) | `payload.created_ts as String {format: "yyyy-MM-dd"}` |
+```markdown
+### Transformation Approach
 
----
-
-### Pattern 3: Conditional Mapping (`if/else` or `when/otherwise`)
-
-**DataWeave 1.0:**
-```dataweave
-status: payload.status when payload.status != null otherwise "PENDING"
+**Approach:** Kaoto DataMapper (visual XSLT)
+**Dependency:** `org.apache.camel:camel-xslt-saxon`
+**Schema source:** [source schema path]
+**Schema target:** [target schema path]
+**XSLT file:** `{flow-name}-transform.xsl` (generated by Kaoto DataMapper)
 ```
 
-**DataWeave 2.0:**
-```dataweave
-status: if (payload.status != null) payload.status else "PENDING"
-```
-
-**TDD Section 3.4 Row:**
-
-| Condition | Source Field | Target Field | True Value | False Value | Mule Origin |
-|---|---|---|---|---|---|
-| `status != null` | `status` | `status` | `${body.status}` | `"PENDING"` | `if (payload.status != null) payload.status else "PENDING"` |
-
 ---
 
-### Pattern 4: Array / Collection Iteration (`map`)
+## DataWeave Features → DataSonnet Equivalents
 
-**DataWeave 2.0:**
-```dataweave
-lineItems: payload.items map (item, index) -> {
-  seq: index + 1,
-  sku: item.product_code,
-  qty: item.quantity as Number,
-  price: item.unit_price as Number
-}
-```
+| DataWeave Feature | DataSonnet Equivalent | Complexity |
+|------------------|----------------------|------------|
+| `map` | `std.map` or array comprehension | Direct |
+| `filter` | `std.filter` | Direct |
+| `reduce` / `fold` | `std.foldl` (note: params swapped) | Direct |
+| `flatMap` | `std.flatMap` | Direct |
+| `groupBy` | `camel.groupBy` via `camel.libsonnet` | Direct |
+| `distinctBy` | `camel.distinct` via `camel.libsonnet` | Direct |
+| `orderBy` | `std.sort` with key function | Direct |
+| `sizeOf` | `std.length` | Direct |
+| `read` / `write` (format conversion) | Camel `marshal`/`unmarshal` step before/after transform | Route-level |
+| Custom DataWeave modules | Re-implement as `.libsonnet` files or Java beans | Manual |
+| Pattern matching (`match`) | Chained `if/then/else` | Manual |
+| Multi-value selector (`payload.*name`) | `std.map(function(x) x.name, payload)` | Manual |
 
-**TDD Section 3.5 Row:**
-
-| Collection Field | Item Field | Target Field | Transformation | Mule Origin |
-|---|---|---|---|---|
-| `items` | `product_code` | `lineItems[].sku` | Direct Copy | `item.product_code` |
-| `items` | `quantity` | `lineItems[].qty` | `as Number` | `item.quantity as Number` |
-| `items` | `unit_price` | `lineItems[].price` | `as Number` | `item.unit_price as Number` |
-| `items` | `$_index + 1` | `lineItems[].seq` | Index (1-based) | `index + 1` |
-
----
-
-### Pattern 5: String Functions
-
-**DataWeave 2.0:**
-```dataweave
-country: upper(payload.country_code),
-email: lower(trim(payload.email)),
-fullName: payload.firstName ++ " " ++ payload.lastName
-```
-
-**TDD Section 3.6 Row:**
-
-| Operation | Source | Function | Result | Mule Origin |
-|---|---|---|---|---|
-| Uppercase | `country_code` | `upper()` | `country` | `upper(payload.country_code)` |
-| Lowercase + Trim | `email` | `lower(trim())` | `email` | `lower(trim(payload.email))` |
-| Concatenation | `firstName`, `lastName` | `concat(" ")` | `fullName` | `payload.firstName ++ " " ++ payload.lastName` |
-
----
-
-### Pattern 6: Null / Default Handling
-
-**DataWeave 2.0:**
-```dataweave
-description: payload.description default "N/A",
-quantity: payload.qty default 1
-```
-
-**TDD Section 3.2 Row:**
-
-| Source Field | Target Field | Transformation | Type | Mule Origin |
-|---|---|---|---|---|
-| `description` | `description` | Default `"N/A"` if null | String | `payload.description default "N/A"` |
-| `qty` | `quantity` | Default `1` if null | Integer | `payload.qty default 1` |
-
----
-
-### Pattern 7: Nested Object Construction
-
-**DataWeave 2.0:**
-```dataweave
-address: {
-  street: payload.addr.line1,
-  city: payload.addr.city,
-  zip: payload.addr.postal_code
-}
-```
-
-**TDD Section 3.2 Rows (nested expressed with dot notation):**
-
-| Source Field | Target Field | Transformation | Type | Mule Origin |
-|---|---|---|---|---|
-| `addr.line1` | `address.street` | Direct Copy | String | `payload.addr.line1` |
-| `addr.city` | `address.city` | Direct Copy | String | `payload.addr.city` |
-| `addr.postal_code` | `address.zip` | Direct Copy | String | `payload.addr.postal_code` |
-
----
-
-### Pattern 8: Accessing Mule Variables / Attributes in DataWeave
-
-**DataWeave 1.0 (flowVars):**
-```dataweave
-correlationId: flowVars.correlationId
-```
-
-**DataWeave 2.0 (vars):**
-```dataweave
-correlationId: vars.correlationId
-```
-
-**TDD Section 3.2 Row:**
-
-| Source Field | Target Field | Transformation | Type | Mule Origin |
-|---|---|---|---|---|
-| `header.correlationId` | `correlationId` | Direct Copy (from Camel Header) | String | `vars.correlationId` → maps to Camel `${header.correlationId}` |
-
-**Note:** Mule flow variables (`vars.*`) map to Camel exchange headers (`${header.*}`). When documenting in TDD Section 3.2, use the Camel header notation in the Source Field column.
-
----
-
-### Pattern 9: Input from HTTP Attributes (Mule 4.x)
-
-**DataWeave 2.0:**
-```dataweave
-contentType: attributes.headers.'Content-Type',
-queryParam: attributes.queryParams.filter
-```
-
-**TDD Section 3.2 Row:**
-
-| Source Field | Target Field | Transformation | Type | Mule Origin |
-|---|---|---|---|---|
-| `header.Content-Type` | `contentType` | Direct Copy | String | `attributes.headers.'Content-Type'` |
-| `header.filter` (query param) | `queryParam` | Direct Copy | String | `attributes.queryParams.filter` |
-
-**Note:** Mule `attributes.queryParams.*` are available in Camel as `${header.*}` when using `platform-http` consumer (query params are promoted to headers).
-
----
-
-## How to Extract Field Mappings from a DataWeave Script
-
-When you encounter a DataWeave script during migration analysis, follow this process:
-
-1. **Identify the output structure** — the top-level keys define target fields.
-2. **Trace each value expression** to its source:
-   - `payload.x` → source field `x` from message body
-   - `vars.x` → source from Camel header `x`
-   - `attributes.headers.X` → source from Camel header `X`
-   - `attributes.queryParams.x` → source from Camel header `x`
-3. **Classify the transformation type:**
-   - Literal value → use `constant(...)` in Camel
-   - Function call (`upper`, `lower`, `trim`) → Section 3.6
-   - Conditional (`if/else`, `when/otherwise`) → Section 3.4
-   - Array `map` → Section 3.5
-   - Type coercion (`as String`, `as Number`) → Section 3.2 Transformation column
-   - Direct copy → Section 3.2 with "Direct Copy"
-4. **For scripts too complex to decompose:** Flag them with a comment in the TDD and recommend generating a Groovy or XSLT script manually. Document the intended transformation in plain English so the developer can implement it.
-
----
-
-## XSLT Generation Note
-
-When the TDD Section 3.2–3.6 tables are complete, `/camel-implement` will read them and generate:
-- An XSLT stylesheet (for XML→XML transformations)
-- Or a Groovy script skeleton (for JSON transformations not expressible in XSLT)
-- Or simple Camel DSL `setBody`/`setHeader` calls (for simple mappings)
-
-The richer and more complete the TDD mapping tables, the more accurate the generated implementation will be.
-
----
-
-## DataWeave Features Without a Simple Camel Equivalent
-
-| DataWeave Feature | Complexity | Recommended Approach |
-|------------------|------------|---------------------|
-| `groupBy` | High | Implement as Camel `aggregate` EIP + custom `AggregationStrategy`, or Groovy |
-| `reduce` / `fold` | High | Groovy script or custom Camel Processor |
-| `distinctBy` | Medium | Groovy or custom Processor |
-| `orderBy` | Medium | Groovy or custom Processor |
-| `dw::core::Strings` functions | Low–Medium | XSLT string functions or Groovy |
-| `dw::core::Arrays` (zip, flatten) | Medium | Groovy or custom Processor |
-| `read` / `write` (inline format conversion) | High | Camel `marshal`/`unmarshal` + intermediate route |
-| Custom DataWeave modules | High | Must be re-implemented; discuss with development team |
-
-When these patterns are found, add a TODO note in the relevant TDD section and flag for development team attention.
+**Note:** With DataSonnet, `groupBy`, `reduce`, `distinctBy`, and `orderBy` all have direct equivalents — these no longer need Groovy scripts or custom Processors as the previous version of this guide recommended.
