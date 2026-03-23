@@ -14,6 +14,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.nio.file.FileSystem;
@@ -372,6 +373,10 @@ public class InitCommand extends CamelKitCommand {
                                 Files.copy(in, destination, StandardCopyOption.REPLACE_EXISTING);
                                 filesCopied++;
                             }
+                            // Append platform-specific dispatch block to SKILL.md
+                            if (destination.getFileName().toString().equals("SKILL.md")) {
+                                appendDispatchBlock(destination, ai);
+                            }
                         }
                     } catch (Exception e) {
                         // Silent skip - this is expected for some paths
@@ -399,6 +404,21 @@ public class InitCommand extends CamelKitCommand {
                     // Ignore close errors
                 }
             }
+        }
+    }
+
+    /**
+     * Append the platform-specific dispatch block to a SKILL.md file.
+     * Reads the dispatch template for the selected agent and appends it.
+     */
+    private void appendDispatchBlock(Path skillMdFile, String agentName) throws Exception {
+        String dispatchTemplatePath = "templates/dispatch/" + agentName + ".md";
+        try {
+            String dispatchBlock = TemplateUtils.readTemplate(dispatchTemplatePath);
+            String existing = Files.readString(skillMdFile);
+            Files.writeString(skillMdFile, existing + "\n---\n\n" + dispatchBlock);
+        } catch (IOException e) {
+            // Dispatch template not found — skill works without it (fallback to monolithic mode)
         }
     }
 
