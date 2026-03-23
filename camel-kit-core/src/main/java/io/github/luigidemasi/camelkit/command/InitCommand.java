@@ -168,6 +168,13 @@ public class InitCommand extends CamelKitCommand {
         copySkills(agentBaseDir.resolve("skills"));
         tracker.finishTask();
 
+        // 4b — Qwen agent registration
+        if ("qwen".equals(ai)) {
+            tracker.startTask("\uD83E\uDD16", "Generating Qwen sub-agents");
+            generateQwenAgents(targetDir, agentBaseDir.resolve("skills"));
+            tracker.finishTask();
+        }
+
         // 5 — MCP + Maven Wrapper
         tracker.startTask("🔌", "Configuring MCP & Maven wrapper");
         createMavenWrapper(targetDir);
@@ -419,6 +426,53 @@ public class InitCommand extends CamelKitCommand {
             Files.writeString(skillMdFile, existing + "\n---\n\n" + dispatchBlock);
         } catch (IOException e) {
             // Dispatch template not found — skill works without it (fallback to monolithic mode)
+        }
+    }
+
+    /**
+     * For Qwen Code: generate pre-registered sub-agent definitions in .qwen/agents/.
+     * Each agent inlines a specific guide file as its system prompt.
+     */
+    private void generateQwenAgents(Path projectDir, Path skillsDir) throws Exception {
+        Path agentsDir = projectDir.resolve(".qwen/agents");
+        Files.createDirectories(agentsDir);
+
+        int agentCount = 0;
+        if (!Files.exists(skillsDir)) {
+            return;
+        }
+
+        try (var stream = Files.walk(skillsDir)) {
+            var guidePaths = stream
+                .filter(p -> p.toString().contains("/guides/"))
+                .filter(p -> p.toString().endsWith(".md"))
+                .toList();
+
+            for (Path guidePath : guidePaths) {
+                String guideContent = Files.readString(guidePath);
+                String guideName = guidePath.getFileName().toString().replace(".md", "");
+                String agentName = "camel-" + guideName;
+                String description = "Camel Kit sub-agent for " + guideName.replace("-", " ");
+
+                // Use string concatenation to avoid IllegalFormatException
+                // if guideContent contains % characters
+                String agentDef = "---\n"
+                    + "name: " + agentName + "\n"
+                    + "description: " + description + "\n"
+                    + "tools:\n"
+                    + "  - read\n"
+                    + "  - write\n"
+                    + "  - edit\n"
+                    + "---\n\n"
+                    + guideContent;
+
+                Files.writeString(agentsDir.resolve(agentName + ".md"), agentDef);
+                agentCount++;
+            }
+        }
+
+        if (agentCount > 0) {
+            printer().println(green("✓") + " Generated " + agentCount + " Qwen sub-agent definitions");
         }
     }
 
