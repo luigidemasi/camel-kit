@@ -45,14 +45,20 @@ Assign these as context variables for all subsequent steps:
 ### Step 1: DataMapper (CONDITIONAL)
 
 **IF** the TDD contains `### DataMapper: kaoto-datamapper-{id}` sections:
-- Load `guides/datamapper-implement.md` for **each** DataMapper section
+- Load `guides/datamapper-validation.md` (shared — Steps 1, 1.5, 2, 3.5, 5-7)
+- Based on XSLT Approach in TDD:
+  - Approach A or N/A → also load `guides/datamapper-approach-a.md` (Steps 3, 4)
+  - Approach B → also load `guides/datamapper-approach-b.md` (Steps 3, 4)
 - Pass: `FLOW_NAME`, file locations from the table above
 
 **SKIP** if no DataMapper sections exist in the TDD.
 
 ### Step 2: Route Generation (ALWAYS)
 
-- Load `guides/route-generation.md`
+- Load `guides/component-loading.md` (Step 2: component documentation)
+- Load `guides/yaml-catalog-rules.md` (Rules 0-0h: catalog verification rules)
+- Load `guides/yaml-structure.md` (Step 3: route structure and generation)
+- Load `guides/route-validation.md` (Step 4: validation loop)
 - Pass:
   - `FLOW_NAME`
   - `ROUTE_DIR` (from path table)
@@ -114,7 +120,7 @@ Assign these as context variables for all subsequent steps:
 - Load `guides/sequential-http-calls.md` for detailed implementation guidance
 - Apply header sanitization rules between HTTP endpoints
 
-**Note:** Rule 0e in `route-generation.md` already enforces the basic `removeHeaders` pattern inline during route generation. This guide provides additional context, edge cases, and examples beyond the inline rule.
+**Note:** Rule 0e in `yaml-catalog-rules.md` already enforces the basic `removeHeaders` pattern inline during route generation. This guide provides additional context, edge cases, and examples beyond the inline rule.
 
 **SKIP** if the route does not involve multiple HTTP endpoints.
 
@@ -232,7 +238,7 @@ Generated Files:
 
   ✓ DataMapper artifacts [IF Step 1 ran]
     Location: {ROUTE_DIR}
-    See datamapper-implement.md Step 7 checklist for details
+    See datamapper-validation.md Step 7 checklist for details
 
   ✓ application.properties
     Location: {PROPS_DIR}
