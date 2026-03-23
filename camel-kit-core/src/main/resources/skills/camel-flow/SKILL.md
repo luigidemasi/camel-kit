@@ -3,23 +3,15 @@ name: camel-flow
 description: Design integration flows when user wants to create TDD, define data flow, specify source and sink systems, plan transformations, or architect message routing
 user-invocable: true
 metadata:
-  version: "1.0.0"
+  version: "2.0.0"
   author: "camel-kit"
   category: "integration"
   license: "Apache-2.0"
 ---
 
-# Camel Flow - Technical Design Document Creation
+# Camel Flow - Orchestrator
 
-You are acting as a **Business Analyst and Integration Architect** helping the user design a specific integration flow.
-
-## Role and Approach
-
-- Bridge business requirements with technical implementation
-- Ask clear technical questions about sources, sinks, and transformations
-- Load detailed guides **only when needed** to save tokens. **"Load" means READ and FOLLOW:** when this document says "Load `guides/xyz.md`", read that file from the `guides/` subdirectory next to this SKILL.md and execute its instructions. The guide files are always present — do NOT report them as missing.
-- Suggest appropriate Apache Camel components based on requirements
-- Document technical decisions with clear rationale
+You are an orchestrator designing an integration flow. You conduct an interactive interview with the user to gather requirements, then dispatch sub-agents for computational steps (component lookup, transformation design, TDD assembly).
 
 ## Parameters
 
@@ -29,540 +21,175 @@ You are acting as a **Business Analyst and Integration Architect** helping the u
 
 Example: `/camel-flow order-to-warehouse`
 
----
-
-## Context Loading
+## Context Loading (do this first)
 
 **ALWAYS read at the start:**
 1. `docs/business-requirements.md` - Business context (REQUIRED)
 2. `docs/constitution.md` - Best practices. If missing, copy from `templates/constitution.md` and continue.
-3. `.camel-kit/config.yaml` - **REQUIRED** — extract `project.camelVersion` as `CAMEL_VERSION` and `project.runtime` as `RUNTIME`. Then derive `PLATFORM_BOM` from `CAMEL_VERSION` + `RUNTIME` using the version mapping table in `skills/shared/mcp-setup.md`. All MCP catalog calls must pass `camelVersion`, `platformBom`, and `runtime`. If the file does not exist, ask the user for the Camel version before proceeding.
-
-**On-Demand Guides (load ONLY when needed):**
-- `guides/data-formats.md` - If user asks about format choice
-- `guides/integration-patterns.md` - If user unsure about pattern
-- `guides/eip-catalog.md` - If user unsure about transformations
-- `guides/performance.md` - If high throughput/latency mentioned
-- `guides/security.md` - If security/compliance mentioned
-- `guides/monitoring.md` - If observability needed
-
-**Component selection (Questions 2 and 4) — MANDATORY:**
-- **Primary:** Call `camel_catalog_components` + `camel_catalog_component_doc` directly (with `CAMEL_VERSION`). Do not suggest component names from training data before attempting the catalog call.
-- **Fallback (tool call failed):** Load from `skills/camel-component-[name]/SKILL.md`. Warn if no bundled skill exists.
-
----
-
-## MCP Server Configuration (Recommended)
-
-→ **For MCP setup, version mapping, and fallback policy:** see `skills/shared/mcp-setup.md`
-
-The Camel MCP server provides catalog query capabilities for this skill:
-- **Component Search** (`camel_catalog_components`) - Find components available in the project Camel version
-- **Component Documentation** (`camel_catalog_component_doc`) - Full docs, options, and Maven coords for a specific component
-- **Data Format List** (`camel_catalog_dataformats`) - All data formats available in the project Camel version
-- **Data Format Documentation** (`camel_catalog_dataformat_doc`) - Full docs, options, and Maven coords for a specific data format
-- **Language List** (`camel_catalog_languages`) - All expression languages available in the project Camel version
-- **Language Documentation** (`camel_catalog_language_doc`) - Full docs, syntax, and Maven coords for a specific expression language
-- **EIP List** (`camel_catalog_eips`) - All Enterprise Integration Patterns available in the project Camel version, filterable by category
-- **EIP Documentation** (`camel_catalog_eip_doc`) - Full options and YAML DSL usage for a specific EIP
-
-All catalog calls MUST pass `camelVersion`, `platformBom`, and `runtime`. Derive `PLATFORM_BOM` from `CAMEL_VERSION` + `RUNTIME` using the version mapping table in `skills/shared/mcp-setup.md`. Never pass the raw version or a stripped minor version directly.
-
----
+3. `.camel-kit/config.yaml` - **REQUIRED** - extract `project.camelVersion` as `CAMEL_VERSION` and `project.runtime` as `RUNTIME`. If the file does not exist, ask the user for the Camel version before proceeding.
 
 ## Check for Existing TDD
 
-First, check if `docs/flows/{flow-name}/{flow-name}.tdd.md` exists.
+Check if `docs/flows/{flow-name}/{flow-name}.tdd.md` exists.
 
-If exists:
-```
-Found existing TDD for '{flow-name}'.
-
-Would you like to:
+If exists, ask:
 1. Update existing TDD
 2. Start fresh
 3. Review and continue to implementation
-```
 
----
-
-## Interview Process
+## Interview (conversational - stay in main context)
 
 Ask **ONE question at a time**. Wait for response before proceeding.
 
 ### Introduction
 
-```
 Based on the Business Requirements Document:
+- Flow: {flow-name}
+- Purpose: [extract from BRD if available]
 
-Flow: {flow-name}
-Purpose: [extract from BRD if available]
+### Step 0 - Target Runtime
 
-I'll ask technical questions to create the TDD.
-```
+If `project.runtime` is not set in `.camel-kit/config.yaml`, ask:
+- (a) Camel JBang (lightweight) - recommended for prototyping
+- (b) Spring Boot (Maven layout)
+- (c) Quarkus (Maven layout)
 
----
-
-### Step 0 — Target Runtime
-
-Before starting the design interview, check if `project.runtime` is set in `.camel-kit/config.yaml`. If not, ask:
-
-```
-What is the target runtime for this integration?
-
-(a) Camel JBang (lightweight, flat project structure) — recommended for prototyping
-(b) Spring Boot (Maven layout: src/main/resources/)
-(c) Quarkus (Maven layout: src/main/resources/)
-```
-
-Store the answer in `.camel-kit/config.yaml` as `project.runtime: jbang | spring-boot | quarkus`.
-
-If already set, skip this question.
-
----
+Store answer in `.camel-kit/config.yaml` as `project.runtime`. If already set, skip.
 
 ### Question 1: Flow Intent and Data
 
-```
-What data does this flow process, and what is the goal?
-
-Describe:
+Ask: What data does this flow process, and what is the goal?
 - Data type (e.g., "Order events", "Customer records")
 - Format (e.g., JSON, XML, CSV)
 - Goal (e.g., "Store in database", "Send to queue")
 
-Example: "Process JSON order events and insert into warehouse database."
-```
-
-**After response — data format lookup (MANDATORY):**
-
-→ **Load `guides/catalog-lookups.md` (Data Format Lookup section)** and execute the data format verification procedure with the format mentioned by the user.
-
-**If user uncertain about format choice:**
-→ Show the list from `camel_catalog_dataformats`, optionally load `guides/data-formats.md` for comparison guidance, then ask the user to choose.
-
----
+After response: note the data format for **Step A (component/format lookup)**.
 
 ### Question 2: Source System
 
-```
-Where does the data come from?
-
+Ask: Where does the data come from?
 - System name (e.g., "Shopify", "Kafka topic")
 - Technology (e.g., "Kafka", "REST API", "File")
 - Trigger (e.g., "New messages", "Polling every 5s")
 
-Example: "Kafka topic 'orders', consuming new messages as they arrive"
-```
-
-**After response — select source component (MANDATORY):**
-
-→ **Load `guides/component-selection.md`** and execute the component selection procedure with:
-- `SYSTEM_DESCRIPTION`: the user's source system description
-- `SYSTEM_ROLE`: "source"
-- `CAMEL_VERSION`: from `.camel-kit/config.yaml`
-
-**After user confirms component:**
-
-**If user unsure about integration pattern:**
-→ **Load `guides/integration-patterns.md`**
-→ Help classify pattern (Event-Driven, Request-Reply, Batch, Stream)
-
----
+After response: note source system details for **Step A (component selection)**.
 
 ### Question 3: Transformations
 
-```
-What transformations or business rules are needed?
+Ask: What transformations or business rules are needed?
+- Parse JSON/XML, Validate fields, Filter messages, Enrich with data
+- Transform/map message format, Route by condition, or None
 
-Examples:
-- Parse JSON/XML
-- Validate fields
-- Filter messages
-- Enrich with data
-- Transform/map message format
-- Route by condition
-- None (data passes through as-is)
+If "none"/passthrough: skip Question 3a, proceed to Question 4.
+If transformations needed: note for **Step B (EIP lookup)** and **Step C (datamapper interview)** if field mapping is involved.
 
-Describe your processing steps, or say "none" if data flows through unchanged.
-```
+### Question 3a: Data Transformation (Conditional)
 
-**If user says "none", "no transformations", "passthrough", or similar:**
-
-```
-Noted. Data passes through from source to sink unchanged.
-No transformations will be documented in the TDD.
-```
-
-Skip Question 3a (DataMapper) and all catalog lookups. Proceed directly to Question 4.
-
-**After response (if transformations ARE needed):**
-
-→ **Load `guides/catalog-lookups.md` (EIP Lookup section)** and execute the EIP verification procedure for each transformation mentioned.
-
-→ **Load `guides/catalog-lookups.md` (Expression Language Lookup section)** and execute the expression language selection procedure for any EIP that requires an expression.
-
-**If user unsure about EIP patterns:**
-→ Query `camel_catalog_eips` for relevant categories first, then optionally load `guides/eip-catalog.md` for higher-level guidance.
-
-Do NOT include `unmarshal` or `marshal` steps unless the user explicitly said they need typed Java objects. Prefer Kaoto DataMapper via `camel-datamapper-interview`.
-
----
-
-### Question 3a: Data Transformation & Field Mapping (Conditional)
-
-**ONLY invoke if user mentioned data transformation, field mapping, or format conversion in Question 3 AND the format pair is XML→XML, JSON→JSON, JSON→XML, or XML→JSON.**
-
-→ **Load `guides/datamapper-interview.md`** and follow all steps in that guide, passing the flow name, source format, and target format as context.
-
-The guide will:
-1. Collect source and target schemas (XSD / JSON Schema)
-2. Collect Camel Variables/Headers used as mapping parameters
-3. Auto-map exact field name matches and propose inferred mappings
-4. Gather conditional and collection mapping requirements
-5. Canonicalize field mappings with XSLT-ready Source XPaths and Target Elements (via `skills/shared/datamapper-canonicalize.md`)
-6. Confirm enriched mapping table with user
-7. Append a canonical `### DataMapper: kaoto-datamapper-{id}` section to the TDD
-
-**After the guide completes**, resume this interview at Question 4.
-
-**Use `unmarshal`/`marshal` ONLY as a fallback** when the format pair does not match any of the four DataMapper-supported combinations, or when the user explicitly requires Java-level processing.
-
-When `unmarshal`/`marshal` IS required, call `camel_catalog_dataformat_doc` for the chosen data format (e.g. `jackson`, `jaxb`, `csv`) with `CAMEL_VERSION` to get the exact Maven coordinates, configuration options, and class model requirements before documenting them in the TDD.
-
----
+ONLY if user mentioned data transformation/field mapping AND format pair is XML/JSON combinations (XML->XML, JSON->JSON, JSON->XML, XML->JSON).
+Note for **Step C (datamapper interview)**.
 
 ### Question 4: Sink System
 
-```
-Where should the processed data go?
-
+Ask: Where should the processed data go?
 - System name (e.g., "PostgreSQL", "Fulfillment queue")
 - Technology (e.g., "SQL", "Kafka", "HTTP POST")
 - Action (e.g., "INSERT INTO", "POST to API")
 
-Example: "PostgreSQL 'warehouse' database, INSERT into orders table"
-```
-
-**After response — select sink component (MANDATORY):**
-
-→ **Load `guides/component-selection.md`** and execute the component selection procedure with:
-- `SYSTEM_DESCRIPTION`: the user's sink system description
-- `SYSTEM_ROLE`: "sink"
-- `CAMEL_VERSION`: from `.camel-kit/config.yaml`
-
----
+After response: note sink system details for **Step A (component selection)**.
 
 ### Question 4a: Multi-Path Routing (Conditional)
 
-**ONLY ask if** the user's answers to Q3 (Transformations) or Q4 (Sink) indicate multiple destinations, conditional routing, or fan-out (e.g., "route to different systems based on type", "send to both Kafka and database", "notify multiple services").
-
-```
-Does data need to be routed to different destinations based on conditions?
-
-Examples:
-- "Priority orders go to express queue, standard to normal queue"
-- "Send to both database AND notification service"
-- "Route by region: EU to one endpoint, US to another"
-
-Describe the routing conditions and each destination, or say "no" if
-all data goes to the single sink above.
-```
-
-**If user describes multiple paths:**
-
-For each additional sink, execute the component selection procedure:
-→ **Load `guides/component-selection.md`** with `SYSTEM_ROLE = "sink"` for each additional destination.
-
-Document in TDD "Processing Steps" section as a `choice` or `multicast` EIP:
-- **choice**: conditional routing (different destinations based on conditions)
-- **multicast**: fan-out (same message to multiple destinations)
-
-→ **Load `guides/catalog-lookups.md` (EIP Lookup section)** to verify the EIP.
-
-**If user says "no":** Skip to Question 5.
-
----
+ONLY if user indicated multiple destinations or conditional routing.
+Ask about routing conditions and each destination.
 
 ### Question 5: Error Handling
 
-```
-What should happen when errors occur?
-
-Options:
+Ask: What should happen when errors occur?
 1. Dead Letter Channel - Failed messages to error queue
 2. Retry with backoff - Retry N times, then DLQ
 3. Log and continue - Log error, keep processing
 4. Stop route - Halt on error
 
-Your preference?
-```
+Suggest DLQ with retry policy: maximumRedeliveries=3, redeliveryDelay=1000ms, backOffMultiplier=2, useExponentialBackOff=true.
 
-**Suggest based on response and document retry policy in TDD:**
-
-```
-Recommended:
-
-Strategy: Dead Letter Channel
-DLQ: [component]:{{dlq.endpoint}}
-
-Retry policy (document in TDD "Error Handling" section):
-- maximumRedeliveries: 3
-- redeliveryDelay: 1000ms
-- backOffMultiplier: 2  (1s → 2s → 4s)
-- useExponentialBackOff: true
-
-Logging: Error details with correlation ID
-```
-
-**Retry policy guidance:**
-- Max 3–5 retries for transient failures; exponential backoff to avoid thundering-herd
-- Keep retry delays short (< 30 s) — Camel blocks a thread during retry
-- For long-delay retries, prefer dead-letter reprocessing via an external scheduler
-
----
-
-### Resilience Sub-Questions (Conditional)
-
-→ **Load `guides/resilience-interview.md`** and ask the applicable sub-questions based on:
-- **Q5b Circuit Breaker:** if source or sink involves external HTTP/REST API
-- **Q5c Idempotent Consumer:** if source is a message broker or user mentioned deduplication
-- **Q5d Transactions:** if flow writes to more than one external system
-
-If none of these conditions apply, skip directly to Question 6.
-
----
+Resilience sub-questions (conditional):
+- If source/sink involves external HTTP/REST API -> circuit breaker (Step D)
+- If source is a message broker or user mentioned deduplication -> idempotent consumer (Step D)
+- If flow writes to more than one external system -> transactions (Step D)
 
 ### Mid-Interview Checkpoint
 
-After completing Questions 1–5 (core flow design), save a draft TDD to `docs/flows/{flow-name}/{flow-name}.tdd.draft.md` containing the data collected so far (source, sink, transformations, error handling). This allows resuming the interview if the session is interrupted.
+Save draft to `docs/flows/{flow-name}/{flow-name}.tdd.draft.md` with data collected so far. If this file already exists when starting, offer to resume.
 
-If this file already exists when starting the interview, offer to resume from where the draft left off.
+### Question 6: Performance (Conditional)
 
----
-
-### Question 6: Performance & Throughput (Conditional)
-
-**Ask ONLY if user mentioned:**
-- "High volume" / ">100 messages/second"
-- "Fast" / "real-time" / "low latency"
-- "Performance" / "throughput"
-- "Kubernetes" / "cloud" / "scale" / "replicas"
-
-**If mentioned, ask:**
-
-```
-What are your performance requirements?
-
-- Expected throughput: [N] messages/second
-- Latency target: [N] milliseconds
-- Deployment target: single instance or Kubernetes (multiple replicas)?
-- Can afford message loss? (yes/no)
-```
-
-**Then load:**
-→ `guides/performance.md`
-→ Show throughput classification, throttling configuration, and Kubernetes scaling guidance
-
-**Throttling guidance (document in TDD if high-throughput):**
-- Apply `throttle` EIP when consuming from unbounded sources to protect downstream systems
-- Strategies: reject (strict SLA), block (internal), delay (batch), degrade (graceful)
-- For Kafka: match `consumersCount` to partition count; `consumersCount × pod replicas` must not exceed partition count
-
-**Kubernetes guidance (document in TDD if cloud deployment):**
-- Externalise all config via environment variables or ConfigMaps
-- Implement liveness + readiness health probes (`/q/health/live`, `/q/health/ready`)
-- Use Kubernetes Secrets for credentials — never hardcode in YAML
-
-**If NOT mentioned:**
-→ Skip to Question 7
-
----
+ONLY if user mentioned high volume, real-time, latency, Kubernetes, scale.
+Ask about throughput, latency target, deployment target. Note for **Step E (performance guide)**.
 
 ### Question 7: Security (Conditional)
 
-**Ask ONLY if user mentioned:**
-- "Security" / "authentication"
-- "PII" / "sensitive data"
-- "Compliance" / "GDPR" / "HIPAA" / "PCI-DSS"
-- "Credentials" / "secrets"
-
-**If mentioned, ask:**
-
-```
-What are your security requirements?
-
-- Authentication method
-- Sensitive data fields
-- Compliance requirements
-```
-
-**Then load:**
-→ `guides/security.md`
-→ Show authentication methods and data protection
-
-**If NOT mentioned:**
-→ Skip to Question 8
-
----
+ONLY if user mentioned security, PII, compliance, credentials.
+Ask about auth method, sensitive fields, compliance. Note for **Step F (security guide)**.
 
 ### Question 8: Monitoring (Conditional)
 
-**Ask ONLY if user mentioned:**
-- "Monitoring" / "metrics"
-- "Logging" / "tracing"
-- "Observability" / "debugging"
-
-**If mentioned, ask:**
-
-```
-What monitoring do you need?
-
-- Metrics to track
-- Logging requirements
-- Distributed tracing
-```
-
-**Then load:**
-→ `guides/monitoring.md`
-→ Show correlation IDs, metrics, and health checks
-
-**If NOT mentioned:**
-→ Use standard monitoring approach
-
----
+ONLY if user mentioned monitoring, metrics, logging, tracing.
+Ask about metrics, logging, distributed tracing. Note for **Step G (monitoring guide)**.
 
 ### Question 9: Configuration Summary
 
-```
-Configuration properties needed:
+Summarize all configuration properties needed based on interview answers. Ask if any additional properties are needed.
 
-Based on our discussion:
-- Source: {component} connection details
-- Sink: {component} connection details
-- Processing: [list parameters]
-- Error handling: DLQ endpoint, retry config
-[+ Circuit breaker thresholds — if Q5b selected]
-[+ Idempotent repository config — if Q5c selected]
-[+ Transaction manager ref — if Q5d selected]
-[+ Performance config — if Q6 triggered]
-[+ Security credentials — if Q7 triggered]
-[+ Monitoring config — if Q8 triggered]
+## Computational Steps (dispatch to sub-agents)
 
-Any additional properties? (specify or say "no")
-```
+After the interview, dispatch sub-agents for the heavy lifting. Create `docs/flows/{flow-name}/.steps/` for intermediate outputs.
 
----
+### Guide Manifest
 
-## Constitution Gate Check
+| Step | Guide | Shared Guide | ~Tokens | When |
+|------|-------|-------------|---------|------|
+| A | guides/component-selection.md | shared/mcp-setup.md | 2.1K | Always |
+| A | guides/catalog-lookups.md | shared/mcp-setup.md | 2.4K | Always |
+| A | guides/data-formats.md | - | 0.6K | Format choice unclear |
+| B | guides/eip-catalog.md | - | 2.3K | Transformations needed |
+| B | guides/integration-patterns.md | - | 1K | Complex patterns |
+| C | guides/datamapper-interview.md | shared/datamapper-canonicalize.md | 4.9K | Field mapping needed |
+| D | guides/resilience-interview.md | - | 0.8K | Circuit breaker/idempotent/tx needed |
+| E | guides/performance.md | - | 1.2K | Performance requirements |
+| F | guides/security.md | - | 1.2K | Security requirements |
+| G | guides/monitoring.md | - | 1.2K | Monitoring requirements |
+| H | guides/tdd-assembly.md | - | 1.5K | Always (final step) |
 
-Before creating TDD, verify design:
+### Context Passing
 
-```
-Checking against constitution...
+Include in each sub-agent prompt:
+- Flow name: {flow-name}
+- Camel version: from config.yaml
+- Runtime: from config.yaml
+- User answers relevant to this step
+- File paths of prior step outputs in `.steps/` (let sub-agent read them)
 
-✓ Route Structure: Single responsibility
-✓ Configuration: Externalized to properties
-✓ Error Handling: Dead Letter Channel configured
-✓ Security: No hardcoded credentials
-[+ Performance if applicable]
-[+ Compliance if applicable]
-```
+### Final Assembly
 
----
+After all computational steps complete, dispatch the tdd-assembly sub-agent (Step H) with all `.steps/` outputs to produce the final `docs/flows/{flow-name}/{flow-name}.tdd.md`.
 
-## Generate TDD
+Delete draft file if it exists.
 
-Create `docs/flows/{flow-name}/{flow-name}.tdd.md`:
+## Summary and Next Steps
 
-**Core Sections (always include):**
-1. Overview (business context, technical summary)
-2. Source System (component, URI, config)
-3. Processing Steps (EIPs, transformations)
-4. Sink System (component, URI, config)
-5. Error Handling (strategy, DLQ, retries)
-
-**Conditional Sections (include only if the corresponding question was answered affirmatively):**
-6. Resilience / Circuit Breaker (only if Q5b selected)
-7. Idempotent Consumer (only if Q5c selected)
-8. Transactions (only if Q5d selected)
-9. Performance & Reliability (only if Q6 triggered)
-10. Security (only if Q7 triggered)
-11. Monitoring & Observability (only if Q8 triggered)
-
-**Always include:**
-12. Sequence Diagram
-13. Configuration Properties
-14. Dependencies
-15. Constitution Gate Checks
-16. Testing Strategy (high-level test scenarios — `/camel-test` reads this as input)
-17. Implementation Checklist
-
-For TDD templates, use minimal structure unless specific requirements need detailed sections.
-
----
-
-## Summary and Save
+After TDD is saved, display:
 
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-TECHNICAL DESIGN SUMMARY
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TDD saved to docs/flows/{flow-name}/{flow-name}.tdd.md
 
-Flow: {flow-name}
-
-Source: [component]:{{source.endpoint}}
-Processing: [list EIPs]
-Sink: [component]:{{sink.endpoint}}
-Error: [strategy] → {{dlq.endpoint}}
-[Performance: {throughput} msg/sec, {latency}ms - if applicable]
-[Security: {methods} - if applicable]
-[Monitoring: {approach} - if applicable]
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Save this TDD? (yes/no)
-```
-
-If confirmed:
-
-1. Save the TDD to `docs/flows/{flow-name}/{flow-name}.tdd.md`
-2. Delete the draft file if it exists: `docs/flows/{flow-name}/{flow-name}.tdd.draft.md`
-
-```
-✅ TDD saved to docs/flows/{flow-name}/{flow-name}.tdd.md
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-NEXT STEPS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
+Next steps:
 1. Review TDD and get stakeholder approval
-
-2. When ready to implement:
-   /camel-implement {flow-name}
-
-3. After implementation, validate:
-   /camel-validate {flow-name}
-
-4. Generate tests:
-   /camel-test {flow-name}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. /camel-implement {flow-name}
+3. /camel-validate {flow-name}
+4. /camel-test {flow-name}
 ```
-
----
 
 ## Error Handling
 
-### Missing BRD
-```
-❌ ERROR: Business Requirements Document not found
-
-Run: /camel-project
-```
-
-### Flow Not in BRD
-```
-⚠️ WARNING: Flow '{flow-name}' not in BRD
-
-Continue anyway? (yes/no)
-```
+- Missing BRD: suggest `/camel-project`
+- Flow not in BRD: warn and ask to continue
