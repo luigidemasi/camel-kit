@@ -62,7 +62,7 @@ Implement all flows simultaneously using subagents. Each flow MUST target a diff
 2. `docs/flows/{flow-name}/{flow-name}.tdd.md` - Technical Design Document (REQUIRED)
 3. `docs/constitution.md` - Best practices and quality gates
 4. `.camel-kit/config.yaml` - Camel version and configuration
-5. `.camel-kit/templates/yaml-generation-guide.md` - YAML DSL rules (if exists)
+5. `.camel-kit/templates/yaml-structure.md` - YAML DSL rules (if exists)
 
 **Error conditions:**
 - Missing BRD: ERROR "Run /camel-project first."

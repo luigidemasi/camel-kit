@@ -153,7 +153,6 @@ public class InitCommand extends CamelKitCommand {
         tracker.startTask("\uD83D\uDCDD", "Writing configuration");
         createConfigFile(camelKitDir, projectName, version, citrusVer, ai, agent);
         createConstitution(docsDir, version);
-        createYamlGuide(camelKitDir.resolve("templates"));
         copyAdditionalTemplates(camelKitDir.resolve("templates"));
         tracker.finishTask();
 
@@ -300,15 +299,17 @@ public class InitCommand extends CamelKitCommand {
             """.formatted(cmd, escaped);
     }
 
-    private void createYamlGuide(Path dir) throws Exception {
-        String content = TemplateUtils.readTemplate("templates/yaml-generation-guide.md");
-        Files.writeString(dir.resolve("yaml-generation-guide.md"), content);
-    }
-
     private void copyAdditionalTemplates(Path templatesDir) throws Exception {
         String[] additionalTemplates = {
-            "design-patterns.md",
-            "validation-guide.md",
+            "patterns-foundational.md",
+            "patterns-error-handling.md",
+            "patterns-deployment.md",
+            "yaml-structure.md",
+            "yaml-components.md",
+            "yaml-examples.md",
+            "validation-completeness.md",
+            "validation-constitution.md",
+            "validation-testing.md",
             "flow.md"
         };
         for (String template : additionalTemplates) {
