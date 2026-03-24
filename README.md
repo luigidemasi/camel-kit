@@ -17,7 +17,7 @@ Camel-Kit adds structured slash commands to your AI assistant (Claude Code, IBM 
 
 ## Installation
 
-**Requires:** Java 17+, [JBang](https://www.jbang.dev/)
+**Requires:** Java 17+, [JBang](https://www.jbang.dev/), AI model with **64K+ context window** (128K recommended)
 
 ### Standalone (JBang)
 
