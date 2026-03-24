@@ -15,15 +15,11 @@ You are acting as a **Test Engineer** creating integration tests for Camel route
 
 ## Parameters
 
-This skill can test a specific flow or all flows:
-
 ```
 /camel-test <flow-name>   # Generate tests for specific flow
 /camel-test all           # Generate tests for all flows
 /camel-test --all         # Same as above
 ```
-
-Example: `/camel-test order-to-warehouse`
 
 ### Batch Mode (`all`)
 
@@ -34,45 +30,16 @@ When `all` or `--all` is specified:
    ```
    Found [N] flows to generate tests for:
      1. flow-name-1  (docs/flows/flow-name-1/flow-name-1.tdd.md)
-     2. flow-name-2  (docs/flows/flow-name-2/flow-name-2.tdd.md)
      ...
 
    Generating tests for all [N] flows sequentially...
    ```
-3. **Process sequentially:** For each flow, run the full pipeline (Steps 1–2 below). Between flows, report progress:
+3. **Process sequentially:** For each flow, run the full pipeline (Guide Manifest below). Between flows, report progress:
    ```
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    ✅ [current]/[total] — {flow-name} tests generated
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    ```
-   **If a flow fails:**
-   ```
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   ❌ [current]/[total] — {flow-name} FAILED
-      Error: [one-line summary]
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   ```
-   **Continue to the next flow.** Do NOT stop the batch on failure.
-
-4. **Final summary:** After all flows, show combined summary:
-   ```
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   BATCH TEST GENERATION COMPLETE
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-   Results: [passed]/[total] flows
-     ✅ flow-name-1
-     ❌ flow-name-2 — [error summary]
-     ✅ flow-name-3
-     ...
-
-   [If any failed:]
-   Failed flows need manual investigation:
-     - flow-name-2: [error details]
-
-   Next steps:
-     Run all tests: ./run-tests.sh
-   ```
+   **If a flow fails:** report `❌ [current]/[total] — {flow-name} FAILED` and **continue to the next flow.**
+4. **Final summary:** Show combined results with pass/fail per flow.
 
 If no TDD files are found: ERROR "No TDD files found in docs/flows/. Run /camel-flow first."
 
@@ -89,58 +56,12 @@ If no TDD files are found: ERROR "No TDD files found in docs/flows/. Run /camel-
 
 **Citrus Schema Reference (MANDATORY when available):**
 - **Read first:** `.camel-kit/.cache/citrus/{version}/citrus-quick-reference.md`
-- Contains all valid actions, endpoints, and testcontainer configurations
 - If found, never generate Citrus YAML without consulting this reference
 - If missing, proceed with WARNING (see error conditions below)
 
 ## Pre-flight Checks
 
-Before generating tests, verify a container runtime is available by executing `docker info` or `podman info`. Testcontainers requires a running container daemon — if neither is available, fail early with the "Docker Not Running" error below rather than letting the user go through the entire generation pipeline only to discover it's down when they try to run the tests.
-
----
-
-## Error Conditions
-
-### Missing TDD
-
-```
-❌ ERROR: Technical Design Document not found
-
-File: docs/flows/{flow-name}/{flow-name}.tdd.md
-
-Tests require the TDD to understand:
-- Expected behavior
-- Test scenarios
-- Data contracts
-
-Run: /camel-flow {flow-name}
-```
-
-### Missing Implementation
-
-```
-❌ ERROR: Camel route not found
-
-File: {flow-name}.camel.yaml
-
-Tests require the implementation to exist first.
-
-Run: /camel-implement {flow-name}
-```
-
-### Missing Citrus Reference
-
-```
-⚠️ WARNING: Citrus quick reference not found
-
-File: .camel-kit/.cache/citrus/{version}/citrus-quick-reference.md
-
-Proceeding with standard Citrus patterns.
-Generated tests may require manual validation.
-```
-
-### Docker Not Running
-
+Before generating tests, verify a container runtime is available by executing `docker info` or `podman info`. If neither is available, fail early with:
 ```
 ❌ ERROR: Docker not running
 
@@ -153,12 +74,37 @@ Start Docker and try again:
 
 ---
 
+## Error Conditions
+
+### Missing TDD
+```
+❌ ERROR: Technical Design Document not found
+File: docs/flows/{flow-name}/{flow-name}.tdd.md
+Run: /camel-flow {flow-name}
+```
+
+### Missing Implementation
+```
+❌ ERROR: Camel route not found
+File: {flow-name}.camel.yaml
+Run: /camel-implement {flow-name}
+```
+
+### Missing Citrus Reference
+```
+⚠️ WARNING: Citrus quick reference not found
+File: .camel-kit/.cache/citrus/{version}/citrus-quick-reference.md
+Proceeding with standard Citrus patterns. Generated tests may require manual validation.
+```
+
+---
+
 ## Step 1: Detect Runtime and Resolve Paths
 
 Read `project.runtime` from `.camel-kit/config.yaml` (default: `jbang`).
 Read `Target Module` from the TDD "Overview" section.
 
-If the TDD contains a `Target Module` field (e.g., `my-module/` or `services/order-service/`), use it as the base directory. If not set or is `.` (dot), use empty string (single-project layout).
+If the TDD contains a `Target Module` field (e.g., `my-module/`), use it as the base directory. If not set or is `.`, use empty string (single-project layout).
 
 ### Context Variable Resolution Table
 
@@ -166,8 +112,6 @@ If the TDD contains a `Target Module` field (e.g., `my-module/` or `services/ord
 |----------|----------------|----------------------|
 | `TEST_DIR` | `{module}/` | `{module}/src/test/resources/` |
 | `RUNNER_DIR` | `{module}/` | `{module}/` |
-
-Where `{module}` is the `Target Module` from the TDD "Overview" section (empty for single-project layouts).
 
 ### Additional Context Variables
 
@@ -177,20 +121,34 @@ Where `{module}` is the `Target Module` from the TDD "Overview" section (empty f
 - **PLATFORM_BOM**: resolved from `CAMEL_VERSION` + `RUNTIME` via `skills/shared/mcp-setup.md`
 - **TARGET_MODULE**: from the TDD "Overview" section (`Target Module` field, empty for single-project)
 
-**Placeholder convention:** In guide templates, `{flow-name}` (lowercase, kebab-case) and `{FLOW_NAME}` (uppercase) both refer to this variable's value. Guides use `{flow-name}` in user-facing text and file content, `{FLOW_NAME}` in context variable references. Replace both with the actual flow name value.
+**Placeholder convention:** `{flow-name}` (kebab-case) and `{FLOW_NAME}` (uppercase) both refer to this variable. Replace both with the actual flow name.
 
 ---
 
-## Step 2: Execute Test Generation Pipeline
+## Guide Manifest
 
-Execute these guides in order, passing all resolved context variables.
+Dispatch sub-agents for each step sequentially. Each sub-agent loads one guide plus the resolved context variables.
 
-> **"Load" means READ and FOLLOW.** When this document says "Load `guides/xyz.md`", you MUST read that file from the `guides/` subdirectory next to this SKILL.md and execute its instructions. The guide files are always present — do NOT report them as missing.
+| Step | Guide | Shared Guide | ~Tokens | When |
+|------|-------|-------------|---------|------|
+| A | guides/route-analysis.md | — | 1.1K | Always |
+| B | guides/test-generation.md | — | 3.5K | Always |
+| C | guides/test-configuration.md | — | 0.5K | Always |
+| D | guides/test-runner.md | — | 0.3K | Always |
 
-1. **→ Load `guides/route-analysis.md`** — MCP route analysis + Citrus reference loading
-2. **→ Load `guides/test-generation.md`** — Test plan design + Citrus YAML generation + validation
-3. **→ Load `guides/test-configuration.md`** — Test properties + dependencies
-4. **→ Load `guides/test-runner.md`** — Test runner script generation
+### Context Passing
+
+Include in each sub-agent prompt:
+- All resolved context variables (FLOW_NAME, CAMEL_VERSION, RUNTIME, PLATFORM_BOM, TARGET_MODULE, TEST_DIR, RUNNER_DIR)
+- Path to the TDD file and route YAML file
+- Citrus reference path (if available)
+
+### Execution
+
+1. Dispatch Step A — MCP route analysis + Citrus reference loading
+2. Dispatch Step B — Test plan design + Citrus YAML generation + validation
+3. Dispatch Step C — Test properties + dependencies
+4. Dispatch Step D — Test runner script generation
 
 ---
 
@@ -203,13 +161,6 @@ TESTS GENERATED: {FLOW_NAME}
 
 Test File: {TEST_DIR}{flow-name}.camel.it.yaml
 
-Test Scenarios:
-  ✓ Happy path
-  ✓ Invalid input → DLQ
-  ✓ Business rule filters
-  ✓ Error handling → DLQ
-  ✓ Target unavailable → retry and DLQ
-
 Testcontainers:
   [list containers from route analysis]
 
@@ -220,20 +171,13 @@ Supporting Files:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
----
-
 ## Next Steps
 
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-NEXT STEPS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
 1. Run the tests:
    ./{RUNNER_DIR}run-tests.sh
 
 2. Iterate on failures:
    - Review test logs
    - Update tests or implementation as needed
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
