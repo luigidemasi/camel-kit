@@ -461,9 +461,13 @@ public class InitCommand extends CamelKitCommand {
                     + "name: " + agentName + "\n"
                     + "description: " + description + "\n"
                     + "tools:\n"
-                    + "  - read\n"
-                    + "  - write\n"
+                    + "  - read_file\n"
+                    + "  - write_file\n"
                     + "  - edit\n"
+                    + "  - read_many_files\n"
+                    + "  - run_shell_command\n"
+                    + "  - glob\n"
+                    + "  - grep\n"
                     + "---\n\n"
                     + guideContent;
 
