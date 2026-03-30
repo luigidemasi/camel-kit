@@ -68,8 +68,10 @@ public class JavaGraphParser implements GraphParser {
 
         Map<String, String> classProps = new HashMap<>();
         classProps.put("name", classDecl.getNameAsString());
+        classProps.put("fqn", fqcn);
         classProps.put("package", packageName);
         classProps.put("file", projectRoot.relativize(file).toString());
+        classProps.put("interface", String.valueOf(classDecl.isInterface()));
         if (classDecl.isAbstract()) {
             classProps.put("abstract", "true");
         }
@@ -93,9 +95,12 @@ public class JavaGraphParser implements GraphParser {
         for (FieldDeclaration field : classDecl.getFields()) {
             for (VariableDeclarator var : field.getVariables()) {
                 String fieldId = "field:" + fqcn + "." + var.getNameAsString();
-                graph.addNode(new GraphNode(fieldId, NodeType.FIELD,
-                    Map.of("name", var.getNameAsString(),
-                           "type", var.getTypeAsString())));
+                Map<String, String> fieldProps = new HashMap<>();
+                fieldProps.put("name", var.getNameAsString());
+                fieldProps.put("type", var.getTypeAsString());
+                fieldProps.put("visibility", field.getAccessSpecifier().asString());
+                fieldProps.put("static", String.valueOf(field.isStatic()));
+                graph.addNode(new GraphNode(fieldId, NodeType.FIELD, fieldProps));
                 graph.addEdge(new GraphEdge(classNodeId, fieldId, EdgeType.DECLARES, Map.of()));
             }
         }
@@ -106,6 +111,9 @@ public class JavaGraphParser implements GraphParser {
             Map<String, String> methodProps = new HashMap<>();
             methodProps.put("name", method.getNameAsString());
             methodProps.put("returnType", method.getTypeAsString());
+            methodProps.put("signature", method.getSignature().asString());
+            methodProps.put("visibility", method.getAccessSpecifier().asString());
+            methodProps.put("static", String.valueOf(method.isStatic()));
             graph.addNode(new GraphNode(methodId, NodeType.METHOD, methodProps));
             graph.addEdge(new GraphEdge(classNodeId, methodId, EdgeType.DECLARES, Map.of()));
 
@@ -177,6 +185,7 @@ public class JavaGraphParser implements GraphParser {
         graph.addEdge(new GraphEdge(classNodeId, routeNodeId, EdgeType.DECLARES, Map.of()));
 
         // Extract to() endpoints and processors from the chain
+        int processorOrder = 0;
         for (MethodCallExpr call : chainCalls) {
             String methodName = call.getNameAsString();
 
@@ -202,7 +211,7 @@ public class JavaGraphParser implements GraphParser {
                 graph.addNode(new GraphNode(processorId, NodeType.CAMEL_PROCESSOR,
                     Map.of("type", methodName)));
                 graph.addEdge(new GraphEdge(routeNodeId, processorId,
-                    EdgeType.PROCESSES, Map.of()));
+                    EdgeType.PROCESSES, Map.of("order", String.valueOf(processorOrder++))));
             }
         }
     }

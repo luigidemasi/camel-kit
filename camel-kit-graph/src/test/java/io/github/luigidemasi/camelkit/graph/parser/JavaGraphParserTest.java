@@ -94,6 +94,6 @@ class JavaGraphParserTest {
         List<GraphEdge> routesTo = graph.getOutgoingEdges("route:enrichOrder").stream()
             .filter(e -> e.type() == EdgeType.ROUTES_TO)
             .toList();
-        assertTrue(routesTo.size() >= 1);
+        assertTrue(routesTo.size() >= 2, "enrichOrder route should have at least 2 endpoints (log:enriched and seda:storeOrder)");
     }
 }
