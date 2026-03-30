@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<routes xmlns="http://camel.apache.org/schema/spring">
+    <route id="xmlFileRoute">
+        <from uri="file:input"/>
+        <filter>
+            <simple>${header.type} == 'order'</simple>
+            <marshal>
+                <json/>
+            </marshal>
+            <to uri="direct:enrichOrder"/>
+        </filter>
+    </route>
+    <route id="xmlSedaRoute">
+        <from uri="seda:storeOrder"/>
+        <to uri="jdbc:dataSource"/>
+    </route>
+</routes>

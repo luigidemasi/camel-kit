@@ -1,0 +1,9 @@
+- route:
+    id: yamlHttpRoute
+    from:
+      uri: platform-http:/api/orders
+      steps:
+        - log:
+            message: "Received order: ${body}"
+        - to:
+            uri: direct:enrichOrder
