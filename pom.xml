@@ -114,6 +114,7 @@
     <modules>
         <module>camel-kit-main</module>
         <module>camel-kit-core</module>
+        <module>camel-kit-graph</module>
         <module>camel-kit-plugins</module>
         <module>camel-jbang-plugin-kit</module>
         <module>camel-kit-standalone</module>
