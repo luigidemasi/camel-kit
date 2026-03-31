@@ -69,10 +69,10 @@ public class GraphMcpService {
 
     // Package-private, for testing only
     void setGraphForTesting(ProjectGraph testGraph) {
-        this.graph = testGraph;
         this.query = new GraphQuery(testGraph);
         this.flowTracer = new RouteFlowTracer(testGraph);
         this.topology = new RouteTopology(testGraph);
+        this.graph = testGraph; // assign sentinel LAST
     }
 
     private void ensureLoaded() {
