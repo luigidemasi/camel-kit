@@ -116,6 +116,41 @@ For every migration decision, follow the **Verification Chain**:
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
+### Graph-Enhanced Route Context (when graph MCP tools available)
+
+**Before processing each route**, if `graph_route_flow` MCP tool is available, run these queries to build structural context. If the tools are not available, skip this section and proceed with Step 2.1 as normal.
+
+**Migration ordering:** If `.camel-kit/project-snapshot.md` exists, process routes in the order specified in its "Migration Ordering" section (leaf routes first, then dependents). This prevents generating TDDs that reference routes not yet migrated.
+
+**For each route, before the verification chain:**
+
+**Step 2.0.1 — Route Flow Context:**
+
+Call `graph_route_flow(routeId)` to get the complete ordered message path:
+- From-endpoint → processor1 → processor2 → ... → to-endpoints
+- Cross-route links are followed automatically
+
+This gives you the full end-to-end flow without re-reading source files. Use this to understand the processor chain before mapping components.
+
+**Step 2.0.2 — Impact Analysis:**
+
+Call `graph_impact(routeId, "downstream")` to see what other routes, classes, and config are affected if this route changes. Call `graph_impact(routeId, "upstream")` to see what feeds into this route.
+
+Use this information to populate:
+- **TDD Section 5 (Error Handling):** Error propagation paths — if an upstream route has `onException`, note it
+- **TDD Section 10 (Testing Strategy):** List upstream and downstream routes that should be included in integration tests
+- **TDD Section 11 (Implementation Checklist):** Note dependent routes that may need corresponding updates
+
+**Step 2.0.3 — Dependency Pre-Check:**
+
+Call `graph_neighbors(routeId, "out", "USES_COMPONENT", 1)` to see which Maven artifacts this route needs.
+
+Cross-check each component against the target Camel version:
+- If the artifact name changed between versions (per `camel2-component-mapping.md`), note this before running the full verification chain
+- If the component was removed, flag it early
+
+This pre-check makes the verification chain faster — you already know which components to focus on.
+
 ### Step 2.1 — Process Each Route
 
 For each route in the BRD:
