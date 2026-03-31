@@ -23,6 +23,25 @@ No arguments. The command asks for the path interactively.
 
 ---
 
+## Step 0 — Graph-Accelerated Analysis (automatic)
+
+**Before starting Step 1**, check if `.camel-kit/project-graph.json` exists in the project directory.
+
+**If graph exists AND `graph_stats` MCP tool is available:**
+
+1. Call `graph_stats` to verify the graph is loaded and contains Camel route data
+2. If `CAMEL_ROUTE` nodes are present (confirming this is a Camel project):
+   - Load `guides/camel-version-graph-analysis.md`
+   - Follow its Phase 0 steps (produces `.camel-kit/project-snapshot.md` + pre-populated analysis summary)
+   - **Skip directly to Step 5** (user confirmation) — Steps 1-4 are replaced by Phase 0
+3. If no `CAMEL_ROUTE` nodes found, proceed with Steps 1-4 as normal
+
+**If no graph exists or `graph_stats` tool is not available:**
+
+Continue with Steps 1-4 as normal (file scanning, manual analysis). The graph is optional — all migration functionality works without it, just slower.
+
+---
+
 ## Step 1 — Locate the Source Artifacts (conversational)
 
 Ask for the path to the integration project (directory, config file, or ZIP). List all files found recursively, noting types: XML configs, build files, properties, docs, source files, tests, container/deployment files.
@@ -128,6 +147,7 @@ After user confirms the analysis summary, dispatch to the vendor-specific guide.
 
 | Step | Guide | Shared Guide | ~Tokens | When |
 |------|-------|-------------|---------|------|
+| B0 | guides/camel-version-graph-analysis.md | — | 2K | Graph exists + Camel detected |
 | A1 | guides/mulesoft-phase1.md | guides/mule-component-mapping.md | 3.5K | MuleSoft detected |
 | A2 | guides/mulesoft-phase2.md | guides/mule-dataweave-conversion.md | 4K | MuleSoft detected |
 | A2 | guides/mulesoft-phase2.md | shared/datamapper-canonicalize.md | 1.2K | MuleSoft with DataMapper |
