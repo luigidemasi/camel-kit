@@ -90,4 +90,43 @@ class GraphMcpToolsTest {
         assertTrue(result.contains("\"nodes\""));
         assertTrue(result.contains("\"edges\""));
     }
+
+    @Test
+    void graphImpactDownstream() {
+        String result = tools.graph_impact("route:processOrders", "downstream");
+        assertTrue(result.contains("\"found\":true") || result.contains("\"total\""));
+    }
+
+    @Test
+    void graphImpactUpstream() {
+        String result = tools.graph_impact("route:enrichOrder", "upstream");
+        assertNotNull(result);
+    }
+
+    @Test
+    void graphRouteFlow() {
+        String result = tools.graph_route_flow("route:processOrders", null);
+        assertTrue(result.contains("\"steps\""));
+        assertTrue(result.contains("kafka:orders"));
+    }
+
+    @Test
+    void graphRouteFlowFromEndpoint() {
+        String result = tools.graph_route_flow(null, "endpoint:kafka:orders");
+        assertTrue(result.contains("\"steps\""));
+    }
+
+    @Test
+    void graphRouteFlowNoGraph() {
+        GraphMcpTools emptyTools = new GraphMcpTools();
+        emptyTools.service = new GraphMcpService();
+        String result = emptyTools.graph_route_flow("route:processOrders", null);
+        assertTrue(result.contains("\"available\":false"));
+    }
+
+    @Test
+    void graphRouteTopology() {
+        String result = tools.graph_route_topology();
+        assertTrue(result.contains("\"routes\""));
+    }
 }

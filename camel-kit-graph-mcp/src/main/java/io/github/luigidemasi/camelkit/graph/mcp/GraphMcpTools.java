@@ -5,6 +5,7 @@ import io.github.luigidemasi.camelkit.graph.model.GraphEdge;
 import io.github.luigidemasi.camelkit.graph.model.GraphNode;
 import io.github.luigidemasi.camelkit.graph.model.NodeType;
 import io.github.luigidemasi.camelkit.graph.query.GraphQuery;
+import io.github.luigidemasi.camelkit.graph.query.RouteFlowTracer;
 import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import jakarta.inject.Inject;
@@ -106,6 +107,98 @@ public class GraphMcpTools {
                 sb.append("\"").append(nt.name()).append("\":").append(count);
                 first = false;
             }
+        }
+        sb.append("}}");
+        return sb.toString();
+    }
+
+    @Tool(description = "Trace the complete message flow through a Camel route, following cross-route " +
+            "direct:/seda: links. Returns the ordered path: from-endpoint -> processors -> to-endpoints. " +
+            "The single most important tool for understanding Camel message flows. " +
+            "Provide either routeId OR startEndpoint, not both.")
+    public String graph_route_flow(
+            @ToolArg(description = "Route node ID, e.g., 'route:processOrders'") String routeId,
+            @ToolArg(description = "Starting endpoint ID, e.g., 'endpoint:kafka:orders'") String startEndpoint) {
+        if (!service.isAvailable()) {
+            return "{\"available\":false,\"message\":\"No project graph found. Run /camel-init first.\"}";
+        }
+        List<RouteFlowTracer.FlowStep> steps;
+        if (routeId != null) {
+            steps = service.getFlowTracer().trace(routeId);
+        } else if (startEndpoint != null) {
+            steps = service.getFlowTracer().traceFromEndpoint(startEndpoint);
+        } else {
+            return "{\"error\":\"Provide either routeId or startEndpoint\"}";
+        }
+        String stepsJson = steps.stream()
+                .map(s -> String.format("{\"nodeId\":\"%s\",\"type\":\"%s\",\"label\":\"%s\",\"depth\":%d}",
+                        escape(s.nodeId()), escape(s.type()), escape(s.label()), s.depth()))
+                .collect(Collectors.joining(","));
+        return "{\"found\":true,\"steps\":[" + stepsJson + "]}";
+    }
+
+    @Tool(description = "Find all nodes transitively affected by a change to the given node. " +
+            "Critical for migration — tells you 'if I change this, what else must change?' " +
+            "Results grouped by node type.")
+    public String graph_impact(
+            @ToolArg(description = "Node ID to analyze impact for") String nodeId,
+            @ToolArg(description = "Direction: 'upstream' (what feeds in), 'downstream' (what's affected), or 'both'") String direction) {
+        if (!service.isAvailable()) {
+            return "{\"available\":false,\"message\":\"No project graph found. Run /camel-init first.\"}";
+        }
+        String dir = direction != null ? direction : "both";
+        List<GraphNode> impacted;
+        if ("both".equals(dir)) {
+            // GraphQuery.impact only supports "downstream" or "upstream", not "both"
+            // Call twice and merge results
+            List<GraphNode> downstream = service.getQuery().impact(nodeId, "downstream");
+            List<GraphNode> upstream = service.getQuery().impact(nodeId, "upstream");
+            java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+            impacted = new java.util.ArrayList<>();
+            for (GraphNode n : downstream) {
+                if (seen.add(n.id())) impacted.add(n);
+            }
+            for (GraphNode n : upstream) {
+                if (seen.add(n.id())) impacted.add(n);
+            }
+        } else {
+            impacted = service.getQuery().impact(nodeId, dir);
+        }
+        // Group by type
+        Map<String, List<GraphNode>> grouped = impacted.stream()
+                .collect(Collectors.groupingBy(n -> n.type().name()));
+        StringBuilder sb = new StringBuilder("{\"found\":true,\"total\":" + impacted.size() + ",\"byType\":{");
+        boolean first = true;
+        for (var entry : grouped.entrySet()) {
+            if (!first) sb.append(",");
+            sb.append("\"").append(entry.getKey()).append("\":[");
+            sb.append(entry.getValue().stream().map(this::nodeToJson).collect(Collectors.joining(",")));
+            sb.append("]");
+            first = false;
+        }
+        sb.append("}}");
+        return sb.toString();
+    }
+
+    @Tool(description = "Get the route-to-route connection map showing which Camel routes link to which " +
+            "via direct:/seda: endpoints. Bird's-eye view of the messaging architecture. " +
+            "First thing to call when understanding a Camel project.")
+    public String graph_route_topology() {
+        if (!service.isAvailable()) {
+            return "{\"available\":false,\"message\":\"No project graph found. Run /camel-init first.\"}";
+        }
+        var topo = service.getTopology().build();
+        StringBuilder sb = new StringBuilder("{\"routes\":{");
+        boolean first = true;
+        for (var entry : topo.entrySet()) {
+            if (!first) sb.append(",");
+            sb.append("\"").append(escape(entry.getKey())).append("\":[");
+            sb.append(entry.getValue().stream()
+                    .map(c -> String.format("{\"target\":\"%s\",\"scheme\":\"%s\",\"uri\":\"%s\"}",
+                            escape(c.targetRouteId()), escape(c.scheme()), escape(c.endpointUri())))
+                    .collect(Collectors.joining(",")));
+            sb.append("]");
+            first = false;
         }
         sb.append("}}");
         return sb.toString();
