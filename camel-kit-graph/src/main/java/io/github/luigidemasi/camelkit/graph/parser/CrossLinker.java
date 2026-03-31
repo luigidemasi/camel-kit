@@ -37,7 +37,7 @@ public class CrossLinker {
         // Find all direct/seda endpoints
         List<GraphNode> linkableEndpoints = graph.findByType(NodeType.CAMEL_ENDPOINT).stream()
             .filter(node -> {
-                String scheme = node.properties().get("scheme");
+                String scheme = extractScheme(node);
                 return scheme != null && LINKABLE_SCHEMES.contains(scheme);
             })
             .toList();
@@ -85,7 +85,7 @@ public class CrossLinker {
 
         // For each endpoint, find the corresponding Maven artifact
         for (GraphNode endpoint : endpoints) {
-            String scheme = endpoint.properties().get("scheme");
+            String scheme = extractScheme(endpoint);
             if (scheme == null) continue;
 
             // Convention: scheme "kafka" → artifact "camel-kafka"
@@ -117,11 +117,34 @@ public class CrossLinker {
 
             // Link to all endpoints with matching scheme
             for (GraphNode endpoint : endpoints) {
-                String endpointScheme = endpoint.properties().get("scheme");
+                String endpointScheme = extractScheme(endpoint);
                 if (scheme.equals(endpointScheme)) {
                     graph.addEdge(new GraphEdge(config.id(), endpoint.id(), EdgeType.CONFIGURES, Map.of()));
                 }
             }
         }
+    }
+
+    /**
+     * Extracts the scheme from an endpoint node.
+     * Supports both "scheme" property (explicit) and "uri" property (extracts scheme from URI).
+     *
+     * @param endpoint the endpoint node
+     * @return the scheme, or null if not found
+     */
+    private String extractScheme(GraphNode endpoint) {
+        // Try explicit scheme property first
+        String scheme = endpoint.properties().get("scheme");
+        if (scheme != null) {
+            return scheme;
+        }
+
+        // Fall back to extracting from URI
+        String uri = endpoint.properties().get("uri");
+        if (uri != null && uri.contains(":")) {
+            return uri.substring(0, uri.indexOf(":"));
+        }
+
+        return null;
     }
 }
