@@ -10,8 +10,7 @@ import io.quarkiverse.mcp.server.Tool;
 import io.quarkiverse.mcp.server.ToolArg;
 import jakarta.inject.Inject;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class GraphMcpTools {
@@ -29,7 +28,15 @@ public class GraphMcpTools {
         if (!service.isAvailable()) {
             return "{\"available\":false,\"message\":\"No project graph found. Run /camel-init first.\"}";
         }
-        NodeType nodeType = type != null ? NodeType.valueOf(type) : null;
+        NodeType nodeType = null;
+        if (type != null) {
+            try { nodeType = NodeType.valueOf(type); }
+            catch (IllegalArgumentException e) {
+                return "{\"error\":\"Invalid node type: " + escape(type) +
+                    "\",\"validTypes\":[\"" + Arrays.stream(NodeType.values())
+                    .map(Enum::name).collect(Collectors.joining("\",\"")) + "\"]}";
+            }
+        }
         String pattern = query != null ? query : ".*";
         List<GraphNode> results = service.getQuery().find(pattern, nodeType);
         return formatNodes(results);
@@ -46,9 +53,21 @@ public class GraphMcpTools {
         if (!service.isAvailable()) {
             return "{\"available\":false,\"message\":\"No project graph found. Run /camel-init first.\"}";
         }
+        if (nodeId == null || nodeId.isBlank()) {
+            return "{\"error\":\"nodeId is required\"}";
+        }
         int d = depth != null ? Math.min(depth, 3) : 1;
-        EdgeType et = edgeType != null ? EdgeType.valueOf(edgeType) : null;
-        GraphQuery.NeighborResult result = service.getQuery().neighbors(nodeId, direction, et, d);
+        String dir = direction != null ? direction : "both";
+        EdgeType et = null;
+        if (edgeType != null) {
+            try { et = EdgeType.valueOf(edgeType); }
+            catch (IllegalArgumentException e) {
+                return "{\"error\":\"Invalid edge type: " + escape(edgeType) +
+                    "\",\"validTypes\":[\"" + Arrays.stream(EdgeType.values())
+                    .map(Enum::name).collect(Collectors.joining("\",\"")) + "\"]}";
+            }
+        }
+        GraphQuery.NeighborResult result = service.getQuery().neighbors(nodeId, dir, et, d);
         return formatNeighborResult(result);
     }
 
@@ -60,6 +79,9 @@ public class GraphMcpTools {
             @ToolArg(description = "Maximum search depth (default 5)") Integer maxDepth) {
         if (!service.isAvailable()) {
             return "{\"available\":false,\"message\":\"No project graph found. Run /camel-init first.\"}";
+        }
+        if (fromId == null || fromId.isBlank() || toId == null || toId.isBlank()) {
+            return "{\"error\":\"Both fromId and toId are required\"}";
         }
         int max = maxDepth != null ? maxDepth : 5;
         List<GraphNode> path = service.getQuery().path(fromId, toId, max);
@@ -77,6 +99,9 @@ public class GraphMcpTools {
             @ToolArg(description = "Radius (default 2, max 3)") Integer radius) {
         if (!service.isAvailable()) {
             return "{\"available\":false,\"message\":\"No project graph found. Run /camel-init first.\"}";
+        }
+        if (nodeId == null || nodeId.isBlank()) {
+            return "{\"error\":\"nodeId is required\"}";
         }
         int r = radius != null ? Math.min(radius, 3) : 2;
         GraphQuery.SubgraphResult result = service.getQuery().subgraph(nodeId, r);
@@ -100,13 +125,10 @@ public class GraphMcpTools {
         sb.append("\"edges\":").append(service.getGraph().edgeCount()).append(",");
         sb.append("\"nodesByType\":{");
         boolean first = true;
-        for (NodeType nt : NodeType.values()) {
-            int count = service.getGraph().findByType(nt).size();
-            if (count > 0) {
-                if (!first) sb.append(",");
-                sb.append("\"").append(nt.name()).append("\":").append(count);
-                first = false;
-            }
+        for (var entry : stats.entrySet()) {
+            if (!first) sb.append(",");
+            sb.append("\"").append(entry.getKey()).append("\":").append(entry.getValue());
+            first = false;
         }
         sb.append("}}");
         return sb.toString();
@@ -146,6 +168,9 @@ public class GraphMcpTools {
         if (!service.isAvailable()) {
             return "{\"available\":false,\"message\":\"No project graph found. Run /camel-init first.\"}";
         }
+        if (nodeId == null || nodeId.isBlank()) {
+            return "{\"error\":\"nodeId is required\"}";
+        }
         String dir = direction != null ? direction : "both";
         List<GraphNode> impacted;
         if ("both".equals(dir)) {
@@ -153,8 +178,8 @@ public class GraphMcpTools {
             // Call twice and merge results
             List<GraphNode> downstream = service.getQuery().impact(nodeId, "downstream");
             List<GraphNode> upstream = service.getQuery().impact(nodeId, "upstream");
-            java.util.Set<String> seen = new java.util.LinkedHashSet<>();
-            impacted = new java.util.ArrayList<>();
+            Set<String> seen = new LinkedHashSet<>();
+            impacted = new ArrayList<>();
             for (GraphNode n : downstream) {
                 if (seen.add(n.id())) impacted.add(n);
             }

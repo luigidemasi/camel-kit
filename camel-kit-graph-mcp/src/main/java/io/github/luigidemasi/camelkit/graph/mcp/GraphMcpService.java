@@ -47,11 +47,24 @@ public class GraphMcpService {
     }
 
     public void reload() {
-        graph = null;
-        query = null;
-        flowTracer = null;
-        topology = null;
-        ensureLoaded();
+        synchronized (this) {
+            graph = null;
+            query = null;
+            flowTracer = null;
+            topology = null;
+            Path graphPath = resolveGraphPath();
+            if (graphPath != null && Files.exists(graphPath)) {
+                try {
+                    ProjectGraph g = GraphSerializer.read(graphPath);
+                    query = new GraphQuery(g);
+                    flowTracer = new RouteFlowTracer(g);
+                    topology = new RouteTopology(g);
+                    graph = g; // assign sentinel LAST
+                } catch (IOException e) {
+                    System.err.println("Failed to load project graph: " + e.getMessage());
+                }
+            }
+        }
     }
 
     // Package-private, for testing only
@@ -69,10 +82,11 @@ public class GraphMcpService {
             Path graphPath = resolveGraphPath();
             if (graphPath != null && Files.exists(graphPath)) {
                 try {
-                    graph = GraphSerializer.read(graphPath);
-                    query = new GraphQuery(graph);
-                    flowTracer = new RouteFlowTracer(graph);
-                    topology = new RouteTopology(graph);
+                    ProjectGraph g = GraphSerializer.read(graphPath);
+                    query = new GraphQuery(g);
+                    flowTracer = new RouteFlowTracer(g);
+                    topology = new RouteTopology(g);
+                    graph = g; // assign sentinel LAST so concurrent readers see all fields
                 } catch (IOException e) {
                     System.err.println("Failed to load project graph: " + e.getMessage());
                 }
