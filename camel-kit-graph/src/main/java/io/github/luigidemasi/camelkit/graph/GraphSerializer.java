@@ -35,7 +35,10 @@ public final class GraphSerializer {
         for (GraphNode node : graph.getNodes().values()) {
             ObjectNode nodeObj = nodesObj.putObject(node.id());
             nodeObj.put("type", node.type().name());
-            node.properties().forEach(nodeObj::put);
+            if (!node.properties().isEmpty()) {
+                ObjectNode props = nodeObj.putObject("properties");
+                node.properties().forEach(props::put);
+            }
         }
 
         ArrayNode edgesArr = root.putArray("edges");
@@ -61,8 +64,10 @@ public final class GraphSerializer {
         nodesObj.fieldNames().forEachRemaining(id -> {
             JsonNode nodeObj = nodesObj.get(id);
             NodeType type = NodeType.valueOf(nodeObj.get("type").asText());
-            Map<String, String> props = MAPPER.convertValue(nodeObj, new TypeReference<>() {});
-            props.remove("type");
+            Map<String, String> props = Map.of();
+            if (nodeObj.has("properties")) {
+                props = MAPPER.convertValue(nodeObj.get("properties"), new TypeReference<>() {});
+            }
             graph.addNode(new GraphNode(id, type, props));
         });
 
