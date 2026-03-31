@@ -35,6 +35,8 @@
         <jline.version>3.30.6</jline.version>
         <tamboui.version>0.1.0</tamboui.version>
         <camel.mcp.version>4.19.0-SNAPSHOT</camel.mcp.version>
+        <quarkus.version>3.20.2.2</quarkus.version>
+        <quarkus-mcp.version>1.6.1</quarkus-mcp.version>
     </properties>
 
     <developers>
@@ -115,6 +117,7 @@
         <module>camel-kit-main</module>
         <module>camel-kit-core</module>
         <module>camel-kit-graph</module>
+        <module>camel-kit-graph-mcp</module>
         <module>camel-kit-plugins</module>
         <module>camel-jbang-plugin-kit</module>
         <module>camel-kit-standalone</module>
