@@ -18,6 +18,15 @@
         "io.github.luigidemasi:camel-kit-knowledge-mcp:{{KNOWLEDGE_VERSION}}:runner"
       ],
       "description": "camel-kit Knowledge Server - documentation search for Red Hat Build of Apache Camel"
+    },
+    "camel-graph": {
+      "command": "jbang",
+      "args": [
+        "--repos", "{{GRAPH_MCP_REPOS}}",
+        "-Dquarkus.log.level=WARN",
+        "io.github.luigidemasi:camel-kit-graph-mcp:{{GRAPH_MCP_VERSION}}:runner"
+      ],
+      "description": "camel-kit Graph Server - project code graph navigation for structural analysis"
     }
   }
 }

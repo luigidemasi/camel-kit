@@ -35,7 +35,9 @@ public class CamelKitMain implements Callable<Integer> {
     public static final String CAMEL_MCP_VERSION = BUILD_PROPS.getProperty("camel.mcp.version", "4.19.0-SNAPSHOT");
     public static final String DEFAULT_CITRUS_VERSION = "4.9.2";
     public static final String KNOWLEDGE_MCP_VERSION = BUILD_PROPS.getProperty("knowledge.mcp.version", "0.0.1-SNAPSHOT");
+    public static final String GRAPH_MCP_VERSION = BUILD_PROPS.getProperty("graph.mcp.version", "0.3.2-SNAPSHOT");
     public static final String CAMEL_MCP_REPOS = BUILD_PROPS.getProperty("camel.mcp.repos", "maven");
+    public static final String GRAPH_MCP_REPOS = BUILD_PROPS.getProperty("graph.mcp.repos", "maven");
     public static final String KNOWLEDGE_MCP_REPOS = BUILD_PROPS.getProperty("knowledge.mcp.repos", "redhat=https://maven.repository.redhat.com/ga/");
     public static final String CAMEL_CATALOG_REPOS = BUILD_PROPS.getProperty("camel.catalog.repos", "maven");
     private Terminal terminal;

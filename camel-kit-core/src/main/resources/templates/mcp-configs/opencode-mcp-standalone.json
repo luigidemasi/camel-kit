@@ -21,6 +21,16 @@
         "io.github.luigidemasi:camel-kit-knowledge-mcp:{{KNOWLEDGE_VERSION}}:runner"
       ],
       "enabled": true
+    },
+    "camel-graph": {
+      "type": "local",
+      "command": [
+        "jbang",
+        "--repos", "{{GRAPH_MCP_REPOS}}",
+        "-Dquarkus.log.level=WARN",
+        "io.github.luigidemasi:camel-kit-graph-mcp:{{GRAPH_MCP_VERSION}}:runner"
+      ],
+      "enabled": true
     }
   }
 }

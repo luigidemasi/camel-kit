@@ -577,8 +577,10 @@ public class InitCommand extends CamelKitCommand {
             String processed = template
                     .replace("{{CAMEL_MCP_VERSION}}", CamelKitMain.CAMEL_MCP_VERSION)
                     .replace("{{KNOWLEDGE_VERSION}}", CamelKitMain.KNOWLEDGE_MCP_VERSION)
+                    .replace("{{GRAPH_MCP_VERSION}}", CamelKitMain.GRAPH_MCP_VERSION)
                     .replace("{{CAMEL_MCP_REPOS}}", camelMcpRepos)
                     .replace("{{KNOWLEDGE_MCP_REPOS}}", knowledgeMcpRepos)
+                    .replace("{{GRAPH_MCP_REPOS}}", CamelKitMain.GRAPH_MCP_REPOS)
                     .replace("{{CAMEL_CATALOG_REPOS}}", CamelKitMain.CAMEL_CATALOG_REPOS);
             Files.writeString(configFile, processed);
 
