@@ -9,7 +9,7 @@
 | Property | Value |
 |----------|-------|
 | Version | 2.0 |
-| Last Updated | 2026-03-11 |
+| Last Updated | 2026-03-31 |
 | Camel Version |` 4.14.4.redhat-00008` |
 
 ---

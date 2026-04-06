@@ -5,6 +5,8 @@ import io.github.luigidemasi.camelkit.catalog.CitrusSchemaDownloader;
 import io.github.luigidemasi.camelkit.catalog.OfflineRepoPopulator;
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
+import io.github.luigidemasi.camelkit.graph.GraphBuilder;
+import io.github.luigidemasi.camelkit.graph.ProjectGraph;
 import io.github.luigidemasi.camelkit.output.Printer;
 import io.github.luigidemasi.camelkit.tui.InitTuiView;
 import io.github.luigidemasi.camelkit.tui.TaskTracker;
@@ -180,9 +182,28 @@ public class InitCommand extends CamelKitCommand {
         createMcpConfigs(targetDir, version, ai, offline);
         tracker.finishTask();
 
-        // 6 — Offline repo (if requested)
+        // 6 — Project graph
+        tracker.startTask("\uD83D\uDD0D", "Building project graph");
+        try {
+            GraphBuilder graphBuilder = new GraphBuilder();
+            ProjectGraph projectGraph = graphBuilder.build(targetDir);
+            if (projectGraph.nodeCount() > 0) {
+                Path graphFile = camelKitDir.resolve("project-graph.json");
+                io.github.luigidemasi.camelkit.graph.GraphSerializer.write(
+                        projectGraph, graphFile, targetDir.toAbsolutePath().toString());
+                printer().println(green("✓") + " Project graph: " + projectGraph.nodeCount()
+                        + " nodes, " + projectGraph.edgeCount() + " edges");
+            } else {
+                printer().println(yellow("  No source files found — graph skipped"));
+            }
+        } catch (Exception e) {
+            printer().println(yellow("  Warning: Could not build project graph: " + e.getMessage()));
+        }
+        tracker.finishTask();
+
+        // 7 — Offline repo (if requested)
         if (offline) {
-            tracker.startTask("⬇️", "Downloading MCP JARs for offline use");
+            tracker.startTask("\u2B07\uFE0F", "Downloading MCP JARs for offline use");
             try {
                 Path repoDir = camelKitDir.resolve("repo");
                 OfflineRepoPopulator populator = new OfflineRepoPopulator(repoDir, printer()::println);
@@ -194,7 +215,7 @@ public class InitCommand extends CamelKitCommand {
             tracker.finishTask();
         }
 
-        // 7 — Citrus schemas
+        // 8 — Citrus schemas
         int citrusSchemaCount = 0;
         if (!noFetch) {
             tracker.startTask("⬇️", "Downloading Citrus schemas");

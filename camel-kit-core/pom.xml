@@ -69,6 +69,13 @@
 
         <!-- No camel-catalog or citrus-catalog-schema dependency - JSON downloaded at runtime -->
 
+        <!-- Graph builder for project code analysis -->
+        <dependency>
+            <groupId>io.github.luigidemasi</groupId>
+            <artifactId>camel-kit-graph</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
     </dependencies>
 
     <build>
