@@ -16,6 +16,9 @@
 
     <properties>
         <quarkus.package.jar.type>uber-jar</quarkus.package.jar.type>
+        <!-- Graph MCP needs Quarkus 3.27+ for compatible MCP server extension -->
+        <quarkus.version>3.27.2</quarkus.version>
+        <quarkus-mcp.version>1.7.0</quarkus-mcp.version>
     </properties>
 
     <dependencyManagement>

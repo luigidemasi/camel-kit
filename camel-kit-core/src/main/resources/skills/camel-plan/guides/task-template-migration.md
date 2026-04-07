@@ -1,0 +1,155 @@
+# Task Template — Migration Projects
+
+> **Context:** Loaded by `camel-plan` for migration projects.
+> **Purpose:** Template for generating migration-specific implementation tasks.
+
+---
+
+## Migration Task Sequence
+
+Migration projects follow the same basic sequence as greenfield, but add migration-specific tasks. Use the migration ordering from the design spec (leaf routes first, entry-point routes last).
+
+### Additional Migration Tasks
+
+These tasks are added to the standard greenfield sequence:
+
+### Task Template: Copy/Adapt Java Sources
+
+```markdown
+### Task N: Adapt Java Sources — [flow-name]
+
+**Agent:** migration-specialist
+
+**Files:**
+- Create: `[MODULE_DIR]src/main/java/[package]/[ClassName].java`
+
+**Guides to Load:**
+- `camel-migrate/guides/camel2-platform-changes.md` (Camel 2.x migrations)
+- `camel-implement/guides/orchestrator.md` Step 5.5
+
+**Design Spec Section:** Section 7, Java Sources to Adapt
+
+- [ ] Read source Java file from design spec
+- [ ] Apply API changes for Camel 4.x:
+  - `javax.*` → `jakarta.*` package changes
+  - Deprecated API replacements
+  - Updated Processor/Exchange interface methods
+- [ ] Adapt package structure to target project
+- [ ] Verify: `javac` compilation check (if build tool available)
+
+**Review:**
+- [ ] Spec compliance: all Java sources from spec adapted
+- [ ] Code quality: no deprecated API usage, proper package structure
+```
+
+### Task Template: Map Vendor Components
+
+```markdown
+### Task N: Verify Component Mappings — [flow-name]
+
+**Agent:** migration-specialist
+
+**Files:**
+- Reference: design spec Section 7, Component Mapping table
+
+**Guides to Load:**
+- `camel-migrate/guides/mule-component-mapping.md` (MuleSoft)
+- `camel-migrate/guides/camel2-component-mapping.md` (Camel 2.x)
+- `camel-migrate/guides/camel2-eip-mapping.md` (Camel 2.x)
+- `camel-migrate/guides/camel2-dataformat-mapping.md` (Camel 2.x)
+
+**MCP Tools:**
+- `camel_catalog_component(name="[target-component]", runtime="[runtime]", platformBom="[bom]")`
+- `camel_rh_build_component_info(component="[target-component]")`
+
+- [ ] For each component in the mapping table:
+  - [ ] Verify target component exists via `camel_catalog_component`
+  - [ ] Verify Red Hat support via `camel_rh_build_component_info`
+  - [ ] Note exact option names from catalog (may differ from source)
+- [ ] If any mapping fails, flag and suggest alternative
+
+**Review:**
+- [ ] Spec compliance: all mappings verified
+- [ ] No unsupported components in target
+```
+
+### Task Template: Convert DataWeave to XSLT
+
+```markdown
+### Task N: Convert DataWeave — [flow-name]
+
+**Agent:** migration-specialist
+
+**Files:**
+- Create: `[ROUTE_DIR]kaoto-datamapper-[id].xsl`
+
+**Guides to Load:**
+- `camel-migrate/guides/mule-dataweave-conversion.md`
+- `camel-migrate/guides/datamapper-migrate.md`
+- `shared/datamapper-canonicalize.md`
+- `camel-implement/guides/datamapper-approach-[a|b].md`
+- `camel-implement/guides/datamapper-validation.md`
+
+**Design Spec Section:** Section 3, Flow: [flow-name], DataMapper subsection
+
+- [ ] Read DataWeave source from design spec
+- [ ] Map DataWeave expressions to XPath/XSLT equivalents
+- [ ] Pre-compute source XPaths and target elements using canonicalize guide
+- [ ] Select XSLT approach (A or B) per design spec
+- [ ] Generate XSLT using the appropriate approach guide skeleton
+- [ ] Self-validate: XSLT covers all field mappings from spec
+- [ ] Verify: `test -f [ROUTE_DIR]kaoto-datamapper-[id].xsl`
+
+**Review:**
+- [ ] Spec compliance: all DataWeave mappings covered in XSLT
+- [ ] Code quality: valid XSLT, correct XPath expressions
+```
+
+### Task Template: Platform Migration Artifacts
+
+```markdown
+### Task N: Platform Migration Setup
+
+**Agent:** migration-specialist
+
+**Files:**
+- Create/Modify: `pom.xml` (new BOM, new parent, updated dependencies)
+- Create: platform-specific config files
+
+**Guides to Load:**
+- `camel-migrate/guides/camel2-platform-changes.md`
+
+**Design Spec Section:** Section 7, Platform Changes
+
+- [ ] Update Maven BOM from source to target:
+  - Source: [source BOM]
+  - Target: [Red Hat Build BOM from version-selection]
+- [ ] Convert platform-specific configuration:
+  - [OSGi features → Maven dependencies]
+  - [Spring XML context → application.properties]
+  - [Blueprint beans → CDI/Spring beans]
+- [ ] Verify: `mvn dependency:tree` shows correct dependencies
+
+**Review:**
+- [ ] Spec compliance: platform changes match spec Section 7
+- [ ] Code quality: valid POM structure, correct BOM usage
+```
+
+---
+
+## Migration Task Ordering
+
+Follow the migration ordering from the design spec:
+
+1. **Scaffold** — project structure, POM with target BOM
+2. **Platform migration setup** — BOM changes, platform config
+3. **Component mapping verification** — all target components MCP-verified
+4. **Per route (leaf routes first):**
+   a. DataWeave → XSLT conversion (if applicable)
+   b. Java source adaptation (if applicable)
+   c. Route YAML generation
+   d. Properties generation
+5. **Docker Compose** — consolidated for all flows
+6. **Validation** — all routes
+7. **Smoke test**
+8. **Testing** — integration tests for migrated routes

@@ -1,6 +1,6 @@
 # Camel-Kit Constitution
 
-> Seven non-negotiable rules enforced on every generated route. All other design guidance (error handling strategy, retry policy, throttling, resilience patterns, idempotency, transactions, data format choices, deployment) lives in `/camel-flow` and `/camel-migrate`, where it is applied context-specifically during flow design.
+> Seven non-negotiable rules enforced on every generated route. All other design guidance (error handling strategy, retry policy, throttling, resilience patterns, idempotency, transactions, data format choices, deployment) is applied context-specifically during the brainstorm phase (`camel-brainstorm`) and enforced during execution (`camel-execute`).
 
 ---
 

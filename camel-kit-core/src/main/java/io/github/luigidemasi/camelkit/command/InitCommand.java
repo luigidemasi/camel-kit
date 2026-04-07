@@ -248,10 +248,11 @@ public class InitCommand extends CamelKitCommand {
         printer().println("  " + bold("Next steps"));
         printer().println(divider);
         printer().println("  1  Open " + cyan(projectName) + " in " + agent.name());
-        printer().println("  2  " + cyan("/camel-project") + "   \u2014 define integration landscape");
-        printer().println("     " + cyan("/camel-migrate") + "   \u2014 migrate from another platform");
-        printer().println("  3  " + cyan("/camel-flow") + " <name>");
-        printer().println("  4  " + cyan("/camel-implement") + " <name>");
+        printer().println("  2  " + cyan("/camel-flow") + "       \u2014 new integration (greenfield)");
+        printer().println("     " + cyan("/camel-migrate") + "    \u2014 migrate from another platform");
+        printer().println("     " + cyan("/camel-brainstorm") + " \u2014 auto-detect greenfield or migration");
+        printer().println("  3  " + cyan("/camel-plan") + "       \u2014 create implementation plan");
+        printer().println("  4  " + cyan("/camel-execute") + "    \u2014 execute plan with subagents");
         printer().println();
 
         return 0;
