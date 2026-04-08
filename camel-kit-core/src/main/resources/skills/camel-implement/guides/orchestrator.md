@@ -42,6 +42,14 @@ Assign these as context variables for all subsequent steps:
 
 ## Execution Order
 
+### Step 0: Project Context from Graph (CONDITIONAL)
+
+**IF** `.camel-kit/project-graph.json` exists:
+- Load `guides/graph-project-context.md`
+- Pass: `FLOW_NAME`, `CAMEL_VERSION`, `RUNTIME`
+
+**SKIP** if no project graph exists.
+
 ### Step 1: DataMapper (CONDITIONAL)
 
 **IF** the TDD contains `### DataMapper: kaoto-datamapper-{id}` sections:
@@ -211,6 +219,18 @@ Completion Gate:
     ✓ Error handling: [strategy] matches TDD
     ⚠ Hardcoded value found: [detail]  ← example warning
 ```
+
+### 9.4 — Graph Rebuild Note (CONDITIONAL)
+
+If `.camel-kit/project-graph.json` already exists (adding to existing project or migration):
+
+```
+Note: The project graph may be stale — it was built before this
+implementation. Run /camel-init to rebuild it before running
+/camel-validate or /camel-test.
+```
+
+If no graph exists: skip silently. No suggestion.
 
 ---
 

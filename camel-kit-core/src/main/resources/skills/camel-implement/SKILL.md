@@ -22,6 +22,8 @@ Provides the domain knowledge guides needed to generate Apache Camel implementat
 | `guides/component-loading.md` | Always | Component dependency resolution and loading |
 | `guides/properties-generation.md` | Always | application.properties generation |
 | `guides/maven-dependencies.md` | Always | POM dependency management |
+| `guides/pom-spring-boot.md` | When runtime is Spring Boot | POM structure for Camel on Spring Boot |
+| `guides/pom-quarkus.md` | When runtime is Quarkus | POM structure for Camel on Quarkus |
 | `guides/route-validation.md` | Always (final step) | Self-validation before completion |
 | `guides/docker-compose.md` | When external services needed | Docker Compose service definitions |
 | `guides/run-script.md` | When run script needed | Run/launch script generation |
@@ -32,6 +34,7 @@ Provides the domain knowledge guides needed to generate Apache Camel implementat
 | `guides/sequential-http-calls.md` | When chained HTTP calls needed | Sequential HTTP call patterns |
 | `guides/advanced-patterns.md` | When advanced EIPs used | Complex pattern implementation |
 | `guides/smoke-test.md` | When smoke test requested | Quick validation test generation |
+| `guides/graph-project-context.md` | When `.camel-kit/project-graph.json` exists | Project conventions for consistent generation |
 
 ## Iron Laws
 
