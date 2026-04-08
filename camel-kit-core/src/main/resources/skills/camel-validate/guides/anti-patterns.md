@@ -25,9 +25,10 @@ Routes doing too many things:
 ```
 Check: Route complexity
 - Route {flow-name}: [N] processing steps
-  → [N <= 10]: ✅ Acceptable complexity
-  → [N > 10]: ⚠️ WARNING: Consider splitting into multiple routes
-  → [N > 20]: ❌ ERROR: God route detected - violates SRP
+- Project norm: [STEP_COUNT_P75 or "N/A — no graph"] steps (P75)
+  → [N <= STEP_COUNT_P75 (default 10)]: ✅ Acceptable complexity
+  → [N > STEP_COUNT_P75 (default 10)]: ⚠️ WARNING: Consider splitting into multiple routes
+  → [N > 2 × STEP_COUNT_P75 (default 20)]: ❌ ERROR: God route detected - violates SRP
 ```
 
 **Fix:**
@@ -74,6 +75,10 @@ Check: Error handling strategy
 Or:
   ❌ No error handler found
   → Add errorHandler to route or use onException
+
+If PROJECT_NORMS.ERROR_HANDLING_COVERAGE is available and ≥ 90%:
+  Escalate from ⚠️ WARNING to ❌ CRITICAL:
+  ❌ CRITICAL: No error handler found — [ERROR_HANDLING_COVERAGE]% of project routes have error handling. This route deviates from the project norm.
 ```
 
 **Fix:**
