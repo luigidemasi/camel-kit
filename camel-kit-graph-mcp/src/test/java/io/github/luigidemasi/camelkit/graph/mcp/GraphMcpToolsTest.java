@@ -129,4 +129,41 @@ class GraphMcpToolsTest {
         String result = tools.graph_route_topology();
         assertTrue(result.contains("\"routes\""));
     }
+
+    @Test
+    void graphDeadCodeFindsUnusedArtifact() {
+        String result = tools.graph_dead_code();
+        assertTrue(result.contains("\"unusedArtifacts\""));
+        // camel-jdbc is in testdata pom.xml but no endpoint uses jdbc: scheme
+        assertTrue(result.contains("camel-jdbc"));
+    }
+
+    @Test
+    void graphDeadCodeNoOrphanedRoutes() {
+        String result = tools.graph_dead_code();
+        assertTrue(result.contains("\"orphanedRoutes\""));
+        // All routes in testdata have valid connections
+        assertTrue(result.contains("\"orphanedRoutes\":[]") ||
+                result.contains("\"orphanedCount\":0"));
+    }
+
+    @Test
+    void graphDeadCodeReportsUnusedProperties() {
+        String result = tools.graph_dead_code();
+        assertTrue(result.contains("\"unusedProperties\""));
+    }
+
+    @Test
+    void graphDeadCodeReturnsSummary() {
+        String result = tools.graph_dead_code();
+        assertTrue(result.contains("\"summary\""));
+    }
+
+    @Test
+    void graphDeadCodeNoGraph() {
+        GraphMcpTools emptyTools = new GraphMcpTools();
+        emptyTools.service = new GraphMcpService();
+        String result = emptyTools.graph_dead_code();
+        assertTrue(result.contains("\"available\":false"));
+    }
 }
