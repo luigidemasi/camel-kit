@@ -4,6 +4,14 @@ This guide generates `application.properties`.
 
 **Context variables:** `FLOW_NAME`, `PROPS_DIR`, `CAMEL_VERSION`, `RUNTIME` (jbang | springboot | quarkus).
 
+## Graph Context (when available)
+
+If `PROJECT_CONTEXT` was populated by Step 0 (graph-project-context):
+- **Property naming:** Match `PROJECT_CONTEXT.PROPERTY_CONVENTIONS`. If the project uses `kafka.topic.input` (singular), generate the same pattern — not `kafka.topics.input` (plural).
+- **Bean reuse:** Check `PROJECT_CONTEXT.EXISTING_BEANS` before generating `#class:` bean definitions. If a DataSource bean already exists, reference it by name (e.g., `camel.component.sql.dataSource=#existingDataSource`) instead of creating a new one.
+
+If `PROJECT_CONTEXT` is not available, proceed with the template below as-is.
+
 ---
 
 ## 5.1 Component-Level Configuration

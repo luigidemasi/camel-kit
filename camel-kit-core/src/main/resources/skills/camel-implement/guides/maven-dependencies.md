@@ -12,13 +12,15 @@ Before adding dependencies, verify that `pom.xml` has the correct BOM in `<depen
 
 ### Spring Boot
 
+For full POM structure, load `pom-spring-boot.md`. The BOM configuration:
+
 ```xml
 <dependencyManagement>
   <dependencies>
     <dependency>
-      <groupId>org.apache.camel.springboot</groupId>
+      <groupId>com.redhat.camel.springboot.platform</groupId>
       <artifactId>camel-spring-boot-bom</artifactId>
-      <version>${camel-spring-boot.version}</version>
+      <version>${camel-spring-boot-version}</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>
@@ -26,10 +28,12 @@ Before adding dependencies, verify that `pom.xml` has the correct BOM in `<depen
 </dependencyManagement>
 ```
 
+**IMPORTANT:** The groupId is `com.redhat.camel.springboot.platform`, NOT `org.apache.camel.springboot`.
+
 The `camel-spring-boot-bom` version uses the **same base version** as Camel but may have a **different Red Hat qualifier**.
 
 **To discover the correct version**, fetch the directory listing from:
-`https://maven.repository.redhat.com/ga/org/apache/camel/springboot/camel-spring-boot-bom/`
+`https://maven.repository.redhat.com/ga/com/redhat/camel/springboot/platform/camel-spring-boot-bom/`
 
 Find the entry matching the `CAMEL_VERSION` base version (e.g., `4.14.4`) and pick the highest `.redhat-XXXXX` qualifier.
 
@@ -45,13 +49,22 @@ Find the entry matching the `CAMEL_VERSION` base version (e.g., `4.14.4`) and pi
 
 ### Quarkus
 
+For full POM structure, load `pom-quarkus.md`. Quarkus uses TWO BOMs — the Quarkus platform BOM and the Camel Quarkus BOM:
+
 ```xml
 <dependencyManagement>
   <dependencies>
     <dependency>
-      <groupId>org.apache.camel.quarkus</groupId>
-      <artifactId>camel-quarkus-bom</artifactId>
-      <version>${camel-quarkus.version}</version>
+      <groupId>com.redhat.quarkus.platform</groupId>
+      <artifactId>quarkus-bom</artifactId>
+      <version>${quarkus.platform.version}</version>
+      <type>pom</type>
+      <scope>import</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.redhat.quarkus.platform</groupId>
+      <artifactId>quarkus-camel-bom</artifactId>
+      <version>${camel-quarkus.platform.version}</version>
       <type>pom</type>
       <scope>import</scope>
     </dependency>
@@ -59,18 +72,18 @@ Find the entry matching the `CAMEL_VERSION` base version (e.g., `4.14.4`) and pi
 </dependencyManagement>
 ```
 
-The `camel-quarkus-bom` uses a **completely different version scheme** (3.x) from Camel (4.x).
+**IMPORTANT:** The groupId is `com.redhat.quarkus.platform`, NOT `org.apache.camel.quarkus`.
+
+The Quarkus platform version uses the Quarkus version scheme (3.x), not Camel (4.x).
 
 **To discover the correct version**, fetch the directory listing from:
-`https://maven.repository.redhat.com/ga/org/apache/camel/quarkus/camel-quarkus-bom/`
-
-Match the Camel base version to the Camel Quarkus version using the mapping below.
+`https://maven.repository.redhat.com/ga/com/redhat/quarkus/platform/quarkus-camel-bom/`
 
 **Fallback static table** (if fetch fails):
 
-| Camel Version | Camel Quarkus BOM Version |
+| Camel Version | Quarkus Platform Version |
 |--------------|--------------------------|
-| `4.14.4.redhat-00008` | `3.27.1.redhat-00004` |
+| `4.14.4.redhat-00008` | `3.27.2.redhat-00002` |
 | `4.10.7.redhat-00009` | `3.20.0.redhat-00011` |
 | `4.8.5.redhat-00008` | `3.15.0.redhat-00010` |
 | `4.4.0.redhat-00046` | `3.8.0.redhat-00018` |
@@ -80,9 +93,11 @@ Match the Camel base version to the Camel Quarkus version using the mapping belo
 
 ## Step 1b: Verify Red Hat Maven Repository
 
-Red Hat Build artifacts (versions with `.redhat-XXXXX` suffix) are hosted on the **public** Red Hat Maven GA repository. This repository does NOT require authentication — it is freely accessible.
+<HARD-RULE>
+Red Hat Build artifacts (versions with `.redhat-XXXXX` suffix) are hosted on the **public** Red Hat Maven GA repository. This repository does NOT require authentication — it is freely accessible to anyone.
 
-Verify that `pom.xml` contains this repository definition. If missing, add it:
+The `pom.xml` MUST contain this repository definition. If missing, add it. If Maven cannot resolve Red Hat artifacts, the fix is ALWAYS to add this repository — NEVER to switch to community (Apache) coordinates.
+</HARD-RULE>
 
 ```xml
 <repositories>
@@ -106,6 +121,8 @@ Verify that `pom.xml` contains this repository definition. If missing, add it:
 ## Step 2: Add Dependencies
 
 Add dependencies from the TDD "Dependencies" section using the correct groupId and artifactId pattern for the runtime.
+
+**Graph version alignment:** If `PROJECT_CONTEXT.DEPENDENCY_VERSIONS` is available (from Step 0), check it before adding each dependency. If the artifact is already in the project with a specific version (e.g., `camel-kafka:4.14.4.redhat-00008`), use that version for consistency. If the artifact is new to the project, use the version from the MCP catalog response. Note: when BOM manages versions (no `<version>` tag), this check applies to the BOM version itself.
 
 **IMPORTANT:** The TDD "Dependencies" section lists generic Camel artifact names (e.g., `camel-kafka`). Transform them to the runtime-specific pattern:
 
