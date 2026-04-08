@@ -4,6 +4,7 @@ import io.github.luigidemasi.camelkit.graph.model.EdgeType;
 import io.github.luigidemasi.camelkit.graph.model.GraphEdge;
 import io.github.luigidemasi.camelkit.graph.model.GraphNode;
 import io.github.luigidemasi.camelkit.graph.model.NodeType;
+import io.github.luigidemasi.camelkit.graph.query.DeadCodeAnalyzer;
 import io.github.luigidemasi.camelkit.graph.query.GraphQuery;
 import io.github.luigidemasi.camelkit.graph.query.RouteFlowTracer;
 import io.quarkiverse.mcp.server.Tool;
@@ -227,6 +228,33 @@ public class GraphMcpTools {
         }
         sb.append("}}");
         return sb.toString();
+    }
+
+    @Tool(description = "Detect dead code in the project: unused Camel Maven dependencies, " +
+            "orphaned routes (internal routes nobody calls), and configuration properties " +
+            "that don't configure any endpoint. Use for project hygiene and migration cleanup.")
+    public String graph_dead_code() {
+        if (!service.isAvailable()) {
+            return "{\"available\":false,\"message\":\"No project graph found. Run /camel-init first.\"}";
+        }
+        DeadCodeAnalyzer analyzer = new DeadCodeAnalyzer(service.getGraph());
+        DeadCodeAnalyzer.DeadCodeResult result = analyzer.analyze();
+
+        String artifacts = result.unusedArtifacts().stream()
+                .map(this::nodeToJson).collect(Collectors.joining(","));
+        String routes = result.orphanedRoutes().stream()
+                .map(this::nodeToJson).collect(Collectors.joining(","));
+        String properties = result.unusedProperties().stream()
+                .map(this::nodeToJson).collect(Collectors.joining(","));
+
+        return "{\"available\":true," +
+                "\"unusedArtifacts\":[" + artifacts + "]," +
+                "\"orphanedRoutes\":[" + routes + "]," +
+                "\"unusedProperties\":[" + properties + "]," +
+                "\"summary\":{" +
+                "\"unusedArtifactCount\":" + result.unusedArtifacts().size() + "," +
+                "\"orphanedRouteCount\":" + result.orphanedRoutes().size() + "," +
+                "\"unusedPropertyCount\":" + result.unusedProperties().size() + "}}";
     }
 
     // --- Formatting helpers (package-private for reuse by domain tools) ---

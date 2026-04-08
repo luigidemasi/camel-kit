@@ -12,6 +12,6 @@
     </route>
     <route id="xmlSedaRoute">
         <from uri="seda:storeOrder"/>
-        <to uri="jdbc:dataSource"/>
+        <to uri="log:stored"/>
     </route>
 </routes>
