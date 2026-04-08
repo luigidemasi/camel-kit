@@ -21,6 +21,8 @@ Provides the domain knowledge guides needed to validate generated Apache Camel r
 | `guides/quality-checks.md` | Always | Quality metrics and thresholds |
 | `guides/security-analysis.md` | Always | Security checks catalog (credentials, TLS, headers) |
 | `guides/anti-patterns.md` | Always | Anti-pattern detection catalog |
+| `guides/graph-project-context.md` | When `.camel-kit/project-graph.json` exists | Project norms for validation thresholds |
+| `guides/graph-dead-code-report.md` | When `.camel-kit/project-graph.json` exists | Dead code analysis and report |
 
 ## Iron Laws
 
