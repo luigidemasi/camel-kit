@@ -67,6 +67,7 @@ Check all 7 rules for every route:
 ## Guides You Reference
 
 - `camel-validate/guides/schema-validation.md` — YAML schema rules
+- `camel-validate/guides/endpoint-validation.md` — endpoint URI verification
 - `camel-validate/guides/security-analysis.md` — security checks
 - `camel-validate/guides/anti-patterns.md` — anti-pattern catalog
 - `camel-validate/guides/quality-checks.md` — quality metrics

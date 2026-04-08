@@ -30,6 +30,7 @@ The design spec is the single source of truth for what gets built. It contains:
 **Date:** [YYYY-MM-DD]
 **Camel Version:** [full Maven version with .redhat-XXXXX]
 **Runtime:** [JBang / Spring Boot / Quarkus]
+**Platform BOM Version:** [resolved platform BOM version with .redhat-XXXXX — e.g., 3.27.2.redhat-00002 for Quarkus, 4.14.4.redhat-00010 for Spring Boot]
 
 ---
 
@@ -214,6 +215,7 @@ Fix any issues inline.
    project:
      camelVersion: "[full version]"
      runtime: "[main/spring-boot/quarkus]"
+     platformBomVersion: "[resolved platform BOM version]"
    ```
 3. Copy `templates/constitution.md` to `docs/constitution.md` if it doesn't exist
 

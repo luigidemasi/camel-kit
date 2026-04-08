@@ -50,7 +50,7 @@ digraph brainstorm {
     design [label="Load design-assembly.md\nAssemble design spec", shape=box];
     review [label="Self-review spec\n(placeholders, consistency)", shape=box];
     user_approve [label="User reviews and\napproves spec?", shape=diamond];
-    plan [label="Invoke camel-plan", shape=doublecircle];
+    plan [label="YOU invoke camel-plan\n(automatic, not manual)", shape=doublecircle];
     
     start -> detect;
     detect -> gf_interview [label="greenfield"];
@@ -72,7 +72,11 @@ digraph brainstorm {
 }
 ```
 
-**The terminal state is invoking camel-plan.** Do NOT invoke camel-execute, generate YAML, or take any implementation action.
+**The terminal state is YOU invoking camel-plan.** Do NOT invoke camel-execute, generate YAML, or take any implementation action.
+
+<HARD-RULE>
+When the user approves the design spec, YOU must invoke/activate the `camel-plan` skill immediately and automatically. Do NOT tell the user to run it manually. Do NOT print "please run camel-plan" or "run /camel-plan". YOU do it — the transition is automatic.
+</HARD-RULE>
 
 ---
 
@@ -96,6 +100,7 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
 | "The migration source tells me everything I need" | Source artifacts show WHAT exists, not what the user WANTS. Confirm. |
 | "I'll verify components later during implementation" | Wrong design spec → wrong plan → wrong code. Verify NOW. |
 | "I'll ask all clarification questions at once to save time" | Batching questions overwhelms the user and hides dependencies between answers. ONE question at a time. |
+| "I'll tell the user to run camel-plan next" | NO. YOU invoke camel-plan automatically after approval. The pipeline is seamless. |
 
 ### Red Flags — STOP If You Think:
 
@@ -107,6 +112,7 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
 - "I'll present the spec and move on quickly..."
 - "I'll ask all the clarification questions at once to save time..."
 - "Before I proceed, I need to clarify a few things: 1. ... 2. ... 3. ..."
+- "To proceed, please run /camel-plan..." or "Next step: run camel-plan..."
 
 ---
 
@@ -145,14 +151,11 @@ You MUST complete these items in order:
    - Greenfield: `guides/greenfield-interview.md`
    - Migration: `guides/migration-discovery.md`
 4. **Select Camel version** — load `guides/version-selection.md`
-5. **Design flows** — for each flow, use `camel-design` guides to:
-   - Select and MCP-verify components (Iron Law 1)
-   - Define transformations, error handling, resilience
-   - Check Red Hat support status (Iron Law 2)
+5. **Design flows** — for each flow, load relevant `camel-design/` guides (component selection, EIPs, data formats, error handling, security, resilience)
 6. **Assemble design spec** — load `guides/design-assembly.md`
 7. **Self-review spec** — scan for placeholders, contradictions, unverified components
 8. **User reviews spec** — present spec, wait for explicit approval (Iron Law 4)
-9. **Transition** — invoke `camel-plan` with the approved spec
+9. **Transition** — YOU invoke the `camel-plan` skill automatically (do NOT tell the user to run it)
 
 ---
 

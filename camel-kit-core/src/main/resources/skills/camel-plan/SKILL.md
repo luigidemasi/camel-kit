@@ -34,7 +34,7 @@ digraph plan {
     generate [label="Generate plan document\nwith checklist tasks", shape=box];
     self_review [label="Self-review:\nspec coverage, placeholders,\nconsistency", shape=box];
     user_approve [label="User reviews\nand approves plan?", shape=diamond];
-    execute [label="Invoke camel-execute", shape=doublecircle];
+    execute [label="YOU invoke camel-execute\n(automatic, not manual)", shape=doublecircle];
     
     start -> scope;
     scope -> decompose [label="too large"];
@@ -68,6 +68,7 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
 | "I'll combine multiple flows into one task" | One task = one outcome. Split flows into separate tasks. |
 | "Testing can be added later" | Test tasks are in the plan. Not later. NOW. |
 | "I'll skip the review specification" | Every task gets two-stage review. Spec compliance then quality. No exceptions. |
+| "I'll tell the user to run camel-execute next" | NO. YOU invoke camel-execute automatically after approval. The pipeline is seamless. |
 
 ### Red Flags — STOP If You Think:
 
@@ -76,6 +77,7 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
 - "This plan doesn't need that much detail..."
 - "I can combine these tasks to be more efficient..."
 - "The review steps are unnecessary for simple tasks..."
+- "To proceed, please run /camel-execute..." or "Next step: run camel-execute..."
 
 ---
 
@@ -194,4 +196,6 @@ Ready to execute. I'll dispatch subagents for each task with two-stage review
 Shall I begin execution?
 ```
 
-If approved, invoke `camel-execute` with the plan path.
+<HARD-RULE>
+When the user approves the plan, YOU must invoke/activate the `camel-execute` skill immediately and automatically. Do NOT tell the user to run it manually. Do NOT print "please run camel-execute" or "run /camel-execute". YOU do it — the transition is automatic.
+</HARD-RULE>

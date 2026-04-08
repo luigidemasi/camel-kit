@@ -12,6 +12,10 @@ Execute the approved implementation plan by dispatching fresh subagents per task
 
 **Core principle:** Fresh subagent per task + two-stage review (spec then quality) = high quality, fast iteration.
 
+<HARD-RULE>
+AUTONOMOUS EXECUTION: Execute ALL tasks from the plan sequentially WITHOUT stopping, pausing, or asking the user between tasks. The user approved the entire plan — that is your authorization to execute every task. After each task's review passes, IMMEDIATELY start the next task. Do NOT print "Next Steps", "Ready to proceed", or any summary between tasks. The ONLY summary is the final completion report after ALL tasks are done (Step 4).
+</HARD-RULE>
+
 **Violating the letter of these rules is violating the spirit of these rules.**
 
 ---
@@ -88,6 +92,11 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces ALL five:
 | "This task is too simple for two-stage review" | Simple tasks get simple reviews. But they still get reviews. |
 | "I'll dispatch multiple implementers in parallel" | Never. Implementers can conflict. One at a time. |
 | "The subagent can read the plan file itself" | Provide full task text. Don't make subagents read plan files. |
+| "I should ask before proceeding to the next task" | The user approved the ENTIRE plan. Execute ALL tasks without asking. |
+| "Let me check if the user wants to continue" | They already said yes — to the whole plan. Keep going. |
+| "Let me summarize what was completed so far" | No mid-plan summaries. Print ONE LINE per task. Summary only at the END (Step 4). |
+| "The scaffolding phase is complete, ready for implementation" | Scaffolding is ONE task. The plan has N tasks. Execute all N. Don't stop at 1. |
+| "Next Steps: Ready to proceed with Task N" | There are no "Next Steps" — you ARE executing the next step RIGHT NOW. |
 
 ### Red Flags — STOP If You Think:
 
@@ -96,6 +105,12 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces ALL five:
 - "The implementer said it's done, I trust them..."
 - "I'll batch the reviews at the end..."
 - "I don't need to dispatch a subagent for this..."
+- "Would you like me to continue with Task N?"
+- "Shall I proceed with the next task?"
+- "Next Steps: Ready to proceed with..."
+- "The [phase/command] has successfully completed..."
+- "The project is now ready for implementation of the remaining tasks"
+- "Ready to continue..." (any sentence starting with "Ready to continue")
 
 ---
 
@@ -169,15 +184,34 @@ Provide:
 If review finds **Critical** issues: return to implementer, fix, re-review.
 If review finds only **Important/Suggestion** issues: note them, proceed.
 
-#### 2e: Mark Task Complete
+#### 2e: Mark Task Complete and Continue
 
-Record completion. Move to next task.
+Record completion with a ONE-LINE status: `✅ Task N complete. Starting Task N+1...`
+
+Then IMMEDIATELY start Step 2a for the next task. No summary, no "Next Steps", no pause.
+
+<HARD-RULE>
+The per-task loop is AUTOMATIC and UNINTERRUPTED.
+
+After completing a task (implement → spec review → quality review):
+1. Print ONE LINE: `✅ Task N complete. Starting Task N+1...`
+2. IMMEDIATELY begin dispatching the next task's implementer subagent
+
+Do NOT:
+- Ask "Would you like me to continue?" or "Shall I proceed with Task N?"
+- Print "Next Steps" or "Ready to proceed" blocks
+- Print a completion summary (that's Step 4, ONLY after ALL tasks)
+- Pause for confirmation between tasks
+- Say "The camel-execute/camel-migrate command has completed" (it hasn't — there are more tasks)
+
+The user approved the entire plan — that approval covers ALL tasks. Execute them ALL sequentially without interruption. The ONLY time you stop is after the LAST task, when you print the Step 4 completion summary.
+</HARD-RULE>
 
 ### Step 3: Final Cross-Cutting Review
 
 After all tasks complete:
 
-1. Dispatch quality-engineer for a cross-cutting review of ALL generated routes
+1. Dispatch code-quality-reviewer for a cross-cutting review of ALL generated routes
 2. Check constitution compliance across all routes (not just individually)
 3. Check for cross-route consistency (naming conventions, property patterns, error handling consistency)
 4. Run smoke test if plan includes one
@@ -220,3 +254,6 @@ Smoke Test: PASS/FAIL/NOT_RUN
 - Accept "close enough" on spec compliance
 - Skip re-review after fixes
 - Move to next task with open issues
+- Stop or pause between tasks to ask the user
+- Print "Next Steps" or completion summaries between tasks (only after the LAST task)
+- Say "command has completed" or "phases are complete" while tasks remain

@@ -113,17 +113,35 @@ These tasks are added to the standard greenfield sequence:
 **Agent:** migration-specialist
 
 **Files:**
-- Create/Modify: `pom.xml` (new BOM, new parent, updated dependencies)
+- Create/Modify: `pom.xml` (new BOM, NO parent POM, updated dependencies)
 - Create: platform-specific config files
 
 **Guides to Load:**
 - `camel-migrate/guides/camel2-platform-changes.md`
+- `camel-implement/guides/maven-dependencies.md`
+- `camel-implement/guides/pom-spring-boot.md` (if Spring Boot target)
+- `camel-implement/guides/pom-quarkus.md` (if Quarkus target)
+
+**POM Template Files (MUST READ AND COPY):**
+- If Quarkus: `templates/pom-quarkus.xml` — copy verbatim, replace only `[PLACEHOLDER]` values
+- If Spring Boot: `templates/pom-spring-boot.xml` — copy verbatim, replace only `[PLACEHOLDER]` values
+
+<HARD-RULE>
+Do NOT generate the POM from scratch. COPY the template file and replace ONLY the bracketed placeholders. The template already has the correct Red Hat groupIds, artifactIds, repositories, and plugins. Community groupIds/versions are FORBIDDEN.
+</HARD-RULE>
 
 **Design Spec Section:** Section 7, Platform Changes
 
-- [ ] Update Maven BOM from source to target:
-  - Source: [source BOM]
-  - Target: [Red Hat Build BOM from version-selection]
+- [ ] Create new `pom.xml` using the TEMPLATE-COPY approach:
+  - If Quarkus: Read the file `templates/pom-quarkus.xml`, copy it verbatim to `pom.xml`
+  - If Spring Boot: Read the file `templates/pom-spring-boot.xml`, copy it verbatim to `pom.xml`
+  - Replace ONLY these placeholders: `[PROJECT_GROUP_ID]`, `[PROJECT_ARTIFACT_ID]`, `[PROJECT_VERSION]`, `[PROJECT_NAME]`, `[PLATFORM_BOM_VERSION]` (and `[SPRING_BOOT_VERSION]` for Spring Boot)
+  - Get `[PLATFORM_BOM_VERSION]` from the design spec header `platformBomVersion` field
+  - Do NOT modify any other values in the template (groupIds, artifactIds, repositories, plugins)
+  - Add project-specific dependencies in the DEPENDENCIES section
+- [ ] Verify BOM groupId is Red Hat (`com.redhat.*`), NOT community (`io.quarkus.*` or `org.apache.*`)
+- [ ] Verify version has `.redhat-XXXXX` suffix
+- [ ] Verify Red Hat GA repository is present in `<repositories>` AND `<pluginRepositories>`
 - [ ] Convert platform-specific configuration:
   - [OSGi features → Maven dependencies]
   - [Spring XML context → application.properties]
@@ -132,7 +150,7 @@ These tasks are added to the standard greenfield sequence:
 
 **Review:**
 - [ ] Spec compliance: platform changes match spec Section 7
-- [ ] Code quality: valid POM structure, correct BOM usage
+- [ ] Code quality: valid POM structure, correct BOM usage, Red Hat groupIds, `.redhat-` version suffix
 ```
 
 ---

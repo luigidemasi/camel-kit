@@ -30,41 +30,9 @@ compliance, security, anti-patterns, and YAML quality.
 
 ## Constitution Rules (ALL 7 MUST PASS)
 
-For EACH generated route, check:
+Read `docs/constitution.md` in the project directory for the full rule definitions. For EACH generated route, check ALL 7 rules.
 
-### Rule 1: Route Structure
-- Has `from:` (source endpoint)
-- Has terminal `to:` (sink endpoint)
-- Exception: `direct:`/`seda:` sub-routes may omit external sink
-
-### Rule 2: Single Responsibility
-- One clear purpose, explainable in one sentence
-- ≤7 processing steps (WARNING if exceeded)
-
-### Rule 3: Separation of Concerns
-- Follows Ingestion → Processing → Delivery pattern
-- Business logic in beans, integration logic in routes
-- Uses `direct:` for sync, `seda:` for async internal routing
-
-### Rule 4: Naming Conventions
-- Route ID: `<domain>-<action>[-<qualifier>]`
-- Internal endpoints: `direct:<route-id>`, `seda:<domain>-<purpose>`
-- Custom headers: `kebab-case` (not CamelCase)
-
-### Rule 5: Observability
-- Every route declares `routeId`
-- Every route declares `description`
-- Correlation IDs used for cross-route tracing
-
-### Rule 6: External Configuration
-- No hardcoded connection strings, credentials, or environment values
-- All configurable values use `{{placeholder}}` syntax
-- Configuration hierarchy documented in properties
-
-### Rule 7: Component Support Verification
-- Spot-check 2-3 components via `camel_rh_build_component_info`
-- All should be "Production Support"
-- Technology Preview or unsupported → flag as Important issue
+For Rule 7 (Component Support Verification): spot-check 2-3 components via `camel_rh_build_component_info`. All should be "Production Support" — Technology Preview or unsupported → flag as Important issue.
 
 ## Security Checks
 

@@ -17,27 +17,40 @@ For each flow in the design spec, generate these tasks in order:
 **Agent:** implementation-engineer
 
 **Files:**
-- Create: `.camel-kit/config.yaml`
-- Create: `docs/constitution.md` (copy from `templates/constitution.md`)
 - Create: `pom.xml` (Spring Boot/Quarkus only)
 
 **Guides to Load:**
 - `camel-implement/guides/orchestrator.md` — file path table
-- `camel-implement/guides/maven-dependencies.md` (Spring Boot/Quarkus only)
+- `camel-implement/guides/maven-dependencies.md`
+- `camel-implement/guides/pom-spring-boot.md` (if Spring Boot runtime)
+- `camel-implement/guides/pom-quarkus.md` (if Quarkus runtime)
+
+**POM Template Files (MUST READ AND COPY):**
+- If Quarkus: `templates/pom-quarkus.xml` — copy verbatim, replace only `[PLACEHOLDER]` values
+- If Spring Boot: `templates/pom-spring-boot.xml` — copy verbatim, replace only `[PLACEHOLDER]` values
+
+<HARD-RULE>
+Do NOT generate the POM from scratch. COPY the template file and replace ONLY the bracketed placeholders. The template already has the correct Red Hat groupIds, artifactIds, repositories, and plugins. Community groupIds/versions are FORBIDDEN.
+</HARD-RULE>
 
 **Design Spec Section:** Section 6 (Project Structure)
 
-- [ ] Create `.camel-kit/config.yaml` with project settings:
-  - `project.camelVersion`: [version from spec]
-  - `project.runtime`: [runtime from spec]
-- [ ] Copy `templates/constitution.md` to `docs/constitution.md`
 - [ ] Create directory structure from design spec Section 6
-- [ ] For Spring Boot/Quarkus: create `pom.xml` with BOM and parent
+- [ ] Create `pom.xml` using the TEMPLATE-COPY approach:
+  - If Quarkus: Read the file `templates/pom-quarkus.xml`, copy it verbatim to `pom.xml`
+  - If Spring Boot: Read the file `templates/pom-spring-boot.xml`, copy it verbatim to `pom.xml`
+  - Replace ONLY these placeholders: `[PROJECT_GROUP_ID]`, `[PROJECT_ARTIFACT_ID]`, `[PROJECT_VERSION]`, `[PROJECT_NAME]`, `[PLATFORM_BOM_VERSION]` (and `[SPRING_BOOT_VERSION]` for Spring Boot)
+  - Get `[PLATFORM_BOM_VERSION]` from the design spec header `platformBomVersion` field
+  - Do NOT modify any other values in the template (groupIds, artifactIds, repositories, plugins)
+  - Add project-specific dependencies in the DEPENDENCIES section
+- [ ] Verify BOM groupId is Red Hat (`com.redhat.*`), NOT community (`io.quarkus.*` or `org.apache.*`)
+- [ ] Verify version has `.redhat-XXXXX` suffix
+- [ ] Verify Red Hat GA repository is present in `<repositories>` AND `<pluginRepositories>`
 - [ ] Verify: `ls -la` shows expected structure
 
 **Review:**
 - [ ] Spec compliance: directory structure matches spec Section 6
-- [ ] Code quality: N/A (no route code yet)
+- [ ] Code quality: Red Hat groupIds, `.redhat-` version suffix, no community coordinates
 ```
 
 ### Task Template: Generate Route YAML (per flow)
