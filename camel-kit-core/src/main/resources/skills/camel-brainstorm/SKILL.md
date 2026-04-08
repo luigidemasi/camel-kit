@@ -167,9 +167,8 @@ You MUST complete these items in order:
 - `camel_catalog_language` — verify expression language exists
 - `camel_rh_build_component_info` — check Red Hat support status
 - `camel_knowledge_search` — search Red Hat docs for guidance
-- `camel_graph_analyze` — analyze project structure (migration only)
-
 → For MCP setup, version mapping, and fallback policy: see `shared/mcp-setup.md`
+→ For graph analysis: use `{COMMAND_PREFIX} graph` CLI commands (see `shared/graph-availability.md`)
 
 ---
 
