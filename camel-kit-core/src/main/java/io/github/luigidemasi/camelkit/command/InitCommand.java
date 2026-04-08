@@ -5,6 +5,8 @@ import io.github.luigidemasi.camelkit.catalog.CitrusSchemaDownloader;
 import io.github.luigidemasi.camelkit.catalog.OfflineRepoPopulator;
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
+import io.github.luigidemasi.camelkit.generator.AgentGeneratorFactory;
+import io.github.luigidemasi.camelkit.generator.InitContext;
 import io.github.luigidemasi.camelkit.graph.GraphBuilder;
 import io.github.luigidemasi.camelkit.graph.ProjectGraph;
 import io.github.luigidemasi.camelkit.output.Printer;
@@ -17,16 +19,9 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.Instant;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * Initialize a new Camel-Kit project.
@@ -158,28 +153,19 @@ public class InitCommand extends CamelKitCommand {
         copyAdditionalTemplates(camelKitDir.resolve("templates"));
         tracker.finishTask();
 
-        // 3 — AI agent commands
-        tracker.startTask("🤖", "Registering " + agent.name() + " commands");
-        createCommandTemplates(commandsDir, agent);
-        tracker.finishTask();
-
-        // 4 — skills
-        tracker.startTask("📚", "Copying skills");
+        // 3+4+4b+5 — AI agent generation (commands, skills, MCP)
+        tracker.startTask("🤖", "Generating " + agent.name() + " workspace");
+        String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf("/"));
         Path agentBaseDir = targetDir.resolve(agent.folder()).getParent();
-        copySkills(agentBaseDir.resolve("skills"));
+        InitContext genCtx = new InitContext(agent, ai, commandsDir,
+            agentBaseDir.resolve("skills"), targetDir,
+            detectCommandPrefix(), version, offline, printer());
+        AgentGeneratorFactory.create(ai).generate(genCtx);
         tracker.finishTask();
 
-        // 4b — Qwen agent registration
-        if ("qwen".equals(ai)) {
-            tracker.startTask("\uD83E\uDD16", "Generating Qwen sub-agents");
-            generateQwenAgents(targetDir, agentBaseDir.resolve("skills"));
-            tracker.finishTask();
-        }
-
-        // 5 — MCP + Maven Wrapper
-        tracker.startTask("🔌", "Configuring MCP & Maven wrapper");
+        // Maven Wrapper
+        tracker.startTask("🔌", "Configuring Maven wrapper");
         createMavenWrapper(targetDir);
-        createMcpConfigs(targetDir, version, ai, offline);
         tracker.finishTask();
 
         // 6 — Project graph
@@ -293,41 +279,6 @@ public class InitCommand extends CamelKitCommand {
         Files.writeString(dir.resolve("constitution.md"), content);
     }
 
-    private void createCommandTemplates(Path dir, AgentConfig agent) throws Exception {
-        List<String> commands = List.of("project", "flow", "implement", "validate", "test", "migrate", "knowledge");
-
-        // Extract agent base folder (e.g., ".bob" from ".bob/commands")
-        String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf("/"));
-
-        for (String cmd : commands) {
-            String skillName = "camel-" + cmd;
-
-            // Create reference to skill file
-            String content = "Read " + agentBaseFolder + "/skills/" + skillName + "/SKILL.md and follow those instructions";
-
-            // Wrap in TOML format if needed
-            if ("toml".equals(agent.fileFormat())) {
-                content = wrapInToml(cmd, content);
-            }
-
-            String filename = skillName + "." + agent.fileFormat();
-            Files.writeString(dir.resolve(filename), content);
-        }
-
-        printer().println(green("✓") + " Created " + commands.size() + " skill reference commands");
-    }
-
-    private String wrapInToml(String cmd, String content) {
-        // Escape triple quotes for TOML
-        String escaped = content.replace("\"\"\"", "\\\"\\\"\\\"");
-        return """
-            description = "Camel-Kit %s command"
-
-            prompt = \"\"\"
-            %s
-            \"\"\"
-            """.formatted(cmd, escaped);
-    }
 
     private void copyAdditionalTemplates(Path templatesDir) throws Exception {
         String[] additionalTemplates = {
@@ -348,168 +299,6 @@ public class InitCommand extends CamelKitCommand {
         }
     }
 
-    private void copySkills(Path skillsTargetDir) throws Exception {
-        Files.createDirectories(skillsTargetDir);
-
-        // Get the skills directory from resources
-        var skillsResource = getClass().getClassLoader().getResource("skills");
-        if (skillsResource == null) {
-            printer().println(yellow("  Warning: Skills not found in resources"));
-            return;
-        }
-
-        URI uri = skillsResource.toURI();
-        Path skillsSourceDir;
-        FileSystem fileSystem = null;
-
-        try {
-            // Check if we're reading from a JAR
-            if (uri.getScheme().equals("jar")) {
-                // Create filesystem for JAR
-                try {
-                    fileSystem = FileSystems.newFileSystem(uri, Collections.emptyMap());
-                } catch (Exception e) {
-                    // FileSystem might already exist
-                    fileSystem = FileSystems.getFileSystem(uri);
-                }
-                skillsSourceDir = fileSystem.getPath("/skills");
-            } else {
-                // Regular file system path
-                skillsSourceDir = Path.of(uri);
-            }
-
-            // Copy all skills from resources to target directory
-            int filesCopied = 0;
-            int dirsCopied = 0;
-            try (var stream = Files.walk(skillsSourceDir)) {
-                var paths = stream.toList();
-                for (Path source : paths) {
-                    // Convert paths to strings to avoid ProviderMismatchException
-                    String relativePathStr = skillsSourceDir.relativize(source).toString();
-
-                    // Skip the root directory itself
-                    if (relativePathStr.isEmpty()) {
-                        continue;
-                    }
-
-                    // Resolve using string to create a proper filesystem path
-                    Path destination = skillsTargetDir.resolve(relativePathStr);
-
-                    try {
-                        // Check attributes to determine if directory (works across filesystems)
-                        boolean isDir = Files.isDirectory(source);
-
-                        if (isDir) {
-                            Files.createDirectories(destination);
-                            dirsCopied++;
-                        } else {
-                            // Ensure parent directory exists
-                            Files.createDirectories(destination.getParent());
-
-                            // Use InputStream for cross-filesystem copy (JAR to filesystem)
-                            try (InputStream in = Files.newInputStream(source)) {
-                                Files.copy(in, destination, StandardCopyOption.REPLACE_EXISTING);
-                                filesCopied++;
-                            }
-                            // Append platform-specific dispatch block to SKILL.md
-                            if (destination.getFileName().toString().equals("SKILL.md")) {
-                                appendDispatchBlock(destination, ai);
-                            }
-                        }
-                    } catch (Exception e) {
-                        // Silent skip - this is expected for some paths
-                    }
-                }
-            }
-
-            // Count copied skills (directories only)
-            int skillCount = (int) Files.list(skillsTargetDir)
-                .filter(Files::isDirectory)
-                .count();
-
-            if (filesCopied > 0) {
-                printer().println(green("✓") + " Copied " + filesCopied + " files in " + skillCount + " skill folders");
-            } else {
-                printer().println(yellow("  No skills copied (this is normal - skills are embedded in command files)"));
-            }
-
-        } finally {
-            // Close the JAR filesystem if we created it
-            if (fileSystem != null && uri.getScheme().equals("jar")) {
-                try {
-                    fileSystem.close();
-                } catch (Exception e) {
-                    // Ignore close errors
-                }
-            }
-        }
-    }
-
-    /**
-     * Append the platform-specific dispatch block to a SKILL.md file.
-     * Reads the dispatch template for the selected agent and appends it.
-     */
-    private void appendDispatchBlock(Path skillMdFile, String agentName) throws Exception {
-        String dispatchTemplatePath = "templates/dispatch/" + agentName + ".md";
-        try {
-            String dispatchBlock = TemplateUtils.readTemplate(dispatchTemplatePath);
-            String existing = Files.readString(skillMdFile);
-            Files.writeString(skillMdFile, existing + "\n---\n\n" + dispatchBlock);
-        } catch (IOException e) {
-            // Dispatch template not found — skill works without it (fallback to monolithic mode)
-        }
-    }
-
-    /**
-     * For Qwen Code: generate pre-registered sub-agent definitions in .qwen/agents/.
-     * Each agent inlines a specific guide file as its system prompt.
-     */
-    private void generateQwenAgents(Path projectDir, Path skillsDir) throws Exception {
-        Path agentsDir = projectDir.resolve(".qwen/agents");
-        Files.createDirectories(agentsDir);
-
-        int agentCount = 0;
-        if (!Files.exists(skillsDir)) {
-            return;
-        }
-
-        try (var stream = Files.walk(skillsDir)) {
-            var guidePaths = stream
-                .filter(p -> p.toString().contains("/guides/"))
-                .filter(p -> p.toString().endsWith(".md"))
-                .toList();
-
-            for (Path guidePath : guidePaths) {
-                String guideContent = Files.readString(guidePath);
-                String guideName = guidePath.getFileName().toString().replace(".md", "");
-                String agentName = "camel-" + guideName;
-                String description = "Camel Kit sub-agent for " + guideName.replace("-", " ");
-
-                // Use string concatenation to avoid IllegalFormatException
-                // if guideContent contains % characters
-                String agentDef = "---\n"
-                    + "name: " + agentName + "\n"
-                    + "description: " + description + "\n"
-                    + "tools:\n"
-                    + "  - read_file\n"
-                    + "  - write_file\n"
-                    + "  - edit\n"
-                    + "  - read_many_files\n"
-                    + "  - run_shell_command\n"
-                    + "  - glob\n"
-                    + "  - grep\n"
-                    + "---\n\n"
-                    + guideContent;
-
-                Files.writeString(agentsDir.resolve(agentName + ".md"), agentDef);
-                agentCount++;
-            }
-        }
-
-        if (agentCount > 0) {
-            printer().println(green("✓") + " Generated " + agentCount + " Qwen sub-agent definitions");
-        }
-    }
 
     private void createMavenWrapper(Path projectDir) throws Exception {
         // Create .mvn/wrapper directory
@@ -537,102 +326,4 @@ public class InitCommand extends CamelKitCommand {
         printer().println(green("✓") + " Maven Wrapper created (portable Maven " + mavenVersion + ")");
     }
 
-    private void createMcpConfigs(Path projectDir, String camelVersion, String selectedAgent,
-                                   boolean offlineMode) throws Exception {
-        String agentName = "";
-
-        // Always extract the Camel MCP runner JAR — it's started with java -jar,
-        // avoiding JBang's classloader and repo resolution issues entirely.
-        Path mcpDir = projectDir.resolve(".camel-kit/mcp");
-        Files.createDirectories(mcpDir);
-        extractRunnerJar(mcpDir);
-
-        // Knowledge server repos (still uses JBang for now)
-        String knowledgeMcpRepos = CamelKitMain.KNOWLEDGE_MCP_REPOS;
-        String camelMcpRepos = CamelKitMain.CAMEL_MCP_REPOS;
-
-        try {
-            String templatePath;
-            Path configFile;
-
-            switch (selectedAgent.toLowerCase()) {
-                case "claude" -> {
-                    templatePath = offlineMode
-                            ? "templates/mcp-configs/claude-code-mcp-standalone.json"
-                            : "templates/mcp-configs/claude-code-mcp.json";
-                    configFile = projectDir.resolve(".mcp.json");
-                    agentName = "Claude Code";
-                }
-                case "bob" -> {
-                    templatePath = offlineMode
-                            ? "templates/mcp-configs/bob-mcp-standalone.json"
-                            : "templates/mcp-configs/bob-mcp.json";
-                    Path bobDir = projectDir.resolve(".bob");
-                    Files.createDirectories(bobDir);
-                    configFile = bobDir.resolve("mcp.json");
-                    agentName = "IBM Bob";
-                }
-                case "gemini" -> {
-                    templatePath = offlineMode
-                            ? "templates/mcp-configs/gemini-mcp-standalone.json"
-                            : "templates/mcp-configs/gemini-mcp.json";
-                    Path geminiDir = projectDir.resolve(".gemini");
-                    Files.createDirectories(geminiDir);
-                    configFile = geminiDir.resolve("settings.json");
-                    agentName = "Gemini CLI";
-                }
-                case "qwen" -> {
-                    templatePath = offlineMode
-                            ? "templates/mcp-configs/qwen-mcp-standalone.json"
-                            : "templates/mcp-configs/qwen-mcp.json";
-                    Path qwenDir = projectDir.resolve(".qwen");
-                    Files.createDirectories(qwenDir);
-                    configFile = qwenDir.resolve("settings.json");
-                    agentName = "Qwen Code";
-                }
-                case "opencode" -> {
-                    templatePath = offlineMode
-                            ? "templates/mcp-configs/opencode-mcp-standalone.json"
-                            : "templates/mcp-configs/opencode-mcp.json";
-                    configFile = projectDir.resolve("opencode.json");
-                    agentName = "OpenCode";
-                }
-                default -> {
-                    printer().println(yellow("  Warning: Unknown agent '" + selectedAgent + "', skipping MCP config"));
-                    return;
-                }
-            }
-
-            String template = TemplateUtils.readTemplate(templatePath);
-            String processed = template
-                    .replace("{{CAMEL_MCP_VERSION}}", CamelKitMain.CAMEL_MCP_VERSION)
-                    .replace("{{KNOWLEDGE_VERSION}}", CamelKitMain.KNOWLEDGE_MCP_VERSION)
-                    .replace("{{CAMEL_MCP_REPOS}}", camelMcpRepos)
-                    .replace("{{KNOWLEDGE_MCP_REPOS}}", knowledgeMcpRepos)
-                    .replace("{{CAMEL_CATALOG_REPOS}}", CamelKitMain.CAMEL_CATALOG_REPOS);
-            Files.writeString(configFile, processed);
-
-            printer().println(green("✓") + " MCP config created for " + agentName);
-        } catch (Exception e) {
-            printer().println(yellow("  Warning: Could not create MCP config: " + e.getMessage()));
-        }
-    }
-
-    private void extractRunnerJar(Path mcpDir) throws Exception {
-        String jarName = "camel-jbang-mcp-runner.jar";
-        Path target = mcpDir.resolve(jarName);
-        if (Files.exists(target)) return;
-
-        // The runner JAR is bundled on the classpath by maven-dependency-plugin
-        String resourceName = "offline-repo/" + "camel-jbang-mcp-"
-                + CamelKitMain.CAMEL_MCP_VERSION + "-runner.jar";
-        try (InputStream in = getClass().getClassLoader().getResourceAsStream(resourceName)) {
-            if (in != null) {
-                Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
-                printer().println(green("✓") + " Extracted Camel MCP runner JAR");
-            } else {
-                printer().println(yellow("  Warning: MCP runner JAR not found on classpath: " + resourceName));
-            }
-        }
-    }
 }
