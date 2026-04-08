@@ -1,0 +1,43 @@
+package io.github.luigidemasi.camelkit.generator;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import java.util.Map;
+import static org.junit.jupiter.api.Assertions.*;
+
+class QuteTemplateEngineTest {
+
+    private QuteTemplateEngine engine;
+
+    @BeforeEach
+    void setUp() {
+        engine = new QuteTemplateEngine();
+    }
+
+    @Test
+    void substitutesVariables() {
+        String result = engine.render("test-templates/simple.md",
+            Map.of("commandPrefix", "camel-kit", "camelVersion", "4.14.4"));
+        assertTrue(result.contains("camel-kit graph stats"));
+        assertTrue(result.contains("Target version: 4.14.4"));
+    }
+
+    @Test
+    void evaluatesConditionals() {
+        String bobResult = engine.render("test-templates/conditional.md",
+            Map.of("agent", "bob"));
+        assertTrue(bobResult.contains("Switch to camel-brainstorm mode"));
+        assertFalse(bobResult.contains("Invoke the camel-brainstorm skill"));
+
+        String claudeResult = engine.render("test-templates/conditional.md",
+            Map.of("agent", "claude"));
+        assertTrue(claudeResult.contains("Invoke the camel-brainstorm skill"));
+        assertFalse(claudeResult.contains("Switch to camel-brainstorm mode"));
+    }
+
+    @Test
+    void throwsOnMissingTemplate() {
+        assertThrows(RuntimeException.class,
+            () -> engine.render("test-templates/nonexistent.md", Map.of()));
+    }
+}
