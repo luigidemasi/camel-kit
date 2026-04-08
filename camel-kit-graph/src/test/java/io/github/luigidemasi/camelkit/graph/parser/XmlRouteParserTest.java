@@ -36,7 +36,7 @@ class XmlRouteParserTest {
     @Test
     void parsesToEndpoints() {
         assertTrue(graph.hasNode("endpoint:direct:enrichOrder"));
-        assertTrue(graph.hasNode("endpoint:jdbc:dataSource"));
+        assertTrue(graph.hasNode("endpoint:log:stored"));
     }
 
     @Test
