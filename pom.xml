@@ -184,6 +184,12 @@
                 <version>${tamboui.version}</version>
             </dependency>
 
+            <dependency>
+                <groupId>io.quarkus.qute</groupId>
+                <artifactId>qute-core</artifactId>
+                <version>${quarkus.version}</version>
+            </dependency>
+
         </dependencies>
     </dependencyManagement>
 
