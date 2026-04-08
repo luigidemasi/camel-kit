@@ -1,6 +1,7 @@
 package io.github.luigidemasi.camelkit;
 
 import io.github.luigidemasi.camelkit.command.InitCommand;
+import io.github.luigidemasi.camelkit.command.graph.GraphCommand;
 import io.github.luigidemasi.camelkit.output.JLinePrinter;
 import io.github.luigidemasi.camelkit.output.Printer;
 import io.github.luigidemasi.camelkit.output.SystemPrinter;
@@ -123,7 +124,8 @@ public class CamelKitMain implements Callable<Integer> {
 
     public static void run(CamelKitMain main, String... args) {
         CommandLine commandLine = new CommandLine(main)
-            .addSubcommand("init", new InitCommand(main));
+            .addSubcommand("init", new InitCommand(main))
+            .addSubcommand("graph", new CommandLine(new GraphCommand()));
 
         int exitCode = commandLine.execute(args);
         System.exit(exitCode);

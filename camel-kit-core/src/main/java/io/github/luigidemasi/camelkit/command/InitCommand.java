@@ -260,12 +260,14 @@ public class InitCommand extends CamelKitCommand {
 
     private void createConfigFile(Path dir, String name, String version, String citrusVer,
                                    String ai, AgentConfig agent) throws Exception {
+        String cmdPrefix = detectCommandPrefix();
         String yaml = """
             # Camel-Kit Configuration
             project:
               name: %s
               camelVersion: "%s"
               citrusVersion: "%s"
+              command-prefix: "%s"
 
             agent:
               name: %s
@@ -274,8 +276,14 @@ public class InitCommand extends CamelKitCommand {
             catalog:
               source: bundled
               lastUpdated: %s
-            """.formatted(name, version, citrusVer, ai, agent.folder(), Instant.now().toString());
+            """.formatted(name, version, citrusVer, cmdPrefix, ai, agent.folder(), Instant.now().toString());
         Files.writeString(dir.resolve("config.yaml"), yaml);
+    }
+
+    private String detectCommandPrefix() {
+        String cmdLine = ProcessHandle.current().info().commandLine().orElse("");
+        if (cmdLine.contains("camel-kit")) return "camel-kit";
+        return "camel kit";
     }
 
     private void createConstitution(Path dir, String camelVersion) throws Exception {

@@ -5,7 +5,14 @@ import picocli.CommandLine.Command;
 
 @Command(name = "graph",
          description = "Project graph analysis, generation, and visualization",
-         subcommands = {CommandLine.HelpCommand.class})
+         subcommands = {
+             GraphStatsCommand.class, GraphFindCommand.class, GraphNeighborsCommand.class,
+             GraphPathCommand.class, GraphSubgraphCommand.class, GraphRouteFlowCommand.class,
+             GraphImpactCommand.class, GraphRouteTopologyCommand.class, GraphDeadCodeCommand.class,
+             GraphProjectNormsCommand.class, GraphProjectContextCommand.class, GraphRouteContextCommand.class,
+             GraphGenerateCommand.class, GraphVisualizeCommand.class,
+             CommandLine.HelpCommand.class
+         })
 public class GraphCommand implements Runnable {
 
     @CommandLine.Spec
