@@ -38,6 +38,14 @@ Components to Test:
   - Error: DLQ on [component]
 ```
 
+**Graph-enhanced scenarios (when ROUTE_CONTEXT available):**
+
+If `ROUTE_CONTEXT` was populated by Step 0.5 (graph-project-context):
+- For each route in `UPSTREAM_ROUTES`, add: "End-to-end: message from [upstream] flows through [this route]"
+- For each route in `DOWNSTREAM_ROUTES`, add: "Downstream propagation: output consumed by [downstream]"
+- For each error boundary in `ERROR_FLOW`, add an error scenario test
+- These supplement the TDD-derived scenarios above, not replace them
+
 ### 2.2 Identify Required Testcontainers
 
 Based on components in the flow, identify testcontainers needed:
@@ -54,6 +62,15 @@ Testcontainers Required:
     - CITRUS_TESTCONTAINERS_POSTGRESQL_USERNAME
     - CITRUS_TESTCONTAINERS_POSTGRESQL_PASSWORD
 ```
+
+**Graph-enhanced endpoint classification (when ROUTE_CONTEXT available):**
+
+If `ROUTE_CONTEXT.ENDPOINT_CLASSIFICATION` is available, use it to determine which endpoints need testcontainers vs mocks vs neither:
+- `INTERNAL` (`direct:`, `seda:`) — no testcontainer or mock needed
+- `EXTERNAL_INFRA` (`kafka:`, `sql:`, `mongodb:`) — testcontainer
+- `EXTERNAL_API` (`http:`, `https:`) — mock or WireMock
+
+This prevents over-provisioning testcontainers for internal endpoints that Camel handles natively.
 
 ---
 

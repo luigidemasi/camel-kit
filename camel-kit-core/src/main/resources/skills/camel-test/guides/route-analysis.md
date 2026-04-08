@@ -50,6 +50,16 @@ Proceed to Step 1 — do NOT hard-stop.
 
 ---
 
+## Step 0.5: Route Context from Graph (CONDITIONAL)
+
+**IF** `.camel-kit/project-graph.json` exists:
+- Load `guides/graph-project-context.md`
+- Pass: `FLOW_NAME`, `CAMEL_VERSION`
+
+**SKIP** if no project graph exists. Proceed directly to Step 1.
+
+---
+
 ## Step 1: Analyze Route with MCP
 
 ### 1.1 Extract Route Context

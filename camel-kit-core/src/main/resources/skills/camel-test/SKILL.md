@@ -20,6 +20,7 @@ Provides the domain knowledge guides needed to generate integration tests for Ap
 | `guides/test-generation.md` | Always | Test generation patterns and templates |
 | `guides/test-configuration.md` | Always | Test infrastructure setup (Testcontainers, mock endpoints) |
 | `guides/test-runner.md` | Always | Test execution and verification |
+| `guides/graph-project-context.md` | When `.camel-kit/project-graph.json` exists | Cross-route test awareness |
 
 ## Iron Laws
 
