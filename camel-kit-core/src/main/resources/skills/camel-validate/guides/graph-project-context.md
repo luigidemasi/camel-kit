@@ -8,71 +8,77 @@
 
 ## Step 0: Project Norms Collection
 
+### 0.0 — Run Composite Command
+
+Read `.camel-kit/config.yaml` to get the `command-prefix` field (default: `camel-kit`).
+
+Run the composite command:
+```bash
+{COMMAND_PREFIX} graph project-norms
+```
+
+This returns a JSON object with all project norms in one call:
+```json
+{
+  "namingPattern": "...",
+  "namingExamples": ["route1", "route2", "route3"],
+  "errorHandlingNorm": "...",
+  "errorHandlingCoverage": 0.75,
+  "propertyPatterns": {...},
+  "stepCountP75": 5,
+  "structuralWarnings": [...]
+}
+```
+
+If the command exits with code != 0, skip all graph-enhanced validation steps and proceed without project norms (use defaults from `quality-checks.md`).
+
 ### 0.1 — Route Naming Convention
 
-Call `graph_find(type="CAMEL_ROUTE")` to get all existing route IDs.
-
-Extract the dominant naming pattern:
-- Count routes matching `{domain}-{action}` (kebab-case, 2+ segments). Regex: `^[a-z][a-z0-9]*(-[a-z][a-z0-9]*)+$`
-- Count routes matching `{service}-{verb}-{qualifier}` (3+ segments). Regex: `^[a-z][a-z0-9]*(-[a-z][a-z0-9]*){2,}$`
-- Count routes matching other patterns
+Extract from JSON response:
+- `namingPattern` = the pattern used by ≥60% of routes
+- `namingExamples` = 3 representative route IDs from the dominant pattern
 
 Record:
-- `NAMING_PATTERN` = the pattern used by ≥60% of routes
-- `NAMING_EXAMPLES` = 3 representative route IDs from the dominant pattern
+- `NAMING_PATTERN` = response.namingPattern
+- `NAMING_EXAMPLES` = response.namingExamples
 
-If no dominant pattern (no pattern reaches 60%): fall back to the default `{domain}-{action}` convention from `quality-checks.md`.
+If no dominant pattern (field is null): fall back to the default `{domain}-{action}` convention from `quality-checks.md`.
 
 ### 0.2 — Error Handling Baseline
 
-Call `graph_find(type="CAMEL_ROUTE")` and for each route, call `graph_neighbors(routeId, "out")` to detect outgoing edges. Look for edges pointing to endpoints with `dead` or `dlq` in the URI, or to processors of type `onException` or `errorHandler`.
-
-Compute:
-- % of routes with DLC (deadLetterChannel)
-- % of routes with onException
-- % of routes with no error handling
+Extract from JSON response:
+- `errorHandlingNorm` = the strategy used by the majority (DLC, onException, or none)
+- `errorHandlingCoverage` = percentage of routes with any error handling
 
 Record:
-- `ERROR_HANDLING_NORM` = the strategy used by the majority (DLC, onException, or none)
-- `ERROR_HANDLING_COVERAGE` = percentage of routes with any error handling
+- `ERROR_HANDLING_NORM` = response.errorHandlingNorm
+- `ERROR_HANDLING_COVERAGE` = response.errorHandlingCoverage
 
 ### 0.3 — Property Naming Patterns
 
-Call `graph_find(type="CONFIG_PROPERTY")` to get all existing properties.
-
-Extract naming patterns:
-- Camel component properties: `camel.component.{scheme}.{prop}`
-- Custom properties: extract common prefixes and conventions (e.g., `kafka.topic.*` vs `kafka.topics.*`, singular vs plural)
+Extract from JSON response:
+- `propertyPatterns` = map of prefix → count
 
 Record:
-- `PROPERTY_PATTERNS` = map of prefix → count
+- `PROPERTY_PATTERNS` = response.propertyPatterns
 
 ### 0.4 — Structural Baseline
 
-Call `graph_stats` for node/edge counts.
-Call `graph_route_topology` for route connectivity.
-
-For each route, count the number of `PROCESSES` edges (outgoing from the route). This is the processing step count.
-
-Compute:
-- Average processing steps per route
-- Median processing steps per route
-- Max processing steps across all routes
-- % of routes using `direct:`/`seda:` internal routing
+Extract from JSON response:
+- `stepCountP75` = 75th percentile of processing step counts
 
 Record:
-- `STEP_COUNT_P75` = 75th percentile of processing step counts
+- `STEP_COUNT_P75` = response.stepCountP75
 
 This replaces the hardcoded "7 steps" threshold in constitution Rule 2 and the "10 steps" threshold in anti-pattern God Route detection.
 
 ### 0.5 — Structural Warnings
 
-From the topology data, detect:
-- **Orphaned routes:** Routes that `ROUTES_TO` a `direct:`/`seda:` endpoint that no other route consumes from
-- **Broken references:** Routes that `ROUTES_FROM` a `direct:`/`seda:` endpoint that no other route produces to
+Extract from JSON response:
+- `structuralWarnings` = list of issues found
 
 Record:
-- `STRUCTURAL_WARNINGS` = list of issues found
+- `STRUCTURAL_WARNINGS` = response.structuralWarnings
 
 Display structural warnings inline:
 

@@ -10,9 +10,23 @@
 
 ### 8.1 — Run Analysis
 
-Call `graph_dead_code()` to get the full dead code report.
+Read `.camel-kit/config.yaml` to get the `command-prefix` field (default: `camel-kit`).
 
-If the tool returns `{"available":false,...}`, skip this stage silently.
+Run the command:
+```bash
+{COMMAND_PREFIX} graph dead-code
+```
+
+This returns a JSON object with the full dead code report:
+```json
+{
+  "unusedDependencies": [...],
+  "orphanedRoutes": [...],
+  "unusedProperties": [...]
+}
+```
+
+If the command exits with code != 0, skip this stage silently.
 
 ### 8.2 — Write Report
 

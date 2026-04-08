@@ -8,15 +8,38 @@
 
 ## Step 0.5: Route Context from Graph
 
+### 0.5.0 — Run Composite Command
+
+Read `.camel-kit/config.yaml` to get the `command-prefix` field (default: `camel-kit`).
+
+The `routeId` is derived from the route's `id:` field (e.g., `order-process`).
+
+Run the composite command:
+```bash
+{COMMAND_PREFIX} graph route-context <routeId>
+```
+
+This returns a JSON object with all route context in one call:
+```json
+{
+  "upstreamRoutes": [...],
+  "downstreamRoutes": [...],
+  "endpointClassification": {...},
+  "errorFlow": [...]
+}
+```
+
+If the command exits with code != 0, skip all graph-enhanced test generation steps and proceed without route context (manual analysis only).
+
 ### 0.5.1 — Upstream and Downstream Routes
 
-Call `graph_impact(routeId, "upstream")` to find what feeds into this route. The `routeId` is derived from the route's `id:` field, prefixed with `route:` (e.g., `route:order-process`).
-
-Call `graph_impact(routeId, "downstream")` to find what this route feeds into.
+Extract from JSON response:
+- `upstreamRoutes` = list of route IDs that produce to this route
+- `downstreamRoutes` = list of route IDs that consume from this route
 
 Record:
-- `UPSTREAM_ROUTES` = list of route IDs that produce to this route
-- `DOWNSTREAM_ROUTES` = list of route IDs that consume from this route
+- `UPSTREAM_ROUTES` = response.upstreamRoutes
+- `DOWNSTREAM_ROUTES` = response.downstreamRoutes
 
 Use in `test-generation.md` Step 2.1 (Extract Test Scenarios):
 - If `UPSTREAM_ROUTES` is non-empty, add a test scenario: "End-to-end: message from [upstream route] flows through [this route] to [downstream route]"
@@ -24,15 +47,16 @@ Use in `test-generation.md` Step 2.1 (Extract Test Scenarios):
 
 ### 0.5.2 — Endpoint Classification
 
-Call `graph_neighbors(routeId, "out")` to get all endpoints this route connects to (both `ROUTES_FROM` and `ROUTES_TO` edges).
+Extract from JSON response:
+- `endpointClassification` = map of endpointUri → category
 
-Classify each endpoint by its scheme:
+Categories:
 - **INTERNAL:** scheme is `direct:` or `seda:` → no mock or testcontainer needed, Camel handles internally
 - **EXTERNAL_INFRA:** scheme is `kafka:`, `sql:`, `mongodb:`, `amqp:`, `jms:` → needs testcontainer
 - **EXTERNAL_API:** scheme is `http:`, `https:`, `rest:`, `platform-http:` → needs mock endpoint or WireMock
 
 Record:
-- `ENDPOINT_CLASSIFICATION` = map of endpointUri → category
+- `ENDPOINT_CLASSIFICATION` = response.endpointClassification
 
 Use in `test-generation.md` Step 2.2 (Identify Testcontainers):
 - Only provision testcontainers for `EXTERNAL_INFRA` endpoints
@@ -41,15 +65,11 @@ Use in `test-generation.md` Step 2.2 (Identify Testcontainers):
 
 ### 0.5.3 — Error Propagation Paths
 
-Call `graph_route_flow(routeId)` to trace the full message path.
-
-Identify error handling boundaries:
-- Which processors in the flow can throw exceptions (external calls, transformations)
-- Where error handlers are defined (on this route vs upstream route)
-- Where DLQ endpoints point to
+Extract from JSON response:
+- `errorFlow` = ordered list of processor → error handler mapping
 
 Record:
-- `ERROR_FLOW` = ordered list of processor → error handler mapping
+- `ERROR_FLOW` = response.errorFlow
 
 Use in `test-generation.md` Step 2.1:
 - For each error handler boundary, add an error scenario test

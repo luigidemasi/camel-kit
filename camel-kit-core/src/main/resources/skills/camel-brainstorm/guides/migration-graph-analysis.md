@@ -4,13 +4,33 @@
 > **Purpose:** Replace manual artifact scanning with instant graph queries for accelerated analysis.
 > **Output:** `.camel-kit/project-snapshot.md` + pre-populated analysis summary for user confirmation.
 
-This guide uses MCP tools from the `camel-graph` server. If any tool call fails, fall back gracefully — skip that section and note it as `? Unknown` in the summary.
+This guide uses CLI commands under `{COMMAND_PREFIX} graph`. If any command fails (exit code != 0), fall back gracefully — skip that section and note it as `? Unknown` in the summary.
+
+Read `.camel-kit/config.yaml` to get the `command-prefix` field (default: `camel-kit`).
 
 ---
 
 ## Step 0.1 — Project Overview
 
-Call `graph_stats` to get the project's structural summary.
+Run the command:
+```bash
+{COMMAND_PREFIX} graph stats
+```
+
+This returns JSON with the project's structural summary:
+```json
+{
+  "nodes": 123,
+  "edges": 456,
+  "nodesByType": {
+    "CLASS": 50,
+    "METHOD": 200,
+    "CAMEL_ROUTE": 10,
+    "CAMEL_ENDPOINT": 30,
+    ...
+  }
+}
+```
 
 Record:
 - Total node and edge counts
@@ -21,7 +41,12 @@ Record:
 
 ## Step 0.2 — Vendor & Version Detection
 
-Call `graph_find(type="MAVEN_ARTIFACT")` and scan artifacts for vendor signals:
+Run the command:
+```bash
+{COMMAND_PREFIX} graph find --type MAVEN_ARTIFACT
+```
+
+This returns JSON with all Maven artifacts. Scan for vendor signals:
 
 | Signal | Detection |
 |--------|-----------|
@@ -37,7 +62,12 @@ Call `graph_find(type="MAVEN_ARTIFACT")` and scan artifacts for vendor signals:
 
 Extract source Camel version from `camel-core` or `camel-bom` artifact.
 
-Call `graph_find(type="CONFIG_PROPERTY")` for additional platform signals:
+Run the command:
+```bash
+{COMMAND_PREFIX} graph find --type CONFIG_PROPERTY
+```
+
+Check for additional platform signals:
 - `camel.springboot.*` → Spring Boot
 - `quarkus.camel.*` → Quarkus
 
@@ -50,9 +80,19 @@ Determine DSL formats by checking node sources:
 
 ## Step 0.3 — Route Inventory
 
-Call `graph_route_topology` for the complete route-to-route connection map.
+Run the command:
+```bash
+{COMMAND_PREFIX} graph route-topology
+```
 
-For each route, call `graph_neighbors(routeId, "out")` to list:
+This returns the complete route-to-route connection map.
+
+For each route, run:
+```bash
+{COMMAND_PREFIX} graph neighbors route:<routeId> --direction out
+```
+
+List:
 - From-endpoint (source)
 - Processors in order
 - To-endpoints (sinks)
@@ -63,11 +103,26 @@ Build the **Component Inventory**: extract all unique endpoint schemes with usag
 
 ## Step 0.4 — Dependency & Config Inventory
 
-Call `graph_find(type="MAVEN_ARTIFACT")` for the full dependency tree. Record groupId, artifactId, version.
+Run the command:
+```bash
+{COMMAND_PREFIX} graph find --type MAVEN_ARTIFACT
+```
 
-Call `graph_find(type="CONFIG_PROPERTY")` for all `camel.*` properties with values and endpoint bindings.
+Record groupId, artifactId, version for the full dependency tree.
 
-Call `graph_find(type="CLASS")` to identify custom Java classes — processors, beans, type converters, RouteBuilder subclasses.
+Run the command:
+```bash
+{COMMAND_PREFIX} graph find --type CONFIG_PROPERTY
+```
+
+Record all `camel.*` properties with values and endpoint bindings.
+
+Run the command:
+```bash
+{COMMAND_PREFIX} graph find --type CLASS
+```
+
+Identify custom Java classes — processors, beans, type converters, RouteBuilder subclasses.
 
 ---
 
@@ -79,7 +134,10 @@ Using the route topology:
 2. **Internal routes:** Consumed only via `direct:`/`seda:` from other routes
 3. **Leaf routes:** No outbound `direct:`/`seda:` links to other routes
 
-Call `graph_impact(routeId, "downstream")` on each entry-point route.
+For each entry-point route, run:
+```bash
+{COMMAND_PREFIX} graph impact route:<routeId> --direction downstream
+```
 
 **Migration ordering** — reverse dependency order:
 1. Leaf routes first (can be migrated independently)

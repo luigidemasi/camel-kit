@@ -5,20 +5,40 @@
 
 ## Check
 
-1. Check if `.camel-kit/project-graph.json` exists
-2. If yes → graph tools are available. Proceed with graph-enhanced steps.
-3. If no → skip all graph-enhanced steps. No warning needed — graph is optional.
+**Before running any graph command:**
+
+1. Read `.camel-kit/config.yaml` to get the `command-prefix` field. If not set, default to `camel-kit`.
+2. Run `{COMMAND_PREFIX} graph stats` as a bash command.
+3. Check the exit code:
+   - Exit code 0 → graph available. Proceed with graph-enhanced steps.
+   - Exit code != 0 → graph unavailable. Skip all graph-enhanced steps silently.
+
+**Example bash command:**
+```bash
+camel-kit graph stats
+```
+
+Replace `camel-kit` with the actual value from `config.yaml`.
 
 ## Fallback Rule
 
-Every graph tool call must be wrapped in graceful fallback:
-- If the tool returns `{"available":false,...}` → skip that step silently
-- If the tool call fails (timeout, MCP not connected) → skip that step silently
+Every graph CLI command must be wrapped in graceful fallback:
+- If the command exits with code != 0 → skip that step silently
+- If the command times out or fails → skip that step silently
 - NEVER hard-stop a workflow because graph tools are unavailable
 
-## Graph Tool Namespace
+**Graph enhances, never gates.**
 
-All graph tools are served by the `camel-graph` MCP server:
-`graph_find`, `graph_neighbors`, `graph_path`, `graph_subgraph`,
-`graph_stats`, `graph_route_flow`, `graph_impact`, `graph_route_topology`,
-`graph_dead_code`
+## Graph CLI Commands
+
+All graph queries are now CLI subcommands under `{COMMAND_PREFIX} graph`:
+- `graph stats` — project statistics
+- `graph find --type <TYPE>` — find nodes by type
+- `graph neighbors <nodeId> [--direction in|out|both]` — get neighbors
+- `graph impact <nodeId> --direction <upstream|downstream|both>` — impact analysis
+- `graph route-flow <routeId>` — route message flow
+- `graph route-topology` — all route connections
+- `graph dead-code` — unused code detection
+- `graph project-norms` — composite for validation (norms + topology + stats)
+- `graph project-context` — composite for implementation (properties + beans + deps + route dir)
+- `graph route-context <routeId>` — composite for testing (upstream + downstream + endpoints + error flow)
