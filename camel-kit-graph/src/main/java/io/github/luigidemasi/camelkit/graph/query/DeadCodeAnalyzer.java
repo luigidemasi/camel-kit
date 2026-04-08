@@ -66,6 +66,16 @@ public class DeadCodeAnalyzer {
     }
 
     private List<GraphNode> findOrphanedRoutes() {
+        // Pre-build set of URIs that have producers (ROUTES_TO edges)
+        Set<String> producedUris = graph.getEdges().stream()
+                .filter(e -> e.type() == EdgeType.ROUTES_TO)
+                .map(GraphEdge::to)
+                .map(graph::getNode)
+                .filter(java.util.Objects::nonNull)
+                .map(ep -> ep.properties().get("uri"))
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+
         return graph.findByType(NodeType.CAMEL_ROUTE).stream()
                 .filter(route -> {
                     // Find the from-endpoint for this route
@@ -80,23 +90,18 @@ public class DeadCodeAnalyzer {
                         String scheme = endpoint.properties().get("scheme");
                         if (scheme == null) continue;
 
-                        // Only internal endpoints can be orphaned
+                        // External consumers (kafka:, http:, etc.) are entry points — never orphaned.
+                        // Note: Camel routes have exactly one from() endpoint, so a route with an
+                        // external consumer is always reachable by definition.
                         if (!"direct".equals(scheme) && !"seda".equals(scheme)) {
-                            return false; // External consumer = entry point, not orphaned
+                            return false;
                         }
 
-                        // Check if any other route ROUTES_TO an endpoint with the same URI
+                        // Check if any route produces to an endpoint with the same URI
                         String uri = endpoint.properties().get("uri");
                         if (uri == null) continue;
 
-                        boolean hasProducer = graph.getEdges().stream()
-                                .filter(e -> e.type() == EdgeType.ROUTES_TO)
-                                .map(GraphEdge::to)
-                                .map(graph::getNode)
-                                .filter(java.util.Objects::nonNull)
-                                .anyMatch(ep -> uri.equals(ep.properties().get("uri")));
-
-                        if (!hasProducer) {
+                        if (!producedUris.contains(uri)) {
                             return true; // Orphaned: internal consumer with no producer
                         }
                     }
