@@ -1,0 +1,42 @@
+package io.github.luigidemasi.camelkit.generator;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
+
+public class ClaudeGenerator extends DefaultGenerator {
+
+    private final QuteTemplateEngine templateEngine = new QuteTemplateEngine();
+
+    @Override
+    public void generate(InitContext ctx) throws Exception {
+        // Run all default generation (commands, skills, MCP config)
+        super.generate(ctx);
+
+        // Claude-specific: generate CLAUDE.md at project root
+        generateClaudeMd(ctx);
+
+        // Claude-specific: append parallel dispatch to camel-implement skill
+        appendParallelDispatch(ctx);
+    }
+
+    private void generateClaudeMd(InitContext ctx) throws Exception {
+        Map<String, Object> data = Map.of(
+            "commandPrefix", ctx.commandPrefix(),
+            "camelVersion", ctx.camelVersion()
+        );
+        String content = templateEngine.render("templates/claude/claude-md.md", data);
+        Files.writeString(ctx.projectDir().resolve("CLAUDE.md"), content);
+    }
+
+    private void appendParallelDispatch(InitContext ctx) throws Exception {
+        Path implementSkill = ctx.skillsDir().resolve("camel-implement/SKILL.md");
+        if (Files.exists(implementSkill)) {
+            Map<String, Object> data = Map.of("commandPrefix", ctx.commandPrefix());
+            String parallelBlock = templateEngine.render(
+                "templates/claude/dispatch-parallel.md", data);
+            String existing = Files.readString(implementSkill);
+            Files.writeString(implementSkill, existing + "\n---\n\n" + parallelBlock);
+        }
+    }
+}
