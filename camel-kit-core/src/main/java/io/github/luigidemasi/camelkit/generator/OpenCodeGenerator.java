@@ -1,0 +1,73 @@
+package io.github.luigidemasi.camelkit.generator;
+
+import io.github.luigidemasi.camelkit.util.AnsiColors;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
+
+public class OpenCodeGenerator extends DefaultGenerator {
+
+    private static final String[] AGENTS = {
+        "brainstormer", "planner", "implementer",
+        "validator", "tester", "migrator", "executor"
+    };
+
+    private static final Map<String, String> COMMAND_DISPATCH = Map.of(
+        "camel-brainstorm", "@brainstormer discover integration requirements and design Camel routes for this project",
+        "camel-plan", "@planner create an implementation plan with TDD task decomposition for this project",
+        "camel-implement", "@implementer implement the Camel routes in this project",
+        "camel-validate", "@validator validate the Camel routes in this project",
+        "camel-test", "@tester write and run tests for the Camel routes in this project",
+        "camel-migrate", "@migrator migrate the integrations to Red Hat Build of Apache Camel",
+        "camel-execute", "@executor execute the implementation plan for this project"
+    );
+
+    private final QuteTemplateEngine templateEngine = new QuteTemplateEngine();
+
+    @Override
+    public void generate(InitContext ctx) throws Exception {
+        // Run default generation (commands, skills, MCP config)
+        super.generate(ctx);
+
+        Map<String, Object> data = Map.of(
+            "commandPrefix", ctx.commandPrefix(),
+            "camelVersion", ctx.camelVersion()
+        );
+
+        // OpenCode-specific: generate AGENTS.md at project root
+        generateAgentsMd(ctx, data);
+
+        // OpenCode-specific: generate agent definitions
+        generateAgents(ctx);
+
+        // OpenCode-specific: override commands with agent dispatch
+        overrideCommandsForAgents(ctx);
+    }
+
+    private void generateAgentsMd(InitContext ctx, Map<String, Object> data) throws Exception {
+        String content = templateEngine.render("templates/opencode/agents-md.md", data);
+        Files.writeString(ctx.projectDir().resolve("AGENTS.md"), content);
+    }
+
+    private void generateAgents(InitContext ctx) throws Exception {
+        Path agentsDir = ctx.projectDir().resolve(".opencode/agents");
+        Files.createDirectories(agentsDir);
+
+        for (String agentName : AGENTS) {
+            copyTemplateResource(
+                "templates/opencode/agents/" + agentName + ".md",
+                agentsDir.resolve(agentName + ".md"));
+        }
+
+        ctx.printer().println(AnsiColors.green("✓") + " Generated " + AGENTS.length + " OpenCode agent definitions");
+    }
+
+    private void overrideCommandsForAgents(InitContext ctx) throws Exception {
+        for (Map.Entry<String, String> entry : COMMAND_DISPATCH.entrySet()) {
+            String filename = entry.getKey() + "." + ctx.agent().fileFormat();
+            Path cmdFile = ctx.commandsDir().resolve(filename);
+            Files.writeString(cmdFile, entry.getValue());
+        }
+    }
+}
