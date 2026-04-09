@@ -16,22 +16,28 @@ class AgentGeneratorFactoryTest {
     }
 
     @Test
-    void geminiReturnsDefaultGenerator() {
-        AgentGenerator gen = AgentGeneratorFactory.create("gemini");
+    void geminiReturnsGeminiGenerator() {
+        assertInstanceOf(GeminiGenerator.class, AgentGeneratorFactory.create("gemini"));
+    }
+
+    @Test
+    void qwenReturnsQwenGenerator() {
+        assertInstanceOf(QwenGenerator.class, AgentGeneratorFactory.create("qwen"));
+    }
+
+    @Test
+    void opencodeReturnsOpenCodeGenerator() {
+        assertInstanceOf(OpenCodeGenerator.class, AgentGeneratorFactory.create("opencode"));
+    }
+
+    @Test
+    void unknownAgentReturnsDefaultGenerator() {
+        AgentGenerator gen = AgentGeneratorFactory.create("unknown-agent");
         assertInstanceOf(DefaultGenerator.class, gen);
         assertFalse(gen instanceof BobGenerator);
         assertFalse(gen instanceof ClaudeGenerator);
-    }
-
-    @Test
-    void qwenReturnsDefaultGenerator() {
-        AgentGenerator gen = AgentGeneratorFactory.create("qwen");
-        assertInstanceOf(DefaultGenerator.class, gen);
-    }
-
-    @Test
-    void opencodeReturnsDefaultGenerator() {
-        AgentGenerator gen = AgentGeneratorFactory.create("opencode");
-        assertInstanceOf(DefaultGenerator.class, gen);
+        assertFalse(gen instanceof QwenGenerator);
+        assertFalse(gen instanceof OpenCodeGenerator);
+        assertFalse(gen instanceof GeminiGenerator);
     }
 }
