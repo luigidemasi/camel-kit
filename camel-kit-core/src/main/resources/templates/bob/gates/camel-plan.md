@@ -1,0 +1,198 @@
+---
+name: camel-plan
+description: Use when the user has an approved design spec and needs a detailed implementation plan — invoked by camel-brainstorm after spec approval, or directly if a design spec already exists
+---
+
+# Camel Plan — Planning Pipeline (Bob)
+
+Write comprehensive implementation plans assuming the engineer has zero context and questionable taste. Document everything they need to know: which files to touch for each task, which guides to load, which MCP tools to call, how to verify. Give them the whole plan as bite-sized tasks. DRY. YAGNI.
+
+Follow every step in order. Do NOT skip steps.
+
+**Core principle:** The plan contains detailed instructions on HOW to generate code, NOT the generated code itself.
+
+<Steps>
+<Step>
+## Switch to Plan Mode
+
+Switch to **camel-plan** mode using the mode selector or `/camel-plan` command.
+This restricts your tools to prevent accidental implementation during the planning phase.
+</Step>
+
+<Step>
+## Verify Approved Design Spec Exists
+
+Read `docs/design-spec.md` (or the specified design spec path).
+
+If the spec hasn't been approved, STOP and return to camel-brainstorm.
+The plan is based on an APPROVED design spec only.
+</Step>
+
+<Step>
+## Scope Check
+
+If the design spec covers multiple independent subsystems or has more than ~10 flows, suggest breaking into separate plans — one per subsystem or logical group.
+
+Each plan should produce working, testable software on its own.
+
+Wait for user confirmation on scope before proceeding.
+</Step>
+
+<Step>
+## Load Task Template
+
+Load the appropriate task template based on project type:
+- Greenfield: `guides/task-template-greenfield.md`
+- Migration: `guides/task-template-migration.md`
+- Testing: `guides/task-template-testing.md`
+
+Load decomposition rules: `guides/task-decomposition.md`
+</Step>
+
+<Step>
+## Decompose into Bite-Sized Tasks
+
+Break the design spec into tasks. Each task should:
+- Have ONE clear outcome
+- Touch a specific set of files
+- Be completable in one focused work session
+- Include verification steps
+
+For each task, specify:
+- Which files to create/modify (exact paths)
+- Which guides to load and in what order
+- Which MCP tools to call and with what parameters
+- Which constitution rules to check
+- How to verify completion (commands to run, expected output)
+- Two-stage review specification (spec compliance then code quality)
+</Step>
+
+<Step>
+## Generate Plan Document
+
+Save the plan to `docs/implementation-plan.md`.
+
+Use this format:
+
+```markdown
+# [Project Name] Implementation Plan
+
+> **For agentic workers:** Use camel-execute to implement this plan task-by-task.
+> Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** [One sentence from design spec]
+
+**Architecture:** [2-3 sentences about approach]
+
+**Tech Stack:** Red Hat Build of Apache Camel [version], [runtime], [key components]
+
+**Design Spec:** `docs/design-spec.md` (approved [date])
+
+---
+
+### Task N: [Component/Flow Name]
+
+**Agent:** [agent persona to dispatch]
+
+**Files:**
+- Create: `exact/path/to/file`
+- Modify: `exact/path/to/existing`
+
+**Guides to Load:**
+- `camel-implement/guides/orchestrator.md`
+- `camel-implement/guides/yaml-structure.md`
+- [other guides specific to this task]
+
+**MCP Tools:**
+- `camel_catalog_component(name="X", runtime="Y", platformBom="Z")`
+- [other MCP calls]
+
+**Design Spec Section:** Section 3, Flow: [flow-name]
+
+- [ ] **Step 1:** [action description with exact instructions]
+- [ ] **Step 2:** [action description]
+- [ ] **Step N:** Verify: [exact command to run and expected output]
+
+**Review:**
+- [ ] Spec compliance: [what to check — components match TDD, structure correct, properties complete]
+- [ ] Code quality: [what to check — constitution rules, security, anti-patterns]
+```
+</Step>
+
+<Step>
+## Self-Review Plan
+
+Scan the plan for:
+
+1. **Spec coverage:** Can every flow in the design spec be mapped to a task? List any gaps.
+2. **Placeholder scan:** Search for "TBD", "TODO", "fill in", "similar to Task N". Fix them.
+3. **Guide consistency:** Do all tasks reference the correct guide paths?
+4. **Review completeness:** Does every implementation task have both spec compliance and code quality review steps?
+5. **Verification completeness:** Does every task have a verification step with an exact command and expected output?
+
+Fix any issues inline.
+</Step>
+
+<Step>
+## Plan Approval
+
+Present the complete implementation plan to the user.
+
+**APPROVAL GATE — Do NOT proceed without explicit approval:**
+"Do you approve this plan? (yes / changes needed)"
+
+If changes requested, incorporate and re-present. Only proceed after explicit "yes" or "approved".
+</Step>
+
+<Step>
+## CHECKPOINT
+
+Before proceeding to execution, this is the plan approval checkpoint.
+All implementation tasks are locked. Create a checkpoint now.
+</Step>
+
+<Step>
+## Switch to Execute Mode
+
+Switch to **camel-execute** mode.
+
+Execute the approved implementation plan task-by-task with two-stage review:
+1. Spec compliance review (does it match the TDD?)
+2. Code quality review (does it follow constitution rules?)
+
+For each task:
+1. **CHECKPOINT** before starting
+2. Implement per the task instructions
+3. Run spec compliance review
+4. Run code quality review
+5. Mark complete and move to next task
+
+Do NOT pause between tasks. Execute ALL tasks sequentially without interruption.
+</Step>
+</Steps>
+
+## What Goes IN the Plan
+
+- Which files to create/modify (exact paths)
+- Which guides to load and in what order
+- Which MCP tools to call and with what parameters
+- Which constitution rules to check
+- How to verify the task is complete (commands to run, expected output)
+- Two-stage review specification per task
+
+## What Does NOT Go in the Plan
+
+- Generated YAML route content
+- Generated application.properties content
+- Generated Java code
+- Generated POM dependencies
+- Any artifact that the execution phase produces
+
+The plan is a RECIPE, not the MEAL.
+
+## Iron Laws
+
+Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
+
+- **Iron Law 4: No Code Without Spec Approval** — The plan is based on an APPROVED design spec.
+- **Iron Law 5: Spec Compliance Before Quality** — The plan MUST specify two-stage review for every implementation task: spec compliance first, then quality.
