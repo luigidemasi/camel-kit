@@ -3,19 +3,19 @@
     "camel": {
       "command": "jbang",
       "args": [
-        "--repos", "{{CAMEL_MCP_REPOS}}",
-        "-Dcamel.catalog.repos={{CAMEL_CATALOG_REPOS}}",
+        "--repos", "{CAMEL_MCP_REPOS}",
+        "-Dcamel.catalog.repos={CAMEL_CATALOG_REPOS}",
         "-Dquarkus.log.level=WARN",
-        "org.apache.camel:camel-jbang-mcp:{{CAMEL_MCP_VERSION}}:runner"
+        "org.apache.camel:camel-jbang-mcp:{CAMEL_MCP_VERSION}:runner"
       ],
       "description": "Apache Camel MCP Server - Component catalog, validation, and security analysis"
     },
     "camel-knowledge": {
       "command": "jbang",
       "args": [
-        "--repos", "{{KNOWLEDGE_MCP_REPOS}}",
+        "--repos", "{KNOWLEDGE_MCP_REPOS}",
         "-Dquarkus.log.level=WARN",
-        "io.github.luigidemasi:camel-kit-knowledge-mcp:{{KNOWLEDGE_VERSION}}:runner"
+        "io.github.luigidemasi:camel-kit-knowledge-mcp:{KNOWLEDGE_VERSION}:runner"
       ],
       "description": "camel-kit Knowledge Server - documentation search for Red Hat Build of Apache Camel"
     }

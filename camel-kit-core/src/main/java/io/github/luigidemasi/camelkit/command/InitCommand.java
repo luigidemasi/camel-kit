@@ -7,6 +7,7 @@ import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.generator.AgentGeneratorFactory;
 import io.github.luigidemasi.camelkit.generator.InitContext;
+import io.github.luigidemasi.camelkit.generator.QuteTemplateEngine;
 import io.github.luigidemasi.camelkit.graph.GraphBuilder;
 import io.github.luigidemasi.camelkit.graph.ProjectGraph;
 import io.github.luigidemasi.camelkit.output.Printer;
@@ -22,6 +23,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.Map;
 
 /**
  * Initialize a new Camel-Kit project.
@@ -273,9 +275,12 @@ public class InitCommand extends CamelKitCommand {
     }
 
     private void createConstitution(Path dir, String camelVersion) throws Exception {
-        String content = TemplateUtils.readTemplate("templates/constitution.md")
-                .replace("{{DATE}}", java.time.LocalDate.now().toString())
-                .replace("{{CAMEL_VERSION}}", camelVersion);
+        QuteTemplateEngine qute = new QuteTemplateEngine();
+        String template = TemplateUtils.readTemplate("templates/constitution.md");
+        String content = qute.renderString(template, Map.of(
+            "DATE", java.time.LocalDate.now().toString(),
+            "CAMEL_VERSION", camelVersion
+        ));
         Files.writeString(dir.resolve("constitution.md"), content);
     }
 

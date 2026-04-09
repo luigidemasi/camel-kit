@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 public class DefaultGenerator implements AgentGenerator {
     @Override
@@ -301,13 +302,15 @@ public class DefaultGenerator implements AgentGenerator {
                 }
             }
 
+            QuteTemplateEngine qute = new QuteTemplateEngine();
             String template = TemplateUtils.readTemplate(templatePath);
-            String processed = template
-                    .replace("{{CAMEL_MCP_VERSION}}", CamelKitMain.CAMEL_MCP_VERSION)
-                    .replace("{{KNOWLEDGE_VERSION}}", CamelKitMain.KNOWLEDGE_MCP_VERSION)
-                    .replace("{{CAMEL_MCP_REPOS}}", camelMcpRepos)
-                    .replace("{{KNOWLEDGE_MCP_REPOS}}", knowledgeMcpRepos)
-                    .replace("{{CAMEL_CATALOG_REPOS}}", CamelKitMain.CAMEL_CATALOG_REPOS);
+            String processed = qute.renderString(template, Map.of(
+                "CAMEL_MCP_VERSION", CamelKitMain.CAMEL_MCP_VERSION,
+                "KNOWLEDGE_VERSION", CamelKitMain.KNOWLEDGE_MCP_VERSION,
+                "CAMEL_MCP_REPOS", camelMcpRepos,
+                "KNOWLEDGE_MCP_REPOS", knowledgeMcpRepos,
+                "CAMEL_CATALOG_REPOS", CamelKitMain.CAMEL_CATALOG_REPOS
+            ));
             Files.writeString(configFile, processed);
 
             ctx.printer().println(AnsiColors.green("✓") + " MCP config created for " + agentName);

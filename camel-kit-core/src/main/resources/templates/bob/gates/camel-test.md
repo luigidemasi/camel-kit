@@ -35,7 +35,7 @@ Read these files:
 1. `docs/constitution.md` — constitution rules
 2. `.camel-kit/config.yaml` — Camel version, runtime, platform BOM
 3. `docs/design-spec.md` — approved design spec (if exists)
-4. `docs/flows/{flow-name}/{flow-name}.tdd.md` — Technical Design Document for each route
+4. `docs/flows/\{flow-name\}/\{flow-name\}.tdd.md` — Technical Design Document for each route
 
 Load testing guides:
 - `guides/route-analysis.md` — analyze routes to identify testable behaviors
@@ -103,8 +103,8 @@ class RouteIntegrationTest {
 **3. Test properties** (`src/test/resources/application-test.properties`):
 ```properties
 # Override with Testcontainer URLs
-camel.component.jdbc.url=${postgres.jdbcUrl}
-external.api.url=${mockApi.url}
+camel.component.jdbc.url=$\{postgres.jdbcUrl\}
+external.api.url=$\{mockApi.url\}
 ```
 </Step>
 
@@ -120,8 +120,8 @@ Load `guides/test-generation.md`.
 ### Test Generation Process
 
 1. **Create test class:**
-   - Location: `src/test/java/.../routes/{RouteNameTest}.java`
-   - Naming: `{RouteName}Test` (e.g., `OrderProcessingRouteTest`)
+   - Location: `src/test/java/.../routes/\{RouteNameTest\}.java`
+   - Naming: `\{RouteName\}Test` (e.g., `OrderProcessingRouteTest`)
 
 2. **Write happy path test:**
    ```java
@@ -200,7 +200,7 @@ Follow TDD's test criteria from the route's TDD file.
 For each test class:
 
 ```bash
-mvn test -Dtest={RouteNameTest}
+mvn test -Dtest=\{RouteNameTest\}
 ```
 
 **Expected outcome:**
@@ -327,7 +327,7 @@ This checkpoint captures:
 - Passing test results
 - Coverage reports
 
-Label: `post-test-{date}`
+Label: `post-test-\{date\}`
 </Step>
 
 <Step>
@@ -359,10 +359,10 @@ Create a test report at `docs/test-report.md`:
 
 ## Tests by Route
 
-### Route: {route-name}
+### Route: \{route-name\}
 
-**File:** `src/main/resources/camel/{route-name}.camel.yaml`
-**Test Class:** `src/test/java/.../routes/{RouteNameTest}.java`
+**File:** `src/main/resources/camel/\{route-name\}.camel.yaml`
+**Test Class:** `src/test/java/.../routes/\{RouteNameTest\}.java`
 
 **Tests:**
 - ✓ Happy path: valid input → expected output
@@ -378,8 +378,8 @@ Create a test report at `docs/test-report.md`:
 
 ## Recommendations
 
-1. Add more edge case tests for {route-name}
-2. Increase branch coverage in {route-name} (currently 78%, target 80%)
+1. Add more edge case tests for \{route-name\}
+2. Increase branch coverage in \{route-name\} (currently 78%, target 80%)
 ```
 
 Present the report to the user.

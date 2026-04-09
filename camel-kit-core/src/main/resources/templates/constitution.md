@@ -9,8 +9,8 @@
 | Property | Value |
 |----------|-------|
 | Version | 2.0 |
-| Last Updated | {{DATE}} |
-| Camel Version |` {{CAMEL_VERSION}}` |
+| Last Updated | {DATE} |
+| Camel Version |` {CAMEL_VERSION}` |
 
 ---
 

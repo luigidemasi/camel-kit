@@ -73,6 +73,7 @@ public class BobGenerator extends DefaultGenerator {
 
     private void replaceSkillsWithGates(InitContext ctx, Map<String, Object> data)
             throws Exception {
+        QuteTemplateEngine qute = new QuteTemplateEngine();
         for (String skillName : SKILLS_WITH_GATES) {
             String gatePath = "templates/bob/gates/" + skillName + ".md";
             Path skillMd = ctx.skillsDir().resolve(skillName + "/SKILL.md");
@@ -80,18 +81,11 @@ public class BobGenerator extends DefaultGenerator {
                 continue;
             }
 
-            // Read template content directly and do simple string replacement
-            // (can't use Qute because templates contain literal {placeholders} for user docs)
-            try (InputStream is = getClass().getClassLoader().getResourceAsStream(gatePath)) {
-                if (is != null) {
-                    String gateContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-                    // Replace known variables
-                    gateContent = gateContent.replace("{commandPrefix}", (String) data.get("commandPrefix"));
-                    gateContent = gateContent.replace("{camelVersion}", (String) data.get("camelVersion"));
-                    Files.writeString(skillMd, gateContent);
-                }
-            } catch (IOException e) {
-                // Gate template not found for this skill — keep the default SKILL.md
+            try {
+                String gateContent = qute.render(gatePath, data);
+                Files.writeString(skillMd, gateContent);
+            } catch (RuntimeException e) {
+                // Gate template not found — keep the default SKILL.md
             }
         }
     }

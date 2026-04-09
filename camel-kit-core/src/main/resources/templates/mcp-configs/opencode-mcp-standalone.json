@@ -5,10 +5,10 @@
       "type": "local",
       "command": [
         "jbang",
-        "--repos", "{{CAMEL_MCP_REPOS}}",
-        "-Dcamel.catalog.repos={{CAMEL_CATALOG_REPOS}}",
+        "--repos", "{CAMEL_MCP_REPOS}",
+        "-Dcamel.catalog.repos={CAMEL_CATALOG_REPOS}",
         "-Dquarkus.log.level=WARN",
-        "org.apache.camel:camel-jbang-mcp:{{CAMEL_MCP_VERSION}}:runner"
+        "org.apache.camel:camel-jbang-mcp:{CAMEL_MCP_VERSION}:runner"
       ],
       "enabled": true
     },
@@ -16,9 +16,9 @@
       "type": "local",
       "command": [
         "jbang",
-        "--repos", "{{KNOWLEDGE_MCP_REPOS}}",
+        "--repos", "{KNOWLEDGE_MCP_REPOS}",
         "-Dquarkus.log.level=WARN",
-        "io.github.luigidemasi:camel-kit-knowledge-mcp:{{KNOWLEDGE_VERSION}}:runner"
+        "io.github.luigidemasi:camel-kit-knowledge-mcp:{KNOWLEDGE_VERSION}:runner"
       ],
       "enabled": true
     }
