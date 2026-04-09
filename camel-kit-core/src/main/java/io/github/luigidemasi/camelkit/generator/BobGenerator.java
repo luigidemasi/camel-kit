@@ -1,8 +1,6 @@
 package io.github.luigidemasi.camelkit.generator;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -86,14 +84,6 @@ public class BobGenerator extends DefaultGenerator {
                 Files.writeString(skillMd, gateContent);
             } catch (RuntimeException e) {
                 // Gate template not found — keep the default SKILL.md
-            }
-        }
-    }
-
-    private void copyTemplateResource(String resourcePath, Path target) throws IOException {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
-            if (is != null) {
-                Files.writeString(target, new String(is.readAllBytes(), StandardCharsets.UTF_8));
             }
         }
     }

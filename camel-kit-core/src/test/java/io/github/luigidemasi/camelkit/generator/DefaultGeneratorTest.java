@@ -62,14 +62,6 @@ class DefaultGeneratorTest {
     }
 
     @Test
-    void generatesQwenAgents() throws Exception {
-        InitContext ctx = createContext("qwen");
-        new DefaultGenerator().generate(ctx);
-
-        assertTrue(Files.isDirectory(tempDir.resolve(".qwen/agents")));
-    }
-
-    @Test
     void wrapsTomlForGemini() throws Exception {
         InitContext ctx = createContext("gemini");
         new DefaultGenerator().generate(ctx);

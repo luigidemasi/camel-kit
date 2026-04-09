@@ -7,6 +7,7 @@ import io.github.luigidemasi.camelkit.util.TemplateUtils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -19,22 +20,10 @@ import java.util.Map;
 public class DefaultGenerator implements AgentGenerator {
     @Override
     public void generate(InitContext ctx) throws Exception {
-        // Ensure directories exist
         Files.createDirectories(ctx.commandsDir());
         Files.createDirectories(ctx.skillsDir());
-
-        // 1. Create command templates
         createCommandTemplates(ctx);
-
-        // 2. Copy skills with dispatch blocks
         copySkills(ctx);
-
-        // 3. Generate Qwen agents if needed
-        if ("qwen".equals(ctx.agentName())) {
-            generateQwenAgents(ctx);
-        }
-
-        // 4. Create MCP configs
         createMcpConfigs(ctx);
     }
 
@@ -186,57 +175,6 @@ public class DefaultGenerator implements AgentGenerator {
         }
     }
 
-    /**
-     * For Qwen Code: generate pre-registered sub-agent definitions in .qwen/agents/.
-     * Each agent inlines a specific guide file as its system prompt.
-     */
-    private void generateQwenAgents(InitContext ctx) throws Exception {
-        Path agentsDir = ctx.projectDir().resolve(".qwen/agents");
-        Files.createDirectories(agentsDir);
-
-        int agentCount = 0;
-        if (!Files.exists(ctx.skillsDir())) {
-            return;
-        }
-
-        try (var stream = Files.walk(ctx.skillsDir())) {
-            var guidePaths = stream
-                .filter(p -> p.toString().contains("/guides/"))
-                .filter(p -> p.toString().endsWith(".md"))
-                .toList();
-
-            for (Path guidePath : guidePaths) {
-                String guideContent = Files.readString(guidePath);
-                String guideName = guidePath.getFileName().toString().replace(".md", "");
-                String agentName = "camel-" + guideName;
-                String description = "Camel Kit sub-agent for " + guideName.replace("-", " ");
-
-                // Use string concatenation to avoid IllegalFormatException
-                // if guideContent contains % characters
-                String agentDef = "---\n"
-                    + "name: " + agentName + "\n"
-                    + "description: " + description + "\n"
-                    + "tools:\n"
-                    + "  - read_file\n"
-                    + "  - write_file\n"
-                    + "  - edit\n"
-                    + "  - read_many_files\n"
-                    + "  - run_shell_command\n"
-                    + "  - glob\n"
-                    + "  - grep\n"
-                    + "---\n\n"
-                    + guideContent;
-
-                Files.writeString(agentsDir.resolve(agentName + ".md"), agentDef);
-                agentCount++;
-            }
-        }
-
-        if (agentCount > 0) {
-            ctx.printer().println(AnsiColors.green("✓") + " Generated " + agentCount + " Qwen sub-agent definitions");
-        }
-    }
-
     private void createMcpConfigs(InitContext ctx) throws Exception {
         String agentName = "";
 
@@ -333,6 +271,15 @@ public class DefaultGenerator implements AgentGenerator {
                 ctx.printer().println(AnsiColors.green("✓") + " Extracted Camel MCP runner JAR");
             } else {
                 ctx.printer().println(AnsiColors.yellow("  Warning: MCP runner JAR not found on classpath: " + resourceName));
+            }
+        }
+    }
+
+    protected void copyTemplateResource(String resourcePath, Path target) throws IOException {
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+            if (is != null) {
+                Files.createDirectories(target.getParent());
+                Files.writeString(target, new String(is.readAllBytes(), StandardCharsets.UTF_8));
             }
         }
     }
