@@ -1,0 +1,18 @@
+[[rules]]
+name = "Allow Camel MCP tools"
+toolName = "mcp_camel_*"
+decision = "allow"
+priority = 3
+
+[[rules]]
+name = "Allow Knowledge MCP tools"
+toolName = "mcp_camel-knowledge_*"
+decision = "allow"
+priority = 3
+
+[[rules]]
+name = "Deny destructive shell commands"
+toolName = "run_shell_command"
+commandRegex = "rm\\s+-rf"
+decision = "deny"
+priority = 3
