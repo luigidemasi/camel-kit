@@ -1,0 +1,106 @@
+package io.github.luigidemasi.camelkit.generator;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
+
+public class BobGenerator extends DefaultGenerator {
+
+    private static final String[] SKILLS_WITH_GATES = {
+        "camel-migrate", "camel-brainstorm", "camel-implement",
+        "camel-validate", "camel-test", "camel-plan", "camel-execute"
+    };
+
+    private static final String[] RULE_MODES = {
+        "camel-brainstorm", "camel-plan", "camel-implement",
+        "camel-validate", "camel-test"
+    };
+
+    private static final Map<String, String> RULE_MODE_FILES = Map.of(
+        "camel-brainstorm", "interview-gates.md",
+        "camel-plan", "plan-structure.md",
+        "camel-implement", "implementation.md",
+        "camel-validate", "validation.md",
+        "camel-test", "testing.md"
+    );
+
+    @Override
+    public void generate(InitContext ctx) throws Exception {
+        // Run default generation (commands, skills, MCP config)
+        super.generate(ctx);
+
+        Map<String, Object> templateData = Map.of(
+            "commandPrefix", ctx.commandPrefix(),
+            "camelVersion", ctx.camelVersion()
+        );
+
+        // Bob-specific: generate custom modes
+        generateCustomModes(ctx);
+
+        // Bob-specific: generate custom rules
+        generateRules(ctx);
+
+        // Bob-specific: replace SKILL.md files with monolithic gate versions
+        replaceSkillsWithGates(ctx, templateData);
+    }
+
+    private void generateCustomModes(InitContext ctx) throws Exception {
+        Path modesFile = ctx.projectDir().resolve(".bob/custom_modes.yaml");
+        Files.createDirectories(modesFile.getParent());
+        copyTemplateResource("templates/bob/custom_modes.yaml", modesFile);
+    }
+
+    private void generateRules(InitContext ctx) throws Exception {
+        // Shared rules
+        Path sharedRulesDir = ctx.projectDir().resolve(".bob/rules");
+        Files.createDirectories(sharedRulesDir);
+        copyTemplateResource("templates/bob/rules/iron-laws.md",
+            sharedRulesDir.resolve("iron-laws.md"));
+
+        // Mode-specific rules
+        for (String mode : RULE_MODES) {
+            Path modeRulesDir = ctx.projectDir().resolve(".bob/rules-" + mode);
+            Files.createDirectories(modeRulesDir);
+            String ruleFile = RULE_MODE_FILES.get(mode);
+            copyTemplateResource(
+                "templates/bob/rules-" + mode + "/" + ruleFile,
+                modeRulesDir.resolve(ruleFile));
+        }
+    }
+
+    private void replaceSkillsWithGates(InitContext ctx, Map<String, Object> data)
+            throws Exception {
+        for (String skillName : SKILLS_WITH_GATES) {
+            String gatePath = "templates/bob/gates/" + skillName + ".md";
+            Path skillMd = ctx.skillsDir().resolve(skillName + "/SKILL.md");
+            if (!Files.exists(skillMd)) {
+                continue;
+            }
+
+            // Read template content directly and do simple string replacement
+            // (can't use Qute because templates contain literal {placeholders} for user docs)
+            try (InputStream is = getClass().getClassLoader().getResourceAsStream(gatePath)) {
+                if (is != null) {
+                    String gateContent = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                    // Replace known variables
+                    gateContent = gateContent.replace("{commandPrefix}", (String) data.get("commandPrefix"));
+                    gateContent = gateContent.replace("{camelVersion}", (String) data.get("camelVersion"));
+                    Files.writeString(skillMd, gateContent);
+                }
+            } catch (IOException e) {
+                // Gate template not found for this skill — keep the default SKILL.md
+            }
+        }
+    }
+
+    private void copyTemplateResource(String resourcePath, Path target) throws IOException {
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+            if (is != null) {
+                Files.writeString(target, new String(is.readAllBytes(), StandardCharsets.UTF_8));
+            }
+        }
+    }
+}
