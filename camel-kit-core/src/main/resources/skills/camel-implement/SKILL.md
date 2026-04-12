@@ -28,9 +28,10 @@ Provides the domain knowledge guides needed to generate Apache Camel implementat
 | `guides/docker-compose.md` | When external services needed | Docker Compose service definitions |
 | `guides/run-script.md` | When run script needed | Run/launch script generation |
 | `guides/schema-generation.md` | When JSON/XML schemas needed | Schema file generation |
-| `guides/datamapper-approach-a.md` | When DataMapper with useJsonBody | XSLT generation — Approach A |
-| `guides/datamapper-approach-b.md` | When DataMapper with header param | XSLT generation — Approach B |
-| `guides/datamapper-validation.md` | When DataMapper used | XSLT self-validation against TDD |
+| `guides/datamapper-approach-a.md` | When DataMapper with XSLT engine, useJsonBody | XSLT generation — Approach A |
+| `guides/datamapper-approach-b.md` | When DataMapper with XSLT engine, header param | XSLT generation — Approach B |
+| `guides/datamapper-groovy.md` | When DataMapper with Groovy engine | Inline Groovy generation — all format pairs |
+| `guides/datamapper-validation.md` | When DataMapper used | Pre/post validation, engine routing, metadata |
 | `guides/sequential-http-calls.md` | When chained HTTP calls needed | Sequential HTTP call patterns |
 | `guides/advanced-patterns.md` | When advanced EIPs used | Complex pattern implementation |
 | `guides/smoke-test.md` | When smoke test requested | Quick validation test generation |

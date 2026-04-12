@@ -1,14 +1,22 @@
 # DataMapper Validation and Metadata Guide
 
-You are acting as a **DataMapper Code Generator**. This guide handles pre-generation validation, post-generation verification, metadata creation, and confirmation. It is the shared guide loaded alongside the approach-specific guide (`datamapper-approach-a.md` or `datamapper-approach-b.md`).
+You are acting as a **DataMapper Code Generator**. This guide handles pre-generation validation, post-generation verification, metadata creation, and confirmation. It is the shared guide loaded alongside the engine-specific guide — either an XSLT approach guide (`datamapper-approach-a.md` or `datamapper-approach-b.md`) or the Groovy guide (`datamapper-groovy.md`).
 
-For each DataMapper section you **MUST** complete ALL steps and generate ALL 3 artifacts:
+The transformation engine is determined by the TDD `**Transformation Engine:**` header (set during canonicalization). If the header says `Groovy (inline)` → load `datamapper-groovy.md`. If the header is absent or says `XSLT` → load the XSLT approach guide.
+
+**For XSLT engine**, you **MUST** complete ALL steps and generate ALL 3 artifacts:
 
 | Artifact | Step | File | Location |
 |----------|------|------|----------|
 | XSLT stylesheet | Step 3 (approach guide) | `kaoto-datamapper-{id}.xsl` | Project root (JBang) or `src/main/resources/camel/` (Spring Boot/Quarkus) |
 | YAML step injection | Step 4 (approach guide) | `{flow-name}.camel.yaml` (step block added) | |
 | Kaoto metadata | Step 5 (this guide) | **`.kaoto`** (project root, exactly this name) | Project root |
+
+**For Groovy engine**, generate only 1 artifact (the inline script is part of the YAML):
+
+| Artifact | Step | File | Location |
+|----------|------|------|----------|
+| YAML step with inline Groovy | Step 3 + 4 (groovy guide) | `{flow-name}.camel.yaml` (transform block added) | |
 
 ---
 
@@ -19,12 +27,14 @@ Read `docs/flows/{flow-name}/{flow-name}.tdd.md` and extract from the `### DataM
 | Field | Description |
 |-------|-------------|
 | `mapping-id` | Full ID: `kaoto-datamapper-{8hexchars}` |
+| `transformation-engine` | `Groovy (inline)` if present, otherwise XSLT (default) |
 | `source-type` | `XML_SCHEMA`, `JSON_SCHEMA`, or `Primitive` |
 | `source-schema` | File path relative to project root, or `none` |
 | `target-type` | `XML_SCHEMA`, `JSON_SCHEMA`, or `Primitive` |
 | `target-schema` | File path relative to project root, or `none` |
-| `xslt-pattern` | Pre-determined: `A` (XML→XML), `B` (JSON→JSON), `C` (JSON→XML), or `D` (XML→JSON) |
-| `xslt-approach` | Pre-determined: `A` (useJsonBody), `B` (header param), or `N/A` |
+| `format-pair` | *(Groovy only)* Format pair string, e.g., `JSON → JSON` |
+| `xslt-pattern` | *(XSLT only)* Pre-determined: `A` (XML→XML), `B` (JSON→JSON), `C` (JSON→XML), or `D` (XML→JSON) |
+| `xslt-approach` | *(XSLT only)* Pre-determined: `A` (useJsonBody), `B` (header param), or `N/A` |
 | `source-parameters` | Table of name → type + schema path |
 | `namespace-map` | Table of prefix → URI |
 | `field-mappings` | Enriched field mapping table with **Source XPath** and **Target Element** columns |
@@ -43,7 +53,9 @@ The **Source XPath** and **Target Element** columns are pre-computed by `skills/
 
 ## Step 1.5: Validate Mapping Data — MANDATORY before proceeding
 
-After reading the TDD DataMapper section, perform ALL of the following checks. Fix any issues **before** proceeding to Step 2.
+After reading the TDD DataMapper section, perform the applicable checks below. Fix any issues **before** proceeding to Step 2.
+
+**For Groovy engine:** perform only checks 1.5a and 1.5b. Skip 1.5c, 1.5d, and 1.5e (these validate XSLT-specific columns that don't exist in the Groovy TDD format).
 
 ### 1.5a — Field Mappings table must not be empty
 
@@ -54,7 +66,7 @@ Check that the `#### Field Mappings` table contains **at least one data row**.
 ```
 ❌ ERROR: DataMapper section 'kaoto-datamapper-{id}' has no field mappings defined.
 
-The XSLT cannot be generated from an empty mapping table.
+The transformation cannot be generated from an empty mapping table.
 
 Action required:
 1. If this is a migration: run the DataWeave conversion analysis to extract
@@ -64,7 +76,7 @@ Action required:
 3. Then re-run /camel-implement {flow-name}.
 ```
 
-**Stop here — do not generate the XSLT file.**
+**Stop here — do not generate the transformation.**
 
 ### 1.5b — Source/Target types must not be Primitive for structured data
 
@@ -73,7 +85,7 @@ Check the **Source** and **Target** type fields. If either is `Primitive` but th
 - If data is XML: override to `XML_SCHEMA`
 - Log: `⚠️ Corrected {source|target} type from Primitive to {JSON_SCHEMA|XML_SCHEMA} — field mappings indicate structured data.`
 
-Also check the **XSLT Approach** field. If it says `N/A` but source-type or target-type is `JSON_SCHEMA`, override:
+**XSLT only — skip this sub-check when engine = Groovy.** Also check the **XSLT Approach** field. If it says `N/A` but source-type or target-type is `JSON_SCHEMA`, override:
 - No source parameters → Approach A
 - Source parameters exist → Approach B
 - Log: `⚠️ Corrected XSLT Approach from N/A to {A|B} — JSON_SCHEMA requires JSON handling.`
@@ -117,7 +129,15 @@ Check the **Target Element** column:
 
 ---
 
-## Step 2: Read Pre-Determined XSLT Pattern and Approach
+## Step 2: Route to Engine-Specific Guide
+
+Read the **Transformation Engine** from the TDD header (set during canonicalization in `datamapper-canonicalize.md`).
+
+### If Transformation Engine = Groovy (inline)
+
+Read the **Format Pair** from the TDD header (e.g., `JSON → JSON`). Load `datamapper-groovy.md` (Steps 3, 4). Return here after completing Steps 3 and 4.
+
+### If Transformation Engine = XSLT (or absent — default)
 
 Read the **XSLT Pattern** and **XSLT Approach** from the TDD header — these were pre-determined by `datamapper-canonicalize.md`. Do not re-compute them.
 
@@ -146,9 +166,11 @@ Read the **XSLT Pattern** and **XSLT Approach** from the TDD header — these we
 
 ---
 
-## Step 3.5: Verify Generated XSLT Against TDD — MANDATORY
+## Step 3.5: Verify Generated Code Against TDD — MANDATORY
 
-After generating the XSLT file (Step 3 in approach guide), walk through **every row** in the TDD Field Mappings table and verify the generated XSLT contains a matching element.
+After generating the transformation code (Step 3 in engine-specific guide), walk through **every row** in the TDD Field Mappings table and verify the generated code contains a matching element.
+
+### XSLT Verification
 
 **For each field mapping row, check:**
 
@@ -176,9 +198,40 @@ XSLT VERIFICATION AGAINST TDD
 
 **If any row shows ❌:** fix the XSLT and re-verify before proceeding.
 
+### Groovy Verification
+
+**For each field mapping row, check:**
+
+| Check | What to verify |
+|-------|----------------|
+| Completeness | The TDD row has a corresponding line in the Groovy script |
+| Source navigation | The Groovy dot-notation path matches the TDD **Source Field** (e.g., `src.main?.temp` for `payload.main.temp`) |
+| Target key/element | The Groovy map key or XML element name matches the TDD **Target Field** |
+| Parser | JSON source → `JsonSlurper`, XML source → `XmlSlurper` |
+| Serializer | JSON target → `JsonOutput.toJson(result)`, XML target → `writer.toString()` |
+| Collections | Each TDD collection mapping uses `collect` (JSON) or iteration (XML) |
+| Conditionals | Each TDD conditional mapping uses ternary or switch |
+
+**Present the verification result:**
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+GROOVY VERIFICATION AGAINST TDD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+| TDD Row | Source Navigation | Target Key/Element | Status |
+|---|---|---|---|
+| orderId → orderId | ✅ src.orderId | ✅ orderId | OK |
+| main.temp → temperature | ✅ src.main?.temp | ✅ temperature | OK |
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**If any row shows ❌:** fix the Groovy script and re-verify before proceeding.
+
 ### Step 3.5b: Verify Route YAML After Step 4 — MANDATORY
 
-After injecting the Camel YAML step (Step 4), verify the route YAML matches the XSLT Approach:
+After injecting the Camel YAML step (Step 4), verify the route YAML matches the engine and approach.
+
+**For XSLT engine:**
 
 | Approach | Route YAML must contain | Route YAML must NOT contain |
 |---|---|---|
@@ -188,9 +241,22 @@ After injecting the Camel YAML step (Step 4), verify the route YAML matches the 
 
 **Missing `useJsonBody: true` for Approach A is a fatal error** — Saxon receives raw JSON and fails with `Content is not allowed in prolog`.
 
+**For Groovy engine:**
+
+| Check | What to verify |
+|---|---|
+| Step type | Uses `transform:` with `groovy:` expression — NOT `to: xslt-saxon:` |
+| No pre-steps | No `setHeader`/`setBody` before the transform (Groovy reads body directly) |
+| Block scalar | Groovy script uses `\|` (literal block) for multi-line YAML |
+| ID | `id: kaoto-datamapper-{id}` matches the TDD mapping ID |
+
 ---
 
-## Step 5: Create or Update `.kaoto` Metadata File — MANDATORY
+## Step 5: Create or Update `.kaoto` Metadata File — XSLT Only
+
+**If Transformation Engine = Groovy:** skip this step entirely. Kaoto IDE's DataMapper visual editor works with XSLT files — it has no understanding of inline Groovy scripts. The `.kaoto` metadata references an `xsltPath` which doesn't exist for Groovy mappings. Proceed directly to Step 6.
+
+**If Transformation Engine = XSLT (or absent):** this step is MANDATORY.
 
 **CRITICAL — Filename and format rules:**
 
@@ -262,18 +328,56 @@ After injecting the Camel YAML step (Step 4), verify the route YAML matches the 
 
 ## Step 6: Maven Dependency
 
-Check `pom.xml`. If `camel-xslt-saxon` is not already declared, add it:
+### XSLT Engine
 
+Check `pom.xml`. If the XSLT Saxon dependency is not already declared, add the runtime-appropriate artifact:
+
+| Runtime | GroupId | ArtifactId |
+|---------|---------|------------|
+| Spring Boot | `org.apache.camel.springboot` | `camel-xslt-saxon-starter` |
+| Quarkus | `org.apache.camel.quarkus` | `camel-quarkus-xslt-saxon` |
+| JBang | *(auto-discovered from `xslt-saxon:` URI — no explicit dependency needed)* | |
+
+### Groovy Engine
+
+Check the appropriate location for the Groovy language dependency:
+
+| Runtime | GroupId | ArtifactId | Declared In |
+|---------|---------|------------|-------------|
+| Spring Boot | `org.apache.camel.springboot` | `camel-groovy-starter` | `pom.xml` `<dependencies>` |
+| Quarkus | `org.apache.camel.quarkus` | `camel-quarkus-groovy` | `pom.xml` `<dependencies>` |
+| JBang | `org.apache.camel` | `camel-groovy` | `application.properties` as `camel.jbang.dependencies` |
+
+**Spring Boot example:**
 ```xml
 <dependency>
-  <groupId>org.apache.camel</groupId>
-  <artifactId>camel-xslt-saxon</artifactId>
+  <groupId>org.apache.camel.springboot</groupId>
+  <artifactId>camel-groovy-starter</artifactId>
 </dependency>
 ```
+
+**Quarkus example:**
+```xml
+<dependency>
+  <groupId>org.apache.camel.quarkus</groupId>
+  <artifactId>camel-quarkus-groovy</artifactId>
+</dependency>
+```
+
+**JBang example** (in `application.properties`):
+```properties
+camel.jbang.dependencies=org.apache.camel:camel-groovy
+```
+
+**Why JBang needs explicit declaration:** JBang auto-discovers Camel components from `to:` URIs in the YAML route (e.g., `to: xslt-saxon:file.xsl` triggers `camel-xslt-saxon`). However, inline Groovy in a `transform:` expression block uses the Groovy *language*, not a Camel *component URI*. JBang's URI auto-discovery does not detect this, so an explicit `camel.jbang.dependencies` entry is needed.
+
+**No version tags** for Spring Boot/Quarkus — BOMs manage versions.
 
 ---
 
 ## Step 7: Confirm and Return
+
+### XSLT Confirmation
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -284,8 +388,24 @@ DATAMAPPER ARTIFACTS GENERATED
 ✅ .kaoto                       (key added: kaoto-datamapper-{id})
 ✅ XSLT verified against TDD    ({N}/{N} fields matched)
 
+Engine:         XSLT (camel-xslt-saxon)
 Pattern:        {A | B | C | D} ({source-format} → {target-format})
 Approach:       {A (useJsonBody) | B (header param) | N/A}
+Fields mapped:  {N}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### Groovy Confirmation
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DATAMAPPER ARTIFACTS GENERATED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ {flow-name}.camel.yaml       (inline Groovy transform injected)
+✅ Groovy verified against TDD  ({N}/{N} fields matched)
+
+Engine:         Groovy (inline)
+Format Pair:    {source-format} → {target-format}
 Fields mapped:  {N}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```

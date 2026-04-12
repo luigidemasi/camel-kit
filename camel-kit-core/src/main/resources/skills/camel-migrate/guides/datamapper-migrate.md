@@ -219,8 +219,8 @@ Load `skills/shared/datamapper-canonicalize.md` and follow all steps, passing:
 - The flow name
 
 The shared guide will:
-1. Determine the XSLT pattern and approach
-2. Compute XSLT-ready Source XPaths and Target Elements for each field
+1. Choose the transformation engine (Groovy for < 20 fields or no schemas, XSLT otherwise)
+2. If XSLT: compute Source XPaths and Target Elements for each field; if Groovy: prepare simplified semantic table
 3. Present the enriched mapping table for user confirmation
 4. Write the canonical `### DataMapper:` section to the TDD (with empty mapping guard)
 
