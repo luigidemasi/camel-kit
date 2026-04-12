@@ -1,5 +1,7 @@
 package io.github.luigidemasi.camelkit.generator;
 
+import io.github.luigidemasi.camelkit.util.AnsiColors;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
@@ -18,6 +20,9 @@ public class ClaudeGenerator extends DefaultGenerator {
 
         // Claude-specific: append parallel dispatch to camel-implement skill
         appendParallelDispatch(ctx);
+
+        // Claude-specific: generate .claude/settings.json with permissions
+        generateSettings(ctx);
     }
 
     private void generateClaudeMd(InitContext ctx) throws Exception {
@@ -38,5 +43,12 @@ public class ClaudeGenerator extends DefaultGenerator {
             String existing = Files.readString(implementSkill);
             Files.writeString(implementSkill, existing + "\n---\n\n" + parallelBlock);
         }
+    }
+
+    private void generateSettings(InitContext ctx) throws Exception {
+        Path settingsFile = ctx.projectDir().resolve(".claude/settings.json");
+        Files.createDirectories(settingsFile.getParent());
+        copyTemplateResource("templates/claude/settings.json", settingsFile);
+        ctx.printer().println(AnsiColors.green("✓") + " Generated .claude/settings.json with auto-approved permissions");
     }
 }

@@ -11,8 +11,15 @@ decision = "allow"
 priority = 3
 
 [[rules]]
+name = "Allow Maven commands"
+toolName = "run_shell_command"
+commandRegex = "^(\\./mvnw|mvn)\\s+"
+decision = "allow"
+priority = 3
+
+[[rules]]
 name = "Deny destructive shell commands"
 toolName = "run_shell_command"
 commandRegex = "rm\\s+-rf"
 decision = "deny"
-priority = 3
+priority = 4

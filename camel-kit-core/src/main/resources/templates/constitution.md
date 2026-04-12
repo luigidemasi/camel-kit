@@ -78,7 +78,7 @@ Every route MUST declare a `routeId` and a `description`.
 
 Never hardcode connection strings, credentials, or environment-specific values.
 
-- Use `{{PLACEHOLDER}}` syntax for all configurable values.
+- Use `\{\{PLACEHOLDER\}\}` syntax for all configurable values.
 - Configuration hierarchy (highest priority first): environment variables → system properties → `application.properties` → bundled defaults.
 - **Violation:** hardcoded credentials or connection strings fail validation.
 
@@ -112,7 +112,7 @@ Every component used in a route MUST be verified as **supported by Red Hat** in 
 
 ### Naming Overrides
 ```yaml
-# routeIdPattern: "myteam-{domain}-{action}"
+# routeIdPattern: "myteam-\{domain\}-\{action\}"
 ```
 
 ### Error Handling Overrides

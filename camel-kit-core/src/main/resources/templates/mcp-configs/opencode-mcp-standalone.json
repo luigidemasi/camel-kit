@@ -10,7 +10,21 @@
         "-Dquarkus.log.level=WARN",
         "org.apache.camel:camel-jbang-mcp:{CAMEL_MCP_VERSION}:runner"
       ],
-      "enabled": true
+      "enabled": true,
+      "autoApprove": [
+        "camel_catalog_component", "camel_catalog_components", "camel_catalog_component_doc",
+        "camel_catalog_eip", "camel_catalog_eips", "camel_catalog_eip_doc",
+        "camel_catalog_dataformat", "camel_catalog_dataformats", "camel_catalog_dataformat_doc",
+        "camel_catalog_language", "camel_catalog_languages", "camel_catalog_language_doc",
+        "camel_validate_route", "camel_route_context", "camel_route_harden_context"
+      ],
+      "alwaysAllow": [
+        "camel_catalog_component", "camel_catalog_components", "camel_catalog_component_doc",
+        "camel_catalog_eip", "camel_catalog_eips", "camel_catalog_eip_doc",
+        "camel_catalog_dataformat", "camel_catalog_dataformats", "camel_catalog_dataformat_doc",
+        "camel_catalog_language", "camel_catalog_languages", "camel_catalog_language_doc",
+        "camel_validate_route", "camel_route_context", "camel_route_harden_context"
+      ]
     },
     "camel-knowledge": {
       "type": "local",
@@ -20,7 +34,19 @@
         "-Dquarkus.log.level=WARN",
         "io.github.luigidemasi:camel-kit-knowledge-mcp:{KNOWLEDGE_VERSION}:runner"
       ],
-      "enabled": true
+      "enabled": true,
+      "autoApprove": [
+        "camel_rh_build_component_info", "camel_rh_build_search",
+        "camel_rh_build_jira_lookup", "camel_rh_build_cve_search",
+        "camel_rh_build_bugfix_search", "camel_rh_build_release_info",
+        "camel_rh_build_supported_configs"
+      ],
+      "alwaysAllow": [
+        "camel_rh_build_component_info", "camel_rh_build_search",
+        "camel_rh_build_jira_lookup", "camel_rh_build_cve_search",
+        "camel_rh_build_bugfix_search", "camel_rh_build_release_info",
+        "camel_rh_build_supported_configs"
+      ]
     }
   }
 }
