@@ -1,18 +1,20 @@
 # Order Processing Example
 
-This example demonstrates how to use Camel-Kit's Flow-Driven Development workflow to design and implement an order ingestion pipeline.
+This example demonstrates how to use Camel-Kit's workflow to design and implement an order ingestion pipeline.
 
 ## Getting Started
 
 Initialize a new Camel-Kit project using the CLI:
 ```bash
 # Choose your AI assistant
-camel-kit init my-integration --ai bob      # IBM Project Bob
-camel-kit init my-integration --ai gemini   # Google Gemini CLI
-camel-kit init my-integration --ai claude   # Anthropic Claude Code
+camel-kit init my-integration --ai bob        # IBM Project Bob
+camel-kit init my-integration --ai gemini     # Google Gemini CLI
+camel-kit init my-integration --ai claude     # Anthropic Claude Code
+camel-kit init my-integration --ai qwen       # Qwen
+camel-kit init my-integration --ai opencode   # OpenCode
 ```
 
-This creates the project structure with AI agent commands and fetches the Camel component catalog.
+This creates the project structure with AI agent configuration and skills.
 
 ## Scenario
 
@@ -20,155 +22,55 @@ Customer orders are received on a Kafka topic as JSON messages. Valid orders (am
 
 ## Workflow Steps
 
-### 0. Integration Context (Optional)
+### 1. Brainstorm the Design
 
-Define your integration landscape - systems and high-level integration goals:
+Start an interactive design session:
 ```
-/camel-project
-```
-
-**Sample conversation:**
-
-```
-AI: What is the business purpose of this integration project?
-    (1-2 sentences describing the problem you're solving)
-
-You: Automate the order fulfillment pipeline by reliably ingesting
-     customer orders and persisting them to the database.
-
-AI: What systems or applications are involved in this integration?
-    Just list the system names - we'll define how they connect later.
-
-You: Order Management System, Fulfillment Database
-
-AI: What data flows do you need? Describe as "Move [data] from [source] to [sink]"
-
-You: Move customer orders from Order Management System to Fulfillment Database
+/camel-brainstorm
 ```
 
-### 1. Define and Design the Flow
+The assistant asks questions one at a time about:
+- Business purpose (automate order fulfillment)
+- Systems involved (Kafka, PostgreSQL)
+- Data flows (orders from Kafka topic to database)
+- Business rules (only orders >= $50)
+- Error handling (DLQ with retries)
 
-Define and design the integration flow (business + technical details):
+**Result:** BRD and TDD saved to `.camel-kit/`
+
+### 2. Plan the Implementation
+
+After approving the design, the plan is created automatically:
 ```
-/camel-flow order-ingestion
-```
-
-**Sample conversation:**
-
-```
-AI: What is the business intent of this flow?
-
-You: Ensure all customer orders >= $50 are reliably captured and stored
-     for fulfillment processing.
-
-AI: Where does the data come from? (Source system and format)
-
-You: JSON messages on a Kafka topic called "orders"
-
-AI: Where does the data go? (Sink system)
-
-You: PostgreSQL database, orders table
-
-AI: What business rules or validations apply?
-
-You: Only orders with amount >= $50 should be processed.
-     Orders under $50 are filtered out.
-
-AI: What can go wrong? (Error scenarios)
-
-You: Invalid JSON format, validation failures, database unavailable
-
-AI: Now let's design the technical implementation.
-    What Camel component should consume from the source?
-
-You: kafka
-
-AI: What processing steps are needed?
-
-You: 1. Validate JSON against schema
-     2. Unmarshal to Java object
-     3. Filter orders where amount >= 50
-
-AI: What Camel component should write to the sink?
-
-You: sql with INSERT statement
-
-AI: What error handling strategy?
-
-You: Dead Letter Channel to kafka:orders-dlq with 3 retries
+/camel-plan
 ```
 
-**Result:** Flow definition saved to `.camel-kit/flows/order-ingestion/flow.md`
+**Result:** Implementation plan with task decomposition
 
-### 2. Implementation
+### 3. Execute
 
-Generate the Camel YAML DSL and supporting files:
+After approving the plan, execution runs automatically:
 ```
-/camel-implement order-ingestion
+/camel-execute
 ```
+
+The assistant implements, validates, tests, and verifies all flows.
 
 **Generated files:**
 - `order-ingestion.camel.yaml` - Camel route (Kaoto compatible)
 - `application.properties` - Component & bean configuration
 - `docker-compose.yaml` - External services (Kafka, PostgreSQL)
-- `run.sh` - Run script
+- Citrus test files in `test/`
+- Verification report
 
-### 3. Run the Integration
+### Alternative: Single-Flow Shortcut
 
-```bash
-# Start infrastructure
-docker compose up -d
-
-# Run the Camel route
-camel run order-ingestion.camel.yaml application.properties
+For a quicker workflow on a single flow:
+```
+/camel-flow
 ```
 
-### 4. Validation
-
-Validate the route against the constitution and YAML schema:
-```
-/camel-validate
-```
-
-Or using Camel CLI:
-```bash
-camel run --check order-ingestion.camel.yaml application.properties
-```
-
-### 5. Testing
-
-Generate integration tests with Testcontainers:
-```
-/camel-test order-ingestion
-```
-
-**Sample conversation:**
-
-```
-AI: Based on your flow, I recommend testing:
-    [x] 1. Happy Path
-    [x] 2. Filter Rejection (amount < $50)
-    [x] 3. Error Handling / DLQ
-
-    Which scenarios? (enter numbers, 'all', or describe custom)
-
-You: all
-```
-
-**Run tests:**
-```bash
-# Install Citrus (one-time)
-jbang app install citrus@citrusframework/citrus
-
-# Make sure Docker is running (for Testcontainers)
-docker info
-
-# Run tests
-cd test
-citrus run order-ingestion.camel.it.yaml
-```
-
-Tests automatically start Kafka and PostgreSQL using Testcontainers.
+This combines brainstorm + plan + execute in one command.
 
 ## Infrastructure
 
@@ -192,35 +94,26 @@ order-processing/
 │   ├── application.test.properties
 │   ├── jbang.properties
 │   └── data/
-├── .bob/commands/                 # AI agent slash commands
-│   ├── camel-project.md
-│   ├── camel-flow.md
-│   ├── camel-implement.md
-│   ├── camel-validate.md
-│   └── camel-test.md
 └── .camel-kit/
     ├── config.yaml
-    ├── constitution.md
-    ├── project.md
+    ├── business-requirements.md
     └── flows/
         └── order-ingestion/
-            └── flow.md
+            └── order-ingestion.tdd.md
 ```
 
-## Workflow Summary (1 Flow = 1 Route)
+## Workflow Summary
 
 ```
-/camel-project                # (Optional) Define integration landscape
-/camel-flow <flow-name>       # Define and design the flow
-/camel-implement <flow-name>  # Generate <flow-name>.camel.yaml with MCP validation
-/camel-validate               # Check against constitution, security (47 checks)
-/camel-test <flow-name>       # Generate integration tests
-```
+/camel-brainstorm              # Design the integration (interview + spec)
+/camel-plan                    # Create implementation plan (auto after brainstorm)
+/camel-execute                 # Implement, validate, test, verify (auto after plan)
 
-To add another flow, simply run:
-```
-/camel-flow order-notification
-/camel-implement order-notification
+# Or use the single-flow shortcut:
+/camel-flow                    # All-in-one for a single flow
+
+# Standalone verification:
+/camel-verify                  # Build, start, diagnose, fix
 ```
 
 ## Documentation
