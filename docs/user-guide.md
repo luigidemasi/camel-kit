@@ -95,6 +95,32 @@ When an AI generates code and reviews its own work, it tends to confirm its own 
 
 This is why you may see the AI fix something during review that it didn't catch during implementation -- the reviewer has fresh eyes.
 
+### Environment-in-the-Loop: Code That Compiles Is Not Code That Works
+
+Code that passes static analysis can still fail at runtime -- wrong component options for the target version, missing dependencies at startup, external services not running. Research has shown that AI models cause approximately 30% of runtime errors that are invisible to static analysis (Li et al., *"Environment-in-the-Loop"*, ICSE 2026). The fix is not better prediction -- it is actual execution in a real environment.
+
+Camel-Kit applies this principle through `/camel-verify`, which implements a structured feedback loop:
+
+```mermaid
+flowchart LR
+    B["Build"] -->|"error"| C["Classify\n(14 patterns)"]
+    C -->|"fix applied"| B
+    B -->|"success"| S["Start App"]
+    S -->|"error"| C2["Classify"]
+    C2 -->|"fix applied"| S
+    S -->|"success"| T["Test\nBehavior"]
+    T --> R["Report"]
+```
+
+The key idea: every error is **classified** against a taxonomy of 14 Camel-specific patterns, and each classification has a **deterministic fix target**. A `ClassNotFoundException` means a missing dependency in `pom.xml` -- the loop fixes it and retries. A `FailedToCreateRouteException` means broken route YAML -- the loop routes the fix to the implementation skill. An unclassified error is escalated to you with a structured diagnosis.
+
+This means:
+- You do not need to debug build errors manually -- the loop classifies and fixes them
+- You do not need to check if Docker services are running -- the loop starts them
+- You only see the final report, or get asked when the system is genuinely stuck (after 15 attempts per phase)
+
+The verification loop treats code, dependencies, and the execution environment as a single unit that must co-evolve. When a route uses Kafka, the loop ensures `camel-quarkus-kafka` is in `pom.xml`, the Kafka broker is running in Docker, and the connection properties are in `application.properties` -- not just that the route YAML is syntactically correct.
+
 ---
 
 ## 3. Getting Started

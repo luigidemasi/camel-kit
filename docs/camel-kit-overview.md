@@ -239,20 +239,89 @@ Camel-Kit handles data transformation between formats (JSON, XML) automatically 
 
 The engine selection is automatic and transparent. The user only needs to describe the field mappings; the implementation details are handled by the pipeline.
 
-### Runtime Verification
+### Runtime Verification (Environment-in-the-Loop)
 
-After implementation, `/camel-verify` runs a 5-phase feedback loop:
+Code that compiles is not necessarily code that works. Research on LLM-based code generation has shown that AI models cause approximately 30% of runtime errors that are invisible to static analysis -- errors that can only be detected by actually building and running the code in a real environment.
+
+Camel-Kit's verification pipeline is grounded in the **Environment-in-the-Loop** (EiTL) paradigm described by Li et al. in their ICSE 2026 paper *"Environment-in-the-Loop: Rethinking Code Migration with LLM-based Agents"*. The core argument: code generation treated as a code-only problem is fundamentally incomplete. Code, dependencies, and the execution environment are intricately intertwined -- they must co-evolve. Without automated environment interaction, automation is "only half complete."
+
+#### The Three-Agent Model
+
+The EiTL paper proposes three collaborating agents:
 
 ```mermaid
 flowchart LR
-    E["Environment\nPreparation"] --> B["Build"] --> S["Startup"] --> T["Behavioral\nTest"] --> R["Report"]
-    S -->|"error detected"| F["Classify & Fix"]
-    F -->|"retry"| S
-    B -->|"error detected"| F2["Classify & Fix"]
-    F2 -->|"retry"| B
+    M["M-Agent\n(Migration/Code)"] -->|"candidate code\n+ dependencies"| E["E-Agent\n(Environment)"]
+    E -->|"code errors"| M
+    E -->|"test failures"| T["T-Agent\n(Testsuite)"]
+    T -->|"behavioral\nfeedback"| E
+    E -->|"env errors"| E
 ```
 
-If any phase fails, the error is classified (14 error patterns), a fix is applied automatically, and the phase retries. Errors that the pipeline cannot fix are escalated to the developer with a clear diagnosis. The system adapts to available tools -- if Docker isn't installed, it skips Docker-dependent steps rather than failing.
+- **M-Agent** handles code generation and migration semantics
+- **E-Agent** is the central verification hub -- it builds environments, runs code, diagnoses failures, and routes errors to the appropriate agent for fixing
+- **T-Agent** generates regression tests and verifies behavioral equivalence
+
+Camel-Kit maps directly to this model:
+
+| Paper Concept | Camel-Kit Implementation |
+|---------------|-------------------------|
+| M-Agent (code generation) | `camel-migrate` + `camel-implement` -- produces Camel routes, dependencies, and configuration |
+| E-Agent (environment hub) | `/camel-verify` -- builds, starts, diagnoses, classifies errors, routes fixes, retries |
+| T-Agent (test generation) | `camel-test` -- generates Citrus integration tests with Testcontainers |
+
+#### The Feedback Loop
+
+The critical insight from the EiTL paper is that verification must be a **structured, automated loop** -- not a one-shot instruction. A simple "run the app and fix errors" instruction gives the AI no structure for what errors to look for, how to classify them, where to route fixes, or when to stop trying.
+
+`/camel-verify` implements this as a 5-phase loop with classified error routing:
+
+```mermaid
+flowchart TB
+    P1["Phase 1\nEnvironment Preparation\n(docker-compose up)"]
+    P2["Phase 2\nBuild Verification\n(mvn compile)"]
+    P3["Phase 3\nStartup Verification\n(mvn quarkus:dev / spring-boot:run)"]
+    P4["Phase 4\nBehavioral Verification\n(send test data, compare output)"]
+    P5["Phase 5\nReport"]
+
+    P1 --> P2 --> P3 --> P4 --> P5
+
+    P2 -->|"build error"| C2["Classify Error\n(14 patterns)"]
+    C2 -->|"missing dep"| SR2["Self-repair\n(pom.xml)"]
+    C2 -->|"wrong options"| CV2["Route to\ncamel-validate"]
+    SR2 -->|"retry"| P2
+    CV2 -->|"retry"| P2
+
+    P3 -->|"startup error"| C3["Classify Error"]
+    C3 -->|"route YAML broken"| CI3["Route to\ncamel-implement"]
+    C3 -->|"service unavailable"| SR3["Self-repair\n(docker restart)"]
+    C3 -->|"unclassified"| ESC["Escalate\nto user"]
+    CI3 -->|"retry"| P3
+    SR3 -->|"retry"| P3
+```
+
+Each phase has an independent iteration budget (max 15 attempts). On each iteration, errors are classified against a taxonomy of 14 Camel-specific patterns, and fixes are routed to the appropriate target:
+
+| Fix Target | Error Examples | What Happens |
+|-----------|---------------|-------------|
+| **Self-repair** | Missing Maven dependency, missing property, Docker service down | The verify loop fixes `pom.xml`, `application.properties`, or restarts Docker directly |
+| **Route to camel-validate** | Wrong endpoint options, invalid URI | The validation skill re-checks the route against the live catalog and fixes component configuration |
+| **Route to camel-implement** | Broken route YAML, missing bean, XSLT/Groovy error | The implementation skill regenerates the problematic route section |
+| **Escalate to user** | Unclassified error, same error persists after fix, iteration limit reached | The user gets a structured diagnosis with the error, classification, and fix history |
+
+#### Co-Evolution: Code + Environment
+
+A key principle from the EiTL paper is that code changes often require environment changes. When a route uses a Kafka component, the implementation needs:
+- `camel-quarkus-kafka` in `pom.xml` (dependency)
+- Kafka broker in `docker-compose.yaml` (environment)
+- Connection properties in `application.properties` (configuration)
+- The broker actually running before the app starts (operational)
+
+Camel-Kit handles all four dimensions. The verify loop reads the design spec to identify external service dependencies, generates Docker Compose files for them, starts the services, waits for health checks, and only then attempts to build and start the application. If a service is unavailable, it is classified as a self-repairable environment error and the loop retries.
+
+#### Why This Matters
+
+Traditional AI code generation follows a linear flow: generate code, hand it to the user, hope it works. The EiTL approach closes the loop: generate code, build it, run it, test it, diagnose failures, fix them, and retry -- autonomously, with structured error classification that routes each failure to the right fix strategy. The user only sees the final result (or gets escalated when the system is genuinely stuck).
 
 ### Quality Enforcement
 
