@@ -215,14 +215,28 @@ The validation guide (`datamapper-validation.md`) reads the `Transformation Engi
 | Agent | Template Dir | Instruction File | MCP Config | Skills Location |
 |-------|-------------|-----------------|------------|-----------------|
 | Claude Code | `templates/claude/` | `CLAUDE.md` | `.mcp.json` | `.claude/skills/` |
-| IBM Project Bob | `templates/bob/` | `custom_modes.yaml` + rules | `.bob/mcp.json` | `.bob/skills/` |
-| Gemini CLI | `templates/gemini/` | `GEMINI.md` + instructions | `.gemini/mcp.json` | `.gemini/skills/` |
-| Qwen | `templates/qwen/` | `QWEN.md` | `.qwen/mcp.json` | `.qwen/skills/` |
-| OpenCode | `templates/opencode/` | `AGENTS.md` | `.opencode/mcp.json` | `.opencode/skills/` |
+| IBM Project Bob | `templates/bob/` | `custom_modes.yaml` + rules + gates | `.bob/mcp.json` | `.bob/skills/` |
+| Gemini CLI | `templates/gemini/` | `GEMINI.md` + `@file.md` imports + policies | `.gemini/mcp.json` | `.gemini/skills/` |
+| Qwen | `templates/qwen/` | `QWEN.md` + sub-agent definitions | `.qwen/mcp.json` | `.qwen/skills/` |
+| OpenCode | `templates/opencode/` | `AGENTS.md` + permission-based agents | `.opencode/mcp.json` | `.opencode/skills/` |
 
 ### The Equalization Layer
 
 All five agents receive the same skills (markdown instruction files). The template layer adapts the instruction format to each agent's conventions (system prompt vs. custom modes vs. agent files), but the underlying skill content is identical. This means a fix to a skill guide benefits all agents simultaneously.
+
+**What equalization covers:**
+- Skill content (all agents read the same `SKILL.md` and guide files)
+- Iron Laws (embedded in every agent's instruction file)
+- Constitution rules (enforced identically)
+- MCP tool calls (same tools, same parameters)
+- Output formats (same YAML routes, properties, test files)
+
+**What equalization does NOT cover:**
+- Dispatch mechanism (subagents vs. modes vs. inline)
+- Tool restriction model (each agent's permission system is different)
+- File reading patterns (context isolation varies)
+- Parallelization strategy (only Claude supports parallel subagent dispatch)
+- Configuration format (YAML modes, TOML policies, markdown frontmatter)
 
 ### Iron Laws
 
@@ -234,15 +248,33 @@ The five Iron Laws from `skills/shared/iron-laws.md` are embedded in each agent'
 4. **No Code Without Spec Approval** -- never generate implementation artifacts before the user has approved the design spec
 5. **Spec Compliance Before Quality** -- always run spec compliance review before code quality review; wrong order wastes effort
 
-### Bob Custom Modes
+### Per-Agent Architecture
 
-IBM Project Bob uses custom modes with scoped tool permissions:
+Each agent uses a different dispatch and tool restriction model, designed to maximize that agent's native capabilities. The design philosophy is **per-agent feature maximization** -- not lowest-common-denominator parity.
 
-- `brainstorm` -- design phase, read-only file access
-- `plan` -- planning phase, read-only file access
-- `implement` -- implementation phase, full file write access
-- `validate` -- validation phase, read-only file access
-- `test` -- test generation phase, full file write access
+| Agent | Dispatch Model | Key Differentiator |
+|-------|---------------|-------------------|
+| Claude Code | Parallel subagent dispatch | Route graph topology for parallelization |
+| IBM Project Bob | B+A hybrid with 5 custom modes | Monolithic gate files, 3 checkpoint types |
+| Gemini CLI | 6 subagents + main-agent execute | `@file.md` imports, TOML policy engine, MCP wildcards |
+| Qwen | 7 sub-agents with auto-delegation | Description matching, template variables |
+| OpenCode | 7 agents with granular permissions | 14 permission types, glob patterns, path-scoped edits |
+
+For full per-agent deep dives (template files, tool restriction models, configuration examples, unique capabilities), see **[Agent Architectures](agent-architectures.md)**.
+
+### Adding a New Agent
+
+To add support for a new AI coding assistant:
+
+1. Create a template directory: `templates/{agent-name}/`
+2. Implement `{Agent}Generator extends DefaultGenerator` in `io.github.luigidemasi.camelkit.generator`
+3. Register in `AgentGeneratorFactory` (`{agent-name}` → `{Agent}Generator`)
+4. Generate the agent's instruction file with embedded iron laws and skill references
+5. Map pipeline phases to the agent's native dispatch mechanism (modes, subagents, permissions, etc.)
+6. Add MCP configuration for the agent's MCP config format
+7. Write tests following existing patterns (verify structure + key content markers)
+
+The `DefaultGenerator` provides shared logic (skill file copying, MCP config generation). Each agent-specific generator overrides template generation to produce the agent's native format.
 
 ---
 

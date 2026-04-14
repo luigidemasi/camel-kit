@@ -354,11 +354,33 @@ The same skills work across all five supported AI coding assistants. Camel-Kit u
 
 | Agent | Init Flag | How `/camel-execute` Dispatches Work |
 |-------|-----------|--------------------------------------|
-| **Claude** (Anthropic Claude Code) | `--ai claude` | Dispatches subagents with isolated context per task |
-| **Bob** (IBM Project Bob) | `--ai bob` | Switches between 5 custom modes (brainstorm, plan, implement, validate, test) with scoped permissions |
-| **Gemini** (Google Gemini CLI) | `--ai gemini` | Inline execution within the conversation |
-| **Qwen** (Alibaba Qwen CLI) | `--ai qwen` | Inline execution within the conversation |
-| **OpenCode** | `--ai opencode` | Inline execution within the conversation |
+| **Claude** (Anthropic Claude Code) | `--ai claude` | Dispatches subagents in parallel per independent task |
+| **Bob** (IBM Project Bob) | `--ai bob` | Switches between 5 custom modes with scoped tool permissions |
+| **Gemini** (Google Gemini CLI) | `--ai gemini` | Dispatches to 6 subagents; execute phase runs in main agent |
+| **Qwen** (Alibaba Qwen CLI) | `--ai qwen` | Auto-delegates to 7 sub-agents based on intent matching |
+| **OpenCode** | `--ai opencode` | Dispatches to 7 agents with granular permission control |
+
+### Choosing an Agent
+
+All agents produce the same output (YAML routes, properties files, tests). The differences are in how they manage the pipeline internally:
+
+| If you value... | Consider |
+|-----------------|----------|
+| **Speed** (parallel implementation of independent flows) | Claude |
+| **Safety** (strictest tool restrictions per phase) | Bob or OpenCode |
+| **Automatic routing** (say what you want, agent picks the right phase) | Qwen |
+| **Customizability** (override policies, compose instructions) | Gemini |
+| **Fine-grained file permissions** (auto-allow test dirs, ask for source) | OpenCode |
+
+### What Differs Between Agents
+
+| Aspect | What You'll Notice |
+|--------|-------------------|
+| **Dispatch transparency** | Claude shows subagent dispatch; Bob shows mode switching; Gemini/Qwen/OpenCode delegate to specialized agents |
+| **Tool restrictions** | During brainstorm, Bob physically cannot edit code files (mode restriction). Claude and Qwen rely on skill instructions. OpenCode uses glob-pattern permissions. |
+| **Parallel execution** | Only Claude can implement multiple independent flows simultaneously |
+| **MCP approval prompts** | Gemini auto-approves MCP tool calls via its policy engine. Other agents may prompt you for each MCP call. |
+| **Execution limits** | OpenCode and Gemini enforce step/turn limits per phase. Other agents have no hard limits. |
 
 ### The Equalization Layer
 
@@ -369,7 +391,9 @@ Skills are markdown instruction files that the AI agent loads and follows. Becau
 - The same MCP tools are called
 - The same output formats are produced
 
-The only difference is *how* the agent dispatches work internally (subagents, modes, or inline), which is transparent to you as the user.
+The dispatch model is internal to the agent. You run the same commands (`/camel-brainstorm`, `/camel-execute`, etc.) and get the same artifacts regardless of which agent you chose.
+
+For contributor-level details on each agent's architecture (template files, permission models, dispatch internals), see [Agent Architectures](agent-architectures.md).
 
 ---
 
