@@ -2,273 +2,255 @@
 
 This document describes Camel-Kit's internal architecture for contributors and extenders. For user-facing documentation, see the [User Guide](user-guide.md) and [Command Reference](commands.md).
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Skills Architecture](#skills-architecture)
-  - [What Are Skills](#what-are-skills)
-  - [Skill Structure](#skill-structure)
-  - [Pre-Generated Skills](#pre-generated-skills)
-  - [Progressive Disclosure](#progressive-disclosure)
-  - [How Commands Use Skills](#how-commands-use-skills)
-  - [Claude Code Skill Standard](#claude-code-skill-standard)
-  - [Examples](#examples)
-- [MCP Integration (Internal Details)](#mcp-integration-internal-details)
-  - [Configuration](#configuration)
-  - [Available MCP Tools](#available-mcp-tools)
-  - [Tool Usage by Skill](#tool-usage-by-skill)
-  - [Detailed Tool Reference](#detailed-tool-reference)
-  - [Tool Invocation Flow](#tool-invocation-flow)
-  - [Token Savings Statistics](#token-savings-statistics)
-- [Skills + MCP: How They Work Together](#skills--mcp-how-they-work-together)
-- [Extending Camel-Kit](#extending-camel-kit)
-  - [Adding a New Skill](#adding-a-new-skill)
-  - [Future Enhancements](#future-enhancements)
-- [References](#references)
-
 ---
 
-## Overview
+## 1. Overview
 
 Camel-Kit combines two mechanisms to give AI agents accurate, efficient access to the Apache Camel ecosystem:
 
-1. **Skills** — bundled component documentation loaded on-demand during implementation (complete schemas, usage patterns)
-2. **MCP Server** — real-time queries against the live Camel catalog during design and validation (lightweight, always current)
+- **Skills** -- markdown instruction files that guide LLM agents through structured workflows (design, implementation, validation, testing, verification)
+- **MCP Server** -- real-time queries against the live Camel catalog for component verification, validation, and security analysis
 
-Together they achieve **99% reduction** in context usage compared to loading all 396 component catalogs.
+Together they enable AI-powered integration development targeting the Red Hat Build of Apache Camel. Skills carry the process knowledge (how to design a flow, how to generate YAML, how to validate a route), while MCP provides the data knowledge (which components exist, what options they accept, whether an endpoint URI is valid).
 
 ---
 
-## Skills Architecture
+## 2. Skills Architecture
 
-### What Are Skills
+### What a Skill Is
 
-Camel Kit uses [Anthropic Agent Skills](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview) to provide component-specific documentation and configuration guidance. Instead of loading all 396 Camel component catalogs into context, skills are loaded on-demand only when needed.
+A skill is a directory containing a manifest file (`SKILL.md`) and an optional `guides/` subdirectory with instruction files loaded on demand. The manifest uses YAML frontmatter to declare metadata and a table listing which guides exist and when to load them.
 
-- **Commands** (like `/camel-flow`, `/camel-implement`) ask interactive questions about the integration
-- **Skills** (one per Camel component, 396 total) provide component knowledge: description, capabilities, usage patterns, URI syntax, parameters, Maven dependencies, and reference to the complete JSON schema
+**Skill location:** `camel-kit-core/src/main/resources/skills/{skill-name}/`
 
-Skills are `user-invocable: false` — they are only loaded by commands when specific components are selected.
-
-### Skill Structure
-
-Each skill directory contains:
-
-```
-{agent-folder}/skills/camel-component-{name}/
-├── SKILL.md          # Component documentation with YAML frontmatter
-└── schema.json       # Complete component schema from Camel catalog
-```
-
-Where `{agent-folder}` is:
-- `.bob/skills/` for IBM Project Bob
-- `.gemini/skills/` for Gemini CLI
-- `.claude/skills/` for Claude Code
-
-#### SKILL.md Format
+### SKILL.md Format
 
 ```markdown
 ---
-name: camel-component-{name}
-description: {component description}
-user-invocable: false
+name: camel-{name}
+description: Brief description with trigger keywords
+user_invocable: true
 ---
 
-# {Component Title}
+# /camel-{name}
 
-{Component description}
+> One-line purpose
 
-## Component Information
-- Scheme: {scheme}
-- Syntax: {syntax}
-- Type: Consumer/Producer/Both
+## Guides
 
-## Usage Patterns
-### Consumer (from)
-- from:
-    uri: {scheme}:name
-    parameters:
-      # See schema.json
-
-### Producer (to)
-- to:
-    uri: {scheme}:name
-    parameters:
-      # See schema.json
-
-## Configuration Reference
-See [schema.json](schema.json) for complete options.
-
-## Maven Dependency
-<dependency>
-  <groupId>org.apache.camel</groupId>
-  <artifactId>{artifactId}</artifactId>
-</dependency>
+| Guide | When Loaded | Purpose |
+|-------|-------------|---------|
+| `guides/main-guide.md` | Always | Primary instruction guide |
+| `guides/optional-guide.md` | When condition X | Supplementary guide |
 ```
 
-### Pre-Generated Skills
+The frontmatter fields:
+- `name` -- skill identifier, used in cross-references
+- `description` -- trigger keywords that help agents match user intent to the correct skill
+- `user_invocable` -- `true` if users can invoke it directly via slash command; `false` if it is loaded by other skills
 
-All 396 Camel component skills are **pre-generated** and bundled in the `camel-kit-core` module:
+### All Skills
 
-**Source location**: `camel-kit-core/src/main/resources/skills/`
+| Skill | User-Invocable | Loaded By | Purpose |
+|-------|---------------|-----------|---------|
+| `camel-brainstorm` | Yes | -- | Orchestrate design phase: interview user, produce BRD + TDDs |
+| `camel-plan` | Yes | `camel-brainstorm` (after spec approval) | Produce detailed implementation plan from approved design spec |
+| `camel-execute` | Yes | `camel-plan` (after plan approval) | Dispatch subagents per task with two-stage review |
+| `camel-flow` | Yes | -- | Greenfield entry point: shortcut into `camel-brainstorm` with project type pre-set |
+| `camel-migrate` | Yes | -- | Migration entry point: shortcut into `camel-brainstorm` with project type pre-set |
+| `camel-verify` | Yes | `camel-execute` (after all tasks) | 5-phase runtime verification loop |
+| `camel-design` | No | `camel-brainstorm` | Guides for component selection, EIP catalog, TDD assembly |
+| `camel-implement` | No | `camel-execute` | Guides for YAML generation, properties, Docker Compose, DataMapper |
+| `camel-validate` | No | `camel-execute` | Guides for schema validation, endpoint verification, security analysis |
+| `camel-test` | No | `camel-execute` | Guides for route analysis and test generation with Citrus + Testcontainers |
+| `camel-knowledge` | No | `camel-brainstorm`, `camel-execute` | Routes questions to Red Hat knowledge MCP tools |
 
-During `camel-kit init`, skills are copied to the appropriate AI agent folder:
-- `camel-kit init --ai bob` → copies to `.bob/skills/`
-- `camel-kit init --ai gemini` → copies to `.gemini/skills/`
-- `camel-kit init --ai claude` → copies to `.claude/skills/`
+### Shared Guides
 
-Each skill is generated from the official Apache Camel component catalog and contains:
-- SKILL.md with YAML frontmatter and component documentation
-- schema.json with complete component configuration from Camel catalog
+Shared guides live at `camel-kit-core/src/main/resources/skills/shared/` and are loaded by multiple skills:
 
-**Why pre-generated?**
-
-1. **Zero setup** — Users get skills immediately during init
-2. **Version locked** — Skills match the Camel version used by camel-kit
-3. **Offline ready** — No need to download Camel catalog or clone repositories
-4. **Consistent** — All users have identical component knowledge
-5. **Single source** — One set of skills for all AI agents
-
-Skills were generated from Apache Camel catalog component JSON files (`/path/to/camel/catalog/camel-catalog/src/generated/resources/org/apache/camel/catalog/components/{component}.json`).
-
-### Progressive Disclosure
-
-Skills use a three-level progressive disclosure model:
-
-| Level | Content | Token Cost |
-|-------|---------|------------|
-| **Level 1 — Metadata** | YAML frontmatter with name and description | ~100 tokens |
-| **Level 2 — Instructions** | SKILL.md content when skill is loaded | <5k tokens |
-| **Level 3 — Resources** | schema.json loaded only when needed | Zero context cost |
-
-**Example flow:**
-1. User runs `/camel-flow order-processing`
-2. Command asks questions, user mentions "Kafka" and "SQL"
-3. Command loads ONLY the kafka and sql skills (2 of 396)
-4. Context stays small, focused on relevant components
-
-### How Commands Use Skills
-
-#### /camel-flow
-When user selects a component:
-1. Ask: "For [source], I suggest using: Component: kafka"
-2. Reference: "For detailed documentation, see: .claude/skills/camel-component-kafka/SKILL.md"
-3. Load skill: Read SKILL.md for usage patterns and capabilities
-
-#### /camel-implement
-When generating YAML:
-1. Identify components from flow design
-2. Load skills: `.claude/skills/camel-component-{name}/SKILL.md`
-3. Read schemas: `.claude/skills/camel-component-{name}/schema.json`
-4. Generate YAML with correct syntax and parameters
-5. Validate against Camel YAML DSL schema
-
-### Claude Code Skill Standard
-
-Camel Kit follows the [Claude Code Skill Standard](https://code.claude.com/docs/en/skills):
-
-```yaml
----
-name: camel-component-{name}
-description: {one-line description}
-user-invocable: false  # Only loaded by commands
----
-```
-
-### Examples
-
-#### Kafka Component
-
-**Skill path**: `{agent-folder}/skills/camel-component-kafka/SKILL.md`
-
-**Metadata**:
-```yaml
-name: camel-component-kafka
-description: Send and receive messages to/from an Apache Kafka broker.
-user-invocable: false
-```
-
-**Usage Pattern**:
-```yaml
-- from:
-    uri: kafka:topic
-    parameters:
-      brokers: "{{kafka.brokers}}"
-      groupId: "{{kafka.groupId}}"
-```
-
-**Maven**:
-```xml
-<dependency>
-  <groupId>org.apache.camel</groupId>
-  <artifactId>camel-kafka</artifactId>
-</dependency>
-```
-
-#### SQL Component
-
-**Skill path**: `{agent-folder}/skills/camel-component-sql/SKILL.md`
-
-**Metadata**:
-```yaml
-name: camel-component-sql
-description: Perform SQL queries using JDBC.
-user-invocable: false
-```
-
-**Usage Pattern**:
-```yaml
-- to:
-    uri: "sql:INSERT INTO orders VALUES (:#id, :#amount)"
-    parameters:
-      dataSource: "#dataSource"
-```
-
-**Maven**:
-```xml
-<dependency>
-  <groupId>org.apache.camel</groupId>
-  <artifactId>camel-sql</artifactId>
-</dependency>
-```
+| Guide | Purpose |
+|-------|---------|
+| `iron-laws.md` | Five non-negotiable pipeline process enforcement rules |
+| `datamapper-canonicalize.md` | Engine selection and field mapping enrichment for DataMapper |
+| `flow-test-data.md` | Test data generation patterns for flow design |
+| `mcp-setup.md` | MCP version mapping and connection parameters |
+| `graph-availability.md` | Graph MCP server availability detection |
+| `yaml-structure.md` | YAML DSL structure rules and Kaoto compatibility |
+| `yaml-components.md` | Component URI syntax and parameter rules |
+| `yaml-examples.md` | Reference YAML patterns for common integrations |
+| `patterns-foundational.md` | Foundational EIP patterns (content-based routing, splitter, aggregator) |
+| `patterns-error-handling.md` | Error handling patterns (dead letter channel, retry, circuit breaker) |
+| `patterns-deployment.md` | Deployment patterns (health checks, graceful shutdown, scaling) |
 
 ---
 
-## MCP Integration (Internal Details)
+## 3. The Orchestration Model
 
-For the user-facing overview of MCP (what it does, benefits, how to configure it), see [User Guide — MCP Integration](user-guide.md#mcp-integration). This section documents the internal tool details for contributors.
+### Pipeline
 
-### Configuration
+The end-to-end pipeline follows a strict phase progression:
 
-The MCP server is configured in project-specific configuration files created during `camel-kit init`:
-
-| AI Assistant | Config File |
-|-------------|-------------|
-| Claude Code | `.mcp.json` |
-| IBM Bob | `.bob/mcp.json` |
-| Gemini CLI | `.gemini/mcp.json` |
-
-**Content:**
-```json
-{
-  "mcpServers": {
-    "camel": {
-      "command": "jbang",
-      "args": [
-        "-Dquarkus.log.level=WARN",
-        "org.apache.camel:camel-jbang-mcp:4.18.0:runner"
-      ],
-      "description": "Apache Camel MCP Server - Component catalog, validation, and security analysis"
-    }
-  }
-}
+```
+brainstorm / migrate
+       |
+       v
+   BRD + TDDs  (design spec)
+       |
+       v
+     plan
+       |
+       v
+ implementation plan
+       |
+       v
+    execute
+       |
+       v
+   artifacts + verification report
 ```
 
-**Created by:** `camel-kit-core/src/main/java/io/github/luigidemasi/camelkit/command/InitCommand.java` — `createMcpConfigs()` (Lines 320-376)
+Entry points diverge (`camel-flow` for greenfield, `camel-migrate` for migration) but both produce the same artifact format -- a BRD (Business Requirements Document) with TDDs (Technical Design Documents). This means `camel-plan` and `camel-execute` work identically regardless of whether the project is greenfield or migrated.
 
-### Available MCP Tools
+### How camel-execute Dispatches Work
 
-The Camel MCP server (camel-jbang-mcp:4.18.0) provides **15 tools** organized into 6 categories:
+1. Read the approved implementation plan and extract all tasks
+2. For each task:
+   - Dispatch an implementer subagent with full task text, design spec section, guide paths, and MCP parameters
+   - On completion, dispatch a **spec compliance reviewer** -- does the output match the design spec?
+   - If spec review passes, dispatch a **code quality reviewer** -- constitution compliance, security, anti-patterns
+   - If either reviewer finds critical issues, return to the implementer for fixes, then re-review
+   - Mark task complete and immediately start the next task (no pause, no user confirmation)
+3. After all tasks: run a **cross-cutting review** across all generated routes
+4. Run the **verification phase** (`camel-verify`)
+5. Print the completion summary
+
+### Agent-Specific Execution
+
+The dispatch model varies by AI agent:
+
+- **Claude Code** -- dispatches fresh subagents per task. Each subagent runs in isolated context with no cross-contamination between tasks.
+- **IBM Project Bob** -- switches between custom modes (`brainstorm`, `plan`, `implement`, `validate`, `test`) with scoped tool permissions per mode.
+- **Gemini CLI, Qwen, OpenCode** -- inline execution within the same session. Skills are loaded as instruction context rather than dispatched as separate agents.
+
+### The BRD+TDD Contract
+
+Both `camel-brainstorm` (greenfield) and `camel-migrate` (migration) produce the same output format: a BRD with per-flow TDDs. This is the contract between design and implementation -- `camel-plan` consumes this format, and `camel-execute` implements from it. The design phase diverges (interview vs. source analysis), but the output converges.
+
+---
+
+## 4. DataMapper Pipeline
+
+The DataMapper pipeline handles data transformation between formats (JSON, XML) within Camel routes. It supports two transformation engines with automatic selection.
+
+### Engines
+
+- **XSLT** (via `camel-xslt-saxon`) -- external `.xsl` files with Kaoto IDE visual editor support
+- **Groovy** (inline in YAML) -- inline scripts in `transform:` steps, no external files
+
+### Engine Selection Rules
+
+Engine selection happens in the canonicalize stage (`skills/shared/datamapper-canonicalize.md`, Step 0). Rules are evaluated in order:
+
+| # | Condition | Engine | Reason |
+|---|-----------|--------|--------|
+| 1 | Both source-schema AND target-schema are `"none"` | **Groovy** | No schemas to drive XSLT structure |
+| 2 | Field count < 20 | **Groovy** | Small mapping -- inline script is simpler and more readable |
+| 3 | Field count >= 20 AND at least one schema exists | **XSLT** | Large mapping with schema -- XSLT + Kaoto IDE visual editor |
+
+### Canonicalize Stage
+
+The canonicalize guide (`skills/shared/datamapper-canonicalize.md`) is shared between the design interview (`datamapper-interview.md`) and migration (`datamapper-migrate.md`). After deciding the engine, it enriches the semantic field mappings with engine-specific data:
+
+- **XSLT path:** computes Source XPaths, Target Elements, selects pattern and approach
+- **Groovy path:** produces a simplified semantic-only mapping table
+
+### XSLT Path
+
+4 patterns based on format pair:
+
+| Source | Target | Pattern |
+|--------|--------|---------|
+| XML | XML | A -- XML to XML |
+| JSON | JSON | B -- JSON to JSON |
+| JSON | XML | C -- JSON to XML |
+| XML | JSON | D -- XML to JSON |
+
+Each pattern has 2 approaches:
+- **Approach A** (`useJsonBody`) -- JSON body passed via Camel's JSON-to-XML auto-conversion
+- **Approach B** (header param) -- JSON body passed as an XSLT parameter via message header
+
+Pre-computed Source XPaths and Target Elements are stored in the TDD and used verbatim during implementation. The XSLT file is generated externally as `kaoto-datamapper-{id}.xsl` with a companion `.kaoto` metadata file for Kaoto IDE visual editing.
+
+### Groovy Path
+
+Inline scripts in YAML `transform:` steps. 4 format pairs (JSON to JSON, XML to JSON, JSON to XML, XML to XML). No external files, no `.kaoto` metadata.
+
+### Validation Routing
+
+The validation guide (`datamapper-validation.md`) reads the `Transformation Engine` field from the TDD and routes to the appropriate validation guide: `datamapper-groovy.md` for Groovy, or `datamapper-approach-a.md` / `datamapper-approach-b.md` for XSLT.
+
+### Artifacts Comparison
+
+| Aspect | XSLT Path | Groovy Path |
+|--------|-----------|-------------|
+| External file | `kaoto-datamapper-{id}.xsl` | None (inline in YAML) |
+| YAML step | `xslt-saxon:` URI with parameters | `transform:` with `groovy:` expression |
+| `.kaoto` metadata | Required (Kaoto IDE visual editor) | Skipped (no IDE support) |
+| Maven dep (Spring Boot) | `camel-xslt-saxon-starter` | `camel-groovy-starter` |
+| Maven dep (Quarkus) | `camel-quarkus-xslt-saxon` | `camel-quarkus-groovy` |
+| TDD columns | 8 (incl. Source XPath, Target Element) | 6 (semantic only) |
+| Kaoto IDE editing | Visual DataMapper editor | Edit YAML directly |
+
+---
+
+## 5. Agent Templates
+
+### Template Directory
+
+`camel-kit-core/src/main/resources/templates/{agent}/`
+
+### What `camel-kit init` Generates
+
+| Agent | Template Dir | Instruction File | MCP Config | Skills Location |
+|-------|-------------|-----------------|------------|-----------------|
+| Claude Code | `templates/claude/` | `CLAUDE.md` | `.mcp.json` | `.claude/skills/` |
+| IBM Project Bob | `templates/bob/` | `custom_modes.yaml` + rules | `.bob/mcp.json` | `.bob/skills/` |
+| Gemini CLI | `templates/gemini/` | `GEMINI.md` + instructions | `.gemini/mcp.json` | `.gemini/skills/` |
+| Qwen | `templates/qwen/` | `QWEN.md` | `.qwen/mcp.json` | `.qwen/skills/` |
+| OpenCode | `templates/opencode/` | `AGENTS.md` | `.opencode/mcp.json` | `.opencode/skills/` |
+
+### The Equalization Layer
+
+All five agents receive the same skills (markdown instruction files). The template layer adapts the instruction format to each agent's conventions (system prompt vs. custom modes vs. agent files), but the underlying skill content is identical. This means a fix to a skill guide benefits all agents simultaneously.
+
+### Iron Laws
+
+The five Iron Laws from `skills/shared/iron-laws.md` are embedded in each agent's instruction file:
+
+1. **MCP Catalog Verification** -- every component, EIP, dataformat, and language must be verified via MCP before being written to any spec, TDD, or YAML file
+2. **Red Hat Build Only** -- only Red Hat supported versions and components; community-only versions are forbidden
+3. **Constitution Compliance** -- every generated route must pass all 7 constitution rules (incorporates and enforces the constitution)
+4. **No Code Without Spec Approval** -- never generate implementation artifacts before the user has approved the design spec
+5. **Spec Compliance Before Quality** -- always run spec compliance review before code quality review; wrong order wastes effort
+
+### Bob Custom Modes
+
+IBM Project Bob uses custom modes with scoped tool permissions:
+
+- `brainstorm` -- design phase, read-only file access
+- `plan` -- planning phase, read-only file access
+- `implement` -- implementation phase, full file write access
+- `validate` -- validation phase, read-only file access
+- `test` -- test generation phase, full file write access
+
+---
+
+## 6. MCP Integration
+
+### Camel Catalog MCP
+
+The Camel MCP server (`camel-jbang-mcp`) provides **15 tools** organized into 6 categories:
 
 #### 1. Catalog Exploration (8 tools)
 
@@ -315,362 +297,157 @@ The Camel MCP server (camel-jbang-mcp:4.18.0) provides **15 tools** organized in
 |-----------|---------|
 | `camel_version_list` | List Camel versions with LTS status and JDK requirements |
 
+### Knowledge Layer MCP
+
+Separate from the Camel Catalog MCP, the knowledge layer runs from the `camel-kit-knowledge` repository (a separate project with its own version line).
+
+| Tool Name | Purpose |
+|-----------|---------|
+| `camel_rh_build_component_info` | Component support status lookup (Production Support, Technology Preview, etc.) |
+| `camel_rh_build_search` | Semantic search across Red Hat Build documentation |
+| `camel_rh_build_cve_search` | CVE lookup by ID |
+| `camel_rh_build_bugfix_search` | Advisory search (security + bugfix) |
+| `camel_rh_build_release_info` | Release notes for a version |
+| `camel_rh_build_supported_configs` | Supported platforms, JDKs, databases |
+
+Data sources: product guides (HTML from docs.redhat.com), KB articles, errata (RHSA/RHBA/RHEA), CVEs enriched with CVSS/CWE data. The knowledge index contains approximately 26,000 chunks with hybrid semantic search (BM25 + vector).
+
 ### Tool Usage by Skill
 
 | Skill | Tools Used | Count |
 |-------|------------|-------|
-| **camel-project** | `camel_version_list` | 1 |
-| **camel-flow** | `camel_catalog_components`, `camel_catalog_component_doc`, `camel_catalog_dataformats`, `camel_catalog_dataformat_doc`, `camel_catalog_eips`, `camel_catalog_eip_doc`, `camel_catalog_languages`, `camel_catalog_language_doc` | 8 |
-| **camel-migrate** | Same as camel-flow (Phase 2) | 8 |
-| **camel-implement** | `camel_catalog_component_doc`, `camel_catalog_dataformat_doc`, `camel_catalog_eip_doc`, `camel_catalog_language_doc`, `camel_route_context`, `camel_validate_route` | 6 |
-| **camel-validate** | `camel_validate_route`, `camel_route_harden_context` | 2 |
-| **camel-test** | `camel_route_context`, `camel_catalog_component_doc` | 2 |
-
-### Detailed Tool Reference
-
-#### camel_version_list
-
-List available Camel versions with release dates, JDK requirements, and LTS status.
-
-**Used in:** camel-project (SKILL.md Lines 183, 209)
-
-**Parameters:**
-```json
-{}                          // Returns all versions
-{ "version": "4.18.0" }    // Details for specific version
-```
-
-**Example output:**
-```
-Recent Versions:
-  4.18.0 (LTS) - Released 2025-01-15 - JDK 17+ - Recommended
-  4.17.0       - Released 2024-12-10 - JDK 17+
-  4.16.0 (LTS) - Released 2024-11-05 - JDK 17+
-```
-
-**Fallback:** If MCP not available, suggests default version 4.18.0
-
----
-
-#### camel_catalog_components
-
-Search and list Camel components by category, name, or label.
-
-**Used in:** camel-flow (SKILL.md Lines 169, 300)
-
-**Parameters:**
-```json
-{
-  "category": "messaging",
-  "version": "4.18.0"
-}
-```
-
-**Example output:**
-```
-Messaging Components:
-  - kafka (Apache Kafka messaging)
-  - amqp (AMQP 1.0 messaging)
-  - jms (JMS messaging)
-  - activemq (Apache ActiveMQ)
-  - rabbitmq (RabbitMQ)
-  - aws2-sqs (AWS Simple Queue Service)
-```
-
-**Fallback:** Prompts user to specify component manually
-
----
-
-#### camel_catalog_component_doc
-
-Retrieve comprehensive documentation for a specific component.
-
-**Used in:** camel-flow, camel-implement, camel-test
-
-**Invocations across skills:**
-- **camel-flow** — after user selects source/sink component (Lines 180, 311)
-- **camel-implement** — component options lookup and application.properties generation (Lines 177, 196)
-- **camel-test** — test mock setup for Testcontainers (Line 177)
-
-**Parameters:**
-```json
-{
-  "name": "kafka",
-  "version": "4.18.0"
-}
-```
-
-**Example output:**
-```
-Component: kafka
-Description: Send and receive messages from Apache Kafka
-
-URI Syntax: kafka:topic
-
-Component Options:
-  - brokers (string): Kafka broker addresses
-  - groupId (string): Consumer group ID
-
-Endpoint Options:
-  - topic (string, required): Topic name
-  - autoOffsetReset (string): earliest, latest
-
-Maven: org.apache.camel:camel-kafka:4.18.0
-```
-
-**Fallback:** Load from local component skills at `{agent.folder}/skills/camel-component-{name}/SKILL.md`
-
----
-
-#### camel_validate_route
-
-Validate Camel endpoint URIs against the catalog schema, catch typos and unknown options.
-
-**Used in:** camel-implement, camel-validate
-
-**Invocations across skills:**
-- **camel-implement** — pre-validation of source/sink/DLQ URIs (Lines 390-420), complete route validation after generation (Line 867)
-- **camel-validate** — URI validation phase for all endpoints (Lines 215-233)
-
-**Parameters (single URI):**
-```json
-{
-  "uri": "kafka:topic-name?brokers=localhost:9092",
-  "version": "4.18.0"
-}
-```
-
-**Parameters (full route):**
-```json
-{
-  "route": "<entire YAML route content>",
-  "version": "4.18.0"
-}
-```
-
-**Example output (valid):**
-```
-Component: kafka (exists in catalog)
-Path parameter: topic-name (valid)
-Options: brokers (valid, type: string)
-```
-
-**Example output (typo):**
-```
-Component 'kafak' not found
-Did you mean: 'kafka'?
-Suggestion: Use 'kafka:test-topic'
-```
-
----
-
-#### camel_route_context
-
-Given a Camel route (YAML, XML, or Java DSL), extracts all components and EIPs used.
-
-**Used in:** camel-implement, camel-test
-
-**Invocations across skills:**
-- **camel-implement** — post-generation analysis to verify route structure (Line 855)
-- **camel-test** — determine test strategy and mock requirements (Line 122)
-
-**Parameters:**
-```json
-{
-  "route": "<entire YAML content>",
-  "version": "4.18.0"
-}
-```
-
-**Example output:**
-```
-Components detected: [kafka, sql, http]
-EIPs used: [unmarshal, validate, choice, filter]
-Data formats: [json]
-All components valid for Camel 4.18.0
-```
-
----
-
-#### camel_route_harden_context
-
-Analyze routes for security concerns — 47 automated checks.
-
-**Used in:** camel-validate (SKILL.md Line 471)
-
-**Parameters:**
-```json
-{
-  "route": "<entire YAML route>",
-  "version": "4.18.0"
-}
-```
-
-**Example output:**
-```
-Security Analysis (47 Checks):
-
-Passed (45):
-  - No hardcoded credentials
-  - HTTPS used for external calls
-  - Input validation present
-  ...
-
-Warnings (2):
-  Line 12: HTTP instead of HTTPS
-    Risk: Unencrypted communication
-    Fix: Change http://api.example.com to https://api.example.com
-
-  Line 24: Potential SQL injection risk
-    Risk: Direct string concatenation in SQL
-    Fix: Use parameterized queries with :#parameter
-
-Score: 45/47 (95.7%)
-Risk Level: LOW
-```
-
-**Security checks include:** credential exposure, encryption, authentication, input validation (SQL injection, XSS), data exposure in logs, compliance (GDPR, PCI-DSS, HIPAA), error handling (information disclosure).
-
-### Tool Invocation Flow
-
-The **AI agent** invokes MCP tools, NOT the Java code. Here's the complete flow:
-
-```
-1. Configuration Phase (during `camel-kit init`)
-   ─────────────────────────────────────────────
-   User runs: camel-kit init my-project --ai bob
-     → InitCommand.java createMcpConfigs()
-     → Creates .bob/mcp.json, .mcp.json, .gemini/mcp.json
-
-2. Agent Reads Skill
-   ──────────────────
-   User runs: /camel-flow order-processing
-     → Agent reads .bob/commands/camel-flow.md
-     → Skill says: "If MCP available: Use camel_catalog_components"
-     → Agent checks: .bob/mcp.json exists → MCP available
-
-3. Agent Starts MCP Server
-   ────────────────────────
-   Agent executes: jbang -Dquarkus.log.level=WARN \
-                     org.apache.camel:camel-jbang-mcp:4.18.0:runner
-     → MCP Server starts (Quarkus application)
-     → Exposes 15 tools via Model Context Protocol
-
-4. Agent Invokes MCP Tool
-   ───────────────────────
-   Agent calls: camel_catalog_components { "category": "messaging", "version": "4.18.0" }
-     → MCP Server queries Camel 4.18.0 catalog
-     → Returns: ["kafka", "amqp", "jms", "rabbitmq", ...]
-
-5. Agent Uses Results
-   ──────────────────
-   Agent presents: "I found these messaging components: kafka, amqp, jms..."
-
-6. Graceful Fallback
-   ──────────────────
-   If .bob/mcp.json missing:
-     → Skill detects MCP not available
-     → Loads local component skills
-     → Prompts user for component name
-     → Continues with degraded functionality
-```
-
-### Token Savings Statistics
-
-#### By Skill
-
-| Skill | Without MCP | With MCP | Savings |
-|-------|-------------|----------|---------|
-| camel-project | N/A | N/A | 0% (version list is small) |
-| camel-flow | ~3000 tokens | ~1200 tokens | **60%** |
-| camel-implement | ~4000 tokens | ~1600 tokens | **60%** |
-| camel-validate | ~5000 tokens | ~1500 tokens | **70%** |
-| camel-test | ~2500 tokens | ~1250 tokens | **50%** |
-
-**Average token savings:** ~60% across all skills
-
-#### By Tool
-
-| Tool | Skill Count | Total Invocations | Primary Use Case |
-|------|-------------|-------------------|------------------|
-| `camel_catalog_component_doc` | 3 | ~8 | Component documentation |
-| `camel_validate_route` | 2 | ~8 | URI and route validation |
-| `camel_catalog_components` | 1 | ~2 | Component discovery |
-| `camel_route_context` | 2 | ~2 | Route analysis |
-| `camel_route_harden_context` | 1 | ~1 | Security analysis |
-| `camel_version_list` | 1 | ~2 | Version management |
-
-**Total invocations per workflow:** ~23 MCP tool calls
-
----
-
-## Skills + MCP: How They Work Together
-
-| Use Case | Mechanism | Token Cost | Best For |
-|----------|-----------|------------|----------|
-| Component search | MCP | ~100 tokens per query | Flow design, quick lookups |
-| Component docs | MCP | ~200 tokens per query | Design-time configuration |
-| Implementation | Skills | ~5k tokens (2-5 components) | Complete schemas, full config |
-| URI validation | MCP | ~100 tokens per call | Real-time correctness checks |
-| Security analysis | MCP | ~300 tokens per call | 47 automated checks |
-
-**Combined token efficiency:**
+| `camel-brainstorm` | `camel_version_list`, `camel_catalog_*` (all 8) | 9 |
+| `camel-design` | `camel_catalog_components`, `camel_catalog_component_doc`, `camel_catalog_eips`, `camel_catalog_eip_doc`, `camel_catalog_dataformats`, `camel_catalog_dataformat_doc`, `camel_catalog_languages`, `camel_catalog_language_doc` | 8 |
+| `camel-migrate` | Same as `camel-design` (Phase 2) | 8 |
+| `camel-implement` | `camel_catalog_component_doc`, `camel_catalog_dataformat_doc`, `camel_catalog_eip_doc`, `camel_catalog_language_doc`, `camel_route_context`, `camel_validate_route` | 6 |
+| `camel-validate` | `camel_validate_route`, `camel_route_harden_context` | 2 |
+| `camel-test` | `camel_route_context`, `camel_catalog_component_doc` | 2 |
+| `camel-knowledge` | `camel_rh_build_component_info`, `camel_rh_build_search` | 2 |
+
+### Token Savings
 
 | Approach | Token Cost |
 |----------|------------|
-| Without skills or MCP | ~500k tokens (all 396 component catalogs) |
-| With skills only | ~10k tokens (2-5 components loaded) |
-| With skills + MCP | ~6k tokens (skills for implementation, MCP for queries) |
-| **Overall savings** | **99% reduction** |
+| Without skills or MCP | ~500k tokens (all component catalogs) |
+| With skills only | ~10k tokens (components loaded on demand) |
+| With skills + MCP | ~6k tokens (skills for impl, MCP for queries) |
+| Overall savings | 99% reduction |
 
-**Example: Full workflow for a Kafka-to-SQL integration**
+### Graceful Degradation
 
-| Phase | What happens | Tokens |
-|-------|-------------|--------|
-| Flow design (`/camel-flow`) | MCP `camel_catalog_components` searches by category, `camel_catalog_component_doc` retrieves basic info | ~300 |
-| Implementation (`/camel-implement`) | Load bundled kafka + sql skills (full schemas), MCP `camel_route_context` + `camel_validate_route` | ~5,200 |
-| Validation (`/camel-validate`) | MCP `camel_route_harden_context` runs 47 security checks | ~300 |
-| **Total** | | **~5,800 tokens** |
+If the MCP server is not available, skills fall back to local component data and manual analysis. The pipeline continues with degraded functionality rather than failing outright.
 
 ---
 
-## Extending Camel-Kit
+## 7. Verification Pipeline
 
-### Adding a New Skill
+The verification pipeline (`camel-verify`) is a 5-phase feedback loop that builds, starts, and behaviorally tests the generated application.
 
-1. Create a skill directory in `camel-kit-core/src/main/resources/skills/`:
+### Phases
 
+1. **Environment Preparation** -- start external services via `docker-compose`
+2. **Build Verification** -- compile the project with `./mvnw`, classify and fix build errors
+3. **Startup Verification** -- start the application, classify and fix startup errors
+4. **Behavioral Verification** -- send test data, compare output, fix mismatches
+5. **Report** -- structured summary of all phases, fixes applied, and issues found
+
+Each phase has an independent iteration budget of **max 15 attempts**. On each iteration, errors are classified and routed to the appropriate fix strategy.
+
+### Error Taxonomy
+
+14 error patterns organized by fix target:
+
+| Category | Examples | Fix Target |
+|----------|----------|------------|
+| Missing dependency | `ClassNotFoundException` | Self-repair (pom.xml) |
+| Third-party dependency | `cannot find symbol` | Self-repair |
+| Version incompatibility | `NoSuchMethodError` | Self-repair (align BOM) |
+| Build tool | `Unknown lifecycle phase` | Escalate to user |
+| Route creation | `FailedToCreateRouteException` | `camel-implement` |
+| Unknown component | `NoSuchEndpointException` | `camel-implement` |
+| Wrong endpoint options | `ResolveEndpointFailedException` | `camel-validate` |
+| Missing bean | `NoSuchBeanException` | `camel-implement` |
+| Injection failure | `UnsatisfiedDependencyException` | `camel-implement` |
+| External service | `Connection refused` | Self-repair (Docker) |
+| Quarkus augmentation | `io.quarkus.builder.BuildException` | Escalate to user |
+| Expression failure | `ExpressionEvaluationException` | `camel-implement` |
+| Type conversion | `TypeConversionException` | `camel-implement` |
+| XSLT transformation | `XPathException`, `TransformerException` | `camel-implement` |
+
+### Behavioral Verification
+
+Uses `camel cmd send` to inject test payloads into the running application. Reads from sinks and performs semantic comparison: field-by-field matching that ignores key ordering and whitespace differences.
+
+### Fix Routing
+
+Errors route to one of four destinations:
+
+1. **Self-repair** -- fix pom.xml, application.properties, or docker-compose directly
+2. **camel-validate** -- route to validation skill for endpoint URI fixes
+3. **camel-implement** -- route to implementation skill for route logic fixes
+4. **Escalate to user** -- when the error is outside the pipeline's control (build tool issues, Quarkus augmentation failures)
+
+---
+
+## 8. Key Design Decisions
+
+### DataMapper Consistency Fix (Feb 2026)
+
+Before this fix, XSLT generation varied between runs because the LLM would re-derive XPaths differently each time from the same schema. The solution: pre-compute Source XPaths and Target Elements once during the canonicalize stage (design time), store them in the TDD, and use them verbatim during implementation. The key insight is that for LLM code generation, providing the exact template per case produces consistent output -- never a single template with conditional rules.
+
+### Red Hat Build Alignment
+
+Camel-Kit defaults to Red Hat Build of Apache Camel versions. Component support is verified via the MCP knowledge layer (`camel_rh_build_component_info`). For catalog MCP calls, the `.redhat-XXXXX` suffix is stripped from version numbers because Maven Central (which the catalog queries) only has community version numbers.
+
+### Multi-Agent Parity
+
+Skills are markdown instruction files -- the same skill works across all five supported agents. Agent-specific differences (subagent dispatch vs. custom modes vs. inline execution) are handled by the template layer, not the skill layer. A bug fix or improvement to a guide file benefits every agent.
+
+### Constitution vs Iron Laws
+
+The **Constitution** defines 7 route quality rules (what makes a good route): route structure, single responsibility, separation of concerns, naming conventions, observability, external configuration, component support verification.
+
+The **Iron Laws** define 5 pipeline process enforcement rules (how the pipeline operates): MCP verification, Red Hat Build only, constitution compliance, no code without spec approval, spec compliance before quality.
+
+Iron Law 3 explicitly incorporates and enforces the 7 constitution rules. They are complementary, not overlapping -- the constitution says what to check, the iron laws say when and how to enforce it.
+
+---
+
+## 9. How to Add a Skill
+
+### Steps
+
+1. **Create directory:** `camel-kit-core/src/main/resources/skills/camel-{name}/`
+
+2. **Write `SKILL.md`** with YAML frontmatter and guides table:
+
+```markdown
+---
+name: camel-{name}
+description: Brief description with trigger keywords
+user_invocable: true
+---
+
+# /camel-{name}
+
+> One-line purpose
+
+## Guides
+
+| Guide | When Loaded | Purpose |
+|-------|-------------|---------|
+| `guides/main-guide.md` | Always | Primary instruction guide |
 ```
-skills/camel-component-{name}/
-├── SKILL.md
-└── schema.json
-```
 
-2. Follow the SKILL.md format (see [Skill Structure](#skill-structure))
-3. Add MCP tool usage instructions if applicable
-4. Register the skill in the appropriate command templates
-5. Update `docs/commands.md` if it's a major command
+3. **Write guide files** in `guides/`. Each guide is a self-contained markdown instruction file loaded by the agent when the skill is active.
 
-### Future Enhancements
+4. **If user-invocable:** update agent templates to register the command. Each agent needs the slash command added to its instruction file:
+   - Claude Code: update `templates/claude/claude-md.md`
+   - IBM Project Bob: update `templates/bob/custom_modes.yaml` and add rules directory
+   - Gemini CLI: update `templates/gemini/gemini-md.md`
+   - Qwen: update `templates/qwen/qwen-md.md`
+   - OpenCode: update `templates/opencode/agents-md.md`
 
-- **Component Documentation Integration** — enhance skills with content from Camel AsciiDoc documentation (code examples, common use cases, configuration best practices)
-- **Skill Categories** — organize skills by category for easier discovery (Messaging, Database, Cloud, API)
-- **Skill Recommendations** — add command intelligence to suggest components ("For message queues, consider: kafka, jms, or amqp")
+5. **If internal:** update the loading skill's `SKILL.md` to reference the new guides (e.g., add a guide reference to `camel-execute`'s guide manifest).
 
----
-
-## References
-
-- [Anthropic Agent Skills](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview)
-- [Claude Code Skills](https://code.claude.com/docs/en/skills)
-- [Apache Camel Components](https://camel.apache.org/components/latest/)
-- [Camel Component Catalog](https://camel.apache.org/manual/component-dsl.html)
-- [Official Camel MCP Documentation](https://raw.githubusercontent.com/apache/camel-website/refs/heads/main/content/blog/2026/02/camel-jbang-mcp/index.md)
-- [MCP Specification](https://modelcontextprotocol.io/)
-- [Camel JBang Documentation](https://camel.apache.org/manual/camel-jbang.html)
-
----
-
-**Last Updated:** 2026-03-02
-**Camel Version:** 4.18.0
-**MCP Server:** camel-jbang-mcp:4.18.0
+6. **Update `docs/commands.md`** if the skill is user-invocable.
