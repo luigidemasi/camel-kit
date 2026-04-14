@@ -42,6 +42,7 @@ digraph execute {
     mark_done [label="Mark task complete", shape=box];
     more [label="More tasks?", shape=diamond];
     final [label="Final cross-cutting\nreview", shape=box];
+    verify [label="Verification phase\n(camel-verify)", shape=box];
     done [label="Completion summary", shape=doublecircle];
     
     start -> dispatch;
@@ -65,7 +66,8 @@ digraph execute {
     mark_done -> more;
     more -> dispatch [label="yes"];
     more -> final [label="no"];
-    final -> done;
+    final -> verify;
+    verify -> done;
 }
 ```
 
@@ -216,6 +218,20 @@ After all tasks complete:
 3. Check for cross-route consistency (naming conventions, property patterns, error handling consistency)
 4. Run smoke test if plan includes one
 
+### Step 3.5: Verification Phase
+
+After the cross-cutting review, run the full verification loop to validate the implementation against the runtime environment.
+
+1. Load the `camel-verify` skill (`skills/camel-verify/SKILL.md`)
+2. Load both guides: `verify-loop.md` and `error-taxonomy.md`
+3. Execute the full verification loop (all 5 phases)
+4. Capture the verification report
+
+**Key rules:**
+- Verification runs **once** after all tasks complete — not per-task. Camel loads all routes at startup, so per-task verification would fail on routes that depend on other not-yet-implemented routes.
+- Verification failure does **NOT** block finishing. The user might want to merge/PR even with verification issues (e.g., external services unavailable in dev environment). The report is informational.
+- The verification report is included in Step 4's completion summary.
+
 ### Step 4: Completion Summary
 
 ```
@@ -237,6 +253,9 @@ Review Results:
 
 Cross-Cutting Review: PASS/FAIL
 Smoke Test: PASS/FAIL/NOT_RUN
+
+Verification: PASS/PARTIAL/FAIL/NOT_RUN
+  [Include the full verification report from Step 3.5]
 
 ===============================================================
 ```
