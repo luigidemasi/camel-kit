@@ -77,7 +77,7 @@ No `<version>` tag for Quarkus/Spring Boot — the BOM manages versions. For JBa
 
 ## Startup Errors (Phase 3)
 
-These errors appear during `./mvnw quarkus:dev` or `./mvnw spring-boot:run` or `jbang camel@apache/camel run`.
+These errors appear during `./mvnw quarkus:dev` or `./mvnw spring-boot:run` or `camel run`.
 
 ### Route Creation Failure
 
@@ -207,7 +207,7 @@ For Simple or XPath expressions: check the expression syntax in the route YAML a
 
 ### JBang
 
-- **Run command:** `jbang camel@apache/camel run *.camel.yaml`
+- **Run command:** `camel run *.camel.yaml *.xsl application.properties`
 - **No build step:** JBang compiles at runtime — Phase 2 (build) is **skipped entirely** for JBang
 - **Dependencies:** declared in `application.properties` as `camel.jbang.dependencies=org.apache.camel:camel-{name}` (comma-separated for multiple)
 - **Auto-discovery limitation:** JBang auto-discovers components from `to:` URIs but NOT from inline language expressions in `transform:` blocks. Groovy language requires explicit `camel.jbang.dependencies=org.apache.camel:camel-groovy`
