@@ -5,15 +5,16 @@ End-user guide for designing, implementing, and verifying Apache Camel integrati
 ## Table of Contents
 
 - [1. Introduction](#1-introduction)
-- [2. Getting Started](#2-getting-started)
-- [3. The Workflow: Greenfield Projects](#3-the-workflow-greenfield-projects)
-- [4. The Shortcut: Single Flow](#4-the-shortcut-single-flow)
-- [5. Migration](#5-migration)
-- [6. Verification](#6-verification)
-- [7. Data Transformation (DataMapper)](#7-data-transformation-datamapper)
-- [8. Multi-Agent Support](#8-multi-agent-support)
-- [9. MCP Integration](#9-mcp-integration)
-- [10. Troubleshooting](#10-troubleshooting)
+- [2. How Camel-Kit Thinks](#2-how-camel-kit-thinks)
+- [3. Getting Started](#3-getting-started)
+- [4. The Workflow: Greenfield Projects](#4-the-workflow-greenfield-projects)
+- [5. The Shortcut: Single Flow](#5-the-shortcut-single-flow)
+- [6. Migration](#6-migration)
+- [7. Verification](#7-verification)
+- [8. Data Transformation (DataMapper)](#8-data-transformation-datamapper)
+- [9. Multi-Agent Support](#9-multi-agent-support)
+- [10. MCP Integration](#10-mcp-integration)
+- [11. Troubleshooting](#11-troubleshooting)
 
 ---
 
@@ -33,7 +34,70 @@ Camel-Kit is an AI-powered toolkit that guides you through designing, planning, 
 
 ---
 
-## 2. Getting Started
+## 2. How Camel-Kit Thinks
+
+Before diving into commands and workflows, it helps to understand the principles behind Camel-Kit's design. These explain why the pipeline is structured the way it is and what makes it different from simply asking an AI assistant to generate code.
+
+### Understand First, Code Last
+
+The most common way to use an AI coding assistant is: describe what you want, get code back. For simple tasks this is fine. For enterprise integrations -- multiple systems, error handling, data transformation, version-specific configuration, Red Hat support requirements -- this approach consistently produces code that looks correct but fails at runtime.
+
+The problem is not that AI is bad at writing code. The problem is that it skips understanding. It never asks "what should happen when Kafka is unavailable?" or "do you need idempotent processing?" -- it guesses, and its guesses are drawn from training data that may be outdated or wrong for your version.
+
+Camel-Kit enforces a strict separation: **understand before designing, design before planning, plan before coding.** Each phase has a deliverable, and you approve it before the next phase begins.
+
+```mermaid
+flowchart LR
+    U["Understand\n(interview)"] -->|"you approve\ndesign spec"| D["Design\n(components, flows)"]
+    D -->|"you approve\nplan"| P["Plan\n(task breakdown)"]
+    P -->|"automated review\nat each step"| A["Act\n(implement, validate,\ntest, verify)"]
+```
+
+This means you are never surprised by what the AI produces. If the design is wrong, you catch it before any code exists. If the plan is wrong, you catch it before code is generated.
+
+### Gates, Not Suggestions
+
+There is a critical difference between a rule and a gate. A rule says "you should verify components before using them" -- the AI can skip this when it feels confident. A gate says "you cannot write this component into the spec until MCP confirms it exists" -- there is no way to proceed without satisfying the condition.
+
+Camel-Kit uses gates everywhere:
+
+| Gate | What It Blocks |
+|------|---------------|
+| **User approval after design** | Cannot start planning until you confirm the design spec matches your intent |
+| **User approval after plan** | Cannot start implementing until you confirm the approach |
+| **MCP catalog verification** | Cannot use a component until the live catalog confirms it exists in your Camel version |
+| **Red Hat support check** | Flags components that are not Red Hat-supported before they enter the design -- not after deployment |
+| **Constitution validation** | Routes without a `routeId`, with hardcoded credentials, or with unsupported components fail validation -- not warned, failed |
+| **Two-stage review** | Spec compliance is checked before code quality. Cannot skip to quality review on a route that doesn't match the design. |
+
+As a user, gates mean you stay in control. The AI cannot build momentum on a wrong assumption because the pipeline physically blocks it from advancing.
+
+### Skills: Domain Knowledge, Not Training Data
+
+AI assistants know about Apache Camel from their training data -- broadly but imprecisely, and often months out of date. Camel-Kit replaces this with **skills**: structured instruction files that teach the AI exactly how to perform each task.
+
+Skills tell the AI:
+- How to conduct a design interview (one question at a time, verify components via MCP, ask about error handling)
+- How to generate YAML routes (follow the constitution, use external configuration, verify every component)
+- How to validate (check against 7 quality rules, run security analysis, verify Red Hat support)
+- How to handle data transformation (choose the right engine for the mapping complexity)
+- How to diagnose errors (14 error patterns, each with a fix strategy)
+
+Because skills are plain markdown files shared across all five agents, the pipeline behavior is consistent regardless of which AI assistant you choose. You get the same quality gates, the same MCP verification, and the same output formats -- the skills are the guarantee.
+
+### Role Separation
+
+When an AI generates code and reviews its own work, it tends to confirm its own choices. Camel-Kit prevents this:
+
+- After each task, a **spec compliance reviewer** checks whether the output matches the design -- this is not the same context that wrote the code
+- Then a **code quality reviewer** checks against the constitution rules -- a second independent review
+- Tool restrictions prevent the AI from jumping ahead: during the brainstorm phase, the AI physically cannot edit code files (on agents that support tool restrictions)
+
+This is why you may see the AI fix something during review that it didn't catch during implementation -- the reviewer has fresh eyes.
+
+---
+
+## 3. Getting Started
 
 ### Prerequisites
 
@@ -85,7 +149,7 @@ The init command copies skill files, configures MCP, and sets up the Maven wrapp
 
 ---
 
-## 3. The Workflow: Greenfield Projects
+## 4. The Workflow: Greenfield Projects
 
 Camel-Kit follows a 3-phase pipeline: **Brainstorm** (design), **Plan** (task decomposition), **Execute** (implement + validate + test + verify). Each phase produces a document, the user approves it, and the pipeline advances automatically.
 
@@ -202,7 +266,7 @@ cd order-processing
 
 ---
 
-## 4. The Shortcut: Single Flow
+## 5. The Shortcut: Single Flow
 
 ### `/camel-flow`
 
@@ -220,7 +284,7 @@ Use `/camel-flow` when you want to skip the full pipeline and work on a single i
 
 ---
 
-## 5. Migration
+## 6. Migration
 
 ### `/camel-migrate`
 
@@ -258,7 +322,7 @@ The migration output is fully compatible with the greenfield pipeline. From the 
 
 ---
 
-## 6. Verification
+## 7. Verification
 
 ### `/camel-verify`
 
@@ -294,7 +358,7 @@ Verification adapts to available tools. If Maven is missing, build and startup p
 
 ---
 
-## 7. Data Transformation (DataMapper)
+## 8. Data Transformation (DataMapper)
 
 Camel-Kit automatically handles data transformation during the design phase. The AI determines the transformation engine, gathers field mappings, and writes the canonical mapping specification to the TDD. Implementation is handled by `/camel-execute`.
 
@@ -346,7 +410,7 @@ XSLT transformations include Kaoto DataMapper metadata, allowing you to visually
 
 ---
 
-## 8. Multi-Agent Support
+## 9. Multi-Agent Support
 
 The same skills work across all five supported AI coding assistants. Camel-Kit uses markdown instruction files that are loaded by whichever agent you choose -- the workflow, rules, and output quality are identical regardless of agent.
 
@@ -397,7 +461,7 @@ For contributor-level details on each agent's architecture (template files, perm
 
 ---
 
-## 9. MCP Integration
+## 10. MCP Integration
 
 Camel-Kit integrates with the Apache Camel MCP (Model Context Protocol) server to provide real-time catalog queries and validation. This ensures the AI assistant never guesses component names or options from training data.
 
@@ -437,7 +501,7 @@ If the MCP server is unavailable, the AI assistant falls back to bundled compone
 
 ---
 
-## 10. Troubleshooting
+## 11. Troubleshooting
 
 ### Catalog Not Found
 
