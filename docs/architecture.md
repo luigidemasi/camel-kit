@@ -304,13 +304,9 @@ Separate from the Camel Catalog MCP, the knowledge layer runs from the `camel-ki
 | Tool Name | Purpose |
 |-----------|---------|
 | `camel_rh_build_component_info` | Component support status lookup (Production Support, Technology Preview, etc.) |
-| `camel_rh_build_search` | Semantic search across Red Hat Build documentation |
-| `camel_rh_build_cve_search` | CVE lookup by ID |
-| `camel_rh_build_bugfix_search` | Advisory search (security + bugfix) |
-| `camel_rh_build_release_info` | Release notes for a version |
-| `camel_rh_build_supported_configs` | Supported platforms, JDKs, databases |
+| `camel_rh_build_search` | Semantic search across Red Hat Build documentation, errata, and CVEs |
 
-Data sources: product guides (HTML from docs.redhat.com), KB articles, errata (RHSA/RHBA/RHEA), CVEs enriched with CVSS/CWE data. The knowledge index contains approximately 26,000 chunks with hybrid semantic search (BM25 + vector).
+Data sources: product guides (HTML from docs.redhat.com), KB articles, errata (RHSA/RHBA/RHEA), CVEs enriched with CVSS/CWE data. The knowledge index contains approximately 26,000 chunks with hybrid semantic search (20% BM25 + 80% vector).
 
 ### Tool Usage by Skill
 
