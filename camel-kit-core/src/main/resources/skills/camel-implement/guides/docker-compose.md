@@ -69,7 +69,7 @@ services:
 
 Use this template when `RUNTIME == springboot` or `RUNTIME == quarkus`.
 
-The Camel application is NOT included in docker-compose — it runs via `mvn spring-boot:run` or `mvn quarkus:dev`. Docker Compose only manages the external services the application depends on (databases, message brokers, mail servers, etc.).
+The Camel application is NOT included in docker-compose — it runs via `./mvnw spring-boot:run` or `./mvnw quarkus:dev`. Docker Compose only manages the external services the application depends on (databases, message brokers, mail servers, etc.).
 
 **If the TDD has no external service dependencies:** skip docker-compose generation entirely.
 
