@@ -7,11 +7,38 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Website](https://img.shields.io/badge/Website-luigidemasi.github.io%2Fcamel--kit-orange)](https://luigidemasi.github.io/camel-kit/)
 
-> Design and migrate Apache Camel integrations with AI coding assistants.
+> Design, implement, and verify Apache Camel integrations with AI coding assistants.
 
-Camel-Kit adds structured slash commands to your AI assistant (Claude Code, IBM Project Bob, Gemini CLI) that guide you through designing, implementing, and testing Apache Camel routes — whether you are starting from scratch or migrating from another platform.
+Camel-Kit adds structured slash commands to your AI assistant that guide you through the full integration lifecycle — from brainstorming the design, through implementation and testing, to runtime verification. It works across multiple AI agents and produces production-ready Camel routes targeting the Red Hat Build of Apache Camel.
 
 **Inspired by [GitHub Spec-Kit](https://github.com/github/spec-kit)**, adapted for the Apache Camel ecosystem.
+
+---
+
+## The Workflow
+
+```
+Greenfield:   /camel-brainstorm → /camel-plan → /camel-execute
+                                                     ├── implements (camel-implement)
+                                                     ├── validates (camel-validate)
+                                                     ├── tests (camel-test)
+                                                     └── verifies (camel-verify)
+
+Shortcut:     /camel-flow        (single-flow brainstorm + plan + execute)
+
+Migration:    /camel-migrate → /camel-plan → /camel-execute
+
+Manual:       /camel-verify      (standalone runtime verification)
+```
+
+| Command | Purpose |
+|---------|---------|
+| `/camel-brainstorm` | Interactive design session — produces a Blueprint Reference Document (BRD) with Technical Design Documents (TDDs) |
+| `/camel-plan` | Reviews approved design, creates a detailed implementation plan |
+| `/camel-execute` | Orchestrated execution — implements, validates, tests, and verifies all flows |
+| `/camel-flow` | Shortcut — single-flow brainstorm + plan + execute in one command |
+| `/camel-migrate` | Migration from MuleSoft, legacy Camel, or JBoss Fuse to modern Camel |
+| `/camel-verify` | Runtime verification — builds, starts, diagnoses errors, retries until the app runs |
 
 ---
 
@@ -45,7 +72,7 @@ If you already use [Camel JBang](https://camel.apache.org/manual/camel-jbang.htm
 
 ```bash
 camel plugin add kit \
-  --gav io.github.luigidemasi:camel-kit-jbang-plugin:0.3.1 \
+  --gav io.github.luigidemasi:camel-kit-jbang-plugin:LATEST \
   -d "Design Apache Camel Integrations with AI"
 
 # Then use via the camel CLI
@@ -54,50 +81,60 @@ camel kit init my-integration --ai bob
 
 ---
 
-## Bootstrap a new project
+## Quick Start
 
 ```bash
-camel-kit init my-integration --ai claude     # Claude Code
-camel-kit init my-integration --ai bob        # IBM Project Bob
-camel-kit init my-integration --ai gemini     # Gemini CLI
+# 1. Create a new project (choose your AI assistant)
+camel-kit init my-integration --ai claude   # Anthropic Claude Code
+camel-kit init my-integration --ai bob      # IBM Project Bob
+camel-kit init my-integration --ai gemini   # Google Gemini CLI
+camel-kit init my-integration --ai qwen     # Qwen
+camel-kit init my-integration --ai opencode # OpenCode
 
-# Options
-camel-kit init my-integration --ai claude --camel-version 4.14.5
-camel-kit init --here --ai claude             # initialize in current directory
-camel-kit init my-integration --ai claude --silent  # suppress all output (CI/scripts)
+# 2. Open in your AI assistant
+cd my-integration
+
+# 3. Start designing
+/camel-brainstorm
+
+# 4. Or use the single-flow shortcut
+/camel-flow order-ingestion
 ```
-
-This creates the project structure, downloads the Camel catalog, configures MCP, and registers all slash commands in your AI assistant's commands folder.
-
-Then open the project in your AI assistant and use the slash commands — see [Command Reference](docs/commands.md) for the full list.
 
 ---
 
-## Migrate an existing project to Apache Camel
+## Supported AI Agents
 
-```bash
-camel-kit init my-migration --ai claude
-cd my-migration
-```
+| Agent | Init Flag | Instruction File | MCP Config |
+|-------|-----------|-----------------|------------|
+| Anthropic Claude Code | `--ai claude` | `CLAUDE.md` | `.mcp.json` |
+| IBM Project Bob | `--ai bob` | `custom_modes.yaml` + rules | `.bob/mcp.json` |
+| Google Gemini CLI | `--ai gemini` | `GEMINI.md` | `.gemini/mcp.json` |
+| Qwen | `--ai qwen` | `QWEN.md` | `.qwen/mcp.json` |
+| OpenCode | `--ai opencode` | `AGENTS.md` | `.opencode/mcp.json` |
 
-Then in your AI assistant:
+All agents use the same skills — camel-kit generates agent-specific instruction files that load the shared skill guides. The skills are the equalization layer.
 
-```
-/camel-migrate
-```
+---
 
-The command auto-detects your source platform (MuleSoft Mule, Apache Camel 2.x/3.x), analyses the flows, and produces the same BRD + TDD files that the greenfield workflow produces — so `/camel-implement`, `/camel-validate`, and `/camel-test` work without any changes.
+## Key Features
 
-See [Migration Workflow](docs/user-guide.md#migration-workflow) for details.
+- **3-phase orchestrated pipeline** — brainstorm the design, plan the implementation, execute with automated review
+- **Multi-agent parity** — same skills work across 5 AI agents (Claude, Bob, Gemini, Qwen, OpenCode)
+- **MCP integration** — real-time catalog queries, route validation, and security analysis via the Apache Camel MCP server
+- **DataMapper** — automatic data transformation with two engines: XSLT for complex mappings, Groovy for simple ones
+- **Runtime verification** — `/camel-verify` builds, starts, diagnoses errors, and retries until the app runs
+- **Migration support** — migrate from MuleSoft, legacy Apache Camel, or JBoss Fuse
+- **Knowledge layer** — Red Hat Build documentation, errata, CVEs searchable via MCP
 
 ---
 
 ## Documentation
 
-- **[Project Website](https://luigidemasi.github.io/camel-kit/)** — getting started, user guide, architecture
-- [User Guide](docs/user-guide.md) — installation, workflows, commands
-- [Architecture Guide](docs/architecture.md) — skills, MCP, extension points
-- [Contributing](CONTRIBUTING.md) — dev setup, coding standards
+- **[User Guide](docs/user-guide.md)** — workflows, migration, verification, DataMapper
+- **[Command Reference](docs/commands.md)** — all slash commands and CLI options
+- **[Architecture Guide](docs/architecture.md)** — skills internals, MCP, DataMapper pipeline (for contributors)
+- **[Contributing](CONTRIBUTING.md)** — development setup, how to add skills
 
 ---
 
