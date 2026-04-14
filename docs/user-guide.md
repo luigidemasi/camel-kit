@@ -1,774 +1,419 @@
 # Camel-Kit User Guide
 
-This guide walks you through using Camel-Kit to design Apache Camel integrations with AI coding assistants.
+End-user guide for designing, implementing, and verifying Apache Camel integrations with AI coding assistants.
 
 ## Table of Contents
 
-- [Introduction](#introduction)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Init TUI](#init-tui)
-- [Workflow Overview](#workflow-overview)
-- [Migration Workflow](#migration-workflow)
-- [Flow Definition](#flow-definition)
-- [Data Transformation](#data-transformation)
-- [YAML Generation](#yaml-generation)
-- [Validation](#validation)
-- [Test Generation](#test-generation)
-- [Best Practices](#best-practices)
-- [Troubleshooting](#troubleshooting)
+- [1. Introduction](#1-introduction)
+- [2. Getting Started](#2-getting-started)
+- [3. The Workflow: Greenfield Projects](#3-the-workflow-greenfield-projects)
+- [4. The Shortcut: Single Flow](#4-the-shortcut-single-flow)
+- [5. Migration](#5-migration)
+- [6. Verification](#6-verification)
+- [7. Data Transformation (DataMapper)](#7-data-transformation-datamapper)
+- [8. Multi-Agent Support](#8-multi-agent-support)
+- [9. MCP Integration](#9-mcp-integration)
+- [10. Troubleshooting](#10-troubleshooting)
 
 ---
 
-## Introduction
+## 1. Introduction
 
-Camel-Kit is a toolkit that guides you through designing Apache Camel integrations using AI coding assistants. Instead of writing code directly, you work with structured specifications that capture your integration requirements, then generate Kaoto-compatible YAML.
+Camel-Kit is an AI-powered toolkit that guides you through designing, planning, and implementing Apache Camel integrations. Instead of writing boilerplate code by hand, you work with an AI coding assistant that follows a structured pipeline: understand the requirements, design the integration, plan the implementation, execute the plan, and verify the result.
 
-**Key concepts:**
+### Key Concepts
 
-- **Flow** - The business and technical design: what the integration does and how
-- **Constitution** - Best practices that guide design decisions
-- **Catalog** - Live component and Kamelet information from Apache Camel
-- **MCP Server** - Real-time catalog queries and validation (60-70% token savings)
-- **Validation** - Automated schema validation using MCP tools and Maven plugins
-
-**Workflow: 1 Flow = 1 Route** — Each integration flow maps to a single Camel route, making it easy to design, implement, and maintain your integrations.
-
----
-
-## MCP Integration
-
-Camel-Kit integrates with the **Apache Camel MCP (Model Context Protocol) Server** to provide real-time catalog queries, route validation, and security analysis directly within your AI coding assistant.
-
-### What is the Camel MCP Server?
-
-The Camel MCP server (`camel-jbang-mcp`) exposes the complete Apache Camel catalog through the Model Context Protocol, allowing AI assistants to:
-
-- **Query components** - Search and filter 300+ Camel components by category
-- **Get documentation** - Retrieve always-current component docs for your exact Camel version
-- **Validate routes** - Check endpoint URIs against the catalog schema, catch typos
-- **Analyze security** - Run 47 automated security checks on routes
-- **Extract context** - Analyze routes to identify components and EIPs used
-
-### Benefits
-
-- **60-70% token savings** - AI assistant queries MCP server instead of loading full catalog
-- **Always current** - Documentation matches your exact Camel version
-- **Better validation** - Catches typos and configuration errors before runtime
-- **Security analysis** - Automated checks for credentials, encryption, authentication
-- **Faster workflow** - No Maven needed for basic validation
-
-### MCP Tools Used
-
-| Tool | Purpose | Used By |
-|------|---------|---------|
-| `camel_version_list` | List Camel versions with LTS status | camel-project |
-| `camel_catalog_components` | Search components by category | camel-flow, camel-migrate |
-| `camel_catalog_component_doc` | Get component documentation | camel-flow, camel-migrate, camel-implement, camel-test |
-| `camel_validate_route` | Validate endpoint URIs | camel-implement, camel-validate |
-| `camel_route_context` | Extract components/EIPs from route | camel-implement, camel-test |
-| `camel_route_harden_context` | Security analysis (47 checks) | camel-validate |
-
-### Configuration
-
-The MCP server is automatically configured when you run `camel-kit init`:
-
-- **Claude Code**: `.mcp.json`
-- **IBM Bob**: `.bob/mcp.json`
-- **Gemini CLI**: `.gemini/mcp.json`
-
-The AI assistant automatically uses MCP tools when available. No additional configuration needed!
+| Concept | What It Is |
+|---------|------------|
+| **BRD** (Blueprint Reference Document) | The design output from the brainstorm phase. Captures business purpose, systems landscape, flow summaries, and integration requirements. |
+| **TDD** (Technical Design Document) | Per-flow specification. Describes the source, processing steps, sink, error handling, data transformation, configuration, and dependencies for a single Camel route. |
+| **MCP** (Model Context Protocol) | Real-time catalog queries. The AI assistant queries the Camel MCP server to verify components, EIPs, data formats, and expression languages exist in your exact Camel version -- never relying on training data. |
+| **Constitution** | Seven route quality rules enforced on every generated route: route structure, single responsibility, separation of concerns, naming conventions, observability, external configuration, and component support verification. |
+| **Iron Laws** | Five non-negotiable pipeline rules that govern the entire workflow: (1) MCP catalog verification for every component, (2) Red Hat Build versions only, (3) constitution compliance on every route, (4) no code without spec approval, (5) spec compliance review before quality review. |
 
 ---
 
-## Installation
+## 2. Getting Started
 
-### Using JBang (Recommended)
+### Prerequisites
+
+- **JDK 17+** -- required for building and running Camel applications
+- **JBang** -- runtime for camel-kit itself
+- **Docker** (optional) -- for running external services (databases, message brokers) during verification
+- **AI coding assistant** -- one of the five supported agents (see [Multi-Agent Support](#8-multi-agent-support))
+
+### Initializing a Project
 
 ```bash
-# Install JBang first
+# Install JBang if you don't have it
 curl -Ls https://sh.jbang.dev | bash -s - app setup
 
-# Install camel-kit (after local build)
-cd camel-kit
-mvn install
-jbang app install --force camel-kit@io.github.luigidemasi:camel-kit-main:0.3.2-SNAPSHOT
-
-# Verify installation
-camel-kit --help
+# Create a new project (choose your AI assistant)
+camel-kit init order-processing --ai claude
+camel-kit init order-processing --ai bob
+camel-kit init order-processing --ai gemini
+camel-kit init order-processing --ai qwen
+camel-kit init order-processing --ai opencode
 ```
 
-### Run Without Installing
+To initialize inside an existing directory:
 
 ```bash
-jbang io.github.luigidemasi:camel-kit-main:1.0.0-SNAPSHOT init my-integration --ai bob
+camel-kit init --here --ai claude
 ```
 
-### Verify Installation
+### Init TUI
 
-```bash
-camel-kit --help
+When you run `camel-kit init` in a terminal that supports a native image protocol (Kitty, iTerm2, Sixel), the command displays a split-screen TUI with a logo on the left and a live task list on the right. The TUI shows animated progress for each initialization step and exits automatically when all tasks complete.
+
+In terminals without image support, the output falls back to an ASCII art banner above colored text.
+
+### Project Structure After Init
+
 ```
+order-processing/
+  .camel-kit/
+    config.yaml              # Project config (Camel version, runtime)
+  docs/
+    constitution.md          # 7 route quality rules
+  .mcp.json                  # MCP server config (agent-specific location)
+  pom.xml                    # Maven project with Camel BOM
+  mvnw / mvnw.cmd            # Maven wrapper
+```
+
+The init command copies skill files, configures MCP, and sets up the Maven wrapper so you can start designing immediately.
 
 ---
 
-## Quick Start
+## 3. The Workflow: Greenfield Projects
 
-```bash
-# 1. Create a new project (choose your AI assistant)
-camel-kit init order-processing --ai bob      # IBM Project Bob
-camel-kit init order-processing --ai gemini   # Google Gemini CLI
-camel-kit init order-processing --ai claude   # Anthropic Claude Code
-
-# 2. Open in your AI assistant
-cd order-processing
-
-# 3. Use slash commands in the AI assistant:
-#    Greenfield:
-#    /camel-project     - (Optional) Define integration landscape
-#    /camel-flow        - Define and design the flow
-#    Migration:
-#    /camel-migrate     - Migrate from MuleSoft Mule (or other supported platforms)
-#    Shared:
-#    /camel-implement   - Generate Camel YAML with validation
-#    /camel-validate    - Check specifications
-#    /camel-test        - Generate integration tests with validation
-
-# 4. Run the generated route (include application.properties for config)
-camel run order-ingestion.camel.yaml application.properties
-```
-
----
-
-## Init TUI
-
-When you run `camel-kit init` (or `camel kit init` via the Camel JBang plugin) in a terminal that supports a native image protocol (Kitty, iTerm2, Sixel), the command displays a split-screen TUI instead of sequential text output.
-
-```
-┌──────────────────────────┐  ┌─ Camel Kit ──────────────┐
-│                          │  │                          │
-│      [logo image]        │  │  ⠋ 📁  Creating project  │
-│                          │  │  ✓ 📝  Writing config    │
-│                          │  │  ✓ 🤖  Registering cmds  │
-│                          │  │  ✓ 📚  Copying skills    │
-│                          │  │  ✓ 🔌  Configuring MCP   │
-│                          │  │  ✓ ⬇️   Downloading schemas│
-└──────────────────────────┘  └──────────────────────────┘
-```
-
-**Left panel** — the Camel-Kit logo, sized to preserve its pixel aspect ratio.
-**Right panel** — live task list: animated DOTS spinner (⠋⠙⠹…) for the running task, green ✓ for completed tasks, each with an emoji icon.
-
-The TUI exits automatically when all tasks are done. Ctrl+C exits early at any point.
-
-### Fallback behaviour
-
-| Terminal capability | Experience |
-|--------------------|-|
-| Native image protocol (Kitty, iTerm2, Sixel) | Full split-screen TUI |
-| Native image but no TUI backend | Logo rendered inline above coloured text output |
-| No native image support | ASCII art banner above coloured text output |
-
-The Camel JBang plugin (`camel kit init`) uses the same TUI when running in a Kitty/iTerm2 terminal.
-
----
-
-## Workflow Overview
-
-Camel-Kit supports two paths to `/camel-implement` — greenfield (new integrations) and migration (from another platform). Both paths produce the same artifacts, so the implementation and testing steps are identical.
+Camel-Kit follows a 3-phase pipeline: **Brainstorm** (design), **Plan** (task decomposition), **Execute** (implement + validate + test + verify). Each phase produces a document, the user approves it, and the pipeline advances automatically.
 
 ```mermaid
 flowchart TB
     subgraph CLI
-        A[camel-kit init]
+        A["camel-kit init"]
     end
-    subgraph "Greenfield"
-        B["/camel-project<br/>(optional)"]
-        C["/camel-flow"]
+    subgraph "Phase 1: Brainstorm"
+        B["/camel-brainstorm"]
     end
-    subgraph "Migration"
-        M["/camel-migrate"]
+    subgraph "Phase 2: Plan"
+        C["/camel-plan"]
     end
-    subgraph "Shared"
-        D["/camel-implement"]
-        V["/camel-validate"]
-        T["/camel-test"]
+    subgraph "Phase 3: Execute"
+        D["/camel-execute"]
+        subgraph "Internal Skills"
+            I["/camel-implement"]
+            V["/camel-validate"]
+            T["/camel-test"]
+            R["/camel-verify"]
+        end
     end
     subgraph Output
-        E["flow-name.camel.yaml"]
+        E["YAML routes + tests + verification report"]
     end
 
-    A --> B --> C --> D
-    A --> M --> D
-    D --> V --> T --> E
+    A --> B
+    B -->|"user approves BRD"| C
+    C -->|"user approves plan"| D
+    D --> I --> V --> T --> R
+    D --> E
 ```
 
-### Greenfield steps
+### Phase 1: Brainstorm (`/camel-brainstorm`)
 
-| Step | Command | Purpose |
-|------|---------|---------|
-| 1 | `camel-kit init` | Create project structure and fetch catalogs |
-| 2 | `/camel-project` | (Optional) Define integration landscape |
-| 3 | `/camel-flow <flow-name>` | Define flow: source, sink, EIPs, error handling |
-| 4 | `/camel-implement <flow-name>` | Generate Kaoto-compatible Camel YAML with validation loop |
-| 5 | `/camel-validate` | Verify compliance with constitution |
-| 6 | `/camel-test <flow-name>` | Generate Citrus integration tests with validation loop |
+The brainstorm phase is an interactive interview that produces the design spec. The AI asks questions one at a time -- never in batches -- to understand your integration before designing it.
 
-### Migration steps
+**What it covers:**
+- Business purpose and goals
+- Systems landscape (which systems need to connect)
+- Integration flows (what data moves where)
+- Components (MCP-verified against the real catalog)
+- EIPs (filter, split, aggregate, transform, etc.)
+- Error handling strategy (dead letter channels, retry policies)
+- Data transformation requirements
+- Red Hat Build version selection
 
-| Step | Command | Purpose |
-|------|---------|---------|
-| 1 | `camel-kit init` | Create project structure and fetch catalogs |
-| 2 | `/camel-migrate` | Detect vendor, analyse flows, produce BRD + TDD files |
-| 3 | `/camel-implement <flow-name>` | Generate Camel YAML — same as greenfield |
-| 4 | `/camel-validate` | Verify compliance with constitution |
-| 5 | `/camel-test <flow-name>` | Generate Citrus integration tests |
+**Output:** A BRD (`docs/business-requirements.md`) with embedded TDDs (`docs/flows/{flow-name}/{flow-name}.tdd.md`) for each flow.
+
+After the user reviews and approves the design spec, the pipeline transitions automatically to the plan phase.
+
+### Phase 2: Plan (`/camel-plan`)
+
+The plan phase reviews the approved BRD and decomposes it into bite-sized implementation tasks. The plan is a recipe, not the meal -- it describes exactly what to generate and how, without containing any generated code.
+
+**What it produces:**
+- Task decomposition with one task per flow or concern
+- For each task: files to create, MCP tools to call, and verification steps
+- Two-stage review specification per task (spec compliance, then code quality)
+- Agent persona assignment per task
+
+**Output:** An implementation plan (`docs/implementation-plan.md`).
+
+After the user reviews and approves the plan, the pipeline transitions automatically to the execute phase.
+
+### Phase 3: Execute (`/camel-execute`)
+
+The execute phase runs all tasks from the approved plan autonomously, without pausing between tasks. For each task, it orchestrates four internal skills:
+
+1. **`/camel-implement`** -- generates Camel YAML routes, properties, pom.xml dependencies, and DataMapper transformations from the TDD
+2. **`/camel-validate`** -- checks generated routes against the MCP catalog and the constitution's 7 rules
+3. **`/camel-test`** -- generates Citrus integration tests
+4. **`/camel-verify`** -- runs the full 5-phase verification loop (build, startup, behavioral)
+
+Each task goes through two-stage review: spec compliance first (does it match the design?), then code quality (does it follow the constitution?). If review fails, the task is sent back for fixes before moving on.
+
+**Output:** Working YAML routes, test files, and a verification report.
+
+### Example Walkthrough
+
+Suppose you need an order processing integration that reads orders from Kafka, validates and enriches them, then writes to a PostgreSQL database.
+
+```bash
+# 1. Initialize the project
+camel-kit init order-processing --ai claude
+cd order-processing
+
+# 2. Start the brainstorm (in your AI assistant)
+/camel-brainstorm
+
+# The AI asks about your business requirements, systems, and data flows.
+# After the interview, it presents a design spec with:
+#   - BRD covering the order processing domain
+#   - TDD for the order-ingestion flow (Kafka -> validate -> enrich -> PostgreSQL)
+#   - Error handling: dead letter queue on kafka:orders-dlq
+# You review and approve.
+
+# 3. The pipeline auto-transitions to /camel-plan
+# The AI creates an implementation plan with tasks:
+#   Task 1: Project scaffolding (pom.xml, application.properties)
+#   Task 2: Order ingestion route (Kafka source, SQL sink)
+#   Task 3: Integration tests
+# You review and approve.
+
+# 4. The pipeline auto-transitions to /camel-execute
+# The AI executes all tasks:
+#   - Generates route YAML with MCP-verified components
+#   - Validates against the constitution
+#   - Generates Citrus tests
+#   - Runs verification (build, startup, behavioral)
+# Final report shows all tasks completed.
+```
 
 ---
 
-## Migration Workflow
+## 4. The Shortcut: Single Flow
 
-Use `/camel-migrate` when you have an existing integration built on another platform and want to move it to Apache Camel. The command analyses your existing artifacts, asks targeted questions, and produces the same BRD + TDD files that the greenfield workflow produces — making `/camel-implement` the shared step for both paths.
+### `/camel-flow`
 
-### Supported platforms
+Use `/camel-flow` when you want to skip the full pipeline and work on a single integration flow quickly. This is useful for:
 
-| Platform | Versions | Notes |
-|----------|---------|-------|
-| MuleSoft Mule | 3.x, 4.x | XML flows, DataWeave transformations, all standard connectors |
+- Rapid prototyping of a single flow
+- Adding one new flow to an existing project
+- Exploring a component or pattern
 
-### Running a migration
+```
+/camel-flow order-ingestion
+```
+
+`/camel-flow` is a shortcut that enters `/camel-brainstorm` with the project type pre-set to greenfield -- it skips the "greenfield or migration?" detection question and goes straight to the interview for a single flow. After the interview, the pipeline continues through plan and execute as usual.
+
+---
+
+## 5. Migration
+
+### `/camel-migrate`
+
+Use `/camel-migrate` when you have an existing integration built on another platform and want to move it to Apache Camel.
 
 ```
 /camel-migrate
 ```
 
-The command asks for the path to your source project interactively.
+### Supported Platforms
 
-### What the command does
+| Platform | Versions | What It Scans |
+|----------|----------|---------------|
+| MuleSoft Mule | 3.x, 4.x | XML flows, DataWeave transformations, connectors |
+| Apache Camel | 2.x, 3.x | Java DSL, XML DSL, Blueprint |
+| JBoss Fuse | All | Fuse-specific configurations and components |
 
-**Phase 1 — Business Analyst**
+### How It Works
 
-The command reads all Mule XML files and builds a complete inventory of flows. Before asking any questions, it identifies which components have direct Camel equivalents and which are proprietary connectors that need a decision:
+The command scans all project artifacts, detects the source platform automatically, and runs a two-phase analysis:
 
-```
-I found the following connector(s) with no direct Apache Camel equivalent:
+**Phase 1: Business Analyst** -- reads all source files and builds a complete inventory of flows and connectors. Identifies which components have direct Camel equivalents and which are proprietary (e.g., Anypoint MQ). For proprietary connectors, it presents alternatives and lets you decide. Then it asks only the business questions the source code cannot answer -- purpose, SLAs, compliance requirements.
 
-- Anypoint MQ (used in: order-ingestion-flow)
-  Suggested alternatives:
-  a) Amazon SQS (camel-aws2-sqs)
-  b) RabbitMQ (camel-rabbitmq)
-  c) ActiveMQ (camel-activemq)
-  d) Keep as TODO placeholder
-```
+**Phase 2: Integration Architect** -- maps each source component to its Camel equivalent, converts transformations (e.g., DataWeave to field mapping tables), and asks only what the source artifacts cannot answer (authentication details, retry strategy, missing endpoint URLs).
 
-After resolving proprietary connectors, it asks only the business questions the XML cannot answer — purpose, SLA, compliance requirements, and failure behaviour.
+### Output
 
-Produces:
-- `.camel-kit/business-requirements.md`
-- `.camel-kit/constitution.md`
-
-**Phase 2 — Integration Architect**
-
-Maps each Mule component to its Camel equivalent, converts DataWeave transformations into TDD field mapping tables, and asks only what the XML cannot answer (DataWeave transformation intent, missing endpoint URLs, authentication, retry strategy).
-
-Produces one TDD file per Mule flow:
-- `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md`
-
-### Mule → Camel component mapping highlights
-
-| Mule Component | Camel Equivalent |
-|----------------|-----------------|
-| HTTP Listener | `platform-http` (consumer) |
-| HTTP Request | `camel-http` (producer) |
-| JMS | `camel-jms` / `camel-sjms` |
-| Database | `camel-sql` / `camel-jdbc` |
-| Scheduler | `camel-timer` / `camel-quartz` |
-| Choice Router | `choice` EIP |
-| Scatter-Gather | `multicast` EIP |
-| For Each | `split` EIP |
-| Sub Flow | `direct:` route |
-| DataWeave Transform | XSLT (Kaoto DataMapper) |
-| Set Payload | `setBody` EIP |
-| Set Variable | `setHeader` EIP |
-
-For a complete mapping table, see `skills/camel-migrate-mule/guides/mule-component-mapping.md` in your project's skills folder after running `camel-kit init`.
-
-### After `/camel-migrate`
-
-The produced files are fully compatible with the rest of the workflow:
+The migration produces a BRD and TDDs in the same format as `/camel-brainstorm`. This means the rest of the pipeline is identical:
 
 ```
-/camel-implement order-ingestion     # Generate Camel YAML
-/camel-validate order-ingestion      # Verify compliance
-/camel-test order-ingestion          # Generate Citrus tests
+/camel-migrate  -->  /camel-plan  -->  /camel-execute  -->  /camel-verify
 ```
+
+The migration output is fully compatible with the greenfield pipeline. From the plan phase onward, there is no difference between a migrated project and a greenfield project.
 
 ---
 
-## Flow Definition
+## 6. Verification
 
-The flow definition captures **WHAT** the integration does and **HOW** it's implemented.
+### `/camel-verify`
 
-### Creating a Flow
+Verification is a structured 5-phase feedback loop that builds, starts, tests, diagnoses errors, applies fixes, and retries until the application runs correctly or the iteration limit is reached.
 
-Run `/camel-flow <flow-name>` in your AI assistant. You'll be guided through:
+**When it runs:**
+- **Automatically** at the end of `/camel-execute`, after all implementation tasks complete
+- **Manually** via `/camel-verify` if you want to re-verify an existing project
 
-1. **Flow Intent** - What data is processed and what is the goal
-2. **Source System** - Where data comes from and which Camel component handles it
-3. **Processing Steps** - EIPs required (filter, split, aggregate, transform, etc.)
-4. **Sink System** - Where data goes and which Camel component handles it
-5. **Error Handling** - Dead Letter Channel and retry strategy
+### The 5 Phases
 
-Then, only if relevant, the agent asks follow-up questions for:
-- **Data transformation** - Schemas for DataMapper/XSLT generation; `unmarshal` only as a fallback
-- **Circuit Breaker** - Only if an external HTTP/REST service is involved
-- **Idempotent Consumer** - Only if consuming from a message broker or deduplication is needed
-- **Transactions** - Only if writing to more than one external system
-- **Performance, Security, Monitoring** - Only if mentioned during the interview
+| Phase | What It Does |
+|-------|-------------|
+| **1. Environment Preparation** | Starts external services (databases, message brokers) via `docker compose`. Skipped if Docker is unavailable. |
+| **2. Build Verification** | Runs `./mvnw compile` and classifies any build errors. Skipped for JBang runtime (JBang compiles at runtime). |
+| **3. Startup Verification** | Starts the application and watches logs for success or failure patterns. Runtime-specific commands (`./mvnw quarkus:dev`, `./mvnw spring-boot:run`, `camel run`). |
+| **4. Behavioral Verification** | Sends test data to running flows and compares actual output against expected output using semantic comparison (field-by-field, ignoring key ordering and insignificant whitespace). |
+| **5. Report** | Structured summary of all phases, fixes applied, and issues found. |
 
-### Flow File
+### Error Classification
 
-The flow is saved to `.camel-kit/flows/<flow-name>/flow.md`.
+Each phase uses an error taxonomy of 14 patterns organized by phase (build errors, startup errors, runtime errors). Every error is classified into a category with a fix target:
 
-**Example flow diagram:**
+| Fix Target | Examples |
+|-----------|----------|
+| **Self-repair** | Missing dependency in pom.xml, missing property in `application.properties`, Docker service restart |
+| **Route to internal skill** | Wrong component options (to `/camel-validate`), broken route YAML (to `/camel-implement`), XSLT/Groovy transformation error (to `/camel-implement`) |
+| **Escalate to user** | Unclassified errors, same error after fix attempt, iteration limit (15) reached |
 
-```mermaid
-flowchart LR
-    subgraph Source
-        K[("kafka:orders")]
-    end
-    subgraph "Processing (EIPs)"
-        E1["unmarshal"]
-        E2["validate"]
-        E3["filter"]
-    end
-    subgraph Sink
-        DB[("sql:INSERT")]
-    end
-    subgraph Error
-        DLQ[("kafka:orders-dlq")]
-    end
+### Graceful Degradation
 
-    K --> E1 --> E2 --> E3 --> DB
-    E1 -.->|error| DLQ
-    E2 -.->|error| DLQ
-```
+Verification adapts to available tools. If Maven is missing, build and startup phases are skipped. If Docker is unavailable, environment preparation is skipped. If the `camel` CLI is missing, behavioral verification is skipped. Every skipped phase is reported explicitly -- nothing fails silently.
 
 ---
 
-## Data Transformation
+## 7. Data Transformation (DataMapper)
 
-Camel-Kit provides comprehensive support for data transformation with automatic XSLT generation based on field mappings defined during flow design.
+Camel-Kit automatically handles data transformation during the design phase. The AI determines the transformation engine, gathers field mappings, and writes the canonical mapping specification to the TDD. Implementation is handled by `/camel-execute`.
 
-### When to Use Data Transformation
+### Two Engines
 
-Use the transformation feature when your integration needs to:
-- Convert between different message formats (JSON ↔ XML)
-- Map fields from source schema to destination schema
-- Transform nested structures (flatten or nest fields)
-- Apply conditional logic during transformation
-- Process collections/arrays with iterations
-- Use Camel context (Variables/Headers) in transformations
+| Engine | When Used | Output |
+|--------|-----------|--------|
+| **XSLT** | 20 or more field mappings AND at least one schema exists | External `.xsl` file, `xslt-saxon:` URI in route, `.kaoto` metadata for Kaoto IDE visual editing |
+| **Groovy** | Fewer than 20 field mappings, OR no schemas for both source and target | Inline Groovy script in YAML route, no external files |
 
-### Defining Field Mappings
+### Engine Selection Rules
 
-During `/camel-flow`, when you mention data transformation, the AI will guide you through an interactive field mapping session:
+The engine is chosen automatically during the design phase. You do not need to pick one -- the rules are applied based on your field mappings and schemas:
 
-#### Step 1: Provide Schemas
+1. **Rule 1:** Both source AND target have no schema --> **Groovy** (no schemas to drive XSLT structure)
+2. **Rule 2:** Field count < 20 --> **Groovy** (small mapping, inline script is simpler)
+3. **Rule 3:** Field count >= 20 AND at least one schema exists --> **XSLT** (large mapping benefits from XSLT + Kaoto visual editor)
 
-```
-Do you have schemas for source and destination messages?
+### What Each Engine Produces
 
-Options:
-a) Yes, I have both schemas (XML Schema / JSON Schema)
-b) Yes, source schema only
-c) Yes, destination schema only
-d) No schemas available
-```
+**XSLT:**
+- External XSLT stylesheet (`{flow-name}-datamapper-{id}.xsl`)
+- Route step using `xslt-saxon:` URI
+- `.kaoto` metadata file for Kaoto IDE visual editing
+- Handles all format pairs: XML-to-XML, JSON-to-JSON, JSON-to-XML, XML-to-JSON
 
-**Supported schema formats:**
-- XML Schema (XSD)
-- JSON Schema (draft 7 and earlier)
+**Groovy:**
+- Inline Groovy script embedded directly in the YAML route
+- No external files
+- Same format pair support, using Groovy dot notation and map/builder syntax
 
-#### Step 2: Automatic Field Matching
+### Kaoto IDE Integration
 
-The AI analyzes both schemas and proposes automapping:
+XSLT transformations include Kaoto DataMapper metadata, allowing you to visually edit field mappings in the Kaoto IDE after generation. Groovy transformations have no visual editor support -- they are edited directly in the YAML route file.
 
-```
-EXACT MATCHES (will auto-map):
-- orderId → orderId
-- customer.name → customer.name
-- items[].productId → items[].productId
+### Supported Transformation Types
 
-POTENTIAL MATCHES (similar names):
-- order.customerId → customerId (flatten nested field)
-- items[].qty → items[].quantity (name variation)
-
-Should I automatically map all exact matches? (yes/no)
-```
-
-#### Step 3: Manual Mapping
-
-For unmapped fields, specify the mappings:
-
-```
-UNMAPPED SOURCE FIELDS:
-- order.timestamp (type: datetime)
-- order.total (type: decimal)
-
-UNMAPPED TARGET FIELDS:
-- orderDate (type: datetime)
-- totalAmount (type: decimal)
-
-Example: "order.timestamp → orderDate (format from ISO to dd-MM-yyyy)"
-```
-
-#### Step 4: Advanced Features (Optional)
-
-**Parameters (Camel Variables/Headers):**
-```
-Do you need to use Camel Variables or Message Headers?
-
-Examples:
-- userId (Header) - User ID for audit trail
-- customerProfile (Variable with schema) - Customer reference data
-```
-
-**Conditional Mappings:**
-```
-Do you need conditional logic?
-
-Examples:
-- IF: "If amount > 1000, set priority to 'HIGH'"
-- CHOOSE: "When status='PENDING' THEN 'REVIEW'; When status='APPROVED' THEN 'PROCESS'"
-```
-
-**Collection Processing:**
-```
-Do you need array/collection processing?
-
-Examples:
-- "Iterate through items[] array and transform each item"
-- "Use position tracking with $_index for line numbers"
-```
-
-### Transformation Types Supported
-
-| Type | Description | Example |
-|------|-------------|---------|
-| **Direct Copy** | Simple field-to-field | `orderId` → `orderId` |
-| **Nested Flattening** | Extract from nested object | `order.total` → `totalAmount` |
-| **Date Formatting** | Convert date formats | ISO 8601 → dd-MM-yyyy |
-| **Concatenation** | Combine multiple fields | `firstName` + `lastName` → `fullName` |
-| **Calculation** | Mathematical operations | `price * quantity` → `lineTotal` |
-| **Conditional (IF)** | Single condition | IF amount > 1000 THEN 'HIGH' |
-| **Conditional (CHOOSE)** | Multiple branches | Switch-case style logic |
-| **FOR-EACH** | Array iteration | Process each item in collection |
-| **Parameter Usage** | Use Camel context | `$userId` from Header |
-
-### TDD Documentation
-
-All field mappings are documented in the Technical Design Document (TDD) in structured sections:
-
-**Section 3.2 - Field Mappings:**
-```markdown
-| Source Field | Source Type | Target Field | Target Type | Transformation | Notes |
-|--------------|-------------|--------------|-------------|----------------|-------|
-| orderId | string | orderId | string | Direct copy | Auto-mapped |
-| order.timestamp | datetime | orderDate | date | Format conversion | ISO → dd-MM-yyyy |
-```
-
-**Section 3.3 - Transformation Parameters:**
-```markdown
-| Parameter Name | Source | Type | Schema | Purpose |
-|----------------|--------|------|--------|---------|
-| userId | Header | string | No schema | Audit trail |
-```
-
-**Section 3.4 - Conditional Mappings:**
-```markdown
-| Target Field | Condition | True Value | False Value |
-|--------------|-----------|------------|-------------|
-| priority | amount > 1000 | HIGH | NORMAL |
-```
-
-**Section 3.5 - Collection Mappings:**
-```markdown
-| Source Collection | Target Collection | Iteration Logic | Special Variables |
-|-------------------|-------------------|-----------------|-------------------|
-| order.items[] | items[] | Transform each item | $_index for lineNumber |
-```
-
-### Automatic XSLT Generation
-
-During `/camel-implement`, camel-kit automatically generates a Kaoto DataMapper-compatible XSLT file based on your TDD field mappings.
-
-**Generated file:** `{flow-name}-datamapper-{random-id}.xsl`
-
-**Location:** Project root (same folder as route YAML)
-
-**Features:**
-- XSLT 2.0 for XML transformations
-- XSLT 3.0 for JSON transformations (with `fn:json-to-xml()` and `fn:xml-to-json()`)
-- All mapping types implemented as XPath expressions
-- Parameter declarations for Camel Variables/Headers
-- Namespace handling for XML schemas
-- Comprehensive XPath function library
-
-**Integration in route:**
-```yaml
-- step:
-    id: order-transform-datamapper-step
-    steps:
-      - to:
-          id: order-transform-datamapper-xslt
-          uri: "xslt-saxon:order-transform-datamapper-a1b2c3d4.xsl"
-          parameters:
-            userId: "${header.userId}"
-            tenantId: "${header.tenantId}"
-```
-
-**Dependency:** `camel-saxon` automatically added to pom.xml
-
-### XPath Functions Available
-
-**String Functions:**
-- `concat()` - Combine strings
-- `substring()` - Extract substring
-- `upper-case()` / `lower-case()` - Case conversion
-- `contains()` - String contains check
-
-**Numeric Functions:**
-- `sum()` / `avg()` - Aggregate calculations
-- `round()` - Rounding numbers
-- `format-number()` - Number formatting
-
-**Date/Time Functions:**
-- `format-dateTime()` - Date/time formatting
-- `current-dateTime()` - Current timestamp
-
-**Boolean Functions:**
-- `not()` - Boolean negation
-- Operators: `and`, `or`, `=`, `!=`, `&gt;`, `&lt;`
-
-### Best Practices
-
-**DO:**
-- ✅ Provide schemas when available for better automapping
-- ✅ Use parameters for reusable context data (userId, tenantId)
-- ✅ Keep conditionals simple (1-3 levels max)
-- ✅ Use FOR-EACH for collections rather than hardcoding indices
-- ✅ Test XPath expressions match actual data structure
-
-**DON'T:**
-- ❌ Mix XML and JSON in single transformation (use marshal/unmarshal)
-- ❌ Create deeply nested conditionals (>3 levels)
-- ❌ Hardcode values that change per environment
-- ❌ Use XSLT for very large documents (>10MB) - consider streaming
-
-### When to Use Kaoto UI
-
-While camel-kit can generate XSLT automatically for most scenarios, use the [Kaoto](https://kaoto.io/) visual designer when:
-- Very complex transformations (>50 fields)
-- Need visual validation of mappings
-- Custom XSLT functions required
-- Troubleshooting generated XSLT
-- Advanced XSLT features needed
+| Type | Example |
+|------|---------|
+| Direct copy | `orderId` --> `orderId` |
+| Nested flattening | `order.customer.name` --> `customerName` |
+| Date formatting | ISO 8601 --> `dd-MM-yyyy` |
+| Concatenation | `firstName` + `lastName` --> `fullName` |
+| Calculation | `price * quantity` --> `lineTotal` |
+| Conditional (IF) | IF `amount > 1000` THEN `HIGH` ELSE `NORMAL` |
+| Conditional (CHOOSE) | Switch-case style multi-branch logic |
+| Collection iteration | FOR-EACH `items[]`, transform each item |
+| Parameter usage | Use Camel headers/variables in transformation |
 
 ---
 
-## YAML Generation
+## 8. Multi-Agent Support
 
-Generate Kaoto-compatible Camel YAML DSL from your flow definition.
+The same skills work across all five supported AI coding assistants. Camel-Kit uses markdown instruction files that are loaded by whichever agent you choose -- the workflow, rules, and output quality are identical regardless of agent.
 
-### Running Generation
+### Supported Agents
 
-```
-/camel-implement <flow-name>
-```
+| Agent | Init Flag | How `/camel-execute` Dispatches Work |
+|-------|-----------|--------------------------------------|
+| **Claude** (Anthropic Claude Code) | `--ai claude` | Dispatches subagents with isolated context per task |
+| **Bob** (IBM Project Bob) | `--ai bob` | Switches between 5 custom modes (brainstorm, plan, implement, validate, test) with scoped permissions |
+| **Gemini** (Google Gemini CLI) | `--ai gemini` | Inline execution within the conversation |
+| **Qwen** (Alibaba Qwen CLI) | `--ai qwen` | Inline execution within the conversation |
+| **OpenCode** | `--ai opencode` | Inline execution within the conversation |
 
-This:
-1. Verifies flow definition and schemas exist
-2. Looks up components via MCP or cached catalog
-3. Transforms the design into Camel YAML DSL
-4. **Automatically validates** with MCP tools (if available)
-5. Runs Maven validation loop if needed
-6. Outputs to `<flow-name>.camel.yaml`
+### The Equalization Layer
 
-### Automatic MCP Validation
+Skills are markdown instruction files that the AI agent loads and follows. Because every agent reads the same skill files, the pipeline behavior is consistent across agents:
 
-If the Camel MCP server is configured, `/camel-implement` **automatically validates** the generated route before Maven runs:
+- The same Iron Laws are enforced
+- The same constitution rules are checked
+- The same MCP tools are called
+- The same output formats are produced
 
-1. **Route Structure Analysis** (`camel_route_context`) — extracts all components and EIPs, verifies they exist in the catalog
-2. **URI and Route Validation** (`camel_validate_route`) — validates all endpoint URIs against the catalog schema, catches typos and unknown options
-3. **Auto-fix loop** — if errors are found, the AI agent fixes them and re-validates (up to 3 attempts)
-
-See [Command Reference — /camel-implement](commands.md#camel-implement) for the detailed process.
-
-### Kaoto Compatibility
-
-Generated YAML follows Kaoto requirements:
-- Nested EIPs under parent's `steps` array
-- Proper expression format for Simple, JSONPath, etc.
-- Error handlers at route level
-- Environment variables as `{{VARIABLE}}`
-
-### Running Generated Routes
-
-```bash
-# With Camel JBang (dependencies from application.properties)
-camel run order-ingestion.camel.yaml application.properties
-
-# Export to Maven project
-camel export order-ingestion.camel.yaml \
-  --runtime quarkus \
-  --gav com.example:my-integration:1.0.0
-```
-
-Dependencies are configured in `application.properties`:
-```properties
-camel.jbang.dependencies=org.postgresql:postgresql:42.7.3,\
-org.apache.commons:commons-dbcp2:2.12.0
-```
+The only difference is *how* the agent dispatches work internally (subagents, modes, or inline), which is transparent to you as the user.
 
 ---
 
-## Validation
+## 9. MCP Integration
 
-Validation checks your routes for correctness, security, and compliance.
+Camel-Kit integrates with the Apache Camel MCP (Model Context Protocol) server to provide real-time catalog queries and validation. This ensures the AI assistant never guesses component names or options from training data.
 
-### Running Validation
+### What MCP Provides
 
-```
-/camel-validate           # Validate all flows
-/camel-validate <flow-name>  # Validate specific flow
-```
+| Capability | Description |
+|------------|-------------|
+| Component catalog | Search and verify 300+ Camel components by name or category |
+| EIP catalog | Verify Enterprise Integration Patterns exist and get configuration options |
+| Data format catalog | Verify data formats (JSON, XML, CSV, etc.) |
+| Language catalog | Verify expression languages (Simple, Groovy, XPath, etc.) |
+| Route validation | Check endpoint URIs against the catalog schema, catch typos |
+| Security analysis | 47 automated security checks for credentials, encryption, authentication |
 
-### MCP-Enhanced Validation
+### Configuration
 
-When the Camel MCP server is configured, validation adds three automated phases: route structure analysis, URI validation, and security analysis (47 checks covering credentials, encryption, authentication, input validation, data exposure, and compliance).
+MCP is auto-configured during `camel-kit init`. The init command creates agent-specific MCP configuration files:
 
-### What's Checked
+- **Claude:** `.mcp.json`
+- **Bob:** `.bob/mcp.json`
+- **Gemini:** `.gemini/mcp.json`
+- **Qwen/OpenCode:** agent-specific config locations
 
-| Category | MCP Tool | Examples |
-|----------|----------|----------|
-| **Completeness** | - | Source defined, sink defined, error handling |
-| **URI Validation** | `camel_validate_route` | Valid component names, valid options |
-| **Security** | `camel_route_harden_context` | Credentials, encryption, authentication |
-| **Constitution** | - | Naming conventions, circuit breakers |
+No additional configuration is needed. The AI assistant automatically uses MCP tools when available.
 
-### Validation Report
+### Knowledge MCP
 
-When using MCP, you get instant feedback:
-```
-✅ Route structure: VALID
-✅ URI validation: VALID (3/3 endpoints)
-⚠️  Security: 45/47 checks passed
+In addition to the catalog MCP, Camel-Kit can connect to a Knowledge MCP server that provides:
 
-Security Issues:
-  Line 12: HTTP instead of HTTPS
-  Risk: Unencrypted communication
-  Fix: Change to https://api.example.com
-```
+- Red Hat Build of Apache Camel documentation via semantic search
+- Errata and security advisories (CVEs) with CVSS scores and affected packages
+- Component support status (Production Support, Technology Preview, Community Support)
 
-Without MCP, results are saved to `.camel-kit/validation-report.md` with:
-- Pass/fail status for each check
-- Error codes for failures
-- Suggested fixes
+### Graceful Degradation
+
+If the MCP server is unavailable, the AI assistant falls back to bundled component skill files. MCP is never a hard requirement -- it enhances accuracy but the pipeline continues without it.
 
 ---
 
-## Test Generation
-
-Generate Citrus integration tests for your routes.
-
-### Running Test Generation
-
-```
-/camel-test <flow-name>    # Generate tests for one flow
-/camel-test --all          # Generate tests for all flows
-```
-
-### Validation Loop
-
-The `/camel-test` command includes an automated validation loop using the json-yaml-validator-maven-plugin:
-
-```bash
-./mvnw com.dataliquid.maven:json-yaml-validator-maven-plugin:2.0.0:validate \
-  -Dschema.validator.schemaFile=.camel-kit/.cache/citrus/{version}/citrus-testcase.json \
-  -Dschema.validator.sourceDirectory=test \
-  -Dschema.validator.includes=**/*.camel.it.yaml
-```
-
-### Test Scenarios
-
-Based on your flow design, tests are generated for:
-- Happy path
-- Error handling / invalid input
-- Dead letter queue
-- Idempotency (if using idempotent consumer)
-- Circuit breaker fallback (if using resilience patterns)
-- Filter conditions (if using filter EIP)
-
-### Test Files
-
-Tests are saved to `test/<flow-name>.camel.it.yaml` following the Camel JBang naming convention, with test data in `test/data/`.
-
-### Running Tests
-
-```bash
-# Install Citrus JBang app
-jbang app install citrus@citrusframework/citrus
-
-# Run tests (Docker required for Testcontainers)
-cd test
-citrus run order-ingestion.camel.it.yaml
-
-# Or using Camel test plugin
-camel plugin add test
-camel test run test/order-ingestion.camel.it.yaml
-```
-
----
-
-## Best Practices
-
-### Constitution v2.0 — Six Enforced Rules
-
-The constitution (`.camel-kit/constitution.md`) enforces exactly six rules on every generated route:
-
-| Rule | Description | Violation |
-|------|-------------|-----------|
-| Route Structure | Every route has a `from:` source and a final `to:` sink | ERROR |
-| Single Responsibility | One route = one clear purpose; ≤ 7 processing steps | WARNING if > 7 |
-| Separation of Concerns | Ingestion → Processing → Delivery; `direct:` for sync, `seda:` for async | WARNING |
-| Naming Conventions | Route IDs follow `<domain>-<action>[-<qualifier>]` | WARNING |
-| Observability | Every route declares `routeId` and `description` | ERROR |
-| External Configuration | No hardcoded credentials or connection strings; use `{{PLACEHOLDER}}` | ERROR |
-
-All other design guidance (error handling strategy, retry policy, circuit breaker, transactions, idempotency, throttling, Kubernetes, data format choices) is applied context-specifically during `/camel-flow` and `/camel-migrate` flow design — not enforced globally.
-
-### Generated Route Quality
-
-`/camel-implement` enforces catalog-verified accuracy on every generated route:
-- All component names, endpoint option names, and Maven coordinates come from `camel_catalog_component_doc` — never from training data
-- All data format names and options come from `camel_catalog_dataformat_doc`
-- All expression language names and syntax come from `camel_catalog_language_doc`
-- All EIP names and options come from `camel_catalog_eip_doc`
-- When the route has both an HTTP consumer and an HTTP producer, `removeHeaders("CamelHttp*")` is inserted before each outbound HTTP call to prevent header leakage
-- DataMapper XSLT generation is blocked if the field mapping table is empty — an actionable error is reported instead of producing a non-functional skeleton
-- After generation, the route is validated with `camel_validate_route` in a fix→re-query→retry loop (up to 3 attempts)
-
-### Customizing the Constitution
-
-Edit `.camel-kit/constitution.md` to add project-specific overrides:
-- Restrict allowed components
-- Override naming patterns
-- Define project-specific DLQ topics or security requirements
-
----
-
-## Troubleshooting
+## 10. Troubleshooting
 
 ### Catalog Not Found
 
@@ -776,29 +421,18 @@ Edit `.camel-kit/constitution.md` to add project-specific overrides:
 Error: Catalog not cached
 ```
 
-**Solution:** Re-run init without `--no-fetch`:
+**Solution:** Re-run init to re-fetch the catalog:
 ```bash
-camel-kit init --here --ai bob
+camel-kit init --here --ai claude
 ```
 
 ### Validation Errors
 
 ```
-COMP-001: Component 'kafak' not found
+Component 'kafak' not found
 ```
 
-**Solution:** Check for typos. The validation will suggest corrections.
-
-### Flow Not Found
-
-```
-Error: Flow definition not found. Run /camel-flow [flow-name] first.
-```
-
-**Solution:** Create the flow definition first:
-```
-/camel-flow order-ingestion
-```
+**Solution:** Check for typos. The MCP server suggests corrections when it finds a close match.
 
 ### Maven Wrapper Not Found
 
@@ -806,27 +440,24 @@ Error: Flow definition not found. Run /camel-flow [flow-name] first.
 ./mvnw: No such file or directory
 ```
 
-**Solution:** Re-initialize the project to generate Maven Wrapper:
+**Solution:** Re-initialize the project to regenerate the Maven wrapper:
 ```bash
-camel-kit init --here --ai bob
+camel-kit init --here --ai claude
 ```
 
-### Test Failures
+### Docker Not Available
 
-If generated tests fail, check:
-1. Docker is running (required for Testcontainers)
-2. Test data matches current schema
-3. Route behavior matches test expectations
+When Docker is not installed or not running, verification phases that depend on it are skipped:
+- Environment preparation (external services) is skipped
+- Startup verification may fail if the application depends on external services
 
-Regenerate tests after route changes:
-```
-/camel-test <flow-name>
-```
+**Solution:** Install Docker and start the Docker daemon, or start the required external services manually.
 
----
+### Verification Fails Repeatedly
 
-## Next Steps
-
-- See [Command Reference](commands.md) for detailed command documentation
-- See [Architecture Guide](architecture.md) for skills and MCP internals
-- See [CONTRIBUTING.md](../CONTRIBUTING.md) to contribute to Camel-Kit
+If `/camel-verify` fails after multiple fix iterations:
+1. Check the verification report for the error classification and fix history
+2. Look for "same error after fix attempt" messages -- these indicate the automated fix did not resolve the root cause
+3. Check if the error is classified as "Escalate" -- these require manual intervention
+4. For connection errors, verify that external services are actually running and reachable
+5. For component errors, verify the component is supported in your Red Hat Build version via `/camel-knowledge`
