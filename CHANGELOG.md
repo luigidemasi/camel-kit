@@ -8,6 +8,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **3-phase orchestrated pipeline** -- replaced the linear `/camel-project` → `/camel-flow` → `/camel-implement` → `/camel-validate` → `/camel-test` workflow with a structured 3-phase pipeline:
+  - `/camel-brainstorm` -- interactive design session producing a Blueprint Reference Document (BRD) with Technical Design Documents (TDDs)
+  - `/camel-plan` -- reviews approved design, creates detailed implementation plan with task decomposition
+  - `/camel-execute` -- orchestrated execution dispatching tasks to internal skills (implement → validate → test → verify) with two-stage review (spec compliance then code quality)
+  - `/camel-flow` remains as a single-flow shortcut (brainstorm + plan + execute in one command)
+  - `/camel-implement`, `/camel-validate`, `/camel-test` are now internal skills loaded by `/camel-execute`
+
+- **`/camel-verify` -- runtime verification skill**
+  - 5-phase verification loop: environment preparation, build, startup, behavioral, report
+  - Camel-specific error classification taxonomy with 14 error patterns (4 build, 7 startup, 3 runtime)
+  - Fix routing: self-repair (pom.xml, properties, docker-compose), route to camel-validate, route to camel-implement, escalate to user
+  - Behavioral verification using `camel cmd send` for payload injection and semantic comparison
+  - Max 15 iteration attempts per phase
+  - Invocable manually or automatically at the end of `/camel-execute`
+  - Integration with all runtimes: Quarkus (`./mvnw quarkus:dev`), Spring Boot (`./mvnw spring-boot:run`), JBang (`camel run`)
+
+- **Groovy DataMapper engine** -- alternative to XSLT for simple data transformations
+  - Engine selection: < 20 fields → Groovy; no schemas → Groovy; otherwise → XSLT
+  - Decision made automatically during design (canonicalize stage)
+  - Inline Groovy scripts in YAML route (no external `.xsl` file)
+  - Supports all 4 format pairs: JSON→JSON, XML→JSON, JSON→XML, XML→XML
+  - No `.kaoto` metadata (Kaoto IDE only supports XSLT)
+
+- **Multi-agent parity** -- expanded from 3 to 5 supported AI agents
+  - Added Qwen (`--ai qwen`) and OpenCode (`--ai opencode`)
+  - Skills-based equalization layer: same skill guides work across all agents
+  - Agent-specific templates: Claude=CLAUDE.md with subagents, Bob=custom_modes.yaml with 5 modes, Gemini=GEMINI.md, Qwen=QWEN.md, OpenCode=AGENTS.md
+  - Iron laws embedded in each agent's instruction file
+
+- **Iron laws** -- 5 non-negotiable pipeline rules enforced across all skills
+  1. MCP Catalog Verification -- every component verified via MCP before use
+  2. Red Hat Build Only -- only supported versions and components
+  3. Constitution Compliance -- every route passes all 7 constitution rules
+  4. No Code Without Spec Approval -- brainstorm → approval → plan → approval → execute
+  5. Spec Compliance Before Quality -- two-stage review in correct order
+
+- **Migration support expanded** -- `/camel-migrate` now handles Apache Camel 2.x/3.x and JBoss Fuse migrations in addition to MuleSoft Mule
+
+### Changed
+
+- **Documentation rewritten** -- all docs updated to reflect the 3-phase orchestrated pipeline, 6 user-invocable commands, 5 AI agents, Groovy DataMapper, and runtime verification
+- **`/camel-project` deprecated** -- replaced by `/camel-brainstorm`
+- **`/camel-knowledge` internalized** -- now used by pipeline skills, no longer user-invocable
+
 ### Fixed
 
 - **`.kaoto` filename and format hardening against hallucination**
