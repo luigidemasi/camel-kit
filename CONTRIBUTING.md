@@ -15,7 +15,7 @@ Thank you for your interest in contributing to Camel-Kit! This document provides
 - [Coding Standards](#coding-standards)
 - [Testing](#testing)
 - [Documentation](#documentation)
-- [Adding New AI Agents](#adding-new-ai-agents)
+- [Adding New Skills](#adding-new-skills)
 - [Release Process](#release-process)
 
 ## Code of Conduct
@@ -65,7 +65,7 @@ jbang camel-kit-main/src/main/jbang/main/CamelKit.java --help
 ./mvnw package
 
 # Install locally (after build)
-mvn install
+./mvnw install
 jbang app install --force camel-kit@./
 ```
 
@@ -84,31 +84,41 @@ camel-kit/
 │   └── src/main/jbang/main/
 │       └── CamelKit.java        # JBang entry point
 ├── camel-kit-core/              # Core functionality module
-│   └── src/main/java/com/github/luigidemasi/camelkit/
+│   └── src/main/java/io/github/luigidemasi/camelkit/
 │       ├── CamelKitMain.java    # Picocli CLI main class
 │       ├── command/             # CLI command implementations
 │       ├── catalog/             # Catalog fetching logic
 │       ├── config/              # Configuration handling
-│       ├── output/              # Output formatting
+│       ├── output/              # Output formatting (TUI, logo)
 │       └── util/                # Utility classes
 │   └── src/main/resources/
-│       ├── templates/           # Template files
-│       │   ├── commands/        # Slash command definitions
-│       │   ├── constitution.md
-│       │   ├── design-patterns.md
-│       │   └── ...
-│       └── maven/               # Maven wrapper generation
-├── camel-kit-plugins/           # Plugin modules
-│   └── camel-kit-wanaku-plugin/ # Wanaku validation plugin
-├── templates/                   # Template sources (copied to resources)
-│   ├── commands/
-│   ├── constitution.md
-│   └── design-patterns.md
+│       ├── skills/              # Skill definitions (markdown instruction files)
+│       │   ├── camel-brainstorm/  # Interactive design session
+│       │   ├── camel-plan/        # Implementation planning
+│       │   ├── camel-execute/     # Orchestrated execution
+│       │   ├── camel-flow/        # Single-flow shortcut
+│       │   ├── camel-migrate/     # Migration orchestrator
+│       │   ├── camel-verify/      # Runtime verification
+│       │   ├── camel-implement/   # YAML generation (internal)
+│       │   ├── camel-validate/    # Quality review (internal)
+│       │   ├── camel-test/        # Test generation (internal)
+│       │   ├── camel-knowledge/   # Red Hat docs (internal)
+│       │   ├── camel-design/      # Flow design (internal)
+│       │   └── shared/            # Shared guides (iron laws, DataMapper, MCP)
+│       └── templates/           # Agent-specific instruction templates
+│           ├── bob/             # IBM Project Bob
+│           ├── claude/          # Anthropic Claude Code
+│           ├── gemini/          # Google Gemini CLI
+│           ├── qwen/            # Qwen
+│           └── opencode/        # OpenCode
+├── camel-jbang-plugin-kit/      # Camel JBang plugin
+├── camel-kit-graph/             # Route graph analysis
 ├── docs/                        # Documentation
-│   ├── user-guide.md
-│   ├── commands.md
-│   └── constitution.md
-├── src/python/                  # Python utilities (validation scripts)
+│   ├── user-guide.md            # End-user walkthrough
+│   ├── commands.md              # Command reference
+│   ├── architecture.md          # Contributor guide
+│   └── constitution.md          # Route quality rules
+├── examples/                    # Usage examples
 ├── pom.xml                      # Parent Maven POM
 ├── jbang-catalog.json           # JBang catalog definition
 ├── mvnw, mvnw.cmd               # Maven Wrapper scripts
@@ -307,83 +317,54 @@ class CatalogServiceTest {
 - Add screenshots for visual features
 - Keep documentation up-to-date with code
 
-## Adding New Commands
+## Adding New Skills
 
-To add support for a new slash command:
+Skills are markdown instruction files that guide AI agents. To add a new skill:
 
-### 1. Create Command Template
+### 1. Create Skill Directory
 
-Add a new markdown file in `camel-kit-core/src/main/resources/skills/`:
+Create a new directory in `camel-kit-core/src/main/resources/skills/`:
+
+```
+skills/camel-{name}/
+├── SKILL.md              # Skill manifest with YAML frontmatter
+└── guides/               # Instruction files loaded on demand
+    ├── main-guide.md
+    └── helper-guide.md
+```
+
+### 2. Write SKILL.md
 
 ```markdown
 ---
-name: camel-yourcommand
-description: Brief description of what this command does with trigger keywords
-user-invocable: true
-metadata:
-  version: "1.0.0"
-  author: "camel-kit"
-  category: "integration"
-  license: "Apache-2.0"
+name: camel-{name}
+description: Brief description with trigger keywords for AI agent discovery
+user_invocable: true
 ---
 
-# /camel-yourcommand
+# /camel-{name}
 
-> Brief description of what this command does
+> One-line description
 
-## Purpose
+## Guides
 
-Detailed explanation of the command's purpose and when to use it.
-
-## Workflow
-
-1. Step one
-2. Step two
-3. Step three
-
-## Example
-
-Provide examples of using the command.
-
-## MCP Integration (if applicable)
-
-Document which MCP tools are used:
-- `mcp_tool_name` - Purpose and when it's called
+| Guide | When to Load | Purpose |
+|-------|-------------|---------|
+| `guides/main-guide.md` | Always | Primary instruction guide |
+| `guides/helper-guide.md` | When X | Conditional reference guide |
 ```
 
-### 2. Register Command
+### 3. Write Guide Files
 
-Add the command class in `camel-kit-core/src/main/java/com/github/luigidemasi/camelkit/command/`:
+Each guide in `guides/` is a self-contained markdown file loaded by the agent when the skill is active. See existing skills for examples.
 
-```java
-@Command(
-    name = "yourcommand",
-    description = "Description of your command"
-)
-public class YourCommand implements Runnable {
-    @Override
-    public void run() {
-        // Implementation
-    }
-}
-```
+### 4. Register the Skill
 
-Register it in `CamelKitMain.java`.
+- **If user-invocable:** update agent templates for all 5 agents (Claude, Bob, Gemini, Qwen, OpenCode) to register the slash command
+- **If internal:** update the parent skill's SKILL.md to reference your new guides
+- Update `docs/commands.md` if user-invocable
 
-### 3. Update Documentation
-
-- Add to docs/commands.md
-- Add to README.md if it's a major command
-- Update any related documentation
-
-### 4. Add Tests
-
-```java
-@Test
-void testYourCommand() {
-    // Test command execution
-}
-```
+See [Architecture Guide](docs/architecture.md#9-how-to-add-a-skill) for the full process.
 
 ## Release Process
 
