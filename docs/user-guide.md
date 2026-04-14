@@ -134,7 +134,7 @@ The brainstorm phase is an interactive interview that produces the design spec. 
 - Data transformation requirements
 - Red Hat Build version selection
 
-**Output:** A BRD (`docs/business-requirements.md`) with embedded TDDs (`docs/flows/{flow-name}/{flow-name}.tdd.md`) for each flow.
+**Output:** A BRD (`.camel-kit/business-requirements.md`) with TDDs (`.camel-kit/flows/{flow-name}/{flow-name}.tdd.md`) for each flow.
 
 After the user reviews and approves the design spec, the pipeline transitions automatically to the plan phase.
 
@@ -460,4 +460,4 @@ If `/camel-verify` fails after multiple fix iterations:
 2. Look for "same error after fix attempt" messages -- these indicate the automated fix did not resolve the root cause
 3. Check if the error is classified as "Escalate" -- these require manual intervention
 4. For connection errors, verify that external services are actually running and reachable
-5. For component errors, verify the component is supported in your Red Hat Build version via `/camel-knowledge`
+5. For component errors, ask your AI assistant to check whether the component is supported in your Red Hat Build version
