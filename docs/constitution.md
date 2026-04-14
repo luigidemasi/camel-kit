@@ -8,13 +8,14 @@
 
 | Property | Value |
 |----------|-------|
-| Version | 2.0 |
-| Last Updated | 2026-03-31 |
-| Camel Version |` 4.14.4.redhat-00008` |
+| Version | 2.1 |
+| Last Updated | 2026-04-14 |
 
 ---
 
 ## Rules
+
+> These 7 rules define what makes a good Camel route. They are enforced by **Iron Law 3 (Constitution Compliance)** across all pipeline phases. See `skills/shared/iron-laws.md` for the full set of 5 iron laws.
 
 ### 1. Route Structure
 
@@ -94,6 +95,7 @@ Every component used in a route MUST be verified as **supported by Red Hat** in 
   1. Raise a WARNING to the user explaining the support status.
   2. Search for a Red Hat-supported alternative that provides equivalent functionality (query `camel_rh_build_component_info` for related components).
   3. Present the warning, the component's support status, and the suggested alternative to the user before proceeding. Let the user decide whether to accept the component or switch to the alternative.
+- **Automated verification:** `/camel-verify` checks component availability at build and startup time, catching missing or unsupported components that passed design-time validation.
 - **Violation:** WARNING — this is not a validation blocker, but users must be clearly informed of the support implications.
 
 ---
