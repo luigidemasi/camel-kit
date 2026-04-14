@@ -152,7 +152,10 @@ The command auto-detects whether the project is greenfield or migration based on
 2. **Load context** -- reads `docs/constitution.md` and `.camel-kit/config.yaml` if they exist
 3. **Run interview or discovery** -- Socratic interview (one question at a time) for greenfield; artifact scanning and confirmation for migration
 4. **Select Camel version** -- presents Red Hat supported versions for selection
-5. **Design flows** -- for each flow, verifies components, EIPs, data formats, and languages against the MCP catalog
+5. **Design flows** -- for each flow, verifies components, EIPs, data formats, and languages against the MCP catalog. Asks conditional questions only when relevant:
+   - Circuit breaker configuration (if HTTP components detected)
+   - Idempotent consumer (if message broker components detected)
+   - Transaction boundaries (if multiple sinks detected)
 6. **Assemble design spec** -- compiles the full BRD and TDD files
 7. **Self-review** -- scans for placeholders, contradictions, unverified components
 8. **User approval** -- presents the spec and waits for explicit approval
@@ -231,8 +234,16 @@ The plan is a recipe, not the meal -- it contains instructions on how to generat
    - **Code quality review** -- checks constitution rules, security, and anti-patterns
    - If review fails, the implementer fixes and re-submits until both reviews pass
 3. **Cross-cutting review** -- after all tasks complete, reviews all generated routes together for consistency
-4. **Verification phase** -- runs `/camel-verify` as a final validation (build, start, diagnose, fix)
+4. **Verification phase** -- runs `/camel-verify` as a final validation (build, start, diagnose, fix). Verification is optional -- failure does not block completion
 5. **Completion summary** -- reports task status, review results, and verification outcome
+
+**Agent-specific execution:**
+
+| Agent | Execution Model |
+|-------|----------------|
+| Claude Code | Dispatches fresh subagents per task (isolated context) |
+| IBM Project Bob | Switches between custom modes (brainstorm, plan, implement, validate, test) |
+| Gemini CLI, Qwen, OpenCode | Inline execution within the same session |
 
 **Orchestrated internal skills:**
 
