@@ -22,6 +22,7 @@ Before entering the phase loop, check which tools are available. Report explicit
    - If unavailable → external service phases will be skipped
 4. Check JDK: `java --version`
 5. If runtime is JBang → also check `jbang --version`
+6. Check Camel CLI: `camel --version` — needed for Phase 4 behavioral verification
 
 ### Report
 
@@ -36,6 +37,7 @@ Maven:      {✅ ./mvnw (wrapper) | ✅ mvn (system) | ❌ not found}
 Docker:     {✅ docker {version} | ❌ not found}
 JDK:        {✅ {vendor} {version} | ❌ not found}
 JBang:      {✅ jbang {version} | ❌ not found | (not needed)}
+Camel CLI: {✅ camel {version} | ❌ not found}
 
 Ready for: {list of phases that can run}
 Skipped:   {list of phases that cannot run, with reason}
@@ -146,9 +148,9 @@ Start the application and verify it launches without errors.
 ### Steps
 
 1. Determine the startup command based on runtime:
-   - **Quarkus:** `./mvnw quarkus:dev -Dquarkus.console.enabled=false`
+   - **Quarkus:** `./mvnw quarkus:dev -Dquarkus.analytics.disabled=true -Dquarkus.console.enabled=false`
    - **Spring Boot:** `./mvnw spring-boot:run`
-   - **JBang:** `jbang camel@apache/camel run *.camel.yaml`
+   - **JBang:** `camel run *.camel.yaml *.xsl application.properties`
 
 2. Start the application and capture logs for up to 60 seconds, or until one of these patterns appears:
    
@@ -171,11 +173,45 @@ Start the application and verify it launches without errors.
 
 **Iteration loop (Phase 3):**
 
-Same structure as Phase 2's iteration loop, but:
-- The "run" step is: start the application and capture logs
-- Use the **Startup Errors** and **Runtime Errors** sections from error-taxonomy.md
-- Additional routing: if `Connection refused` on a known port → try `docker compose restart {service}` before other fixes
-- Phase 3 has its own independent iteration counter (max 15), separate from Phase 2
+```
+iteration_count = 0
+previous_error = null
+
+while iteration_count < 15:
+    1. Start the application (using the runtime-specific command above), capture logs
+    2. Wait for success or failure pattern (up to 60 seconds)
+    3. If success pattern found → break (proceed to Phase 4)
+    
+    4. Extract the error from the log output
+    5. If this is the SAME error as previous_error:
+       → Short-circuit: "Fix did not resolve the error. Same error after {iteration_count} iterations."
+       → Escalate to user and stop Phase 3
+    
+    6. Classify the error using error-taxonomy.md (Startup Errors and Runtime Errors sections)
+    7. If UNCLASSIFIED:
+       → Escalate: "Unknown startup error" + raw log output
+       → Stop Phase 3
+    
+    8. Special case: if error is "Connection refused" on a known port:
+       → Try `docker compose restart {service}` first before other fixes
+    
+    9. Read the Fix target from the classification:
+       - Self-repair → edit the file directly
+       - camel-validate → load and run camel-validate skill
+       - camel-implement → load and re-generate the affected flow
+       - Escalate → report to user and stop Phase 3
+    
+    10. Apply the fix
+    11. Stop the running application before retrying
+    12. previous_error = current_error
+    13. iteration_count += 1
+
+if iteration_count >= 15:
+    → "Iteration limit reached. 15 fixes attempted without resolving startup errors."
+    → Escalate to user
+```
+
+Note: Phase 3 has its own independent iteration counter (max 15), separate from Phase 2's counter.
 
 5. After the iteration loop, if the application is now running → proceed to Phase 4
 
@@ -260,10 +296,38 @@ When mismatches are found, classify and route the fix:
 | Extra unexpected field in output | camel-implement | Check route processing steps, remove extra mapping |
 | Type mismatch (string vs number) | camel-implement | Fix type conversion in transformation |
 
-Same iteration structure as Phase 2/3:
-- Max 15 iterations per phase (Phase 4 has its own counter)
-- Same-error short-circuit: if the same mismatch appears after a fix attempt, escalate
-- After each fix: restart the app (Phase 3 start command), re-send the test case, re-compare
+```
+iteration_count = 0
+previous_mismatches = null
+
+while iteration_count < 15:
+    1. For each test case with mismatches:
+       a. Classify the mismatch type using the table above
+       b. Route the fix to camel-implement
+       c. Apply the fix (re-generate transformation, fix expression, etc.)
+    
+    2. Stop the running application
+    3. Restart the application (Phase 3 start command)
+    4. Wait for success pattern (up to 60 seconds)
+    5. Re-send the failing test cases via `camel cmd send`
+    6. Re-compare actual vs expected output
+    
+    7. If all test cases now pass → break (proceed to Phase 5)
+    
+    8. current_mismatches = extract mismatches from comparison
+    9. If current_mismatches == previous_mismatches:
+       → Short-circuit: "Fix did not resolve the behavioral mismatch."
+       → Escalate to user and stop Phase 4
+    
+    10. previous_mismatches = current_mismatches
+    11. iteration_count += 1
+
+if iteration_count >= 15:
+    → "Iteration limit reached. 15 fixes attempted without resolving behavioral mismatches."
+    → Escalate to user
+```
+
+Phase 4 has its own independent iteration counter (max 15), separate from Phase 2 and Phase 3.
 
 ---
 
