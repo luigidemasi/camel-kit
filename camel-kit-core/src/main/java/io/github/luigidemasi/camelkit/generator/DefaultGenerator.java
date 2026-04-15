@@ -28,7 +28,7 @@ public class DefaultGenerator implements AgentGenerator {
     }
 
     private void createCommandTemplates(InitContext ctx) throws Exception {
-        List<String> commands = List.of("brainstorm", "flow", "plan", "implement", "validate", "test", "execute", "migrate", "knowledge");
+        List<String> commands = List.of("brainstorm", "flow", "plan", "implement", "validate", "test", "execute", "migrate", "knowledge", "verify");
 
         // Extract agent base folder (e.g., ".bob" from ".bob/commands")
         String agentBaseFolder = ctx.agent().folder().substring(0, ctx.agent().folder().lastIndexOf("/"));
@@ -263,8 +263,8 @@ public class DefaultGenerator implements AgentGenerator {
         if (Files.exists(target)) return;
 
         // The runner JAR is bundled on the classpath by maven-dependency-plugin
-        String resourceName = "offline-repo/" + "camel-jbang-mcp-"
-                + CamelKitMain.CAMEL_MCP_VERSION + "-runner.jar";
+        // with a fixed destFileName (no version in the filename)
+        String resourceName = "offline-repo/" + jarName;
         try (InputStream in = getClass().getClassLoader().getResourceAsStream(resourceName)) {
             if (in != null) {
                 Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);

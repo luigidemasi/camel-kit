@@ -8,10 +8,10 @@ End-user guide for designing, implementing, and verifying Apache Camel integrati
 - [2. How Camel-Kit Thinks](#2-how-camel-kit-thinks)
 - [3. Getting Started](#3-getting-started)
 - [4. The Workflow: Greenfield Projects](#4-the-workflow-greenfield-projects)
-- [5. The Shortcut: Single Flow](#5-the-shortcut-single-flow)
-- [6. Migration](#6-migration)
-- [7. Verification](#7-verification)
-- [8. Data Transformation (DataMapper)](#8-data-transformation-datamapper)
+- [5. Migration](#5-migration)
+- [6. Verification](#6-verification)
+- [7. Data Transformation (DataMapper)](#7-data-transformation-datamapper)
+- [8. Project Graph Analysis](#8-project-graph-analysis)
 - [9. Multi-Agent Support](#9-multi-agent-support)
 - [10. MCP Integration](#10-mcp-integration)
 - [11. Troubleshooting](#11-troubleshooting)
@@ -177,15 +177,15 @@ The init command copies skill files, configures MCP, and sets up the Maven wrapp
 
 ## 4. The Workflow: Greenfield Projects
 
-Camel-Kit follows a 3-phase pipeline: **Brainstorm** (design), **Plan** (task decomposition), **Execute** (implement + validate + test + verify). Each phase produces a document, the user approves it, and the pipeline advances automatically.
+Camel-Kit follows a 3-phase pipeline: **Design**, **Plan**, **Execute**. Each phase produces a document, the user approves it, and the pipeline advances automatically.
 
 ```mermaid
 flowchart TB
     subgraph CLI
         A["camel-kit init"]
     end
-    subgraph "Phase 1: Brainstorm"
-        B["/camel-brainstorm"]
+    subgraph "Phase 1: Design"
+        B["/camel-design"]
     end
     subgraph "Phase 2: Plan"
         C["/camel-plan"]
@@ -210,9 +210,9 @@ flowchart TB
     D --> E
 ```
 
-### Phase 1: Brainstorm (`/camel-brainstorm`)
+### Phase 1: Design (`/camel-design`)
 
-The brainstorm phase is an interactive interview that produces the design spec. The AI asks questions one at a time -- never in batches -- to understand your integration before designing it.
+The design phase is an interactive interview that produces the design spec. The AI asks questions one at a time -- never in batches -- to understand your integration before designing it.
 
 **What it covers:**
 - Business purpose and goals
@@ -264,8 +264,8 @@ Suppose you need an order processing integration that reads orders from Kafka, v
 camel-kit init order-processing --ai claude
 cd order-processing
 
-# 2. Start the brainstorm (in your AI assistant)
-/camel-brainstorm
+# 2. Start the design (in your AI assistant)
+/camel-design
 
 # The AI asks about your business requirements, systems, and data flows.
 # After the interview, it presents a design spec with:
@@ -292,25 +292,7 @@ cd order-processing
 
 ---
 
-## 5. The Shortcut: Single Flow
-
-### `/camel-flow`
-
-Use `/camel-flow` when you want to skip the full pipeline and work on a single integration flow quickly. This is useful for:
-
-- Rapid prototyping of a single flow
-- Adding one new flow to an existing project
-- Exploring a component or pattern
-
-```
-/camel-flow order-ingestion
-```
-
-`/camel-flow` is a shortcut that enters `/camel-brainstorm` with the project type pre-set to greenfield -- it skips the "greenfield or migration?" detection question and goes straight to the interview for a single flow. After the interview, the pipeline continues through plan and execute as usual.
-
----
-
-## 6. Migration
+## 5. Migration
 
 ### `/camel-migrate`
 
@@ -338,7 +320,7 @@ The command scans all project artifacts, detects the source platform automatical
 
 ### Output
 
-The migration produces a BRD and TDDs in the same format as `/camel-brainstorm`. This means the rest of the pipeline is identical:
+The migration produces a BRD and TDDs in the same format as `/camel-design`. This means the rest of the pipeline is identical:
 
 ```
 /camel-migrate  -->  /camel-plan  -->  /camel-execute  -->  /camel-verify
@@ -348,7 +330,7 @@ The migration output is fully compatible with the greenfield pipeline. From the 
 
 ---
 
-## 7. Verification
+## 6. Verification
 
 ### `/camel-verify`
 
@@ -384,7 +366,7 @@ Verification adapts to available tools. If Maven is missing, build and startup p
 
 ---
 
-## 8. Data Transformation (DataMapper)
+## 7. Data Transformation (DataMapper)
 
 Camel-Kit automatically handles data transformation during the design phase. The AI determines the transformation engine, gathers field mappings, and writes the canonical mapping specification to the TDD. Implementation is handled by `/camel-execute`.
 
@@ -436,6 +418,52 @@ XSLT transformations include Kaoto DataMapper metadata, allowing you to visually
 
 ---
 
+## 8. Project Graph Analysis
+
+When working with existing Camel projects -- whether migrating from another platform, extending an established codebase, or validating a generated project -- Camel-Kit can build a **property graph** of the entire project structure. The graph captures classes, methods, Camel routes, endpoints, Maven dependencies, and configuration properties, with typed edges representing the relationships between them (extends, calls, routes-from, routes-to, depends-on, configures).
+
+### What the Graph Provides
+
+| Capability | What It Does | When It Helps |
+|-----------|-------------|---------------|
+| **Route flow tracing** | Follows the complete message path through a route chain, including cross-route links via `direct:`, `seda:`, and `vm:` endpoints | Understanding how data flows end-to-end through a multi-route integration |
+| **Impact analysis** | Traces upstream and downstream dependencies of any node -- a route, a class, a configuration property | Before changing a shared bean or endpoint, knowing which routes will be affected |
+| **Dead code detection** | Identifies unused Maven dependencies, orphaned routes (not referenced by any other route), and stale configuration properties | Cleaning up projects after incremental changes, catching leftover artifacts from migration |
+| **Route topology mapping** | Maps route-to-route connections to determine which routes are independent | Claude uses this to dispatch independent routes to parallel subagents during `/camel-execute` |
+| **Project norm extraction** | Computes statistical norms from the codebase -- naming patterns, error handling coverage, route complexity (P75 step count) | Validation uses project-specific thresholds instead of hardcoded defaults |
+
+### How the Pipeline Uses the Graph
+
+The graph is consumed transparently by multiple skills:
+
+- **`/camel-validate`** -- Validation thresholds adapt to the project's actual patterns. A route with 15 steps is acceptable in a project where existing routes average 12 steps, but flagged in a project where they average 5. Dead code detection finds unused dependencies and orphaned routes.
+- **`/camel-implement`** -- The AI matches the project's existing conventions (naming patterns, bean reuse, dependency versions) rather than inventing new ones.
+- **`/camel-test`** -- Route topology awareness lets the AI understand upstream and downstream dependencies, generating tests that cover integration points rather than just individual routes.
+- **`/camel-migrate`** -- A full-project graph analysis in Phase 0 detects structural concerns (circular dependencies, deeply nested route chains, unused components) before any code is translated. Per-route impact analysis in Phase 2 identifies cross-cutting concerns for each route being migrated.
+
+### Graph Commands
+
+```bash
+# Build the project graph
+camel-kit graph generate
+
+# View graph statistics (node/edge counts by type)
+camel-kit graph stats
+
+# Extract project norms for validation
+camel-kit graph project-norms
+
+# Extract implementation conventions
+camel-kit graph project-context
+
+# Map route topology (connections between routes)
+camel-kit graph route-topology
+```
+
+The graph is stored in `.camel-kit/project-graph.json` and rebuilt automatically when relevant commands detect changes. For greenfield projects where no code exists yet, the graph is not generated -- all skills fall back to sensible defaults. The graph **enhances but never gates**: its presence improves output quality, but its absence never blocks the pipeline.
+
+---
+
 ## 9. Multi-Agent Support
 
 The same skills work across all five supported AI coding assistants. Camel-Kit uses markdown instruction files that are loaded by whichever agent you choose -- the workflow, rules, and output quality are identical regardless of agent.
@@ -472,6 +500,37 @@ All agents produce the same output (YAML routes, properties files, tests). The d
 | **MCP approval prompts** | Gemini auto-approves MCP tool calls via its policy engine. Other agents may prompt you for each MCP call. |
 | **Execution limits** | OpenCode and Gemini enforce step/turn limits per phase. Other agents have no hard limits. |
 
+### How Execution Works: Subagents vs. Mode Switching
+
+During `/camel-execute`, the AI must implement multiple tasks, review each one, and fix issues -- all autonomously. How it manages this work internally depends on the agent's native capabilities.
+
+**Agents with subagent support (Claude, Gemini, Qwen, OpenCode)** dispatch each pipeline task to a fresh, isolated subagent. The subagent receives only the information it needs -- the task description, the relevant design spec section, and the skill guides -- and works in its own context window. When it finishes, a separate reviewer subagent checks the output. This isolation prevents cross-contamination: a mistake in one task cannot leak into the next, and the reviewer has no bias from having written the code.
+
+The execution loop for these agents:
+
+1. Read the implementation plan and extract all tasks
+2. For each task, dispatch an **implementer subagent** with the task text and context
+3. When done, dispatch a **spec compliance reviewer** -- does the output match the design?
+4. If spec review passes, dispatch a **code quality reviewer** -- constitution rules, security, anti-patterns
+5. If either reviewer finds issues, the implementer fixes them and the reviewer re-checks
+6. Mark task complete and move to the next
+
+**Claude** goes further: it uses route graph topology to identify which tasks are independent (no shared endpoints or configuration), then dispatches those tasks to parallel subagents simultaneously. This is the only agent that can implement multiple flows at the same time.
+
+**Bob does not support subagents.** Instead, it uses a **mode-switching** approach: the pipeline loads in Advanced mode (unrestricted, so it can read all skill files and context), then the first instruction switches to a restricted custom mode (`camel-implement`, `camel-validate`, etc.) with scoped tool permissions. Each mode constrains what the AI can do -- during brainstorm, Bob physically cannot edit code files because the mode's tool group excludes file editing. This is enforced at the platform level, not through instructions the AI could ignore.
+
+The trade-off: Bob cannot isolate tasks into separate context windows (all work happens in a single session), and it cannot run reviewer checks in a separate agent (the same session reviews its own work). The compensation is that Bob's mode restrictions are the strictest of any agent -- the platform prevents the AI from using tools outside the current phase, which provides a different kind of safety guarantee.
+
+| Capability | Subagent Agents (Claude, Gemini, Qwen, OpenCode) | Mode-Switching Agent (Bob) |
+|-----------|--------------------------------------------------|---------------------------|
+| Context isolation per task | Fresh subagent with clean context | Same session, accumulated context |
+| Reviewer independence | Separate subagent reviews the work | Same session reviews its own work |
+| Parallel execution | Claude only (graph-based independence detection) | Not possible |
+| Tool restriction enforcement | Varies: instruction-based (Claude), tool whitelists (Qwen), glob permissions (OpenCode), TOML policies (Gemini) | Platform-enforced mode restrictions (strictest) |
+| Phase transition | Dispatch new subagent | Switch custom mode |
+
+Despite these architectural differences, the output is identical -- same YAML routes, same quality rules enforced, same MCP verification. The equalization layer ensures that the *what* is consistent; only the *how* differs.
+
 ### The Equalization Layer
 
 Skills are markdown instruction files that the AI agent loads and follows. Because every agent reads the same skill files, the pipeline behavior is consistent across agents:
@@ -481,7 +540,7 @@ Skills are markdown instruction files that the AI agent loads and follows. Becau
 - The same MCP tools are called
 - The same output formats are produced
 
-The dispatch model is internal to the agent. You run the same commands (`/camel-brainstorm`, `/camel-execute`, etc.) and get the same artifacts regardless of which agent you chose.
+The dispatch model is internal to the agent. You run the same commands (`/camel-design`, `/camel-execute`, etc.) and get the same artifacts regardless of which agent you chose.
 
 For contributor-level details on each agent's architecture (template files, permission models, dispatch internals), see [Agent Architectures](agent-architectures.md).
 

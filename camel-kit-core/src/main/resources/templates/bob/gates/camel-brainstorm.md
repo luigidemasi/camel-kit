@@ -9,6 +9,33 @@ Turn integration ideas into fully formed design specs through collaborative dial
 
 **Core principle:** Understand before designing. Design before planning. Plan before coding.
 
+## Guide Locations
+
+All guides are in `.bob/skills/`. Always use these full paths from the project root:
+
+| Reference in steps | Actual path |
+|---|---|
+| `greenfield-interview.md` | `.bob/skills/camel-brainstorm/guides/greenfield-interview.md` |
+| `migration-discovery.md` | `.bob/skills/camel-brainstorm/guides/migration-discovery.md` |
+| `migration-graph-analysis.md` | `.bob/skills/camel-brainstorm/guides/migration-graph-analysis.md` |
+| `version-selection.md` | `.bob/skills/camel-brainstorm/guides/version-selection.md` |
+| `design-assembly.md` | `.bob/skills/camel-brainstorm/guides/design-assembly.md` |
+| `camel-version-phase1.md` | `.bob/skills/camel-migrate/guides/camel-version-phase1.md` |
+| `camel-version-phase2.md` | `.bob/skills/camel-migrate/guides/camel-version-phase2.md` |
+| `orchestrator.md` | `.bob/skills/camel-implement/guides/orchestrator.md` |
+
+Do NOT explore or list directories to find guides — use the paths above.
+
+## Autonomous Execution Rules (Steps 14–16)
+
+After plan approval (Step 13), Steps 14 (Implement), 15 (Validate), and 16 (Test) execute as an **uninterrupted sequence**:
+
+1. **No pausing between steps** — After implementation, immediately validate. After validation, immediately test.
+2. **No completion summaries until ALL steps complete** — The ONLY summary is printed after Step 16 (Test) finishes.
+3. **No "Next Steps" blocks** — You ARE executing the next step RIGHT NOW.
+4. **No asking for confirmation** — The plan approval (Step 13) is authorization for ALL remaining steps.
+5. **No README generation** — Do NOT generate documentation files mid-pipeline.
+
 <Steps>
 <Step>
 ## Switch to Brainstorm Mode
@@ -48,7 +75,7 @@ Read these files if they exist:
 ## Run Interview or Discovery
 
 **For greenfield projects:**
-Read `guides/greenfield-interview.md` for the Socratic interview process.
+Read `.bob/skills/camel-brainstorm/guides/greenfield-interview.md` for the Socratic interview process.
 Ask ONE question at a time. Do NOT batch questions.
 Understand:
 - Systems to connect
@@ -57,7 +84,7 @@ Understand:
 - Non-functional requirements (security, resilience, monitoring)
 
 **For migration projects:**
-Read `guides/migration-discovery.md` for the discovery process.
+Read `.bob/skills/camel-brainstorm/guides/migration-discovery.md` for the discovery process.
 Scan source artifacts and detect:
 - Vendor (MuleSoft, Fuse, Camel 2.x/3.x)
 - Platform (Spring Boot, Karaf, Quarkus, Plain Java)
@@ -65,7 +92,7 @@ Scan source artifacts and detect:
 - Routes and components
 - Migration concerns
 
-If project graph is available, read `guides/migration-graph-analysis.md` for graph-accelerated analysis.
+If project graph is available, read `.bob/skills/camel-brainstorm/guides/migration-graph-analysis.md` for graph-accelerated analysis.
 
 Confirm all findings with the user.
 </Step>
@@ -73,7 +100,7 @@ Confirm all findings with the user.
 <Step>
 ## Select Camel Version
 
-Read `guides/version-selection.md` for the version selection process.
+Read `.bob/skills/camel-brainstorm/guides/version-selection.md` for the version selection process.
 
 Help the user select:
 1. Target Camel version (Red Hat Build)
@@ -104,7 +131,7 @@ Do NOT guess component names. MCP catalog is truth.
 <Step>
 ## Assemble Design Spec
 
-Read `guides/design-assembly.md` for the full assembly process.
+Read `.bob/skills/camel-brainstorm/guides/design-assembly.md` for the full assembly process.
 
 Assemble the complete design spec including:
 - Project overview
@@ -151,7 +178,7 @@ All design decisions are locked. Create a checkpoint now.
 
 Switch to **camel-plan** mode.
 
-Read `guides/camel-version-phase1.md` for BRD generation (greenfield) or migration-specific BRD guides.
+Read `.bob/skills/camel-migrate/guides/camel-version-phase1.md` for BRD generation (greenfield) or migration-specific BRD guides.
 
 Generate the Business Requirements Document (BRD) at `docs/business-requirements.md`.
 </Step>
@@ -159,7 +186,7 @@ Generate the Business Requirements Document (BRD) at `docs/business-requirements
 <Step>
 ## Generate Technical Design
 
-Read `guides/camel-version-phase2.md` for TDD generation.
+Read `.bob/skills/camel-migrate/guides/camel-version-phase2.md` for TDD generation.
 
 Generate Technical Design Documents (TDDs) at `docs/flows/\{flow-name\}/\{flow-name\}.tdd.md`.
 
@@ -197,7 +224,15 @@ Implement each route following the TDDs. For each route:
 5. Run tests
 6. Commit
 
-Read `guides/orchestrator.md` for implementation execution rules.
+Read `.bob/skills/camel-implement/guides/orchestrator.md` for implementation execution rules.
+
+**CRITICAL — CONTINUATION REQUIRED:** After all routes are implemented, you MUST IMMEDIATELY proceed to the next step (Validate). Do NOT:
+- Print "Implementation complete" or any completion summary
+- Print "Next Steps" or suggest manual actions
+- Stop, pause, or ask the user what to do next
+- Generate a README or documentation
+
+Implementation is step 14 of 16. Steps 15 (Validate) and 16 (Test) are mandatory. Proceed NOW.
 </Step>
 
 <Step>
@@ -210,6 +245,8 @@ Report findings without modifying files.
 
 If the project graph is available, run:
 `{commandPrefix} graph project-norms` and `{commandPrefix} graph dead-code`
+
+**After validation completes, IMMEDIATELY proceed to the next step (Test). Do NOT stop or print summaries.**
 </Step>
 
 <Step>
@@ -221,8 +258,35 @@ Switch to **camel-test** mode.
 
 Write and run integration tests for all routes.
 Verify all tests pass.
+
+**This is the FINAL step.** Now print the completion summary:
+
+```
+===============================================================
+IMPLEMENTATION COMPLETE
+===============================================================
+
+Routes Implemented: [N]
+Validation: PASS/FAIL
+Tests: PASS/FAIL ([N] passing, [M] failing)
+
+Generated Files:
+  [list all generated files]
+
+Constitution Compliance: PASS/FAIL (all 7 rules)
+===============================================================
+```
 </Step>
 </Steps>
+
+## Never
+
+- Stop after implementation to print a summary or "Next Steps"
+- Ask "Would you like me to continue?" between implement, validate, and test
+- Print "Implementation complete" before validation and testing are done
+- Skip validation or testing
+- Generate a README mid-pipeline instead of continuing to the next step
+- Say "implementation has been completed" while steps remain uncompleted
 
 ## Iron Laws
 

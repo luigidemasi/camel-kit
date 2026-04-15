@@ -20,6 +20,8 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 import java.io.IOException;
+import io.github.luigidemasi.camelkit.catalog.VersionMapping;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -236,11 +238,10 @@ public class InitCommand extends CamelKitCommand {
         printer().println("  " + bold("Next steps"));
         printer().println(divider);
         printer().println("  1  Open " + cyan(projectName) + " in " + agent.name());
-        printer().println("  2  " + cyan("/camel-flow") + "       \u2014 new integration (greenfield)");
-        printer().println("     " + cyan("/camel-migrate") + "    \u2014 migrate from another platform");
-        printer().println("     " + cyan("/camel-brainstorm") + " \u2014 auto-detect greenfield or migration");
-        printer().println("  3  " + cyan("/camel-plan") + "       \u2014 create implementation plan");
-        printer().println("  4  " + cyan("/camel-execute") + "    \u2014 execute plan with subagents");
+        printer().println("  2  " + cyan("/camel-brainstorm") + " \u2014 design an integration (greenfield or migration)");
+        printer().println("     " + cyan("/camel-flow") + "       \u2014 greenfield shortcut");
+        printer().println("     " + cyan("/camel-migrate") + "    \u2014 migration shortcut");
+        printer().println("  3  " + cyan("/camel-verify") + "     \u2014 build, run, and diagnose");
         printer().println();
 
         return 0;
@@ -249,6 +250,9 @@ public class InitCommand extends CamelKitCommand {
     private void createConfigFile(Path dir, String name, String version, String citrusVer,
                                    String ai, AgentConfig agent) throws Exception {
         String cmdPrefix = detectCommandPrefix();
+        VersionMapping.CatalogVersions cv = VersionMapping.resolve(version);
+        String quarkusBom = extractVersion(cv != null ? cv.quarkusPlatformBom() : null);
+        String springBootBom = extractVersion(cv != null ? cv.springBootPlatformBom() : null);
         String yaml = """
             # Camel-Kit Configuration
             project:
@@ -256,6 +260,9 @@ public class InitCommand extends CamelKitCommand {
               camelVersion: "%s"
               citrusVersion: "%s"
               command-prefix: "%s"
+              platformBomVersion:
+                quarkus: "%s"
+                spring-boot: "%s"
 
             agent:
               name: %s
@@ -264,8 +271,17 @@ public class InitCommand extends CamelKitCommand {
             catalog:
               source: bundled
               lastUpdated: %s
-            """.formatted(name, version, citrusVer, cmdPrefix, ai, agent.folder(), Instant.now().toString());
+            """.formatted(name, version, citrusVer, cmdPrefix,
+                quarkusBom, springBootBom,
+                ai, agent.folder(), Instant.now().toString());
         Files.writeString(dir.resolve("config.yaml"), yaml);
+    }
+
+    /** Extract version from a Maven GAV string (groupId:artifactId:version). */
+    private String extractVersion(String gav) {
+        if (gav == null || gav.isBlank()) return "unknown";
+        int lastColon = gav.lastIndexOf(':');
+        return lastColon >= 0 ? gav.substring(lastColon + 1) : gav;
     }
 
     private String detectCommandPrefix() {

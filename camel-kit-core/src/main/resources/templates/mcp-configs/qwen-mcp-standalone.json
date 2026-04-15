@@ -6,6 +6,7 @@
         "--repos", "{CAMEL_MCP_REPOS}",
         "-Dcamel.catalog.repos={CAMEL_CATALOG_REPOS}",
         "-Dquarkus.log.level=WARN",
+        "-Dquarkus.http.port=-1",
         "org.apache.camel:camel-jbang-mcp:{CAMEL_MCP_VERSION}:runner"
       ],
       "description": "Apache Camel MCP Server - Component catalog, validation, and security analysis",

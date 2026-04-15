@@ -131,6 +131,7 @@
                                     <version>${camel.mcp.version}</version>
                                     <classifier>runner</classifier>
                                     <type>jar</type>
+                                    <destFileName>camel-jbang-mcp-runner.jar</destFileName>
                                 </artifactItem>
                                 <!-- Red Hat catalog JARs for the default version (4.14) -->
                                 <artifactItem>

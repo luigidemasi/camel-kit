@@ -11,6 +11,10 @@ Follow every step in order. Do NOT skip steps.
 
 **Core principle:** The plan contains detailed instructions on HOW to generate code, NOT the generated code itself.
 
+## Guide Locations
+
+All planning guides are in `.bob/skills/camel-plan/guides/`. When this file says `guides/X.md`, read `.bob/skills/camel-plan/guides/X.md`. Do NOT explore or list directories to find guides.
+
 <Steps>
 <Step>
 ## Switch to Plan Mode

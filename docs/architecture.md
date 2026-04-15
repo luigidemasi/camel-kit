@@ -53,17 +53,16 @@ The frontmatter fields:
 
 | Skill | User-Invocable | Loaded By | Purpose |
 |-------|---------------|-----------|---------|
-| `camel-brainstorm` | Yes | -- | Orchestrate design phase: interview user, produce BRD + TDDs |
-| `camel-plan` | Yes | `camel-brainstorm` (after spec approval) | Produce detailed implementation plan from approved design spec |
+| `camel-design` | Yes | -- | Orchestrate design phase: interview user, produce BRD + TDDs |
+| `camel-plan` | Yes | `camel-design` (after spec approval) | Produce detailed implementation plan from approved design spec |
 | `camel-execute` | Yes | `camel-plan` (after plan approval) | Dispatch subagents per task with two-stage review |
-| `camel-flow` | Yes | -- | Greenfield entry point: shortcut into `camel-brainstorm` with project type pre-set |
-| `camel-migrate` | Yes | -- | Migration entry point: shortcut into `camel-brainstorm` with project type pre-set |
+| `camel-migrate` | Yes | -- | Migration entry point: shortcut into `camel-design` with project type pre-set |
 | `camel-verify` | Yes | `camel-execute` (after all tasks) | 5-phase runtime verification loop |
-| `camel-design` | No | `camel-brainstorm` | Guides for component selection, EIP catalog, TDD assembly |
+| `camel-design-reference` | No | `camel-design` | Guides for component selection, EIP catalog, TDD assembly |
 | `camel-implement` | No | `camel-execute` | Guides for YAML generation, properties, Docker Compose, DataMapper |
 | `camel-validate` | No | `camel-execute` | Guides for schema validation, endpoint verification, security analysis |
 | `camel-test` | No | `camel-execute` | Guides for route analysis and test generation with Citrus + Testcontainers |
-| `camel-knowledge` | No | `camel-brainstorm`, `camel-execute` | Routes questions to Red Hat knowledge MCP tools |
+| `camel-knowledge` | No | `camel-design`, `camel-execute` | Routes questions to Red Hat knowledge MCP tools |
 
 ### Shared Guides
 
@@ -110,7 +109,7 @@ brainstorm / migrate
    artifacts + verification report
 ```
 
-Entry points diverge (`camel-flow` for greenfield, `camel-migrate` for migration) but both produce the same artifact format -- a BRD (Business Requirements Document) with TDDs (Technical Design Documents). This means `camel-plan` and `camel-execute` work identically regardless of whether the project is greenfield or migrated.
+Entry points diverge (`camel-design` for greenfield, `camel-migrate` for migration) but both produce the same artifact format -- a BRD (Business Requirements Document) with TDDs (Technical Design Documents). This means `camel-plan` and `camel-execute` work identically regardless of whether the project is greenfield or migrated.
 
 ### How camel-execute Dispatches Work
 
@@ -135,7 +134,7 @@ The dispatch model varies by AI agent:
 
 ### The BRD+TDD Contract
 
-Both `camel-brainstorm` (greenfield) and `camel-migrate` (migration) produce the same output format: a BRD with per-flow TDDs. This is the contract between design and implementation -- `camel-plan` consumes this format, and `camel-execute` implements from it. The design phase diverges (interview vs. source analysis), but the output converges.
+Both `camel-design` (greenfield) and `camel-migrate` (migration) produce the same output format: a BRD with per-flow TDDs. This is the contract between design and implementation -- `camel-plan` consumes this format, and `camel-execute` implements from it. The design phase diverges (interview vs. source analysis), but the output converges.
 
 ---
 
@@ -248,9 +247,43 @@ The five Iron Laws from `skills/shared/iron-laws.md` are embedded in each agent'
 4. **No Code Without Spec Approval** -- never generate implementation artifacts before the user has approved the design spec
 5. **Spec Compliance Before Quality** -- always run spec compliance review before code quality review; wrong order wastes effort
 
-### Per-Agent Architecture
+### Subagent-Driven Execution
 
-Each agent uses a different dispatch and tool restriction model, designed to maximize that agent's native capabilities. The design philosophy is **per-agent feature maximization** -- not lowest-common-denominator parity.
+The `/camel-execute` pipeline relies on dispatching discrete units of work to isolated agents. The design principle: the agent that writes the code should never be the same agent that reviews it, and each task should start from a clean context with no residual assumptions from previous tasks.
+
+Four of the five agents support this natively through **subagent dispatch**:
+
+- **Claude Code** -- uses the `Agent` tool to spawn fresh subagents per task. Each subagent receives the task text, relevant TDD section, guide file paths, and MCP parameters. After implementation, a separate reviewer subagent checks spec compliance, then a third checks code quality. Claude uniquely supports **parallel dispatch**: the route graph topology (from `camel-kit-graph`) identifies independent routes (no shared `direct:`, `seda:`, or `vm:` endpoints, no shared configuration properties), and independent tasks are dispatched simultaneously to multiple subagents.
+
+- **Gemini CLI** -- dispatches to 6 specialized subagents (brainstormer, planner, implementer, validator, tester, migrator). However, `/camel-execute` runs in the **main agent context** because Gemini prevents recursive subagent invocation -- a subagent cannot dispatch another subagent. The main agent orchestrates by dispatching individual tasks to the implementer subagent, then to the validator subagent, sequentially.
+
+- **Qwen** -- 7 sub-agents with description-based auto-delegation. The `"MUST BE USED for..."` phrasing in each sub-agent's description forces Qwen to automatically route work to the correct sub-agent based on intent keywords. The executor sub-agent has access to the `task` tool for dispatching work to other sub-agents.
+
+- **OpenCode** -- 7 agents with granular, per-type glob permissions. The executor agent has `task: {"*": allow}` permission, enabling it to dispatch work to the implementer, validator, and tester agents. Each agent has a `steps` limit (implementer: 50, executor: 100) that triggers graceful summarization rather than hard failure.
+
+**IBM Project Bob does not support subagents.** It uses a fundamentally different architecture -- the **B+A (Behavior + Advanced) hybrid with mode switching**:
+
+1. Each pipeline phase starts in **Advanced mode** (unrestricted), allowing the agent to read all skill files and project context
+2. The first instruction in the gate file switches to a **restricted custom mode** (e.g., `camel-design`, `camel-implement`) with scoped tool permissions
+3. The mode's tool group constrains what the AI can do for the remainder of that phase
+
+This means Bob cannot isolate tasks into separate context windows or use independent reviewer agents. The compensation is that Bob's tool restrictions are **platform-enforced**, not instruction-based. During design, Bob's `camel-design` mode grants only `read`, `edit` (`.md` files only via `fileRegex`), `mcp`, and `browser` -- the AI physically cannot edit code files because the mode excludes the edit tool for non-markdown files. This is stricter than any instruction-based constraint, which the AI could rationalize away.
+
+Bob also requires **monolithic gate files** (one per pipeline phase, 6-10 KB each) that inline complete orchestration logic, because it cannot chain skill references across mode switches the way subagent-based agents load skills into fresh contexts.
+
+The trade-off table:
+
+| Design Dimension | Subagent Dispatch | Mode Switching (Bob) |
+|-----------------|-------------------|---------------------|
+| Context isolation | Per-task (fresh subagent) | Per-session (accumulated) |
+| Reviewer independence | Separate subagent | Same session self-reviews |
+| Tool restriction mechanism | Instruction-based / tool whitelists / policies | Platform-enforced mode tool groups |
+| Parallel execution | Claude only (graph topology) | Not possible |
+| Skill loading | Loaded into subagent context on dispatch | Inlined in monolithic gate files |
+| Template complexity | 3-12 files per agent | 17+ files (gates + rules + modes) |
+| Failure isolation | Subagent failure doesn't affect other tasks | Phase failure affects entire session |
+
+### Per-Agent Summary
 
 | Agent | Dispatch Model | Key Differentiator |
 |-------|---------------|-------------------|
@@ -344,7 +377,7 @@ Data sources: product guides (HTML from docs.redhat.com), KB articles, errata (R
 
 | Skill | Tools Used | Count |
 |-------|------------|-------|
-| `camel-brainstorm` | `camel_version_list`, `camel_catalog_*` (all 8) | 9 |
+| `camel-design` | `camel_version_list`, `camel_catalog_*` (all 8) | 9 |
 | `camel-design` | `camel_catalog_components`, `camel_catalog_component_doc`, `camel_catalog_eips`, `camel_catalog_eip_doc`, `camel_catalog_dataformats`, `camel_catalog_dataformat_doc`, `camel_catalog_languages`, `camel_catalog_language_doc` | 8 |
 | `camel-migrate` | Same as `camel-design` (Phase 2) | 8 |
 | `camel-implement` | `camel_catalog_component_doc`, `camel_catalog_dataformat_doc`, `camel_catalog_eip_doc`, `camel_catalog_language_doc`, `camel_route_context`, `camel_validate_route` | 6 |

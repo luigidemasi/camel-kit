@@ -80,47 +80,23 @@ Record: `project.runtime` (`main`, `spring-boot`, or `quarkus`)
 
 After selecting the Camel version and runtime, resolve the platform-specific BOM version. This is critical — the BOM version is NOT the same as the Camel version.
 
-### If runtime is Quarkus
+<HARD-RULE>
+The platform BOM versions are **pre-computed** in `.camel-kit/config.yaml` under `project.platformBomVersion`. Read them from there — do NOT guess, interpolate, or derive them from the Camel version.
 
-The Quarkus platform version uses the Quarkus version scheme (3.x), NOT the Camel version scheme (4.x).
+```yaml
+# Example from .camel-kit/config.yaml
+project:
+  platformBomVersion:
+    quarkus: "3.27.2.redhat-00002"     # ← use this for Quarkus
+    spring-boot: "4.14.4.redhat-00010" # ← use this for Spring Boot
+```
 
-**To discover:** Fetch the directory listing from:
-`https://maven.repository.redhat.com/ga/com/redhat/quarkus/platform/quarkus-camel-bom/`
+- **If runtime is Quarkus:** use `project.platformBomVersion.quarkus` from config.yaml
+- **If runtime is Spring Boot:** use `project.platformBomVersion.spring-boot` from config.yaml
+- **If runtime is JBang:** no platform BOM needed — JBang uses the Camel version directly
 
-**Fallback mapping table** (if fetch fails):
-
-| Camel Version | Quarkus Platform Version |
-|--------------|--------------------------|
-| `4.14.4.redhat-00008` | `3.27.2.redhat-00002` |
-| `4.10.7.redhat-00009` | `3.20.0.redhat-00011` |
-| `4.8.5.redhat-00008` | `3.15.0.redhat-00010` |
-| `4.4.0.redhat-00046` | `3.8.0.redhat-00018` |
-| `4.0.0.redhat-00036` | `3.2.0.redhat-00030` |
-
-Record: `project.platformBomVersion` — the resolved Quarkus platform version (e.g., `3.27.2.redhat-00002`)
-
-### If runtime is Spring Boot
-
-The Spring Boot BOM version uses the same Camel base version but a different `.redhat-XXXXX` qualifier.
-
-**To discover:** Fetch the directory listing from:
-`https://maven.repository.redhat.com/ga/com/redhat/camel/springboot/platform/camel-spring-boot-bom/`
-
-**Fallback mapping table** (if fetch fails):
-
-| Camel Version | Spring Boot BOM Version |
-|--------------|------------------------|
-| `4.14.4.redhat-00008` | `4.14.4.redhat-00010` |
-| `4.10.7.redhat-00009` | `4.10.7.redhat-00013` |
-| `4.8.5.redhat-00008` | `4.8.5.redhat-00008` |
-| `4.4.0.redhat-00046` | `4.4.0.redhat-00039` |
-| `4.0.0.redhat-00036` | `4.0.0.redhat-00045` |
-
-Record: `project.platformBomVersion` — the resolved Spring Boot BOM version (e.g., `4.14.4.redhat-00010`)
-
-### If runtime is JBang
-
-No platform BOM needed — JBang uses Camel version directly.
+Record: `project.platformBomVersion` — the value from config.yaml for the selected runtime.
+</HARD-RULE>
 
 <HARD-RULE>
 The platform BOM version MUST have a `.redhat-XXXXX` suffix. Community versions are FORBIDDEN (Iron Law 2).

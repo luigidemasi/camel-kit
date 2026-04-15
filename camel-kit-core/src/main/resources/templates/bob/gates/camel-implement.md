@@ -9,6 +9,10 @@ Generate Apache Camel implementation artifacts from approved TDDs. Follow every 
 
 **Core principle:** Fresh implementation per route + TDD enforcement + MCP verification = high quality, correct code.
 
+## Guide Locations
+
+All implementation guides are in `.bob/skills/camel-implement/guides/`. When this file says `guides/X.md`, read `.bob/skills/camel-implement/guides/X.md`. Do NOT explore or list directories to find guides.
+
 <Steps>
 <Step>
 ## Switch to Implement Mode

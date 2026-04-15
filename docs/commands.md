@@ -7,10 +7,9 @@ This document is the reference for all Camel-Kit commands: the `camel-kit` CLI a
 - [CLI Commands](#cli-commands)
   - [camel-kit init](#camel-kit-init)
 - [Slash Commands](#slash-commands)
-  - [/camel-brainstorm](#camel-brainstorm)
+  - [/camel-design](#camel-design)
   - [/camel-plan](#camel-plan)
   - [/camel-execute](#camel-execute)
-  - [/camel-flow](#camel-flow)
   - [/camel-migrate](#camel-migrate)
   - [/camel-verify](#camel-verify)
 - [Command Cheat Sheet](#command-cheat-sheet)
@@ -127,11 +126,11 @@ Four additional skills (`/camel-implement`, `/camel-validate`, `/camel-test`, `/
 
 ---
 
-### /camel-brainstorm
+### /camel-design
 
 **Purpose:** Interactive design session that turns integration ideas into fully formed design specs through collaborative dialogue.
 
-**When to use:** Starting any new integration project, whether greenfield or migration.
+**When to use:** Starting any new integration project. For migrations, use `/camel-migrate` instead.
 
 **Produces:**
 - `.camel-kit/business-requirements.md` (BRD)
@@ -141,10 +140,8 @@ Four additional skills (`/camel-implement`, `/camel-validate`, `/camel-test`, `/
 **Example:**
 
 ```
-/camel-brainstorm
+/camel-design
 ```
-
-The command auto-detects whether the project is greenfield or migration based on context. If ambiguous, it asks.
 
 **How it works:**
 
@@ -176,7 +173,7 @@ The command auto-detects whether the project is greenfield or migration based on
 
 **Purpose:** Create a detailed implementation plan from an approved design spec.
 
-**When to use:** After `/camel-brainstorm` has produced an approved design spec. Usually invoked automatically by `/camel-brainstorm`, but can also be run directly if a design spec already exists.
+**When to use:** After `/camel-design` has produced an approved design spec. Usually invoked automatically by `/camel-design`, but can also be run directly if a design spec already exists.
 
 **Produces:**
 - `docs/implementation-plan.md`
@@ -258,33 +255,13 @@ During execution, `/camel-execute` dispatches these internal skills as needed. T
 
 ---
 
-### /camel-flow
-
-**Purpose:** Shortcut for starting a new greenfield integration without auto-detection.
-
-**When to use:** When you know you are building a new integration from scratch (not migrating).
-
-**Produces:** Same as `/camel-brainstorm` -- BRD and TDD files.
-
-**Example:**
-
-```
-/camel-flow
-```
-
-**How it works:**
-
-This is a shortcut into `/camel-brainstorm` with the project type pre-set to **greenfield**. It skips the "greenfield or migration?" detection question and jumps directly into the Socratic interview. Everything else (MCP verification, design assembly, user approval, automatic transition to `/camel-plan`) works identically.
-
----
-
 ### /camel-migrate
 
 **Purpose:** Migrate an existing integration from another platform to Red Hat Build of Apache Camel.
 
 **When to use:** When you have an existing MuleSoft, Camel 2.x/3.x, or Red Hat Fuse project to migrate.
 
-**Produces:** Same as `/camel-brainstorm` -- BRD and TDD files, plus a design spec tailored to the migration.
+**Produces:** Same as `/camel-design` -- BRD and TDD files, plus a design spec tailored to the migration.
 
 **Example:**
 
@@ -302,7 +279,7 @@ This is a shortcut into `/camel-brainstorm` with the project type pre-set to **g
 
 **How it works:**
 
-This is a shortcut into `/camel-brainstorm` with the project type pre-set to **migration**. It runs a two-phase analysis:
+This is a shortcut into `/camel-design` with the project type pre-set to **migration**. It runs a two-phase analysis:
 
 **Phase 1 -- Discovery and confirmation:**
 
@@ -414,12 +391,9 @@ Each phase has an independent iteration budget of 15 attempts. If the same error
 camel-kit init my-project --ai claude
 
 # Greenfield (in AI assistant)
-/camel-brainstorm                    # Design integration
+/camel-design                        # Design integration
 /camel-plan                          # Create implementation plan
 /camel-execute                       # Implement, validate, test, verify
-
-# Single flow shortcut
-/camel-flow
 
 # Migration
 /camel-migrate                       # Analyze legacy project

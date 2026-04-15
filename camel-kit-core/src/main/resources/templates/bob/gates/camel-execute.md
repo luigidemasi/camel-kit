@@ -9,6 +9,19 @@ Execute the approved implementation plan by implementing tasks sequentially with
 
 **Core principle:** Execute ALL tasks automatically without stopping between tasks. The user approved the entire plan — that is authorization to execute every task.
 
+## Guide Locations
+
+When loading guides, use full paths from the project root:
+
+| Skill | Base path |
+|---|---|
+| Execution guides | `.bob/skills/camel-execute/guides/` |
+| Implementation guides | `.bob/skills/camel-implement/guides/` |
+| Validation guides | `.bob/skills/camel-validate/guides/` |
+| Test guides | `.bob/skills/camel-test/guides/` |
+
+Do NOT explore or list directories to find guides — use the paths above.
+
 <Steps>
 <Step>
 ## Switch to Execute Mode

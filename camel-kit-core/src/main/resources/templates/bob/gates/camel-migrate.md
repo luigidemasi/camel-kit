@@ -7,6 +7,29 @@ description: Use when the user wants to migrate an existing integration from Mul
 
 This skill runs the complete migration pipeline. Follow every step in order. Do NOT skip steps.
 
+## Guide Locations
+
+Guides are spread across skill directories. Always use these full paths from the project root:
+
+| Reference in steps | Actual path |
+|---|---|
+| `migration-discovery.md` | `.bob/skills/camel-brainstorm/guides/migration-discovery.md` |
+| `version-selection.md` | `.bob/skills/camel-brainstorm/guides/version-selection.md` |
+| `design-assembly.md` | `.bob/skills/camel-brainstorm/guides/design-assembly.md` |
+| All other `guides/...` | `.bob/skills/camel-migrate/guides/` (same filename) |
+
+Do NOT explore or list directories to find guides — use the paths above.
+
+## Autonomous Execution Rules (Steps 12–14)
+
+After plan approval (Step 11), Steps 12 (Implement), 13 (Validate), and 14 (Test) execute as an **uninterrupted sequence**:
+
+1. **No pausing between steps** — After implementation, immediately validate. After validation, immediately test.
+2. **No completion summaries until ALL steps complete** — The ONLY summary is printed after Step 14 (Test) finishes.
+3. **No "Next Steps" blocks** — You ARE executing the next step RIGHT NOW.
+4. **No asking for confirmation** — The plan approval (Step 11) is authorization for ALL remaining steps.
+5. **No README generation** — Do NOT generate documentation files mid-pipeline.
+
 <Steps>
 <Step>
 ## Switch to Brainstorm Mode
@@ -18,7 +41,7 @@ This restricts your tools to read, markdown editing, MCP, and browser — preven
 <Step>
 ## Scan Source Artifacts
 
-Read `guides/migration-discovery.md` for the full discovery process.
+Read `.bob/skills/camel-brainstorm/guides/migration-discovery.md` for the full discovery process.
 
 Scan the source project for integration artifacts. Detect:
 - Vendor (MuleSoft, Fuse, Camel 2.x/3.x)
@@ -51,14 +74,14 @@ Wait for the answer before proceeding.
 For each remaining concern, use this pattern:
 "[Concern N of M] — [Title]. [Context]. [Options a/b/c]. Which approach?"
 
-Read `guides/migration-discovery.md` Step 5a for all concern templates.
+Read `.bob/skills/camel-brainstorm/guides/migration-discovery.md` Step 5a for all concern templates.
 </Step>
 
 <Step>
 ## Additional Clarifications
 
 Ask any remaining clarification questions ONE at a time.
-Read `guides/migration-discovery.md` Step 5b.
+Read `.bob/skills/camel-brainstorm/guides/migration-discovery.md` Step 5b.
 
 When all concerns are addressed, summarize decisions and ask:
 "All migration concerns addressed. Would you like to proceed to designing the Camel 4.x equivalent?"
@@ -69,7 +92,7 @@ Wait for explicit confirmation.
 <Step>
 ## Select Camel Version
 
-Read `guides/version-selection.md` for the version selection process.
+Read `.bob/skills/camel-brainstorm/guides/version-selection.md` for the version selection process.
 
 Help the user select:
 1. Target Camel version (Red Hat Build)
@@ -82,11 +105,11 @@ Store selections in `.camel-kit/config.yaml`.
 <Step>
 ## Design Camel Equivalents
 
-Read `guides/migration-discovery.md` Step 6 for component mapping.
+Read `.bob/skills/camel-brainstorm/guides/migration-discovery.md` Step 6 for component mapping.
 
 For migration-specific mappings, read the appropriate guide:
-- MuleSoft: `guides/mule-component-mapping.md`
-- Camel 2.x: `guides/camel2-component-mapping.md`, `guides/camel2-eip-mapping.md`, `guides/camel2-dataformat-mapping.md`, `guides/camel2-language-mapping.md`
+- MuleSoft: `.bob/skills/camel-migrate/guides/mule-component-mapping.md`
+- Camel 2.x: `.bob/skills/camel-migrate/guides/camel2-component-mapping.md`, `.bob/skills/camel-migrate/guides/camel2-eip-mapping.md`, `.bob/skills/camel-migrate/guides/camel2-dataformat-mapping.md`, `.bob/skills/camel-migrate/guides/camel2-language-mapping.md`
 
 Verify EVERY component via MCP: `camel_catalog_component` then `camel_rh_build_component_info`.
 </Step>
@@ -94,7 +117,7 @@ Verify EVERY component via MCP: `camel_catalog_component` then `camel_rh_build_c
 <Step>
 ## Assemble and Present Design Spec
 
-Read `guides/design-assembly.md` for the full assembly process.
+Read `.bob/skills/camel-brainstorm/guides/design-assembly.md` for the full assembly process.
 
 Assemble the migration design spec including:
 - Migration context (source → target)
@@ -120,7 +143,7 @@ All design decisions are locked. Create a checkpoint now.
 <Step>
 ## Switch to Plan Mode
 
-Switch to **camel-plan** mode. Read `guides/camel-version-phase1.md` for BRD generation.
+Switch to **camel-plan** mode. Read `.bob/skills/camel-migrate/guides/camel-version-phase1.md` for BRD generation.
 
 Generate the Business Requirements Document (BRD) at `docs/business-requirements.md`.
 </Step>
@@ -128,7 +151,7 @@ Generate the Business Requirements Document (BRD) at `docs/business-requirements
 <Step>
 ## Generate Technical Design
 
-Read `guides/camel-version-phase2.md` for TDD generation.
+Read `.bob/skills/camel-migrate/guides/camel-version-phase2.md` for TDD generation.
 
 Generate Technical Design Documents (TDDs) at `docs/flows/\{flow-name\}/\{flow-name\}.tdd.md`.
 </Step>
@@ -159,7 +182,15 @@ Implement each route following the TDDs. For each route:
 5. Run tests
 6. Commit
 
-Read `guides/camel2-platform-changes.md` for platform migration steps (pom.xml, config files).
+Read `.bob/skills/camel-migrate/guides/camel2-platform-changes.md` for platform migration steps (pom.xml, config files).
+
+**CRITICAL — CONTINUATION REQUIRED:** After all routes are implemented, you MUST IMMEDIATELY proceed to the next step (Validate). Do NOT:
+- Print "Migration implementation complete" or any completion summary
+- Print "Next Steps" or suggest manual actions
+- Stop, pause, or ask the user what to do next
+- Generate a README or migration documentation
+
+Implementation is step 12 of 14. Steps 13 (Validate) and 14 (Test) are mandatory. Proceed NOW.
 </Step>
 
 <Step>
@@ -172,6 +203,8 @@ Report findings without modifying files.
 
 If the project graph is available, run:
 `{commandPrefix} graph project-norms` and `{commandPrefix} graph dead-code`
+
+**After validation completes, IMMEDIATELY proceed to the next step (Test). Do NOT stop or print summaries.**
 </Step>
 
 <Step>
@@ -183,23 +216,55 @@ Switch to **camel-test** mode.
 
 Write and run integration tests for all migrated routes.
 Verify all tests pass.
+
+**This is the FINAL step.** Now print the migration completion summary:
+
+```
+===============================================================
+MIGRATION COMPLETE
+===============================================================
+
+Source: [vendor] [version]
+Target: Red Hat Build of Apache Camel [version] on [runtime]
+
+Migrated Routes: [N]
+Validation: PASS/FAIL
+Tests: PASS/FAIL ([N] passing, [M] failing)
+
+Generated Files:
+  [list all generated files]
+
+Constitution Compliance: PASS/FAIL (all 7 rules)
+===============================================================
+```
 </Step>
 </Steps>
+
+## Never
+
+- Stop after implementation to print a summary or "Next Steps"
+- Ask "Would you like me to continue?" between implement, validate, and test
+- Print "Migration complete" before validation and testing are done
+- Skip validation or testing
+- Generate a README mid-pipeline instead of continuing to the next step
+- Say "migration has been completed" while steps remain uncompleted
 
 ## Reference Guides
 
 | Guide | Purpose |
 |-------|---------|
-| `guides/mulesoft-phase1.md` | MuleSoft Business Analyst analysis |
-| `guides/mulesoft-phase2.md` | MuleSoft Technical Design |
-| `guides/mule-component-mapping.md` | Mule → Camel component map |
-| `guides/mule-dataweave-conversion.md` | DataWeave → XSLT strategies |
-| `guides/datamapper-migrate.md` | DataMapper XSLT migration |
-| `guides/camel-version-phase1.md` | Camel version analysis |
-| `guides/camel-version-phase2.md` | Camel version TDD generation |
-| `guides/camel-version-graph-analysis.md` | Graph-based pre-analysis |
-| `guides/camel2-component-mapping.md` | Camel 2.x → 4.x components |
-| `guides/camel2-dataformat-mapping.md` | Camel 2.x → 4.x dataformats |
-| `guides/camel2-eip-mapping.md` | Camel 2.x → 4.x EIPs |
-| `guides/camel2-language-mapping.md` | Camel 2.x → 4.x languages |
-| `guides/camel2-platform-changes.md` | Platform migration guide |
+| `.bob/skills/camel-brainstorm/guides/migration-discovery.md` | Migration discovery + interview |
+| `.bob/skills/camel-brainstorm/guides/version-selection.md` | Camel version selection |
+| `.bob/skills/camel-brainstorm/guides/design-assembly.md` | Design spec assembly |
+| `.bob/skills/camel-migrate/guides/mulesoft-phase1.md` | MuleSoft Business Analyst analysis |
+| `.bob/skills/camel-migrate/guides/mulesoft-phase2.md` | MuleSoft Technical Design |
+| `.bob/skills/camel-migrate/guides/mule-component-mapping.md` | Mule → Camel component map |
+| `.bob/skills/camel-migrate/guides/mule-dataweave-conversion.md` | DataWeave → XSLT strategies |
+| `.bob/skills/camel-migrate/guides/datamapper-migrate.md` | DataMapper XSLT migration |
+| `.bob/skills/camel-migrate/guides/camel-version-phase1.md` | Camel version analysis |
+| `.bob/skills/camel-migrate/guides/camel-version-phase2.md` | Camel version TDD generation |
+| `.bob/skills/camel-migrate/guides/camel2-component-mapping.md` | Camel 2.x → 4.x components |
+| `.bob/skills/camel-migrate/guides/camel2-dataformat-mapping.md` | Camel 2.x → 4.x dataformats |
+| `.bob/skills/camel-migrate/guides/camel2-eip-mapping.md` | Camel 2.x → 4.x EIPs |
+| `.bob/skills/camel-migrate/guides/camel2-language-mapping.md` | Camel 2.x → 4.x languages |
+| `.bob/skills/camel-migrate/guides/camel2-platform-changes.md` | Platform migration guide |

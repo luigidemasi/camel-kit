@@ -9,7 +9,7 @@
 
 > Design, implement, and verify Apache Camel integrations with AI coding assistants.
 
-Camel-Kit adds structured slash commands to your AI assistant that guide you through the full integration lifecycle — from brainstorming the design, through implementation and testing, to runtime verification. It works across multiple AI agents and produces production-ready Camel routes targeting the Red Hat Build of Apache Camel.
+Camel-Kit adds structured slash commands to your AI assistant that guide you through the full integration lifecycle — from designing the integration, through implementation and testing, to runtime verification. It works across multiple AI agents and produces production-ready Camel routes targeting the Red Hat Build of Apache Camel.
 
 **Inspired by [GitHub Spec-Kit](https://github.com/github/spec-kit)**, adapted for the Apache Camel ecosystem.
 
@@ -18,13 +18,11 @@ Camel-Kit adds structured slash commands to your AI assistant that guide you thr
 ## The Workflow
 
 ```
-Greenfield:   /camel-brainstorm → /camel-plan → /camel-execute
-                                                     ├── implements (camel-implement)
-                                                     ├── validates (camel-validate)
-                                                     ├── tests (camel-test)
-                                                     └── verifies (camel-verify)
-
-Shortcut:     /camel-flow        (single-flow brainstorm + plan + execute)
+Greenfield:   /camel-design  → /camel-plan → /camel-execute
+                                                   ├── implements (camel-implement)
+                                                   ├── validates (camel-validate)
+                                                   ├── tests (camel-test)
+                                                   └── verifies (camel-verify)
 
 Migration:    /camel-migrate → /camel-plan → /camel-execute
 
@@ -33,10 +31,9 @@ Manual:       /camel-verify      (standalone runtime verification)
 
 | Command | Purpose |
 |---------|---------|
-| `/camel-brainstorm` | Interactive design session — produces a Blueprint Reference Document (BRD) with Technical Design Documents (TDDs) |
+| `/camel-design` | Interactive design session — produces a Blueprint Reference Document (BRD) with Technical Design Documents (TDDs) |
 | `/camel-plan` | Reviews approved design, creates a detailed implementation plan |
 | `/camel-execute` | Orchestrated execution — implements, validates, tests, and verifies all flows |
-| `/camel-flow` | Shortcut — single-flow brainstorm + plan + execute in one command |
 | `/camel-migrate` | Migration from MuleSoft, legacy Camel, or JBoss Fuse to modern Camel |
 | `/camel-verify` | Runtime verification — builds, starts, diagnoses errors, retries until the app runs |
 

@@ -125,7 +125,7 @@ Camel-Kit follows a 3-phase pipeline with user approval gates between phases:
 ```mermaid
 flowchart LR
     subgraph "Phase 1"
-        B["Design\n/camel-brainstorm"]
+        B["Design\n/camel-design"]
     end
     subgraph "Phase 2"
         P["Plan\n/camel-plan"]
@@ -216,10 +216,8 @@ Start from scratch with a structured design session. The AI interviews about req
 
 ```mermaid
 flowchart LR
-    A["/camel-brainstorm"] --> B["/camel-plan"] --> C["/camel-execute"]
+    A["/camel-design"] --> B["/camel-plan"] --> C["/camel-execute"]
 ```
-
-For quick single-flow prototyping, `/camel-flow` provides a shortcut that combines all three phases.
 
 ### Migration
 
@@ -238,6 +236,29 @@ Camel-Kit handles data transformation between formats (JSON, XML) automatically 
 - **Complex mappings** (20+ fields with schemas) -- generates XSLT stylesheets with visual editing support in the Kaoto IDE
 
 The engine selection is automatic and transparent. The user only needs to describe the field mappings; the implementation details are handled by the pipeline.
+
+### Project Graph Analysis
+
+When working with existing Camel projects -- whether migrating from another platform or extending an established codebase -- the AI needs to understand the project's structure before making changes. Camel-Kit includes a **project graph analyzer** that parses the entire project into a queryable property graph: classes, methods, Camel routes, endpoints, Maven dependencies, and configuration properties, with edges capturing the relationships between them (extends, calls, routes-from, routes-to, depends-on, configures).
+
+This gives the AI structural intelligence that goes beyond reading individual files:
+
+| Capability | What It Does | Example |
+|-----------|-------------|---------|
+| **Route flow tracing** | Follows the complete message path through a route chain, including cross-route links via `direct:`, `seda:`, and `vm:` endpoints | "Show me every processing step an order goes through from Kafka ingestion to database write" |
+| **Impact analysis** | Traces upstream and downstream dependencies of any node -- a route, a class, a configuration property | "If I change the `orderProcessor` bean, which routes are affected?" |
+| **Dead code detection** | Identifies unused Maven dependencies, orphaned routes (not referenced by any other route), and stale configuration properties | "This project has 12 Maven dependencies but only 8 are actually used in routes" |
+| **Route topology mapping** | Maps route-to-route connections to determine which routes are independent | Used by Claude to dispatch independent routes to parallel subagents for simultaneous implementation |
+| **Project norm extraction** | Computes statistical norms from the existing codebase -- naming patterns, error handling coverage, route complexity percentiles | Validation thresholds adapt to the project's actual conventions rather than using hardcoded defaults |
+
+The graph integrates across multiple pipeline skills:
+
+- **During validation**, quality thresholds are derived from the project's actual patterns (e.g., the 75th percentile of route step counts) rather than arbitrary fixed limits. A route with 15 steps is acceptable in a project where existing routes average 12 steps, but flagged in a project where they average 5.
+- **During implementation**, the AI matches the project's existing conventions -- naming patterns, bean reuse, dependency versions -- rather than inventing new ones that create inconsistency.
+- **During testing**, route topology awareness lets the AI understand upstream and downstream dependencies, generating tests that cover integration points rather than just individual routes in isolation.
+- **During migration**, a full-project graph analysis in Phase 0 detects structural concerns (circular dependencies, deeply nested route chains, unused components) before any code is translated.
+
+A key design principle: the graph **enhances but never gates**. Greenfield projects work without any graph -- skills fall back to sensible defaults. When working with an existing project, the graph is built automatically and skills consume it for project-aware behavior. The improvement is transparent: better validation thresholds, more consistent naming, smarter test generation -- without requiring any additional user action.
 
 ### Runtime Verification (Environment-in-the-Loop)
 
@@ -377,7 +398,7 @@ flowchart TB
     skills["Shared Skills\n(markdown instruction files)"]
 
     subgraph pipeline ["Pipeline Phases"]
-        brainstorm["Brainstorm"]
+        design["Design"]
         plan["Plan"]
         execute["Execute"]
     end
@@ -397,7 +418,7 @@ flowchart TB
     init --> templates
     templates --> skills
     skills --> pipeline
-    brainstorm --> plan --> execute
+    design --> plan --> execute
     execute --> internal
     implement & validate --> catalog
     implement & validate --> knowledge

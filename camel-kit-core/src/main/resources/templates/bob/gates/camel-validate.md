@@ -11,6 +11,10 @@ Follow every step in order. Do NOT skip steps.
 
 **Core principle:** Validation is separate from implementation. Find issues, report them, but don't fix them during validation.
 
+## Guide Locations
+
+All validation guides are in `.bob/skills/camel-validate/guides/`. When this file says `guides/X.md`, read `.bob/skills/camel-validate/guides/X.md`. Do NOT explore or list directories to find guides.
+
 <Steps>
 <Step>
 ## Switch to Validate Mode

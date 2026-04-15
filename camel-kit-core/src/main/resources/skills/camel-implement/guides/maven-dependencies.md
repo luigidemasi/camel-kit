@@ -32,20 +32,15 @@ For full POM structure, load `pom-spring-boot.md`. The BOM configuration:
 
 The `camel-spring-boot-bom` version uses the **same base version** as Camel but may have a **different Red Hat qualifier**.
 
-**To discover the correct version**, fetch the directory listing from:
-`https://maven.repository.redhat.com/ga/com/redhat/camel/springboot/platform/camel-spring-boot-bom/`
+**Read the correct version from `.camel-kit/config.yaml`:**
 
-Find the entry matching the `CAMEL_VERSION` base version (e.g., `4.14.4`) and pick the highest `.redhat-XXXXX` qualifier.
+```yaml
+project:
+  platformBomVersion:
+    spring-boot: "4.14.4.redhat-00010"  # ← use THIS value
+```
 
-**Fallback static table** (if fetch fails):
-
-| Camel Version | Spring Boot BOM Version |
-|--------------|------------------------|
-| `4.14.4.redhat-00008` | `4.14.4.redhat-00010` |
-| `4.10.7.redhat-00009` | `4.10.7.redhat-00013` |
-| `4.8.5.redhat-00008` | `4.8.5.redhat-00008` |
-| `4.4.0.redhat-00046` | `4.4.0.redhat-00039` |
-| `4.0.0.redhat-00036` | `4.0.0.redhat-00045` |
+Do NOT guess or derive the version — it is pre-computed by `camel-kit init`.
 
 ### Quarkus
 
@@ -76,18 +71,15 @@ For full POM structure, load `pom-quarkus.md`. Quarkus uses TWO BOMs — the Qua
 
 The Quarkus platform version uses the Quarkus version scheme (3.x), not Camel (4.x).
 
-**To discover the correct version**, fetch the directory listing from:
-`https://maven.repository.redhat.com/ga/com/redhat/quarkus/platform/quarkus-camel-bom/`
+**Read the correct version from `.camel-kit/config.yaml`:**
 
-**Fallback static table** (if fetch fails):
+```yaml
+project:
+  platformBomVersion:
+    quarkus: "3.27.2.redhat-00002"  # ← use THIS value
+```
 
-| Camel Version | Quarkus Platform Version |
-|--------------|--------------------------|
-| `4.14.4.redhat-00008` | `3.27.2.redhat-00002` |
-| `4.10.7.redhat-00009` | `3.20.0.redhat-00011` |
-| `4.8.5.redhat-00008` | `3.15.0.redhat-00010` |
-| `4.4.0.redhat-00046` | `3.8.0.redhat-00018` |
-| `4.0.0.redhat-00036` | `3.2.0.redhat-00030` |
+Do NOT guess or derive the version — it is pre-computed by `camel-kit init`.
 
 ---
 

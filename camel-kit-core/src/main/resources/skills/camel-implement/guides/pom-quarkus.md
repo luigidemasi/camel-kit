@@ -101,21 +101,18 @@ Define platform version properties using the Red Hat platform coordinates:
 
 The Quarkus platform version uses the Quarkus version scheme (3.x), NOT the Camel version scheme (4.x). Both `quarkus.platform.version` and `camel-quarkus.platform.version` use the **same** version value.
 
-**To discover the correct version**, fetch the directory listing from:
-`https://maven.repository.redhat.com/ga/com/redhat/quarkus/platform/quarkus-camel-bom/`
-
-**Fallback mapping table** (if fetch fails) — map from the project's Camel version:
-
-| Camel Version | Quarkus Platform Version |
-|--------------|--------------------------|
-| `4.14.4.redhat-00008` | `3.27.2.redhat-00002` |
-| `4.10.7.redhat-00009` | `3.20.0.redhat-00011` |
-| `4.8.5.redhat-00008` | `3.15.0.redhat-00010` |
-| `4.4.0.redhat-00046` | `3.8.0.redhat-00018` |
-| `4.0.0.redhat-00036` | `3.2.0.redhat-00030` |
-
 <HARD-RULE>
-The version MUST have a `.redhat-XXXXX` suffix. Community versions (e.g., `3.8.4`, `3.15.0` without suffix) are FORBIDDEN. If the Camel version from the design spec is not in this table, fetch the discovery URL above.
+Read the Quarkus platform version from `.camel-kit/config.yaml`:
+
+```yaml
+project:
+  platformBomVersion:
+    quarkus: "3.27.2.redhat-00002"  # ← use THIS value
+```
+
+**Do NOT guess or derive** the Quarkus platform version from the Camel version. The mapping is non-obvious (Camel 4.14 → Quarkus 3.27, NOT 3.14) and is pre-computed by `camel-kit init`.
+
+The version MUST have a `.redhat-XXXXX` suffix. Community versions (e.g., `3.8.4`, `3.15.0` without suffix) are FORBIDDEN.
 </HARD-RULE>
 
 ---

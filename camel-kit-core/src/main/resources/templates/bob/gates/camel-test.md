@@ -9,6 +9,10 @@ Generate integration tests for Apache Camel routes using Citrus framework and Te
 
 **Core principle:** Test-Driven Development (TDD) — failing test first, then implementation, then passing test.
 
+## Guide Locations
+
+All testing guides are in `.bob/skills/camel-test/guides/`. When this file says `guides/X.md`, read `.bob/skills/camel-test/guides/X.md`. Do NOT explore or list directories to find guides.
+
 <Steps>
 <Step>
 ## Switch to Test Mode

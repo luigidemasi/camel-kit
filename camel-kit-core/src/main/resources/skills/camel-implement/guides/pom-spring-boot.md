@@ -93,23 +93,18 @@ Define exactly two version properties:
 
 The `camel-spring-boot-version` is NOT the same as the Camel version — it has a different `.redhat-XXXXX` qualifier.
 
-**To discover the correct version**, fetch the directory listing from:
-`https://maven.repository.redhat.com/ga/com/redhat/camel/springboot/platform/camel-spring-boot-bom/`
-
-Find the entry matching the Camel base version and pick the highest `.redhat-XXXXX` qualifier.
-
-**Fallback mapping table** (if fetch fails) — map from the project's Camel version:
-
-| Camel Version | Spring Boot BOM Version |
-|--------------|------------------------|
-| `4.14.4.redhat-00008` | `4.14.4.redhat-00010` |
-| `4.10.7.redhat-00009` | `4.10.7.redhat-00013` |
-| `4.8.5.redhat-00008` | `4.8.5.redhat-00008` |
-| `4.4.0.redhat-00046` | `4.4.0.redhat-00039` |
-| `4.0.0.redhat-00036` | `4.0.0.redhat-00045` |
-
 <HARD-RULE>
-The version MUST have a `.redhat-XXXXX` suffix. Community versions (e.g., `4.14.4` without suffix) are FORBIDDEN. If the Camel version from the design spec is not in this table, fetch the discovery URL above.
+Read the Spring Boot BOM version from `.camel-kit/config.yaml`:
+
+```yaml
+project:
+  platformBomVersion:
+    spring-boot: "4.14.4.redhat-00010"  # ← use THIS value
+```
+
+**Do NOT guess or derive** the Spring Boot BOM version from the Camel version. The `.redhat-XXXXX` qualifiers differ between the Camel version and the BOM version (e.g., Camel `4.14.4.redhat-00008` vs BOM `4.14.4.redhat-00010`). The correct value is pre-computed by `camel-kit init`.
+
+The version MUST have a `.redhat-XXXXX` suffix. Community versions (e.g., `4.14.4` without suffix) are FORBIDDEN.
 </HARD-RULE>
 
 **Spring Boot version:** the BOM pins the Spring Boot version. To find the matching version, check the BOM's `<spring-boot.version>` property at:

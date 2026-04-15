@@ -82,9 +82,9 @@ Bob has the most template files (17+) because it cannot chain skill references -
 ### How It Works
 
 ```
-User: /camel-brainstorm
+User: /camel-design
   └── Bob loads gate file (Advanced mode -- can read all files)
-      └── Step 1: Switch to camel-brainstorm mode
+      └── Step 1: Switch to camel-design mode
           └── Tool restrictions activate (read + .md edit + mcp only)
               └── Follows gate instructions with restricted tools
 ```
@@ -93,7 +93,7 @@ User: /camel-brainstorm
 
 | Mode | Tools Allowed | Purpose |
 |------|---------------|---------|
-| `camel-brainstorm` | read, edit (`.md` only), mcp, browser | Design interview, no code |
+| `camel-design` | read, edit (`.md` only), mcp, browser | Design interview, no code |
 | `camel-plan` | read, edit (`.md` only), mcp | Planning from approved spec |
 | `camel-implement` | read, edit, command, mcp | Route implementation |
 | `camel-validate` | read, command | Quality review |
@@ -235,7 +235,7 @@ Qwen uses 7 sub-agents with description-based auto-delegation. When a user descr
 
 ```yaml
 # Sub-agent definition
-name: camel-brainstormer
+name: camel-designer
 description: "MUST BE USED for discovering integration requirements,
               interviewing about data flows, and designing Camel routes"
 tools:
@@ -250,8 +250,8 @@ The `MUST BE USED` phrasing forces automatic delegation -- Qwen's documentation 
 
 ```
 User: "I want to design an order processing integration"
-  └── Qwen matches "design" + "integration" to camel-brainstormer description
-      └── Auto-delegates to camel-brainstormer sub-agent
+  └── Qwen matches "design" + "integration" to camel-designer description
+      └── Auto-delegates to camel-designer sub-agent
           └── Sub-agent reads SKILL.md → follows guides
               └── Tool access restricted to whitelist (read-only for brainstorm)
 ```
