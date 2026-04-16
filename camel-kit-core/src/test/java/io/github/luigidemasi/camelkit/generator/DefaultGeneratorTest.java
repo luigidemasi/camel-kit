@@ -1,5 +1,6 @@
 package io.github.luigidemasi.camelkit.generator;
 
+import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
@@ -19,7 +20,7 @@ class DefaultGeneratorTest {
         Path commandsDir = tempDir.resolve(agent.folder());
         Path skillsDir = tempDir.resolve(agentBaseFolder + "/skills");
         return new InitContext(agent, agentName, commandsDir, skillsDir, tempDir,
-            "camel-kit", "4.14.4.redhat-00008", false, Printer.noop());
+            "camel-kit", CamelKitMain.LATEST_CAMEL_LTS_VERSION, false, Printer.noop());
     }
 
     @Test
@@ -59,6 +60,20 @@ class DefaultGeneratorTest {
         new DefaultGenerator().generate(ctx);
 
         assertTrue(Files.exists(tempDir.resolve(".bob/mcp.json")));
+    }
+
+    @Test
+    void selectsCommunityVariantFiles() throws Exception {
+        InitContext ctx = createContext("bob");
+        new DefaultGenerator().generate(ctx);
+
+        // Verify community iron-laws was selected (no Red Hat Build Only law)
+        Path ironLaws = ctx.skillsDir().resolve("shared/iron-laws.md");
+        if (Files.exists(ironLaws)) {
+            String content = Files.readString(ironLaws);
+            assertFalse(content.contains("Red Hat Build Only"),
+                "Community variant should not contain Red Hat Build Only iron law");
+        }
     }
 
     @Test

@@ -1,5 +1,6 @@
 package io.github.luigidemasi.camelkit.generator;
 
+import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
@@ -19,7 +20,7 @@ class BobGeneratorTest {
         Path commandsDir = tempDir.resolve(agent.folder());
         Path skillsDir = tempDir.resolve(agentBaseFolder + "/skills");
         return new InitContext(agent, "bob", commandsDir, skillsDir, tempDir,
-            "camel-kit", "4.14.4.redhat-00008", false, Printer.noop());
+            "camel-kit", CamelKitMain.LATEST_CAMEL_LTS_VERSION, false, Printer.noop());
     }
 
     @Test
@@ -108,6 +109,19 @@ class BobGeneratorTest {
         new BobGenerator().generate(ctx);
 
         assertTrue(Files.exists(tempDir.resolve(".bob/mcp.json")));
+    }
+
+    @Test
+    void selectsCommunityIronLawsVariant() throws Exception {
+        InitContext ctx = createContext();
+        new BobGenerator().generate(ctx);
+
+        Path ironLaws = tempDir.resolve(".bob/rules/iron-laws.md");
+        assertTrue(Files.exists(ironLaws));
+        String content = Files.readString(ironLaws);
+        assertTrue(content.contains("MCP Catalog Verification"));
+        assertFalse(content.contains("Red Hat Build Only"),
+            "Community variant should not contain Red Hat Build Only iron law");
     }
 
     @Test

@@ -1,5 +1,6 @@
 package io.github.luigidemasi.camelkit.generator;
 
+import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
@@ -19,7 +20,7 @@ class GeminiGeneratorTest {
         Path commandsDir = tempDir.resolve(agent.folder());
         Path skillsDir = tempDir.resolve(agentBaseFolder + "/skills");
         return new InitContext(agent, "gemini", commandsDir, skillsDir, tempDir,
-            "camel-kit", "4.14.4.redhat-00008", false, Printer.noop());
+            "camel-kit", CamelKitMain.LATEST_CAMEL_LTS_VERSION, false, Printer.noop());
     }
 
     @Test
@@ -48,7 +49,7 @@ class GeminiGeneratorTest {
 
         // Verify Qute variable substitution in instruction files
         String pipelineContent = Files.readString(instructionsDir.resolve("pipeline-overview.md"));
-        assertTrue(pipelineContent.contains("4.14.4.redhat-00008"));
+        assertTrue(pipelineContent.contains(CamelKitMain.LATEST_CAMEL_LTS_VERSION));
         assertFalse(pipelineContent.contains("{camelVersion}"));
     }
 

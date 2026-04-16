@@ -1,5 +1,6 @@
 package io.github.luigidemasi.camelkit.generator;
 
+import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
@@ -19,7 +20,7 @@ class QwenGeneratorTest {
         Path commandsDir = tempDir.resolve(agent.folder());
         Path skillsDir = tempDir.resolve(agentBaseFolder + "/skills");
         return new InitContext(agent, "qwen", commandsDir, skillsDir, tempDir,
-            "camel-kit", "4.14.4.redhat-00008", false, Printer.noop());
+            "camel-kit", CamelKitMain.LATEST_CAMEL_LTS_VERSION, false, Printer.noop());
     }
 
     @Test
@@ -31,7 +32,7 @@ class QwenGeneratorTest {
         assertTrue(Files.exists(qwenMd));
         String content = Files.readString(qwenMd);
         assertTrue(content.contains("Iron Laws"));
-        assertTrue(content.contains("4.14.4.redhat-00008"));
+        assertTrue(content.contains(CamelKitMain.LATEST_CAMEL_LTS_VERSION));
         assertTrue(content.contains("camel-kit graph stats"));
     }
 
