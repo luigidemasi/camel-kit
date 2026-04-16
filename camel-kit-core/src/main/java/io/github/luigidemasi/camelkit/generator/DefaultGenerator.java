@@ -1,6 +1,7 @@
 package io.github.luigidemasi.camelkit.generator;
 
 import io.github.luigidemasi.camelkit.CamelKitMain;
+import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.util.AnsiColors;
 import io.github.luigidemasi.camelkit.util.TemplateUtils;
 
@@ -109,6 +110,31 @@ public class DefaultGenerator implements AgentGenerator {
 
                     // Resolve using string to create a proper filesystem path
                     Path destination = ctx.skillsDir().resolve(relativePathStr);
+
+                    String fileName = source.getFileName().toString();
+                    String distribution = CamelKitMain.distribution().distribution();
+
+                    // Skip variant files that don't match current distribution
+                    // e.g., skip iron-laws-redhat.md when distribution is "community"
+                    if (fileName.endsWith("-community.md") || fileName.endsWith("-redhat.md")) {
+                        // Only process the variant that matches our distribution
+                        if (fileName.endsWith("-" + distribution + ".md")) {
+                            // This is our variant — copy it under the base name
+                            String baseName = fileName.replace("-" + distribution + ".md", ".md");
+                            Path baseDestination = destination.getParent().resolve(baseName);
+                            Files.createDirectories(baseDestination.getParent());
+                            try (InputStream in = Files.newInputStream(source)) {
+                                Files.copy(in, baseDestination, StandardCopyOption.REPLACE_EXISTING);
+                                filesCopied++;
+                            }
+                            // Also append dispatch block if this is a SKILL variant
+                            if (baseName.equals("SKILL.md")) {
+                                appendDispatchBlock(baseDestination, ctx.agentName());
+                            }
+                        }
+                        // Skip this file from normal processing (don't copy the suffixed version)
+                        continue;
+                    }
 
                     try {
                         // Check attributes to determine if directory (works across filesystems)
@@ -242,13 +268,19 @@ public class DefaultGenerator implements AgentGenerator {
 
             QuteTemplateEngine qute = new QuteTemplateEngine();
             String template = TemplateUtils.readTemplate(templatePath);
-            String processed = qute.renderString(template, Map.of(
+            DistributionConfig dist = CamelKitMain.distribution();
+            Map<String, Object> templateData = new java.util.HashMap<>(Map.of(
                 "CAMEL_MCP_VERSION", CamelKitMain.CAMEL_MCP_VERSION,
                 "KNOWLEDGE_VERSION", CamelKitMain.KNOWLEDGE_MCP_VERSION,
                 "CAMEL_MCP_REPOS", camelMcpRepos,
                 "KNOWLEDGE_MCP_REPOS", knowledgeMcpRepos,
                 "CAMEL_CATALOG_REPOS", CamelKitMain.CAMEL_CATALOG_REPOS
             ));
+            templateData.put("DISTRIBUTION", dist.distribution());
+            templateData.put("CAMEL_VERSION", dist.camelVersion());
+            templateData.put("MAVEN_REPO", dist.mavenRepo());
+            templateData.put("PRODUCT_NAME", dist.productName());
+            String processed = qute.renderString(template, templateData);
             Files.writeString(configFile, processed);
 
             ctx.printer().println(AnsiColors.green("✓") + " MCP config created for " + agentName);
