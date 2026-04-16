@@ -280,6 +280,24 @@ public class DefaultGenerator implements AgentGenerator {
             templateData.put("CAMEL_VERSION", dist.camelVersion());
             templateData.put("MAVEN_REPO", dist.mavenRepo());
             templateData.put("PRODUCT_NAME", dist.productName());
+
+            String knowledgeToolPrefix = dist.isRedhat() ? "camel_rh_build_" : "camel_docs_";
+            String knowledgeToolsJson = String.join(", ",
+                "\"" + knowledgeToolPrefix + "component_info\"",
+                "\"" + knowledgeToolPrefix + "search\"",
+                "\"" + knowledgeToolPrefix + "jira_lookup\"",
+                "\"" + knowledgeToolPrefix + "cve_search\"",
+                "\"" + knowledgeToolPrefix + "bugfix_search\"",
+                "\"" + knowledgeToolPrefix + "release_info\"",
+                "\"" + knowledgeToolPrefix + "supported_configs\""
+            );
+            templateData.put("KNOWLEDGE_TOOLS_JSON", knowledgeToolsJson);
+
+            String knowledgeDescription = dist.isRedhat()
+                ? "camel-kit Knowledge Server - documentation search for Red Hat Build of Apache Camel"
+                : "camel-kit Knowledge Server - documentation search for Apache Camel";
+            templateData.put("KNOWLEDGE_DESCRIPTION", knowledgeDescription);
+
             String processed = qute.renderString(template, templateData);
             Files.writeString(configFile, processed);
 

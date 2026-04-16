@@ -36,18 +36,8 @@
         "io.github.luigidemasi:camel-kit-knowledge-mcp:{KNOWLEDGE_VERSION}:runner"
       ],
       "enabled": true,
-      "autoApprove": [
-        "camel_rh_build_component_info", "camel_rh_build_search",
-        "camel_rh_build_jira_lookup", "camel_rh_build_cve_search",
-        "camel_rh_build_bugfix_search", "camel_rh_build_release_info",
-        "camel_rh_build_supported_configs"
-      ],
-      "alwaysAllow": [
-        "camel_rh_build_component_info", "camel_rh_build_search",
-        "camel_rh_build_jira_lookup", "camel_rh_build_cve_search",
-        "camel_rh_build_bugfix_search", "camel_rh_build_release_info",
-        "camel_rh_build_supported_configs"
-      ]
+      "autoApprove": [{KNOWLEDGE_TOOLS_JSON}],
+      "alwaysAllow": [{KNOWLEDGE_TOOLS_JSON}]
     }
   }
 }
