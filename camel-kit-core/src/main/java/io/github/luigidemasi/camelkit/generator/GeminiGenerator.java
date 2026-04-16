@@ -1,9 +1,11 @@
 package io.github.luigidemasi.camelkit.generator;
 
+import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.util.AnsiColors;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.Map;
 
 public class GeminiGenerator extends DefaultGenerator {
@@ -34,10 +36,12 @@ public class GeminiGenerator extends DefaultGenerator {
         // Run default generation (commands, skills, MCP config)
         super.generate(ctx);
 
-        Map<String, Object> data = Map.of(
+        Map<String, Object> data = new HashMap<>(Map.of(
             "commandPrefix", ctx.commandPrefix(),
             "camelVersion", ctx.camelVersion()
-        );
+        ));
+        data.put("distribution", CamelKitMain.distribution().distribution());
+        data.put("productName", CamelKitMain.distribution().productName());
 
         // Gemini-specific: generate GEMINI.md at project root
         generateGeminiMd(ctx);
@@ -68,8 +72,16 @@ public class GeminiGenerator extends DefaultGenerator {
         Files.createDirectories(instructionsDir);
 
         for (String name : INSTRUCTIONS) {
+            String templateName = name;
+            if ("iron-laws".equals(name)) {
+                String dist = CamelKitMain.distribution().distribution();
+                String variantPath = "templates/gemini/instructions/iron-laws-" + dist + ".md";
+                if (getClass().getClassLoader().getResource(variantPath) != null) {
+                    templateName = "iron-laws-" + dist;
+                }
+            }
             String content = templateEngine.render(
-                "templates/gemini/instructions/" + name + ".md", data);
+                "templates/gemini/instructions/" + templateName + ".md", data);
             Files.writeString(instructionsDir.resolve(name + ".md"), content);
         }
     }

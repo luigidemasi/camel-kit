@@ -1,9 +1,11 @@
 package io.github.luigidemasi.camelkit.generator;
 
+import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.util.AnsiColors;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.Map;
 
 public class OpenCodeGenerator extends DefaultGenerator {
@@ -30,10 +32,12 @@ public class OpenCodeGenerator extends DefaultGenerator {
         // Run default generation (commands, skills, MCP config)
         super.generate(ctx);
 
-        Map<String, Object> data = Map.of(
+        Map<String, Object> data = new HashMap<>(Map.of(
             "commandPrefix", ctx.commandPrefix(),
             "camelVersion", ctx.camelVersion()
-        );
+        ));
+        data.put("distribution", CamelKitMain.distribution().distribution());
+        data.put("productName", CamelKitMain.distribution().productName());
 
         // OpenCode-specific: generate AGENTS.md at project root
         generateAgentsMd(ctx, data);

@@ -1,9 +1,11 @@
 package io.github.luigidemasi.camelkit.generator;
 
+import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.util.AnsiColors;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.Map;
 
 public class ClaudeGenerator extends DefaultGenerator {
@@ -26,10 +28,12 @@ public class ClaudeGenerator extends DefaultGenerator {
     }
 
     private void generateClaudeMd(InitContext ctx) throws Exception {
-        Map<String, Object> data = Map.of(
+        Map<String, Object> data = new HashMap<>(Map.of(
             "commandPrefix", ctx.commandPrefix(),
             "camelVersion", ctx.camelVersion()
-        );
+        ));
+        data.put("distribution", CamelKitMain.distribution().distribution());
+        data.put("productName", CamelKitMain.distribution().productName());
         String content = templateEngine.render("templates/claude/claude-md.md", data);
         Files.writeString(ctx.projectDir().resolve("CLAUDE.md"), content);
     }
