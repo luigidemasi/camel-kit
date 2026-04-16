@@ -1,8 +1,11 @@
 package io.github.luigidemasi.camelkit.generator;
 
+import io.github.luigidemasi.camelkit.CamelKitMain;
+import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.Map;
 
 public class BobGenerator extends DefaultGenerator {
@@ -30,10 +33,14 @@ public class BobGenerator extends DefaultGenerator {
         // Run default generation (commands, skills, MCP config)
         super.generate(ctx);
 
-        Map<String, Object> templateData = Map.of(
+        DistributionConfig dist = CamelKitMain.distribution();
+        Map<String, Object> templateData = new HashMap<>(Map.of(
             "commandPrefix", ctx.commandPrefix(),
             "camelVersion", ctx.camelVersion()
-        );
+        ));
+        templateData.put("distribution", dist.distribution());
+        templateData.put("productName", dist.productName());
+        templateData.put("mavenRepo", dist.mavenRepo());
 
         // Bob-specific: generate custom modes
         generateCustomModes(ctx);
@@ -52,11 +59,18 @@ public class BobGenerator extends DefaultGenerator {
     }
 
     private void generateRules(InitContext ctx) throws Exception {
-        // Shared rules
+        // Shared rules — use distribution variant if available
         Path sharedRulesDir = ctx.projectDir().resolve(".bob/rules");
         Files.createDirectories(sharedRulesDir);
-        copyTemplateResource("templates/bob/rules/iron-laws.md",
-            sharedRulesDir.resolve("iron-laws.md"));
+
+        String distribution = CamelKitMain.distribution().distribution();
+        String variantPath = "templates/bob/rules/iron-laws-" + distribution + ".md";
+        String defaultPath = "templates/bob/rules/iron-laws.md";
+
+        // Check if variant exists, otherwise fall back to default
+        String templatePath = getClass().getClassLoader().getResource(variantPath) != null
+                ? variantPath : defaultPath;
+        copyTemplateResource(templatePath, sharedRulesDir.resolve("iron-laws.md"));
 
         // Mode-specific rules
         for (String mode : RULE_MODES) {
