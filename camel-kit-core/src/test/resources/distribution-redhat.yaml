@@ -1,0 +1,26 @@
+distribution: redhat
+
+camel-version: "4.14.4.redhat-00008"
+springboot-bom-version: "4.14.4.redhat-00010"
+quarkus-bom-version: "3.27.2.redhat-00002"
+
+maven-repo: "https://maven.repository.redhat.com/ga/"
+springboot-bom-groupId: "com.redhat.camel.springboot.platform"
+quarkus-bom-groupId: "com.redhat.quarkus.platform"
+
+iron-laws: redhat
+rule7: rh-supported
+
+knowledge-tools: redhat
+
+product-name: "Red Hat Build of Apache Camel"
+
+version-map:
+  "4.14.4":
+    camel: "4.14.4.redhat-00008"
+    springboot-bom: "4.14.4.redhat-00010"
+    quarkus-bom: "3.27.2.redhat-00002"
+  "4.10.7":
+    camel: "4.10.7.redhat-00009"
+    springboot-bom: "4.10.7.redhat-00013"
+    quarkus-bom: "3.20.5.redhat-00002"
