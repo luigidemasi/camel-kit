@@ -29,7 +29,7 @@ import java.util.function.Consumer;
  */
 public class OfflineRepoPopulator {
 
-    private static final String RED_HAT_GA = "https://maven.repository.redhat.com/ga";
+    private static final String DISTRIBUTION_REPO = io.github.luigidemasi.camelkit.CamelKitMain.distribution().mavenRepo();
     private static final String MAVEN_CENTRAL = "https://repo1.maven.org/maven2";
     private static final String CLASSPATH_PREFIX = "offline-repo/";
     private static final Duration TIMEOUT = Duration.ofSeconds(60);
@@ -70,18 +70,18 @@ public class OfflineRepoPopulator {
                 MAVEN_CENTRAL,
                 "org.apache.camel", "camel-jbang-mcp", CAMEL_MCP_VERSION, "runner", "jar"));
 
-        // 2. Catalog JARs for the configured version (from Red Hat GA)
+        // 2. Catalog JARs for the configured version (from distribution repo)
         VersionMapping.CatalogVersions versions = VersionMapping.resolve(camelVersion);
         if (versions != null) {
             artifacts.add(new ArtifactSpec(
-                    RED_HAT_GA,
+                    DISTRIBUTION_REPO,
                     "org.apache.camel", "camel-catalog", versions.camelCatalog(), null, "jar"));
             artifacts.add(new ArtifactSpec(
-                    RED_HAT_GA,
+                    DISTRIBUTION_REPO,
                     "org.apache.camel.springboot", "camel-catalog-provider-springboot",
                     versions.springBootProvider(), null, "jar"));
             artifacts.add(new ArtifactSpec(
-                    RED_HAT_GA,
+                    DISTRIBUTION_REPO,
                     "org.apache.camel.quarkus", "camel-quarkus-catalog",
                     versions.quarkusCatalog(), null, "jar"));
         }

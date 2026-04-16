@@ -228,9 +228,11 @@ public class InitCommand extends CamelKitCommand {
         printer().println();
         printer().print("  " + green("✓") + "  ");
         printer().println(bold(projectName));
+        String productName = CamelKitMain.distribution().productName();
         String meta = "     " + version + "  \u00b7  " + agent.name()
                 + (citrusSchemaCount > 0 ? "  \u00b7  " + citrusSchemaCount + " schemas" : "");
         printer().println(meta);
+        printer().println("     Targeting " + cyan(productName));
         printer().println();
 
         // Next steps
@@ -292,7 +294,18 @@ public class InitCommand extends CamelKitCommand {
 
     private void createConstitution(Path dir, String camelVersion) throws Exception {
         QuteTemplateEngine qute = new QuteTemplateEngine();
-        String template = TemplateUtils.readTemplate("templates/constitution.md");
+
+        // Try variant template first, fall back to default
+        String distribution = CamelKitMain.distribution().distribution();
+        String variantTemplate = "templates/constitution-" + distribution + ".md";
+        String template;
+        try {
+            template = TemplateUtils.readTemplate(variantTemplate);
+        } catch (IOException e) {
+            // Variant not found — fall back to default
+            template = TemplateUtils.readTemplate("templates/constitution.md");
+        }
+
         String content = qute.renderString(template, Map.of(
             "DATE", java.time.LocalDate.now().toString(),
             "CAMEL_VERSION", camelVersion
