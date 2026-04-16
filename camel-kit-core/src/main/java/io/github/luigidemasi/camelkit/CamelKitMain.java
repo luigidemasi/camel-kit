@@ -2,6 +2,7 @@ package io.github.luigidemasi.camelkit;
 
 import io.github.luigidemasi.camelkit.command.InitCommand;
 import io.github.luigidemasi.camelkit.command.graph.GraphCommand;
+import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.output.JLinePrinter;
 import io.github.luigidemasi.camelkit.output.Printer;
 import io.github.luigidemasi.camelkit.output.SystemPrinter;
@@ -10,6 +11,8 @@ import io.github.luigidemasi.camelkit.util.LogoRenderer;
 import io.github.luigidemasi.camelkit.util.TemplateUtils;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.jline.utils.AttributedString;
@@ -31,13 +34,15 @@ import java.util.concurrent.Callable;
 public class CamelKitMain implements Callable<Integer> {
 
     private static final java.util.Properties BUILD_PROPS = loadBuildProperties();
+    private static final DistributionConfig DISTRIBUTION = loadDistribution();
 
-    public static final String LATEST_CAMEL_LTS_VERSION = "4.14.4.redhat-00008";
+    public static final String LATEST_CAMEL_LTS_VERSION = DISTRIBUTION.camelVersion();
     public static final String CAMEL_MCP_VERSION = BUILD_PROPS.getProperty("camel.mcp.version", "4.19.0-SNAPSHOT");
     public static final String DEFAULT_CITRUS_VERSION = "4.9.2";
     public static final String KNOWLEDGE_MCP_VERSION = BUILD_PROPS.getProperty("knowledge.mcp.version", "0.0.1-SNAPSHOT");
     public static final String CAMEL_MCP_REPOS = BUILD_PROPS.getProperty("camel.mcp.repos", "maven");
-    public static final String KNOWLEDGE_MCP_REPOS = BUILD_PROPS.getProperty("knowledge.mcp.repos", "redhat=https://maven.repository.redhat.com/ga/");
+    public static final String KNOWLEDGE_MCP_REPOS = BUILD_PROPS.getProperty("knowledge.mcp.repos",
+        DISTRIBUTION.isRedhat() ? "redhat=https://maven.repository.redhat.com/ga/" : "maven");
     public static final String CAMEL_CATALOG_REPOS = BUILD_PROPS.getProperty("camel.catalog.repos", "maven");
     private Terminal terminal;
     private Printer printer;
@@ -110,6 +115,18 @@ public class CamelKitMain implements Callable<Integer> {
         } catch (Exception ignored) {
         }
         return props;
+    }
+
+    private static DistributionConfig loadDistribution() {
+        Path distFile = Path.of("distribution.yaml");
+        if (Files.exists(distFile)) {
+            return DistributionConfig.loadFromFile(distFile);
+        }
+        return DistributionConfig.loadFromClasspathOrDefaults();
+    }
+
+    public static DistributionConfig distribution() {
+        return DISTRIBUTION;
     }
 
     public static void main(String[] args) {
