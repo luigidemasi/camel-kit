@@ -20,7 +20,7 @@ class GeminiGeneratorTest {
         Path commandsDir = tempDir.resolve(agent.folder());
         Path skillsDir = tempDir.resolve(agentBaseFolder + "/skills");
         return new InitContext(agent, "gemini", commandsDir, skillsDir, tempDir,
-            "camel-kit", CamelKitMain.LATEST_CAMEL_LTS_VERSION, false, Printer.noop());
+            "camel-kit", CamelKitMain.LATEST_CAMEL_LTS_VERSION, Printer.noop());
     }
 
     @Test

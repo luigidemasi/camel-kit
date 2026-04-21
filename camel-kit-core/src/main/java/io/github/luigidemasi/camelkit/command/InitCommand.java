@@ -3,7 +3,6 @@ package io.github.luigidemasi.camelkit.command;
 import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.catalog.CitrusSchemaDownloader;
-import io.github.luigidemasi.camelkit.catalog.OfflineRepoPopulator;
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.generator.AgentGeneratorFactory;
@@ -52,9 +51,6 @@ public class InitCommand extends CamelKitCommand {
             description = "Citrus version for test schemas",
             defaultValue = "default")
     public String citrusVersion;
-
-    @Option(names = {"--offline"}, description = "Download MCP server and catalog JARs for fully offline operation")
-    public boolean offline;
 
     @Option(names = {"--no-fetch"}, description = "Skip external catalog fetching")
     public boolean noFetch;
@@ -163,7 +159,7 @@ public class InitCommand extends CamelKitCommand {
         Path agentBaseDir = targetDir.resolve(agent.folder()).getParent();
         InitContext genCtx = new InitContext(agent, ai, commandsDir,
             agentBaseDir.resolve("skills"), targetDir,
-            detectCommandPrefix(), version, offline, printer());
+            detectCommandPrefix(), version, printer());
         AgentGeneratorFactory.create(ai).generate(genCtx);
         tracker.finishTask();
 
@@ -191,21 +187,7 @@ public class InitCommand extends CamelKitCommand {
         }
         tracker.finishTask();
 
-        // 7 — Offline repo (if requested)
-        if (offline) {
-            tracker.startTask("\u2B07\uFE0F", "Downloading MCP JARs for offline use");
-            try {
-                Path repoDir = camelKitDir.resolve("repo");
-                OfflineRepoPopulator populator = new OfflineRepoPopulator(repoDir, printer()::println);
-                int count = populator.populate(version, CamelKitMain.KNOWLEDGE_MCP_VERSION);
-                printer().println(green("✓") + " Downloaded " + count + " artifacts to .camel-kit/repo/");
-            } catch (Exception e) {
-                printer().println(yellow("  Warning: Could not populate offline repo: " + e.getMessage()));
-            }
-            tracker.finishTask();
-        }
-
-        // 8 — Citrus schemas
+        // 7 — Citrus schemas
         int citrusSchemaCount = 0;
         if (!noFetch) {
             tracker.startTask("⬇️", "Downloading Citrus schemas");

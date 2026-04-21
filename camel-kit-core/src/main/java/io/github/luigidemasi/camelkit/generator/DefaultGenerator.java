@@ -204,12 +204,6 @@ public class DefaultGenerator implements AgentGenerator {
     private void createMcpConfigs(InitContext ctx) throws Exception {
         String agentName = "";
 
-        // Always extract the Camel MCP runner JAR — it's started with java -jar,
-        // avoiding JBang's classloader and repo resolution issues entirely.
-        Path mcpDir = ctx.projectDir().resolve(".camel-kit/mcp");
-        Files.createDirectories(mcpDir);
-        extractRunnerJar(ctx, mcpDir);
-
         // Knowledge server repos (still uses JBang for now)
         String knowledgeMcpRepos = CamelKitMain.KNOWLEDGE_MCP_REPOS;
         String camelMcpRepos = CamelKitMain.CAMEL_MCP_REPOS;
@@ -220,43 +214,33 @@ public class DefaultGenerator implements AgentGenerator {
 
             switch (ctx.agentName().toLowerCase()) {
                 case "claude" -> {
-                    templatePath = ctx.offlineMode()
-                            ? "templates/mcp-configs/claude-code-mcp-standalone.json"
-                            : "templates/mcp-configs/claude-code-mcp.json";
+                    templatePath = "templates/mcp-configs/claude-code-mcp.json";
                     configFile = ctx.projectDir().resolve(".mcp.json");
                     agentName = "Claude Code";
                 }
                 case "bob" -> {
-                    templatePath = ctx.offlineMode()
-                            ? "templates/mcp-configs/bob-mcp-standalone.json"
-                            : "templates/mcp-configs/bob-mcp.json";
+                    templatePath = "templates/mcp-configs/bob-mcp.json";
                     Path bobDir = ctx.projectDir().resolve(".bob");
                     Files.createDirectories(bobDir);
                     configFile = bobDir.resolve("mcp.json");
                     agentName = "IBM Bob";
                 }
                 case "gemini" -> {
-                    templatePath = ctx.offlineMode()
-                            ? "templates/mcp-configs/gemini-mcp-standalone.json"
-                            : "templates/mcp-configs/gemini-mcp.json";
+                    templatePath = "templates/mcp-configs/gemini-mcp.json";
                     Path geminiDir = ctx.projectDir().resolve(".gemini");
                     Files.createDirectories(geminiDir);
                     configFile = geminiDir.resolve("settings.json");
                     agentName = "Gemini CLI";
                 }
                 case "qwen" -> {
-                    templatePath = ctx.offlineMode()
-                            ? "templates/mcp-configs/qwen-mcp-standalone.json"
-                            : "templates/mcp-configs/qwen-mcp.json";
+                    templatePath = "templates/mcp-configs/qwen-mcp.json";
                     Path qwenDir = ctx.projectDir().resolve(".qwen");
                     Files.createDirectories(qwenDir);
                     configFile = qwenDir.resolve("settings.json");
                     agentName = "Qwen Code";
                 }
                 case "opencode" -> {
-                    templatePath = ctx.offlineMode()
-                            ? "templates/mcp-configs/opencode-mcp-standalone.json"
-                            : "templates/mcp-configs/opencode-mcp.json";
+                    templatePath = "templates/mcp-configs/opencode-mcp.json";
                     configFile = ctx.projectDir().resolve("opencode.json");
                     agentName = "OpenCode";
                 }
@@ -302,24 +286,6 @@ public class DefaultGenerator implements AgentGenerator {
             ctx.printer().println(AnsiColors.green("✓") + " MCP config created for " + agentName);
         } catch (Exception e) {
             ctx.printer().println(AnsiColors.yellow("  Warning: Could not create MCP config: " + e.getMessage()));
-        }
-    }
-
-    private void extractRunnerJar(InitContext ctx, Path mcpDir) throws Exception {
-        String jarName = "camel-jbang-mcp-runner.jar";
-        Path target = mcpDir.resolve(jarName);
-        if (Files.exists(target)) return;
-
-        // The runner JAR is bundled on the classpath by maven-dependency-plugin
-        // with a fixed destFileName (no version in the filename)
-        String resourceName = "offline-repo/" + jarName;
-        try (InputStream in = getClass().getClassLoader().getResourceAsStream(resourceName)) {
-            if (in != null) {
-                Files.copy(in, target, StandardCopyOption.REPLACE_EXISTING);
-                ctx.printer().println(AnsiColors.green("✓") + " Extracted Camel MCP runner JAR");
-            } else {
-                ctx.printer().println(AnsiColors.yellow("  Warning: MCP runner JAR not found on classpath: " + resourceName));
-            }
         }
     }
 

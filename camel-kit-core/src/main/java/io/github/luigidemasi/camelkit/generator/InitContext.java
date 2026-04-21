@@ -12,6 +12,5 @@ public record InitContext(
     Path projectDir,
     String commandPrefix,
     String camelVersion,
-    boolean offlineMode,
     Printer printer
 ) {}
