@@ -1,6 +1,6 @@
 ---
 name: camel-knowledge
-description: Internal reference skill — loaded by pipeline skills when Apache Camel documentation lookup is needed. Routes questions to appropriate MCP tools (component availability, CVEs, errata, migration guides, release info). NOT user-invocable.
+description: Internal reference skill — loaded by pipeline skills when Apache Camel documentation lookup is needed. Routes questions to appropriate MCP tools (component availability, CVEs, migration guides, release info, JIRA issues). NOT user-invocable.
 user_invocable: false
 ---
 
@@ -18,12 +18,11 @@ Provides access to Apache Camel documentation via MCP knowledge tools. Used duri
 
 | Tool | Purpose | When to Use |
 |------|---------|-------------|
-| `camel_docs_search` | General documentation search | Migration guides, getting started, general questions |
-| `camel_docs_component_info` | Component availability lookup | Verify component exists in catalog |
-| `camel_docs_cve_search` | CVE lookup by ID | Security review, known vulnerability check |
-| `camel_docs_advisory_search` | Advisory search (security + bugfix) | Security review, version comparison |
-| `camel_docs_release_info` | Release notes for a version | Version selection, understanding changes |
-| `camel_docs_supported_configs` | Supported platforms, JDKs, databases | Environment compatibility check |
+| `camel_docs_search` | General documentation search | Migration guides, getting started, EIP patterns, general questions |
+| `camel_docs_component_info` | Component documentation and CVE lookup | Verify component exists, get configuration reference, check security |
+| `camel_docs_cve_search` | CVE security advisory search | Security review, vulnerability check by CVE ID, component, or severity |
+| `camel_docs_release_info` | Release notes for a version | Version selection, understanding what changed |
+| `camel_docs_jira_lookup` | JIRA issue lookup by ID | Find which release fixed a specific issue |
 
 ## Usage Pattern
 
@@ -38,13 +37,20 @@ Returns availability status.
 ### CVE Check (quality review)
 
 ```
-camel_docs_cve_search(cve_id="CVE-2024-XXXXX")
+camel_docs_cve_search(cve_id="CVE-2024-22369")
+camel_docs_cve_search(component="sql", severity="HIGH")
 ```
 
 ### Migration Guide Search
 
 ```
 camel_docs_search(query="migrating from Camel 3 to Camel 4.14", version="4.14", max_results=5)
+```
+
+### JIRA Issue Lookup
+
+```
+camel_docs_jira_lookup(jira_id="CAMEL-22784")
 ```
 
 ## Important Notes

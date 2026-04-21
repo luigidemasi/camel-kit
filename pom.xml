@@ -34,7 +34,7 @@
         <jackson.version>2.19.2.redhat-00003</jackson.version>
         <jline.version>3.30.6</jline.version>
         <tamboui.version>0.1.0</tamboui.version>
-        <camel.mcp.version>4.19.0-SNAPSHOT</camel.mcp.version>
+        <camel.mcp.version>4.19.0</camel.mcp.version>
         <quarkus.version>3.20.2.2</quarkus.version>
         <quarkus-mcp.version>1.6.1</quarkus-mcp.version>
     </properties>

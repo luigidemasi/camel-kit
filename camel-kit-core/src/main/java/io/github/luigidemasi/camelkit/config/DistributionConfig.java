@@ -1,11 +1,12 @@
 package io.github.luigidemasi.camelkit.config;
 
-import org.yaml.snakeyaml.Yaml;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Properties;
 
 public class DistributionConfig {
 
@@ -20,58 +21,80 @@ public class DistributionConfig {
     private final String rule7;
     private final String knowledgeTools;
     private final String productName;
+    private final String camelMcpVersion;
+    private final String knowledgeMcpVersion;
+    private final String camelMcpRepos;
+    private final String knowledgeMcpRepos;
+    private final String camelCatalogRepos;
     private final Map<String, Map<String, String>> versionMap;
 
-    @SuppressWarnings("unchecked")
-    private DistributionConfig(Map<String, Object> data) {
-        this.distribution = str(data, "distribution", "community");
-        this.camelVersion = str(data, "camel-version", "4.14.4");
-        this.springbootBomVersion = str(data, "springboot-bom-version", "4.14.4");
-        this.quarkusBomVersion = str(data, "quarkus-bom-version", "3.27.2");
-        this.mavenRepo = str(data, "maven-repo", "https://repo.maven.apache.org/maven2/");
-        this.springbootBomGroupId = str(data, "springboot-bom-groupId", "org.apache.camel.springboot");
-        this.quarkusBomGroupId = str(data, "quarkus-bom-groupId", "io.quarkus.platform");
-        this.ironLaws = str(data, "iron-laws", "community");
-        this.rule7 = str(data, "rule7", "catalog-exists");
-        this.knowledgeTools = str(data, "knowledge-tools", "community");
-        this.productName = str(data, "product-name", "Apache Camel");
-        Object vm = data.getOrDefault("version-map", Collections.emptyMap());
-        if (vm instanceof Map) {
-            Map<String, Object> raw = (Map<String, Object>) vm;
-            Map<String, Map<String, String>> result = new java.util.LinkedHashMap<>();
-            for (Map.Entry<String, Object> entry : raw.entrySet()) {
-                if (entry.getValue() instanceof Map) {
-                    Map<String, String> inner = new java.util.LinkedHashMap<>();
-                    ((Map<String, Object>) entry.getValue()).forEach((k, v) -> inner.put(k, String.valueOf(v)));
-                    result.put(entry.getKey(), inner);
+    private DistributionConfig(Properties props) {
+        this.distribution = props.getProperty("distribution", "community");
+        this.camelVersion = props.getProperty("camel.version", "4.14.4");
+        this.springbootBomVersion = props.getProperty("springboot.bom.version", "4.14.4");
+        this.quarkusBomVersion = props.getProperty("quarkus.bom.version", "3.27.2");
+        this.mavenRepo = props.getProperty("maven.repo", "https://repo.maven.apache.org/maven2/");
+        this.springbootBomGroupId = props.getProperty("springboot.bom.groupId", "org.apache.camel.springboot");
+        this.quarkusBomGroupId = props.getProperty("quarkus.bom.groupId", "io.quarkus.platform");
+        this.ironLaws = props.getProperty("iron.laws", "community");
+        this.rule7 = props.getProperty("rule7", "catalog-exists");
+        this.knowledgeTools = props.getProperty("knowledge.tools", "community");
+        this.productName = props.getProperty("product.name", "Apache Camel");
+        this.camelMcpVersion = props.getProperty("camel.mcp.version", "4.19.0");
+        this.knowledgeMcpVersion = props.getProperty("knowledge.mcp.version", "0.0.1-SNAPSHOT");
+        this.camelMcpRepos = props.getProperty("camel.mcp.repos", "maven");
+        this.knowledgeMcpRepos = props.getProperty("knowledge.mcp.repos", "maven");
+        this.camelCatalogRepos = props.getProperty("camel.catalog.repos", "maven");
+        this.versionMap = parseVersionMap(props);
+    }
+
+    /**
+     * Parses version-map entries from properties with dot-separated keys.
+     * Format: version-map.{baseVersion}.{artifact}={qualifiedVersion}
+     * Example: version-map.4.14.4.camel=4.14.4.redhat-00008
+     */
+    private static Map<String, Map<String, String>> parseVersionMap(Properties props) {
+        String prefix = "version-map.";
+        Map<String, Map<String, String>> result = new LinkedHashMap<>();
+        for (String key : props.stringPropertyNames()) {
+            if (key.startsWith(prefix)) {
+                String rest = key.substring(prefix.length());
+                int lastDot = rest.lastIndexOf('.');
+                if (lastDot > 0) {
+                    String baseVersion = rest.substring(0, lastDot);
+                    String artifact = rest.substring(lastDot + 1);
+                    result.computeIfAbsent(baseVersion, k -> new LinkedHashMap<>())
+                        .put(artifact, props.getProperty(key));
                 }
             }
-            this.versionMap = Collections.unmodifiableMap(result);
-        } else {
-            this.versionMap = Collections.emptyMap();
         }
+        return result.isEmpty() ? Collections.emptyMap() : Collections.unmodifiableMap(result);
     }
 
     public static DistributionConfig load(InputStream in) {
-        Yaml yaml = new Yaml();
-        Map<String, Object> data = yaml.load(in);
-        return new DistributionConfig(data != null ? data : Collections.emptyMap());
+        Properties props = new Properties();
+        try {
+            props.load(in);
+        } catch (Exception e) {
+            // Fall through with empty properties — defaults will apply
+        }
+        return new DistributionConfig(props);
     }
 
     public static DistributionConfig loadFromFile(Path path) {
         try (InputStream in = Files.newInputStream(path)) {
             return load(in);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to load distribution.yaml from " + path, e);
+            throw new RuntimeException("Failed to load distribution.properties from " + path, e);
         }
     }
 
     public static DistributionConfig loadFromClasspathOrDefaults() {
-        InputStream in = DistributionConfig.class.getClassLoader().getResourceAsStream("distribution.yaml");
+        InputStream in = DistributionConfig.class.getClassLoader().getResourceAsStream("distribution.properties");
         if (in != null) {
             return load(in);
         }
-        return new DistributionConfig(Collections.emptyMap());
+        return new DistributionConfig(new Properties());
     }
 
     public boolean isRedhat() {
@@ -93,10 +116,10 @@ public class DistributionConfig {
     public String rule7() { return rule7; }
     public String knowledgeTools() { return knowledgeTools; }
     public String productName() { return productName; }
+    public String camelMcpVersion() { return camelMcpVersion; }
+    public String knowledgeMcpVersion() { return knowledgeMcpVersion; }
+    public String camelMcpRepos() { return camelMcpRepos; }
+    public String knowledgeMcpRepos() { return knowledgeMcpRepos; }
+    public String camelCatalogRepos() { return camelCatalogRepos; }
     public Map<String, Map<String, String>> versionMap() { return versionMap; }
-
-    private static String str(Map<String, Object> data, String key, String defaultValue) {
-        Object val = data.get(key);
-        return val != null ? String.valueOf(val) : defaultValue;
-    }
 }
