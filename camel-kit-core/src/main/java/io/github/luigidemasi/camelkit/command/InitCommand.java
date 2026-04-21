@@ -210,11 +210,10 @@ public class InitCommand extends CamelKitCommand {
         printer().println();
         printer().print("  " + green("✓") + "  ");
         printer().println(bold(projectName));
-        String productName = CamelKitMain.distribution().productName();
         String meta = "     " + version + "  \u00b7  " + agent.name()
                 + (citrusSchemaCount > 0 ? "  \u00b7  " + citrusSchemaCount + " schemas" : "");
         printer().println(meta);
-        printer().println("     Targeting " + cyan(productName));
+        printer().println("     Targeting " + cyan("Apache Camel"));
         printer().println();
 
         // Next steps

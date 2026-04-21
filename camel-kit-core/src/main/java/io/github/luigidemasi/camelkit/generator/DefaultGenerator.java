@@ -235,10 +235,8 @@ public class DefaultGenerator implements AgentGenerator {
                 "KNOWLEDGE_MCP_REPOS", knowledgeMcpRepos,
                 "CAMEL_CATALOG_REPOS", CamelKitMain.CAMEL_CATALOG_REPOS
             ));
-            templateData.put("DISTRIBUTION", dist.distribution());
             templateData.put("CAMEL_VERSION", dist.camelVersion());
             templateData.put("MAVEN_REPO", dist.mavenRepo());
-            templateData.put("PRODUCT_NAME", dist.productName());
 
             String knowledgeToolPrefix = "camel_docs_";
             String knowledgeToolsJson = String.join(", ",

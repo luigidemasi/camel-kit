@@ -36,9 +36,6 @@ public class QwenGenerator extends DefaultGenerator {
             "commandPrefix", ctx.commandPrefix(),
             "camelVersion", ctx.camelVersion()
         ));
-        data.put("distribution", CamelKitMain.distribution().distribution());
-        data.put("productName", CamelKitMain.distribution().productName());
-
         // Qwen-specific: generate QWEN.md at project root
         generateQwenMd(ctx, data);
 

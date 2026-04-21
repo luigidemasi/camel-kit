@@ -10,14 +10,12 @@ import java.util.Properties;
 
 public class DistributionConfig {
 
-    private final String distribution;
     private final String camelVersion;
     private final String springbootBomVersion;
     private final String quarkusBomVersion;
     private final String mavenRepo;
     private final String springbootBomGroupId;
     private final String quarkusBomGroupId;
-    private final String productName;
     private final String camelMcpVersion;
     private final String knowledgeMcpVersion;
     private final String camelMcpRepos;
@@ -26,14 +24,12 @@ public class DistributionConfig {
     private final Map<String, Map<String, String>> versionMap;
 
     private DistributionConfig(Properties props) {
-        this.distribution = props.getProperty("distribution", "community");
         this.camelVersion = props.getProperty("camel.version", "4.14.4");
         this.springbootBomVersion = props.getProperty("springboot.bom.version", "4.14.4");
         this.quarkusBomVersion = props.getProperty("quarkus.bom.version", "3.27.2");
         this.mavenRepo = props.getProperty("maven.repo", "https://repo.maven.apache.org/maven2/");
         this.springbootBomGroupId = props.getProperty("springboot.bom.groupId", "org.apache.camel.springboot");
         this.quarkusBomGroupId = props.getProperty("quarkus.bom.groupId", "io.quarkus.platform");
-        this.productName = props.getProperty("product.name", "Apache Camel");
         this.camelMcpVersion = props.getProperty("camel.mcp.version", "4.19.0");
         this.knowledgeMcpVersion = props.getProperty("knowledge.mcp.version", "0.0.1-SNAPSHOT");
         this.camelMcpRepos = props.getProperty("camel.mcp.repos", "maven");
@@ -91,14 +87,12 @@ public class DistributionConfig {
         return new DistributionConfig(new Properties());
     }
 
-    public String distribution() { return distribution; }
     public String camelVersion() { return camelVersion; }
     public String springbootBomVersion() { return springbootBomVersion; }
     public String quarkusBomVersion() { return quarkusBomVersion; }
     public String mavenRepo() { return mavenRepo; }
     public String springbootBomGroupId() { return springbootBomGroupId; }
     public String quarkusBomGroupId() { return quarkusBomGroupId; }
-    public String productName() { return productName; }
     public String camelMcpVersion() { return camelMcpVersion; }
     public String knowledgeMcpVersion() { return knowledgeMcpVersion; }
     public String camelMcpRepos() { return camelMcpRepos; }

@@ -32,8 +32,6 @@ public class ClaudeGenerator extends DefaultGenerator {
             "commandPrefix", ctx.commandPrefix(),
             "camelVersion", ctx.camelVersion()
         ));
-        data.put("distribution", CamelKitMain.distribution().distribution());
-        data.put("productName", CamelKitMain.distribution().productName());
         String content = templateEngine.render("templates/claude/claude-md.md", data);
         Files.writeString(ctx.projectDir().resolve("CLAUDE.md"), content);
     }

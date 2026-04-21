@@ -36,9 +36,6 @@ public class OpenCodeGenerator extends DefaultGenerator {
             "commandPrefix", ctx.commandPrefix(),
             "camelVersion", ctx.camelVersion()
         ));
-        data.put("distribution", CamelKitMain.distribution().distribution());
-        data.put("productName", CamelKitMain.distribution().productName());
-
         // OpenCode-specific: generate AGENTS.md at project root
         generateAgentsMd(ctx, data);
 

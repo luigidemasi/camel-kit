@@ -40,9 +40,6 @@ public class GeminiGenerator extends DefaultGenerator {
             "commandPrefix", ctx.commandPrefix(),
             "camelVersion", ctx.camelVersion()
         ));
-        data.put("distribution", CamelKitMain.distribution().distribution());
-        data.put("productName", CamelKitMain.distribution().productName());
-
         // Gemini-specific: generate GEMINI.md at project root
         generateGeminiMd(ctx);
 

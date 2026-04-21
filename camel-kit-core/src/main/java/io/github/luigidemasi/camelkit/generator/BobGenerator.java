@@ -1,7 +1,6 @@
 package io.github.luigidemasi.camelkit.generator;
 
 import io.github.luigidemasi.camelkit.CamelKitMain;
-import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -32,14 +31,11 @@ public class BobGenerator extends DefaultGenerator {
         // Run default generation (commands, skills, MCP config)
         super.generate(ctx);
 
-        DistributionConfig dist = CamelKitMain.distribution();
         Map<String, Object> templateData = new HashMap<>(Map.of(
             "commandPrefix", ctx.commandPrefix(),
             "camelVersion", ctx.camelVersion()
         ));
-        templateData.put("distribution", dist.distribution());
-        templateData.put("productName", dist.productName());
-        templateData.put("mavenRepo", dist.mavenRepo());
+        templateData.put("mavenRepo", CamelKitMain.distribution().mavenRepo());
 
         // Bob-specific: generate custom modes
         generateCustomModes(ctx);
