@@ -33,17 +33,15 @@ import java.util.concurrent.Callable;
     description = "Design Apache Camel integrations with AI coding assistants")
 public class CamelKitMain implements Callable<Integer> {
 
-    private static final java.util.Properties BUILD_PROPS = loadBuildProperties();
     private static final DistributionConfig DISTRIBUTION = loadDistribution();
 
     public static final String LATEST_CAMEL_LTS_VERSION = DISTRIBUTION.camelVersion();
-    public static final String CAMEL_MCP_VERSION = BUILD_PROPS.getProperty("camel.mcp.version", "4.19.0-SNAPSHOT");
+    public static final String CAMEL_MCP_VERSION = DISTRIBUTION.camelMcpVersion();
     public static final String DEFAULT_CITRUS_VERSION = "4.9.2";
-    public static final String KNOWLEDGE_MCP_VERSION = BUILD_PROPS.getProperty("knowledge.mcp.version", "0.0.1-SNAPSHOT");
-    public static final String CAMEL_MCP_REPOS = BUILD_PROPS.getProperty("camel.mcp.repos", "maven");
-    public static final String KNOWLEDGE_MCP_REPOS = BUILD_PROPS.getProperty("knowledge.mcp.repos",
-        DISTRIBUTION.isRedhat() ? "redhat=https://maven.repository.redhat.com/ga/" : "maven");
-    public static final String CAMEL_CATALOG_REPOS = BUILD_PROPS.getProperty("camel.catalog.repos", "maven");
+    public static final String KNOWLEDGE_MCP_VERSION = DISTRIBUTION.knowledgeMcpVersion();
+    public static final String CAMEL_MCP_REPOS = DISTRIBUTION.camelMcpRepos();
+    public static final String KNOWLEDGE_MCP_REPOS = DISTRIBUTION.knowledgeMcpRepos();
+    public static final String CAMEL_CATALOG_REPOS = DISTRIBUTION.camelCatalogRepos();
     private Terminal terminal;
     private Printer printer;
     private boolean tuiEnabled = true;
@@ -103,18 +101,6 @@ public class CamelKitMain implements Callable<Integer> {
 
     public Terminal getTerminal() {
         return terminal;
-    }
-
-    private static java.util.Properties loadBuildProperties() {
-        var props = new java.util.Properties();
-        try (var in = CamelKitMain.class.getClassLoader()
-                .getResourceAsStream("camel-kit-version.properties")) {
-            if (in != null) {
-                props.load(in);
-            }
-        } catch (Exception ignored) {
-        }
-        return props;
     }
 
     private static DistributionConfig loadDistribution() {

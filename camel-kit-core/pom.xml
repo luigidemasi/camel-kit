@@ -12,10 +12,6 @@
     <artifactId>camel-kit-core</artifactId>
     <name>Camel Kit :: Core</name>
 
-    <properties>
-        <camel-kit-knowledge-version>0.0.1-SNAPSHOT</camel-kit-knowledge-version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>info.picocli</groupId>
@@ -94,17 +90,7 @@
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
-                <filtering>true</filtering>
-                <includes>
-                    <include>camel-kit-version.properties</include>
-                </includes>
-            </resource>
-            <resource>
-                <directory>src/main/resources</directory>
                 <filtering>false</filtering>
-                <excludes>
-                    <exclude>camel-kit-version.properties</exclude>
-                </excludes>
             </resource>
         </resources>
         <plugins>

@@ -34,7 +34,6 @@
         <jackson.version>2.19.2.redhat-00003</jackson.version>
         <jline.version>3.30.6</jline.version>
         <tamboui.version>0.1.0</tamboui.version>
-        <camel.mcp.version>4.19.0</camel.mcp.version>
         <quarkus.version>3.20.2.2</quarkus.version>
         <quarkus-mcp.version>1.6.1</quarkus-mcp.version>
     </properties>
@@ -219,6 +218,25 @@
             </plugins>
         </pluginManagement>
         <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>properties-maven-plugin</artifactId>
+                <version>1.2.1</version>
+                <executions>
+                    <execution>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>read-project-properties</goal>
+                        </goals>
+                        <configuration>
+                            <files>
+                                <file>${maven.multiModuleProjectDirectory}/distribution.properties</file>
+                            </files>
+                            <quiet>true</quiet>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-release-plugin</artifactId>
