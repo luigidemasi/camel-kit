@@ -281,7 +281,7 @@ public class DefaultGenerator implements AgentGenerator {
             templateData.put("MAVEN_REPO", dist.mavenRepo());
             templateData.put("PRODUCT_NAME", dist.productName());
 
-            String knowledgeToolPrefix = dist.isRedhat() ? "camel_rh_build_" : "camel_docs_";
+            String knowledgeToolPrefix = "camel_docs_";
             String knowledgeToolsJson = String.join(", ",
                 "\"" + knowledgeToolPrefix + "component_info\"",
                 "\"" + knowledgeToolPrefix + "search\"",
@@ -293,9 +293,7 @@ public class DefaultGenerator implements AgentGenerator {
             );
             templateData.put("KNOWLEDGE_TOOLS_JSON", knowledgeToolsJson);
 
-            String knowledgeDescription = dist.isRedhat()
-                ? "camel-kit Knowledge Server - documentation search for Red Hat Build of Apache Camel"
-                : "camel-kit Knowledge Server - documentation search for Apache Camel";
+            String knowledgeDescription = "camel-kit Knowledge Server - documentation search for Apache Camel";
             templateData.put("KNOWLEDGE_DESCRIPTION", knowledgeDescription);
 
             String processed = qute.renderString(template, templateData);

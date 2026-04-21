@@ -67,12 +67,12 @@ class DefaultGeneratorTest {
         InitContext ctx = createContext("bob");
         new DefaultGenerator().generate(ctx);
 
-        // Verify community iron-laws was selected (no Red Hat Build Only law)
+        // Verify community iron-laws was selected
         Path ironLaws = ctx.skillsDir().resolve("shared/iron-laws.md");
         if (Files.exists(ironLaws)) {
             String content = Files.readString(ironLaws);
-            assertFalse(content.contains("Red Hat Build Only"),
-                "Community variant should not contain Red Hat Build Only iron law");
+            assertFalse(content.contains("Build Only"),
+                "Community variant should contain only community iron laws");
         }
     }
 

@@ -1,6 +1,7 @@
 package io.github.luigidemasi.camelkit.command;
 
 import io.github.luigidemasi.camelkit.CamelKitMain;
+import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.catalog.CitrusSchemaDownloader;
 import io.github.luigidemasi.camelkit.catalog.OfflineRepoPopulator;
 import io.github.luigidemasi.camelkit.config.AgentConfig;
@@ -20,7 +21,6 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 import java.io.IOException;
-import io.github.luigidemasi.camelkit.catalog.VersionMapping;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -252,9 +252,9 @@ public class InitCommand extends CamelKitCommand {
     private void createConfigFile(Path dir, String name, String version, String citrusVer,
                                    String ai, AgentConfig agent) throws Exception {
         String cmdPrefix = detectCommandPrefix();
-        VersionMapping.CatalogVersions cv = VersionMapping.resolve(version);
-        String quarkusBom = extractVersion(cv != null ? cv.quarkusPlatformBom() : null);
-        String springBootBom = extractVersion(cv != null ? cv.springBootPlatformBom() : null);
+        DistributionConfig dist = CamelKitMain.distribution();
+        String quarkusBom = dist.quarkusBomVersion();
+        String springBootBom = dist.springbootBomVersion();
         String yaml = """
             # Camel-Kit Configuration
             project:
@@ -277,13 +277,6 @@ public class InitCommand extends CamelKitCommand {
                 quarkusBom, springBootBom,
                 ai, agent.folder(), Instant.now().toString());
         Files.writeString(dir.resolve("config.yaml"), yaml);
-    }
-
-    /** Extract version from a Maven GAV string (groupId:artifactId:version). */
-    private String extractVersion(String gav) {
-        if (gav == null || gav.isBlank()) return "unknown";
-        int lastColon = gav.lastIndexOf(':');
-        return lastColon >= 0 ? gav.substring(lastColon + 1) : gav;
     }
 
     private String detectCommandPrefix() {

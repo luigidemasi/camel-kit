@@ -29,38 +29,6 @@ class DistributionConfigTest {
     }
 
     @Test
-    void loadsRedhatConfig() {
-        InputStream in = getClass().getClassLoader().getResourceAsStream("distribution-redhat.properties");
-        DistributionConfig config = DistributionConfig.load(in);
-
-        assertEquals("redhat", config.distribution());
-        assertEquals("4.14.4.redhat-00008", config.camelVersion());
-        assertEquals("https://maven.repository.redhat.com/ga/", config.mavenRepo());
-        assertEquals("com.redhat.camel.springboot.platform", config.springbootBomGroupId());
-        assertEquals("com.redhat.quarkus.platform", config.quarkusBomGroupId());
-        assertEquals("redhat", config.ironLaws());
-        assertEquals("rh-supported", config.rule7());
-        assertEquals("redhat", config.knowledgeTools());
-        assertEquals("Red Hat Build of Apache Camel", config.productName());
-        assertEquals("4.19.0", config.camelMcpVersion());
-        assertEquals("0.0.1-SNAPSHOT", config.knowledgeMcpVersion());
-        assertEquals("redhat=https://maven.repository.redhat.com/ga/,apache_snap=https://repository.apache.org/snapshots,apache=https://repository.apache.org/content/groups/public/", config.camelMcpRepos());
-        assertEquals("redhat=https://maven.repository.redhat.com/ga/", config.knowledgeMcpRepos());
-        assertEquals("https://maven.repository.redhat.com/ga/", config.camelCatalogRepos());
-        assertFalse(config.versionMap().isEmpty());
-        assertEquals("4.14.4.redhat-00008", config.versionMap().get("4.14.4").get("camel"));
-    }
-
-    @Test
-    void isRedhat() {
-        InputStream community = getClass().getClassLoader().getResourceAsStream("distribution-community.properties");
-        assertFalse(DistributionConfig.load(community).isRedhat());
-
-        InputStream redhat = getClass().getClassLoader().getResourceAsStream("distribution-redhat.properties");
-        assertTrue(DistributionConfig.load(redhat).isRedhat());
-    }
-
-    @Test
     void loadFromClasspath() {
         DistributionConfig config = DistributionConfig.loadFromClasspathOrDefaults();
         assertNotNull(config.distribution());

@@ -120,8 +120,8 @@ class BobGeneratorTest {
         assertTrue(Files.exists(ironLaws));
         String content = Files.readString(ironLaws);
         assertTrue(content.contains("MCP Catalog Verification"));
-        assertFalse(content.contains("Red Hat Build Only"),
-            "Community variant should not contain Red Hat Build Only iron law");
+        assertFalse(content.contains("Build Only"),
+            "Community variant should contain only community iron laws");
     }
 
     @Test

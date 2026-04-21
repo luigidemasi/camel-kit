@@ -25,7 +25,7 @@ public class GeminiGenerator extends DefaultGenerator {
         "camel-implement", new String[]{"Implement Camel routes", "Delegate this task to the camel-implementer subagent.\nRead .gemini/skills/camel-implement/SKILL.md and follow those instructions."},
         "camel-validate", new String[]{"Validate Camel routes against quality rules", "Delegate this task to the camel-validator subagent.\nRead .gemini/skills/camel-validate/SKILL.md and follow those instructions."},
         "camel-test", new String[]{"Write and run tests for Camel routes", "Delegate this task to the camel-tester subagent.\nRead .gemini/skills/camel-test/SKILL.md and follow those instructions."},
-        "camel-migrate", new String[]{"Migrate integrations to Red Hat Build of Apache Camel", "Delegate this task to the camel-migrator subagent.\nRead .gemini/skills/camel-migrate/SKILL.md and follow those instructions."},
+        "camel-migrate", new String[]{"Migrate integrations to Apache Camel", "Delegate this task to the camel-migrator subagent.\nRead .gemini/skills/camel-migrate/SKILL.md and follow those instructions."},
         "camel-execute", new String[]{"Execute implementation plan by dispatching to specialized subagents", "You are the orchestrator. Execute the implementation plan by dispatching tasks to the appropriate subagents.\nRead .gemini/skills/camel-execute/SKILL.md and follow those instructions."}
     );
 

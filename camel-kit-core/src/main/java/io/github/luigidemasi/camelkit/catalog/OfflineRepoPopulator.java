@@ -21,7 +21,7 @@ import java.util.function.Consumer;
  * <p>
  * Artifacts are first looked up on the classpath (under {@code offline-repo/}) where
  * they are placed at build time by {@code maven-dependency-plugin}. If not found on
- * the classpath, they are downloaded from Maven Central or Red Hat GA.
+ * the classpath, they are downloaded from Maven Central.
  * <p>
  * The local repo uses standard Maven layout with minimal POMs (no parent references),
  * {@code _remote.repositories} markers, and SHA-1 checksums so that JBang's Maven
@@ -29,7 +29,6 @@ import java.util.function.Consumer;
  */
 public class OfflineRepoPopulator {
 
-    private static final String DISTRIBUTION_REPO = io.github.luigidemasi.camelkit.CamelKitMain.distribution().mavenRepo();
     private static final String MAVEN_CENTRAL = "https://repo1.maven.org/maven2";
     private static final String CLASSPATH_PREFIX = "offline-repo/";
     private static final Duration TIMEOUT = Duration.ofSeconds(60);
@@ -70,21 +69,18 @@ public class OfflineRepoPopulator {
                 MAVEN_CENTRAL,
                 "org.apache.camel", "camel-jbang-mcp", CAMEL_MCP_VERSION, "runner", "jar"));
 
-        // 2. Catalog JARs for the configured version (from distribution repo)
-        VersionMapping.CatalogVersions versions = VersionMapping.resolve(camelVersion);
-        if (versions != null) {
-            artifacts.add(new ArtifactSpec(
-                    DISTRIBUTION_REPO,
-                    "org.apache.camel", "camel-catalog", versions.camelCatalog(), null, "jar"));
-            artifacts.add(new ArtifactSpec(
-                    DISTRIBUTION_REPO,
-                    "org.apache.camel.springboot", "camel-catalog-provider-springboot",
-                    versions.springBootProvider(), null, "jar"));
-            artifacts.add(new ArtifactSpec(
-                    DISTRIBUTION_REPO,
-                    "org.apache.camel.quarkus", "camel-quarkus-catalog",
-                    versions.quarkusCatalog(), null, "jar"));
-        }
+        // 2. Catalog JARs for the configured version (from Maven Central)
+        artifacts.add(new ArtifactSpec(
+                MAVEN_CENTRAL,
+                "org.apache.camel", "camel-catalog", camelVersion, null, "jar"));
+        artifacts.add(new ArtifactSpec(
+                MAVEN_CENTRAL,
+                "org.apache.camel.springboot", "camel-catalog-provider-springboot",
+                camelVersion, null, "jar"));
+        artifacts.add(new ArtifactSpec(
+                MAVEN_CENTRAL,
+                "org.apache.camel.quarkus", "camel-quarkus-catalog",
+                camelVersion, null, "jar"));
 
         int installed = 0;
         for (ArtifactSpec spec : artifacts) {

@@ -36,11 +36,11 @@ public final class TestGraphs {
                 Map.of("uri", "log:processed", "scheme", "log")));
 
         graph.addNode(new GraphNode("maven:camel-kafka", NodeType.MAVEN_ARTIFACT,
-                Map.of("artifactId", "camel-kafka", "version", "4.14.4.redhat-00008")));
+                Map.of("artifactId", "camel-kafka", "version", "4.14.4")));
         graph.addNode(new GraphNode("maven:camel-jdbc", NodeType.MAVEN_ARTIFACT,
-                Map.of("artifactId", "camel-jdbc", "version", "4.14.4.redhat-00008")));
+                Map.of("artifactId", "camel-jdbc", "version", "4.14.4")));
         graph.addNode(new GraphNode("maven:camel-core", NodeType.MAVEN_ARTIFACT,
-                Map.of("artifactId", "camel-core", "version", "4.14.4.redhat-00008")));
+                Map.of("artifactId", "camel-core", "version", "4.14.4")));
 
         graph.addNode(new GraphNode("prop:app.kafka.topic", NodeType.CONFIG_PROPERTY,
                 Map.of("key", "app.kafka.topic", "value", "orders")));

@@ -97,14 +97,6 @@ public class DistributionConfig {
         return new DistributionConfig(new Properties());
     }
 
-    public boolean isRedhat() {
-        return "redhat".equals(distribution);
-    }
-
-    public boolean isCommunity() {
-        return !isRedhat();
-    }
-
     public String distribution() { return distribution; }
     public String camelVersion() { return camelVersion; }
     public String springbootBomVersion() { return springbootBomVersion; }
