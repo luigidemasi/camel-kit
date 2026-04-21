@@ -111,31 +111,6 @@ public class DefaultGenerator implements AgentGenerator {
                     // Resolve using string to create a proper filesystem path
                     Path destination = ctx.skillsDir().resolve(relativePathStr);
 
-                    String fileName = source.getFileName().toString();
-                    String distribution = CamelKitMain.distribution().distribution();
-
-                    // Skip variant files that don't match current distribution
-                    // e.g., skip iron-laws-redhat.md when distribution is "community"
-                    if (fileName.endsWith("-community.md") || fileName.endsWith("-redhat.md")) {
-                        // Only process the variant that matches our distribution
-                        if (fileName.endsWith("-" + distribution + ".md")) {
-                            // This is our variant — copy it under the base name
-                            String baseName = fileName.replace("-" + distribution + ".md", ".md");
-                            Path baseDestination = destination.getParent().resolve(baseName);
-                            Files.createDirectories(baseDestination.getParent());
-                            try (InputStream in = Files.newInputStream(source)) {
-                                Files.copy(in, baseDestination, StandardCopyOption.REPLACE_EXISTING);
-                                filesCopied++;
-                            }
-                            // Also append dispatch block if this is a SKILL variant
-                            if (baseName.equals("SKILL.md")) {
-                                appendDispatchBlock(baseDestination, ctx.agentName());
-                            }
-                        }
-                        // Skip this file from normal processing (don't copy the suffixed version)
-                        continue;
-                    }
-
                     try {
                         // Check attributes to determine if directory (works across filesystems)
                         boolean isDir = Files.isDirectory(source);

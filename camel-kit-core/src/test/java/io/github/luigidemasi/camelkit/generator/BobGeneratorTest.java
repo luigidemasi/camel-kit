@@ -112,7 +112,7 @@ class BobGeneratorTest {
     }
 
     @Test
-    void selectsCommunityIronLawsVariant() throws Exception {
+    void generatesIronLawsRule() throws Exception {
         InitContext ctx = createContext();
         new BobGenerator().generate(ctx);
 
@@ -120,8 +120,6 @@ class BobGeneratorTest {
         assertTrue(Files.exists(ironLaws));
         String content = Files.readString(ironLaws);
         assertTrue(content.contains("MCP Catalog Verification"));
-        assertFalse(content.contains("Build Only"),
-            "Community variant should contain only community iron laws");
     }
 
     @Test

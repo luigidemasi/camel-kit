@@ -17,9 +17,6 @@ public class DistributionConfig {
     private final String mavenRepo;
     private final String springbootBomGroupId;
     private final String quarkusBomGroupId;
-    private final String ironLaws;
-    private final String rule7;
-    private final String knowledgeTools;
     private final String productName;
     private final String camelMcpVersion;
     private final String knowledgeMcpVersion;
@@ -36,9 +33,6 @@ public class DistributionConfig {
         this.mavenRepo = props.getProperty("maven.repo", "https://repo.maven.apache.org/maven2/");
         this.springbootBomGroupId = props.getProperty("springboot.bom.groupId", "org.apache.camel.springboot");
         this.quarkusBomGroupId = props.getProperty("quarkus.bom.groupId", "io.quarkus.platform");
-        this.ironLaws = props.getProperty("iron.laws", "community");
-        this.rule7 = props.getProperty("rule7", "catalog-exists");
-        this.knowledgeTools = props.getProperty("knowledge.tools", "community");
         this.productName = props.getProperty("product.name", "Apache Camel");
         this.camelMcpVersion = props.getProperty("camel.mcp.version", "4.19.0");
         this.knowledgeMcpVersion = props.getProperty("knowledge.mcp.version", "0.0.1-SNAPSHOT");
@@ -104,9 +98,6 @@ public class DistributionConfig {
     public String mavenRepo() { return mavenRepo; }
     public String springbootBomGroupId() { return springbootBomGroupId; }
     public String quarkusBomGroupId() { return quarkusBomGroupId; }
-    public String ironLaws() { return ironLaws; }
-    public String rule7() { return rule7; }
-    public String knowledgeTools() { return knowledgeTools; }
     public String productName() { return productName; }
     public String camelMcpVersion() { return camelMcpVersion; }
     public String knowledgeMcpVersion() { return knowledgeMcpVersion; }

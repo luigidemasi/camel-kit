@@ -72,16 +72,8 @@ public class GeminiGenerator extends DefaultGenerator {
         Files.createDirectories(instructionsDir);
 
         for (String name : INSTRUCTIONS) {
-            String templateName = name;
-            if ("iron-laws".equals(name)) {
-                String dist = CamelKitMain.distribution().distribution();
-                String variantPath = "templates/gemini/instructions/iron-laws-" + dist + ".md";
-                if (getClass().getClassLoader().getResource(variantPath) != null) {
-                    templateName = "iron-laws-" + dist;
-                }
-            }
             String content = templateEngine.render(
-                "templates/gemini/instructions/" + templateName + ".md", data);
+                "templates/gemini/instructions/" + name + ".md", data);
             Files.writeString(instructionsDir.resolve(name + ".md"), content);
         }
     }

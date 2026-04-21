@@ -63,17 +63,12 @@ class DefaultGeneratorTest {
     }
 
     @Test
-    void selectsCommunityVariantFiles() throws Exception {
+    void copiesIronLawsFile() throws Exception {
         InitContext ctx = createContext("bob");
         new DefaultGenerator().generate(ctx);
 
-        // Verify community iron-laws was selected
         Path ironLaws = ctx.skillsDir().resolve("shared/iron-laws.md");
-        if (Files.exists(ironLaws)) {
-            String content = Files.readString(ironLaws);
-            assertFalse(content.contains("Build Only"),
-                "Community variant should contain only community iron laws");
-        }
+        assertTrue(Files.exists(ironLaws));
     }
 
     @Test

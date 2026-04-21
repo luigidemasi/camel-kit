@@ -8,7 +8,7 @@ class DistributionConfigTest {
 
     @Test
     void loadsCommunityConfig() {
-        InputStream in = getClass().getClassLoader().getResourceAsStream("distribution-community.properties");
+        InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
         DistributionConfig config = DistributionConfig.load(in);
 
         assertEquals("community", config.distribution());
@@ -16,9 +16,6 @@ class DistributionConfigTest {
         assertEquals("https://repo.maven.apache.org/maven2/", config.mavenRepo());
         assertEquals("org.apache.camel.springboot", config.springbootBomGroupId());
         assertEquals("io.quarkus.platform", config.quarkusBomGroupId());
-        assertEquals("community", config.ironLaws());
-        assertEquals("catalog-exists", config.rule7());
-        assertEquals("community", config.knowledgeTools());
         assertEquals("Apache Camel", config.productName());
         assertEquals("4.19.0", config.camelMcpVersion());
         assertEquals("0.0.1-SNAPSHOT", config.knowledgeMcpVersion());

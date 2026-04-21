@@ -270,16 +270,7 @@ public class InitCommand extends CamelKitCommand {
     private void createConstitution(Path dir, String camelVersion) throws Exception {
         QuteTemplateEngine qute = new QuteTemplateEngine();
 
-        // Try variant template first, fall back to default
-        String distribution = CamelKitMain.distribution().distribution();
-        String variantTemplate = "templates/constitution-" + distribution + ".md";
-        String template;
-        try {
-            template = TemplateUtils.readTemplate(variantTemplate);
-        } catch (IOException e) {
-            // Variant not found — fall back to default
-            template = TemplateUtils.readTemplate("templates/constitution.md");
-        }
+        String template = TemplateUtils.readTemplate("templates/constitution.md");
 
         String content = qute.renderString(template, Map.of(
             "DATE", java.time.LocalDate.now().toString(),

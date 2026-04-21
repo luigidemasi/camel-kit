@@ -2,7 +2,6 @@ package io.github.luigidemasi.camelkit.generator;
 
 import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.config.DistributionConfig;
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -59,18 +58,11 @@ public class BobGenerator extends DefaultGenerator {
     }
 
     private void generateRules(InitContext ctx) throws Exception {
-        // Shared rules — use distribution variant if available
         Path sharedRulesDir = ctx.projectDir().resolve(".bob/rules");
         Files.createDirectories(sharedRulesDir);
 
-        String distribution = CamelKitMain.distribution().distribution();
-        String variantPath = "templates/bob/rules/iron-laws-" + distribution + ".md";
-        String defaultPath = "templates/bob/rules/iron-laws.md";
-
-        // Check if variant exists, otherwise fall back to default
-        String templatePath = getClass().getClassLoader().getResource(variantPath) != null
-                ? variantPath : defaultPath;
-        copyTemplateResource(templatePath, sharedRulesDir.resolve("iron-laws.md"));
+        copyTemplateResource("templates/bob/rules/iron-laws.md",
+            sharedRulesDir.resolve("iron-laws.md"));
 
         // Mode-specific rules
         for (String mode : RULE_MODES) {
