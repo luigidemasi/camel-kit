@@ -2,6 +2,7 @@ package io.github.luigidemasi.camelkit;
 
 import io.github.luigidemasi.camelkit.command.InitCommand;
 import io.github.luigidemasi.camelkit.command.graph.GraphCommand;
+import io.github.luigidemasi.camelkit.command.plan.PlanCommand;
 import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.output.JLinePrinter;
 import io.github.luigidemasi.camelkit.output.Printer;
@@ -33,15 +34,15 @@ import java.util.concurrent.Callable;
     description = "Design Apache Camel integrations with AI coding assistants")
 public class CamelKitMain implements Callable<Integer> {
 
-    private static final DistributionConfig DISTRIBUTION = loadDistribution();
+    private static DistributionConfig DISTRIBUTION = loadDistribution();
 
-    public static final String LATEST_CAMEL_LTS_VERSION = DISTRIBUTION.camelVersion();
-    public static final String CAMEL_MCP_VERSION = DISTRIBUTION.camelMcpVersion();
+    public static String LATEST_CAMEL_LTS_VERSION = DISTRIBUTION.camelMainVersion();
+    public static String CAMEL_MCP_VERSION = DISTRIBUTION.camelMcpVersion();
     public static final String DEFAULT_CITRUS_VERSION = "4.9.2";
-    public static final String KNOWLEDGE_MCP_VERSION = DISTRIBUTION.knowledgeMcpVersion();
-    public static final String CAMEL_MCP_REPOS = DISTRIBUTION.camelMcpRepos();
-    public static final String KNOWLEDGE_MCP_REPOS = DISTRIBUTION.knowledgeMcpRepos();
-    public static final String CAMEL_CATALOG_REPOS = DISTRIBUTION.camelCatalogRepos();
+    public static String KNOWLEDGE_MCP_VERSION = DISTRIBUTION.knowledgeMcpVersion();
+    public static String CAMEL_MCP_REPOS = DISTRIBUTION.camelMcpRepos();
+    public static String KNOWLEDGE_MCP_REPOS = DISTRIBUTION.knowledgeMcpRepos();
+    public static String CAMEL_CATALOG_REPOS = DISTRIBUTION.camelCatalogRepos();
     private Terminal terminal;
     private Printer printer;
     private boolean tuiEnabled = true;
@@ -115,6 +116,20 @@ public class CamelKitMain implements Callable<Integer> {
         return DISTRIBUTION;
     }
 
+    /**
+     * Reload the distribution config with cascading overrides.
+     * Called by InitCommand when -c or -p options are provided.
+     */
+    public static void reloadDistribution(java.nio.file.Path configFile, java.util.List<String> cliProperties) {
+        DISTRIBUTION = DistributionConfig.loadWithOverrides(configFile, cliProperties);
+        LATEST_CAMEL_LTS_VERSION = DISTRIBUTION.camelMainVersion();
+        CAMEL_MCP_VERSION = DISTRIBUTION.camelMcpVersion();
+        KNOWLEDGE_MCP_VERSION = DISTRIBUTION.knowledgeMcpVersion();
+        CAMEL_MCP_REPOS = DISTRIBUTION.camelMcpRepos();
+        KNOWLEDGE_MCP_REPOS = DISTRIBUTION.knowledgeMcpRepos();
+        CAMEL_CATALOG_REPOS = DISTRIBUTION.camelCatalogRepos();
+    }
+
     public static void main(String[] args) {
         run(args);
     }
@@ -126,7 +141,8 @@ public class CamelKitMain implements Callable<Integer> {
     public static void run(CamelKitMain main, String... args) {
         CommandLine commandLine = new CommandLine(main)
             .addSubcommand("init", new InitCommand(main))
-            .addSubcommand("graph", new CommandLine(new GraphCommand()));
+            .addSubcommand("graph", new CommandLine(new GraphCommand()))
+            .addSubcommand("plan", new CommandLine(new PlanCommand()));
 
         int exitCode = commandLine.execute(args);
         System.exit(exitCode);
