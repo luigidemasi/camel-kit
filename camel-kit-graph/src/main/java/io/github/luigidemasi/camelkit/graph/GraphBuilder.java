@@ -14,6 +14,8 @@ public class GraphBuilder {
         new JavaGraphParser(),
         new GroovyGraphParser(),
         new XmlRouteParser(),
+        new MuleXmlFlowParser(),
+        new DataWeaveParser(),
         new YamlRouteParser(),
         new PomParser(),
         new ConfigParser()

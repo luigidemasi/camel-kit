@@ -37,6 +37,17 @@ public class XmlRouteParser implements GraphParser {
     }
 
     private void parseXmlFile(Path xmlFile, Path projectRoot, ProjectGraph graph) {
+        // Skip MuleSoft XML files (handled by MuleXmlFlowParser)
+        try {
+            String content = Files.readString(xmlFile);
+            String head = content.substring(0, Math.min(1024, content.length()));
+            if (head.contains("mulesoft.org/schema/mule")) {
+                return;
+            }
+        } catch (IOException e) {
+            return;
+        }
+
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             factory.setNamespaceAware(true);
