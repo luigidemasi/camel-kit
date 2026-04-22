@@ -20,6 +20,7 @@ import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 import java.io.IOException;
+import java.util.List;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -58,6 +59,18 @@ public class InitCommand extends CamelKitCommand {
     @Option(names = {"--silent"}, description = "Suppress all output (no banner, no progress, no summary)")
     public boolean silent;
 
+    @Option(names = {"-c", "--config"},
+            description = "Path to config properties file (default: ~/.camel-kit/config.properties)")
+    public Path configFile;
+
+    @Option(names = {"-p", "--property"}, arity = "1..*",
+            description = "Override config property: -p key=value (repeatable)")
+    public List<String> properties;
+
+    @Option(names = {"--source-platform"},
+            description = "Source platform for migration graph analysis: mulesoft, camel, auto (default: auto)")
+    public String sourcePlatform;
+
     public InitCommand(CamelKitMain main) {
         super(main);
     }
@@ -66,6 +79,11 @@ public class InitCommand extends CamelKitCommand {
     public Integer doCall() throws Exception {
         if (silent) {
             main.setOut(Printer.noop());
+        }
+
+        // Reload config with cascading overrides: JAR defaults → -c file → -p properties
+        if (configFile != null || properties != null) {
+            CamelKitMain.reloadDistribution(configFile, properties);
         }
 
         // Validate agent and resolve arguments upfront (fast, non-blocking)
@@ -257,6 +275,9 @@ public class InitCommand extends CamelKitCommand {
             """.formatted(name, version, citrusVer, cmdPrefix,
                 quarkusBom, springBootBom,
                 ai, agent.folder(), Instant.now().toString());
+        if (sourcePlatform != null && !"auto".equals(sourcePlatform)) {
+            yaml = yaml + "\n  sourcePlatform: \"" + sourcePlatform + "\"\n";
+        }
         Files.writeString(dir.resolve("config.yaml"), yaml);
     }
 
