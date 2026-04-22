@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:jms="http://www.mulesoft.org/schema/mule/jms"
+      xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/jms http://www.mulesoft.org/schema/mule/jms/current/mule-jms.xsd
+        http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd">
+
+    <http:connector name="httpConnector"/>
+
+    <flow name="legacy-order-flow">
+        <http:inbound-endpoint connector-ref="httpConnector" path="/api/orders"/>
+
+        <dw:transform-message>
+            <dw:set-payload resource="classpath:transform-order.dwl"/>
+        </dw:transform-message>
+
+        <jms:outbound-endpoint queue="orders"/>
+
+        <exception-strategy>
+            <jms:outbound-endpoint queue="error-queue"/>
+        </exception-strategy>
+    </flow>
+
+    <sub-flow name="legacy-validate-subflow">
+        <flow-ref name="legacy-order-flow"/>
+        <set-payload value="#[payload]"/>
+    </sub-flow>
+
+</mule>

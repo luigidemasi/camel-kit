@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:db="http://www.mulesoft.org/schema/mule/db"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns:jms="http://www.mulesoft.org/schema/mule/jms"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+        http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+        http://www.mulesoft.org/schema/mule/jms http://www.mulesoft.org/schema/mule/jms/current/mule-jms.xsd">
+
+    <flow name="order-ingestion-flow">
+        <http:listener config-ref="http-listener-config" path="/orders"/>
+
+        <ee:transform>
+            <ee:set-payload resource="transform-order.dwl"/>
+        </ee:transform>
+
+        <choice>
+            <when expression="#[payload.valid == true]">
+                <db:insert config-ref="db-config">
+                    <db:sql>INSERT INTO orders (id, customer, amount) VALUES (:id, :customer, :amount)</db:sql>
+                    <db:input-parameters><![CDATA[#[{
+                        id: payload.orderId,
+                        customer: payload.customerName,
+                        amount: payload.totalAmount
+                    }]]]></db:input-parameters>
+                </db:insert>
+            </when>
+            <otherwise>
+                <jms:publish config-ref="jms-config" destination="dlq">
+                    <jms:message>
+                        <jms:body>#[payload]</jms:body>
+                    </jms:message>
+                </jms:publish>
+            </otherwise>
+        </choice>
+
+        <error-handler>
+            <on-error-propagate type="ANY">
+                <jms:publish config-ref="jms-config" destination="error-queue">
+                    <jms:message>
+                        <jms:body>#[error.description]</jms:body>
+                    </jms:message>
+                </jms:publish>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+
+    <sub-flow name="enrich-order-subflow">
+        <set-payload value="#[payload ++ {enriched: true}]"/>
+        <flow-ref name="validate-order-subflow"/>
+    </sub-flow>
+
+    <sub-flow name="validate-order-subflow">
+        <set-variable variableName="isValid" value="#[payload.amount > 0]"/>
+    </sub-flow>
+
+</mule>
