@@ -66,12 +66,12 @@ Define platform version properties using the community coordinates:
 The Quarkus platform version uses the Quarkus version scheme (3.x), NOT the Camel version scheme (4.x). Both `quarkus.platform.version` and `camel-quarkus.platform.version` use the **same** version value.
 
 <HARD-RULE>
-Read the Quarkus platform version from `.camel-kit/config.yaml`:
+Read the Quarkus platform version from `.camel-kit/config.properties`:
 
-```yaml
-project:
-  platformBomVersion:
-    quarkus: "3.27.2"  # <- use THIS value
+```properties
+project.runtime=quarkus
+project.camelVersion=4.18.0
+project.platformBomVersion=3.33.0  # <- use THIS value
 ```
 
 **Do NOT guess or derive** the Quarkus platform version from the Camel version. The mapping is non-obvious (Camel 4.14 -> Quarkus 3.27, NOT 3.14) and is pre-computed by `camel-kit init`.

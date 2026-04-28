@@ -3,8 +3,8 @@
 > **Context variables provided by the calling question:**
 > - `SYSTEM_DESCRIPTION` — what the user described (e.g., "Kafka topic", "PostgreSQL database")
 > - `SYSTEM_ROLE` — "source" or "sink"
-> - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
-> - `RUNTIME` — from `.camel-kit/config.yaml` (`project.runtime`, default: `main`)
+> - `CAMEL_VERSION` — from `.camel-kit/config.properties`
+> - `RUNTIME` — from `.camel-kit/config.properties` (`project.runtime`, default: `main`)
 > - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via the version mapping table in `skills/shared/mcp-setup.md`
 
 ## Procedure: Select and Verify Component
@@ -45,20 +45,7 @@ Endpoint options (go in the URI parameters: block):
 
 Present the suggestion and full option list to the user. If the user prefers a different component, repeat `camel_catalog_component_doc` for the new choice before proceeding — never document an option from training-data memory.
 
-### Step 2: Red Hat Support Check (MANDATORY when camel-knowledge MCP is available)
-
-After selecting a component, call `camel_rh_build_component_info` to verify it is supported by Red Hat Build of Apache Camel:
-
-```
-MCP Tool: camel_rh_build_component_info
-Params: { "component": "[component-name]", "runtime": "{{RUNTIME}}" }
-```
-
-- **If supported:** note it in the TDD and proceed.
-- **If NOT supported:** raise a WARNING to the user. Search for a Red Hat-supported alternative that provides equivalent functionality and present both options. Let the user decide whether to accept the unsupported component or switch to the alternative.
-- If the MCP server is not available, skip this step (graceful degradation).
-
-### Step 3: Component Not Found
+### Step 2: Component Not Found
 
 **If `camel_catalog_components` returns no results for the category:**
 
@@ -85,7 +72,6 @@ Do not proceed with an unverified component.
 
 I can proceed using general knowledge of [component], but:
 - Component options will NOT be verified against Camel {{CAMEL_VERSION}}
-- Red Hat Build support status is UNKNOWN
 - The component will be marked as [UNVERIFIED] in the TDD
 
 Proceed with unverified component? (yes/no)

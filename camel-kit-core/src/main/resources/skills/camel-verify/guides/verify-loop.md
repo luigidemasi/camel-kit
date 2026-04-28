@@ -12,7 +12,7 @@ Before entering the phase loop, check which tools are available. Report explicit
 
 ### Steps
 
-1. Read `.camel-kit/config.yaml` → extract `project.runtime` (one of: `quarkus`, `springboot`, `jbang`)
+1. Read `.camel-kit/config.properties` → extract `project.runtime` (one of: `quarkus`, `springboot`, `jbang`)
 2. Check for Maven wrapper: does `./mvnw` exist in the project root?
    - If yes → use `./mvnw` for all Maven commands
    - If no → check for system `mvn` (`mvn --version`)
@@ -32,7 +32,7 @@ Print the environment check report before proceeding:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ENVIRONMENT CHECK
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Runtime:    {runtime from config.yaml}
+Runtime:    {runtime from config.properties}
 Maven:      {✅ ./mvnw (wrapper) | ✅ mvn (system) | ❌ not found}
 Docker:     {✅ docker {version} | ❌ not found}
 JDK:        {✅ {vendor} {version} | ❌ not found}
@@ -64,7 +64,7 @@ Ensure external services required by the application are running.
 
 ### Steps
 
-1. Read `.camel-kit/config.yaml` → extract runtime
+1. Read `.camel-kit/config.properties` → extract runtime
 2. Read `docs/business-requirements.md` (if it exists) → extract the **Systems Landscape** table to identify external systems, their roles, and protocols
 3. Read all TDD files (`docs/flows/**/*.tdd.md`) → extract from each:
    - **Section 2 (Source System):** component, protocol, authentication requirements
@@ -419,8 +419,7 @@ Last error:
   Fix attempted: Added camel-activemq-starter — error persists
 
   ⚠️ Escalated: Component 'activemq' may not be supported in this
-  Camel version. Check Red Hat Build component support via
-  /camel-knowledge or verify the component URI manually.
+  Camel version. Verify the component URI against the catalog manually.
 
 Skipped checks:
   - External services (Docker not available) — PostgreSQL, ActiveMQ

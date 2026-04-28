@@ -6,7 +6,11 @@
 
 This guide uses CLI commands under `{COMMAND_PREFIX} graph`. If any command fails (exit code != 0), fall back gracefully — skip that section and note it as `? Unknown` in the summary.
 
-Read `.camel-kit/config.yaml` to get the `command-prefix` field (default: `camel-kit`).
+<HARD-RULE>
+NEVER read `.camel-kit/project-graph.json` directly. Always use `{COMMAND_PREFIX} graph` CLI commands. The JSON file is thousands of lines and will overflow your context window.
+</HARD-RULE>
+
+Read `.camel-kit/config.properties` to get the `project.command-prefix` property (default: `camel-kit`).
 
 ---
 
@@ -53,12 +57,10 @@ This returns JSON with all Maven artifacts. Scan for vendor signals:
 | groupId `org.apache.camel` | Apache Camel (community) |
 | version containing `redhat-6` | Fuse 6.x |
 | version containing `fuse-7` or `redhat-` on Camel 2.x/3.x | Fuse 7.x |
-| version containing `redhat-` on Camel 3.x/4.x | Red Hat Build of Apache Camel |
 | artifactId `camel-blueprint` | Platform: ServiceMix/Karaf |
 | artifactId `camel-spring-boot-starter` | Platform: Spring Boot |
 | artifactId matching `camel-quarkus-*` | Platform: Quarkus |
 | BOM `org.jboss.redhat-fuse:fuse-springboot-bom` | Fuse 7.x on Spring Boot |
-| BOM `com.redhat.camel.springboot:camel-spring-boot-bom` | Red Hat Build for Spring Boot |
 
 Extract source Camel version from `camel-core` or `camel-bom` artifact.
 
@@ -167,7 +169,7 @@ Graph: .camel-kit/project-graph.json
 
 ## Vendor & Platform
 - Vendor: [detected vendor and version]
-- Product: [Red Hat product or Community]
+- Product: [product or Community]
 - Platform: [Spring Boot / Karaf / Quarkus / Plain Java]
 - DSL: [Java DSL (N routes), XML (N routes), YAML (N routes)]
 
@@ -206,9 +208,9 @@ Build the pre-populated analysis summary:
 MIGRATION ANALYSIS SUMMARY
 ===========================================================
 Vendor & Version:    [detected from graph]
-Source Product:      [Red Hat product or Community]
+Source Product:      [product or Community]
 Failure Behaviour:   [inferred from error handler patterns]
-Target Camel:        Red Hat supported version (default: latest)
+Target Camel:        Camel version (default: latest)
 Target Runtime:      [inferred from platform detection]
 API Compatibility:   Assumed (same HTTP paths, queue names, contracts)
 Project Layout:      [single or multi from graph]

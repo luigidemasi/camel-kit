@@ -11,7 +11,7 @@ Camel-Kit combines two mechanisms to give AI agents accurate, efficient access t
 - **Skills** -- markdown instruction files that guide LLM agents through structured workflows (design, implementation, validation, testing, verification)
 - **MCP Server** -- real-time queries against the live Camel catalog for component verification, validation, and security analysis
 
-Together they enable AI-powered integration development targeting the Red Hat Build of Apache Camel. Skills carry the process knowledge (how to design a flow, how to generate YAML, how to validate a route), while MCP provides the data knowledge (which components exist, what options they accept, whether an endpoint URI is valid).
+Together they enable AI-powered integration development targeting Apache Camel. Skills carry the process knowledge (how to design a flow, how to generate YAML, how to validate a route), while MCP provides the data knowledge (which components exist, what options they accept, whether an endpoint URI is valid).
 
 ---
 
@@ -53,16 +53,16 @@ The frontmatter fields:
 
 | Skill | User-Invocable | Loaded By | Purpose |
 |-------|---------------|-----------|---------|
-| `camel-design` | Yes | -- | Orchestrate design phase: interview user, produce BRD + TDDs |
-| `camel-plan` | Yes | `camel-design` (after spec approval) | Produce detailed implementation plan from approved design spec |
+| `camel-brainstorm` | Yes | -- | Orchestrate design phase: interview user, produce BRD + TDDs |
+| `camel-plan` | Yes | `camel-brainstorm` (after spec approval) | Produce detailed implementation plan from approved design spec |
 | `camel-execute` | Yes | `camel-plan` (after plan approval) | Dispatch subagents per task with two-stage review |
-| `camel-migrate` | Yes | -- | Migration entry point: shortcut into `camel-design` with project type pre-set |
+| `camel-migrate` | Yes | -- | Migration entry point: shortcut into `camel-brainstorm` with project type pre-set |
 | `camel-verify` | Yes | `camel-execute` (after all tasks) | 5-phase runtime verification loop |
-| `camel-design-reference` | No | `camel-design` | Guides for component selection, EIP catalog, TDD assembly |
+| `camel-design` | No | `camel-brainstorm` | Guides for component selection, EIP catalog, TDD assembly |
 | `camel-implement` | No | `camel-execute` | Guides for YAML generation, properties, Docker Compose, DataMapper |
 | `camel-validate` | No | `camel-execute` | Guides for schema validation, endpoint verification, security analysis |
 | `camel-test` | No | `camel-execute` | Guides for route analysis and test generation with Citrus + Testcontainers |
-| `camel-knowledge` | No | `camel-design`, `camel-execute` | Routes questions to Red Hat knowledge MCP tools |
+| `camel-knowledge` | No | `camel-brainstorm`, `camel-execute` | Routes questions to knowledge MCP tools |
 
 ### Shared Guides
 
@@ -75,12 +75,45 @@ Shared guides live at `camel-kit-core/src/main/resources/skills/shared/` and are
 | `flow-test-data.md` | Test data generation patterns for flow design |
 | `mcp-setup.md` | MCP version mapping and connection parameters |
 | `graph-availability.md` | Graph MCP server availability detection |
+| `mulesoft-graph.md` | MuleSoft graph node types and auto-detection |
 | `yaml-structure.md` | YAML DSL structure rules and Kaoto compatibility |
 | `yaml-components.md` | Component URI syntax and parameter rules |
 | `yaml-examples.md` | Reference YAML patterns for common integrations |
 | `patterns-foundational.md` | Foundational EIP patterns (content-based routing, splitter, aggregator) |
 | `patterns-error-handling.md` | Error handling patterns (dead letter channel, retry, circuit breaker) |
 | `patterns-deployment.md` | Deployment patterns (health checks, graceful shutdown, scaling) |
+
+### Project Graph Parsers
+
+The `camel-kit-graph` module builds a property graph of the project structure by running a set of parsers over the project's source files. Each parser produces typed nodes and edges that the graph consumers (validation, implementation, testing, migration) can query.
+
+**8 parsers** are registered in `GraphBuilder`:
+
+| Parser | What It Parses | Node Types |
+|--------|---------------|------------|
+| `JavaClassParser` | `.java` files | `CLASS`, `METHOD`, `FIELD` |
+| `CamelRouteParser` | `.camel.yaml`, `.xml` | `ROUTE`, `ENDPOINT`, `PROCESSOR` |
+| `MavenPomParser` | `pom.xml` | `MAVEN_DEPENDENCY`, `MAVEN_PLUGIN` |
+| `PropertiesParser` | `application.properties` | `PROPERTY` |
+| `DockerComposeParser` | `docker-compose.yaml` | `DOCKER_SERVICE` |
+| `OpenApiParser` | `openapi.yaml`, `openapi.json` | `OPENAPI_OPERATION` |
+| `MuleXmlFlowParser` | MuleSoft XML configs (`*.xml` with `mulesoft.org/schema/mule` namespace) | `MULE_FLOW`, `MULE_SUB_FLOW`, `MULE_CONNECTOR`, `MULE_ENDPOINT`, `MULE_PROCESSOR`, `MULE_TRANSFORM`, `MULE_ERROR_HANDLER` |
+| `DataWeaveParser` | `.dwl` files | `DATAWEAVE_SCRIPT` |
+
+**MuleSoft-specific edge types:**
+
+| Edge Type | Meaning |
+|-----------|---------|
+| `MULE_FLOW_CONTAINS` | A Mule flow or sub-flow contains a processor, transform, or endpoint |
+| `MULE_CALLS_SUBFLOW` | A flow-ref element invokes a sub-flow by name |
+| `MULE_USES_CONNECTOR` | A flow element uses a connector configuration |
+| `MULE_REFERENCES_DWL` | A transform step references an external DataWeave script |
+
+**Auto-detection:** When the graph builder encounters an XML file, it checks for the `mulesoft.org/schema/mule` namespace. If present, the file is routed to `MuleXmlFlowParser` instead of `CamelRouteParser`. No explicit configuration is required -- if the project contains MuleSoft XML files, they are parsed automatically.
+
+**`--source-platform` flag:** For cases where auto-detection needs hinting (e.g., the project has non-standard file layouts), `camel-kit init --source-platform mulesoft` explicitly declares the source platform.
+
+**DataWeave analysis:** The `DataWeaveParser` extracts version declarations, input/output content types, function definitions, and field access patterns from `.dwl` files. This helps the migration skill identify complex transformations that may need manual attention -- multi-function scripts, recursive field access, or format conversions that have no direct XSLT equivalent.
 
 ---
 
@@ -109,7 +142,7 @@ brainstorm / migrate
    artifacts + verification report
 ```
 
-Entry points diverge (`camel-design` for greenfield, `camel-migrate` for migration) but both produce the same artifact format -- a BRD (Business Requirements Document) with TDDs (Technical Design Documents). This means `camel-plan` and `camel-execute` work identically regardless of whether the project is greenfield or migrated.
+Entry points diverge (`camel-brainstorm` for greenfield, `camel-migrate` for migration) but both produce the same artifact format -- a BRD (Business Requirements Document) with TDDs (Technical Design Documents). This means `camel-plan` and `camel-execute` work identically regardless of whether the project is greenfield or migrated.
 
 ### How camel-execute Dispatches Work
 
@@ -134,7 +167,7 @@ The dispatch model varies by AI agent:
 
 ### The BRD+TDD Contract
 
-Both `camel-design` (greenfield) and `camel-migrate` (migration) produce the same output format: a BRD with per-flow TDDs. This is the contract between design and implementation -- `camel-plan` consumes this format, and `camel-execute` implements from it. The design phase diverges (interview vs. source analysis), but the output converges.
+Both `camel-brainstorm` (greenfield) and `camel-migrate` (migration) produce the same output format: a BRD with per-flow TDDs. This is the contract between design and implementation -- `camel-plan` consumes this format, and `camel-execute` implements from it. The design phase diverges (interview vs. source analysis), but the output converges.
 
 ---
 
@@ -242,8 +275,7 @@ All five agents receive the same skills (markdown instruction files). The templa
 The five Iron Laws from `skills/shared/iron-laws.md` are embedded in each agent's instruction file:
 
 1. **MCP Catalog Verification** -- every component, EIP, dataformat, and language must be verified via MCP before being written to any spec, TDD, or YAML file
-2. **Red Hat Build Only** -- only Red Hat supported versions and components; community-only versions are forbidden
-3. **Constitution Compliance** -- every generated route must pass all 7 constitution rules (incorporates and enforces the constitution)
+2. **Constitution Compliance** -- every generated route must pass all 7 constitution rules (incorporates and enforces the constitution)
 4. **No Code Without Spec Approval** -- never generate implementation artifacts before the user has approved the design spec
 5. **Spec Compliance Before Quality** -- always run spec compliance review before code quality review; wrong order wastes effort
 
@@ -264,10 +296,10 @@ Four of the five agents support this natively through **subagent dispatch**:
 **IBM Project Bob does not support subagents.** It uses a fundamentally different architecture -- the **B+A (Behavior + Advanced) hybrid with mode switching**:
 
 1. Each pipeline phase starts in **Advanced mode** (unrestricted), allowing the agent to read all skill files and project context
-2. The first instruction in the gate file switches to a **restricted custom mode** (e.g., `camel-design`, `camel-implement`) with scoped tool permissions
+2. The first instruction in the gate file switches to a **restricted custom mode** (e.g., `camel-brainstorm`, `camel-implement`) with scoped tool permissions
 3. The mode's tool group constrains what the AI can do for the remainder of that phase
 
-This means Bob cannot isolate tasks into separate context windows or use independent reviewer agents. The compensation is that Bob's tool restrictions are **platform-enforced**, not instruction-based. During design, Bob's `camel-design` mode grants only `read`, `edit` (`.md` files only via `fileRegex`), `mcp`, and `browser` -- the AI physically cannot edit code files because the mode excludes the edit tool for non-markdown files. This is stricter than any instruction-based constraint, which the AI could rationalize away.
+This means Bob cannot isolate tasks into separate context windows or use independent reviewer agents. The compensation is that Bob's tool restrictions are **platform-enforced**, not instruction-based. During design, Bob's `camel-brainstorm` mode grants only `read`, `edit` (`.md` files only via `fileRegex`), `mcp`, and `browser` -- the AI physically cannot edit code files because the mode excludes the edit tool for non-markdown files. This is stricter than any instruction-based constraint, which the AI could rationalize away.
 
 Bob also requires **monolithic gate files** (one per pipeline phase, 6-10 KB each) that inline complete orchestration logic, because it cannot chain skill references across mode switches the way subagent-based agents load skills into fresh contexts.
 
@@ -368,22 +400,19 @@ Separate from the Camel Catalog MCP, the knowledge layer runs from the `camel-ki
 
 | Tool Name | Purpose |
 |-----------|---------|
-| `camel_rh_build_component_info` | Component support status lookup (Production Support, Technology Preview, etc.) |
-| `camel_rh_build_search` | Semantic search across Red Hat Build documentation, errata, and CVEs |
-
-Data sources: product guides (HTML from docs.redhat.com), KB articles, errata (RHSA/RHBA/RHEA), CVEs enriched with CVSS/CWE data. The knowledge index contains approximately 26,000 chunks with hybrid semantic search (20% BM25 + 80% vector).
+| `camel_knowledge_search` | Semantic search across Apache Camel documentation |
 
 ### Tool Usage by Skill
 
 | Skill | Tools Used | Count |
 |-------|------------|-------|
-| `camel-design` | `camel_version_list`, `camel_catalog_*` (all 8) | 9 |
-| `camel-design` | `camel_catalog_components`, `camel_catalog_component_doc`, `camel_catalog_eips`, `camel_catalog_eip_doc`, `camel_catalog_dataformats`, `camel_catalog_dataformat_doc`, `camel_catalog_languages`, `camel_catalog_language_doc` | 8 |
-| `camel-migrate` | Same as `camel-design` (Phase 2) | 8 |
+| `camel-brainstorm` | `camel_version_list`, `camel_catalog_*` (all 8) | 9 |
+| `camel-brainstorm` | `camel_catalog_components`, `camel_catalog_component_doc`, `camel_catalog_eips`, `camel_catalog_eip_doc`, `camel_catalog_dataformats`, `camel_catalog_dataformat_doc`, `camel_catalog_languages`, `camel_catalog_language_doc` | 8 |
+| `camel-migrate` | Same as `camel-brainstorm` (Phase 2) | 8 |
 | `camel-implement` | `camel_catalog_component_doc`, `camel_catalog_dataformat_doc`, `camel_catalog_eip_doc`, `camel_catalog_language_doc`, `camel_route_context`, `camel_validate_route` | 6 |
 | `camel-validate` | `camel_validate_route`, `camel_route_harden_context` | 2 |
 | `camel-test` | `camel_route_context`, `camel_catalog_component_doc` | 2 |
-| `camel-knowledge` | `camel_rh_build_component_info`, `camel_rh_build_search` | 2 |
+| `camel-knowledge` | `camel_knowledge_search` | 1 |
 
 ### Token Savings
 
@@ -456,9 +485,9 @@ Errors route to one of four destinations:
 
 Before this fix, XSLT generation varied between runs because the LLM would re-derive XPaths differently each time from the same schema. The solution: pre-compute Source XPaths and Target Elements once during the canonicalize stage (design time), store them in the TDD, and use them verbatim during implementation. The key insight is that for LLM code generation, providing the exact template per case produces consistent output -- never a single template with conditional rules.
 
-### Red Hat Build Alignment
+### Version Alignment
 
-Camel-Kit defaults to Red Hat Build of Apache Camel versions. Component support is verified via the MCP knowledge layer (`camel_rh_build_component_info`). For catalog MCP calls, the `.redhat-XXXXX` suffix is stripped from version numbers because Maven Central (which the catalog queries) only has community version numbers.
+Camel-Kit defaults to the latest Apache Camel version, configured in `distribution.properties` (the single source of truth for all version numbers and MCP settings). Users can override any property via `-p key=value` CLI flags or a custom config file (`-c path`). Component availability is verified via the MCP catalog layer.
 
 ### Multi-Agent Parity
 
@@ -468,7 +497,7 @@ Skills are markdown instruction files -- the same skill works across all five su
 
 The **Constitution** defines 7 route quality rules (what makes a good route): route structure, single responsibility, separation of concerns, naming conventions, observability, external configuration, component support verification.
 
-The **Iron Laws** define 5 pipeline process enforcement rules (how the pipeline operates): MCP verification, Red Hat Build only, constitution compliance, no code without spec approval, spec compliance before quality.
+The **Iron Laws** define pipeline process enforcement rules (how the pipeline operates): MCP verification, constitution compliance, no code without spec approval, spec compliance before quality.
 
 Iron Law 3 explicitly incorporates and enforces the 7 constitution rules. They are complementary, not overlapping -- the constitution says what to check, the iron laws say when and how to enforce it.
 

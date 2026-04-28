@@ -1,2 +1,2 @@
-Run `{commandPrefix} graph stats` to check availability.
-Target version: {camelVersion}
+Run `{COMMAND_PREFIX} graph stats` to check availability.
+See `.camel-kit/config.properties` for version configuration.

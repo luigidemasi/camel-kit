@@ -1,8 +1,8 @@
 # Camel 2.x/3.x → 4.x Version Migration
 
 > **Context variables provided by master SKILL.md:**
-> - `CAMEL_VERSION` — target Camel version from `.camel-kit/config.yaml`
-> - `RUNTIME` — from `.camel-kit/config.yaml` (`project.runtime`, default: `main`)
+> - `CAMEL_VERSION` — target Camel version from `.camel-kit/config.properties`
+> - `RUNTIME` — from `.camel-kit/config.properties` (`project.runtime`, default: `main`)
 > - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via the version mapping table in `skills/shared/mcp-setup.md`
 > - Confirmed analysis summary (with ✓/~/? markers) from `camel-migrate`
 > - Full list of source artifact paths
@@ -20,7 +20,7 @@ You receive:
 - Confirmed analysis summary (with ✓/~/? markers)
 - Full list of source artifact paths
 - Detected Camel source version (2.x or 3.x) and platform type (ServiceMix/Karaf, Spring Boot, Spring XML, Plain Java)
-- `CAMEL_VERSION` — target Camel version from `.camel-kit/config.yaml`
+- `CAMEL_VERSION` — target Camel version from `.camel-kit/config.properties`
 
 ## Output Contract
 
@@ -67,7 +67,7 @@ From `pom.xml` and source files, determine the source platform:
 | `camel-blueprint` dep or `karaf-maven-plugin` or `maven-bundle-plugin` or `<blueprint>` XML | ServiceMix/Karaf (OSGi) |
 | `camel-spring-boot-starter` dep | Spring Boot |
 | `camel-spring` dep or `<camelContext>` XML elements | Spring XML |
-| `RouteBuilder` classes without Spring/Blueprint deps | Plain Java DSL |
+| `RouteBuilder` classes without Spring/Blueprint deps | Plain Java DSL  |
 
 Determine which DSL formats are present:
 - **Spring XML:** `*.xml` files containing `<camelContext xmlns="http://camel.apache.org/schema/spring">`
@@ -159,7 +159,7 @@ For each ⚠ flagged item, ask the user ONE question at a time:
 
 Skip questions already answered in the pre-populated summary from `camel-migrate`.
 
-**Note:** The target runtime has already been persisted to `.camel-kit/config.yaml` by the `camel-migrate` orchestrator (Step 5). If the user changes their runtime preference during this phase, update `.camel-kit/config.yaml` accordingly.
+**Note:** The target runtime has already been persisted to `.camel-kit/config.properties` by the `camel-migrate` orchestrator (Step 5). If the user changes their runtime preference during this phase, update `.camel-kit/config.properties` accordingly.
 
 ### Step 1.5 — Produce BRD
 
@@ -171,7 +171,7 @@ Create `docs/business-requirements.md` with:
 ## Executive Summary
 [2-3 sentences: origin platform (Apache Camel [2.x/3.x] on [platform]), migration goal (Camel 4.x YAML DSL), scope ([N] routes)]
 
-**Migrated from:** Apache Camel [source version] on [platform] ([source product from summary — e.g. "Red Hat JBoss Fuse 6.3.0"])
+**Migrated from:** Apache Camel [source version] on [platform] ([source product from summary — e.g. "JBoss Fuse 6.3.0"])
 **Target:** Apache Camel [CAMEL_VERSION] — YAML DSL
 **Migration date:** [current date]
 **Original routes:** [N] route(s) detected

@@ -1,6 +1,5 @@
 package io.github.luigidemasi.camelkit.generator;
 
-import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.util.AnsiColors;
 
 import java.nio.file.Files;
@@ -37,8 +36,7 @@ public class GeminiGenerator extends DefaultGenerator {
         super.generate(ctx);
 
         Map<String, Object> data = new HashMap<>(Map.of(
-            "commandPrefix", ctx.commandPrefix(),
-            "camelVersion", ctx.camelVersion()
+            "COMMAND_PREFIX", ctx.commandPrefix()
         ));
         // Gemini-specific: generate GEMINI.md at project root
         generateGeminiMd(ctx);

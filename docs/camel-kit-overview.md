@@ -14,7 +14,7 @@ Building enterprise integrations with Apache Camel involves:
 
 - **Component knowledge** -- Camel has 300+ connectors (Kafka, REST, databases, cloud services, etc.). Each has its own configuration options, version-specific behavior, and compatibility considerations.
 - **Pattern knowledge** -- Enterprise Integration Patterns (content-based routing, message splitting, aggregation, dead letter channels) must be applied correctly for reliability and maintainability.
-- **Red Hat alignment** -- production deployments on Red Hat Build of Apache Camel require using only Red Hat-supported components and versions. A component that exists in the open-source catalog may not be supported for production use.
+- **Version alignment** -- production deployments require using components and versions that are available and verified in the target Camel version. A component that exists in one version may not exist in another.
 - **Quality consistency** -- hand-written or AI-generated routes often miss best practices: missing error handling, hardcoded credentials, unnamed routes that are difficult to debug, overly complex single routes that should be split.
 
 AI coding assistants can help, but without guardrails they generate code from training data that may reference outdated components, incorrect options, or unsupported versions. The code looks correct but fails at runtime.
@@ -79,6 +79,7 @@ flowchart TB
 - **Constitution rules = automated quality gates.** Seven rules are checked during validation. A route without a `routeId` is not flagged as a warning -- it fails validation. A route with hardcoded credentials fails validation. These are pass/fail checks, not advisory notes.
 - **Two-stage review = sequential gates.** Spec compliance is checked before code quality. This order matters -- there is no point reviewing code quality on a route that doesn't match the design. The gate enforces the correct sequence.
 
+
 ### Skills as Reusable Knowledge
 
 AI assistants are most effective when given structured, domain-specific knowledge rather than relying on general training data. General-purpose AI models know about Apache Camel the way someone who read the documentation once might -- broadly but imprecisely, with knowledge that may be months or years out of date.
@@ -125,7 +126,7 @@ Camel-Kit follows a 3-phase pipeline with user approval gates between phases:
 ```mermaid
 flowchart LR
     subgraph "Phase 1"
-        B["Design\n/camel-design"]
+        B["Design\n/camel-brainstorm"]
     end
     subgraph "Phase 2"
         P["Plan\n/camel-plan"]
@@ -163,51 +164,6 @@ This eliminates a common class of errors: routes that compile but fail at runtim
 
 ---
 
-## Red Hat Production Readiness
-
-A standard AI coding assistant trained on open-source documentation cannot distinguish between a community Apache Camel component and one that Red Hat supports for production use. It may generate a route using a component that works in development but has no Red Hat support agreement, no security patches, and no certified compatibility with the target platform. This gap between "it works" and "it's production-ready on Red Hat" is where Camel-Kit provides significant value.
-
-### Red Hat Build Version Enforcement
-
-Camel-Kit defaults to the **Red Hat Build of Apache Camel** -- not the upstream community release. This is enforced as a non-negotiable pipeline rule:
-
-- The project is initialized with a Red Hat Build version (e.g., `4.14.4.redhat-00008`)
-- Every component is checked for Red Hat support status before it enters the design specification
-- The AI is blocked from using community-only Camel versions, even if the user requests one
-
-When a component exists in the open-source Apache Camel catalog but is **not** included in the Red Hat Build, the AI:
-1. Flags the component with its support status (Technology Preview, Community Support, or not included)
-2. Searches for a Red Hat-supported alternative with equivalent functionality
-3. Presents both options to the user with an explanation of the support implications
-4. Waits for the user's decision before proceeding
-
-This prevents a common scenario in enterprise projects: an integration works in development using a community component, passes testing, and then fails Red Hat support review during the production deployment process.
-
-### Red Hat Knowledge Layer
-
-Beyond catalog verification, Camel-Kit integrates a **Knowledge MCP server** that gives the AI direct access to Red Hat's production documentation and security data. This is a separate service that indexes and searches:
-
-| Data Source | What It Contains | How the AI Uses It |
-|-------------|-----------------|-------------------|
-| **Red Hat product guides** | Official documentation for each supported Camel version -- configuration guides, migration notes, known limitations, best practices | When designing routes, the AI can look up Red Hat-specific configuration requirements and version-specific behavior that differs from the community documentation |
-| **Knowledge base articles** | Red Hat support articles covering common issues, workarounds, and recommended configurations | When diagnosing errors during verification, the AI searches for known issues and Red Hat-recommended fixes rather than guessing |
-| **Errata (RHSA/RHBA/RHEA)** | Security advisories, bug fix advisories, and enhancement advisories across 5 Red Hat product versions (~4,500 errata indexed) | The AI can check whether a component version has known security issues or critical bug fixes, and recommend updating to a patched version |
-| **CVE data** | ~4,800 CVEs enriched with CVSS severity scores, CWE classifications, and affected packages | When selecting components, the AI can flag known vulnerabilities and their severity, helping teams make informed decisions about component choices |
-
-The knowledge index contains approximately 26,000 searchable chunks using hybrid semantic search (combining keyword matching with AI-powered semantic understanding), ensuring the AI finds relevant Red Hat documentation even when the user's question doesn't use the exact terminology from the docs.
-
-### What This Means in Practice
-
-**Without Camel-Kit:** An AI assistant generates a route using the `camel-couchdb` component. The route works in development. During production deployment review, the team discovers that `couchdb` is not included in the Red Hat Build. The route must be redesigned to use a supported alternative, wasting days of work.
-
-**With Camel-Kit:** During the design phase, the AI verifies `couchdb` against the Red Hat knowledge layer, discovers it is not Red Hat-supported, suggests `camel-http` or `camel-rest` as alternatives for the same data access pattern, and presents the options before any code is written.
-
-**Without Camel-Kit:** An AI assistant configures a Kafka component based on its training data from 2024. The team is using Camel 4.14 (Red Hat Build), where several Kafka options were renamed. The route compiles but fails at startup with a cryptic error.
-
-**With Camel-Kit:** The AI queries the live catalog for Camel 4.14, gets the exact option names for that version, and checks Red Hat errata for known issues with the Kafka component in that release. The generated route uses the correct options from the start.
-
----
-
 ## Key Capabilities
 
 ### Greenfield Development
@@ -216,7 +172,7 @@ Start from scratch with a structured design session. The AI interviews about req
 
 ```mermaid
 flowchart LR
-    A["/camel-design"] --> B["/camel-plan"] --> C["/camel-execute"]
+    A["/camel-brainstorm"] --> B["/camel-plan"] --> C["/camel-execute"]
 ```
 
 ### Migration
@@ -224,9 +180,10 @@ flowchart LR
 Migrate existing integrations from other platforms to Apache Camel. The AI scans all source artifacts, detects the platform automatically, maps components to Camel equivalents, and produces the same design specification format as greenfield projects. From that point, the pipeline is identical.
 
 **Supported migration sources:**
-- MuleSoft Mule (3.x, 4.x) -- including DataWeave transformation conversion
+- MuleSoft Mule (3.x, 4.x) -- including DataWeave transformation conversion and graph-accelerated flow analysis
 - Apache Camel 2.x/3.x -- Java DSL, XML DSL, Blueprint
-- JBoss Fuse -- all versions
+- JBoss Fuse (6.x, 7.x)
+
 
 ### Data Transformation (DataMapper)
 
@@ -239,7 +196,7 @@ The engine selection is automatic and transparent. The user only needs to descri
 
 ### Project Graph Analysis
 
-When working with existing Camel projects -- whether migrating from another platform or extending an established codebase -- the AI needs to understand the project's structure before making changes. Camel-Kit includes a **project graph analyzer** that parses the entire project into a queryable property graph: classes, methods, Camel routes, endpoints, Maven dependencies, and configuration properties, with edges capturing the relationships between them (extends, calls, routes-from, routes-to, depends-on, configures).
+When working with existing projects -- whether migrating from another platform or extending an established codebase -- the AI needs to understand the project's structure before making changes. Camel-Kit includes a **project graph analyzer** with 8 parsers that parse the entire project into a queryable property graph: classes, methods, Camel routes, endpoints, Maven dependencies, configuration properties, and -- for MuleSoft projects -- flows, sub-flows, connectors, endpoints, transforms, error handlers, and DataWeave scripts. Edges capture the relationships between nodes (extends, calls, routes-from, routes-to, depends-on, configures, flow-contains, calls-subflow, uses-connector, references-dwl).
 
 This gives the AI structural intelligence that goes beyond reading individual files:
 
@@ -250,13 +207,14 @@ This gives the AI structural intelligence that goes beyond reading individual fi
 | **Dead code detection** | Identifies unused Maven dependencies, orphaned routes (not referenced by any other route), and stale configuration properties | "This project has 12 Maven dependencies but only 8 are actually used in routes" |
 | **Route topology mapping** | Maps route-to-route connections to determine which routes are independent | Used by Claude to dispatch independent routes to parallel subagents for simultaneous implementation |
 | **Project norm extraction** | Computes statistical norms from the existing codebase -- naming patterns, error handling coverage, route complexity percentiles | Validation thresholds adapt to the project's actual conventions rather than using hardcoded defaults |
+| **MuleSoft flow analysis** | Parses MuleSoft XML configs into graph nodes (flows, sub-flows, connectors, endpoints, transforms, error handlers) and analyzes DataWeave scripts for complexity | Understanding MuleSoft project structure before migration -- graph-accelerated analysis replaces manual XML deep-dives |
 
 The graph integrates across multiple pipeline skills:
 
 - **During validation**, quality thresholds are derived from the project's actual patterns (e.g., the 75th percentile of route step counts) rather than arbitrary fixed limits. A route with 15 steps is acceptable in a project where existing routes average 12 steps, but flagged in a project where they average 5.
 - **During implementation**, the AI matches the project's existing conventions -- naming patterns, bean reuse, dependency versions -- rather than inventing new ones that create inconsistency.
 - **During testing**, route topology awareness lets the AI understand upstream and downstream dependencies, generating tests that cover integration points rather than just individual routes in isolation.
-- **During migration**, a full-project graph analysis in Phase 0 detects structural concerns (circular dependencies, deeply nested route chains, unused components) before any code is translated.
+- **During migration**, a full-project graph analysis in Phase 0 detects structural concerns (circular dependencies, deeply nested route chains, unused components) before any code is translated. For MuleSoft projects, the graph automatically parses all Mule XML flows, sub-flows, connectors, and DataWeave scripts -- giving the migration skill instant flow topology without manual XML deep-dives.
 
 A key design principle: the graph **enhances but never gates**. Greenfield projects work without any graph -- skills fall back to sensible defaults. When working with an existing project, the graph is built automatically and skills consume it for project-aware behavior. The improvement is transparent: better validation thresholds, more consistent naming, smarter test generation -- without requiring any additional user action.
 
@@ -354,7 +312,7 @@ Every generated route is checked against 7 quality rules (the "Constitution"):
 4. **Naming conventions** -- consistent, meaningful route IDs and endpoint names
 5. **Observability** -- every route must have an ID and description for monitoring
 6. **External configuration** -- no hardcoded credentials or connection strings
-7. **Component support verification** -- every component verified as Red Hat-supported
+7. **Component support verification** -- every component verified via MCP catalog
 
 These rules are enforced automatically during the validation step. Violations are caught before the route reaches runtime.
 
@@ -412,7 +370,7 @@ flowchart TB
 
     subgraph mcp ["MCP Servers"]
         catalog["Camel Catalog MCP\nComponent verification\nOption validation\nSecurity analysis"]
-        knowledge["Knowledge MCP\nRed Hat documentation\nErrata & CVEs\nSupport status"]
+        knowledge["Knowledge MCP\nDocumentation\nComponent verification"]
     end
 
     init --> templates
@@ -428,7 +386,7 @@ flowchart TB
 
 **Camel Catalog MCP** provides the data knowledge -- which components exist, what options they accept, whether an endpoint URI is valid. It queries the live catalog for the project's exact Camel version rather than relying on potentially outdated training data.
 
-**Knowledge MCP** provides Red Hat production intelligence -- component support status, official documentation, security advisories (errata), and CVE data. This is what bridges the gap between "works with community Camel" and "production-ready on Red Hat."
+**Knowledge MCP** provides documentation intelligence -- component availability, official documentation, and version-specific guidance.
 
 **Templates** adapt the skill delivery format to each AI agent's native instruction mechanism. A single set of skills serves all five agents.
 
@@ -441,9 +399,7 @@ flowchart TB
 | **Faster integration development** | AI generates routes, tests, and configuration from a design spec. The engineer focuses on requirements and review, not boilerplate. |
 | **Higher quality output** | 7 quality rules enforced automatically. Every component verified against the live catalog. No hardcoded credentials, unnamed routes, or unsupported components. |
 | **Reduced runtime failures** | Real-time catalog verification catches configuration errors at design time. Runtime verification catches remaining issues before deployment. |
-| **Red Hat production-ready from day one** | Defaults to Red Hat Build versions. Every component checked for Red Hat support status. Non-supported components flagged with alternatives before any code is written. AI has access to Red Hat product documentation, errata, and CVE data to make informed decisions. |
-| **Security awareness** | ~4,800 CVEs indexed with CVSS scores and affected packages. ~4,500 errata (security, bug fix, enhancement advisories) searchable during design and verification. Known vulnerabilities flagged at component selection time, not after deployment. |
-| **Migration de-risking** | Automated analysis of MuleSoft, legacy Camel, and Fuse projects. Component-by-component mapping against Red Hat-supported equivalents, with gap identification before implementation begins. |
+| **Migration de-risking** | Automated analysis of MuleSoft, legacy Camel, and Fuse projects. Graph-accelerated MuleSoft analysis parses flows, sub-flows, connectors, and DataWeave scripts automatically. Component-by-component mapping against verified Camel equivalents, with gap identification before implementation begins. |
 | **No AI vendor lock-in** | Works with 5 AI agents. Same pipeline, same output, same quality -- regardless of provider. |
 | **Maintainable and extensible** | Skills are plain markdown. Adding new capabilities means writing a new skill guide, not modifying code. |
 
@@ -458,7 +414,7 @@ flowchart TB
 | Route format | Camel YAML DSL |
 | Target runtime | Spring Boot, Quarkus, or JBang |
 | Catalog access | Camel MCP server (live catalog queries via Model Context Protocol) |
-| Red Hat intelligence | Knowledge MCP server (Red Hat docs, errata, CVEs -- hybrid semantic search over ~26,000 indexed chunks) |
+| Documentation | Knowledge MCP server (Apache Camel docs -- hybrid semantic search) |
 | Testing | Citrus + Testcontainers |
 | IDE support | Kaoto (visual route and DataMapper editing) |
 | AI agents | Claude Code, IBM Project Bob, Gemini CLI, Qwen, OpenCode |

@@ -19,6 +19,7 @@ customModes:
       - - edit
         - fileRegex: \.md$
           description: Markdown files only
+      - command
       - mcp
       - browser
 
@@ -40,6 +41,7 @@ customModes:
       - - edit
         - fileRegex: \.md$
           description: Markdown files only
+      - command
       - mcp
 
   - slug: camel-implement
@@ -47,13 +49,12 @@ customModes:
     roleDefinition: >
       You are a Camel integration developer implementing routes from an
       approved plan. You follow TDD, verify every component via MCP catalog,
-      and use only Red Hat supported components. You write YAML DSL routes.
+      and write YAML DSL routes.
     whenToUse: >
       Use this mode when implementing Camel routes from an approved plan.
       Activated during the implementation phase of the camel-kit pipeline.
     customInstructions: >
       Every component MUST be verified via camel_catalog_component before use.
-      Every component MUST be checked for Red Hat support via camel_rh_build_component_info.
       Follow the plan step by step. Do not skip steps or add unrequested features.
     groups:
       - read

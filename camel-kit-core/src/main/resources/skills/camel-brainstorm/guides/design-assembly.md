@@ -28,9 +28,9 @@ The design spec is the single source of truth for what gets built. It contains:
 # [Project Name] — Design Spec
 
 **Date:** [YYYY-MM-DD]
-**Camel Version:** [full Maven version with .redhat-XXXXX]
+**Camel Version:** [full Maven version]
 **Runtime:** [JBang / Spring Boot / Quarkus]
-**Platform BOM Version:** [resolved platform BOM version with .redhat-XXXXX — e.g., 3.27.2.redhat-00002 for Quarkus, 4.14.4.redhat-00010 for Spring Boot]
+**Platform BOM Version:** [resolved platform BOM version]
 
 ---
 
@@ -64,7 +64,6 @@ The design spec is the single source of truth for what gets built. It contains:
 **Source:**
 - System: [name]
 - Component: `[camel-component]` (MCP-verified)
-- Red Hat Support: [Production Support / Technology Preview]
 - Trigger: [description]
 - Endpoint options: [key options from MCP catalog]
 
@@ -85,7 +84,6 @@ The design spec is the single source of truth for what gets built. It contains:
 **Sink:**
 - System: [name]
 - Component: `[camel-component]` (MCP-verified)
-- Red Hat Support: [Production Support / Technology Preview]
 - Action: [description]
 - Endpoint options: [key options from MCP catalog]
 
@@ -131,7 +129,7 @@ All flows in this spec are designed to comply with the 7 constitution rules:
 - [ ] Naming Conventions — route IDs follow `<domain>-<action>`
 - [ ] Observability — routeId and description on every route
 - [ ] External Configuration — no hardcoded values
-- [ ] Component Support — all components MCP-verified as Red Hat supported
+- [ ] Component Support — all components MCP-verified
 
 ---
 
@@ -140,7 +138,7 @@ All flows in this spec are designed to comply with the 7 constitution rules:
 ```
 [project-name]/
 ├── .camel-kit/
-│   └── config.yaml
+│   └── config.properties
 ├── docs/
 │   ├── constitution.md
 │   └── design-spec.md          ← this file
@@ -210,12 +208,11 @@ Fix any issues inline.
 ## Save and Present
 
 1. Save the spec to `docs/design-spec.md` (greenfield) or `docs/migration-spec.md` (migration)
-2. Create `.camel-kit/config.yaml` if it doesn't exist:
-   ```yaml
-   project:
-     camelVersion: "[full version]"
-     runtime: "[main/spring-boot/quarkus]"
-     platformBomVersion: "[resolved platform BOM version]"
+2. Create `.camel-kit/config.properties` if it doesn't exist:
+   ```properties
+   project.runtime=[main/spring-boot/quarkus]
+   project.camelVersion=[full version]
+   project.platformBomVersion=[resolved platform BOM version]
    ```
 3. Copy `templates/constitution.md` to `docs/constitution.md` if it doesn't exist
 

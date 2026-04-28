@@ -10,7 +10,7 @@
 
 ### 0.5.0 — Run Composite Command
 
-Read `.camel-kit/config.yaml` to get the `command-prefix` field (default: `camel-kit`).
+Read `.camel-kit/config.properties` to get the `command-prefix` field (default: `camel-kit`).
 
 The `routeId` is derived from the route's `id:` field (e.g., `order-process`).
 

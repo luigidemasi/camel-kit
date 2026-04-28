@@ -9,7 +9,7 @@
 
 The code quality reviewer answers: **Is the implementation well-built?**
 
-This is Stage 2 of the two-stage review. It runs ONLY AFTER spec compliance review passes (Iron Law 5). The implementation already matches the spec — this review checks quality.
+This is Stage 2 of the two-stage review. It runs ONLY AFTER spec compliance review passes (Iron Law 4). The implementation already matches the spec — this review checks quality.
 
 ---
 
@@ -32,7 +32,7 @@ compliance, security, anti-patterns, and YAML quality.
 
 Read `docs/constitution.md` in the project directory for the full rule definitions. For EACH generated route, check ALL 7 rules.
 
-For Rule 7 (Component Support Verification): spot-check 2-3 components via `camel_rh_build_component_info`. All should be "Production Support" — Technology Preview or unsupported → flag as Important issue.
+For Rule 7 (Component Support Verification): spot-check 2-3 components via `camel_catalog_component` to verify they exist in the target Camel version.
 
 ## Security Checks
 
@@ -126,5 +126,3 @@ If the quality reviewer reports Critical issues:
 
 The quality reviewer should use:
 - `camel_catalog_component(name, runtime, platformBom)` — verify endpoint option names
-- `camel_rh_build_component_info(component)` — verify Red Hat support status
-- `camel_knowledge_search(query)` — check for known issues or CVEs

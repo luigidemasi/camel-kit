@@ -39,7 +39,7 @@ The `platformBom` parameter accepts a full Maven GAV (`groupId:artifactId:versio
 - **spring-boot**: `org.apache.camel.springboot:camel-catalog-provider-springboot:4.14.4`
 - **quarkus**: `io.quarkus.platform:quarkus-camel-bom:3.17.7`
 
-The correct `platformBom` value for each Camel version and runtime is in `catalog/versions.properties` (the single source of truth), loaded by `VersionMapping.resolve(camelVersion).platformBom(runtime)`.
+The correct `platformBom` value for each runtime is derived from `.camel-kit/config.properties` (the single source of truth for all version numbers).
 
 When `platformBom` is provided, `camelVersion` is ignored.
 
@@ -55,24 +55,32 @@ The runtime affects which components are returned (e.g., Quarkus extensions vs S
 
 ### Rule 3: Omitting `platformBom` and `camelVersion`
 
-When both are omitted, the MCP server uses its built-in catalog (4.19.0). This is a superset of all versions — component schemas are backwards-compatible. Use this as a fallback when the exact version doesn't matter.
+When both are omitted, the MCP server uses its built-in catalog (4.20.0). This is a superset of all versions — component schemas are backwards-compatible. Use this as a fallback when the exact version doesn't matter.
 
 **Examples:**
 - Project has `camelVersion: 4.14.4`, `runtime: quarkus` → `runtime=quarkus`, `platformBom=io.quarkus.platform:quarkus-camel-bom:3.17.7`
 - Project has `camelVersion: 4.8.5`, `runtime: spring-boot` → `runtime=spring-boot`, `platformBom=org.apache.camel.springboot:camel-catalog-provider-springboot:4.8.5`
 - Quick lookup, version doesn't matter → `runtime=main`, omit `platformBom`
 
-### Version mapping reference
+### Version configuration
 
-`catalog/versions.properties` maps each Camel minor version to the exact `platformBom` GAV per runtime. The `VersionMapping` Java class loads this file.
+Version numbers are stored in `.camel-kit/config.properties`, set during `/camel-design`:
 
-| Camel Minor | Main platformBom | Spring Boot platformBom | Quarkus platformBom |
-|-------------|-----------------|------------------------|---------------------|
-| 4.0 | `org.apache.camel:camel-catalog:4.0.6` | `o.a.c.springboot:camel-catalog-provider-springboot:4.0.6` | `io.quarkus.platform:quarkus-camel-bom:3.2.12.Final` |
-| 4.4 | `org.apache.camel:camel-catalog:4.4.4` | `o.a.c.springboot:...:4.4.4` | `io.quarkus.platform:quarkus-camel-bom:3.8.6` |
-| 4.8 | `org.apache.camel:camel-catalog:4.8.5` | `o.a.c.springboot:...:4.8.5` | `io.quarkus.platform:quarkus-camel-bom:3.15.3` |
-| 4.10 | `org.apache.camel:camel-catalog:4.10.7` | `o.a.c.springboot:...:4.10.7` | `io.quarkus.platform:quarkus-camel-bom:3.20.1` |
-| 4.14 | `org.apache.camel:camel-catalog:4.14.4` | `o.a.c.springboot:...:4.14.4` | `io.quarkus.platform:quarkus-camel-bom:3.17.7` |
+```properties
+project.runtime=quarkus
+project.camelVersion=4.18.0
+project.platformBomVersion=3.33.0
+```
+
+Default platform BOMs by runtime:
+
+| Runtime | platformBom GAV |
+|---------|----------------|
+| main | `org.apache.camel:camel-catalog:{project.camelVersion}` |
+| spring-boot | `org.apache.camel.springboot:camel-catalog-provider-springboot:{project.camelVersion}` |
+| quarkus | `io.quarkus.platform:quarkus-camel-bom:{project.platformBomVersion}` |
+
+Users can override any property via `-p key=value` CLI flags or a custom config file (`-c path`).
 
 ---
 

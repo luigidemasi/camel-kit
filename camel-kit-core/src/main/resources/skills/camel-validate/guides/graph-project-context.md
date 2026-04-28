@@ -10,7 +10,7 @@
 
 ### 0.0 — Run Composite Command
 
-Read `.camel-kit/config.yaml` to get the `command-prefix` field (default: `camel-kit`).
+Read `.camel-kit/config.properties` to get the `command-prefix` field (default: `camel-kit`).
 
 Run the composite command:
 ```bash

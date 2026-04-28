@@ -7,11 +7,20 @@ This example demonstrates how to use Camel-Kit's workflow to design and implemen
 Initialize a new Camel-Kit project using the CLI:
 ```bash
 # Choose your AI assistant
-camel-kit init my-integration --ai bob        # IBM Project Bob
-camel-kit init my-integration --ai gemini     # Google Gemini CLI
-camel-kit init my-integration --ai claude     # Anthropic Claude Code
-camel-kit init my-integration --ai qwen       # Qwen
+camel-kit init my-integration --ai bob        # Bob
+camel-kit init my-integration --ai gemini     # Gemini CLI
+camel-kit init my-integration --ai claude     # Claude Code
+camel-kit init my-integration --ai qwen       # Qwen Code
 camel-kit init my-integration --ai opencode   # OpenCode
+```
+
+You can also override configuration at init time:
+```bash
+# With custom Camel version
+camel-kit init my-integration --ai claude -p "camel.version=4.18.0"
+
+# With custom config file
+camel-kit init my-integration --ai claude -c team-config.properties
 ```
 
 This creates the project structure with AI agent configuration and skills.
@@ -22,11 +31,11 @@ Customer orders are received on a Kafka topic as JSON messages. Valid orders (am
 
 ## Workflow Steps
 
-### 1. Brainstorm the Design
+### 1. Design the Integration
 
 Start an interactive design session:
 ```
-/camel-brainstorm
+/camel-design
 ```
 
 The assistant asks questions one at a time about:
@@ -63,15 +72,6 @@ The assistant implements, validates, tests, and verifies all flows.
 - Citrus test files in `test/`
 - Verification report
 
-### Alternative: Single-Flow Shortcut
-
-For a quicker workflow on a single flow:
-```
-/camel-flow
-```
-
-This combines brainstorm + plan + execute in one command.
-
 ## Infrastructure
 
 Use the provided `docker-compose.yaml` to start Kafka and PostgreSQL:
@@ -105,15 +105,10 @@ order-processing/
 ## Workflow Summary
 
 ```
-/camel-brainstorm              # Design the integration (interview + spec)
-/camel-plan                    # Create implementation plan (auto after brainstorm)
-/camel-execute                 # Implement, validate, test, verify (auto after plan)
-
-# Or use the single-flow shortcut:
-/camel-flow                    # All-in-one for a single flow
-
-# Standalone verification:
-/camel-verify                  # Build, start, diagnose, fix
+/camel-design              # Design the integration (interview + spec)
+/camel-plan                # Create implementation plan (auto after design)
+/camel-execute             # Implement, validate, test, verify (auto after plan)
+/camel-verify              # Build, start, diagnose, fix (standalone or automatic)
 ```
 
 ## Documentation

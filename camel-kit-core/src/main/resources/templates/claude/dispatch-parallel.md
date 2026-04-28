@@ -2,7 +2,7 @@
 
 When implementing multiple routes, check route independence before dispatching:
 
-1. Run `{commandPrefix} graph route-topology` to get route connections
+1. Run `{COMMAND_PREFIX} graph route-topology` to get route connections
 2. Identify routes with no shared endpoints or upstream/downstream dependencies
 3. For independent routes: dispatch parallel subagents using the Agent tool — one subagent per route
 4. For dependent routes: dispatch sequentially in dependency order

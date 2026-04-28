@@ -63,7 +63,7 @@ No `<version>` tag for Quarkus/Spring Boot — the BOM manages versions. For JBa
 **Phase:** Build
 **Category:** Version incompatibility
 **Fix target:** Self-repair
-**Fix action:** Check the Camel BOM version in pom.xml. Ensure all Camel dependencies use the same version managed by the BOM. If a third-party dependency conflicts, check for a compatible version. Look for mixed community/Red Hat artifact versions.
+**Fix action:** Check the Camel BOM version in pom.xml. Ensure all Camel dependencies use the same version managed by the BOM. If a third-party dependency conflicts, check for a compatible version. Look for mixed artifact versions.
 
 ### Missing Maven Plugin
 

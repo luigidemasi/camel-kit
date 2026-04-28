@@ -1,6 +1,6 @@
 # MuleSoft Migration — Phase 2: TDD Generation
 
-> **Context variables:** `CAMEL_VERSION`, `RUNTIME`, `PLATFORM_BOM` from `.camel-kit/config.yaml`
+> **Context variables:** `CAMEL_VERSION`, `RUNTIME`, `PLATFORM_BOM` from `.camel-kit/config.properties`
 > **Prerequisite:** Phase 1 (`mulesoft-phase1.md`) must be complete — BRD written to `docs/business-requirements.md`
 
 ## Phase 2 — Integration Architect
@@ -11,17 +11,17 @@
 - Load `skills/camel-migrate/guides/mule-dataweave-conversion.md` — required for DataWeave analysis
 - Re-read `docs/business-requirements.md`
 - Read `docs/constitution.md` if it exists (for reference)
-- Re-read `.camel-kit/config.yaml` — **REQUIRED**: extract `project.camelVersion` as `CAMEL_VERSION` and `project.runtime` as `RUNTIME`. If the file does not exist, ask the user for the Camel version before proceeding.
+- Re-read `.camel-kit/config.properties` — **REQUIRED**: extract `project.camelVersion` as `CAMEL_VERSION` and `project.runtime` as `RUNTIME`. If the file does not exist, ask the user for the Camel version before proceeding.
 
 **Conditionally load:**
 - `skills/camel-migrate/guides/datamapper-migrate.md` — load once per flow that contains a DataWeave transformation (see Step 2.2)
-- `skills/camel-flow/guides/performance.md` — if SLA requirements are strict
-- `skills/camel-flow/guides/security.md` — if compliance requirements exist
-- `skills/camel-flow/guides/monitoring.md` — if observability requirements exist
+- `skills/camel-design/guides/performance.md` — if SLA requirements are strict
+- `skills/camel-design/guides/security.md` — if compliance requirements exist
+- `skills/camel-design/guides/monitoring.md` — if observability requirements exist
 
 **MCP catalog tools — MANDATORY when MCP is configured (same rules as `/camel-flow`):**
 
-Before every MCP catalog call, translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` parameter using the version mapping table in `skills/shared/mcp-setup.md`. Never pass the raw `CAMEL_VERSION` or a stripped minor version (e.g., `4.14`) directly — always use the translated Red Hat artifact version from the table. Never use a Camel component name, EIP name, data format name, or expression language name from training data or the mapping guide without first verifying it in the catalog.
+Before every MCP catalog call, translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` parameter using the version mapping table in `skills/shared/mcp-setup.md`. Never pass the raw `CAMEL_VERSION` or a stripped minor version (e.g., `4.14`) directly — always use the translated artifact version from the table. Never use a Camel component name, EIP name, data format name, or expression language name from training data or the mapping guide without first verifying it in the catalog.
 
 → **For MCP setup, version mapping, and fallback policy:** see `skills/shared/mcp-setup.md`
 
@@ -31,7 +31,6 @@ Before every MCP catalog call, translate `CAMEL_VERSION` + `RUNTIME` to the corr
 | Camel EIP for a Mule routing construct | `camel_catalog_eips` | `camel_catalog_eip_doc` |
 | Data format for unmarshal/marshal | `camel_catalog_dataformats` | `camel_catalog_dataformat_doc` |
 | Expression language for conditions/predicates | `camel_catalog_languages` | `camel_catalog_language_doc` |
-| Migration context for mapped Camel component | `camel_rh_build_search` | — |
 
 The static `mule-component-mapping.md` guide provides a **starting point** (the suggested Camel component name). It does NOT replace catalog verification — always confirm availability and option names in `CAMEL_VERSION` before writing the TDD.
 
@@ -48,22 +47,6 @@ For each Mule flow identified in Phase 1:
    Params: { "component": "[suggested-camel-component]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
    ```
    Record the URI syntax, endpoint options, component-level options, and Maven coordinates from the catalog response. If the component is not found in `CAMEL_VERSION`, call `camel_catalog_components` to search for an alternative and notify the user.
-
-   **Red Hat support check (MANDATORY when camel-knowledge MCP is available):**
-   After verifying a component in the catalog, call `camel_rh_build_component_info` to check Red Hat support:
-   ```
-   MCP Tool: camel_rh_build_component_info
-   Params: { "component": "[camel-component-name]", "runtime": "{{RUNTIME}}" }
-   ```
-   If the component is NOT supported by Red Hat, raise a WARNING to the user, search for a Red Hat-supported alternative that provides equivalent functionality, and present both options. Let the user decide. If the MCP server is not available, skip this step.
-
-   After mapping a Mule connector to a Camel component, ALWAYS call:
-   ```
-   camel_rh_build_search(query: "{mapped_camel_component} migration", max_results: 5)
-   ```
-   This provides migration context that may be relevant even for MuleSoft migrations —
-   the Camel component may have changed between versions.
-   If the camel-knowledge MCP server is not available, skip this step.
 
    **CRITICAL — use the exact component scheme from the route URI.** The component name MUST be the exact URI scheme (e.g., `smtp`, not `mail`; `aws2-sqs`, not `aws`). Many Camel components share a parent artifact but are distinct components with distinct schemes, options, and property prefixes.
 
@@ -133,7 +116,7 @@ Use the **exact same TDD format** as `/camel-flow` output. The file MUST contain
 | Target Module | {relative path from workspace root to the target Camel project, e.g. `order-service/`} |
 | Business Purpose | [from BRD] |
 | Trigger | [how the Camel route is triggered] |
-| Camel Version | [from config.yaml] |
+| Camel Version | [from config.properties] |
 | Created | [current date] |
 
 ## Section 2: Source System

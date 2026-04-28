@@ -9,7 +9,7 @@
 
 > Design, implement, and verify Apache Camel integrations with AI coding assistants.
 
-Camel-Kit adds structured slash commands to your AI assistant that guide you through the full integration lifecycle — from designing the integration, through implementation and testing, to runtime verification. It works across multiple AI agents and produces production-ready Camel routes targeting the Red Hat Build of Apache Camel.
+Camel-Kit adds structured slash commands to your AI assistant that guide you through the full integration lifecycle — from designing the integration, through implementation and testing, to runtime verification. It works across multiple AI agents and produces production-ready Apache Camel routes.
 
 **Inspired by [GitHub Spec-Kit](https://github.com/github/spec-kit)**, adapted for the Apache Camel ecosystem.
 
@@ -88,14 +88,14 @@ camel-kit init my-integration --ai gemini   # Google Gemini CLI
 camel-kit init my-integration --ai qwen     # Qwen
 camel-kit init my-integration --ai opencode # OpenCode
 
-# 2. Open in your AI assistant
+# 2. Override configuration if needed
+camel-kit init my-integration --ai claude -p "camel.version=4.18.0"
+
+# 3. Open in your AI assistant
 cd my-integration
 
-# 3. Start designing
-/camel-brainstorm
-
-# 4. Or use the single-flow shortcut
-/camel-flow order-ingestion
+# 4. Start designing
+/camel-design
 ```
 
 ---
@@ -121,8 +121,9 @@ All agents use the same skills — camel-kit generates agent-specific instructio
 - **MCP integration** — real-time catalog queries, route validation, and security analysis via the Apache Camel MCP server
 - **DataMapper** — automatic data transformation with two engines: XSLT for complex mappings, Groovy for simple ones
 - **Runtime verification** — `/camel-verify` builds, starts, diagnoses errors, and retries until the app runs
-- **Migration support** — migrate from MuleSoft, legacy Apache Camel, or JBoss Fuse
-- **Knowledge layer** — Red Hat Build documentation, errata, CVEs searchable via MCP
+- **Migration support** — migrate from MuleSoft, legacy Apache Camel, or JBoss Fuse with graph-accelerated analysis
+- **MuleSoft graph analysis** — automatic parsing of Mule XML flows, sub-flows, connectors, and DataWeave scripts into a project graph for migration
+- **Knowledge layer** — Apache Camel documentation searchable via MCP
 
 ---
 

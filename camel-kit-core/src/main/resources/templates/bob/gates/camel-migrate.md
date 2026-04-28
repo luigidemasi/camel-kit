@@ -1,6 +1,6 @@
 ---
 name: camel-migrate
-description: Use when the user wants to migrate an existing integration from MuleSoft, Fuse, or older Camel versions to Red Hat Build of Apache Camel 4.x
+description: Use when the user wants to migrate an existing integration from MuleSoft, Fuse, or older Camel versions to Apache Camel 4.x
 ---
 
 # Camel Migrate — Migration Pipeline (Bob)
@@ -95,11 +95,11 @@ Wait for explicit confirmation.
 Read `.bob/skills/camel-brainstorm/guides/version-selection.md` for the version selection process.
 
 Help the user select:
-1. Target Camel version (Red Hat Build)
+1. Target Camel version
 2. Target runtime (Spring Boot / Quarkus / JBang)
 3. Platform BOM version
 
-Store selections in `.camel-kit/config.yaml`.
+Store selections in `.camel-kit/config.properties`.
 </Step>
 
 <Step>
@@ -111,7 +111,7 @@ For migration-specific mappings, read the appropriate guide:
 - MuleSoft: `.bob/skills/camel-migrate/guides/mule-component-mapping.md`
 - Camel 2.x: `.bob/skills/camel-migrate/guides/camel2-component-mapping.md`, `.bob/skills/camel-migrate/guides/camel2-eip-mapping.md`, `.bob/skills/camel-migrate/guides/camel2-dataformat-mapping.md`, `.bob/skills/camel-migrate/guides/camel2-language-mapping.md`
 
-Verify EVERY component via MCP: `camel_catalog_component` then `camel_rh_build_component_info`.
+Verify EVERY component via MCP: `camel_catalog_component`.
 </Step>
 
 <Step>
@@ -202,7 +202,7 @@ Run validation against the constitution and project norms.
 Report findings without modifying files.
 
 If the project graph is available, run:
-`{commandPrefix} graph project-norms` and `{commandPrefix} graph dead-code`
+`{COMMAND_PREFIX} graph project-norms` and `{COMMAND_PREFIX} graph dead-code`
 
 **After validation completes, IMMEDIATELY proceed to the next step (Test). Do NOT stop or print summaries.**
 </Step>
@@ -225,7 +225,7 @@ MIGRATION COMPLETE
 ===============================================================
 
 Source: [vendor] [version]
-Target: Red Hat Build of Apache Camel [version] on [runtime]
+Target: Apache Camel [version] on [runtime]
 
 Migrated Routes: [N]
 Validation: PASS/FAIL

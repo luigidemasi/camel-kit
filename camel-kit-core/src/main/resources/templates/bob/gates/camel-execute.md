@@ -67,7 +67,7 @@ For EACH task in the queue:
 - Read the full task text from the plan
 - Read the relevant design spec section (if specified)
 - Read the relevant TDD (if specified)
-- Load project context (config.yaml, constitution.md)
+- Load project context (config.properties, constitution.md)
 
 **Step 2: Load Guides**
 - Load all guides specified in the task
@@ -81,7 +81,6 @@ Follow the task's step-by-step instructions. For implementation tasks:
 
 1. **Verify components via MCP:**
    - For EVERY component: `camel_catalog_component`
-   - For EVERY component: `camel_rh_build_component_info`
    - For EVERY EIP: `camel_catalog_eip`
    - For EVERY dataformat: `camel_catalog_dataformat`
    - For EVERY language: `camel_catalog_language`
@@ -129,7 +128,7 @@ Check all 7 constitution rules:
 4. Idempotency (for stateful routes)
 5. Circuit breaker (for HTTP calls)
 6. TLS everywhere
-7. Red Hat Build only
+7. Component verification
 
 Check security:
 - No hardcoded credentials
@@ -193,8 +192,8 @@ After ALL tasks complete:
 
 **Graph Analysis (if available):**
 ```bash
-{commandPrefix} graph project-norms
-{commandPrefix} graph dead-code
+{COMMAND_PREFIX} graph project-norms
+{COMMAND_PREFIX} graph dead-code
 ```
 
 Report any cross-cutting issues.
@@ -303,10 +302,9 @@ NEVER:
 Execution enforces ALL five Iron Laws:
 
 - **Iron Law 1**: MCP Catalog Verification — verify every component via MCP before generating YAML
-- **Iron Law 2**: Red Hat Build Only — verify every component via `camel_rh_build_component_info`
-- **Iron Law 3**: Constitution Compliance — every route passes all 7 rules
-- **Iron Law 4**: No Code Without Spec Approval — only runs after plan approval
-- **Iron Law 5**: Spec Compliance Before Quality — ALWAYS spec first, quality second
+- **Iron Law 2**: Constitution Compliance — every route passes all 7 rules
+- **Iron Law 3**: No Code Without Spec Approval — only runs after plan approval
+- **Iron Law 4**: Spec Compliance Before Quality — ALWAYS spec first, quality second
 
 ## Guide Reference
 

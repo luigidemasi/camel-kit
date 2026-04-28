@@ -19,12 +19,10 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
-import java.io.IOException;
 import java.util.List;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Instant;
 import java.util.Map;
 
 /**
@@ -42,11 +40,6 @@ public class InitCommand extends CamelKitCommand {
 
     @Option(names = {"--here"}, description = "Initialize in current directory")
     public boolean here;
-
-    @Option(names = {"-v", "--camel-version"},
-            description = "Camel version (use 'default' for bundled catalog)",
-            defaultValue = "default")
-    public String camelVersion;
 
     @Option(names = {"--citrus-version"},
             description = "Citrus version for test schemas",
@@ -138,11 +131,7 @@ public class InitCommand extends CamelKitCommand {
             targetDir = Path.of(projectName).toAbsolutePath();
         }
 
-        // Get catalog versions
-        String version = "default".equals(camelVersion)
-            ? CamelKitMain.LATEST_CAMEL_LTS_VERSION
-            : camelVersion;
-
+        // Get Citrus version
         String citrusVer = "default".equals(citrusVersion)
             ? CamelKitMain.DEFAULT_CITRUS_VERSION
             : citrusVersion;
@@ -166,8 +155,8 @@ public class InitCommand extends CamelKitCommand {
 
         // 2 — configuration files
         tracker.startTask("\uD83D\uDCDD", "Writing configuration");
-        createConfigFile(camelKitDir, projectName, version, citrusVer, ai, agent);
-        createConstitution(docsDir, version);
+        createConfigFile(camelKitDir, projectName, ai, agent);
+        createConstitution(docsDir);
         copyAdditionalTemplates(camelKitDir.resolve("templates"));
         tracker.finishTask();
 
@@ -177,7 +166,7 @@ public class InitCommand extends CamelKitCommand {
         Path agentBaseDir = targetDir.resolve(agent.folder()).getParent();
         InitContext genCtx = new InitContext(agent, ai, commandsDir,
             agentBaseDir.resolve("skills"), targetDir,
-            detectCommandPrefix(), version, printer());
+            detectCommandPrefix(), printer());
         AgentGeneratorFactory.create(ai).generate(genCtx);
         tracker.finishTask();
 
@@ -197,6 +186,11 @@ public class InitCommand extends CamelKitCommand {
                         projectGraph, graphFile, targetDir.toAbsolutePath().toString());
                 printer().println(green("✓") + " Project graph: " + projectGraph.nodeCount()
                         + " nodes, " + projectGraph.edgeCount() + " edges");
+
+                String detected = detectProjectType(projectGraph);
+                if (!detected.isEmpty()) {
+                    printer().println("     Detected: " + cyan(detected));
+                }
             } else {
                 printer().println(yellow("  No source files found — graph skipped"));
             }
@@ -228,10 +222,9 @@ public class InitCommand extends CamelKitCommand {
         printer().println();
         printer().print("  " + green("✓") + "  ");
         printer().println(bold(projectName));
-        String meta = "     " + version + "  \u00b7  " + agent.name()
+        String meta = "     " + agent.name()
                 + (citrusSchemaCount > 0 ? "  \u00b7  " + citrusSchemaCount + " schemas" : "");
         printer().println(meta);
-        printer().println("     Targeting " + cyan("Apache Camel"));
         printer().println();
 
         // Next steps
@@ -239,46 +232,134 @@ public class InitCommand extends CamelKitCommand {
         printer().println("  " + bold("Next steps"));
         printer().println(divider);
         printer().println("  1  Open " + cyan(projectName) + " in " + agent.name());
-        printer().println("  2  " + cyan("/camel-brainstorm") + " \u2014 design an integration (greenfield or migration)");
-        printer().println("     " + cyan("/camel-flow") + "       \u2014 greenfield shortcut");
-        printer().println("     " + cyan("/camel-migrate") + "    \u2014 migration shortcut");
-        printer().println("  3  " + cyan("/camel-verify") + "     \u2014 build, run, and diagnose");
+        printer().println("  2  " + cyan("/camel-design") + "   \u2014 design an integration (greenfield or migration)");
+        printer().println("     " + cyan("/camel-migrate") + "  \u2014 migration shortcut");
+        printer().println("  3  " + cyan("/camel-verify") + "   \u2014 build, run, and diagnose");
         printer().println();
 
         return 0;
     }
 
-    private void createConfigFile(Path dir, String name, String version, String citrusVer,
+    private String detectProjectType(ProjectGraph graph) {
+        var types = new java.util.ArrayList<String>();
+
+        if (!graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.MULE_FLOW).isEmpty()) {
+            int flows = graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.MULE_FLOW).size();
+            int subFlows = graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.MULE_SUB_FLOW).size();
+            int dwl = graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.DATAWEAVE_SCRIPT).size();
+            String muleVersion = findMavenProperty(graph, "mule.version");
+            if (muleVersion == null) muleVersion = findMavenProperty(graph, "app.runtime");
+            if (muleVersion == null) muleVersion = findArtifactVersion(graph, "org.mule.runtime", "mule-core");
+            if (muleVersion == null) muleVersion = findArtifactVersion(graph, "org.mule", "mule-core");
+            types.add("MuleSoft Mule" + (muleVersion != null ? " " + muleVersion : "")
+                    + " (" + flows + " flows, " + subFlows + " sub-flows"
+                    + (dwl > 0 ? ", " + dwl + " DataWeave scripts" : "") + ")");
+        }
+
+        if (!graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.CAMEL_ROUTE).isEmpty()) {
+            int routes = graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.CAMEL_ROUTE).size();
+            String camelVersion = detectCamelVersion(graph);
+            String platform = detectCamelPlatform(graph);
+            types.add(platform + (camelVersion != null ? " " + camelVersion : "")
+                    + " (" + routes + " routes)");
+        }
+
+        if (!graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.MAVEN_ARTIFACT).isEmpty()
+                && types.isEmpty()) {
+            types.add("Maven project");
+        }
+
+        return String.join(", ", types);
+    }
+
+    private String detectCamelVersion(ProjectGraph graph) {
+        // Try Maven property first (most reliable — declared in POM <properties>)
+        String version = findMavenProperty(graph, "camel.version");
+        if (version != null) return version;
+
+        // Try explicit dependency version
+        version = findArtifactVersion(graph, "org.apache.camel", "camel-core");
+        if (version != null) return version;
+
+        version = findArtifactVersion(graph, "org.apache.camel", "camel-bom");
+        if (version != null) return version;
+
+        // Camel dependencies are "managed" — scan all camel artifacts for any with a real version
+        for (var node : graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.MAVEN_ARTIFACT)) {
+            if ("org.apache.camel".equals(node.properties().get("groupId"))) {
+                String v = node.properties().get("version");
+                if (v != null && !"managed".equals(v) && !"unknown".equals(v) && !v.contains("${")) {
+                    return v;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private String detectCamelPlatform(ProjectGraph graph) {
+        // Check project groupId for Fuse indicators
+        for (var node : graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.MAVEN_ARTIFACT)) {
+            String file = node.properties().get("file");
+            if (file != null && file.contains("pom.xml")) {
+                String groupId = node.properties().getOrDefault("groupId", "");
+                if (groupId.contains("jboss.fuse") || groupId.contains("fusesource")) {
+                    return "JBoss Fuse";
+                }
+            }
+        }
+
+        // Check dependency versions for .redhat- or .fuse- qualifiers
+        for (var node : graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.MAVEN_ARTIFACT)) {
+            String v = node.properties().getOrDefault("version", "");
+            if (v.contains(".fuse-") || v.contains(".redhat-")) {
+                return "JBoss Fuse";
+            }
+        }
+
+        return "Apache Camel";
+    }
+
+    private String findMavenProperty(ProjectGraph graph, String propertyName) {
+        var node = graph.getNode("maven-property:" + propertyName);
+        if (node != null) {
+            String value = node.properties().get("value");
+            if (value != null && !value.isEmpty() && !value.contains("${")) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String findArtifactVersion(ProjectGraph graph, String groupId, String artifactId) {
+        String nodeId = "maven:" + groupId + ":" + artifactId;
+        var node = graph.getNode(nodeId);
+        if (node != null) {
+            String version = node.properties().get("version");
+            if (version != null && !"managed".equals(version) && !"unknown".equals(version)
+                    && !version.contains("${")) {
+                return version;
+            }
+        }
+        return null;
+    }
+
+    private void createConfigFile(Path dir, String name,
                                    String ai, AgentConfig agent) throws Exception {
         String cmdPrefix = detectCommandPrefix();
-        DistributionConfig dist = CamelKitMain.distribution();
-        String quarkusBom = dist.quarkusBomVersion();
-        String springBootBom = dist.springbootBomVersion();
-        String yaml = """
-            # Camel-Kit Configuration
-            project:
-              name: %s
-              camelVersion: "%s"
-              citrusVersion: "%s"
-              command-prefix: "%s"
-              platformBomVersion:
-                quarkus: "%s"
-                spring-boot: "%s"
-
-            agent:
-              name: %s
-              folder: %s
-
-            catalog:
-              source: bundled
-              lastUpdated: %s
-            """.formatted(name, version, citrusVer, cmdPrefix,
-                quarkusBom, springBootBom,
-                ai, agent.folder(), Instant.now().toString());
+        java.util.Properties config = new java.util.Properties();
+        config.setProperty("project.name", name);
+        config.setProperty("project.command-prefix", cmdPrefix);
+        config.setProperty("agent.name", ai);
+        config.setProperty("agent.folder", agent.folder());
         if (sourcePlatform != null && !"auto".equals(sourcePlatform)) {
-            yaml = yaml + "\n  sourcePlatform: \"" + sourcePlatform + "\"\n";
+            config.setProperty("project.sourcePlatform", sourcePlatform);
         }
-        Files.writeString(dir.resolve("config.yaml"), yaml);
+
+        Path configFile = dir.resolve("config.properties");
+        try (var out = Files.newOutputStream(configFile)) {
+            config.store(out, "Camel-Kit Project Configuration");
+        }
     }
 
     private String detectCommandPrefix() {
@@ -287,14 +368,15 @@ public class InitCommand extends CamelKitCommand {
         return "camel kit";
     }
 
-    private void createConstitution(Path dir, String camelVersion) throws Exception {
+    private void createConstitution(Path dir) throws Exception {
         QuteTemplateEngine qute = new QuteTemplateEngine();
 
         String template = TemplateUtils.readTemplate("templates/constitution.md");
 
+        DistributionConfig dist = CamelKitMain.distribution();
         String content = qute.renderString(template, Map.of(
             "DATE", java.time.LocalDate.now().toString(),
-            "CAMEL_VERSION", camelVersion
+            "CAMEL_VERSION", dist.camelMainVersion()
         ));
         Files.writeString(dir.resolve("constitution.md"), content);
     }

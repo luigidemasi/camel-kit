@@ -65,7 +65,9 @@ public final class GraphVisualizer {
             node.properties().forEach(props::put);
         }
         ArrayNode edges = root.putArray("edges");
+        var nodeIds = graph.getNodes().keySet();
         for (GraphEdge edge : graph.getEdges()) {
+            if (!nodeIds.contains(edge.from()) || !nodeIds.contains(edge.to())) continue;
             ObjectNode e = edges.addObject();
             e.put("source", edge.from());
             e.put("target", edge.to());

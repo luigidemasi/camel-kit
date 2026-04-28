@@ -2,7 +2,7 @@
 
 > **Context variables provided by `camel-flow`:**
 > - `FLOW_NAME` — the flow being designed
-> - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
+> - `CAMEL_VERSION` — from `.camel-kit/config.properties`
 > - Source format and target format from the user's Q3 answer
 
 You are now acting as a **Data Mapping Specialist**. This guide is loaded by `camel-flow` when the user mentions data transformation or field mapping and the format pair is XML→XML, JSON→JSON, JSON→XML, or XML→JSON.

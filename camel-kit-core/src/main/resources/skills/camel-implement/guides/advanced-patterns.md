@@ -2,7 +2,7 @@
 
 > **Context variables provided by master SKILL.md:**
 > - `FLOW_NAME` — the flow being implemented
-> - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
+> - `CAMEL_VERSION` — from `.camel-kit/config.properties`
 
 This guide implements advanced EIP patterns referenced in the TDD. Each pattern maps to a specific TDD section:
 

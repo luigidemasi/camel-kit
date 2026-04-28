@@ -37,7 +37,7 @@ Implementation only happens after approval.
 
 Read these files:
 1. `docs/constitution.md` — constitution rules (all 7 rules)
-2. `.camel-kit/config.yaml` — Camel version, runtime, platform BOM
+2. `.camel-kit/config.properties` — Camel version, runtime, platform BOM
 3. `.camel-kit/project-graph.json` — project conventions (if exists)
 4. `docs/design-spec.md` — approved design spec
 
@@ -62,7 +62,6 @@ For EACH route in the plan:
 1. **Read the TDD** at `docs/flows/\{flow-name\}/\{flow-name\}.tdd.md`
 2. **Verify components via MCP:**
    - For EVERY component: `camel_catalog_component(name="X", runtime="Y", platformBom="Z")`
-   - For EVERY component: `camel_rh_build_component_info(componentName="X")`
    - For EVERY EIP: `camel_catalog_eip(name="X")`
    - For EVERY dataformat: `camel_catalog_dataformat(name="X")`
    - For EVERY language: `camel_catalog_language(name="X")`
@@ -144,7 +143,7 @@ For EVERY route, verify compliance with all 7 constitution rules:
 4. **Idempotency** — stateful routes use `idempotentConsumer`
 5. **Circuit Breaker** — HTTP calls have resilience patterns
 6. **TLS Everywhere** — all HTTP endpoints use HTTPS
-7. **Red Hat Build Only** — all components verified via `camel_rh_build_component_info`
+7. **Component Verification** — all components verified via MCP catalog
 
 If any rule is violated, fix immediately before proceeding.
 </Step>
@@ -165,8 +164,7 @@ git commit -m "feat: implement all routes per approved plan"
 
 All implementation enforces:
 - **Iron Law 1**: MCP Catalog Verification — verify component options before generating YAML
-- **Iron Law 2**: Red Hat Build Only — every component verified via `camel_rh_build_component_info`
-- **Iron Law 3**: Constitution Compliance — every generated route passes all 7 rules
+- **Iron Law 2**: Constitution Compliance — every generated route passes all 7 rules
 
 ## MCP Tools Used
 
@@ -174,7 +172,6 @@ All implementation enforces:
 - `camel_catalog_eip` — verify EIP exists, get configuration schema
 - `camel_catalog_dataformat` — verify dataformat exists
 - `camel_catalog_language` — verify expression language exists
-- `camel_rh_build_component_info` — check Red Hat support status
 
 For MCP setup, version mapping, and fallback policy: see `shared/mcp-setup.md`
 

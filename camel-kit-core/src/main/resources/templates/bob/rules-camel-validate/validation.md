@@ -11,5 +11,5 @@
 1. Constitution compliance — check every rule in `docs/constitution.md`
 2. Naming conventions — route IDs follow project patterns
 3. Error handling — all routes have error handlers or deadLetterChannel
-4. Component verification — all components are MCP-verified and Red Hat supported
+4. Component verification — all components are MCP-verified
 5. Step count — flag routes exceeding project P75 step count (if graph available)

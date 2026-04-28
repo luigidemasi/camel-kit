@@ -32,4 +32,3 @@ Provides the domain knowledge guides needed to design Apache Camel integration f
 
 All guides in this skill enforce:
 - **Iron Law 1**: MCP Catalog Verification — every component/EIP/dataformat recommendation is MCP-verified
-- **Iron Law 2**: Red Hat Build Only — only Red Hat supported components recommended

@@ -64,12 +64,12 @@ Define exactly two version properties:
 ### Version Discovery
 
 <HARD-RULE>
-Read the Spring Boot BOM version from `.camel-kit/config.yaml`:
+Read the Spring Boot BOM version from `.camel-kit/config.properties`:
 
-```yaml
-project:
-  platformBomVersion:
-    spring-boot: "4.14.4"  # <- use THIS value
+```properties
+project.runtime=spring-boot
+project.camelVersion=4.18.0
+project.platformBomVersion=4.18.0  # <- use THIS value
 ```
 
 **Do NOT guess or derive** the Spring Boot BOM version from the Camel version. The correct value is pre-computed by `camel-kit init`.

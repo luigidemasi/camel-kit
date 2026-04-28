@@ -1,6 +1,6 @@
 # Camel Version Migration — Phase 2: TDD Generation
 
-> **Context variables:** `CAMEL_VERSION`, `RUNTIME`, `PLATFORM_BOM` from `.camel-kit/config.yaml`
+> **Context variables:** `CAMEL_VERSION`, `RUNTIME`, `PLATFORM_BOM` from `.camel-kit/config.properties`
 > **Prerequisite:** Phase 1 (`camel-version-phase1.md`) must be complete — BRD written to `docs/business-requirements.md`
 
 ## Phase 2 — Integration Architect
@@ -10,14 +10,14 @@
 Re-read:
 - `docs/business-requirements.md`
 - `docs/constitution.md` (reference)
-- `.camel-kit/config.yaml` — **extract `project.camelVersion` as `CAMEL_VERSION`** and `project.runtime` as `RUNTIME` (written by `camel-migrate` orchestrator in Step 5). If the file does not exist or `project.camelVersion` is not set, **STOP** and ask the user for the target Camel version before proceeding. Before every MCP catalog call, translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` parameter using the version mapping table in `skills/shared/mcp-setup.md`.
+- `.camel-kit/config.properties` — **extract `project.camelVersion` as `CAMEL_VERSION`** and `project.runtime` as `RUNTIME` (written by `camel-migrate` orchestrator in Step 5). If the file does not exist or `project.camelVersion` is not set, **STOP** and ask the user for the target Camel version before proceeding. Before every MCP catalog call, translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` parameter using the version mapping table in `skills/shared/mcp-setup.md`.
 - All guide files loaded in Phase 1 (keep in context)
 
 Conditionally load:
 - `skills/shared/datamapper-canonicalize.md` — if any route uses `dozer` or custom XSLT transformation
-- `skills/camel-flow/guides/performance.md` — if strict SLA requirements
-- `skills/camel-flow/guides/security.md` — if compliance requirements
-- `skills/camel-flow/guides/monitoring.md` — if observability requirements
+- `skills/camel-design/guides/performance.md` — if strict SLA requirements
+- `skills/camel-design/guides/security.md` — if compliance requirements
+- `skills/camel-design/guides/monitoring.md` — if observability requirements
 
 ### MCP Catalog Enforcement (MANDATORY when MCP configured)
 
@@ -36,52 +36,21 @@ For every migration decision, follow the **Verification Chain**:
 │    ├─ FOUND → use mapped 4.x name → continue to step 2            │
 │    └─ NOT FOUND → continue to step 2                               │
 │                                                                     │
-│ 2. Knowledge docs lookup (ALWAYS, if camel-knowledge MCP is        │
-│    configured) — Call:                                              │
-│      camel_rh_build_search(                                        │
-│        query: "<name> migration",                                  │
-│        version: "<target_rh_version>",                             │
-│        max_results: 5                                              │
-│      )                                                              │
-│    Read the returned migration context. This provides detailed     │
-│    information about:                                               │
-│    - Behavioral changes between versions                           │
-│    - Option renames and configuration differences                  │
-│    - Known gotchas and workarounds                                 │
-│    - Related migration concerns                                    │
-│    Use this information to enrich the TDD with migration-specific  │
-│    context.                                                         │
-│    If the MCP server is not available, skip this step (graceful    │
-│    degradation).                                                    │
-│                                                                     │
-│ 2b. Red Hat support check (if camel-knowledge MCP is configured)   │
-│    — Call:                                                          │
-│      camel_rh_build_component_info(                                │
-│        component: "<4.x-name>",                                    │
-│        version: "<target_rh_version>",                             │
-│        runtime: "<runtime>"                                        │
-│      )                                                              │
-│    Check whether the target component is supported in the Red Hat  │
-│    Build of Apache Camel. If supported, note it in the TDD. If    │
-│    NOT supported, flag it as a migration concern — the component   │
-│    works in community Camel but has no Red Hat support.             │
-│    If the MCP server is not available, skip this step.             │
-│                                                                     │
-│ NOTE: All catalog calls in steps 3-4 MUST also pass:               │
+│ NOTE: All catalog calls in steps 2-3 MUST also pass:               │
 │   camelVersion=<target_version>,                                   │
 │   platformBom=<platform_bom>,                                      │
 │   runtime=<runtime>                                                │
 │ (translated from CAMEL_VERSION+RUNTIME via mcp-setup.md table)     │
 │                                                                     │
-│ 3. Call MCP catalog LIST tool:                                      │
+│ 2. Call MCP catalog LIST tool:                                      │
 │    • Components: camel_catalog_components(filter=<name>)           │
 │    • EIPs:       camel_catalog_eips(filter=<name>)                 │
 │    • Formats:    camel_catalog_dataformats(filter=<name>)          │
 │    • Languages:  camel_catalog_languages(filter=<name>)            │
-│    ├─ FOUND → name unchanged in 4.x → go to step 4                │
-│    └─ NOT FOUND → go to step 5                                     │
+│    ├─ FOUND → name unchanged in 4.x → go to step 3                │
+│    └─ NOT FOUND → go to step 4                                     │
 │                                                                     │
-│ 4. Call MCP catalog DOC tool to verify OPTIONS:                     │
+│ 3. Call MCP catalog DOC tool to verify OPTIONS:                     │
 │    • Components: camel_catalog_component_doc(component=<name>)     │
 │    • EIPs:       camel_catalog_eip_doc(eip=<name>)                 │
 │    • Formats:    camel_catalog_dataformat_doc(dataformat=<name>)   │
@@ -93,13 +62,8 @@ For every migration decision, follow the **Verification Chain**:
 │    │   └─ If not → STOP, show user the doc output, ask for help    │
 │    └─ Record: component, options, Maven coordinates from doc       │
 │                                                                     │
-│ 5. Broader knowledge search (only if steps 1-2 returned nothing)   │
-│    — Call:                                                          │
-│      camel_rh_build_search(                                        │
-│        query: "<name> migration camel 4",                          │
-│        max_results: 5                                              │
-│      )                                                              │
-│    If still nothing → ask user for guidance:                        │
+│ 4. Component not found (steps 1-3 returned nothing)                │
+│    Ask user for guidance:                        │
 │      "Component [X] not found in catalog or knowledge base.         │
 │       Options:                                                      │
 │       a) Provide the correct Camel 4.x component name               │
@@ -107,7 +71,7 @@ For every migration decision, follow the **Verification Chain**:
 │       c) Remove this processing step from the migration"            │
 │    If user chooses (b), write TDD with [TODO] marker.               │
 │                                                                     │
-│ 6. Write verified result to TDD                                     │
+│ 5. Write verified result to TDD                                     │
 │    • Only MCP-verified names and options go into the TDD            │
 │    • [TODO]-marked components are acceptable — /camel-implement      │
 │      will flag them for resolution before generating code            │
@@ -120,7 +84,7 @@ For every migration decision, follow the **Verification Chain**:
 
 **Before processing each route**, if graph CLI is available (check via `shared/graph-availability.md`), run these queries to build structural context. If the CLI is not available, skip this section and proceed with Step 2.1 as normal.
 
-Read `.camel-kit/config.yaml` to get the `command-prefix` field (default: `camel-kit`).
+Read `.camel-kit/config.properties` to get the `command-prefix` field (default: `camel-kit`).
 
 **Migration ordering:** If `.camel-kit/project-snapshot.md` exists, process routes in the order specified in its "Migration Ordering" section (leaf routes first, then dependents). This prevents generating TDDs that reference routes not yet migrated.
 
@@ -237,7 +201,7 @@ For each route, create `docs/flows/{flow-name}/{flow-name}.tdd.md` with the **ex
 |-------|-------|
 | Flow Name | {flow-name} |
 | Migrated From | Apache Camel {source-version} ({platform}) — {original-route-id} |
-| Source Product | {Red Hat product name from summary — e.g. "Red Hat JBoss Fuse 6.3.0" or "Community Apache Camel"} |
+| Source Product | {product name from summary — e.g. "JBoss Fuse 6.3.0" or "Community Apache Camel"} |
 | Source Module | {relative path from workspace root to the source project, e.g. `fuse6-apps/http/Https_jetty_Consumer`} |
 | Target Module | {relative path from workspace root to the target project, e.g. `https-jetty-consumer/`} |
 | Business Purpose | [from BRD] |

@@ -11,6 +11,5 @@ public record InitContext(
     Path skillsDir,
     Path projectDir,
     String commandPrefix,
-    String camelVersion,
     Printer printer
 ) {}

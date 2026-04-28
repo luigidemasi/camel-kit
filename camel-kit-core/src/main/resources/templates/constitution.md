@@ -10,7 +10,7 @@
 |----------|-------|
 | Version | 2.0 |
 | Last Updated | {DATE} |
-| Camel Version |` {CAMEL_VERSION}` |
+| Camel Version | `{CAMEL_VERSION}` (default; per-platform version in `.camel-kit/config.properties`) |
 
 ---
 

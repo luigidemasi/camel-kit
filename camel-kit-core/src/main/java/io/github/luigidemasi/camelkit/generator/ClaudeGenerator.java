@@ -1,6 +1,5 @@
 package io.github.luigidemasi.camelkit.generator;
 
-import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.util.AnsiColors;
 
 import java.nio.file.Files;
@@ -29,8 +28,7 @@ public class ClaudeGenerator extends DefaultGenerator {
 
     private void generateClaudeMd(InitContext ctx) throws Exception {
         Map<String, Object> data = new HashMap<>(Map.of(
-            "commandPrefix", ctx.commandPrefix(),
-            "camelVersion", ctx.camelVersion()
+            "COMMAND_PREFIX", ctx.commandPrefix()
         ));
         String content = templateEngine.render("templates/claude/claude-md.md", data);
         Files.writeString(ctx.projectDir().resolve("CLAUDE.md"), content);
@@ -39,7 +37,7 @@ public class ClaudeGenerator extends DefaultGenerator {
     private void appendParallelDispatch(InitContext ctx) throws Exception {
         Path implementSkill = ctx.skillsDir().resolve("camel-implement/SKILL.md");
         if (Files.exists(implementSkill)) {
-            Map<String, Object> data = Map.of("commandPrefix", ctx.commandPrefix());
+            Map<String, Object> data = Map.of("COMMAND_PREFIX", ctx.commandPrefix());
             String parallelBlock = templateEngine.render(
                 "templates/claude/dispatch-parallel.md", data);
             String existing = Files.readString(implementSkill);

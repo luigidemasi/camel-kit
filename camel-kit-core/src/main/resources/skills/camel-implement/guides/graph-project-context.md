@@ -10,7 +10,7 @@
 
 ### 0.0 — Run Composite Command
 
-Read `.camel-kit/config.yaml` to get the `command-prefix` field (default: `camel-kit`).
+Read `.camel-kit/config.properties` to get the `command-prefix` field (default: `camel-kit`).
 
 Run the composite command:
 ```bash
@@ -57,7 +57,7 @@ Extract from JSON response:
 Record:
 - `DEPENDENCY_VERSIONS` = response.dependencyVersions
 
-When generating `pom.xml` dependencies (Step 5), use versions from `DEPENDENCY_VERSIONS` if the artifact is already in the project. This prevents version mismatches like adding `camel-kafka:4.14.0` when the project already uses `camel-kafka:4.14.4.redhat-00008`.
+When generating `pom.xml` dependencies (Step 5), use versions from `DEPENDENCY_VERSIONS` if the artifact is already in the project. This prevents version mismatches like adding `camel-kafka:4.14.0` when the project already uses a different version.
 
 ### 0.4 — Route File Placement
 

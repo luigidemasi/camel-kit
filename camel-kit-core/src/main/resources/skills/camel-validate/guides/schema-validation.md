@@ -2,7 +2,7 @@
 
 > **Context variables provided by master SKILL.md:**
 > - `FLOW_NAME` — the flow being validated
-> - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
+> - `CAMEL_VERSION` — from `.camel-kit/config.properties`
 
 ## Stage 1: YAML Schema Validation
 
@@ -14,7 +14,7 @@ Load the Camel YAML DSL schema:
 Schema file: .camel-kit/.cache/camelYamlDsl-{{CAMEL_VERSION}}.json
 ```
 
-Replace `{{CAMEL_VERSION}}` with version from `.camel-kit/config.yaml`.
+Replace `{{CAMEL_VERSION}}` with version from `.camel-kit/config.properties`.
 
 If schema not cached, fetch from GitHub:
 ```

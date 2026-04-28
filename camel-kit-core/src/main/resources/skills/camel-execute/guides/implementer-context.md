@@ -40,7 +40,7 @@ Read the relevant design spec section and include it directly:
 ```
 ## Project Configuration
 
-- Camel Version: [full version with .redhat-XXXXX]
+- Camel Version: [full version]
 - Runtime: [main / spring-boot / quarkus]
 - Platform BOM: [from versions.properties]
 - Module Path: [path]
@@ -73,7 +73,7 @@ For all MCP catalog calls, use these parameters:
 - platformBom: [full GAV]
 
 Example call:
-camel_catalog_component(name="kafka", runtime="spring-boot", platformBom="org.apache.camel.springboot:camel-catalog-provider-springboot:4.14.4.redhat-00010")
+camel_catalog_component(name="kafka", runtime="spring-boot", platformBom="org.apache.camel.springboot:camel-catalog-provider-springboot:4.14.0")
 ```
 
 #### 7. Iron Laws Reminder
@@ -82,8 +82,7 @@ camel_catalog_component(name="kafka", runtime="spring-boot", platformBom="org.ap
 ## Iron Laws (non-negotiable)
 
 1. VERIFY every component/EIP/dataformat via MCP catalog BEFORE writing YAML
-2. ONLY Red Hat supported versions and components
-3. EVERY route MUST pass all 7 constitution rules
+2. EVERY route MUST pass all 7 constitution rules
 4. Generate ONLY what the task specifies — no extras
 
 Read `shared/iron-laws.md` for full details and rationalization defense.

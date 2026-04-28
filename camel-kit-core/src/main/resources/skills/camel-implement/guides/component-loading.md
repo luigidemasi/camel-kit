@@ -5,8 +5,8 @@
 > - `FLOW_NAME` — the flow being implemented
 > - `ROUTE_DIR` — directory where `{FLOW_NAME}.camel.yaml` and XSLT files are written
 > - `ROUTE_FILE` — full path to the route file (`{ROUTE_DIR}/{FLOW_NAME}.camel.yaml`)
-> - `CAMEL_VERSION` — Camel version from `.camel-kit/config.yaml`
-> - `RUNTIME` — from `.camel-kit/config.yaml` (`project.runtime`, default: `main`)
+> - `CAMEL_VERSION` — Camel version from `.camel-kit/config.properties`
+> - `RUNTIME` — from `.camel-kit/config.properties` (`project.runtime`, default: `main`)
 > - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via the version mapping table in `skills/shared/mcp-setup.md`
 > - `TARGET_MODULE` — module prefix from TDD "Overview" section (empty for single-project)
 
@@ -23,10 +23,6 @@ The Camel MCP server provides code generation and validation tools for this skil
 - **EIP List** (`camel_catalog_eips`) - All EIPs available, filterable by category
 - **EIP Documentation** (`camel_catalog_eip_doc`) - Full options and YAML DSL usage for a specific EIP
 - **URI Validation** (`camel_validate_route`) - Validate endpoint URIs and catch typos before runtime
-
-The camel-knowledge MCP server provides Red Hat Build documentation:
-- **Red Hat Component Info** (`camel_rh_build_component_info`) - Check if a component is supported by Red Hat
-- **Red Hat Docs Search** (`camel_rh_build_search`) - Search Red Hat Build docs for configurations, release notes, migration info
 
 All catalog calls MUST translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` parameter using the version mapping table in `skills/shared/mcp-setup.md`. Never pass the raw version or a stripped minor version directly.
 
@@ -69,21 +65,6 @@ Component: [component-name]
 ```
 
 Repeat for every component before writing any YAML.
-
-### 2.1b Red Hat Support Check (after 2.1, MANDATORY when camel-knowledge MCP is available)
-
-After loading component documentation via Step 2.1, call `camel_rh_build_component_info` for each component to check whether it is supported by Red Hat Build of Apache Camel. If the tool call fails (tool not found, network error), skip this step silently.
-
-```
-Red Hat support check:
-  MCP Tool: camel_rh_build_component_info
-  Params: { "component": "[component-name]", "runtime": "{{RUNTIME}}" }
-
-  Result: [supported / not found in Red Hat docs]
-```
-
-- **If supported:** proceed with implementation.
-- **If NOT supported by Red Hat:** raise a WARNING to the user. Search for a Red Hat-supported alternative that provides equivalent functionality and present both options. Let the user decide whether to proceed with the unsupported component or switch to the alternative before continuing implementation.
 
 **If `camel_catalog_component_doc` returns an error (component not found):**
 

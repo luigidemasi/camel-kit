@@ -1,6 +1,6 @@
 ---
 name: camel-verify
-description: Runtime verification feedback loop — builds, starts, diagnoses errors, applies fixes, and retries until the application runs correctly or the iteration limit is reached
+description: Use this skill when the user wants to verify that a Camel application actually works — building it, starting it, testing it, and fixing errors automatically. Trigger for 'it doesn't start', 'build failed', 'verify the app works', 'run the verification loop', 'test if it runs', 'the route throws an error', 'debug the startup', 'check if the build passes', or any request about compilation errors, startup failures, runtime exceptions, or behavioral testing of Camel routes. This is the runtime feedback loop that builds, starts, tests, classifies errors, and fixes them iteratively.
 user_invocable: true
 ---
 
@@ -25,7 +25,7 @@ When invoked standalone, runs the full verification loop on the project as-is. W
 
 ## Prerequisites
 
-- `.camel-kit/config.yaml` must exist (for runtime detection)
+- `.camel-kit/config.properties` must exist (for runtime detection)
 - Project source files (routes, pom.xml, properties) must be in place
 
 ## Guides

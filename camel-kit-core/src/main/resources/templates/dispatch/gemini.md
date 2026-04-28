@@ -6,7 +6,7 @@ For each computational step in the Guide Manifest, use the agent tool to dispatc
 
 Include in each sub-agent prompt:
 - The flow/task name
-- Camel version (from .camel-kit/config.yaml)
+- Camel version (from .camel-kit/config.properties)
 - User answers relevant to this step
 - File paths of prior step outputs (let the sub-agent read them)
 

@@ -30,7 +30,7 @@ For each flow in the design spec, generate these tasks in order:
 - If Spring Boot: `templates/pom-spring-boot.xml` — copy verbatim, replace only `[PLACEHOLDER]` values
 
 <HARD-RULE>
-Do NOT generate the POM from scratch. COPY the template file and replace ONLY the bracketed placeholders. The template already has the correct Red Hat groupIds, artifactIds, repositories, and plugins. Community groupIds/versions are FORBIDDEN.
+Do NOT generate the POM from scratch. COPY the template file and replace ONLY the bracketed placeholders. The template already has the correct groupIds, artifactIds, repositories, and plugins.
 </HARD-RULE>
 
 **Design Spec Section:** Section 6 (Project Structure)
@@ -43,14 +43,11 @@ Do NOT generate the POM from scratch. COPY the template file and replace ONLY th
   - Get `[PLATFORM_BOM_VERSION]` from the design spec header `platformBomVersion` field
   - Do NOT modify any other values in the template (groupIds, artifactIds, repositories, plugins)
   - Add project-specific dependencies in the DEPENDENCIES section
-- [ ] Verify BOM groupId is Red Hat (`com.redhat.*`), NOT community (`io.quarkus.*` or `org.apache.*`)
-- [ ] Verify version has `.redhat-XXXXX` suffix
-- [ ] Verify Red Hat GA repository is present in `<repositories>` AND `<pluginRepositories>`
 - [ ] Verify: `ls -la` shows expected structure
 
 **Review:**
 - [ ] Spec compliance: directory structure matches spec Section 6
-- [ ] Code quality: Red Hat groupIds, `.redhat-` version suffix, no community coordinates
+- [ ] Code quality: correct groupIds and versions
 ```
 
 ### Task Template: Generate Route YAML (per flow)
@@ -169,7 +166,6 @@ Do NOT generate the POM from scratch. COPY the template file and replace ONLY th
 
 **MCP Tools:**
 - `camel_catalog_component` for each endpoint URI
-- `camel_rh_build_component_info` for each component
 
 - [ ] Run schema validation on each route YAML
 - [ ] Verify each endpoint URI via MCP catalog

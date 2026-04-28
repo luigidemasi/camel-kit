@@ -1,6 +1,5 @@
 package io.github.luigidemasi.camelkit.generator;
 
-import io.github.luigidemasi.camelkit.CamelKitMain;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -32,11 +31,8 @@ public class BobGenerator extends DefaultGenerator {
         super.generate(ctx);
 
         Map<String, Object> templateData = new HashMap<>(Map.of(
-            "commandPrefix", ctx.commandPrefix(),
-            "camelVersion", ctx.camelVersion()
+            "COMMAND_PREFIX", ctx.commandPrefix()
         ));
-        templateData.put("mavenRepo", CamelKitMain.distribution().mavenRepo());
-
         // Bob-specific: generate custom modes
         generateCustomModes(ctx);
 

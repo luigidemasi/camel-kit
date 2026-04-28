@@ -2,8 +2,8 @@
 
 > **Context variables provided by master SKILL.md:**
 > - `FLOW_NAME` — the flow being validated
-> - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
-> - `RUNTIME` — project runtime from `.camel-kit/config.yaml`
+> - `CAMEL_VERSION` — from `.camel-kit/config.properties`
+> - `RUNTIME` — project runtime from `.camel-kit/config.properties`
 > - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via the version mapping table in `skills/shared/mcp-setup.md`
 >
 > **Version mapping:** When calling MCP catalog tools, translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` and `platformBom` parameters using the version mapping table in `skills/shared/mcp-setup.md`.

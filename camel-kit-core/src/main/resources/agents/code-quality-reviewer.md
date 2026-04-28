@@ -25,7 +25,7 @@ Check all 7 rules for every route:
 4. **Naming Conventions** — route IDs follow `<domain>-<action>[-<qualifier>]`, `direct:<route-id>`, custom headers in `kebab-case`
 5. **Observability** — `routeId` and `description` declared, correlation IDs used
 6. **External Configuration** — no hardcoded connection strings, credentials, or environment values
-7. **Component Support** — all components MCP-verified as Red Hat supported
+7. **Component Support** — all components MCP-verified
 
 ### 2. Security Analysis
 
@@ -61,8 +61,6 @@ Check all 7 rules for every route:
 
 - `camel_catalog_component` — spot-check endpoint URIs and options
 - `camel_catalog_eip` — verify EIP configuration
-- `camel_rh_build_component_info` — verify Red Hat support status
-- `camel_knowledge_search` — check for known issues or CVEs
 
 ## Guides You Reference
 

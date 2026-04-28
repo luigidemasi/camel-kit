@@ -36,9 +36,13 @@ Migration discovery replaces the interview-heavy approach with artifact scanning
 
 ## Step 1: Check for Project Graph
 
-Check if `.camel-kit/project-graph.json` exists.
+Check if `.camel-kit/project-graph.json` exists (check existence only — do NOT read the file).
 
-- **If yes:** Load `guides/migration-graph-analysis.md` for accelerated analysis. The graph provides instant route topology, component inventory, and migration ordering. Skip Steps 2-4 (the graph covers them).
+<HARD-RULE>
+NEVER read `.camel-kit/project-graph.json` directly. It is a large JSON file (thousands of lines) that will overflow your context window. Always use `{COMMAND_PREFIX} graph` CLI commands to query the graph.
+</HARD-RULE>
+
+- **If yes:** Load `guides/migration-graph-analysis.md` for accelerated analysis. The graph provides instant route topology, component inventory, and migration ordering via CLI commands. Skip Steps 2-4 (the graph covers them).
 - **If no:** Continue with manual scanning below.
 
 ---
@@ -66,7 +70,7 @@ Scan the directory for integration artifacts:
 | `*.yaml`/`*.yml` containing `from:` and `steps:` | Apache Camel YAML DSL |
 | `pom.xml` with `org.apache.camel` dependencies | Apache Camel (check version) |
 | `pom.xml` with `org.mule` dependencies | MuleSoft Mule |
-| `pom.xml` with `org.jboss.fuse` or `fuse-` BOMs | Red Hat Fuse |
+| `pom.xml` with `org.jboss.fuse` or `fuse-` BOMs | JBoss Fuse |
 
 ---
 
@@ -87,7 +91,7 @@ Based on scanning results, determine:
 - Count routes and their complexity
 - Detect deprecated components/EIPs
 
-### Red Hat Fuse
+### JBoss Fuse
 - Check BOM version for Fuse version (6.x, 7.x)
 - Map to underlying Camel version
 - Detect platform-specific features (Fabric8, Karaf features)
@@ -102,11 +106,11 @@ Compile the scanned information into a structured summary:
 MIGRATION ANALYSIS SUMMARY
 ===========================================================
 Source Vendor:       [detected vendor and version]
-Source Product:      [community / Red Hat product]
+Source Product:      [community / product]
 Source Platform:     [Spring Boot / Karaf / Quarkus / Plain Java]
 Source DSL:          [Java DSL (N routes), XML (N routes), etc.]
 Failure Behaviour:   [inferred from error handler patterns]
-Target Camel:        Red Hat supported version (to be selected)
+Target Camel:        Camel version (to be selected)
 Target Runtime:      [suggested based on source platform]
 API Compatibility:   Assumed (same HTTP paths, queue names, contracts)
 Routes to migrate:   ALL ([N] routes detected)
@@ -252,7 +256,7 @@ that I should be aware of?
 [Concern N of M] — Unsupported Component
 
 I found that your project uses [component-name], which has no direct equivalent
-in Red Hat Build of Apache Camel 4.x.
+in Apache Camel 4.x.
 
 Possible approaches:
 a) [Alternative component] — provides [partial/full] coverage
@@ -355,7 +359,6 @@ For EACH route to be migrated, design the Camel 4.x equivalent:
      - MuleSoft: `mule-component-mapping.md`
      - Camel 2.x: `camel2-component-mapping.md`, `camel2-eip-mapping.md`, `camel2-dataformat-mapping.md`, `camel2-language-mapping.md`
    - For each mapped component, verify via MCP catalog (`camel_catalog_component`)
-   - Check Red Hat support status (`camel_rh_build_component_info`)
 
 2. **Handle transformations:**
    - DataWeave → XSLT: load `mule-dataweave-conversion.md`
@@ -373,7 +376,7 @@ For EACH route to be migrated, design the Camel 4.x equivalent:
 ## Handoff
 
 After discovery, confirmation, concerns interview, clarifications, and component mapping, proceed to:
-1. `guides/version-selection.md` — select target Red Hat Camel version
+1. `guides/version-selection.md` — select target Camel version
 2. `guides/design-assembly.md` — assemble the migration design spec
 
 Pass all analysis data AND all concern decisions to the assembly guide.

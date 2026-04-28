@@ -299,8 +299,6 @@ After the interview, for EACH flow, verify all source and sink components via MC
 
 1. Call `camel_catalog_component` for each source/sink technology
 2. Confirm the component exists and note exact option names
-3. Call `camel_rh_build_component_info` to check Red Hat support status
-4. If a component is not supported or Technology Preview, present alternatives
 
 This verification happens BEFORE assembling the design spec. Failed verification = the design spec is wrong.
 
@@ -309,7 +307,7 @@ This verification happens BEFORE assembling the design spec. Failed verification
 ## Handoff
 
 After the interview and component verification, proceed to:
-1. `guides/version-selection.md` — select Red Hat Camel version
+1. `guides/version-selection.md` — select Camel version
 2. `guides/design-assembly.md` — assemble the design spec from interview answers
 
 Pass all recorded data to the assembly guide.

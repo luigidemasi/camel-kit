@@ -1,6 +1,6 @@
 ---
 name: camel-brainstorm
-description: Use when the user wants to create a new Camel integration, connect systems, build flows, migrate from another platform (MuleSoft, Fuse, Camel 2.x), or start any integration project — whether greenfield or migration
+description: Use this skill whenever the user wants to design, architect, or plan ANY integration — connecting systems, building data pipelines, creating message flows, or starting a new Camel project. Also use when migrating from MuleSoft, Fuse, TIBCO, or older Camel versions. Trigger for phrases like 'I need to connect X to Y', 'build an integration', 'design a flow', 'create a data pipeline', 'set up message routing', 'integrate our systems', or any request involving multiple systems that need to exchange data, even if the user doesn't mention Camel, routes, or integration explicitly. This is the primary entry point for all camel-kit work.
 user_invocable: true
 ---
 
@@ -46,7 +46,7 @@ digraph brainstorm {
         mg_confirm [label="Confirm analysis with user\nFill unknowns", shape=box];
     }
     
-    version [label="Load version-selection.md\nRed Hat version selection", shape=box];
+    version [label="Load version-selection.md\nCamel version selection", shape=box];
     design [label="Load design-assembly.md\nAssemble design spec", shape=box];
     review [label="Self-review spec\n(placeholders, consistency)", shape=box];
     user_approve [label="User reviews and\napproves spec?", shape=diamond];
@@ -85,7 +85,6 @@ When the user approves the design spec, YOU must invoke/activate the `camel-plan
 Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
 
 - **Iron Law 1: MCP Catalog Verification** — Every component, EIP, dataformat, and language in the design spec MUST be MCP-verified before inclusion. You do NOT guess component names.
-- **Iron Law 2: Red Hat Build Only** — Only Red Hat supported Camel versions and components. Verify via `camel_rh_build_component_info`.
 - **Iron Law 4: No Code Without Spec Approval** — NEVER invoke camel-plan or generate any implementation artifacts before the user has explicitly approved the design spec.
 
 ### Rationalization Table
@@ -146,7 +145,7 @@ Are you building a new integration from scratch, or migrating an existing one fr
 You MUST complete these items in order:
 
 1. **Detect project type** — greenfield or migration
-2. **Load context** — read `docs/constitution.md` (if it exists), `.camel-kit/config.yaml` (if it exists)
+2. **Load context** — read `docs/constitution.md` (if it exists), `.camel-kit/config.properties` (if it exists)
 3. **Run interview/discovery** — load the appropriate guide:
    - Greenfield: `guides/greenfield-interview.md`
    - Migration: `guides/migration-discovery.md`
@@ -165,8 +164,6 @@ You MUST complete these items in order:
 - `camel_catalog_eip` — verify EIP exists, get configuration
 - `camel_catalog_dataformat` — verify dataformat exists
 - `camel_catalog_language` — verify expression language exists
-- `camel_rh_build_component_info` — check Red Hat support status
-- `camel_knowledge_search` — search Red Hat docs for guidance
 → For MCP setup, version mapping, and fallback policy: see `shared/mcp-setup.md`
 → For graph analysis: use `{COMMAND_PREFIX} graph` CLI commands (see `shared/graph-availability.md`)
 
@@ -176,7 +173,7 @@ You MUST complete these items in order:
 
 **Read at start (if they exist):**
 1. `docs/constitution.md` — constitution rules. If missing, copy from `templates/constitution.md`.
-2. `.camel-kit/config.yaml` — project config (Camel version, runtime). May not exist yet.
+2. `.camel-kit/config.properties` — project config (Camel version, runtime). May not exist yet.
 3. `docs/business-requirements.md` — existing BRD (if resuming a project).
 
 ---
@@ -184,7 +181,6 @@ You MUST complete these items in order:
 ## Error Handling
 
 - **Missing constitution:** Copy from `templates/constitution.md` and continue.
-- **No config.yaml:** Will be created during version selection.
+- **No config.properties:** Will be created during version selection.
 - **MCP tool failure:** Warn the user, continue with a note that verification is pending.
-- **User provides non-Red Hat version:** Reject and present supported versions (Iron Law 2).
 - **Ambiguous project type:** Ask explicitly — don't guess.

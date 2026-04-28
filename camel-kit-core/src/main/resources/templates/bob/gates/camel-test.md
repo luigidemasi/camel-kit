@@ -37,7 +37,7 @@ List all discovered routes. If none found, report and stop.
 
 Read these files:
 1. `docs/constitution.md` — constitution rules
-2. `.camel-kit/config.yaml` — Camel version, runtime, platform BOM
+2. `.camel-kit/config.properties` — Camel version, runtime, platform BOM
 3. `docs/design-spec.md` — approved design spec (if exists)
 4. `docs/flows/\{flow-name\}/\{flow-name\}.tdd.md` — Technical Design Document for each route
 
@@ -343,7 +343,7 @@ Create a test report at `docs/test-report.md`:
 # Test Report
 
 **Date:** [current date]
-**Camel Version:** [from config.yaml]
+**Camel Version:** [from config.properties]
 **Routes Tested:** [N]
 
 ---

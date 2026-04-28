@@ -92,18 +92,19 @@ camel-kit/
 │       ├── output/              # Output formatting (TUI, logo)
 │       └── util/                # Utility classes
 │   └── src/main/resources/
+│       ├── distribution.properties  # Single source of truth for all config defaults
 │       ├── skills/              # Skill definitions (markdown instruction files)
-│       │   ├── camel-brainstorm/  # Interactive design session
+│       │   ├── camel-design/      # Design-phase reference guides (internal, loaded by camel-brainstorm)
+│       │   ├── camel-brainstorm/  # Interactive design session (/camel-design slash command)
 │       │   ├── camel-plan/        # Implementation planning
 │       │   ├── camel-execute/     # Orchestrated execution
-│       │   ├── camel-flow/        # Single-flow shortcut
 │       │   ├── camel-migrate/     # Migration orchestrator
 │       │   ├── camel-verify/      # Runtime verification
 │       │   ├── camel-implement/   # YAML generation (internal)
 │       │   ├── camel-validate/    # Quality review (internal)
 │       │   ├── camel-test/        # Test generation (internal)
-│       │   ├── camel-knowledge/   # Red Hat docs (internal)
-│       │   ├── camel-design/      # Flow design (internal)
+│       │   ├── camel-knowledge/   # Camel docs (internal)
+│       │   ├── camel-flow/        # Single-flow shortcut (internal, legacy)
 │       │   └── shared/            # Shared guides (iron laws, DataMapper, MCP)
 │       └── templates/           # Agent-specific instruction templates
 │           ├── bob/             # IBM Project Bob
@@ -112,12 +113,17 @@ camel-kit/
 │           ├── qwen/            # Qwen
 │           └── opencode/        # OpenCode
 ├── camel-jbang-plugin-kit/      # Camel JBang plugin
-├── camel-kit-graph/             # Route graph analysis
+├── camel-kit-graph/             # Project graph analysis (8 parsers)
+│   │   # Parsers: JavaClassParser, CamelRouteParser, MavenPomParser,
+│   │   # PropertiesParser, DockerComposeParser, OpenApiParser,
+│   │   # MuleXmlFlowParser, DataWeaveParser
+├── camel-kit-plugins/           # Plugin extensions
 ├── docs/                        # Documentation
 │   ├── user-guide.md            # End-user walkthrough
 │   ├── commands.md              # Command reference
 │   ├── architecture.md          # Contributor guide
 │   └── constitution.md          # Route quality rules
+├── distribution.properties      # Root config (source of truth, copied into JAR)
 ├── examples/                    # Usage examples
 ├── pom.xml                      # Parent Maven POM
 ├── jbang-catalog.json           # JBang catalog definition

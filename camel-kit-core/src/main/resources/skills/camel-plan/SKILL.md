@@ -1,6 +1,6 @@
 ---
 name: camel-plan
-description: Use when the user has an approved design spec and needs a detailed implementation plan — invoked by camel-brainstorm after spec approval, or directly if a design spec already exists
+description: Use this skill when a design specification or technical design document exists and needs to be broken into implementation tasks. Trigger when the user says 'create a plan', 'break this into tasks', 'how should we implement this', 'decompose the spec', 'what are the implementation steps', or has an approved design at docs/design-spec.md. Also use when the user references an existing spec and wants to move to implementation, or asks about task dependencies, parallel execution, or wave analysis for their approved design.
 user_invocable: true
 ---
 
@@ -56,7 +56,7 @@ digraph plan {
 Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
 
 - **Iron Law 4: No Code Without Spec Approval** — The plan is based on an APPROVED design spec. If the spec hasn't been approved, go back to camel-brainstorm.
-- **Iron Law 5: Spec Compliance Before Quality** — The plan MUST specify two-stage review for every implementation task: spec compliance first, then quality.
+- **Iron Law 4: Spec Compliance Before Quality** — The plan MUST specify two-stage review for every implementation task: spec compliance first, then quality.
 
 ### Rationalization Table
 
@@ -133,7 +133,7 @@ Save to `docs/implementation-plan.md`:
 
 **Architecture:** [2-3 sentences about approach]
 
-**Tech Stack:** Red Hat Build of Apache Camel [version], [runtime], [key components]
+**Tech Stack:** Apache Camel [version], [runtime], [key components]
 
 **Design Spec:** `docs/design-spec.md` (approved [date])
 

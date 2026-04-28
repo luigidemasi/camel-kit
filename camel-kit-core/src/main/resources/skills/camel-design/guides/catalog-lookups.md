@@ -1,8 +1,8 @@
 # Catalog Lookup Procedures
 
 > **Context variables:**
-> - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
-> - `RUNTIME` — from `.camel-kit/config.yaml` (`project.runtime`)
+> - `CAMEL_VERSION` — from `.camel-kit/config.properties`
+> - `RUNTIME` — from `.camel-kit/config.properties` (`project.runtime`)
 > - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via the version mapping table in `skills/shared/mcp-setup.md`
 
 ## Data Format Lookup (after Question 1)

@@ -1,6 +1,6 @@
 ---
 name: camel-migrate
-description: Use when the user wants to migrate an existing integration from MuleSoft, Fuse, or older Camel versions to Red Hat Build of Apache Camel 4.x
+description: Use this skill when the user wants to migrate or convert an EXISTING integration from another platform to Apache Camel. Trigger for 'migrate from MuleSoft', 'convert Mule flows', 'upgrade from Camel 2', 'move from Fuse', 'replace our ESB', 'convert DataWeave', 'migrate existing integration', or any mention of MuleSoft, Mule 3.x/4.x, JBoss Fuse, Camel 2.x/3.x upgrade, DataWeave conversion, or platform migration. Also trigger when the user has a project directory with Mule XML, Spring XML camel-context, or older Camel DSL files that need modernization.
 user_invocable: true
 ---
 

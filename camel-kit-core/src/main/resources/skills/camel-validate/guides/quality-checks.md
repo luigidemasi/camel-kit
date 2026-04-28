@@ -2,7 +2,7 @@
 
 > **Context variables provided by master SKILL.md:**
 > - `FLOW_NAME` — the flow being validated
-> - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
+> - `CAMEL_VERSION` — from `.camel-kit/config.properties`
 >
 > **Version mapping:** When calling MCP catalog tools, translate `CAMEL_VERSION` to the correct catalog version using the version mapping table in `skills/shared/mcp-setup.md`.
 

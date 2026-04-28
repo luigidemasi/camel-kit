@@ -2,7 +2,7 @@
 
 //JAVA 17+
 
-//DEPS io.github.luigidemasi:camel-kit-core:${camel.kit.version:0.3.1}
+//DEPS io.github.luigidemasi:camel-kit-core:${camel.kit.version:0.3.2-SNAPSHOT}
 
 package main;
 

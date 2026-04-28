@@ -87,16 +87,15 @@ Never hardcode connection strings, credentials, or environment-specific values.
 
 ### 7. Component Support Verification
 
-Every component used in a route MUST be verified as **supported by Red Hat** in the target Camel version.
+Every component used in a route MUST be verified as **available** in the target Camel version.
 
-- **Primary check:** Call `camel_rh_build_component_info` (via camel-knowledge MCP) to check whether the component is included in the Red Hat Build of Apache Camel for the target version. A component may exist in the community Apache Camel catalog but **not** be supported by Red Hat — this distinction is critical.
-- **Support levels:** Red Hat docs classify components as Production Support, Technology Preview, Community Support, or Dev Support. Only "Production Support" means the component is fully supported for production use. Technology Preview components may not be functionally complete and are not recommended for production.
-- **If a component is NOT supported or is Technology Preview:**
-  1. Raise a WARNING to the user explaining the support status.
-  2. Search for a Red Hat-supported alternative that provides equivalent functionality (query `camel_rh_build_component_info` for related components).
-  3. Present the warning, the component's support status, and the suggested alternative to the user before proceeding. Let the user decide whether to accept the component or switch to the alternative.
-- **Automated verification:** `/camel-verify` checks component availability at build and startup time, catching missing or unsupported components that passed design-time validation.
-- **Violation:** WARNING — this is not a validation blocker, but users must be clearly informed of the support implications.
+- **Primary check:** Call `camel_catalog_component` (via Camel MCP) to check whether the component exists in the Apache Camel catalog for the target version.
+- **If a component is NOT found:**
+  1. Raise a WARNING to the user explaining the availability status.
+  2. Search for an alternative that provides equivalent functionality.
+  3. Present the warning and the suggested alternative to the user before proceeding. Let the user decide whether to accept the component or switch to the alternative.
+- **Automated verification:** `/camel-verify` checks component availability at build and startup time, catching missing components that passed design-time validation.
+- **Violation:** WARNING — this is not a validation blocker, but users must be clearly informed of the availability implications.
 
 ---
 

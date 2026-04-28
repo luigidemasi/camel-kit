@@ -28,7 +28,7 @@ This restricts tools to read-only operations — preventing accidental modificat
 
 Read these files:
 1. `docs/constitution.md` — constitution rules (all 7 rules)
-2. `.camel-kit/config.yaml` — Camel version, runtime, platform BOM
+2. `.camel-kit/config.properties` — Camel version, runtime, platform BOM
 3. `.camel-kit/project-graph.json` — project norms and conventions (if exists)
 4. `docs/design-spec.md` — approved design spec (if exists)
 5. `docs/implementation-plan.md` — approved plan (if exists)
@@ -123,9 +123,9 @@ Check all 7 constitution rules:
 - All AMQP endpoints must use TLS
 - Report insecure endpoints
 
-**Rule 7: Red Hat Build Only**
-- Call `camel_rh_build_component_info(componentName="...")` for every component
-- Report unsupported components
+**Rule 7: Component Verification**
+- Call `camel_catalog_component` for every component
+- Report unrecognized components
 
 Report constitution violations per route.
 </Step>
@@ -196,13 +196,13 @@ Load `guides/graph-project-context.md`.
 Run graph-based checks:
 1. **Project norms check:**
    ```bash
-   {commandPrefix} graph project-norms
+   {COMMAND_PREFIX} graph project-norms
    ```
    This checks for naming convention violations, inconsistent patterns, etc.
 
 2. **Dead code detection:**
    ```bash
-   {commandPrefix} graph dead-code
+   {COMMAND_PREFIX} graph dead-code
    ```
    This finds unused routes, unreachable endpoints, orphaned properties.
 
@@ -218,7 +218,7 @@ Assemble all findings into a validation report at `docs/validation-report.md`:
 # Validation Report
 
 **Date:** [current date]
-**Camel Version:** [from config.yaml]
+**Camel Version:** [from config.properties]
 **Routes Validated:** [N]
 
 ---
@@ -292,14 +292,12 @@ Overall Status: PASS/FAIL
 
 Validation enforces:
 - **Iron Law 1**: MCP Catalog Verification — endpoint validation uses MCP catalog as source of truth
-- **Iron Law 2**: Red Hat Build Only — Rule 7 checks every component via MCP
-- **Iron Law 3**: Constitution Compliance — validation checks all 7 constitution rules
+- **Iron Law 2**: Constitution Compliance — validation checks all 7 constitution rules
 
 ## MCP Tools Used
 
 - `camel_catalog_component` — verify component exists, validate options
 - `camel_catalog_eip` — verify EIP schema
-- `camel_rh_build_component_info` — check Red Hat support (Rule 7)
 
 For MCP setup: see `shared/mcp-setup.md`
 

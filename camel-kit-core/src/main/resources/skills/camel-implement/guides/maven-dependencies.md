@@ -32,12 +32,12 @@ For full POM structure, load `pom-spring-boot.md`. The BOM configuration:
 
 The `camel-spring-boot-bom` version uses the **same base version** as Camel.
 
-**Read the correct version from `.camel-kit/config.yaml`:**
+**Read the correct version from `.camel-kit/config.properties`:**
 
-```yaml
-project:
-  platformBomVersion:
-    spring-boot: "4.14.4"  # <- use THIS value
+```properties
+project.runtime=spring-boot
+project.camelVersion=4.18.0
+project.platformBomVersion=4.18.0  # <- use THIS value
 ```
 
 Do NOT guess or derive the version — it is pre-computed by `camel-kit init`.
@@ -71,12 +71,12 @@ For full POM structure, load `pom-quarkus.md`. Quarkus uses TWO BOMs — the Qua
 
 The Quarkus platform version uses the Quarkus version scheme (3.x), not Camel (4.x).
 
-**Read the correct version from `.camel-kit/config.yaml`:**
+**Read the correct version from `.camel-kit/config.properties`:**
 
-```yaml
-project:
-  platformBomVersion:
-    quarkus: "3.27.2"  # <- use THIS value
+```properties
+project.runtime=quarkus
+project.camelVersion=4.18.0
+project.platformBomVersion=3.33.0  # <- use THIS value
 ```
 
 Do NOT guess or derive the version — it is pre-computed by `camel-kit init`.

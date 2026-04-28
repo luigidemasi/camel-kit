@@ -60,17 +60,15 @@ These tasks are added to the standard greenfield sequence:
 
 **MCP Tools:**
 - `camel_catalog_component(name="[target-component]", runtime="[runtime]", platformBom="[bom]")`
-- `camel_rh_build_component_info(component="[target-component]")`
 
 - [ ] For each component in the mapping table:
   - [ ] Verify target component exists via `camel_catalog_component`
-  - [ ] Verify Red Hat support via `camel_rh_build_component_info`
   - [ ] Note exact option names from catalog (may differ from source)
 - [ ] If any mapping fails, flag and suggest alternative
 
 **Review:**
 - [ ] Spec compliance: all mappings verified
-- [ ] No unsupported components in target
+- [ ] All target components verified in catalog
 ```
 
 ### Task Template: Convert DataWeave to XSLT
@@ -127,7 +125,7 @@ These tasks are added to the standard greenfield sequence:
 - If Spring Boot: `templates/pom-spring-boot.xml` — copy verbatim, replace only `[PLACEHOLDER]` values
 
 <HARD-RULE>
-Do NOT generate the POM from scratch. COPY the template file and replace ONLY the bracketed placeholders. The template already has the correct Red Hat groupIds, artifactIds, repositories, and plugins. Community groupIds/versions are FORBIDDEN.
+Do NOT generate the POM from scratch. COPY the template file and replace ONLY the bracketed placeholders. The template already has the correct groupIds, artifactIds, repositories, and plugins.
 </HARD-RULE>
 
 **Design Spec Section:** Section 7, Platform Changes
@@ -139,9 +137,6 @@ Do NOT generate the POM from scratch. COPY the template file and replace ONLY th
   - Get `[PLATFORM_BOM_VERSION]` from the design spec header `platformBomVersion` field
   - Do NOT modify any other values in the template (groupIds, artifactIds, repositories, plugins)
   - Add project-specific dependencies in the DEPENDENCIES section
-- [ ] Verify BOM groupId is Red Hat (`com.redhat.*`), NOT community (`io.quarkus.*` or `org.apache.*`)
-- [ ] Verify version has `.redhat-XXXXX` suffix
-- [ ] Verify Red Hat GA repository is present in `<repositories>` AND `<pluginRepositories>`
 - [ ] Convert platform-specific configuration:
   - [OSGi features → Maven dependencies]
   - [Spring XML context → application.properties]
@@ -150,7 +145,7 @@ Do NOT generate the POM from scratch. COPY the template file and replace ONLY th
 
 **Review:**
 - [ ] Spec compliance: platform changes match spec Section 7
-- [ ] Code quality: valid POM structure, correct BOM usage, Red Hat groupIds, `.redhat-` version suffix
+- [ ] Code quality: valid POM structure, correct BOM usage
 ```
 
 ---

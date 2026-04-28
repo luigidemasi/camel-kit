@@ -2,7 +2,7 @@
 
 > **Context variables provided by master SKILL.md:**
 > - `FLOW_NAME` — the flow being validated
-> - `CAMEL_VERSION` — from `.camel-kit/config.yaml`
+> - `CAMEL_VERSION` — from `.camel-kit/config.properties`
 
 ## When to Load This Guide
 

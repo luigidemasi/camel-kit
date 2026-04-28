@@ -8,6 +8,9 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
+import java.nio.file.Path;
+import java.util.List;
+
 /**
  * Adapter command for `camel kit init` - delegates to camel-kit-core InitCommand
  */
@@ -17,17 +20,12 @@ public class KitInitCommand extends CamelCommand {
     @Parameters(index = "0", description = "Project name", arity = "0..1")
     String projectName;
 
-    @Option(names = {"-a", "--ai"}, description = "AI agent: bob, gemini, claude",
+    @Option(names = {"-a", "--ai"}, description = "AI agent: bob, gemini, claude, qwen, opencode",
             defaultValue = "bob")
     String ai;
 
     @Option(names = {"--here"}, description = "Initialize in current directory")
     boolean here;
-
-    @Option(names = {"-v", "--camel-version"},
-            description = "Camel version (use 'default' for bundled catalog)",
-            defaultValue = "default")
-    String camelVersion;
 
     @Option(names = {"--citrus-version"},
             description = "Citrus version for test schemas",
@@ -40,28 +38,37 @@ public class KitInitCommand extends CamelCommand {
     @Option(names = {"--silent"}, description = "Suppress all output (no banner, no progress, no summary)")
     boolean silent;
 
+    @Option(names = {"-c", "--config"},
+            description = "Path to config properties file (default: ~/.camel-kit/config.properties)")
+    Path configFile;
+
+    @Option(names = {"-p", "--property"}, arity = "1..*",
+            description = "Override config property: -p key=value (repeatable)")
+    List<String> properties;
+
+    @Option(names = {"--source-platform"},
+            description = "Source platform for migration graph analysis: mulesoft, camel, auto (default: auto)")
+    String sourcePlatform;
+
     public KitInitCommand(CamelJBangMain main) {
         super(main);
     }
 
     @Override
     public Integer doCall() throws Exception {
-        // Create a camel-kit-core main instance.
-        // TUI is enabled; if the backend is unavailable in this context,
-        // InitCommand catches the exception and falls back to normal mode.
         CamelKitMain camelKitMain = new CamelKitMain();
 
-        // Create the InitCommand and set its parameters
         InitCommand initCommand = new InitCommand(camelKitMain);
         initCommand.projectName = this.projectName;
         initCommand.ai = this.ai;
         initCommand.here = this.here;
-        initCommand.camelVersion = this.camelVersion;
         initCommand.citrusVersion = this.citrusVersion;
         initCommand.noFetch = this.noFetch;
         initCommand.silent = this.silent;
+        initCommand.configFile = this.configFile;
+        initCommand.properties = this.properties;
+        initCommand.sourcePlatform = this.sourcePlatform;
 
-        // Execute the command
         return initCommand.call();
     }
 }

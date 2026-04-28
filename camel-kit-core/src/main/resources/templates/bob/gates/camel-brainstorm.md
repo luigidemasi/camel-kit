@@ -67,7 +67,7 @@ If ambiguous, ask: "Are you building a new integration from scratch, or migratin
 
 Read these files if they exist:
 1. `docs/constitution.md` — constitution rules. If missing, copy from `templates/constitution.md`.
-2. `.camel-kit/config.yaml` — project config (Camel version, runtime). May not exist yet.
+2. `.camel-kit/config.properties` — project config (Camel version, runtime). May not exist yet.
 3. `docs/business-requirements.md` — existing BRD (if resuming a project).
 </Step>
 
@@ -103,11 +103,11 @@ Confirm all findings with the user.
 Read `.bob/skills/camel-brainstorm/guides/version-selection.md` for the version selection process.
 
 Help the user select:
-1. Target Camel version (Red Hat Build)
+1. Target Camel version
 2. Target runtime (Spring Boot / Quarkus / JBang)
 3. Platform BOM version
 
-Store selections in `.camel-kit/config.yaml`.
+Store selections in `.camel-kit/config.properties`.
 </Step>
 
 <Step>
@@ -123,7 +123,6 @@ For each flow, design the integration using relevant guides from `camel-design/`
 
 **CRITICAL:** Verify EVERY component via MCP:
 1. `camel_catalog_component` — verify component exists
-2. `camel_rh_build_component_info` — verify Red Hat support
 
 Do NOT guess component names. MCP catalog is truth.
 </Step>
@@ -199,9 +198,37 @@ For each flow, the TDD specifies:
 </Step>
 
 <Step>
-## Plan Approval
+## Design Approval
 
 Present the BRD and TDDs to the user.
+
+**APPROVAL GATE:**
+"The design is ready. Do you approve? (yes / changes needed)"
+
+Wait for explicit approval before proceeding.
+</Step>
+
+<Step>
+## Generate Implementation Plan
+
+Switch to **camel-plan** mode.
+
+Read `.bob/skills/camel-plan/SKILL.md` for the full planning rules.
+
+Generate a step-by-step implementation plan at `docs/implementation-plan.md`. The plan is a RECIPE, not the MEAL — it describes what to generate and how, NOT the generated code itself.
+
+For each flow in the TDD, create a task with:
+- Exact files to create/modify
+- Which guides to load and in what order
+- Which MCP tools to call with what parameters
+- Verification steps (commands to run, expected output)
+- Two-stage review: spec compliance first, then code quality
+
+Load the appropriate task template:
+- Greenfield: `.bob/skills/camel-plan/guides/task-template-greenfield.md`
+- Migration: `.bob/skills/camel-plan/guides/task-template-migration.md`
+
+Load decomposition rules: `.bob/skills/camel-plan/guides/task-decomposition.md`
 
 **APPROVAL GATE:**
 "The implementation plan is ready. Do you approve? (yes / changes needed)"
@@ -210,18 +237,27 @@ Wait for explicit approval before proceeding.
 </Step>
 
 <Step>
-## Switch to Implement Mode and Execute
+## Switch to Execute Mode
 
-Switch to **camel-implement** mode.
+Switch to **camel-execute** mode.
 
 **CHECKPOINT** — Create a checkpoint before starting implementation.
 
-Implement each route following the TDDs. For each route:
-1. **CHECKPOINT** before starting this route
-2. Read the route's TDD
-3. Write the failing test (TDD enforcement)
-4. Implement the YAML route
-5. Run tests
+Read `.bob/skills/camel-execute/SKILL.md` for execution rules.
+
+Before executing tasks, analyze the plan for parallel waves:
+```bash
+{COMMAND_PREFIX} plan analyze docs/implementation-plan.md
+```
+
+Execute tasks wave by wave. Within each wave, execute tasks sequentially (Bob executes in a single conversation). Between waves, all tasks from the previous wave must be complete before starting the next wave. This ensures correct dependency order.
+
+Execute each task in the approved implementation plan. For each task:
+1. **CHECKPOINT** before starting this task
+2. Load the guides specified in the task
+3. Implement following the plan instructions
+4. Run verification commands
+5. Two-stage review: spec compliance, then code quality
 6. Commit
 
 Read `.bob/skills/camel-implement/guides/orchestrator.md` for implementation execution rules.
@@ -241,10 +277,12 @@ Implementation is step 14 of 16. Steps 15 (Validate) and 16 (Test) are mandatory
 Switch to **camel-validate** mode.
 
 Run validation against the constitution and project norms.
-Report findings without modifying files.
+Read `.bob/skills/camel-validate/SKILL.md` for validation guides and report format.
 
 If the project graph is available, run:
-`{commandPrefix} graph project-norms` and `{commandPrefix} graph dead-code`
+`{COMMAND_PREFIX} graph project-norms` and `{COMMAND_PREFIX} graph dead-code`
+
+**Generate validation report** — save findings to `docs/validation-report-YYYY-MM-DD_HH-mm.md` using the format from `camel-validate/SKILL.md`. Use the current date and time.
 
 **After validation completes, IMMEDIATELY proceed to the next step (Test). Do NOT stop or print summaries.**
 </Step>
@@ -293,8 +331,7 @@ Constitution Compliance: PASS/FAIL (all 7 rules)
 Read `shared/iron-laws.md` for the full Iron Laws. This skill enforces:
 
 - **Iron Law 1: MCP Catalog Verification** — Every component, EIP, dataformat, and language MUST be MCP-verified before inclusion.
-- **Iron Law 2: Red Hat Build Only** — Only Red Hat supported Camel versions and components.
-- **Iron Law 4: No Code Without Spec Approval** — NEVER generate any implementation artifacts before the user has explicitly approved the design spec.
+- **Iron Law 3: No Code Without Spec Approval** — NEVER generate any implementation artifacts before the user has explicitly approved the design spec.
 
 ## MCP Tools Used
 
@@ -302,8 +339,7 @@ Read `shared/iron-laws.md` for the full Iron Laws. This skill enforces:
 - `camel_catalog_eip` — verify EIP exists, get configuration
 - `camel_catalog_dataformat` — verify dataformat exists
 - `camel_catalog_language` — verify expression language exists
-- `camel_rh_build_component_info` — check Red Hat support status
-- `camel_knowledge_search` — search Red Hat docs for guidance
+- `camel_knowledge_search` — search docs for guidance
 
 For MCP setup, version mapping, and fallback policy: see `shared/mcp-setup.md`
-For graph analysis: use `{commandPrefix} graph` CLI commands (see `shared/graph-availability.md`)
+For graph analysis: use `{COMMAND_PREFIX} graph` CLI commands (see `shared/graph-availability.md`)

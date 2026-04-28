@@ -30,7 +30,7 @@ Camel-Kit is an AI-powered toolkit that guides you through designing, planning, 
 | **TDD** (Technical Design Document) | Per-flow specification. Describes the source, processing steps, sink, error handling, data transformation, configuration, and dependencies for a single Camel route. |
 | **MCP** (Model Context Protocol) | Real-time catalog queries. The AI assistant queries the Camel MCP server to verify components, EIPs, data formats, and expression languages exist in your exact Camel version -- never relying on training data. |
 | **Constitution** | Seven route quality rules enforced on every generated route: route structure, single responsibility, separation of concerns, naming conventions, observability, external configuration, and component support verification. |
-| **Iron Laws** | Five non-negotiable pipeline rules that govern the entire workflow: (1) MCP catalog verification for every component, (2) Red Hat Build versions only, (3) constitution compliance on every route, (4) no code without spec approval, (5) spec compliance review before quality review. |
+| **Iron Laws** | Five non-negotiable pipeline rules that govern the entire workflow: (1) MCP catalog verification for every component, (2) constitution compliance on every route, (3) no code without spec approval, (4) spec compliance review before quality review. |
 
 ---
 
@@ -40,7 +40,7 @@ Before diving into commands and workflows, it helps to understand the principles
 
 ### Understand First, Code Last
 
-The most common way to use an AI coding assistant is: describe what you want, get code back. For simple tasks this is fine. For enterprise integrations -- multiple systems, error handling, data transformation, version-specific configuration, Red Hat support requirements -- this approach consistently produces code that looks correct but fails at runtime.
+The most common way to use an AI coding assistant is: describe what you want, get code back. For simple tasks this is fine. For enterprise integrations -- multiple systems, error handling, data transformation, version-specific configuration -- this approach consistently produces code that looks correct but fails at runtime.
 
 The problem is not that AI is bad at writing code. The problem is that it skips understanding. It never asks "what should happen when Kafka is unavailable?" or "do you need idempotent processing?" -- it guesses, and its guesses are drawn from training data that may be outdated or wrong for your version.
 
@@ -66,7 +66,6 @@ Camel-Kit uses gates everywhere:
 | **User approval after design** | Cannot start planning until you confirm the design spec matches your intent |
 | **User approval after plan** | Cannot start implementing until you confirm the approach |
 | **MCP catalog verification** | Cannot use a component until the live catalog confirms it exists in your Camel version |
-| **Red Hat support check** | Flags components that are not Red Hat-supported before they enter the design -- not after deployment |
 | **Constitution validation** | Routes without a `routeId`, with hardcoded credentials, or with unsupported components fail validation -- not warned, failed |
 | **Two-stage review** | Spec compliance is checked before code quality. Cannot skip to quality review on a route that doesn't match the design. |
 
@@ -79,7 +78,7 @@ AI assistants know about Apache Camel from their training data -- broadly but im
 Skills tell the AI:
 - How to conduct a design interview (one question at a time, verify components via MCP, ask about error handling)
 - How to generate YAML routes (follow the constitution, use external configuration, verify every component)
-- How to validate (check against 7 quality rules, run security analysis, verify Red Hat support)
+- How to validate (check against 7 quality rules, run security analysis)
 - How to handle data transformation (choose the right engine for the mapping complexity)
 - How to diagnose errors (14 error patterns, each with a fix strategy)
 
@@ -152,6 +151,29 @@ To initialize inside an existing directory:
 camel-kit init --here --ai claude
 ```
 
+### Customizing Configuration
+
+All defaults (Camel version, BOM versions, MCP server versions) are read from a built-in `distribution.properties` file. You can override any property in two ways:
+
+**Per-invocation overrides** (highest priority):
+```bash
+camel-kit init my-integration --ai claude -p "camel.version=4.18.0"
+```
+
+**Persistent user config** (applies to all invocations):
+Create `~/.camel-kit/config.properties` with your overrides:
+```properties
+camel.version=4.18.0
+quarkus.bom.version=3.30.0
+```
+
+Or point to a custom config file:
+```bash
+camel-kit init my-integration --ai claude -c /path/to/my-config.properties
+```
+
+The resolution order is: `-p` flags > `-c` file (or `~/.camel-kit/config.properties`) > built-in JAR defaults.
+
 ### Init TUI
 
 When you run `camel-kit init` in a terminal that supports a native image protocol (Kitty, iTerm2, Sixel), the command displays a split-screen TUI with a logo on the left and a live task list on the right. The TUI shows animated progress for each initialization step and exits automatically when all tasks complete.
@@ -185,7 +207,7 @@ flowchart TB
         A["camel-kit init"]
     end
     subgraph "Phase 1: Design"
-        B["/camel-design"]
+        B["/camel-brainstorm"]
     end
     subgraph "Phase 2: Plan"
         C["/camel-plan"]
@@ -210,7 +232,7 @@ flowchart TB
     D --> E
 ```
 
-### Phase 1: Design (`/camel-design`)
+### Phase 1: Design (`/camel-brainstorm`)
 
 The design phase is an interactive interview that produces the design spec. The AI asks questions one at a time -- never in batches -- to understand your integration before designing it.
 
@@ -222,7 +244,7 @@ The design phase is an interactive interview that produces the design spec. The 
 - EIPs (filter, split, aggregate, transform, etc.)
 - Error handling strategy (dead letter channels, retry policies)
 - Data transformation requirements
-- Red Hat Build version selection
+- Camel version selection
 
 **Output:** A BRD (`.camel-kit/business-requirements.md`) with TDDs (`.camel-kit/flows/{flow-name}/{flow-name}.tdd.md`) for each flow.
 
@@ -265,7 +287,7 @@ camel-kit init order-processing --ai claude
 cd order-processing
 
 # 2. Start the design (in your AI assistant)
-/camel-design
+/camel-brainstorm
 
 # The AI asks about your business requirements, systems, and data flows.
 # After the interview, it presents a design spec with:
@@ -308,7 +330,21 @@ Use `/camel-migrate` when you have an existing integration built on another plat
 |----------|----------|---------------|
 | MuleSoft Mule | 3.x, 4.x | XML flows, DataWeave transformations, connectors |
 | Apache Camel | 2.x, 3.x | Java DSL, XML DSL, Blueprint |
-| JBoss Fuse | All | Fuse-specific configurations and components |
+| JBoss Fuse | 6.x, 7.x | Fuse-specific configurations and components |
+
+### Graph-Accelerated Analysis
+
+MuleSoft migrations now benefit from the project graph. When a project contains MuleSoft XML files, the graph automatically detects them via XML namespace sniffing (`mulesoft.org/schema/mule`) and parses all flows, sub-flows, connectors, endpoints, transforms, error handlers, and DataWeave scripts. The migration skill gets instant flow topology -- connectors used per flow, sub-flow call chains, DataWeave complexity -- without manual XML deep-dives.
+
+Previously, only Maven dependencies were captured in the graph for MuleSoft projects. Now, the `MuleXmlFlowParser` and `DataWeaveParser` provide full structural analysis of the source project.
+
+DataWeave `.dwl` files are analyzed for version declarations, input/output content types, function definitions, and field access patterns. This helps identify complex transformations that need manual attention during migration -- multi-function scripts, recursive field access, or format conversions that have no direct XSLT equivalent.
+
+**`--source-platform` flag:** Auto-detection works in most cases (no flag needed). For projects with non-standard layouts, use `--source-platform mulesoft` to explicitly declare the source platform:
+
+```bash
+camel-kit init my-migration --ai claude --source-platform mulesoft
+```
 
 ### How It Works
 
@@ -320,7 +356,7 @@ The command scans all project artifacts, detects the source platform automatical
 
 ### Output
 
-The migration produces a BRD and TDDs in the same format as `/camel-design`. This means the rest of the pipeline is identical:
+The migration produces a BRD and TDDs in the same format as `/camel-brainstorm`. This means the rest of the pipeline is identical:
 
 ```
 /camel-migrate  -->  /camel-plan  -->  /camel-execute  -->  /camel-verify
@@ -420,7 +456,7 @@ XSLT transformations include Kaoto DataMapper metadata, allowing you to visually
 
 ## 8. Project Graph Analysis
 
-When working with existing Camel projects -- whether migrating from another platform, extending an established codebase, or validating a generated project -- Camel-Kit can build a **property graph** of the entire project structure. The graph captures classes, methods, Camel routes, endpoints, Maven dependencies, and configuration properties, with typed edges representing the relationships between them (extends, calls, routes-from, routes-to, depends-on, configures).
+When working with existing projects -- whether migrating from another platform, extending an established codebase, or validating a generated project -- Camel-Kit can build a **property graph** of the entire project structure. The graph captures classes, methods, Camel routes, endpoints, Maven dependencies, configuration properties, and -- for MuleSoft projects -- flows, sub-flows, connectors, endpoints, transforms, error handlers, and DataWeave scripts. Typed edges represent the relationships between nodes (extends, calls, routes-from, routes-to, depends-on, configures, flow-contains, calls-subflow, uses-connector, references-dwl).
 
 ### What the Graph Provides
 
@@ -431,6 +467,7 @@ When working with existing Camel projects -- whether migrating from another plat
 | **Dead code detection** | Identifies unused Maven dependencies, orphaned routes (not referenced by any other route), and stale configuration properties | Cleaning up projects after incremental changes, catching leftover artifacts from migration |
 | **Route topology mapping** | Maps route-to-route connections to determine which routes are independent | Claude uses this to dispatch independent routes to parallel subagents during `/camel-execute` |
 | **Project norm extraction** | Computes statistical norms from the codebase -- naming patterns, error handling coverage, route complexity (P75 step count) | Validation uses project-specific thresholds instead of hardcoded defaults |
+| **MuleSoft flow analysis** | Parses MuleSoft XML configs into graph nodes (flows, sub-flows, connectors, endpoints, transforms, error handlers) and DataWeave scripts | Understanding MuleSoft project structure before migration -- no manual XML deep-dives required |
 
 ### How the Pipeline Uses the Graph
 
@@ -439,7 +476,7 @@ The graph is consumed transparently by multiple skills:
 - **`/camel-validate`** -- Validation thresholds adapt to the project's actual patterns. A route with 15 steps is acceptable in a project where existing routes average 12 steps, but flagged in a project where they average 5. Dead code detection finds unused dependencies and orphaned routes.
 - **`/camel-implement`** -- The AI matches the project's existing conventions (naming patterns, bean reuse, dependency versions) rather than inventing new ones.
 - **`/camel-test`** -- Route topology awareness lets the AI understand upstream and downstream dependencies, generating tests that cover integration points rather than just individual routes.
-- **`/camel-migrate`** -- A full-project graph analysis in Phase 0 detects structural concerns (circular dependencies, deeply nested route chains, unused components) before any code is translated. Per-route impact analysis in Phase 2 identifies cross-cutting concerns for each route being migrated.
+- **`/camel-migrate`** -- A full-project graph analysis in Phase 0 detects structural concerns (circular dependencies, deeply nested route chains, unused components) before any code is translated. Per-route impact analysis in Phase 2 identifies cross-cutting concerns for each route being migrated. For MuleSoft projects, the graph automatically parses all Mule XML flows, sub-flows, connectors, and DataWeave scripts -- giving the migration skill instant flow topology without manual XML deep-dives.
 
 ### Graph Commands
 
@@ -461,6 +498,8 @@ camel-kit graph route-topology
 ```
 
 The graph is stored in `.camel-kit/project-graph.json` and rebuilt automatically when relevant commands detect changes. For greenfield projects where no code exists yet, the graph is not generated -- all skills fall back to sensible defaults. The graph **enhances but never gates**: its presence improves output quality, but its absence never blocks the pipeline.
+
+For MuleSoft projects, `graph generate` automatically detects Mule XML files (namespace sniffing for `mulesoft.org/schema/mule`) and parses them using the `MuleXmlFlowParser`. DataWeave `.dwl` files are parsed by the `DataWeaveParser`. No explicit configuration is required -- if the project contains MuleSoft artifacts, they are included in the graph automatically. Use `graph stats` to see MuleSoft-specific node counts (`MULE_FLOW`, `MULE_SUB_FLOW`, `MULE_CONNECTOR`, `MULE_ENDPOINT`, `MULE_PROCESSOR`, `MULE_TRANSFORM`, `MULE_ERROR_HANDLER`, `DATAWEAVE_SCRIPT`).
 
 ---
 
@@ -540,7 +579,7 @@ Skills are markdown instruction files that the AI agent loads and follows. Becau
 - The same MCP tools are called
 - The same output formats are produced
 
-The dispatch model is internal to the agent. You run the same commands (`/camel-design`, `/camel-execute`, etc.) and get the same artifacts regardless of which agent you chose.
+The dispatch model is internal to the agent. You run the same commands (`/camel-brainstorm`, `/camel-execute`, etc.) and get the same artifacts regardless of which agent you chose.
 
 For contributor-level details on each agent's architecture (template files, permission models, dispatch internals), see [Agent Architectures](agent-architectures.md).
 
@@ -576,9 +615,8 @@ No additional configuration is needed. The AI assistant automatically uses MCP t
 
 In addition to the catalog MCP, Camel-Kit can connect to a Knowledge MCP server that provides:
 
-- Red Hat Build of Apache Camel documentation via semantic search
-- Errata and security advisories (CVEs) with CVSS scores and affected packages
-- Component support status (Production Support, Technology Preview, Community Support)
+- Apache Camel documentation via semantic search
+- Component availability verification
 
 ### Graceful Degradation
 
@@ -633,4 +671,4 @@ If `/camel-verify` fails after multiple fix iterations:
 2. Look for "same error after fix attempt" messages -- these indicate the automated fix did not resolve the root cause
 3. Check if the error is classified as "Escalate" -- these require manual intervention
 4. For connection errors, verify that external services are actually running and reachable
-5. For component errors, ask your AI assistant to check whether the component is supported in your Red Hat Build version
+5. For component errors, ask your AI assistant to check whether the component exists in your Camel version

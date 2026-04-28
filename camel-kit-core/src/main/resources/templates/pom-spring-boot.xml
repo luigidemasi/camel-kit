@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    POM Template for Red Hat Build of Apache Camel on Spring Boot.
+    POM Template for Apache Camel on Spring Boot.
 
     INSTRUCTIONS:
     1. Copy this file to your project as pom.xml
@@ -8,8 +8,7 @@
     3. Add your project-specific dependencies in the DEPENDENCIES section
     4. Do NOT change any groupId, artifactId, or version that is NOT a placeholder
     5. Do NOT change the property names
-    6. Do NOT remove the Red Hat repositories
-    7. Do NOT add a <parent> element
+    6. Do NOT add a <parent> element
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -26,7 +25,7 @@
 
     <properties>
         <!-- BOM version: look up from design spec platformBomVersion -->
-        <!-- This is the Camel Spring Boot BOM version (4.x with .redhat-XXXXX suffix) -->
+        <!-- This is the Camel Spring Boot BOM version -->
         <camel-spring-boot-version>[PLATFORM_BOM_VERSION]</camel-spring-boot-version>
         <!-- Spring Boot version: look up from design spec or discover from BOM -->
         <spring-boot-version>[SPRING_BOOT_VERSION]</spring-boot-version>
@@ -41,7 +40,7 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>com.redhat.camel.springboot.platform</groupId>
+                <groupId>org.apache.camel.springboot</groupId>
                 <artifactId>camel-spring-boot-bom</artifactId>
                 <version>${camel-spring-boot-version}</version>
                 <type>pom</type>
@@ -82,51 +81,6 @@
         </dependency>
     </dependencies>
 
-    <repositories>
-        <repository>
-            <id>redhat-ga-repository</id>
-            <url>https://maven.repository.redhat.com/ga/</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-        <repository>
-            <id>redhat-earlyaccess-repository</id>
-            <url>https://maven.repository.redhat.com/earlyaccess/all/</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
-    <pluginRepositories>
-        <pluginRepository>
-            <id>redhat-ga-repository</id>
-            <url>https://maven.repository.redhat.com/ga/</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </pluginRepository>
-        <pluginRepository>
-            <id>redhat-earlyaccess-repository</id>
-            <url>https://maven.repository.redhat.com/earlyaccess/all/</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </pluginRepository>
-    </pluginRepositories>
-
     <build>
         <plugins>
             <plugin>
@@ -148,9 +102,8 @@
         <profile>
             <id>openshift</id>
             <properties>
-                <jkube.generator.from>registry.access.redhat.com/ubi9/openjdk-17:latest</jkube.generator.from>
                 <jkube.build.switchToDeployment>true</jkube.build.switchToDeployment>
-                <jkube-maven-plugin-version>1.19.0.redhat-00001</jkube-maven-plugin-version>
+                <jkube-maven-plugin-version>1.19.0</jkube-maven-plugin-version>
             </properties>
             <build>
                 <defaultGoal>install</defaultGoal>

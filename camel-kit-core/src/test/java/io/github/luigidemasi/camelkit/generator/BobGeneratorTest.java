@@ -1,6 +1,5 @@
 package io.github.luigidemasi.camelkit.generator;
 
-import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
@@ -20,7 +19,7 @@ class BobGeneratorTest {
         Path commandsDir = tempDir.resolve(agent.folder());
         Path skillsDir = tempDir.resolve(agentBaseFolder + "/skills");
         return new InitContext(agent, "bob", commandsDir, skillsDir, tempDir,
-            "camel-kit", CamelKitMain.LATEST_CAMEL_LTS_VERSION, Printer.noop());
+            "camel-kit", Printer.noop());
     }
 
     @Test
@@ -100,7 +99,9 @@ class BobGeneratorTest {
         new BobGenerator().generate(ctx);
 
         assertTrue(Files.exists(ctx.commandsDir().resolve("camel-migrate.md")));
-        assertTrue(Files.exists(ctx.commandsDir().resolve("camel-implement.md")));
+        assertTrue(Files.exists(ctx.commandsDir().resolve("camel-brainstorm.md")));
+        assertTrue(Files.exists(ctx.commandsDir().resolve("camel-execute.md")));
+        assertFalse(Files.exists(ctx.commandsDir().resolve("camel-implement.md")));
     }
 
     @Test
@@ -130,6 +131,6 @@ class BobGeneratorTest {
         Path migrateSkill = ctx.skillsDir().resolve("camel-migrate/SKILL.md");
         String content = Files.readString(migrateSkill);
         assertTrue(content.contains("camel-kit graph"));
-        assertFalse(content.contains("{commandPrefix}"));
+        assertFalse(content.contains("{COMMAND_PREFIX}"));
     }
 }

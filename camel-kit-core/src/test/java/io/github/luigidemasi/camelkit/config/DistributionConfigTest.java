@@ -7,25 +7,55 @@ import static org.junit.jupiter.api.Assertions.*;
 class DistributionConfigTest {
 
     @Test
-    void loadsCommunityConfig() {
+    void loadsPerPlatformVersions() {
         InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
         DistributionConfig config = DistributionConfig.load(in);
 
-        assertEquals("4.14.4", config.camelVersion());
-        assertEquals("https://repo.maven.apache.org/maven2/", config.mavenRepo());
-        assertEquals("org.apache.camel.springboot", config.springbootBomGroupId());
-        assertEquals("io.quarkus.platform", config.quarkusBomGroupId());
-        assertEquals("4.19.0", config.camelMcpVersion());
+        assertEquals("4.14.4", config.camelMainVersion());
+        assertEquals("4.14.4", config.camelSpringbootVersion());
+        assertEquals("4.14.4", config.camelQuarkusVersion());
+        assertEquals("4.14.4", config.springbootBomVersion());
+        assertEquals("3.27.2", config.quarkusPlatformVersion());
+    }
+
+    @Test
+    void loadsSupportedVersions() {
+        InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
+        DistributionConfig config = DistributionConfig.load(in);
+
+        assertEquals("4.14.4,4.13.0", config.camelMainSupported());
+        assertEquals("4.14.4,4.13.0", config.camelSpringbootSupported());
+        assertEquals("4.14.4,4.13.0", config.camelQuarkusSupported());
+    }
+
+    @Test
+    void quarkusPlatformForVersionLookup() {
+        InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
+        DistributionConfig config = DistributionConfig.load(in);
+
+        // Known mapping
+        assertEquals("3.27.2", config.quarkusPlatformForVersion("4.14.4"));
+        assertEquals("3.20.0", config.quarkusPlatformForVersion("4.13.0"));
+
+        // Unknown version falls back to default quarkus.platform.version
+        assertEquals("3.27.2", config.quarkusPlatformForVersion("9.99.99"));
+    }
+
+    @Test
+    void loadsMcpConfig() {
+        InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
+        DistributionConfig config = DistributionConfig.load(in);
+
+        assertEquals("4.20.0", config.camelMcpVersion());
         assertEquals("0.0.1-SNAPSHOT", config.knowledgeMcpVersion());
         assertEquals("maven", config.camelMcpRepos());
         assertEquals("maven", config.knowledgeMcpRepos());
         assertEquals("maven", config.camelCatalogRepos());
-        assertTrue(config.versionMap().isEmpty());
     }
 
     @Test
     void loadFromClasspath() {
         DistributionConfig config = DistributionConfig.loadFromClasspathOrDefaults();
-        assertNotNull(config.camelVersion());
+        assertNotNull(config.camelMainVersion());
     }
 }

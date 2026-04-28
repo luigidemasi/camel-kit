@@ -88,7 +88,7 @@ Use this format:
 
 **Architecture:** [2-3 sentences about approach]
 
-**Tech Stack:** Red Hat Build of Apache Camel [version], [runtime], [key components]
+**Tech Stack:** Apache Camel [version], [runtime], [key components]
 
 **Design Spec:** `docs/design-spec.md` (approved [date])
 

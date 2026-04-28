@@ -11,7 +11,9 @@
   };
 
   var elements = [];
+  var nodeIds = {};
   graphData.nodes.forEach(function(n) {
+    nodeIds[n.id] = true;
     elements.push({
       group: 'nodes',
       data: {
@@ -23,6 +25,7 @@
     });
   });
   graphData.edges.forEach(function(e) {
+    if (!nodeIds[e.source] || !nodeIds[e.target]) return;
     elements.push({
       group: 'edges',
       data: {

@@ -17,9 +17,9 @@ class QuteTemplateEngineTest {
     @Test
     void substitutesVariables() {
         String result = engine.render("test-templates/simple.md",
-            Map.of("commandPrefix", "camel-kit", "camelVersion", "4.14.4"));
+            Map.of("COMMAND_PREFIX", "camel-kit"));
         assertTrue(result.contains("camel-kit graph stats"));
-        assertTrue(result.contains("Target version: 4.14.4"));
+        assertFalse(result.contains("{COMMAND_PREFIX}"));
     }
 
     @Test

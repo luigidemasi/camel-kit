@@ -7,7 +7,7 @@
 
 **Before running any graph command:**
 
-1. Read `.camel-kit/config.yaml` to get the `command-prefix` field. If not set, default to `camel-kit`.
+1. Read `.camel-kit/config.properties` to get the `command-prefix` field. If not set, default to `camel-kit`.
 2. Run `{COMMAND_PREFIX} graph stats` as a bash command.
 3. Check the exit code:
    - Exit code 0 → graph available. Proceed with graph-enhanced steps.
@@ -18,7 +18,7 @@
 camel-kit graph stats
 ```
 
-Replace `camel-kit` with the actual value from `config.yaml`.
+Replace `camel-kit` with the actual value from `config.properties`.
 
 ## Fallback Rule
 

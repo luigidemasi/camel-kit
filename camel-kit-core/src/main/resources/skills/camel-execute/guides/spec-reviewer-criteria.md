@@ -9,7 +9,7 @@
 
 The spec compliance reviewer answers ONE question: **Does the implementation match the approved design spec?**
 
-This is Stage 1 of the two-stage review. It runs BEFORE the code quality review (Iron Law 5).
+This is Stage 1 of the two-stage review. It runs BEFORE the code quality review (Iron Law 4).
 
 ---
 

@@ -1,6 +1,5 @@
 package io.github.luigidemasi.camelkit.generator;
 
-import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
@@ -20,7 +19,7 @@ class OpenCodeGeneratorTest {
         Path commandsDir = tempDir.resolve(agent.folder());
         Path skillsDir = tempDir.resolve(agentBaseFolder + "/skills");
         return new InitContext(agent, "opencode", commandsDir, skillsDir, tempDir,
-            "camel-kit", CamelKitMain.LATEST_CAMEL_LTS_VERSION, Printer.noop());
+            "camel-kit", Printer.noop());
     }
 
     @Test
@@ -32,7 +31,7 @@ class OpenCodeGeneratorTest {
         assertTrue(Files.exists(agentsMd));
         String content = Files.readString(agentsMd);
         assertTrue(content.contains("Iron Laws"));
-        assertTrue(content.contains(CamelKitMain.LATEST_CAMEL_LTS_VERSION));
+        assertTrue(content.contains("config.properties"));
         assertTrue(content.contains("camel-kit graph stats"));
     }
 

@@ -1,6 +1,5 @@
 package io.github.luigidemasi.camelkit.generator;
 
-import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
@@ -20,7 +19,7 @@ class DefaultGeneratorTest {
         Path commandsDir = tempDir.resolve(agent.folder());
         Path skillsDir = tempDir.resolve(agentBaseFolder + "/skills");
         return new InitContext(agent, agentName, commandsDir, skillsDir, tempDir,
-            "camel-kit", CamelKitMain.LATEST_CAMEL_LTS_VERSION, Printer.noop());
+            "camel-kit", Printer.noop());
     }
 
     @Test
@@ -29,7 +28,10 @@ class DefaultGeneratorTest {
         new DefaultGenerator().generate(ctx);
 
         assertTrue(Files.exists(ctx.commandsDir().resolve("camel-migrate.md")));
-        assertTrue(Files.exists(ctx.commandsDir().resolve("camel-implement.md")));
+        assertTrue(Files.exists(ctx.commandsDir().resolve("camel-brainstorm.md")));
+        assertTrue(Files.exists(ctx.commandsDir().resolve("camel-execute.md")));
+        assertFalse(Files.exists(ctx.commandsDir().resolve("camel-implement.md")));
+        assertFalse(Files.exists(ctx.commandsDir().resolve("camel-test.md")));
         String content = Files.readString(ctx.commandsDir().resolve("camel-migrate.md"));
         assertTrue(content.contains("SKILL.md"));
     }
@@ -60,6 +62,20 @@ class DefaultGeneratorTest {
         new DefaultGenerator().generate(ctx);
 
         assertTrue(Files.exists(tempDir.resolve(".bob/mcp.json")));
+    }
+
+    @Test
+    void generatesAgentsMd() throws Exception {
+        InitContext ctx = createContext("bob");
+        new DefaultGenerator().generate(ctx);
+
+        Path agentsMd = ctx.projectDir().resolve("AGENTS.md");
+        assertTrue(Files.exists(agentsMd));
+        String content = Files.readString(agentsMd);
+        assertTrue(content.contains("Skill Routing"));
+        assertTrue(content.contains("/camel-brainstorm"));
+        assertTrue(content.contains("Iron Laws"));
+        assertTrue(content.contains("MCP Catalog Verification"));
     }
 
     @Test

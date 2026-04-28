@@ -2,11 +2,11 @@
 
 ## Camel Version
 
-This project uses Apache Camel version `{camelVersion}`.
+The Apache Camel version for this project is configured in `.camel-kit/config.properties` (`project.camelVersion`).
 
 ## Pipeline Commands
 
-Use `{commandPrefix}` to invoke camel-kit CLI commands:
+Use `{COMMAND_PREFIX}` to invoke camel-kit CLI commands:
 
 | Command | Phase | Subagent |
 |---------|-------|----------|

@@ -1,6 +1,6 @@
 ---
 name: camel-execute
-description: Use when there is an approved implementation plan ready for execution — dispatches subagents per task with two-stage review (spec compliance then code quality)
+description: Use this skill when an implementation plan is approved and ready for execution — the user wants all tasks implemented, code generated, tests written, and validation run. Trigger when the user says 'execute the plan', 'implement everything', 'generate the code', 'run all tasks', 'go ahead and build it', 'the plan is approved, start', or references docs/implementation-plan.md being ready. Also use when the user wants to dispatch implementation with two-stage review (spec compliance + code quality) for each task.
 user_invocable: true
 ---
 
@@ -13,7 +13,7 @@ Execute the approved implementation plan by dispatching fresh subagents per task
 **Core principle:** Fresh subagent per task + two-stage review (spec then quality) = high quality, fast iteration.
 
 <HARD-RULE>
-AUTONOMOUS EXECUTION: Execute ALL tasks from the plan sequentially WITHOUT stopping, pausing, or asking the user between tasks. The user approved the entire plan — that is your authorization to execute every task. After each task's review passes, IMMEDIATELY start the next task. Do NOT print "Next Steps", "Ready to proceed", or any summary between tasks. The ONLY summary is the final completion report after ALL tasks are done (Step 4).
+AUTONOMOUS EXECUTION: Execute ALL tasks from the plan using wave analysis. Run `{COMMAND_PREFIX} plan analyze` first to get parallel waves. Tasks within a wave can run in parallel if the agent supports it. Tasks across waves run sequentially (wave N completes before wave N+1 starts). If wave analysis is unavailable, fall back to sequential execution. Do NOT stop, pause, or ask the user between tasks or waves. The user approved the entire plan — that is your authorization.
 </HARD-RULE>
 
 **Violating the letter of these rules is violating the spirit of these rules.**
@@ -73,26 +73,59 @@ digraph execute {
 
 ---
 
+## Step 0: Analyze Plan for Parallel Execution
+
+Before executing tasks, analyze the plan for parallel execution waves:
+
+```bash
+{COMMAND_PREFIX} plan analyze docs/implementation-plan.md
+```
+
+This outputs JSON with parallel execution waves — groups of tasks that can run simultaneously because they touch different files:
+
+```json
+{
+  "waves": [
+    {"wave": 1, "tasks": [1, 2, 4]},
+    {"wave": 2, "tasks": [3, 5]},
+    {"wave": 3, "tasks": [6]}
+  ],
+  "dependencies": {"3": [2], "5": [4], "6": [3, 5]}
+}
+```
+
+**Execution strategy:**
+- Execute all tasks within a wave **in parallel** (dispatch separate subagents simultaneously)
+- Wait for ALL tasks in a wave to complete and pass review before starting the next wave
+- Tasks in the same wave are guaranteed to touch different files — no conflicts
+- Each task still gets two-stage review (spec compliance, then code quality)
+- If the `plan analyze` command fails or is unavailable, fall back to sequential execution (execute tasks in plan order)
+
+**For agents that cannot parallelize** (single-conversation agents):
+- Execute tasks within each wave sequentially, but respect the wave ordering
+- This ensures correct dependency order even without parallelism
+
+---
+
 ## Iron Laws (enforced in this phase)
 
 Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces ALL five:
 
 - **Iron Law 1: MCP Catalog Verification** — implementer subagents MUST verify every component via MCP before generating YAML.
-- **Iron Law 2: Red Hat Build Only** — quality reviewer checks Red Hat support status.
 - **Iron Law 3: Constitution Compliance** — quality reviewer checks all 7 constitution rules.
 - **Iron Law 4: No Code Without Spec Approval** — this phase runs ONLY after the plan is approved.
-- **Iron Law 5: Spec Compliance Before Quality** — ALWAYS spec review FIRST, then quality review. Never in parallel. Never reversed.
+- **Iron Law 4: Spec Compliance Before Quality** — ALWAYS spec review FIRST, then quality review. Never in parallel. Never reversed.
 
 ### Rationalization Table
 
 | Excuse | Reality |
 |--------|---------|
-| "I can run both reviews in parallel to save time" | Iron Law 5: spec first, quality second. Sequential. Always. |
+| "I can run both reviews in parallel to save time" | Iron Law 4: spec first, quality second. Sequential. Always. |
 | "The implementation clearly matches the spec" | Clearly ≠ verified. Run the spec review. |
 | "I'll fix issues after all tasks are done" | Fix per task. Don't accumulate tech debt across tasks. |
 | "The implementer's self-review is sufficient" | Self-review catches obvious issues. Reviewer catches what self-review misses. Both needed. |
 | "This task is too simple for two-stage review" | Simple tasks get simple reviews. But they still get reviews. |
-| "I'll dispatch multiple implementers in parallel" | Never. Implementers can conflict. One at a time. |
+| "I'll dispatch multiple implementers in parallel without wave analysis" | Only parallelize within waves from `plan analyze`. Tasks in different waves may conflict. |
 | "The subagent can read the plan file itself" | Provide full task text. Don't make subagents read plan files. |
 | "I should ask before proceeding to the next task" | The user approved the ENTIRE plan. Execute ALL tasks without asking. |
 | "Let me check if the user wants to continue" | They already said yes — to the whole plan. Keep going. |
@@ -217,6 +250,7 @@ After all tasks complete:
 2. Check constitution compliance across all routes (not just individually)
 3. Check for cross-route consistency (naming conventions, property patterns, error handling consistency)
 4. Run smoke test if plan includes one
+5. **Generate validation report** — save findings to `docs/validation-report-YYYY-MM-DD_HH-mm.md` following the format in `camel-validate/SKILL.md`. This creates an audit trail.
 
 ### Step 3.5: Verification Phase
 

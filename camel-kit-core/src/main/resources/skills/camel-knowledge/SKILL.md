@@ -1,7 +1,7 @@
 ---
 name: camel-knowledge
-description: Internal reference skill — loaded by pipeline skills when Apache Camel documentation lookup is needed. Routes questions to appropriate MCP tools (component availability, CVEs, migration guides, release info, JIRA issues). NOT user-invocable.
-user_invocable: false
+description: Use this skill to look up Apache Camel documentation, component details, CVEs, errata, migration guides, release notes, or JIRA issues. Trigger when the user asks 'what are the options for camel-kafka', 'is there a CVE for', 'what changed in version', 'look up the docs for', 'is this component supported', 'show me the release notes', 'check for security advisories', or any question about Camel component configuration, API details, version-specific behavior, supported configurations, or security vulnerabilities.
+user_invocable: true
 ---
 
 # Camel Knowledge — Apache Camel Documentation Reference

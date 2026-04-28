@@ -48,6 +48,17 @@ public class PomParser implements GraphParser {
                        "version", version,
                        "file", projectRoot.relativize(pomFile).toString())));
 
+            // Store Maven properties as CONFIG_PROPERTY nodes (for version detection)
+            if (model.getProperties() != null) {
+                for (String propName : model.getProperties().stringPropertyNames()) {
+                    String propValue = model.getProperties().getProperty(propName);
+                    String propNodeId = "maven-property:" + propName;
+                    graph.addNode(new GraphNode(propNodeId, NodeType.CONFIG_PROPERTY,
+                        Map.of("name", propName, "value", propValue,
+                               "file", projectRoot.relativize(pomFile).toString())));
+                }
+            }
+
             for (Dependency dep : model.getDependencies()) {
                 String depId = "maven:" + dep.getGroupId() + ":" + dep.getArtifactId();
                 String depVersion = dep.getVersion() != null ? dep.getVersion() : "managed";

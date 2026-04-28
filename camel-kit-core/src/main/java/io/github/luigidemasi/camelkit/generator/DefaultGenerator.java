@@ -23,13 +23,24 @@ public class DefaultGenerator implements AgentGenerator {
     public void generate(InitContext ctx) throws Exception {
         Files.createDirectories(ctx.commandsDir());
         Files.createDirectories(ctx.skillsDir());
+        generateAgentsMd(ctx);
         createCommandTemplates(ctx);
         copySkills(ctx);
         createMcpConfigs(ctx);
     }
 
+    private void generateAgentsMd(InitContext ctx) throws Exception {
+        QuteTemplateEngine qute = new QuteTemplateEngine();
+        Map<String, Object> data = new java.util.HashMap<>(Map.of(
+            "COMMAND_PREFIX", ctx.commandPrefix()
+        ));
+        String content = qute.render("templates/shared/agents-md.md", data);
+        Files.writeString(ctx.projectDir().resolve("AGENTS.md"), content);
+        ctx.printer().println(AnsiColors.green("✓") + " Generated AGENTS.md with skill routing and iron laws");
+    }
+
     private void createCommandTemplates(InitContext ctx) throws Exception {
-        List<String> commands = List.of("brainstorm", "flow", "plan", "implement", "validate", "test", "execute", "migrate", "knowledge", "verify");
+        List<String> commands = List.of("brainstorm", "flow", "plan", "execute", "verify", "validate", "migrate", "knowledge");
 
         // Extract agent base folder (e.g., ".bob" from ".bob/commands")
         String agentBaseFolder = ctx.agent().folder().substring(0, ctx.agent().folder().lastIndexOf("/"));
@@ -235,8 +246,15 @@ public class DefaultGenerator implements AgentGenerator {
                 "KNOWLEDGE_MCP_REPOS", knowledgeMcpRepos,
                 "CAMEL_CATALOG_REPOS", CamelKitMain.CAMEL_CATALOG_REPOS
             ));
-            templateData.put("CAMEL_VERSION", dist.camelVersion());
-            templateData.put("MAVEN_REPO", dist.mavenRepo());
+            templateData.put("CAMEL_VERSION", dist.camelMainVersion());
+            templateData.put("CAMEL_MAIN_VERSION", dist.camelMainVersion());
+            templateData.put("CAMEL_SPRINGBOOT_VERSION", dist.camelSpringbootVersion());
+            templateData.put("CAMEL_QUARKUS_VERSION", dist.camelQuarkusVersion());
+            templateData.put("SPRINGBOOT_BOM_VERSION", dist.springbootBomVersion());
+            templateData.put("QUARKUS_PLATFORM_VERSION", dist.quarkusPlatformVersion());
+            templateData.put("CAMEL_MAIN_SUPPORTED", dist.camelMainSupported());
+            templateData.put("CAMEL_SPRINGBOOT_SUPPORTED", dist.camelSpringbootSupported());
+            templateData.put("CAMEL_QUARKUS_SUPPORTED", dist.camelQuarkusSupported());
 
             String knowledgeToolPrefix = "camel_docs_";
             String knowledgeToolsJson = String.join(", ",
