@@ -410,7 +410,7 @@ public class BizTalkOdxParser {
 
             // Copy relevant properties
             for (String key : properties.keySet()) {
-                nodeProps.put(key.toLowerCase(), properties.get(key));
+                nodeProps.put(key.toLowerCase(java.util.Locale.ROOT), properties.get(key));
             }
 
             GraphNode shapeNode = new GraphNode(shapeId, NodeType.BIZTALK_SHAPE, nodeProps);
