@@ -49,7 +49,7 @@ public class KitInitCommand extends CamelCommand {
     List<String> properties;
 
     @Option(names = {"--source-platform"},
-            description = "Source platform for migration graph analysis: mulesoft, camel, auto (default: auto)")
+            description = "Source platform for migration graph analysis: mulesoft, camel, biztalk, auto (default: auto)")
     String sourcePlatform;
 
     public KitInitCommand(CamelJBangMain main) {

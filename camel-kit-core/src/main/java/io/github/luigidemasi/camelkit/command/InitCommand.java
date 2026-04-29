@@ -63,7 +63,7 @@ public class InitCommand extends CamelKitCommand {
     public List<String> properties;
 
     @Option(names = {"--source-platform"},
-            description = "Source platform for migration graph analysis: mulesoft, camel, auto (default: auto)")
+            description = "Source platform for migration graph analysis: mulesoft, camel, biztalk, auto (default: auto)")
     public String sourcePlatform;
 
     public InitCommand(CamelKitMain main) {
@@ -263,6 +263,17 @@ public class InitCommand extends CamelKitCommand {
             types.add("MuleSoft Mule" + (muleVersion != null ? " " + muleVersion : "")
                       + " (" + flows + " flows, " + subFlows + " sub-flows"
                       + (dwl > 0 ? ", " + dwl + " DataWeave scripts" : "") + ")");
+        }
+
+        if (!graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.BIZTALK_ORCHESTRATION).isEmpty()) {
+            int orchs = graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.BIZTALK_ORCHESTRATION)
+                    .size();
+            int maps = graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.BIZTALK_MAP).size();
+            int pipelines
+                    = graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.BIZTALK_PIPELINE).size();
+            types.add("Microsoft BizTalk (" + orchs + " orchestrations"
+                      + (maps > 0 ? ", " + maps + " maps" : "")
+                      + (pipelines > 0 ? ", " + pipelines + " pipelines" : "") + ")");
         }
 
         if (!graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.CAMEL_ROUTE).isEmpty()) {
