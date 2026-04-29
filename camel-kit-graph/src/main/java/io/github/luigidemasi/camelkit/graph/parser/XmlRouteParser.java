@@ -39,10 +39,14 @@ public class XmlRouteParser implements GraphParser {
 
     private void parseXmlFile(Path xmlFile, Path projectRoot, ProjectGraph graph) {
         // Skip MuleSoft XML files (handled by MuleXmlFlowParser)
+        // Skip BizTalk XML files (handled by BizTalkParser)
         try {
             String content = Files.readString(xmlFile);
             String head = content.substring(0, Math.min(1024, content.length()));
             if (head.contains("mulesoft.org/schema/mule")) {
+                return;
+            }
+            if (BizTalkParser.isBizTalkXml(head)) {
                 return;
             }
         } catch (IOException e) {

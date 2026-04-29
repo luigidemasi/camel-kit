@@ -16,6 +16,7 @@ public class GraphBuilder {
             new XmlRouteParser(),
             new MuleXmlFlowParser(),
             new DataWeaveParser(),
+            new BizTalkParser(),
             new YamlRouteParser(),
             new PomParser(),
             new ConfigParser());
