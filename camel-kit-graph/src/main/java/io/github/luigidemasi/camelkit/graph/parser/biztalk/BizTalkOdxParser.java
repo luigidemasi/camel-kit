@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
@@ -465,27 +466,19 @@ public class BizTalkOdxParser {
     /**
      * Check if element type represents a shape.
      */
-    private boolean isShapeElement(String elementType) {
-        if (elementType == null) {
-            return false;
-        }
+    private static final Set<String> SHAPE_TYPES = Set.of(
+            "Receive", "Send", "Decide", "Construct", "Transform",
+            "Delay", "Suspend", "Terminate", "Parallel", "ParallelBranch",
+            "Listen", "Scope", "Loop", "ForEach", "While", "Until",
+            "Call", "Start", "Expression", "MessageAssignment", "VariableAssignment",
+            "VariableDeclaration", "CorrelationDeclaration", "ThrowException",
+            "Catch", "Compensate", "CompensationScope",
+            "AtomicTransaction", "LongRunningTransaction",
+            "CallRules", "CallPolicy", "Group", "Task", "Switch",
+            "Invoke", "RoleLinkDeclaration", "Throw", "SuspendShape");
 
-        return "Receive".equals(elementType)
-                || "Send".equals(elementType)
-                || "Decide".equals(elementType)
-                || "Construct".equals(elementType)
-                || "Transform".equals(elementType)
-                || "Delay".equals(elementType)
-                || "Suspend".equals(elementType)
-                || "Terminate".equals(elementType)
-                || "Parallel".equals(elementType)
-                || "Listen".equals(elementType)
-                || "Scope".equals(elementType)
-                || "Loop".equals(elementType)
-                || "ThrowException".equals(elementType)
-                || "Expression".equals(elementType)
-                || "MessageAssignment".equals(elementType)
-                || "VariableAssignment".equals(elementType);
+    private boolean isShapeElement(String elementType) {
+        return elementType != null && SHAPE_TYPES.contains(elementType);
     }
 
     /**
