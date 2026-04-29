@@ -90,16 +90,23 @@ public class BizTalkBindingParser {
 
             if (event == XMLStreamConstants.START_ELEMENT) {
                 String localName = reader.getLocalName();
-                depth++;
 
                 if ("Address".equals(localName)) {
                     address = reader.getElementText();
+                    // getElementText() consumes the end tag, so don't increment depth
+                    continue;
                 } else if ("TransportType".equals(localName)) {
                     transportType = reader.getAttributeValue(null, "Name");
+                    depth++;
                 } else if ("ReceivePipeline".equals(localName)) {
                     pipelineName = reader.getAttributeValue(null, "Name");
+                    depth++;
                 } else if ("PollingInterval".equals(localName)) {
                     pollingInterval = reader.getElementText();
+                    // getElementText() consumes the end tag, so don't increment depth
+                    continue;
+                } else {
+                    depth++;
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT) {
                 depth--;
@@ -145,14 +152,19 @@ public class BizTalkBindingParser {
 
             if (event == XMLStreamConstants.START_ELEMENT) {
                 String localName = reader.getLocalName();
-                depth++;
 
                 if ("Address".equals(localName)) {
                     address = reader.getElementText();
+                    // getElementText() consumes the end tag, so don't increment depth
+                    continue;
                 } else if ("TransportType".equals(localName)) {
                     transportType = reader.getAttributeValue(null, "Name");
+                    depth++;
                 } else if ("SendPipeline".equals(localName)) {
                     pipelineName = reader.getAttributeValue(null, "Name");
+                    depth++;
+                } else {
+                    depth++;
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT) {
                 depth--;

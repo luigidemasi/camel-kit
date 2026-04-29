@@ -26,7 +26,7 @@ XLANG/s is the expression language used in BizTalk orchestrations. It is based o
 | **Orchestration variable** | `myVar` | `${header.myVar}` | Simple |
 | **Orchestration parameter** | `param1` | `${header.param1}` | Simple |
 | **Logical AND** | `status == "ACTIVE" && amount > 100` | `${header.status} == 'ACTIVE' && ${header.amount} > 100` | Simple |
-| **Logical OR** | `status == "ACTIVE" || status == "PENDING"` | `${header.status} == 'ACTIVE' || ${header.status} == 'PENDING'` | Simple |
+| **Logical OR** | `status == "ACTIVE" \|\| status == "PENDING"` | `${header.status} == 'ACTIVE' \|\| ${header.status} == 'PENDING'` | Simple |
 | **Equality** | `status == "ACTIVE"` | `${header.status} == 'ACTIVE'` | Simple |
 | **Inequality** | `status != "INACTIVE"` | `${header.status} != 'INACTIVE'` | Simple |
 | **Greater than** | `amount > 100` | `${header.amount} > 100` | Simple |

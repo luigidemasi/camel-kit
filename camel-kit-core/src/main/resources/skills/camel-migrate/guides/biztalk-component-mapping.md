@@ -53,7 +53,7 @@ This guide maps Microsoft BizTalk adapters and components to their Apache Camel 
 
 Microsoft Message Queuing (MSMQ) has no direct Apache Camel equivalent. When MSMQ is detected, **stop and ask the user** which replacement to use:
 
-```
+```text
 I found the MSMQ adapter in your BizTalk application.
 
 MSMQ has no direct Apache Camel equivalent. Please choose a replacement:
@@ -138,7 +138,7 @@ The following BizTalk adapters have **no direct Apache Camel equivalent**. When 
 
 When a proprietary adapter is found, ask the user:
 
-```
+```text
 I found the following adapter with no direct Apache Camel equivalent:
 
 - **[Adapter Name]** (used in: [orchestration/port name])

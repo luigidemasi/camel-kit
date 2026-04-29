@@ -468,6 +468,9 @@ public class BizTalkOdxParser {
      * Build orchestration ID from namespace and name.
      */
     private String buildOrchestrationId(String namespace, String name) {
+        if (namespace == null || namespace.isEmpty()) {
+            return "biztalk-orch:" + name;
+        }
         return "biztalk-orch:" + namespace + "." + name;
     }
 }

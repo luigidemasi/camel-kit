@@ -106,9 +106,17 @@ class BizTalkParserTest {
         BizTalkParser parser = new BizTalkParser();
         parser.parse(testDataDir, graph);
 
-        // Then: verify parsing completes without error
+        // Then: verify parsing completes without error and produces BizTalk nodes
         // (pom.xml should be skipped, not parsed as BizTalk binding XML)
         assertNotNull(graph);
+
+        // Verify that BizTalk nodes were created (from .odx, .btm, .btp, binding XML)
+        long bizTalkNodeCount = graph.getNodes().values().stream()
+                .filter(n -> n.type().name().startsWith("BIZTALK_"))
+                .count();
+
+        assertTrue(bizTalkNodeCount > 0,
+                "BizTalkParser should create BizTalk nodes from actual BizTalk files, not pom.xml");
     }
 
     @Test

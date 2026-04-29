@@ -191,7 +191,7 @@ Create `docs/business-requirements.md` using the following format:
 
 ## Best Practices
 
-The following rules from `docs/constitution.md` apply to every generated route:
+If `.camel-kit/constitution.md` exists, the following rules from it apply to every generated route:
 - One Camel route per BizTalk orchestration (Single Responsibility)
 - Route IDs follow `<domain>-<action>[-<qualifier>]` naming (Naming Conventions)
 - Every route declares a `routeId` and a `description` (Observability)

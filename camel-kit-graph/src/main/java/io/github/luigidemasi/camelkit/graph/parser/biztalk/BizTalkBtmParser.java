@@ -1,6 +1,6 @@
 package io.github.luigidemasi.camelkit.graph.parser.biztalk;
 
-import java.nio.charset.StandardCharsets;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -95,8 +95,7 @@ public class BizTalkBtmParser {
                 return;
             }
 
-            String content = Files.readString(btmFile, StandardCharsets.UTF_8);
-            parseBtmXml(content, btmFile, graph);
+            parseBtmXml(btmFile, graph);
         } catch (Exception e) {
             // Silently skip unparseable files
         }
@@ -105,23 +104,25 @@ public class BizTalkBtmParser {
     /**
      * Parse BTM XML content using StAX.
      */
-    private void parseBtmXml(String xmlContent, Path btmFile, ProjectGraph graph) throws Exception {
+    private void parseBtmXml(Path btmFile, ProjectGraph graph) throws Exception {
         XMLInputFactory factory = XMLInputFactory.newInstance();
         factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
         factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
 
-        XMLStreamReader reader = factory.createXMLStreamReader(new java.io.StringReader(xmlContent));
+        try (InputStream input = Files.newInputStream(btmFile)) {
+            XMLStreamReader reader = factory.createXMLStreamReader(input);
 
-        try {
-            while (reader.hasNext()) {
-                int event = reader.next();
+            try {
+                while (reader.hasNext()) {
+                    int event = reader.next();
 
-                if (event == XMLStreamConstants.START_ELEMENT && "mapsource".equals(reader.getLocalName())) {
-                    parseMapSource(reader, btmFile, graph);
+                    if (event == XMLStreamConstants.START_ELEMENT && "mapsource".equals(reader.getLocalName())) {
+                        parseMapSource(reader, btmFile, graph);
+                    }
                 }
+            } finally {
+                reader.close();
             }
-        } finally {
-            reader.close();
         }
     }
 

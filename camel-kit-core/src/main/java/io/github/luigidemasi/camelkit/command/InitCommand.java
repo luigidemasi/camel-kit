@@ -265,12 +265,10 @@ public class InitCommand extends CamelKitCommand {
                       + (dwl > 0 ? ", " + dwl + " DataWeave scripts" : "") + ")");
         }
 
-        if (!graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.BIZTALK_ORCHESTRATION).isEmpty()) {
-            int orchs = graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.BIZTALK_ORCHESTRATION)
-                    .size();
-            int maps = graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.BIZTALK_MAP).size();
-            int pipelines
-                    = graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.BIZTALK_PIPELINE).size();
+        int orchs = graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.BIZTALK_ORCHESTRATION).size();
+        int maps = graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.BIZTALK_MAP).size();
+        int pipelines = graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.BIZTALK_PIPELINE).size();
+        if (orchs > 0 || maps > 0 || pipelines > 0) {
             types.add("Microsoft BizTalk (" + orchs + " orchestrations"
                       + (maps > 0 ? ", " + maps + " maps" : "")
                       + (pipelines > 0 ? ", " + pipelines + " pipelines" : "") + ")");

@@ -1,6 +1,6 @@
 package io.github.luigidemasi.camelkit.graph.parser.biztalk;
 
-import java.nio.charset.StandardCharsets;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -31,6 +31,11 @@ public class BizTalkBtpParser {
     private static final String RECEIVE_PIPELINE_GUID = "f66b9f5e-43ff-4f5f-ba46-885348ae1b4e";
 
     /**
+     * GUID identifying send pipelines.
+     */
+    private static final String SEND_CATEGORY = "8c6b051c-0ff5-4fc2-9ae5-5016cb726282";
+
+    /**
      * Parse a single BTP file and add nodes/edges to the graph.
      *
      * @param btpFile the BTP file to parse
@@ -42,8 +47,7 @@ public class BizTalkBtpParser {
                 return;
             }
 
-            String content = Files.readString(btpFile, StandardCharsets.UTF_8);
-            parseBtpXml(content, btpFile, graph);
+            parseBtpXml(btpFile, graph);
         } catch (Exception e) {
             // Silently skip unparseable files
         }
@@ -52,23 +56,25 @@ public class BizTalkBtpParser {
     /**
      * Parse BTP XML content using StAX.
      */
-    private void parseBtpXml(String xmlContent, Path btpFile, ProjectGraph graph) throws Exception {
+    private void parseBtpXml(Path btpFile, ProjectGraph graph) throws Exception {
         XMLInputFactory factory = XMLInputFactory.newInstance();
         factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
         factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
 
-        XMLStreamReader reader = factory.createXMLStreamReader(new java.io.StringReader(xmlContent));
+        try (InputStream input = Files.newInputStream(btpFile)) {
+            XMLStreamReader reader = factory.createXMLStreamReader(input);
 
-        try {
-            while (reader.hasNext()) {
-                int event = reader.next();
+            try {
+                while (reader.hasNext()) {
+                    int event = reader.next();
 
-                if (event == XMLStreamConstants.START_ELEMENT && "Document".equals(reader.getLocalName())) {
-                    parseDocument(reader, btpFile, graph);
+                    if (event == XMLStreamConstants.START_ELEMENT && "Document".equals(reader.getLocalName())) {
+                        parseDocument(reader, btpFile, graph);
+                    }
                 }
+            } finally {
+                reader.close();
             }
-        } finally {
-            reader.close();
         }
     }
 
@@ -109,7 +115,18 @@ public class BizTalkBtpParser {
         String finalPipelineName = friendlyName != null ? friendlyName : pipelineName;
 
         // Determine pipeline direction based on CategoryId
-        String direction = RECEIVE_PIPELINE_GUID.equalsIgnoreCase(categoryId) ? "receive" : "send";
+        String direction;
+        if (categoryId != null) {
+            if (RECEIVE_PIPELINE_GUID.equalsIgnoreCase(categoryId)) {
+                direction = "receive";
+            } else if (SEND_CATEGORY.equalsIgnoreCase(categoryId)) {
+                direction = "send";
+            } else {
+                direction = "unknown";
+            }
+        } else {
+            direction = "unknown";
+        }
 
         // Create pipeline node
         String pipelineId = "biztalk-pipeline:" + finalPipelineName;
