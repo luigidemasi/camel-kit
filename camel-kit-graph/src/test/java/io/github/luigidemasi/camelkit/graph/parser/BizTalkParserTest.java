@@ -99,7 +99,7 @@ class BizTalkParserTest {
     void testBizTalkParserIgnoresPomXml() throws URISyntaxException {
         // Given: a directory containing ONLY a pom.xml (no BizTalk artifacts)
         Path pomOnlyDir = Paths.get(
-                getClass().getResource("/testdata/biztalk-pom-only").toURI());
+                getClass().getResource("/biztalk-pom-only").toURI());
 
         // When: BizTalkParser walks the directory
         ProjectGraph graph = new ProjectGraph();
