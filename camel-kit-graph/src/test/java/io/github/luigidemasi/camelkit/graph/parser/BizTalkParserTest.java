@@ -97,26 +97,22 @@ class BizTalkParserTest {
 
     @Test
     void testBizTalkParserIgnoresPomXml() throws URISyntaxException {
-        // Given: a directory that might contain pom.xml
-        Path testDataDir = Paths.get(
-                getClass().getResource("/testdata/biztalk").toURI());
+        // Given: a directory containing ONLY a pom.xml (no BizTalk artifacts)
+        Path pomOnlyDir = Paths.get(
+                getClass().getResource("/testdata/biztalk-pom-only").toURI());
 
         // When: BizTalkParser walks the directory
         ProjectGraph graph = new ProjectGraph();
         BizTalkParser parser = new BizTalkParser();
-        parser.parse(testDataDir, graph);
+        parser.parse(pomOnlyDir, graph);
 
-        // Then: verify parsing completes without error and produces BizTalk nodes
-        // (pom.xml should be skipped, not parsed as BizTalk binding XML)
-        assertNotNull(graph);
-
-        // Verify that BizTalk nodes were created (from .odx, .btm, .btp, binding XML)
+        // Then: no BizTalk nodes should be created — pom.xml is not a BizTalk artifact
         long bizTalkNodeCount = graph.getNodes().values().stream()
                 .filter(n -> n.type().name().startsWith("BIZTALK_"))
                 .count();
 
-        assertTrue(bizTalkNodeCount > 0,
-                "BizTalkParser should create BizTalk nodes from actual BizTalk files, not pom.xml");
+        assertEquals(0, bizTalkNodeCount,
+                "BizTalkParser should not create any nodes from pom.xml");
     }
 
     @Test
