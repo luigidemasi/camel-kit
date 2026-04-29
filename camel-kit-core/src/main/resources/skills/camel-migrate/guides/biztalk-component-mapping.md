@@ -85,22 +85,41 @@ Record the decision and use the selected component in Phase 2.
 
 | BizTalk Shape | Camel Equivalent | Notes |
 |---|---|---|
-| **Receive Shape** | `from(...)` | Consumer endpoint. |
+| **Receive Shape** | `from(...)` | Consumer endpoint. Activate=True → route entry point. |
 | **Send Shape** | `to(...)` | Producer endpoint. |
 | **Construct Message Shape** | `setBody` EIP | Message construction. |
 | **Message Assignment Shape** | `setBody` / `setHeader` EIP | Variable assignment. |
-| **Decide Shape** | `choice` EIP | Content-Based Router (CBR). |
-| **Loop Shape** | `loop` EIP | Fixed iteration count. |
-| **Parallel Actions Shape** | `multicast` EIP | Parallel execution. Use `parallelProcessing(true)`. |
-| **Delay Shape** | `delay` EIP | `.delay(constant(5000))` for 5s delay. |
-| **Suspend Shape** | `process()` with custom logic | No direct EIP — implement dehydration logic. |
-| **Scope Shape** | `doTry` EIP | Transaction/error handling scope. |
-| **Call Orchestration Shape** | `.to("direct:sub-orchestration")` | Direct route invocation. |
 | **Transform Shape** | XSLT or `unmarshal`/`marshal` | Map transformation. See `biztalk-map-conversion.md`. |
-| **Expression Shape** | `process()` or Groovy | C#/VB code. See `biztalk-expression-mapping.md`. |
-| **Group Shape** | No equivalent | Visual grouping only — no runtime impact. |
+| **Decide Shape** | `choice` EIP | Content-Based Router (CBR). |
+| **Switch Shape** | `choice` EIP | Multiple `when` branches. |
+| **Loop Shape** | `loop` EIP | Fixed iteration count. |
+| **ForEach Shape** | `split` EIP | Collection iteration. |
+| **While Shape** | `loop` EIP with condition | Condition-based loop. |
+| **Until Shape** | `loop` EIP with condition | Condition-based loop (inverted). |
+| **Parallel Actions Shape** | `multicast` EIP | Parallel execution. Use `parallelProcessing(true)`. |
+| **ParallelBranch Shape** | branch within `multicast` | Individual branch in parallel block. |
 | **Listen Shape** | `choice` + `timeout` | Alternative receive paths with timeout. |
-| **Compensate Shape** | Saga EIP | Long-running transaction compensation. |
+| **Call Orchestration Shape** | `.to("direct:sub-orchestration")` | Synchronous route invocation. |
+| **Start Orchestration Shape** | `wireTap` or `.to("seda:...")` | Asynchronous (fire-and-forget) invocation. |
+| **Invoke Shape** | `to(...)` | External service call. |
+| **Scope Shape** | `doTry` EIP | Transaction/error handling scope. |
+| **AtomicTransaction Shape** | `transacted()` | Short-lived transaction boundary. |
+| **LongRunningTransaction Shape** | Saga EIP | Long-running transaction with compensation. |
+| **CompensationScope Shape** | Saga EIP scope | Defines compensating action for a scope. |
+| **Compensate Shape** | Saga compensation trigger | Triggers compensation of a completed scope. |
+| **Catch Shape** | `doCatch(...)` | Exception handler within a scope. |
+| **ThrowException / Throw Shape** | `throwException(...)` | Raises an exception. |
+| **Terminate Shape** | `stop()` | Terminates the route. |
+| **Suspend Shape** | **Not supported** | **ASK USER**: No Camel equivalent — BizTalk dehydration is platform-specific. Suggest Dead Letter Channel or manual hold pattern. |
+| **Delay Shape** | `delay` EIP | `.delay(constant(5000))` for 5s delay. |
+| **Expression Shape** | `process()` or Groovy | C#/VB code. See `biztalk-expression-mapping.md`. |
+| **VariableDeclaration Shape** | `setVariable()` | Variable initialization. |
+| **VariableAssignment Shape** | `setVariable()` / `setHeader()` | Variable update. |
+| **CorrelationDeclaration Shape** | `correlationExpression()` | Message correlation for stateful patterns. |
+| **CallRules / CallPolicy Shape** | `bean()` | Business Rules Engine → Java bean or rule engine integration. |
+| **Task Shape** | branch within `Listen` | Individual branch in a Listen shape. |
+| **Group Shape** | No equivalent | Visual grouping only — no runtime impact. |
+| **RoleLinkDeclaration Shape** | No equivalent | Port configuration metadata — no runtime impact. |
 
 ---
 
