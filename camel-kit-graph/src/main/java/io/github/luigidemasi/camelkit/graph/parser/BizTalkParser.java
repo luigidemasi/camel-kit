@@ -2,6 +2,7 @@ package io.github.luigidemasi.camelkit.graph.parser;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -73,8 +74,15 @@ public class BizTalkParser implements GraphParser {
             if (read <= 0) {
                 return false;
             }
-            String head = new String(buf, 0, read, StandardCharsets.UTF_8);
-            return head.contains(BIZTALK_BINDING_MARKER) && head.contains(BINDING_INFO_MARKER);
+            // BizTalk binding files may be UTF-8 or UTF-16 (BizTalk Admin Console exports UTF-16)
+            for (Charset cs : new Charset[]{
+                    StandardCharsets.UTF_8, StandardCharsets.UTF_16LE, StandardCharsets.UTF_16BE}) {
+                String head = new String(buf, 0, read, cs);
+                if (head.contains(BIZTALK_BINDING_MARKER) && head.contains(BINDING_INFO_MARKER)) {
+                    return true;
+                }
+            }
+            return false;
         } catch (IOException e) {
             return false;
         }
