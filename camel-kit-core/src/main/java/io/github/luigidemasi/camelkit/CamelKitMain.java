@@ -1,5 +1,10 @@
 package io.github.luigidemasi.camelkit;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.concurrent.Callable;
+
 import io.github.luigidemasi.camelkit.command.InitCommand;
 import io.github.luigidemasi.camelkit.command.graph.GraphCommand;
 import io.github.luigidemasi.camelkit.command.plan.PlanCommand;
@@ -11,27 +16,21 @@ import io.github.luigidemasi.camelkit.util.AnsiColors;
 import io.github.luigidemasi.camelkit.util.LogoRenderer;
 import io.github.luigidemasi.camelkit.util.TemplateUtils;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.jline.utils.AttributedString;
 import org.jline.utils.AttributedStyle;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
-import test.Testing;
-
-import java.util.concurrent.Callable;
 
 /**
  * Camel-Kit CLI - Design Apache Camel integrations with AI coding assistants.
  */
 @Command(
-    name = "camel-kit",
-    mixinStandardHelpOptions = true,
-    version = "0.3.1-SNAPSHOT",
-    description = "Design Apache Camel integrations with AI coding assistants")
+         name = "camel-kit",
+         mixinStandardHelpOptions = true,
+         version = "0.3.1-SNAPSHOT",
+         description = "Design Apache Camel integrations with AI coding assistants")
 public class CamelKitMain implements Callable<Integer> {
 
     private static DistributionConfig DISTRIBUTION = loadDistribution();
@@ -46,14 +45,14 @@ public class CamelKitMain implements Callable<Integer> {
     private Terminal terminal;
     private Printer printer;
     private boolean tuiEnabled = true;
-    private io.github.luigidemasi.camelkit.tui.TaskTracker taskTracker =
-            io.github.luigidemasi.camelkit.tui.TaskTracker.noop();
+    private io.github.luigidemasi.camelkit.tui.TaskTracker taskTracker
+            = io.github.luigidemasi.camelkit.tui.TaskTracker.noop();
 
     public CamelKitMain() {
         try {
             this.terminal = TerminalBuilder.builder()
-                .system(true)
-                .build();
+                    .system(true)
+                    .build();
             this.printer = new JLinePrinter(terminal);
         } catch (Exception e) {
             // Fallback to system printer
@@ -87,8 +86,8 @@ public class CamelKitMain implements Callable<Integer> {
     }
 
     /**
-     * Release the JLine terminal so that another framework (e.g. TamboUI) can
-     * acquire the terminal device. Safe to call multiple times.
+     * Release the JLine terminal so that another framework (e.g. TamboUI) can acquire the terminal device. Safe to call
+     * multiple times.
      */
     public void closeTerminal() {
         if (terminal != null) {
@@ -117,8 +116,8 @@ public class CamelKitMain implements Callable<Integer> {
     }
 
     /**
-     * Reload the distribution config with cascading overrides.
-     * Called by InitCommand when -c or -p options are provided.
+     * Reload the distribution config with cascading overrides. Called by InitCommand when -c or -p options are
+     * provided.
      */
     public static void reloadDistribution(java.nio.file.Path configFile, java.util.List<String> cliProperties) {
         DISTRIBUTION = DistributionConfig.loadWithOverrides(configFile, cliProperties);
@@ -140,9 +139,9 @@ public class CamelKitMain implements Callable<Integer> {
 
     public static void run(CamelKitMain main, String... args) {
         CommandLine commandLine = new CommandLine(main)
-            .addSubcommand("init", new InitCommand(main))
-            .addSubcommand("graph", new CommandLine(new GraphCommand()))
-            .addSubcommand("plan", new CommandLine(new PlanCommand()));
+                .addSubcommand("init", new InitCommand(main))
+                .addSubcommand("graph", new CommandLine(new GraphCommand()))
+                .addSubcommand("plan", new CommandLine(new PlanCommand()));
 
         int exitCode = commandLine.execute(args);
         System.exit(exitCode);
@@ -158,12 +157,12 @@ public class CamelKitMain implements Callable<Integer> {
     /**
      * Print the Camel-Kit banner.
      *
-     * <p>Tries to render the logo image using a native terminal image protocol
-     * (Kitty, iTerm2, Sixel). Falls back to ASCII art + gradient text when the
-     * current terminal does not support any native image protocol.
+     * <p>
+     * Tries to render the logo image using a native terminal image protocol (Kitty, iTerm2, Sixel). Falls back to ASCII
+     * art + gradient text when the current terminal does not support any native image protocol.
      */
     public void printBanner() {
-        int terminalWidth  = terminal != null ? terminal.getWidth()  : 80;
+        int terminalWidth = terminal != null ? terminal.getWidth() : 80;
         int terminalHeight = terminal != null ? terminal.getHeight() : 24;
 
         printer.println();
@@ -193,7 +192,7 @@ public class CamelKitMain implements Callable<Integer> {
         int padding = Math.max(0, (terminalWidth - tagline.length()) / 2);
         String pad = " ".repeat(padding);
 
-        AttributedStyle dimStyle  = AttributedStyle.DEFAULT.foregroundRgb(0x888888);
+        AttributedStyle dimStyle = AttributedStyle.DEFAULT.foregroundRgb(0x888888);
         AttributedStyle mainStyle = AttributedStyle.DEFAULT.bold().foregroundRgb(0xF4AF23);
 
         // "Camel-Kit — " dimmed, rest in amber
@@ -205,8 +204,8 @@ public class CamelKitMain implements Callable<Integer> {
     }
 
     /**
-     * Prints a block of text centered on the terminal screen.
-     * Calculates padding once based on the longest line to preserve the block's shape.
+     * Prints a block of text centered on the terminal screen. Calculates padding once based on the longest line to
+     * preserve the block's shape.
      */
     private void printCenteredBlock(String[] lines, int[] colors) {
         int terminalWidth = (terminal != null && terminal.getWidth() > 0) ? terminal.getWidth() : 100;

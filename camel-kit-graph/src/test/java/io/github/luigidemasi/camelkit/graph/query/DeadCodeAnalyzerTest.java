@@ -1,10 +1,11 @@
 package io.github.luigidemasi.camelkit.graph.query;
 
+import java.util.Map;
+
 import io.github.luigidemasi.camelkit.graph.ProjectGraph;
 import io.github.luigidemasi.camelkit.graph.model.*;
-import org.junit.jupiter.api.Test;
 
-import java.util.Map;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -14,41 +15,54 @@ class DeadCodeAnalyzerTest {
         ProjectGraph graph = new ProjectGraph();
 
         // Routes
-        graph.addNode(new GraphNode("route:processOrders", NodeType.CAMEL_ROUTE,
+        graph.addNode(new GraphNode(
+                "route:processOrders", NodeType.CAMEL_ROUTE,
                 Map.of("routeId", "processOrders")));
-        graph.addNode(new GraphNode("route:enrichOrder", NodeType.CAMEL_ROUTE,
+        graph.addNode(new GraphNode(
+                "route:enrichOrder", NodeType.CAMEL_ROUTE,
                 Map.of("routeId", "enrichOrder")));
 
         // Endpoints
-        graph.addNode(new GraphNode("endpoint:kafka:orders", NodeType.CAMEL_ENDPOINT,
+        graph.addNode(new GraphNode(
+                "endpoint:kafka:orders", NodeType.CAMEL_ENDPOINT,
                 Map.of("uri", "kafka:orders", "scheme", "kafka")));
-        graph.addNode(new GraphNode("endpoint:direct:enrichOrder", NodeType.CAMEL_ENDPOINT,
+        graph.addNode(new GraphNode(
+                "endpoint:direct:enrichOrder", NodeType.CAMEL_ENDPOINT,
                 Map.of("uri", "direct:enrichOrder", "scheme", "direct")));
 
         // Artifacts
-        graph.addNode(new GraphNode("artifact:camel-core", NodeType.MAVEN_ARTIFACT,
+        graph.addNode(new GraphNode(
+                "artifact:camel-core", NodeType.MAVEN_ARTIFACT,
                 Map.of("artifactId", "camel-core", "groupId", "org.apache.camel", "version", "4.14.0")));
-        graph.addNode(new GraphNode("artifact:camel-kafka", NodeType.MAVEN_ARTIFACT,
+        graph.addNode(new GraphNode(
+                "artifact:camel-kafka", NodeType.MAVEN_ARTIFACT,
                 Map.of("artifactId", "camel-kafka", "groupId", "org.apache.camel", "version", "4.14.0")));
-        graph.addNode(new GraphNode("artifact:camel-jdbc", NodeType.MAVEN_ARTIFACT,
+        graph.addNode(new GraphNode(
+                "artifact:camel-jdbc", NodeType.MAVEN_ARTIFACT,
                 Map.of("artifactId", "camel-jdbc", "groupId", "org.apache.camel", "version", "4.14.0")));
 
         // Config properties
-        graph.addNode(new GraphNode("config:camel.component.kafka.brokers", NodeType.CONFIG_PROPERTY,
+        graph.addNode(new GraphNode(
+                "config:camel.component.kafka.brokers", NodeType.CONFIG_PROPERTY,
                 Map.of("key", "camel.component.kafka.brokers", "value", "localhost:9092")));
-        graph.addNode(new GraphNode("config:camel.component.jms.connectionFactory", NodeType.CONFIG_PROPERTY,
+        graph.addNode(new GraphNode(
+                "config:camel.component.jms.connectionFactory", NodeType.CONFIG_PROPERTY,
                 Map.of("key", "camel.component.jms.connectionFactory", "value", "#jmsFactory")));
 
         // Edges: route -> endpoint
         graph.addEdge(new GraphEdge("route:processOrders", "endpoint:kafka:orders", EdgeType.ROUTES_FROM, Map.of()));
-        graph.addEdge(new GraphEdge("route:processOrders", "endpoint:direct:enrichOrder", EdgeType.ROUTES_TO, Map.of()));
-        graph.addEdge(new GraphEdge("route:enrichOrder", "endpoint:direct:enrichOrder", EdgeType.ROUTES_FROM, Map.of()));
+        graph.addEdge(
+                new GraphEdge("route:processOrders", "endpoint:direct:enrichOrder", EdgeType.ROUTES_TO, Map.of()));
+        graph.addEdge(
+                new GraphEdge("route:enrichOrder", "endpoint:direct:enrichOrder", EdgeType.ROUTES_FROM, Map.of()));
 
         // Edges: endpoint -> artifact (USES_COMPONENT)
-        graph.addEdge(new GraphEdge("endpoint:kafka:orders", "artifact:camel-kafka", EdgeType.USES_COMPONENT, Map.of()));
+        graph.addEdge(
+                new GraphEdge("endpoint:kafka:orders", "artifact:camel-kafka", EdgeType.USES_COMPONENT, Map.of()));
 
         // Edges: config -> endpoint (CONFIGURES)
-        graph.addEdge(new GraphEdge("config:camel.component.kafka.brokers", "endpoint:kafka:orders", EdgeType.CONFIGURES, Map.of()));
+        graph.addEdge(new GraphEdge(
+                "config:camel.component.kafka.brokers", "endpoint:kafka:orders", EdgeType.CONFIGURES, Map.of()));
 
         // Link routes
         graph.addEdge(new GraphEdge("route:processOrders", "route:enrichOrder", EdgeType.LINKS_TO, Map.of()));
@@ -83,9 +97,11 @@ class DeadCodeAnalyzerTest {
         ProjectGraph graph = buildGraph();
 
         // Add orphaned route: consumes from direct:orphan, nobody produces to it
-        graph.addNode(new GraphNode("route:orphaned", NodeType.CAMEL_ROUTE,
+        graph.addNode(new GraphNode(
+                "route:orphaned", NodeType.CAMEL_ROUTE,
                 Map.of("routeId", "orphaned")));
-        graph.addNode(new GraphNode("endpoint:direct:orphan", NodeType.CAMEL_ENDPOINT,
+        graph.addNode(new GraphNode(
+                "endpoint:direct:orphan", NodeType.CAMEL_ENDPOINT,
                 Map.of("uri", "direct:orphan", "scheme", "direct")));
         graph.addEdge(new GraphEdge("route:orphaned", "endpoint:direct:orphan", EdgeType.ROUTES_FROM, Map.of()));
 
@@ -125,16 +141,21 @@ class DeadCodeAnalyzerTest {
 
         // Route with kafka endpoint
         graph.addNode(new GraphNode("route:r1", NodeType.CAMEL_ROUTE, Map.of("routeId", "r1")));
-        graph.addNode(new GraphNode("endpoint:kafka:topic1", NodeType.CAMEL_ENDPOINT,
+        graph.addNode(new GraphNode(
+                "endpoint:kafka:topic1", NodeType.CAMEL_ENDPOINT,
                 Map.of("uri", "kafka:topic1", "scheme", "kafka")));
-        graph.addNode(new GraphNode("artifact:camel-kafka", NodeType.MAVEN_ARTIFACT,
+        graph.addNode(new GraphNode(
+                "artifact:camel-kafka", NodeType.MAVEN_ARTIFACT,
                 Map.of("artifactId", "camel-kafka", "groupId", "org.apache.camel", "version", "4.14.0")));
-        graph.addNode(new GraphNode("config:camel.component.kafka.brokers", NodeType.CONFIG_PROPERTY,
+        graph.addNode(new GraphNode(
+                "config:camel.component.kafka.brokers", NodeType.CONFIG_PROPERTY,
                 Map.of("key", "camel.component.kafka.brokers", "value", "localhost:9092")));
 
         graph.addEdge(new GraphEdge("route:r1", "endpoint:kafka:topic1", EdgeType.ROUTES_FROM, Map.of()));
-        graph.addEdge(new GraphEdge("endpoint:kafka:topic1", "artifact:camel-kafka", EdgeType.USES_COMPONENT, Map.of()));
-        graph.addEdge(new GraphEdge("config:camel.component.kafka.brokers", "endpoint:kafka:topic1", EdgeType.CONFIGURES, Map.of()));
+        graph.addEdge(
+                new GraphEdge("endpoint:kafka:topic1", "artifact:camel-kafka", EdgeType.USES_COMPONENT, Map.of()));
+        graph.addEdge(new GraphEdge(
+                "config:camel.component.kafka.brokers", "endpoint:kafka:topic1", EdgeType.CONFIGURES, Map.of()));
 
         DeadCodeAnalyzer analyzer = new DeadCodeAnalyzer(graph);
         DeadCodeAnalyzer.DeadCodeResult result = analyzer.analyze();

@@ -1,32 +1,52 @@
 package io.github.luigidemasi.camelkit.generator;
 
-import io.github.luigidemasi.camelkit.util.AnsiColors;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
+import io.github.luigidemasi.camelkit.util.AnsiColors;
+
 public class GeminiGenerator extends DefaultGenerator {
 
     private static final String[] SUB_AGENTS = {
-        "camel-brainstormer", "camel-planner", "camel-implementer",
-        "camel-validator", "camel-tester", "camel-migrator"
+            "camel-brainstormer", "camel-planner", "camel-implementer",
+            "camel-validator", "camel-tester", "camel-migrator"
     };
 
     private static final String[] INSTRUCTIONS = {
-        "iron-laws", "mcp-usage", "pipeline-overview"
+            "iron-laws", "mcp-usage", "pipeline-overview"
     };
 
     private static final Map<String, String[]> COMMAND_DISPATCH = Map.of(
-        "camel-brainstorm", new String[]{"Discover integration requirements", "Delegate this task to the camel-brainstormer subagent.\nRead .gemini/skills/camel-brainstorm/SKILL.md and follow those instructions."},
-        "camel-plan", new String[]{"Create implementation plan", "Delegate this task to the camel-planner subagent.\nRead .gemini/skills/camel-plan/SKILL.md and follow those instructions."},
-        "camel-implement", new String[]{"Implement Camel routes", "Delegate this task to the camel-implementer subagent.\nRead .gemini/skills/camel-implement/SKILL.md and follow those instructions."},
-        "camel-validate", new String[]{"Validate Camel routes against quality rules", "Delegate this task to the camel-validator subagent.\nRead .gemini/skills/camel-validate/SKILL.md and follow those instructions."},
-        "camel-test", new String[]{"Write and run tests for Camel routes", "Delegate this task to the camel-tester subagent.\nRead .gemini/skills/camel-test/SKILL.md and follow those instructions."},
-        "camel-migrate", new String[]{"Migrate integrations to Apache Camel", "Delegate this task to the camel-migrator subagent.\nRead .gemini/skills/camel-migrate/SKILL.md and follow those instructions."},
-        "camel-execute", new String[]{"Execute implementation plan by dispatching to specialized subagents", "You are the orchestrator. Execute the implementation plan by dispatching tasks to the appropriate subagents.\nRead .gemini/skills/camel-execute/SKILL.md and follow those instructions."}
-    );
+            "camel-brainstorm",
+            new String[]{
+                    "Discover integration requirements",
+                    "Delegate this task to the camel-brainstormer subagent.\nRead .gemini/skills/camel-brainstorm/SKILL.md and follow those instructions."},
+            "camel-plan",
+            new String[]{
+                    "Create implementation plan",
+                    "Delegate this task to the camel-planner subagent.\nRead .gemini/skills/camel-plan/SKILL.md and follow those instructions."},
+            "camel-implement",
+            new String[]{
+                    "Implement Camel routes",
+                    "Delegate this task to the camel-implementer subagent.\nRead .gemini/skills/camel-implement/SKILL.md and follow those instructions."},
+            "camel-validate",
+            new String[]{
+                    "Validate Camel routes against quality rules",
+                    "Delegate this task to the camel-validator subagent.\nRead .gemini/skills/camel-validate/SKILL.md and follow those instructions."},
+            "camel-test",
+            new String[]{
+                    "Write and run tests for Camel routes",
+                    "Delegate this task to the camel-tester subagent.\nRead .gemini/skills/camel-test/SKILL.md and follow those instructions."},
+            "camel-migrate",
+            new String[]{
+                    "Migrate integrations to Apache Camel",
+                    "Delegate this task to the camel-migrator subagent.\nRead .gemini/skills/camel-migrate/SKILL.md and follow those instructions."},
+            "camel-execute",
+            new String[]{
+                    "Execute implementation plan by dispatching to specialized subagents",
+                    "You are the orchestrator. Execute the implementation plan by dispatching tasks to the appropriate subagents.\nRead .gemini/skills/camel-execute/SKILL.md and follow those instructions."});
 
     private final QuteTemplateEngine templateEngine = new QuteTemplateEngine();
 
@@ -35,9 +55,9 @@ public class GeminiGenerator extends DefaultGenerator {
         // Run default generation (commands, skills, MCP config)
         super.generate(ctx);
 
-        Map<String, Object> data = new HashMap<>(Map.of(
-            "COMMAND_PREFIX", ctx.commandPrefix()
-        ));
+        Map<String, Object> data = new HashMap<>(
+                Map.of(
+                        "COMMAND_PREFIX", ctx.commandPrefix()));
         // Gemini-specific: generate GEMINI.md at project root
         generateGeminiMd(ctx);
 
@@ -59,7 +79,7 @@ public class GeminiGenerator extends DefaultGenerator {
 
     private void generateGeminiMd(InitContext ctx) throws Exception {
         copyTemplateResource("templates/gemini/gemini-md.md",
-            ctx.projectDir().resolve("GEMINI.md"));
+                ctx.projectDir().resolve("GEMINI.md"));
     }
 
     private void generateInstructions(InitContext ctx, Map<String, Object> data) throws Exception {
@@ -68,7 +88,7 @@ public class GeminiGenerator extends DefaultGenerator {
 
         for (String name : INSTRUCTIONS) {
             String content = templateEngine.render(
-                "templates/gemini/instructions/" + name + ".md", data);
+                    "templates/gemini/instructions/" + name + ".md", data);
             Files.writeString(instructionsDir.resolve(name + ".md"), content);
         }
     }
@@ -77,7 +97,7 @@ public class GeminiGenerator extends DefaultGenerator {
         Path policiesDir = ctx.projectDir().resolve(".gemini/policies");
         Files.createDirectories(policiesDir);
         copyTemplateResource("templates/gemini/policies/camel-kit.toml",
-            policiesDir.resolve("camel-kit.toml"));
+                policiesDir.resolve("camel-kit.toml"));
     }
 
     private void generateSubAgents(InitContext ctx) throws Exception {
@@ -86,16 +106,17 @@ public class GeminiGenerator extends DefaultGenerator {
 
         for (String agentName : SUB_AGENTS) {
             copyTemplateResource(
-                "templates/gemini/agents/" + agentName + ".md",
-                agentsDir.resolve(agentName + ".md"));
+                    "templates/gemini/agents/" + agentName + ".md",
+                    agentsDir.resolve(agentName + ".md"));
         }
 
-        ctx.printer().println(AnsiColors.green("✓") + " Generated " + SUB_AGENTS.length + " Gemini subagent definitions");
+        ctx.printer()
+                .println(AnsiColors.green("✓") + " Generated " + SUB_AGENTS.length + " Gemini subagent definitions");
     }
 
     private void generateGeminiIgnore(InitContext ctx) throws Exception {
         copyTemplateResource("templates/gemini/geminiignore",
-            ctx.projectDir().resolve(".geminiignore"));
+                ctx.projectDir().resolve(".geminiignore"));
     }
 
     private void overrideCommandsForSubAgents(InitContext ctx) throws Exception {
@@ -106,10 +127,10 @@ public class GeminiGenerator extends DefaultGenerator {
             String description = entry.getValue()[0];
             String prompt = entry.getValue()[1];
             String toml = "description = \"" + description + "\"\n\n"
-                + "prompt = \"\"\"\n"
-                + prompt + "\n"
-                + argPlaceholder + "\n"
-                + "\"\"\"";
+                          + "prompt = \"\"\"\n"
+                          + prompt + "\n"
+                          + argPlaceholder + "\n"
+                          + "\"\"\"";
             Files.writeString(cmdFile, toml);
         }
     }

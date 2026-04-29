@@ -1,25 +1,30 @@
 package io.github.luigidemasi.camelkit.generator;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import java.nio.file.Files;
-import java.nio.file.Path;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class BobGeneratorTest {
 
-    @TempDir Path tempDir;
+    @TempDir
+    Path tempDir;
 
     private InitContext createContext() {
         AgentConfig agent = AgentRegistry.get("bob");
         String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf("/"));
         Path commandsDir = tempDir.resolve(agent.folder());
         Path skillsDir = tempDir.resolve(agentBaseFolder + "/skills");
-        return new InitContext(agent, "bob", commandsDir, skillsDir, tempDir,
-            "camel-kit", Printer.noop());
+        return new InitContext(
+                agent, "bob", commandsDir, skillsDir, tempDir,
+                "camel-kit", Printer.noop());
     }
 
     @Test
@@ -62,7 +67,7 @@ class BobGeneratorTest {
         assertTrue(Files.isDirectory(tempDir.resolve(".bob/rules-camel-plan")));
 
         String brainstormRules = Files.readString(
-            tempDir.resolve(".bob/rules-camel-brainstorm/interview-gates.md"));
+                tempDir.resolve(".bob/rules-camel-brainstorm/interview-gates.md"));
         assertTrue(brainstormRules.contains("ONE question at a time"));
     }
 

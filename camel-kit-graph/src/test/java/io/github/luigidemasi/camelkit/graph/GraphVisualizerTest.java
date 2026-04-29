@@ -1,10 +1,13 @@
 package io.github.luigidemasi.camelkit.graph;
 
+import java.util.Map;
+
 import io.github.luigidemasi.camelkit.graph.model.*;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import java.util.Map;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class GraphVisualizerTest {

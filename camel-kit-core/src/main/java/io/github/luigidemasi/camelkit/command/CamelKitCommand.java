@@ -1,11 +1,12 @@
 package io.github.luigidemasi.camelkit.command;
 
+import java.util.concurrent.Callable;
+
 import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.output.Printer;
 import io.github.luigidemasi.camelkit.util.AnsiColors;
-import picocli.CommandLine;
 
-import java.util.concurrent.Callable;
+import picocli.CommandLine;
 
 /**
  * Base class for all Camel-Kit commands (following Camel JBang CamelCommand pattern).

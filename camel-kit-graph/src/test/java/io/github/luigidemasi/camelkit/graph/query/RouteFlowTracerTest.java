@@ -1,12 +1,13 @@
 package io.github.luigidemasi.camelkit.graph.query;
 
-import io.github.luigidemasi.camelkit.graph.GraphBuilder;
-import io.github.luigidemasi.camelkit.graph.ProjectGraph;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-
 import java.nio.file.Path;
 import java.util.List;
+
+import io.github.luigidemasi.camelkit.graph.GraphBuilder;
+import io.github.luigidemasi.camelkit.graph.ProjectGraph;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -17,7 +18,7 @@ class RouteFlowTracerTest {
     @BeforeAll
     static void setUp() {
         ProjectGraph graph = new GraphBuilder().build(
-            Path.of("src/test/resources/testdata"));
+                Path.of("src/test/resources/testdata"));
         tracer = new RouteFlowTracer(graph);
     }
 
@@ -33,7 +34,7 @@ class RouteFlowTracerTest {
         List<RouteFlowTracer.FlowStep> flow = tracer.trace("route:processOrders");
         // processOrders -> to(direct:enrichOrder) -> enrichOrder route should be followed
         boolean reachesEnrichRoute = flow.stream()
-            .anyMatch(step -> step.label().contains("enrichOrder"));
+                .anyMatch(step -> step.label().contains("enrichOrder"));
         assertTrue(reachesEnrichRoute);
     }
 

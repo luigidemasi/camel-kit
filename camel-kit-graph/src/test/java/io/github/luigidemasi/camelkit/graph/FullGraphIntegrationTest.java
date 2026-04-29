@@ -1,14 +1,15 @@
 package io.github.luigidemasi.camelkit.graph;
 
-import io.github.luigidemasi.camelkit.graph.model.*;
-import io.github.luigidemasi.camelkit.graph.query.*;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+
+import io.github.luigidemasi.camelkit.graph.model.*;
+import io.github.luigidemasi.camelkit.graph.query.*;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.*;
 

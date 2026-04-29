@@ -1,10 +1,12 @@
 package io.github.luigidemasi.camelkit.jbang;
 
-import io.github.luigidemasi.camelkit.command.graph.GraphCommand;
-import io.github.luigidemasi.camelkit.command.plan.PlanCommand;
 import org.apache.camel.dsl.jbang.core.commands.CamelJBangMain;
 import org.apache.camel.dsl.jbang.core.common.CamelJBangPlugin;
 import org.apache.camel.dsl.jbang.core.common.Plugin;
+
+import io.github.luigidemasi.camelkit.command.graph.GraphCommand;
+import io.github.luigidemasi.camelkit.command.plan.PlanCommand;
+
 import picocli.CommandLine;
 
 /**

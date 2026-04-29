@@ -1,15 +1,16 @@
 package io.github.luigidemasi.camelkit.graph;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.github.luigidemasi.camelkit.graph.model.GraphEdge;
-import io.github.luigidemasi.camelkit.graph.model.GraphNode;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+
+import io.github.luigidemasi.camelkit.graph.model.GraphEdge;
+import io.github.luigidemasi.camelkit.graph.model.GraphNode;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 public final class GraphVisualizer {
 
@@ -28,7 +29,8 @@ public final class GraphVisualizer {
             "vis-network", "init-vis-network.js",
             "antv-g6", "init-antv-g6.js");
 
-    private GraphVisualizer() {}
+    private GraphVisualizer() {
+    }
 
     public static String generate(ProjectGraph graph) {
         return generate(graph, "cytoscape");
@@ -42,16 +44,16 @@ public final class GraphVisualizer {
         String data = serializeForVisualization(graph);
 
         return "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"UTF-8\">\n"
-                + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
-                + "<title>Camel-Kit Project Graph</title>\n<style>\n" + css + "\n</style>\n</head>\n<body>\n"
-                + "<div id=\"controls\">\n<h3>Camel-Kit Project Graph</h3>\n"
-                + "<input type=\"text\" id=\"search\" placeholder=\"Search nodes...\">\n"
-                + "<div id=\"filters\"></div>\n<div id=\"stats-line\"></div>\n</div>\n"
-                + "<div id=\"info\"></div>\n"
-                + "<div id=\"graph-container\"></div>\n"
-                + "<script>\n" + libraryJs + "\n</script>\n"
-                + "<script>\nvar graphData = " + data + ";\n" + initJs + "\n</script>\n"
-                + "</body>\n</html>";
+               + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n"
+               + "<title>Camel-Kit Project Graph</title>\n<style>\n" + css + "\n</style>\n</head>\n<body>\n"
+               + "<div id=\"controls\">\n<h3>Camel-Kit Project Graph</h3>\n"
+               + "<input type=\"text\" id=\"search\" placeholder=\"Search nodes...\">\n"
+               + "<div id=\"filters\"></div>\n<div id=\"stats-line\"></div>\n</div>\n"
+               + "<div id=\"info\"></div>\n"
+               + "<div id=\"graph-container\"></div>\n"
+               + "<script>\n" + libraryJs + "\n</script>\n"
+               + "<script>\nvar graphData = " + data + ";\n" + initJs + "\n</script>\n"
+               + "</body>\n</html>";
     }
 
     private static String serializeForVisualization(ProjectGraph graph) {
@@ -67,20 +69,27 @@ public final class GraphVisualizer {
         ArrayNode edges = root.putArray("edges");
         var nodeIds = graph.getNodes().keySet();
         for (GraphEdge edge : graph.getEdges()) {
-            if (!nodeIds.contains(edge.from()) || !nodeIds.contains(edge.to())) continue;
+            if (!nodeIds.contains(edge.from()) || !nodeIds.contains(edge.to()))
+                continue;
             ObjectNode e = edges.addObject();
             e.put("source", edge.from());
             e.put("target", edge.to());
             e.put("type", edge.type().name());
         }
-        try { return MAPPER.writeValueAsString(root); }
-        catch (Exception e) { return "{\"nodes\":[],\"edges\":[]}"; }
+        try {
+            return MAPPER.writeValueAsString(root);
+        } catch (Exception e) {
+            return "{\"nodes\":[],\"edges\":[]}";
+        }
     }
 
     private static String readResource(String path) {
         try (InputStream is = GraphVisualizer.class.getClassLoader().getResourceAsStream(path)) {
-            if (is == null) throw new IOException("Resource not found: " + path);
+            if (is == null)
+                throw new IOException("Resource not found: " + path);
             return new String(is.readAllBytes(), StandardCharsets.UTF_8);
-        } catch (IOException e) { throw new RuntimeException("Failed to read resource: " + path, e); }
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read resource: " + path, e);
+        }
     }
 }

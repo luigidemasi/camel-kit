@@ -1,22 +1,29 @@
 package io.github.luigidemasi.camelkit.command.graph;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import picocli.CommandLine;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import picocli.CommandLine;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class GraphVisualizeCommandTest {
-    @TempDir Path tempDir;
+    @TempDir
+    Path tempDir;
     Path graphFile;
 
-    @BeforeEach void setUp() throws Exception { graphFile = TestGraphs.writeToTempFile(TestGraphs.sampleProject(), tempDir); }
+    @BeforeEach
+    void setUp() throws Exception {
+        graphFile = TestGraphs.writeToTempFile(TestGraphs.sampleProject(), tempDir);
+    }
 
-    @Test void generatesHtmlWithDefaultLibrary() throws Exception {
+    @Test
+    void generatesHtmlWithDefaultLibrary() throws Exception {
         Path out = tempDir.resolve("graph.html");
         StringWriter err = new StringWriter();
         CommandLine cl = new CommandLine(new GraphVisualizeCommand());
@@ -28,7 +35,8 @@ class GraphVisualizeCommandTest {
         assertTrue(html.contains("order-process"));
     }
 
-    @Test void generatesHtmlWithD3() throws Exception {
+    @Test
+    void generatesHtmlWithD3() throws Exception {
         Path out = tempDir.resolve("d3.html");
         StringWriter err = new StringWriter();
         CommandLine cl = new CommandLine(new GraphVisualizeCommand());
@@ -37,7 +45,8 @@ class GraphVisualizeCommandTest {
         assertTrue(Files.readString(out).contains("d3.forceSimulation"));
     }
 
-    @Test void missingInputReturnsError() {
+    @Test
+    void missingInputReturnsError() {
         StringWriter err = new StringWriter();
         CommandLine cl = new CommandLine(new GraphVisualizeCommand());
         cl.setErr(new PrintWriter(err));

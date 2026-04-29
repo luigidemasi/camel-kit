@@ -1,5 +1,9 @@
 package io.github.luigidemasi.camelkit.command.graph;
 
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.nio.file.Path;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -7,15 +11,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.nio.file.Path;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 class GraphProjectContextCommandTest {
     static final ObjectMapper MAPPER = new ObjectMapper();
-    @TempDir Path tempDir;
+    @TempDir
+    Path tempDir;
     Path graphFile;
 
     @BeforeEach

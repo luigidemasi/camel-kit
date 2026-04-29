@@ -1,18 +1,18 @@
 package io.github.luigidemasi.camelkit.catalog;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.Map;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 /**
- * Processes Citrus JSON schemas and generates a simplified reference
- * that AI coding assistants can use for reliable test generation.
+ * Processes Citrus JSON schemas and generates a simplified reference that AI coding assistants can use for reliable
+ * test generation.
  */
 public class CitrusSchemaProcessor {
 
@@ -25,8 +25,8 @@ public class CitrusSchemaProcessor {
     /**
      * Process cached Citrus schemas and generate a simplified quick reference.
      *
-     * @param citrusCacheDir the directory containing cached Citrus schemas
-     * @return path to the generated quick reference file
+     * @param  citrusCacheDir the directory containing cached Citrus schemas
+     * @return                path to the generated quick reference file
      */
     public Path generateQuickReference(Path citrusCacheDir) throws Exception {
         Path actionsFile = citrusCacheDir.resolve("citrus-catalog-aggregate-test-actions.json");
@@ -203,7 +203,8 @@ public class CitrusSchemaProcessor {
                     if (description.length() > 60) {
                         description = description.substring(0, 57) + "...";
                     }
-                    md.append("| `").append(name).append("` | ").append(kind).append(" | ").append(description).append(" |\n");
+                    md.append("| `").append(name).append("` | ").append(kind).append(" | ").append(description)
+                            .append(" |\n");
                 }
             }
         }
@@ -247,7 +248,8 @@ public class CitrusSchemaProcessor {
                     if (description.length() > 60) {
                         description = description.substring(0, 57) + "...";
                     }
-                    md.append("| `").append(name).append("` | ").append(kind).append(" | ").append(description).append(" |\n");
+                    md.append("| `").append(name).append("` | ").append(kind).append(" | ").append(description)
+                            .append(" |\n");
                 }
             }
         }

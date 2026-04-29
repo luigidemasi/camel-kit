@@ -1,13 +1,13 @@
 package io.github.luigidemasi.camelkit.graph.query;
 
+import java.util.*;
+
 import io.github.luigidemasi.camelkit.graph.ProjectGraph;
 import io.github.luigidemasi.camelkit.graph.model.*;
 
-import java.util.*;
-
 /**
- * Builds a bird's-eye route-to-route connection map showing which routes
- * connect to which via what endpoint scheme (e.g. direct, seda).
+ * Builds a bird's-eye route-to-route connection map showing which routes connect to which via what endpoint scheme
+ * (e.g. direct, seda).
  */
 public class RouteTopology {
 
@@ -15,7 +15,8 @@ public class RouteTopology {
 
     private final ProjectGraph graph;
 
-    public record RouteConnection(String targetRouteId, String scheme, String endpointUri) {}
+    public record RouteConnection(String targetRouteId, String scheme, String endpointUri) {
+    }
 
     public RouteTopology(ProjectGraph graph) {
         this.graph = graph;
@@ -37,8 +38,8 @@ public class RouteTopology {
                     GraphNode endpoint = graph.getNode(edge.to());
                     if (endpoint != null) {
                         endpointConsumers
-                            .computeIfAbsent(edge.to(), k -> new ArrayList<>())
-                            .add(route.id());
+                                .computeIfAbsent(edge.to(), k -> new ArrayList<>())
+                                .add(route.id());
                     }
                 }
             }
@@ -78,8 +79,8 @@ public class RouteTopology {
     }
 
     /**
-     * Extracts the route ID from a route node. Prefers the "routeId" property,
-     * falls back to extracting from the node ID (stripping the "route:" prefix).
+     * Extracts the route ID from a route node. Prefers the "routeId" property, falls back to extracting from the node
+     * ID (stripping the "route:" prefix).
      */
     private String extractRouteId(GraphNode route) {
         String routeId = route.properties().get("routeId");

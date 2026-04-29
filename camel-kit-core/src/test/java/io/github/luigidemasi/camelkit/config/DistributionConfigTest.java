@@ -1,7 +1,9 @@
 package io.github.luigidemasi.camelkit.config;
 
-import org.junit.jupiter.api.Test;
 import java.io.InputStream;
+
+import org.junit.jupiter.api.Test;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class DistributionConfigTest {

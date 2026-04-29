@@ -1,13 +1,14 @@
 package io.github.luigidemasi.camelkit.command.graph;
 
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.github.luigidemasi.camelkit.graph.ProjectGraph;
-import io.github.luigidemasi.camelkit.graph.query.RouteTopology;
-import picocli.CommandLine.Command;
-
 import java.util.List;
 import java.util.Map;
+
+import io.github.luigidemasi.camelkit.graph.ProjectGraph;
+import io.github.luigidemasi.camelkit.graph.query.RouteTopology;
+
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import picocli.CommandLine.Command;
 
 @Command(name = "route-topology", description = "Show route connectivity map")
 public class GraphRouteTopologyCommand extends GraphQueryCommand {

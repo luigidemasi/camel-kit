@@ -1,16 +1,15 @@
 package io.github.luigidemasi.camelkit.graph.query;
 
+import java.util.*;
+
 import io.github.luigidemasi.camelkit.graph.ProjectGraph;
 import io.github.luigidemasi.camelkit.graph.model.*;
-
-import java.util.*;
 
 /**
  * Traces Camel message flows end-to-end through the project graph.
  *
- * Starting from a route or endpoint, walks the FROM endpoint, ordered PROCESSES
- * processors, and TO endpoints, following direct:/seda: cross-route links
- * recursively with cycle detection.
+ * Starting from a route or endpoint, walks the FROM endpoint, ordered PROCESSES processors, and TO endpoints, following
+ * direct:/seda: cross-route links recursively with cycle detection.
  */
 public class RouteFlowTracer {
 
@@ -18,7 +17,8 @@ public class RouteFlowTracer {
 
     private final ProjectGraph graph;
 
-    public record FlowStep(String nodeId, String type, String label, int depth) {}
+    public record FlowStep(String nodeId, String type, String label, int depth) {
+    }
 
     public RouteFlowTracer(ProjectGraph graph) {
         this.graph = graph;
@@ -27,8 +27,8 @@ public class RouteFlowTracer {
     /**
      * Traces the message flow starting from the given route node ID.
      *
-     * @param routeId the route node ID (e.g. "route:processOrders")
-     * @return ordered list of flow steps
+     * @param  routeId the route node ID (e.g. "route:processOrders")
+     * @return         ordered list of flow steps
      */
     public List<FlowStep> trace(String routeId) {
         List<FlowStep> flow = new ArrayList<>();
@@ -38,11 +38,11 @@ public class RouteFlowTracer {
     }
 
     /**
-     * Traces the message flow starting from the given endpoint node ID.
-     * Finds all routes that consume from this endpoint and traces them.
+     * Traces the message flow starting from the given endpoint node ID. Finds all routes that consume from this
+     * endpoint and traces them.
      *
-     * @param endpointId the endpoint node ID (e.g. "endpoint:kafka:orders")
-     * @return ordered list of flow steps
+     * @param  endpointId the endpoint node ID (e.g. "endpoint:kafka:orders")
+     * @return            ordered list of flow steps
      */
     public List<FlowStep> traceFromEndpoint(String endpointId) {
         List<FlowStep> flow = new ArrayList<>();
@@ -64,36 +64,40 @@ public class RouteFlowTracer {
     }
 
     private void traceRoute(String routeId, int depth, List<FlowStep> flow, Set<String> visited) {
-        if (!visited.add(routeId)) return;
+        if (!visited.add(routeId))
+            return;
 
         GraphNode route = graph.getNode(routeId);
-        if (route == null || route.type() != NodeType.CAMEL_ROUTE) return;
+        if (route == null || route.type() != NodeType.CAMEL_ROUTE)
+            return;
 
         // 1. Add from endpoint
         for (GraphEdge edge : graph.getOutgoingEdges(routeId)) {
             if (edge.type() == EdgeType.ROUTES_FROM) {
                 GraphNode fromEndpoint = graph.getNode(edge.to());
                 if (fromEndpoint != null) {
-                    flow.add(new FlowStep(edge.to(), "FROM",
-                        fromEndpoint.properties().get("uri"), depth));
+                    flow.add(new FlowStep(
+                            edge.to(), "FROM",
+                            fromEndpoint.properties().get("uri"), depth));
                 }
             }
         }
 
         // 2. Add processors in order
         List<GraphEdge> processorEdges = graph.getOutgoingEdges(routeId).stream()
-            .filter(e -> e.type() == EdgeType.PROCESSES)
-            .sorted(Comparator.comparing(e -> {
-                String order = e.properties().get("order");
-                return order != null ? Integer.parseInt(order) : 0;
-            }))
-            .toList();
+                .filter(e -> e.type() == EdgeType.PROCESSES)
+                .sorted(Comparator.comparing(e -> {
+                    String order = e.properties().get("order");
+                    return order != null ? Integer.parseInt(order) : 0;
+                }))
+                .toList();
 
         for (GraphEdge edge : processorEdges) {
             GraphNode processor = graph.getNode(edge.to());
             if (processor != null) {
-                flow.add(new FlowStep(edge.to(), "PROCESSOR",
-                    processor.properties().get("type"), depth));
+                flow.add(new FlowStep(
+                        edge.to(), "PROCESSOR",
+                        processor.properties().get("type"), depth));
             }
         }
 

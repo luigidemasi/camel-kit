@@ -1,12 +1,13 @@
 package io.github.luigidemasi.camelkit.graph.parser;
 
-import io.github.luigidemasi.camelkit.graph.ProjectGraph;
-import io.github.luigidemasi.camelkit.graph.model.*;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-
 import java.nio.file.Path;
 import java.util.List;
+
+import io.github.luigidemasi.camelkit.graph.ProjectGraph;
+import io.github.luigidemasi.camelkit.graph.model.*;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -29,14 +30,14 @@ class YamlRouteParserTest {
     @Test
     void parsesFromEndpoint() {
         assertEquals("platform-http:/api/orders",
-            graph.getNode("route:yamlHttpRoute").properties().get("fromUri"));
+                graph.getNode("route:yamlHttpRoute").properties().get("fromUri"));
     }
 
     @Test
     void parsesToEndpoints() {
         List<GraphEdge> routesTo = graph.getOutgoingEdges("route:yamlHttpRoute").stream()
-            .filter(e -> e.type() == EdgeType.ROUTES_TO)
-            .toList();
+                .filter(e -> e.type() == EdgeType.ROUTES_TO)
+                .toList();
         assertEquals(1, routesTo.size());
         assertEquals("endpoint:direct:enrichOrder", routesTo.get(0).to());
     }
@@ -44,8 +45,8 @@ class YamlRouteParserTest {
     @Test
     void parsesProcessors() {
         List<GraphEdge> processors = graph.getOutgoingEdges("route:yamlHttpRoute").stream()
-            .filter(e -> e.type() == EdgeType.PROCESSES)
-            .toList();
+                .filter(e -> e.type() == EdgeType.PROCESSES)
+                .toList();
         assertTrue(processors.size() >= 1); // log step
     }
 }

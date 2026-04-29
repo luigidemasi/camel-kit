@@ -1,25 +1,27 @@
 package io.github.luigidemasi.camelkit.graph;
 
+import java.io.IOException;
+import java.nio.file.Path;
+import java.time.Instant;
+import java.util.Map;
+
+import io.github.luigidemasi.camelkit.graph.model.*;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.github.luigidemasi.camelkit.graph.model.*;
-
-import java.io.IOException;
-import java.nio.file.Path;
-import java.time.Instant;
-import java.util.Map;
 
 public final class GraphSerializer {
 
     private static final ObjectMapper MAPPER = new ObjectMapper()
-        .enable(SerializationFeature.INDENT_OUTPUT);
+            .enable(SerializationFeature.INDENT_OUTPUT);
     private static final String FORMAT_VERSION = "1.0";
 
-    private GraphSerializer() {}
+    private GraphSerializer() {
+    }
 
     public static void write(ProjectGraph graph, Path file, String projectRoot) throws IOException {
         ObjectNode root = MAPPER.createObjectNode();
@@ -66,7 +68,8 @@ public final class GraphSerializer {
             NodeType type = NodeType.valueOf(nodeObj.get("type").asText());
             Map<String, String> props = Map.of();
             if (nodeObj.has("properties")) {
-                props = MAPPER.convertValue(nodeObj.get("properties"), new TypeReference<>() {});
+                props = MAPPER.convertValue(nodeObj.get("properties"), new TypeReference<>() {
+                });
             }
             graph.addNode(new GraphNode(id, type, props));
         });
@@ -78,7 +81,8 @@ public final class GraphSerializer {
             EdgeType type = EdgeType.valueOf(edgeObj.get("type").asText());
             Map<String, String> props = Map.of();
             if (edgeObj.has("properties")) {
-                props = MAPPER.convertValue(edgeObj.get("properties"), new TypeReference<>() {});
+                props = MAPPER.convertValue(edgeObj.get("properties"), new TypeReference<>() {
+                });
             }
             graph.addEdge(new GraphEdge(from, to, type, props));
         }

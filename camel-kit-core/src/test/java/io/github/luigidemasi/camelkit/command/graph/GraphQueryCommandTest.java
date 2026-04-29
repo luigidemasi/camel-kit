@@ -1,19 +1,20 @@
 package io.github.luigidemasi.camelkit.command.graph;
 
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-import picocli.CommandLine;
-
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import picocli.CommandLine;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class GraphQueryCommandTest {
 
-    @TempDir Path tempDir;
+    @TempDir
+    Path tempDir;
 
     @CommandLine.Command(name = "test-query")
     static class TestQueryCommand extends GraphQueryCommand {

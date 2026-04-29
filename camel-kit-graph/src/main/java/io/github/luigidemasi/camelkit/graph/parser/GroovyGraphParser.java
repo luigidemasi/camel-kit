@@ -1,8 +1,14 @@
 package io.github.luigidemasi.camelkit.graph.parser;
 
-import groovy.lang.GroovyClassLoader;
+import java.io.IOException;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.*;
+
 import io.github.luigidemasi.camelkit.graph.ProjectGraph;
 import io.github.luigidemasi.camelkit.graph.model.*;
+
+import groovy.lang.GroovyClassLoader;
 import org.codehaus.groovy.ast.*;
 import org.codehaus.groovy.ast.expr.*;
 import org.codehaus.groovy.ast.stmt.*;
@@ -10,19 +16,13 @@ import org.codehaus.groovy.control.CompilationUnit;
 import org.codehaus.groovy.control.CompilerConfiguration;
 import org.codehaus.groovy.control.Phases;
 
-import java.io.IOException;
-import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.*;
-
 public class GroovyGraphParser implements GraphParser {
 
     private static final Set<String> CAMEL_PROCESSOR_METHODS = Set.of(
-        "bean", "process", "marshal", "unmarshal", "filter", "split",
-        "aggregate", "enrich", "pollEnrich", "transform", "convertBodyTo",
-        "log", "choice", "multicast", "recipientList", "wireTap",
-        "throttle", "delay", "setHeader", "setBody", "removeHeader"
-    );
+            "bean", "process", "marshal", "unmarshal", "filter", "split",
+            "aggregate", "enrich", "pollEnrich", "transform", "convertBodyTo",
+            "log", "choice", "multicast", "recipientList", "wireTap",
+            "throttle", "delay", "setHeader", "setBody", "removeHeader");
 
     @Override
     public void parse(Path projectRoot, ProjectGraph graph) {
@@ -85,8 +85,9 @@ public class GroovyGraphParser implements GraphParser {
         if (isStandaloneScript) {
             String relativePath = projectRoot.relativize(file).toString().replace('\\', '/');
             String resourceId = "resource:" + relativePath;
-            graph.addNode(new GraphNode(resourceId, NodeType.RESOURCE_FILE,
-                Map.of("file", relativePath, "language", "groovy")));
+            graph.addNode(new GraphNode(
+                    resourceId, NodeType.RESOURCE_FILE,
+                    Map.of("file", relativePath, "language", "groovy")));
             return;
         }
 
@@ -103,9 +104,9 @@ public class GroovyGraphParser implements GraphParser {
     }
 
     /**
-     * Determines if the module represents a standalone Groovy script (no user-defined class).
-     * Groovy compiles scripts into a class whose name matches the filename and extends Script.
-     * If the only classes are script-generated ones, this is a standalone script.
+     * Determines if the module represents a standalone Groovy script (no user-defined class). Groovy compiles scripts
+     * into a class whose name matches the filename and extends Script. If the only classes are script-generated ones,
+     * this is a standalone script.
      */
     private boolean isScript(List<ClassNode> classes, String fileNameWithoutExt) {
         for (ClassNode classNode : classes) {
@@ -197,8 +198,9 @@ public class GroovyGraphParser implements GraphParser {
         }
     }
 
-    private void extractRouteFromChain(MethodCallExpression fromCall, String classNodeId,
-                                       List<MethodCallExpression> allCalls, ProjectGraph graph) {
+    private void extractRouteFromChain(
+            MethodCallExpression fromCall, String classNodeId,
+            List<MethodCallExpression> allCalls, ProjectGraph graph) {
         String fromUri = extractFirstStringArg(fromCall);
         if (fromUri == null) {
             return;
@@ -233,8 +235,9 @@ public class GroovyGraphParser implements GraphParser {
 
         // Create from endpoint
         String fromEndpointId = "endpoint:" + fromUri;
-        graph.addNode(new GraphNode(fromEndpointId, NodeType.CAMEL_ENDPOINT,
-            Map.of("uri", fromUri)));
+        graph.addNode(new GraphNode(
+                fromEndpointId, NodeType.CAMEL_ENDPOINT,
+                Map.of("uri", fromUri)));
         graph.addEdge(new GraphEdge(routeNodeId, fromEndpointId, EdgeType.ROUTES_FROM, Map.of()));
 
         // Link route to declaring class
@@ -252,10 +255,12 @@ public class GroovyGraphParser implements GraphParser {
                 String toUri = extractFirstStringArg(call);
                 if (toUri != null) {
                     String toEndpointId = "endpoint:" + toUri;
-                    graph.addNode(new GraphNode(toEndpointId, NodeType.CAMEL_ENDPOINT,
-                        Map.of("uri", toUri)));
-                    graph.addEdge(new GraphEdge(routeNodeId, toEndpointId,
-                        EdgeType.ROUTES_TO, Map.of()));
+                    graph.addNode(new GraphNode(
+                            toEndpointId, NodeType.CAMEL_ENDPOINT,
+                            Map.of("uri", toUri)));
+                    graph.addEdge(new GraphEdge(
+                            routeNodeId, toEndpointId,
+                            EdgeType.ROUTES_TO, Map.of()));
                 }
             } else if ("script".equals(methodName)) {
                 // Handle script("groovy", "...") calls
@@ -269,10 +274,12 @@ public class GroovyGraphParser implements GraphParser {
                         }
                         processorId = processorId + "_" + counter;
                     }
-                    graph.addNode(new GraphNode(processorId, NodeType.CAMEL_PROCESSOR,
-                        Map.of("type", "script-" + scriptType)));
-                    graph.addEdge(new GraphEdge(routeNodeId, processorId,
-                        EdgeType.PROCESSES, Map.of("order", String.valueOf(processorOrder++))));
+                    graph.addNode(new GraphNode(
+                            processorId, NodeType.CAMEL_PROCESSOR,
+                            Map.of("type", "script-" + scriptType)));
+                    graph.addEdge(new GraphEdge(
+                            routeNodeId, processorId,
+                            EdgeType.PROCESSES, Map.of("order", String.valueOf(processorOrder++))));
                 }
             } else if (CAMEL_PROCESSOR_METHODS.contains(methodName)) {
                 String processorId = "processor:" + routeId + "." + methodName;
@@ -283,22 +290,25 @@ public class GroovyGraphParser implements GraphParser {
                     }
                     processorId = processorId + "_" + counter;
                 }
-                graph.addNode(new GraphNode(processorId, NodeType.CAMEL_PROCESSOR,
-                    Map.of("type", methodName)));
-                graph.addEdge(new GraphEdge(routeNodeId, processorId,
-                    EdgeType.PROCESSES, Map.of("order", String.valueOf(processorOrder++))));
+                graph.addNode(new GraphNode(
+                        processorId, NodeType.CAMEL_PROCESSOR,
+                        Map.of("type", methodName)));
+                graph.addEdge(new GraphEdge(
+                        routeNodeId, processorId,
+                        EdgeType.PROCESSES, Map.of("order", String.valueOf(processorOrder++))));
             }
         }
     }
 
     /**
-     * Collects the fluent chain calls that follow the given root call.
-     * In Groovy AST, for from("x").routeId("y").to("z"), the structure is:
-     *   MethodCallExpression[to] -> objectExpression: MethodCallExpression[routeId] -> objectExpression: MethodCallExpression[from]
-     * So we find all calls in allCalls whose objectExpression chain leads back to fromCall.
+     * Collects the fluent chain calls that follow the given root call. In Groovy AST, for
+     * from("x").routeId("y").to("z"), the structure is: MethodCallExpression[to] -> objectExpression:
+     * MethodCallExpression[routeId] -> objectExpression: MethodCallExpression[from] So we find all calls in allCalls
+     * whose objectExpression chain leads back to fromCall.
      */
-    private List<MethodCallExpression> collectChainFromRoot(MethodCallExpression fromCall,
-                                                             List<MethodCallExpression> allCalls) {
+    private List<MethodCallExpression> collectChainFromRoot(
+            MethodCallExpression fromCall,
+            List<MethodCallExpression> allCalls) {
         List<MethodCallExpression> chain = new ArrayList<>();
         // Find the call whose objectExpression IS the fromCall
         MethodCallExpression current = fromCall;
@@ -375,8 +385,8 @@ public class GroovyGraphParser implements GraphParser {
     }
 
     /**
-     * Extracts the script type from a script("groovy", "...") call.
-     * Returns the first argument (the language name), e.g. "groovy".
+     * Extracts the script type from a script("groovy", "...") call. Returns the first argument (the language name),
+     * e.g. "groovy".
      */
     private String extractScriptType(MethodCallExpression call) {
         Expression args = call.getArguments();

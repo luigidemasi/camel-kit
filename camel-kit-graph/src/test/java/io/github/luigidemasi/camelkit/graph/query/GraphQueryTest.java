@@ -1,12 +1,13 @@
 package io.github.luigidemasi.camelkit.graph.query;
 
-import io.github.luigidemasi.camelkit.graph.ProjectGraph;
-import io.github.luigidemasi.camelkit.graph.model.*;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
 import java.util.Map;
+
+import io.github.luigidemasi.camelkit.graph.ProjectGraph;
+import io.github.luigidemasi.camelkit.graph.model.*;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -17,16 +18,21 @@ class GraphQueryTest {
     @BeforeEach
     void setUp() {
         ProjectGraph graph = new ProjectGraph();
-        graph.addNode(new GraphNode("class:com.example.Foo", NodeType.CLASS, Map.of("name", "Foo", "package", "com.example")));
-        graph.addNode(new GraphNode("class:com.example.Bar", NodeType.CLASS, Map.of("name", "Bar", "package", "com.example")));
+        graph.addNode(new GraphNode(
+                "class:com.example.Foo", NodeType.CLASS, Map.of("name", "Foo", "package", "com.example")));
+        graph.addNode(new GraphNode(
+                "class:com.example.Bar", NodeType.CLASS, Map.of("name", "Bar", "package", "com.example")));
         graph.addNode(new GraphNode("method:com.example.Foo.process", NodeType.METHOD, Map.of("name", "process")));
         graph.addNode(new GraphNode("method:com.example.Bar.handle", NodeType.METHOD, Map.of("name", "handle")));
         graph.addNode(new GraphNode("route:r1", NodeType.CAMEL_ROUTE, Map.of("routeId", "r1")));
-        graph.addNode(new GraphNode("endpoint:direct:foo", NodeType.CAMEL_ENDPOINT, Map.of("uri", "direct:foo", "scheme", "direct")));
+        graph.addNode(new GraphNode(
+                "endpoint:direct:foo", NodeType.CAMEL_ENDPOINT, Map.of("uri", "direct:foo", "scheme", "direct")));
 
         graph.addEdge(new GraphEdge("class:com.example.Foo", "class:com.example.Bar", EdgeType.EXTENDS, Map.of()));
-        graph.addEdge(new GraphEdge("class:com.example.Foo", "method:com.example.Foo.process", EdgeType.DECLARES, Map.of()));
-        graph.addEdge(new GraphEdge("method:com.example.Foo.process", "method:com.example.Bar.handle", EdgeType.CALLS, Map.of()));
+        graph.addEdge(
+                new GraphEdge("class:com.example.Foo", "method:com.example.Foo.process", EdgeType.DECLARES, Map.of()));
+        graph.addEdge(new GraphEdge(
+                "method:com.example.Foo.process", "method:com.example.Bar.handle", EdgeType.CALLS, Map.of()));
         graph.addEdge(new GraphEdge("route:r1", "endpoint:direct:foo", EdgeType.ROUTES_TO, Map.of()));
 
         query = new GraphQuery(graph);

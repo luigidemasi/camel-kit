@@ -1,11 +1,12 @@
 package io.github.luigidemasi.camelkit.graph.parser;
 
+import java.nio.file.Path;
+
 import io.github.luigidemasi.camelkit.graph.ProjectGraph;
 import io.github.luigidemasi.camelkit.graph.model.NodeType;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -24,7 +25,7 @@ class ConfigParserTest {
     void parsesCamelProperties() {
         assertTrue(graph.hasNode("config:camel.component.kafka.brokers"));
         assertEquals("localhost:9092",
-            graph.getNode("config:camel.component.kafka.brokers").properties().get("value"));
+                graph.getNode("config:camel.component.kafka.brokers").properties().get("value"));
     }
 
     @Test
@@ -40,14 +41,13 @@ class ConfigParserTest {
 
     @Test
     void allNodesAreConfigPropertyType() {
-        graph.findByType(NodeType.CONFIG_PROPERTY).forEach(node ->
-            assertEquals(NodeType.CONFIG_PROPERTY, node.type()));
+        graph.findByType(NodeType.CONFIG_PROPERTY).forEach(node -> assertEquals(NodeType.CONFIG_PROPERTY, node.type()));
     }
 
     @Test
     void propertiesIncludeFileInfo() {
         String file = graph.getNode("config:camel.component.kafka.brokers")
-            .properties().get("file");
+                .properties().get("file");
         assertTrue(file.endsWith("application.properties"));
     }
 }

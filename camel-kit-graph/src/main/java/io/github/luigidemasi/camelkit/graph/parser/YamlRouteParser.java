@@ -1,22 +1,22 @@
 package io.github.luigidemasi.camelkit.graph.parser;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import io.github.luigidemasi.camelkit.graph.ProjectGraph;
-import io.github.luigidemasi.camelkit.graph.model.*;
-
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 
+import io.github.luigidemasi.camelkit.graph.ProjectGraph;
+import io.github.luigidemasi.camelkit.graph.model.*;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+
 public class YamlRouteParser implements GraphParser {
 
     private static final Set<String> EIP_ELEMENTS = Set.of(
-        "filter", "split", "aggregate", "marshal", "unmarshal",
-        "transform", "bean", "process", "enrich", "log", "groovy", "script"
-    );
+            "filter", "split", "aggregate", "marshal", "unmarshal",
+            "transform", "bean", "process", "enrich", "log", "groovy", "script");
 
     private final ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
 
@@ -28,7 +28,7 @@ public class YamlRouteParser implements GraphParser {
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
                     String fileName = file.getFileName().toString();
                     if ((fileName.endsWith(".yaml") || fileName.endsWith(".yml"))
-                        && !fileName.startsWith("application")) {
+                            && !fileName.startsWith("application")) {
                         parseYamlFile(file, projectRoot, graph);
                     }
                     return FileVisitResult.CONTINUE;
@@ -78,10 +78,12 @@ public class YamlRouteParser implements GraphParser {
 
                 // Create endpoint node and ROUTES_FROM edge
                 String endpointId = "endpoint:" + fromUri;
-                graph.addNode(new GraphNode(endpointId, NodeType.CAMEL_ENDPOINT,
-                    Map.of("uri", fromUri)));
-                graph.addEdge(new GraphEdge(routeNodeId, endpointId,
-                    EdgeType.ROUTES_FROM, Map.of()));
+                graph.addNode(new GraphNode(
+                        endpointId, NodeType.CAMEL_ENDPOINT,
+                        Map.of("uri", fromUri)));
+                graph.addEdge(new GraphEdge(
+                        routeNodeId, endpointId,
+                        EdgeType.ROUTES_FROM, Map.of()));
             }
 
             // Create route node
@@ -138,18 +140,22 @@ public class YamlRouteParser implements GraphParser {
                 if (uri != null && !uri.isEmpty()) {
                     // Create endpoint node and ROUTES_TO edge
                     String endpointId = "endpoint:" + uri;
-                    graph.addNode(new GraphNode(endpointId, NodeType.CAMEL_ENDPOINT,
-                        Map.of("uri", uri)));
-                    graph.addEdge(new GraphEdge(routeNodeId, endpointId,
-                        EdgeType.ROUTES_TO, Map.of()));
+                    graph.addNode(new GraphNode(
+                            endpointId, NodeType.CAMEL_ENDPOINT,
+                            Map.of("uri", uri)));
+                    graph.addEdge(new GraphEdge(
+                            routeNodeId, endpointId,
+                            EdgeType.ROUTES_TO, Map.of()));
                 }
             } else if (EIP_ELEMENTS.contains(stepType)) {
                 // Handle EIP processor
                 String processorId = routeNodeId + ":processor:" + stepType + ":" + order;
-                graph.addNode(new GraphNode(processorId, NodeType.CAMEL_PROCESSOR,
-                    Map.of("type", stepType)));
-                graph.addEdge(new GraphEdge(routeNodeId, processorId,
-                    EdgeType.PROCESSES, Map.of("order", String.valueOf(order))));
+                graph.addNode(new GraphNode(
+                        processorId, NodeType.CAMEL_PROCESSOR,
+                        Map.of("type", stepType)));
+                graph.addEdge(new GraphEdge(
+                        routeNodeId, processorId,
+                        EdgeType.PROCESSES, Map.of("order", String.valueOf(order))));
                 order++;
 
                 // Recursively parse nested steps

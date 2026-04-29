@@ -1,9 +1,5 @@
 package io.github.luigidemasi.camelkit.graph.parser;
 
-import io.github.luigidemasi.camelkit.graph.ProjectGraph;
-import io.github.luigidemasi.camelkit.graph.model.GraphNode;
-import io.github.luigidemasi.camelkit.graph.model.NodeType;
-
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -11,6 +7,10 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import io.github.luigidemasi.camelkit.graph.ProjectGraph;
+import io.github.luigidemasi.camelkit.graph.model.GraphNode;
+import io.github.luigidemasi.camelkit.graph.model.NodeType;
 
 public class DataWeaveParser implements GraphParser {
 
@@ -57,14 +57,14 @@ public class DataWeaveParser implements GraphParser {
         extractFirst(OUTPUT_TYPE, content).ifPresent(v -> properties.put("outputType", v.trim()));
 
         String functions = extractAll(FUNCTION, content).stream()
-            .collect(Collectors.joining(","));
+                .collect(Collectors.joining(","));
         if (!functions.isEmpty()) {
             properties.put("functions", functions);
         }
 
         String fields = extractAllUnique(FIELD_ACCESS, content).stream()
-            .sorted()
-            .collect(Collectors.joining(","));
+                .sorted()
+                .collect(Collectors.joining(","));
         if (!fields.isEmpty()) {
             properties.put("fields", fields);
         }

@@ -1,25 +1,30 @@
 package io.github.luigidemasi.camelkit.generator;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import java.nio.file.Files;
-import java.nio.file.Path;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class GeminiGeneratorTest {
 
-    @TempDir Path tempDir;
+    @TempDir
+    Path tempDir;
 
     private InitContext createContext() {
         AgentConfig agent = AgentRegistry.get("gemini");
         String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf("/"));
         Path commandsDir = tempDir.resolve(agent.folder());
         Path skillsDir = tempDir.resolve(agentBaseFolder + "/skills");
-        return new InitContext(agent, "gemini", commandsDir, skillsDir, tempDir,
-            "camel-kit", Printer.noop());
+        return new InitContext(
+                agent, "gemini", commandsDir, skillsDir, tempDir,
+                "camel-kit", Printer.noop());
     }
 
     @Test
@@ -88,7 +93,7 @@ class GeminiGeneratorTest {
         new GeminiGenerator().generate(ctx);
 
         String content = Files.readString(
-            tempDir.resolve(".gemini/agents/camel-validator.md"));
+                tempDir.resolve(".gemini/agents/camel-validator.md"));
         assertTrue(content.contains("mcp_camel_*"));
         assertTrue(content.contains("max_turns: 20"));
     }
@@ -110,7 +115,7 @@ class GeminiGeneratorTest {
         new GeminiGenerator().generate(ctx);
 
         String content = Files.readString(
-            ctx.commandsDir().resolve("camel-validate.toml"));
+                ctx.commandsDir().resolve("camel-validate.toml"));
         assertTrue(content.contains("camel-validator subagent"));
         assertTrue(content.contains("{{args}}"));
     }
@@ -121,7 +126,7 @@ class GeminiGeneratorTest {
         new GeminiGenerator().generate(ctx);
 
         String content = Files.readString(
-            ctx.commandsDir().resolve("camel-execute.toml"));
+                ctx.commandsDir().resolve("camel-execute.toml"));
         // Execute runs in main agent, NOT a subagent
         assertTrue(content.contains("orchestrator"));
         assertFalse(content.contains("camel-executor subagent"));

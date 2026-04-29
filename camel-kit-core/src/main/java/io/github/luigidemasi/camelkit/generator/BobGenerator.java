@@ -8,31 +8,30 @@ import java.util.Map;
 public class BobGenerator extends DefaultGenerator {
 
     private static final String[] SKILLS_WITH_GATES = {
-        "camel-migrate", "camel-brainstorm", "camel-implement",
-        "camel-validate", "camel-test", "camel-plan", "camel-execute"
+            "camel-migrate", "camel-brainstorm", "camel-implement",
+            "camel-validate", "camel-test", "camel-plan", "camel-execute"
     };
 
     private static final String[] RULE_MODES = {
-        "camel-brainstorm", "camel-plan", "camel-implement",
-        "camel-validate", "camel-test"
+            "camel-brainstorm", "camel-plan", "camel-implement",
+            "camel-validate", "camel-test"
     };
 
     private static final Map<String, String> RULE_MODE_FILES = Map.of(
-        "camel-brainstorm", "interview-gates.md",
-        "camel-plan", "plan-structure.md",
-        "camel-implement", "implementation.md",
-        "camel-validate", "validation.md",
-        "camel-test", "testing.md"
-    );
+            "camel-brainstorm", "interview-gates.md",
+            "camel-plan", "plan-structure.md",
+            "camel-implement", "implementation.md",
+            "camel-validate", "validation.md",
+            "camel-test", "testing.md");
 
     @Override
     public void generate(InitContext ctx) throws Exception {
         // Run default generation (commands, skills, MCP config)
         super.generate(ctx);
 
-        Map<String, Object> templateData = new HashMap<>(Map.of(
-            "COMMAND_PREFIX", ctx.commandPrefix()
-        ));
+        Map<String, Object> templateData = new HashMap<>(
+                Map.of(
+                        "COMMAND_PREFIX", ctx.commandPrefix()));
         // Bob-specific: generate custom modes
         generateCustomModes(ctx);
 
@@ -54,7 +53,7 @@ public class BobGenerator extends DefaultGenerator {
         Files.createDirectories(sharedRulesDir);
 
         copyTemplateResource("templates/bob/rules/iron-laws.md",
-            sharedRulesDir.resolve("iron-laws.md"));
+                sharedRulesDir.resolve("iron-laws.md"));
 
         // Mode-specific rules
         for (String mode : RULE_MODES) {
@@ -62,8 +61,8 @@ public class BobGenerator extends DefaultGenerator {
             Files.createDirectories(modeRulesDir);
             String ruleFile = RULE_MODE_FILES.get(mode);
             copyTemplateResource(
-                "templates/bob/rules-" + mode + "/" + ruleFile,
-                modeRulesDir.resolve(ruleFile));
+                    "templates/bob/rules-" + mode + "/" + ruleFile,
+                    modeRulesDir.resolve(ruleFile));
         }
     }
 

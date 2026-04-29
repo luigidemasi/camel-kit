@@ -33,14 +33,17 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Check code formatting and imports
+        run: ./mvnw -B -Psourcecheck validate
+
       - name: Build with Maven
-        run: ./mvnw clean install -B -V
+        run: ./mvnw clean install -B -V -Dformat.skip=true
 
       - name: Run tests
-        run: ./mvnw test -B
+        run: ./mvnw test -B -Dformat.skip=true
 
       - name: Verify package
-        run: ./mvnw verify -B
+        run: ./mvnw verify -B -Dformat.skip=true
 
       - name: Upload build artifacts
         if: success() && matrix.java == '17'

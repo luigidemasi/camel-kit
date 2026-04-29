@@ -1,8 +1,9 @@
 package io.github.luigidemasi.camelkit.command.graph;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.luigidemasi.camelkit.graph.ProjectGraph;
 import io.github.luigidemasi.camelkit.graph.query.DeadCodeAnalyzer;
+
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import picocli.CommandLine.Command;
 
 @Command(name = "dead-code", description = "Detect unused deps, orphaned routes, stale config")

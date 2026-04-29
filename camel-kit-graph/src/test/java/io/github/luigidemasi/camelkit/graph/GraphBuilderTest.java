@@ -1,11 +1,12 @@
 package io.github.luigidemasi.camelkit.graph;
 
-import io.github.luigidemasi.camelkit.graph.model.*;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
+
+import io.github.luigidemasi.camelkit.graph.model.*;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -27,8 +28,8 @@ class GraphBuilderTest {
     void crossLinkerRuns() {
         ProjectGraph graph = new GraphBuilder().build(TEST_PROJECT);
         long linksToCount = graph.getEdges().stream()
-            .filter(e -> e.type() == EdgeType.LINKS_TO)
-            .count();
+                .filter(e -> e.type() == EdgeType.LINKS_TO)
+                .count();
         assertTrue(linksToCount >= 1, "Expected at least one LINKS_TO edge");
     }
 

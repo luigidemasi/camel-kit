@@ -20,12 +20,11 @@ public final class TemplateUtils {
     }
 
     /**
-     * Read a template file from bundled resources.
-     * Templates are bundled via JBang //FILES directive.
+     * Read a template file from bundled resources. Templates are bundled via JBang //FILES directive.
      *
-     * @param templatePath the path to the template (e.g., "templates/constitution.md")
-     * @return the template content
-     * @throws IOException if the template cannot be read
+     * @param  templatePath the path to the template (e.g., "templates/constitution.md")
+     * @return              the template content
+     * @throws IOException  if the template cannot be read
      */
     public static String readTemplate(String templatePath) throws IOException {
         // Try reading from classpath (bundled via //FILES)
@@ -47,9 +46,9 @@ public final class TemplateUtils {
     /**
      * Read a resource file as an array of lines.
      *
-     * @param resourcePath the path to the resource (e.g., "art/camelLines.txt")
-     * @return array of lines from the file
-     * @throws IOException if the resource cannot be read
+     * @param  resourcePath the path to the resource (e.g., "art/camelLines.txt")
+     * @return              array of lines from the file
+     * @throws IOException  if the resource cannot be read
      */
     public static String[] readLines(String resourcePath) throws IOException {
         try (InputStream is = TemplateUtils.class.getClassLoader().getResourceAsStream(resourcePath)) {

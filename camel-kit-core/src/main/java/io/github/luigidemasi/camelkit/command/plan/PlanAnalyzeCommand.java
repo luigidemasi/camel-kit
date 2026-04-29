@@ -1,11 +1,12 @@
 package io.github.luigidemasi.camelkit.command.plan;
 
-import io.github.luigidemasi.camelkit.plan.PlanAnalyzer;
-import picocli.CommandLine.Command;
-import picocli.CommandLine.Parameters;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
+
+import io.github.luigidemasi.camelkit.plan.PlanAnalyzer;
+
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Parameters;
 
 @Command(name = "analyze", description = "Analyze plan for parallel execution waves")
 public class PlanAnalyzeCommand implements Runnable {
