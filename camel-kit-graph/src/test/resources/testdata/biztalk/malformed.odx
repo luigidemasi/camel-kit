@@ -1,0 +1,7 @@
+#if __DESIGNER_DATA
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<om:MetaModel xmlns:om="http://schemas.microsoft.com/BizTalk/2003/DesignerData">
+    <om:Element Type="Module">
+        <om:Property Name="Name" Value="Test"
+    <!-- Missing closing tags -->
+#endif
