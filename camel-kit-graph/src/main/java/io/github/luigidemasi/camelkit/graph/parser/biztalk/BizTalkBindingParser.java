@@ -3,7 +3,9 @@ package io.github.luigidemasi.camelkit.graph.parser.biztalk;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.xml.stream.XMLInputFactory;
@@ -47,6 +49,7 @@ public class BizTalkBindingParser {
      * Parse the binding XML file using StAX.
      */
     private void parseBindingXml(Path bindingFile, ProjectGraph graph) throws Exception {
+        List<GraphNode> pendingNodes = new ArrayList<>();
         XMLInputFactory factory = XMLInputFactory.newInstance();
         factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
         factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
@@ -62,12 +65,15 @@ public class BizTalkBindingParser {
                         String localName = reader.getLocalName();
 
                         if ("ReceiveLocation".equals(localName)) {
-                            parseReceiveLocation(reader, graph);
+                            parseReceiveLocation(reader, pendingNodes);
                         } else if ("SendPort".equals(localName)) {
-                            parseSendPort(reader, graph);
+                            parseSendPort(reader, pendingNodes);
                         }
                     }
                 }
+
+                // Commit all nodes only after successful parse
+                pendingNodes.forEach(graph::addNode);
             } finally {
                 reader.close();
             }
@@ -77,7 +83,7 @@ public class BizTalkBindingParser {
     /**
      * Parse ReceiveLocation element and create adapter node.
      */
-    private void parseReceiveLocation(XMLStreamReader reader, ProjectGraph graph) throws Exception {
+    private void parseReceiveLocation(XMLStreamReader reader, List<GraphNode> pendingNodes) throws Exception {
         String name = reader.getAttributeValue(null, "Name");
         String address = null;
         String transportType = null;
@@ -133,14 +139,14 @@ public class BizTalkBindingParser {
             }
 
             GraphNode adapterNode = new GraphNode(adapterId, NodeType.BIZTALK_ADAPTER, nodeProps);
-            graph.addNode(adapterNode);
+            pendingNodes.add(adapterNode);
         }
     }
 
     /**
      * Parse SendPort element and create adapter node.
      */
-    private void parseSendPort(XMLStreamReader reader, ProjectGraph graph) throws Exception {
+    private void parseSendPort(XMLStreamReader reader, List<GraphNode> pendingNodes) throws Exception {
         String name = reader.getAttributeValue(null, "Name");
         String address = null;
         String transportType = null;
@@ -188,7 +194,7 @@ public class BizTalkBindingParser {
             }
 
             GraphNode adapterNode = new GraphNode(adapterId, NodeType.BIZTALK_ADAPTER, nodeProps);
-            graph.addNode(adapterNode);
+            pendingNodes.add(adapterNode);
         }
     }
 }

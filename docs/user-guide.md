@@ -346,8 +346,8 @@ DataWeave `.dwl` files are analyzed for version declarations, input/output conte
 BizTalk migrations now benefit from the project graph. When a project contains BizTalk artifacts, the graph automatically detects them via XML namespace sniffing (`schemas.microsoft.com/BizTalk`) and parses all orchestrations, maps, pipelines, and port bindings. The migration skill gets instant artifact topology -- adapters used per orchestration, map functoid complexity, pipeline component chains, port bindings -- without manual XML deep-dives.
 
 The `BizTalkParser` analyzes:
-- **Orchestrations (.odx files)** -- 38+ shape types (Receive, Send, Decide, Loop, Parallel, Call, Scope, etc.)
-- **Maps (.btm files)** -- 50+ functoid types (string ops, math, looping, scripting, database lookup)
+- **Orchestrations (.odx files)** -- orchestration shapes (Receive, Send, Decide, Loop, Parallel, Call, Scope, and more)
+- **Maps (.btm files)** -- functoid types (string ops, math, looping, scripting, database lookup, and more)
 - **Pipelines (.btp files)** -- pipeline stages and component chains
 - **Bindings (.xml files)** -- port configurations and adapter types
 

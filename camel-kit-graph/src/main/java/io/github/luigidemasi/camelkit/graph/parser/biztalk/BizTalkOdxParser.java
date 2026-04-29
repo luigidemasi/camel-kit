@@ -294,6 +294,13 @@ public class BizTalkOdxParser {
             // Create BIZTALK_USES_SCHEMA edge
             if (type != null) {
                 String schemaId = "biztalk-schema:" + type;
+
+                // Create schema node before wiring edge
+                Map<String, String> schemaProps = new HashMap<>();
+                schemaProps.put("name", type);
+                GraphNode schemaNode = new GraphNode(schemaId, NodeType.BIZTALK_SCHEMA, schemaProps);
+                graph.addNode(schemaNode);
+
                 GraphEdge schemaEdge = new GraphEdge(messageId, schemaId, EdgeType.BIZTALK_USES_SCHEMA, Map.of());
                 graph.addEdge(schemaEdge);
             }
@@ -437,7 +444,13 @@ public class BizTalkOdxParser {
             if ("Transform".equals(shapeType)) {
                 String mapClassName = properties.get("ClassName");
                 if (mapClassName != null) {
-                    String mapId = "biztalk-map:" + mapClassName;
+                    // Normalize to short class name to match BTM parser output
+                    String shortMapName = mapClassName;
+                    int lastDot = mapClassName.lastIndexOf('.');
+                    if (lastDot >= 0) {
+                        shortMapName = mapClassName.substring(lastDot + 1);
+                    }
+                    String mapId = "biztalk-map:" + shortMapName;
                     GraphEdge mapEdge = new GraphEdge(shapeId, mapId, EdgeType.BIZTALK_USES_MAP, Map.of());
                     graph.addEdge(mapEdge);
                 }

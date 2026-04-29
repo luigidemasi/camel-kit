@@ -169,7 +169,8 @@ class BizTalkOdxParserTest {
 
         assertNotNull(mapEdge, "BIZTALK_USES_MAP edge should exist");
         assertTrue(mapEdge.from().contains("MapOrderToInvoice"), "Edge should be from Transform shape");
-        assertEquals("biztalk-map:MyApp.Maps.OrderToInvoice", mapEdge.to());
+        assertEquals("biztalk-map:OrderToInvoice", mapEdge.to(),
+                "Map ID should use short name to match BTM parser output");
     }
 
     @Test
