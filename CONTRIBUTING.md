@@ -113,10 +113,10 @@ camel-kit/
 │           ├── qwen/            # Qwen
 │           └── opencode/        # OpenCode
 ├── camel-jbang-plugin-kit/      # Camel JBang plugin
-├── camel-kit-graph/             # Project graph analysis (8 parsers)
+├── camel-kit-graph/             # Project graph analysis (9 parsers)
 │   │   # Parsers: JavaClassParser, CamelRouteParser, MavenPomParser,
 │   │   # PropertiesParser, DockerComposeParser, OpenApiParser,
-│   │   # MuleXmlFlowParser, DataWeaveParser
+│   │   # MuleXmlFlowParser, DataWeaveParser, BizTalkParser
 ├── camel-kit-plugins/           # Plugin extensions
 ├── docs/                        # Documentation
 │   ├── user-guide.md            # End-user walkthrough

@@ -34,7 +34,7 @@ Manual:       /camel-verify      (standalone runtime verification)
 | `/camel-design` | Interactive design session — produces a Blueprint Reference Document (BRD) with Technical Design Documents (TDDs) |
 | `/camel-plan` | Reviews approved design, creates a detailed implementation plan |
 | `/camel-execute` | Orchestrated execution — implements, validates, tests, and verifies all flows |
-| `/camel-migrate` | Migration from MuleSoft, legacy Camel, or JBoss Fuse to modern Camel |
+| `/camel-migrate` | Migration from MuleSoft, Microsoft BizTalk, legacy Camel, or JBoss Fuse to modern Camel |
 | `/camel-verify` | Runtime verification — builds, starts, diagnoses errors, retries until the app runs |
 
 ---
@@ -123,6 +123,7 @@ All agents use the same skills — camel-kit generates agent-specific instructio
 - **Runtime verification** — `/camel-verify` builds, starts, diagnoses errors, and retries until the app runs
 - **Migration support** — migrate from MuleSoft, legacy Apache Camel, or JBoss Fuse with graph-accelerated analysis
 - **MuleSoft graph analysis** — automatic parsing of Mule XML flows, sub-flows, connectors, and DataWeave scripts into a project graph for migration
+- **BizTalk graph analysis** — automatic parsing of BizTalk orchestrations (.odx), maps (.btm), pipelines (.btp), and binding files
 - **Knowledge layer** — Apache Camel documentation searchable via MCP
 
 ---
