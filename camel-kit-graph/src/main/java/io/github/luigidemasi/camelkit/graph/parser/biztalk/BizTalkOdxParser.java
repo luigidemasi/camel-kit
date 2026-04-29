@@ -48,7 +48,7 @@ public class BizTalkOdxParser {
 
             parseOdxXml(xmlContent, graph);
         } catch (Exception e) {
-            // Silently skip unparseable files
+            System.err.println("Failed to parse BizTalk ODX file: " + odxFile + " - " + e.getMessage());
         }
     }
 
@@ -143,6 +143,7 @@ public class BizTalkOdxParser {
         String orchId = null;
         int order = 0;
         int depth = 1;
+        int elementDepth = 0; // Track nested Element depth
 
         while (reader.hasNext() && depth > 0) {
             int event = reader.next();
@@ -150,7 +151,8 @@ public class BizTalkOdxParser {
             if (event == XMLStreamConstants.START_ELEMENT) {
                 String localName = reader.getLocalName();
 
-                if ("Property".equals(localName)) {
+                if ("Property".equals(localName) && elementDepth == 0) {
+                    // Only extract orchestration name from direct Property children (depth 0)
                     String propName = reader.getAttributeValue(null, "Name");
                     String propValue = reader.getAttributeValue(null, "Value");
                     if ("Name".equals(propName) && orchestrationName == null) {
@@ -167,23 +169,32 @@ public class BizTalkOdxParser {
                 } else if ("Element".equals(localName)) {
                     String elementType = reader.getAttributeValue(null, "Type");
 
-                    if (orchId != null) {
+                    if (orchId != null && elementDepth == 0) {
+                        // Only process direct Element children
                         if ("MessageDeclaration".equals(elementType)) {
                             order = parseMessageDeclaration(reader, orchId, graph, order);
+                            // parseMessageDeclaration consumes the entire element, don't increment elementDepth
                         } else if ("PortDeclaration".equals(elementType)) {
                             order = parsePortDeclaration(reader, orchId, graph, order);
+                            // parsePortDeclaration consumes the entire element, don't increment elementDepth
                         } else if ("ServiceBody".equals(elementType)) {
                             order = parseServiceBody(reader, orchId, graph, order);
+                            // parseServiceBody consumes the entire element, don't increment elementDepth
                         } else {
+                            elementDepth++;
                             depth++;
                         }
                     } else {
+                        elementDepth++;
                         depth++;
                     }
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT) {
                 if ("Element".equals(reader.getLocalName())) {
                     depth--;
+                    if (elementDepth > 0) {
+                        elementDepth--;
+                    }
                 }
             }
         }

@@ -3,7 +3,9 @@ package io.github.luigidemasi.camelkit.graph.parser.biztalk;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.xml.stream.XMLInputFactory;
@@ -97,7 +99,7 @@ public class BizTalkBtmParser {
 
             parseBtmXml(btmFile, graph);
         } catch (Exception e) {
-            // Silently skip unparseable files
+            System.err.println("Failed to parse BizTalk BTM file: " + btmFile + " - " + e.getMessage());
         }
     }
 
@@ -140,6 +142,10 @@ public class BizTalkBtmParser {
 
         Map<String, String> functoidData = new HashMap<>(); // FunctoidID -> mapId:functoid:FunctoidId
 
+        // Buffer nodes and edges until parsing completes successfully
+        List<GraphNode> nodes = new ArrayList<>();
+        List<GraphEdge> edges = new ArrayList<>();
+
         while (reader.hasNext()) {
             int event = reader.next();
 
@@ -151,7 +157,7 @@ public class BizTalkBtmParser {
                 } else if ("TrgTree".equals(localName)) {
                     targetSchema = reader.getAttributeValue(null, "Schema");
                 } else if ("Functoid".equals(localName)) {
-                    parseFunctoid(reader, mapName, graph, functoidData);
+                    parseFunctoid(reader, mapName, nodes, edges, functoidData);
                     functoidCount++;
                     // parseFunctoid consumes the entire Functoid element including closing tag
                 }
@@ -176,43 +182,47 @@ public class BizTalkBtmParser {
         mapProps.put("functoidCount", String.valueOf(functoidCount));
 
         GraphNode mapNode = new GraphNode(mapId, NodeType.BIZTALK_MAP, mapProps);
-        graph.addNode(mapNode);
+        nodes.add(mapNode);
 
         // Create schema nodes and edges
         if (sourceSchema != null) {
             String sourceSchemaId = "biztalk-schema:" + sourceSchema;
             GraphNode sourceSchemaNode = new GraphNode(sourceSchemaId, NodeType.BIZTALK_SCHEMA, Map.of());
-            graph.addNode(sourceSchemaNode);
+            nodes.add(sourceSchemaNode);
 
             Map<String, String> edgeProps = new HashMap<>();
             edgeProps.put("role", "source");
             GraphEdge sourceEdge = new GraphEdge(mapId, sourceSchemaId, EdgeType.BIZTALK_USES_SCHEMA, edgeProps);
-            graph.addEdge(sourceEdge);
+            edges.add(sourceEdge);
         }
 
         if (targetSchema != null) {
             String targetSchemaId = "biztalk-schema:" + targetSchema;
             GraphNode targetSchemaNode = new GraphNode(targetSchemaId, NodeType.BIZTALK_SCHEMA, Map.of());
-            graph.addNode(targetSchemaNode);
+            nodes.add(targetSchemaNode);
 
             Map<String, String> edgeProps = new HashMap<>();
             edgeProps.put("role", "target");
             GraphEdge targetEdge = new GraphEdge(mapId, targetSchemaId, EdgeType.BIZTALK_USES_SCHEMA, edgeProps);
-            graph.addEdge(targetEdge);
+            edges.add(targetEdge);
         }
 
         // Create edges from map to functoids
         for (String functoidId : functoidData.values()) {
             GraphEdge edge = new GraphEdge(mapId, functoidId, EdgeType.BIZTALK_FUNCTOID_CHAIN, Map.of());
-            graph.addEdge(edge);
+            edges.add(edge);
         }
+
+        // Commit all nodes and edges to the graph after successful parsing
+        nodes.forEach(graph::addNode);
+        edges.forEach(graph::addEdge);
     }
 
     /**
      * Parse a Functoid element.
      */
     private void parseFunctoid(
-            XMLStreamReader reader, String mapName, ProjectGraph graph,
+            XMLStreamReader reader, String mapName, List<GraphNode> nodes, List<GraphEdge> edges,
             Map<String, String> functoidData)
             throws Exception {
         String functoidId = reader.getAttributeValue(null, "FunctoidID");
@@ -268,7 +278,7 @@ public class BizTalkBtmParser {
         }
 
         GraphNode functoidNode = new GraphNode(nodeId, NodeType.BIZTALK_FUNCTOID, props);
-        graph.addNode(functoidNode);
+        nodes.add(functoidNode);
 
         functoidData.put(functoidId, nodeId);
     }

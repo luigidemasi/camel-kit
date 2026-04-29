@@ -213,9 +213,11 @@ public class InitCommand extends CamelKitCommand {
                 citrusDownloader.fetchCitrusSchemas(citrusVer, false, printer()::println);
                 Path citrusSchemasDir = citrusDownloader.getCitrusSchemasDir(citrusVer);
                 if (Files.exists(citrusSchemasDir)) {
-                    citrusSchemaCount = (int) Files.walk(citrusSchemasDir)
-                            .filter(p -> p.toString().endsWith(".json"))
-                            .count();
+                    try (var paths = Files.walk(citrusSchemasDir)) {
+                        citrusSchemaCount = (int) paths
+                                .filter(p -> p.toString().endsWith(".json"))
+                                .count();
+                    }
                 }
             } catch (Exception e) {
                 printer().println(yellow("  Warning: Could not fetch Citrus schemas: " + e.getMessage()));

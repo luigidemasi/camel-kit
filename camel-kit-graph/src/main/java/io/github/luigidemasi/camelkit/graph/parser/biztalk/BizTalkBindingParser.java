@@ -39,7 +39,7 @@ public class BizTalkBindingParser {
 
             parseBindingXml(bindingFile, graph);
         } catch (Exception e) {
-            // Silently skip unparseable files
+            System.err.println("Failed to parse BizTalk binding file: " + bindingFile + " - " + e.getMessage());
         }
     }
 

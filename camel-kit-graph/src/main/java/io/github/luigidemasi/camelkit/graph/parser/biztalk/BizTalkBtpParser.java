@@ -3,7 +3,9 @@ package io.github.luigidemasi.camelkit.graph.parser.biztalk;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.xml.stream.XMLInputFactory;
@@ -36,6 +38,13 @@ public class BizTalkBtpParser {
     private static final String SEND_CATEGORY = "8c6b051c-0ff5-4fc2-9ae5-5016cb726282";
 
     /**
+     * Holds component data until the final pipeline name is determined.
+     */
+    private record PendingComponent(String componentName, String typeName, String version, String description,
+            int order) {
+    }
+
+    /**
      * Parse a single BTP file and add nodes/edges to the graph.
      *
      * @param btpFile the BTP file to parse
@@ -49,7 +58,7 @@ public class BizTalkBtpParser {
 
             parseBtpXml(btpFile, graph);
         } catch (Exception e) {
-            // Silently skip unparseable files
+            System.err.println("Failed to parse BizTalk BTP file: " + btpFile + " - " + e.getMessage());
         }
     }
 
@@ -90,6 +99,9 @@ public class BizTalkBtpParser {
         String friendlyName = null;
         int componentOrder = 0;
 
+        // Buffer components until the final pipeline name is determined
+        List<PendingComponent> pendingComponents = new ArrayList<>();
+
         while (reader.hasNext()) {
             int event = reader.next();
 
@@ -101,7 +113,7 @@ public class BizTalkBtpParser {
                 } else if ("FriendlyName".equals(localName)) {
                     friendlyName = readElementText(reader);
                 } else if ("Component".equals(localName)) {
-                    parseComponent(reader, friendlyName != null ? friendlyName : pipelineName, componentOrder++, graph);
+                    parseComponent(reader, pendingComponents, componentOrder++);
                     // parseComponent consumes the entire Component element including closing tag
                 }
             } else if (event == XMLStreamConstants.END_ELEMENT) {
@@ -140,12 +152,38 @@ public class BizTalkBtpParser {
 
         GraphNode pipelineNode = new GraphNode(pipelineId, NodeType.BIZTALK_PIPELINE, pipelineProps);
         graph.addNode(pipelineNode);
+
+        // Now emit all component nodes and edges using the final pipeline name
+        for (PendingComponent comp : pendingComponents) {
+            String componentNameForId = comp.componentName().replace(" ", "");
+            String componentId = pipelineId + ":component:" + componentNameForId + ":" + comp.order();
+
+            Map<String, String> componentProps = new HashMap<>();
+            componentProps.put("componentName", comp.componentName());
+            if (comp.typeName() != null) {
+                componentProps.put("typeName", comp.typeName());
+            }
+            if (comp.version() != null) {
+                componentProps.put("version", comp.version());
+            }
+            if (comp.description() != null) {
+                componentProps.put("description", comp.description());
+            }
+
+            GraphNode componentNode = new GraphNode(componentId, NodeType.BIZTALK_PIPELINE_COMPONENT, componentProps);
+            graph.addNode(componentNode);
+
+            Map<String, String> edgeProps = new HashMap<>();
+            edgeProps.put("order", String.valueOf(comp.order()));
+            GraphEdge edge = new GraphEdge(pipelineId, componentId, EdgeType.BIZTALK_PIPELINE_STAGE, edgeProps);
+            graph.addEdge(edge);
+        }
     }
 
     /**
-     * Parse a Component element.
+     * Parse a Component element and buffer it until the pipeline name is finalized.
      */
-    private void parseComponent(XMLStreamReader reader, String pipelineName, int order, ProjectGraph graph)
+    private void parseComponent(XMLStreamReader reader, List<PendingComponent> pendingComponents, int order)
             throws Exception {
         String typeName = reader.getAttributeValue(null, "Name");
         String componentName = reader.getAttributeValue(null, "ComponentName");
@@ -157,32 +195,8 @@ public class BizTalkBtpParser {
             return;
         }
 
-        // Strip spaces from componentName for the ID
-        String componentNameForId = componentName.replace(" ", "");
-
-        // Create component node
-        String componentId = "biztalk-pipeline:" + pipelineName + ":component:" + componentNameForId + ":" + order;
-        Map<String, String> componentProps = new HashMap<>();
-        componentProps.put("componentName", componentName);
-        if (typeName != null) {
-            componentProps.put("typeName", typeName);
-        }
-        if (version != null) {
-            componentProps.put("version", version);
-        }
-        if (description != null) {
-            componentProps.put("description", description);
-        }
-
-        GraphNode componentNode = new GraphNode(componentId, NodeType.BIZTALK_PIPELINE_COMPONENT, componentProps);
-        graph.addNode(componentNode);
-
-        // Create edge from pipeline to component
-        String pipelineId = "biztalk-pipeline:" + pipelineName;
-        Map<String, String> edgeProps = new HashMap<>();
-        edgeProps.put("order", String.valueOf(order));
-        GraphEdge edge = new GraphEdge(pipelineId, componentId, EdgeType.BIZTALK_PIPELINE_STAGE, edgeProps);
-        graph.addEdge(edge);
+        // Buffer component data
+        pendingComponents.add(new PendingComponent(componentName, typeName, version, description, order));
 
         // Consume the rest of the Component element
         skipElement(reader);

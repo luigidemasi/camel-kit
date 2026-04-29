@@ -7,7 +7,7 @@
 > - Confirmed analysis summary (with ✓/~/? markers) from `camel-migrate`
 > - Full list of source artifact paths
 > - Detected vendor: Microsoft BizTalk Server (2004/2006/2006 R2/2009/2010/2013/2013 R2/2016/2020)
-
+>
 > **"Load" means READ and FOLLOW.** When this guide says "Load `path/to/file.md`", read that file relative to the skill directory and execute its instructions. The files are always present — do NOT report them as missing.
 
 This guide is loaded by `camel-migrate` after it has already:
@@ -44,7 +44,7 @@ The outputs are identical in format to `/camel-project` + `/camel-flow`, making 
 - Read the confirmed analysis summary passed by `camel-migrate` (contains vendor, purpose, SLA, security, failure behaviour, deployment target, API compatibility)
 
 **Conditional:**
-- Read `docs/constitution.md` if it exists (for reference — do not generate or modify it)
+- Read `.camel-kit/constitution.md` if it exists (for reference — do not generate or modify it)
 
 ---
 
