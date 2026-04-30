@@ -44,7 +44,7 @@ class ClaudeGeneratorTest {
     }
 
     @Test
-    void appendsParallelDispatch() throws Exception {
+    void appendsParallelDispatchViaTrait() throws Exception {
         InitContext ctx = createContext();
         new ClaudeGenerator().generate(ctx);
 
@@ -53,6 +53,7 @@ class ClaudeGeneratorTest {
         String content = Files.readString(implementSkill);
         assertTrue(content.contains("Parallel Route Implementation"));
         assertTrue(content.contains("route-topology"));
+        assertTrue(content.contains("<!-- TRAIT:claude -->"), "Should be applied via trait sentinel");
     }
 
     @Test
