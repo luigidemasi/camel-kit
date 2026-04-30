@@ -131,7 +131,7 @@ The `camel-kit-graph` module builds a property graph of the project structure by
 
 **BizTalk parser architecture:** The `BizTalkParser` is a hybrid parser that delegates to 4 internal StAX-based parsers (`BizTalkOdxParser`, `BizTalkBtmParser`, `BizTalkBtpParser`, `BizTalkBindingParser`) based on file extension and content. StAX was chosen over DOM to handle large orchestration files efficiently (streaming parse instead of full in-memory tree). The parser recognizes 37 orchestration shape types (Receive, Send, Decide, Loop, Parallel, Call, Scope, etc.) and 45 functoid type mappings (string ops, math, looping, scripting, database lookup).
 
-**Reference implementation:** The [BizTalkMigrationStarter](https://github.com/luigidemasi/BizTalkMigrationStarter) project (BizTalk → Azure Logic Apps) provided the reference parsing patterns. Its C# `BizTalkOrchestrationParser` (ODX text extraction + XPath), `BtmParser` (functoid/link resolution), `PipelineParser` (XmlSerializer deserialization), and `BindingSnapshot` (LINQ-to-XML) were translated to Java StAX equivalents for camel-kit.
+**Reference implementation:** The [BizTalkMigrationStarter](https://github.com/haroldcampos/BizTalkMigrationStarter) project (BizTalk → Azure Logic Apps) provided the reference parsing patterns. Its C# `BizTalkOrchestrationParser` (ODX text extraction + XPath), `BtmParser` (functoid/link resolution), `PipelineParser` (XmlSerializer deserialization), and `BindingSnapshot` (LINQ-to-XML) were translated to Java StAX equivalents for camel-kit.
 
 ---
 
