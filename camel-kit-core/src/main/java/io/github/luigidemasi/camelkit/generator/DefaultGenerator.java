@@ -43,7 +43,8 @@ public class DefaultGenerator implements AgentGenerator {
 
     private void createCommandTemplates(InitContext ctx) throws Exception {
         List<String> commands
-                = List.of("brainstorm", "flow", "plan", "execute", "verify", "validate", "migrate", "knowledge");
+                = List.of("brainstorm", "flow", "plan", "execute", "verify", "validate", "migrate", "knowledge",
+                        "ship");
 
         // Extract agent base folder (e.g., ".bob" from ".bob/commands")
         String agentBaseFolder = ctx.agent().folder().substring(0, ctx.agent().folder().lastIndexOf("/"));
