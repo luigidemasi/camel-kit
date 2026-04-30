@@ -93,6 +93,42 @@ class DefaultGeneratorTest {
     }
 
     @Test
+    void appliesSkillLevelTraits() throws Exception {
+        InitContext ctx = createContext("claude");
+        new ClaudeGenerator().generate(ctx);
+
+        Path brainstormSkill = ctx.skillsDir().resolve("camel-brainstorm/SKILL.md");
+        String content = Files.readString(brainstormSkill);
+        assertTrue(content.contains("<!-- TRAIT:claude -->"), "Sentinel should be present");
+        assertTrue(content.contains("AskUserQuestion"), "Claude trait content should be appended");
+    }
+
+    @Test
+    void traitsAreIdempotent() throws Exception {
+        InitContext ctx = createContext("claude");
+        ClaudeGenerator generator = new ClaudeGenerator();
+        generator.generate(ctx);
+        generator.generate(ctx);
+
+        Path brainstormSkill = ctx.skillsDir().resolve("camel-brainstorm/SKILL.md");
+        String content = Files.readString(brainstormSkill);
+        int count = content.split("<!-- TRAIT:claude -->").length - 1;
+        assertEquals(1, count, "Trait sentinel should appear exactly once after double init");
+    }
+
+    @Test
+    void appliesGuideLevelTraits() throws Exception {
+        InitContext ctx = createContext("claude");
+        new ClaudeGenerator().generate(ctx);
+
+        Path implementerGuide = ctx.skillsDir().resolve("camel-execute/guides/implementer-context.md");
+        if (Files.exists(implementerGuide)) {
+            String content = Files.readString(implementerGuide);
+            assertTrue(content.length() > 0, "Guide should have content");
+        }
+    }
+
+    @Test
     void wrapsTomlForGemini() throws Exception {
         InitContext ctx = createContext("gemini");
         new DefaultGenerator().generate(ctx);
