@@ -13,16 +13,8 @@ public class ClaudeGenerator extends DefaultGenerator {
 
     @Override
     public void generate(InitContext ctx) throws Exception {
-        // Run all default generation (commands, skills, MCP config)
         super.generate(ctx);
-
-        // Claude-specific: generate CLAUDE.md at project root
         generateClaudeMd(ctx);
-
-        // Claude-specific: append parallel dispatch to camel-implement skill
-        appendParallelDispatch(ctx);
-
-        // Claude-specific: generate .claude/settings.json with permissions
         generateSettings(ctx);
     }
 
@@ -32,17 +24,6 @@ public class ClaudeGenerator extends DefaultGenerator {
                         "COMMAND_PREFIX", ctx.commandPrefix()));
         String content = templateEngine.render("templates/claude/claude-md.md", data);
         Files.writeString(ctx.projectDir().resolve("CLAUDE.md"), content);
-    }
-
-    private void appendParallelDispatch(InitContext ctx) throws Exception {
-        Path implementSkill = ctx.skillsDir().resolve("camel-implement/SKILL.md");
-        if (Files.exists(implementSkill)) {
-            Map<String, Object> data = Map.of("COMMAND_PREFIX", ctx.commandPrefix());
-            String parallelBlock = templateEngine.render(
-                    "templates/claude/dispatch-parallel.md", data);
-            String existing = Files.readString(implementSkill);
-            Files.writeString(implementSkill, existing + "\n---\n\n" + parallelBlock);
-        }
     }
 
     private void generateSettings(InitContext ctx) throws Exception {
