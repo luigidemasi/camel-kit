@@ -19,6 +19,19 @@
                 </om:Element>
             </om:Element>
         </om:Element>
+        <om:Element Type="PortType" OID="port-type-002" LowerBound="8.1" HigherBound="13.1">
+            <om:Property Name="Name" Value="SendPortType" />
+            <om:Property Name="Modifier" Value="Internal" />
+            <om:Element Type="OperationDeclaration" OID="op-002" LowerBound="9.1" HigherBound="12.1">
+                <om:Property Name="Name" Value="Operation_1" />
+                <om:Property Name="OperationType" Value="OneWay" />
+                <om:Element Type="MessageRef" OID="msgref-002" LowerBound="10.1" HigherBound="11.1">
+                    <om:Property Name="Name" Value="Request" />
+                    <om:Property Name="Ref" Value="MyApp.Schemas.InvoiceSchema" />
+                    <om:Property Name="Direction" Value="In" />
+                </om:Element>
+            </om:Element>
+        </om:Element>
         <om:Element Type="ServiceDeclaration" OID="svc-001" LowerBound="14.1" HigherBound="32.1">
             <om:Property Name="Name" Value="OrderProcessOrchestration" />
             <om:Property Name="Signal" Value="False" />

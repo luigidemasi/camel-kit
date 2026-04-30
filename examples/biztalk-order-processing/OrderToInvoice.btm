@@ -33,6 +33,9 @@ public string FormatDate(string input) {
   </Functoid>
   <Link LinkID="0" LinkFrom="/*[local-name()='OrderSchema']/*[local-name()='FirstName']" LinkTo="1" />
   <Link LinkID="1" LinkFrom="/*[local-name()='OrderSchema']/*[local-name()='LastName']" LinkTo="1" />
+  <Link LinkID="2" LinkFrom="/*[local-name()='OrderSchema']/*[local-name()='OrderDate']" LinkTo="2" />
+  <Link LinkID="3" LinkFrom="/*[local-name()='OrderSchema']/*[local-name()='Quantity']" LinkTo="3" />
+  <Link LinkID="4" LinkFrom="/*[local-name()='OrderSchema']/*[local-name()='UnitPrice']" LinkTo="3" />
   <Link LinkID="5" LinkFrom="1" LinkTo="/*[local-name()='InvoiceSchema']/*[local-name()='CustomerName']" IsFromFunctoid="true" />
   <Link LinkID="6" LinkFrom="2" LinkTo="/*[local-name()='InvoiceSchema']/*[local-name()='InvoiceDate']" IsFromFunctoid="true" />
   <Link LinkID="7" LinkFrom="3" LinkTo="/*[local-name()='InvoiceSchema']/*[local-name()='TotalAmount']" IsFromFunctoid="true" />

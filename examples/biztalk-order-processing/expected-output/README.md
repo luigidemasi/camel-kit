@@ -26,8 +26,8 @@ This directory describes the expected output when migrating the BizTalk order pr
               - expression:
                   simple: "${body.orderType} == 'Priority'"
                 steps:
-                  - to: "xslt:OrderToInvoice.xslt"
-                  - to: "sql:insert-invoice"
+                  - to: "xslt-saxon:OrderToInvoice.xslt"
+                  - to: "sql:{{sql.insert-invoice}}"
             otherwise:
               steps:
                 - log: "Standard order - no invoice generated"
@@ -62,6 +62,7 @@ sql.insert-invoice=INSERT INTO Invoices (CustomerName, InvoiceDate, TotalAmount)
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet version="2.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
+                xmlns:xs="http://www.w3.org/2001/XMLSchema"
                 xmlns:order="http://MyApp.Schemas.OrderSchema"
                 xmlns:invoice="http://MyApp.Schemas.InvoiceSchema">
   
@@ -111,16 +112,16 @@ sql.insert-invoice=INSERT INTO Invoices (CustomerName, InvoiceDate, TotalAmount)
     <artifactId>camel-sql-starter</artifactId>
   </dependency>
   
-  <!-- XSLT component (from Transform shape) -->
+  <!-- XSLT Saxon component (from Transform shape — XSLT 2.0) -->
   <dependency>
     <groupId>org.apache.camel.springboot</groupId>
-    <artifactId>camel-xslt-starter</artifactId>
+    <artifactId>camel-xslt-saxon-starter</artifactId>
   </dependency>
   
-  <!-- Bean Validation (from XMLReceive.btp) -->
+  <!-- XML Validator (from XMLReceive.btp pipeline) -->
   <dependency>
     <groupId>org.apache.camel.springboot</groupId>
-    <artifactId>camel-bean-validator-starter</artifactId>
+    <artifactId>camel-xml-jaxp-starter</artifactId>
   </dependency>
   
   <!-- SQL Server JDBC driver -->
@@ -191,8 +192,8 @@ The migration requires these Camel components (detected from BizTalk adapter typ
 
 - `camel-file` - FILE adapter replacement
 - `camel-sql` - SQL adapter replacement  
-- `camel-xslt` - BizTalk map transformation
-- `camel-bean-validator` - Pipeline validation stage
+- `camel-xslt-saxon` - BizTalk map transformation (XSLT 2.0)
+- `camel-xml-jaxp` - XML validator for pipeline validation stage
 
 ## Configuration Externalization
 
