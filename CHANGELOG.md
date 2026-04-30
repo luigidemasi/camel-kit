@@ -33,6 +33,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **MuleSoft graph parsers** — `MuleXmlFlowParser` (Mule 3.x/4.x XML) and `DataWeaveParser` (`.dwl` files) with dedicated node and edge types; `XmlRouteParser` skips Mule XML automatically
 
+- **BizTalk migration support** — Microsoft BizTalk Server added as the 4th supported migration source platform
+  - `BizTalkParser` — hybrid GraphParser with 4 internal StAX-based parsers for ODX orchestrations (37 shape types), BTM maps (45 functoid type mappings), BTP pipelines, and binding XML files
+  - 10 new `NodeType` and 7 new `EdgeType` values for BizTalk artifacts
+  - XmlRouteParser exclusion for BizTalk XML files (namespace and content sniffing)
+  - `--source-platform biztalk` option for `camel-kit init`
+  - BizTalk project detection in `detectProjectType()` (orchestrations, maps, pipelines)
+  - 6 migration skill guides: `biztalk-phase1.md`, `biztalk-phase2.md`, `biztalk-component-mapping.md` (37 shape-to-EIP mappings, 16+ adapter mappings), `biztalk-map-conversion.md`, `biztalk-expression-mapping.md`, `biztalk-pipeline-mapping.md`
+  - `/camel-migrate` SKILL.md updated with BizTalk vendor detection signals and guide manifest
+  - UTF-16 binding file detection (BizTalk Admin Console exports UTF-16 by default)
+  - Atomic graph mutation via buffering (prevents partial graph corruption on parse failures)
+  - Deferred BTP component emission (handles FriendlyName appearing after Component elements)
+  - Suspend Shape marked as not supported (BizTalk dehydration has no Camel equivalent)
+
 - **3-phase orchestrated pipeline** — replaced the linear `/camel-project` → `/camel-flow` → `/camel-implement` → `/camel-validate` → `/camel-test` workflow with a structured 3-phase pipeline:
   - `/camel-brainstorm` — interactive design session producing a Blueprint Reference Document (BRD) with Technical Design Documents (TDDs)
   - `/camel-plan` — reviews approved design, creates detailed implementation plan with task decomposition

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<BindingInfo xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Assembly="MyApp, Version=1.0.0.0" Version="2.0" BindingStatus="FullyBound" xmlns="http://schemas.microsoft.com/BizTalk/2003">
+  <ReceivePortCollection>
+    <ReceivePort Name="ReceivePort_Orders" IsTwoWay="false">
+      <ReceiveLocations>
+        <ReceiveLocation Name="ReceiveLocation_FileOrders">
+          <Address>C:\Orders\In\*.xml</Address>
+          <ReceivePipeline Name="MyApp.Pipelines.XMLReceive" />
+          <TransportType Name="FILE" />
+          <PollingInterval>60</PollingInterval>
+        </ReceiveLocation>
+      </ReceiveLocations>
+    </ReceivePort>
+  </ReceivePortCollection>
+  <SendPortCollection>
+    <SendPort Name="SendPort_Invoices" IsStatic="true" IsTwoWay="false">
+      <Address>mssql://localhost/InvoiceDB</Address>
+      <SendPipeline Name="Microsoft.BizTalk.DefaultPipelines.PassThruTransmit" />
+      <TransportType Name="SQL" />
+    </SendPort>
+  </SendPortCollection>
+</BindingInfo>

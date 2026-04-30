@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mapsource Name="OrderToInvoice" BizTalkServerMapperTool_Version="3.0" Version="2" XRange="100" YRange="420">
+  <SrcTree RootNode_Name="OrderSchema" Schema="MyApp.Schemas.OrderSchema">
+    <SchemaReference Location="OrderSchema.xsd" xmlns:ns0="http://MyApp.Schemas.OrderSchema" />
+  </SrcTree>
+  <TrgTree RootNode_Name="InvoiceSchema" Schema="MyApp.Schemas.InvoiceSchema">
+    <SchemaReference Location="InvoiceSchema.xsd" xmlns:ns0="http://MyApp.Schemas.InvoiceSchema" />
+  </TrgTree>
+  <Functoid FunctoidID="1" Functoid-FID="107" X-Cell="50" Y-Cell="100" FunctoidType="String">
+    <Input-Parameters>
+      <Parameter Type="link" Value="0" LinkIndex="0" />
+      <Parameter Type="constant" Value=" - " />
+      <Parameter Type="link" Value="1" LinkIndex="1" />
+    </Input-Parameters>
+  </Functoid>
+  <Functoid FunctoidID="2" Functoid-FID="260" X-Cell="50" Y-Cell="200" FunctoidType="Scripting">
+    <Input-Parameters>
+      <Parameter Type="link" Value="2" LinkIndex="0" />
+    </Input-Parameters>
+    <ScripterCode Language="CSharp">
+      <![CDATA[
+public string FormatDate(string input) {
+    return DateTime.Parse(input).ToString("yyyy-MM-dd");
+}
+      ]]>
+    </ScripterCode>
+  </Functoid>
+  <Functoid FunctoidID="3" Functoid-FID="111" X-Cell="50" Y-Cell="300" FunctoidType="Math">
+    <Input-Parameters>
+      <Parameter Type="link" Value="3" LinkIndex="0" />
+      <Parameter Type="link" Value="4" LinkIndex="1" />
+    </Input-Parameters>
+  </Functoid>
+  <Link LinkID="0" LinkFrom="/*[local-name()='OrderSchema']/*[local-name()='FirstName']" LinkTo="1" />
+  <Link LinkID="1" LinkFrom="/*[local-name()='OrderSchema']/*[local-name()='LastName']" LinkTo="1" />
+  <Link LinkID="2" LinkFrom="/*[local-name()='OrderSchema']/*[local-name()='OrderDate']" LinkTo="2" />
+  <Link LinkID="3" LinkFrom="/*[local-name()='OrderSchema']/*[local-name()='Quantity']" LinkTo="3" />
+  <Link LinkID="4" LinkFrom="/*[local-name()='OrderSchema']/*[local-name()='UnitPrice']" LinkTo="3" />
+  <Link LinkID="5" LinkFrom="1" LinkTo="/*[local-name()='InvoiceSchema']/*[local-name()='CustomerName']" IsFromFunctoid="true" />
+  <Link LinkID="6" LinkFrom="2" LinkTo="/*[local-name()='InvoiceSchema']/*[local-name()='InvoiceDate']" IsFromFunctoid="true" />
+  <Link LinkID="7" LinkFrom="3" LinkTo="/*[local-name()='InvoiceSchema']/*[local-name()='TotalAmount']" IsFromFunctoid="true" />
+</mapsource>
