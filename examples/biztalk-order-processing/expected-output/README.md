@@ -118,10 +118,10 @@ sql.insert-invoice=INSERT INTO Invoices (CustomerName, InvoiceDate, TotalAmount)
     <artifactId>camel-xslt-saxon-starter</artifactId>
   </dependency>
   
-  <!-- XML Validator (from XMLReceive.btp pipeline) -->
+  <!-- XML Schema Validator (from XMLReceive.btp pipeline) -->
   <dependency>
     <groupId>org.apache.camel.springboot</groupId>
-    <artifactId>camel-xml-jaxp-starter</artifactId>
+    <artifactId>camel-validator-starter</artifactId>
   </dependency>
   
   <!-- SQL Server JDBC driver -->
@@ -193,7 +193,7 @@ The migration requires these Camel components (detected from BizTalk adapter typ
 - `camel-file` - FILE adapter replacement
 - `camel-sql` - SQL adapter replacement  
 - `camel-xslt-saxon` - BizTalk map transformation (XSLT 2.0)
-- `camel-xml-jaxp` - XML validator for pipeline validation stage
+- `camel-validator` - XML schema validation for pipeline stage
 
 ## Configuration Externalization
 
