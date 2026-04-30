@@ -70,7 +70,7 @@ If you already use [Camel JBang](https://camel.apache.org/manual/camel-jbang.htm
 ```bash
 camel plugin add kit \
   --gav io.github.luigidemasi:camel-kit-jbang-plugin:LATEST \
-  -d "Design Apache Camel Integrations with AI"
+  --description "Design Apache Camel Integrations with AI"
 
 # Then use via the camel CLI
 camel kit init my-integration --ai bob
