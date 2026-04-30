@@ -1,27 +1,27 @@
 package io.github.luigidemasi.camelkit.graph.parser;
 
+import java.io.IOException;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.*;
+
+import io.github.luigidemasi.camelkit.graph.ProjectGraph;
+import io.github.luigidemasi.camelkit.graph.model.*;
+
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
-import io.github.luigidemasi.camelkit.graph.ProjectGraph;
-import io.github.luigidemasi.camelkit.graph.model.*;
-
-import java.io.IOException;
-import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.util.*;
 
 public class JavaGraphParser implements GraphParser {
 
     private static final Set<String> CAMEL_PROCESSOR_METHODS = Set.of(
-        "bean", "process", "marshal", "unmarshal", "filter", "split",
-        "aggregate", "enrich", "pollEnrich", "transform", "convertBodyTo",
-        "log", "choice", "multicast", "recipientList", "wireTap",
-        "throttle", "delay", "setHeader", "setBody", "removeHeader"
-    );
+            "bean", "process", "marshal", "unmarshal", "filter", "split",
+            "aggregate", "enrich", "pollEnrich", "transform", "convertBodyTo",
+            "log", "choice", "multicast", "recipientList", "wireTap",
+            "throttle", "delay", "setHeader", "setBody", "removeHeader");
 
     @Override
     public void parse(Path projectRoot, ProjectGraph graph) {
@@ -49,8 +49,8 @@ public class JavaGraphParser implements GraphParser {
             }
             CompilationUnit cu = parseResult.getResult().get();
             String packageName = cu.getPackageDeclaration()
-                .map(pd -> pd.getNameAsString())
-                .orElse("");
+                    .map(pd -> pd.getNameAsString())
+                    .orElse("");
 
             for (ClassOrInterfaceDeclaration classDecl : cu.findAll(ClassOrInterfaceDeclaration.class)) {
                 parseClass(classDecl, packageName, projectRoot, file, graph);
@@ -60,10 +60,12 @@ public class JavaGraphParser implements GraphParser {
         }
     }
 
-    private void parseClass(ClassOrInterfaceDeclaration classDecl, String packageName,
-                            Path projectRoot, Path file, ProjectGraph graph) {
-        String fqcn = packageName.isEmpty() ? classDecl.getNameAsString()
-            : packageName + "." + classDecl.getNameAsString();
+    private void parseClass(
+            ClassOrInterfaceDeclaration classDecl, String packageName,
+            Path projectRoot, Path file, ProjectGraph graph) {
+        String fqcn = packageName.isEmpty()
+                ? classDecl.getNameAsString()
+                : packageName + "." + classDecl.getNameAsString();
         String classNodeId = "class:" + fqcn;
 
         Map<String, String> classProps = new HashMap<>();
@@ -124,23 +126,25 @@ public class JavaGraphParser implements GraphParser {
         }
     }
 
-    private void extractCamelRoutes(MethodDeclaration configureMethod, String classNodeId,
-                                    ProjectGraph graph) {
+    private void extractCamelRoutes(
+            MethodDeclaration configureMethod, String classNodeId,
+            ProjectGraph graph) {
         // Find all from() calls - these are the root of Camel route definitions.
         // In the JavaParser AST for a fluent chain like:
         //   from("kafka:orders").routeId("processOrders").bean(...).to("direct:enrichOrder")
         // the outermost MethodCallExpr is .to(), and from() is nested deep inside as scopes.
         // We find from() calls and then walk UP (through parent nodes) to collect the full chain.
         List<MethodCallExpr> fromCalls = configureMethod.findAll(MethodCallExpr.class,
-            mce -> "from".equals(mce.getNameAsString()) && !mce.getScope().isPresent());
+                mce -> "from".equals(mce.getNameAsString()) && !mce.getScope().isPresent());
 
         for (MethodCallExpr fromCall : fromCalls) {
             extractRouteFromChain(fromCall, classNodeId, graph);
         }
     }
 
-    private void extractRouteFromChain(MethodCallExpr fromCall, String classNodeId,
-                                       ProjectGraph graph) {
+    private void extractRouteFromChain(
+            MethodCallExpr fromCall, String classNodeId,
+            ProjectGraph graph) {
         // Extract the from URI
         String fromUri = extractFirstStringArg(fromCall);
         if (fromUri == null) {
@@ -177,8 +181,9 @@ public class JavaGraphParser implements GraphParser {
 
         // Create from endpoint
         String fromEndpointId = "endpoint:" + fromUri;
-        graph.addNode(new GraphNode(fromEndpointId, NodeType.CAMEL_ENDPOINT,
-            Map.of("uri", fromUri)));
+        graph.addNode(new GraphNode(
+                fromEndpointId, NodeType.CAMEL_ENDPOINT,
+                Map.of("uri", fromUri)));
         graph.addEdge(new GraphEdge(routeNodeId, fromEndpointId, EdgeType.ROUTES_FROM, Map.of()));
 
         // Link route to declaring class
@@ -193,10 +198,12 @@ public class JavaGraphParser implements GraphParser {
                 String toUri = extractFirstStringArg(call);
                 if (toUri != null) {
                     String toEndpointId = "endpoint:" + toUri;
-                    graph.addNode(new GraphNode(toEndpointId, NodeType.CAMEL_ENDPOINT,
-                        Map.of("uri", toUri)));
-                    graph.addEdge(new GraphEdge(routeNodeId, toEndpointId,
-                        EdgeType.ROUTES_TO, Map.of()));
+                    graph.addNode(new GraphNode(
+                            toEndpointId, NodeType.CAMEL_ENDPOINT,
+                            Map.of("uri", toUri)));
+                    graph.addEdge(new GraphEdge(
+                            routeNodeId, toEndpointId,
+                            EdgeType.ROUTES_TO, Map.of()));
                 }
             } else if (CAMEL_PROCESSOR_METHODS.contains(methodName)) {
                 String processorId = "processor:" + routeId + "." + methodName;
@@ -208,19 +215,22 @@ public class JavaGraphParser implements GraphParser {
                     }
                     processorId = processorId + "_" + counter;
                 }
-                graph.addNode(new GraphNode(processorId, NodeType.CAMEL_PROCESSOR,
-                    Map.of("type", methodName)));
-                graph.addEdge(new GraphEdge(routeNodeId, processorId,
-                    EdgeType.PROCESSES, Map.of("order", String.valueOf(processorOrder++))));
+                graph.addNode(new GraphNode(
+                        processorId, NodeType.CAMEL_PROCESSOR,
+                        Map.of("type", methodName)));
+                graph.addEdge(new GraphEdge(
+                        routeNodeId, processorId,
+                        EdgeType.PROCESSES, Map.of("order", String.valueOf(processorOrder++))));
             }
         }
     }
 
     /**
-     * Collects all method calls in a fluent chain starting from the given call,
-     * walking UP through parent MethodCallExpr nodes.
+     * Collects all method calls in a fluent chain starting from the given call, walking UP through parent
+     * MethodCallExpr nodes.
      *
      * In JavaParser's AST, the chain {@code from("x").routeId("y").to("z")} is:
+     *
      * <pre>
      *   to("z") {
      *     scope = routeId("y") {
@@ -229,8 +239,8 @@ public class JavaGraphParser implements GraphParser {
      *   }
      * </pre>
      *
-     * So from() is at the bottom. We walk up by finding parent MethodCallExpr
-     * nodes that contain the current expression as part of their scope chain.
+     * So from() is at the bottom. We walk up by finding parent MethodCallExpr nodes that contain the current expression
+     * as part of their scope chain.
      */
     private List<MethodCallExpr> collectChainCalls(MethodCallExpr fromCall) {
         List<MethodCallExpr> chain = new ArrayList<>();
@@ -264,8 +274,8 @@ public class JavaGraphParser implements GraphParser {
     }
 
     /**
-     * Resolves a type name to a fully qualified name.
-     * For simple names (no dots), assumes same package as the declaring class.
+     * Resolves a type name to a fully qualified name. For simple names (no dots), assumes same package as the declaring
+     * class.
      */
     private String resolveTypeName(ClassOrInterfaceType type, String packageName) {
         String name = type.getNameAsString();

@@ -1,25 +1,30 @@
 package io.github.luigidemasi.camelkit.generator;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import java.nio.file.Files;
-import java.nio.file.Path;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class OpenCodeGeneratorTest {
 
-    @TempDir Path tempDir;
+    @TempDir
+    Path tempDir;
 
     private InitContext createContext() {
         AgentConfig agent = AgentRegistry.get("opencode");
         String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf("/"));
         Path commandsDir = tempDir.resolve(agent.folder());
         Path skillsDir = tempDir.resolve(agentBaseFolder + "/skills");
-        return new InitContext(agent, "opencode", commandsDir, skillsDir, tempDir,
-            "camel-kit", Printer.noop());
+        return new InitContext(
+                agent, "opencode", commandsDir, skillsDir, tempDir,
+                "camel-kit", Printer.noop());
     }
 
     @Test
@@ -57,7 +62,7 @@ class OpenCodeGeneratorTest {
         new OpenCodeGenerator().generate(ctx);
 
         String content = Files.readString(
-            tempDir.resolve(".opencode/agents/brainstormer.md"));
+                tempDir.resolve(".opencode/agents/brainstormer.md"));
         assertTrue(content.contains("edit: deny"));
         assertTrue(content.contains("mode: subagent"));
         assertTrue(content.contains("steps: 20"));
@@ -69,7 +74,7 @@ class OpenCodeGeneratorTest {
         new OpenCodeGenerator().generate(ctx);
 
         String content = Files.readString(
-            tempDir.resolve(".opencode/agents/implementer.md"));
+                tempDir.resolve(".opencode/agents/implementer.md"));
         assertTrue(content.contains("edit: allow"));
         assertTrue(content.contains("\"rm -rf *\": deny"));
         assertTrue(content.contains("steps: 50"));
@@ -81,7 +86,7 @@ class OpenCodeGeneratorTest {
         new OpenCodeGenerator().generate(ctx);
 
         String content = Files.readString(
-            tempDir.resolve(".opencode/agents/tester.md"));
+                tempDir.resolve(".opencode/agents/tester.md"));
         assertTrue(content.contains("\"src/test/**\": allow"));
         assertTrue(content.contains("\"test/**\": allow"));
         assertTrue(content.contains("\"*\": ask"));
@@ -93,7 +98,7 @@ class OpenCodeGeneratorTest {
         new OpenCodeGenerator().generate(ctx);
 
         String content = Files.readString(
-            tempDir.resolve(".opencode/agents/executor.md"));
+                tempDir.resolve(".opencode/agents/executor.md"));
         assertTrue(content.contains("task:"));
         assertTrue(content.contains("\"*\": allow"));
         assertTrue(content.contains("steps: 100"));
@@ -105,7 +110,7 @@ class OpenCodeGeneratorTest {
         new OpenCodeGenerator().generate(ctx);
 
         String content = Files.readString(
-            ctx.commandsDir().resolve("camel-validate.md"));
+                ctx.commandsDir().resolve("camel-validate.md"));
         assertTrue(content.contains("@validator"));
         assertFalse(content.contains("Read .opencode/skills"));
     }
@@ -117,7 +122,7 @@ class OpenCodeGeneratorTest {
 
         // Standard commands without agents keep default content
         String content = Files.readString(
-            ctx.commandsDir().resolve("camel-knowledge.md"));
+                ctx.commandsDir().resolve("camel-knowledge.md"));
         assertTrue(content.contains("Read .opencode/skills"));
 
         // MCP config exists

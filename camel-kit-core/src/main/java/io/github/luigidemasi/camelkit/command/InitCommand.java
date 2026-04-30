@@ -1,10 +1,17 @@
 package io.github.luigidemasi.camelkit.command;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.ZoneId;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
 import io.github.luigidemasi.camelkit.CamelKitMain;
-import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.catalog.CitrusSchemaDownloader;
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
+import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.generator.AgentGeneratorFactory;
 import io.github.luigidemasi.camelkit.generator.InitContext;
 import io.github.luigidemasi.camelkit.generator.QuteTemplateEngine;
@@ -14,16 +21,11 @@ import io.github.luigidemasi.camelkit.output.Printer;
 import io.github.luigidemasi.camelkit.tui.InitTuiView;
 import io.github.luigidemasi.camelkit.tui.TaskTracker;
 import io.github.luigidemasi.camelkit.util.TemplateUtils;
+
 import dev.tamboui.image.capability.TerminalImageCapabilities;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
-
-import java.util.List;
-
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Map;
 
 /**
  * Initialize a new Camel-Kit project.
@@ -61,7 +63,7 @@ public class InitCommand extends CamelKitCommand {
     public List<String> properties;
 
     @Option(names = {"--source-platform"},
-            description = "Source platform for migration graph analysis: mulesoft, camel, auto (default: auto)")
+            description = "Source platform for migration graph analysis: mulesoft, camel, biztalk, auto (default: auto)")
     public String sourcePlatform;
 
     public InitCommand(CamelKitMain main) {
@@ -81,14 +83,16 @@ public class InitCommand extends CamelKitCommand {
 
         // Validate agent and resolve arguments upfront (fast, non-blocking)
         if (!AgentRegistry.contains(ai)) {
-            if (!silent) main.printBanner();
+            if (!silent)
+                main.printBanner();
             printer().println(red("Error: Unknown agent '" + ai + "'"));
             printer().println("Available agents: " + String.join(", ", AgentRegistry.names()));
             return 1;
         }
 
         if (projectName == null && !here) {
-            if (!silent) main.printBanner();
+            if (!silent)
+                main.printBanner();
             printer().println(red("Error: Please provide a project name or use --here"));
             return 1;
         }
@@ -133,8 +137,8 @@ public class InitCommand extends CamelKitCommand {
 
         // Get Citrus version
         String citrusVer = "default".equals(citrusVersion)
-            ? CamelKitMain.DEFAULT_CITRUS_VERSION
-            : citrusVersion;
+                ? CamelKitMain.DEFAULT_CITRUS_VERSION
+                : citrusVersion;
 
         TaskTracker tracker = main.getTaskTracker();
 
@@ -164,9 +168,10 @@ public class InitCommand extends CamelKitCommand {
         tracker.startTask("🤖", "Generating " + agent.name() + " workspace");
         String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf("/"));
         Path agentBaseDir = targetDir.resolve(agent.folder()).getParent();
-        InitContext genCtx = new InitContext(agent, ai, commandsDir,
-            agentBaseDir.resolve("skills"), targetDir,
-            detectCommandPrefix(), printer());
+        InitContext genCtx = new InitContext(
+                agent, ai, commandsDir,
+                agentBaseDir.resolve("skills"), targetDir,
+                detectCommandPrefix(), printer());
         AgentGeneratorFactory.create(ai).generate(genCtx);
         tracker.finishTask();
 
@@ -185,7 +190,7 @@ public class InitCommand extends CamelKitCommand {
                 io.github.luigidemasi.camelkit.graph.GraphSerializer.write(
                         projectGraph, graphFile, targetDir.toAbsolutePath().toString());
                 printer().println(green("✓") + " Project graph: " + projectGraph.nodeCount()
-                        + " nodes, " + projectGraph.edgeCount() + " edges");
+                                  + " nodes, " + projectGraph.edgeCount() + " edges");
 
                 String detected = detectProjectType(projectGraph);
                 if (!detected.isEmpty()) {
@@ -208,9 +213,11 @@ public class InitCommand extends CamelKitCommand {
                 citrusDownloader.fetchCitrusSchemas(citrusVer, false, printer()::println);
                 Path citrusSchemasDir = citrusDownloader.getCitrusSchemasDir(citrusVer);
                 if (Files.exists(citrusSchemasDir)) {
-                    citrusSchemaCount = (int) Files.walk(citrusSchemasDir)
-                        .filter(p -> p.toString().endsWith(".json"))
-                        .count();
+                    try (var paths = Files.walk(citrusSchemasDir)) {
+                        citrusSchemaCount = (int) paths
+                                .filter(p -> p.toString().endsWith(".json"))
+                                .count();
+                    }
                 }
             } catch (Exception e) {
                 printer().println(yellow("  Warning: Could not fetch Citrus schemas: " + e.getMessage()));
@@ -223,7 +230,7 @@ public class InitCommand extends CamelKitCommand {
         printer().print("  " + green("✓") + "  ");
         printer().println(bold(projectName));
         String meta = "     " + agent.name()
-                + (citrusSchemaCount > 0 ? "  \u00b7  " + citrusSchemaCount + " schemas" : "");
+                      + (citrusSchemaCount > 0 ? "  \u00b7  " + citrusSchemaCount + " schemas" : "");
         printer().println(meta);
         printer().println();
 
@@ -232,7 +239,8 @@ public class InitCommand extends CamelKitCommand {
         printer().println("  " + bold("Next steps"));
         printer().println(divider);
         printer().println("  1  Open " + cyan(projectName) + " in " + agent.name());
-        printer().println("  2  " + cyan("/camel-design") + "   \u2014 design an integration (greenfield or migration)");
+        printer()
+                .println("  2  " + cyan("/camel-design") + "   \u2014 design an integration (greenfield or migration)");
         printer().println("     " + cyan("/camel-migrate") + "  \u2014 migration shortcut");
         printer().println("  3  " + cyan("/camel-verify") + "   \u2014 build, run, and diagnose");
         printer().println();
@@ -248,12 +256,24 @@ public class InitCommand extends CamelKitCommand {
             int subFlows = graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.MULE_SUB_FLOW).size();
             int dwl = graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.DATAWEAVE_SCRIPT).size();
             String muleVersion = findMavenProperty(graph, "mule.version");
-            if (muleVersion == null) muleVersion = findMavenProperty(graph, "app.runtime");
-            if (muleVersion == null) muleVersion = findArtifactVersion(graph, "org.mule.runtime", "mule-core");
-            if (muleVersion == null) muleVersion = findArtifactVersion(graph, "org.mule", "mule-core");
+            if (muleVersion == null)
+                muleVersion = findMavenProperty(graph, "app.runtime");
+            if (muleVersion == null)
+                muleVersion = findArtifactVersion(graph, "org.mule.runtime", "mule-core");
+            if (muleVersion == null)
+                muleVersion = findArtifactVersion(graph, "org.mule", "mule-core");
             types.add("MuleSoft Mule" + (muleVersion != null ? " " + muleVersion : "")
-                    + " (" + flows + " flows, " + subFlows + " sub-flows"
-                    + (dwl > 0 ? ", " + dwl + " DataWeave scripts" : "") + ")");
+                      + " (" + flows + " flows, " + subFlows + " sub-flows"
+                      + (dwl > 0 ? ", " + dwl + " DataWeave scripts" : "") + ")");
+        }
+
+        int orchs = graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.BIZTALK_ORCHESTRATION).size();
+        int maps = graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.BIZTALK_MAP).size();
+        int pipelines = graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.BIZTALK_PIPELINE).size();
+        if (orchs > 0 || maps > 0 || pipelines > 0) {
+            types.add("Microsoft BizTalk (" + orchs + " orchestrations"
+                      + (maps > 0 ? ", " + maps + " maps" : "")
+                      + (pipelines > 0 ? ", " + pipelines + " pipelines" : "") + ")");
         }
 
         if (!graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.CAMEL_ROUTE).isEmpty()) {
@@ -261,7 +281,7 @@ public class InitCommand extends CamelKitCommand {
             String camelVersion = detectCamelVersion(graph);
             String platform = detectCamelPlatform(graph);
             types.add(platform + (camelVersion != null ? " " + camelVersion : "")
-                    + " (" + routes + " routes)");
+                      + " (" + routes + " routes)");
         }
 
         if (!graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.MAVEN_ARTIFACT).isEmpty()
@@ -275,14 +295,17 @@ public class InitCommand extends CamelKitCommand {
     private String detectCamelVersion(ProjectGraph graph) {
         // Try Maven property first (most reliable — declared in POM <properties>)
         String version = findMavenProperty(graph, "camel.version");
-        if (version != null) return version;
+        if (version != null)
+            return version;
 
         // Try explicit dependency version
         version = findArtifactVersion(graph, "org.apache.camel", "camel-core");
-        if (version != null) return version;
+        if (version != null)
+            return version;
 
         version = findArtifactVersion(graph, "org.apache.camel", "camel-bom");
-        if (version != null) return version;
+        if (version != null)
+            return version;
 
         // Camel dependencies are "managed" — scan all camel artifacts for any with a real version
         for (var node : graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.MAVEN_ARTIFACT)) {
@@ -344,8 +367,10 @@ public class InitCommand extends CamelKitCommand {
         return null;
     }
 
-    private void createConfigFile(Path dir, String name,
-                                   String ai, AgentConfig agent) throws Exception {
+    private void createConfigFile(
+            Path dir, String name,
+            String ai, AgentConfig agent)
+            throws Exception {
         String cmdPrefix = detectCommandPrefix();
         java.util.Properties config = new java.util.Properties();
         config.setProperty("project.name", name);
@@ -364,7 +389,8 @@ public class InitCommand extends CamelKitCommand {
 
     private String detectCommandPrefix() {
         String cmdLine = ProcessHandle.current().info().commandLine().orElse("");
-        if (cmdLine.contains("camel-kit")) return "camel-kit";
+        if (cmdLine.contains("camel-kit"))
+            return "camel-kit";
         return "camel kit";
     }
 
@@ -375,32 +401,29 @@ public class InitCommand extends CamelKitCommand {
 
         DistributionConfig dist = CamelKitMain.distribution();
         String content = qute.renderString(template, Map.of(
-            "DATE", java.time.LocalDate.now().toString(),
-            "CAMEL_VERSION", dist.camelMainVersion()
-        ));
+                "DATE", java.time.LocalDate.now(ZoneId.systemDefault()).toString(),
+                "CAMEL_VERSION", dist.camelMainVersion()));
         Files.writeString(dir.resolve("constitution.md"), content);
     }
 
-
     private void copyAdditionalTemplates(Path templatesDir) throws Exception {
         String[] additionalTemplates = {
-            "patterns-foundational.md",
-            "patterns-error-handling.md",
-            "patterns-deployment.md",
-            "yaml-structure.md",
-            "yaml-components.md",
-            "yaml-examples.md",
-            "validation-completeness.md",
-            "validation-constitution.md",
-            "validation-testing.md",
-            "flow.md"
+                "patterns-foundational.md",
+                "patterns-error-handling.md",
+                "patterns-deployment.md",
+                "yaml-structure.md",
+                "yaml-components.md",
+                "yaml-examples.md",
+                "validation-completeness.md",
+                "validation-constitution.md",
+                "validation-testing.md",
+                "flow.md"
         };
         for (String template : additionalTemplates) {
             String content = TemplateUtils.readTemplate("templates/" + template);
             Files.writeString(templatesDir.resolve(template), content);
         }
     }
-
 
     private void createMavenWrapper(Path projectDir) throws Exception {
         // Create .mvn/wrapper directory
@@ -409,10 +432,13 @@ public class InitCommand extends CamelKitCommand {
 
         // Create maven-wrapper.properties
         String mavenVersion = "3.9.9";
-        String wrapperProps = """
-            distributionUrl=https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/%s/apache-maven-%s-bin.zip
-            wrapperUrl=https://repo.maven.apache.org/maven2/org/apache/maven/wrapper/maven-wrapper/3.3.2/maven-wrapper-3.3.2.jar
-            """.formatted(mavenVersion, mavenVersion);
+        String wrapperProps
+                = String.format(Locale.ROOT,
+                        """
+                                distributionUrl=https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/%s/apache-maven-%s-bin.zip
+                                wrapperUrl=https://repo.maven.apache.org/maven2/org/apache/maven/wrapper/maven-wrapper/3.3.2/maven-wrapper-3.3.2.jar
+                                """,
+                        mavenVersion, mavenVersion);
         Files.writeString(wrapperDir.resolve("maven-wrapper.properties"), wrapperProps);
 
         // Create mvnw (Unix script)

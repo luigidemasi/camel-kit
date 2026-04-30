@@ -1,10 +1,10 @@
 package io.github.luigidemasi.camelkit.graph;
 
-import io.github.luigidemasi.camelkit.graph.model.*;
-
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+
+import io.github.luigidemasi.camelkit.graph.model.*;
 
 public class ProjectGraph {
 
@@ -37,20 +37,20 @@ public class ProjectGraph {
 
     public List<GraphNode> findByType(NodeType type) {
         return nodes.values().stream()
-            .filter(n -> n.type() == type)
-            .collect(Collectors.toList());
+                .filter(n -> n.type() == type)
+                .collect(Collectors.toList());
     }
 
     public List<GraphEdge> getOutgoingEdges(String nodeId) {
         return edges.stream()
-            .filter(e -> e.from().equals(nodeId))
-            .collect(Collectors.toList());
+                .filter(e -> e.from().equals(nodeId))
+                .collect(Collectors.toList());
     }
 
     public List<GraphEdge> getIncomingEdges(String nodeId) {
         return edges.stream()
-            .filter(e -> e.to().equals(nodeId))
-            .collect(Collectors.toList());
+                .filter(e -> e.to().equals(nodeId))
+                .collect(Collectors.toList());
     }
 
     public int nodeCount() {

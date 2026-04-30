@@ -30,9 +30,11 @@ Present the supported versions for the selected runtime.
 
 | Version | Status |
 |---------|--------|
-| {CAMEL_MAIN_VERSION} | **recommended** (latest) |
+| {CAMEL_MAIN_VERSION} | **recommended** (latest LTS) |
 
 Other supported versions: {CAMEL_MAIN_SUPPORTED}
+
+All listed versions are LTS (Long-Term Support) and receive patch updates.
 
 Default: `{CAMEL_MAIN_VERSION}`
 
@@ -40,9 +42,11 @@ Default: `{CAMEL_MAIN_VERSION}`
 
 | Camel Version | Spring Boot BOM | Status |
 |--------------|----------------|--------|
-| {CAMEL_SPRINGBOOT_VERSION} | {SPRINGBOOT_BOM_VERSION} | **recommended** (latest) |
+| {CAMEL_SPRINGBOOT_VERSION} | {SPRINGBOOT_BOM_VERSION} | **recommended** (latest LTS) |
 
 Other supported versions: {CAMEL_SPRINGBOOT_SUPPORTED}
+
+All listed versions are LTS (Long-Term Support) and receive patch updates.
 
 For Spring Boot, the BOM version equals the Camel version.
 
@@ -52,9 +56,11 @@ Default: `{CAMEL_SPRINGBOOT_VERSION}`
 
 | Camel Version | Quarkus Platform | Status |
 |--------------|-----------------|--------|
-| {CAMEL_QUARKUS_VERSION} | {QUARKUS_PLATFORM_VERSION} | **recommended** (latest) |
+| {CAMEL_QUARKUS_VERSION} | {QUARKUS_PLATFORM_VERSION} | **recommended** (latest LTS) |
 
 Other supported versions: {CAMEL_QUARKUS_SUPPORTED}
+
+All listed versions are LTS (Long-Term Support) and receive patch updates.
 
 **Quarkus platform BOM mapping:**
 

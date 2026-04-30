@@ -1,11 +1,12 @@
 package io.github.luigidemasi.camelkit.graph.parser;
 
+import java.nio.file.Path;
+
 import io.github.luigidemasi.camelkit.graph.ProjectGraph;
 import io.github.luigidemasi.camelkit.graph.model.NodeType;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-
-import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -24,25 +25,25 @@ class DataWeaveParserTest {
     void parsesDataWeaveFile() {
         assertTrue(graph.hasNode("dataweave:transform-order.dwl"));
         assertEquals(NodeType.DATAWEAVE_SCRIPT,
-            graph.getNode("dataweave:transform-order.dwl").type());
+                graph.getNode("dataweave:transform-order.dwl").type());
     }
 
     @Test
     void extractsDwVersion() {
         assertEquals("2.0",
-            graph.getNode("dataweave:transform-order.dwl").properties().get("dwVersion"));
+                graph.getNode("dataweave:transform-order.dwl").properties().get("dwVersion"));
     }
 
     @Test
     void extractsInputType() {
         assertEquals("application/json",
-            graph.getNode("dataweave:transform-order.dwl").properties().get("inputType"));
+                graph.getNode("dataweave:transform-order.dwl").properties().get("inputType"));
     }
 
     @Test
     void extractsOutputType() {
         assertEquals("application/json",
-            graph.getNode("dataweave:transform-order.dwl").properties().get("outputType"));
+                graph.getNode("dataweave:transform-order.dwl").properties().get("outputType"));
     }
 
     @Test

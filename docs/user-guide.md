@@ -331,6 +331,7 @@ Use `/camel-migrate` when you have an existing integration built on another plat
 | MuleSoft Mule | 3.x, 4.x | XML flows, DataWeave transformations, connectors |
 | Apache Camel | 2.x, 3.x | Java DSL, XML DSL, Blueprint |
 | JBoss Fuse | 6.x, 7.x | Fuse-specific configurations and components |
+| Microsoft BizTalk | 3.x, 4.x | Orchestrations (.odx), maps (.btm), pipelines (.btp), bindings (.xml) |
 
 ### Graph-Accelerated Analysis
 
@@ -340,10 +341,38 @@ Previously, only Maven dependencies were captured in the graph for MuleSoft proj
 
 DataWeave `.dwl` files are analyzed for version declarations, input/output content types, function definitions, and field access patterns. This helps identify complex transformations that need manual attention during migration -- multi-function scripts, recursive field access, or format conversions that have no direct XSLT equivalent.
 
-**`--source-platform` flag:** Auto-detection works in most cases (no flag needed). For projects with non-standard layouts, use `--source-platform mulesoft` to explicitly declare the source platform:
+### Graph-Accelerated Analysis for BizTalk
+
+BizTalk migrations now benefit from the project graph. When a project contains BizTalk artifacts, the graph automatically detects them via XML namespace sniffing (`schemas.microsoft.com/BizTalk`) and parses all orchestrations, maps, pipelines, and port bindings. The migration skill gets instant artifact topology -- adapters used per orchestration, map functoid complexity, pipeline component chains, port bindings -- without manual XML deep-dives.
+
+The `BizTalkParser` analyzes:
+- **Orchestrations (.odx files)** -- orchestration shapes (Receive, Send, Decide, Loop, Parallel, Call, Scope, and more)
+- **Maps (.btm files)** -- functoid types (string ops, math, looping, scripting, database lookup, and more)
+- **Pipelines (.btp files)** -- pipeline stages and component chains
+- **Bindings (.xml files)** -- port configurations and adapter types
+
+This helps identify proprietary BizTalk patterns that need manual attention during migration -- scripting functoids, custom pipeline components, WCF-specific configurations.
+
+**BizTalk-to-Camel adapter mapping highlights:**
+
+| BizTalk Adapter | Camel Equivalent | Notes |
+|---|---|---|
+| FILE | `file` | Direct drop-in replacement for file system operations |
+| FTP / FTPS | `ftp` / `ftps` | Connection pooling via Camel configuration |
+| SFTP | `sftp` | SSH key authentication supported |
+| SQL | `sql` / `jdbc` | `sql` for queries, `jdbc` for batch operations |
+| WCF-BasicHttp / WCF-WSHttp | `cxf` | SOAP 1.1/1.2 support via `camel-cxf` |
+| HTTP / HTTPS | `http` / `https` | RESTful endpoint support |
+| MSMQ | `jms` | Map to ActiveMQ or other JMS provider |
+| SMTP / POP3 / IMAP | `mail` | All from `camel-mail` artifact |
+| MQ Series | `jms` | Via IBM MQ JMS bindings |
+| SAP | `sap` | Requires SAP JCo libraries (licensed) |
+
+**`--source-platform` flag:** Auto-detection works in most cases (no flag needed). For projects with non-standard layouts, use `--source-platform {platform}` to explicitly declare the source platform:
 
 ```bash
 camel-kit init my-migration --ai claude --source-platform mulesoft
+camel-kit init my-migration --ai claude --source-platform biztalk
 ```
 
 ### How It Works
@@ -456,7 +485,7 @@ XSLT transformations include Kaoto DataMapper metadata, allowing you to visually
 
 ## 8. Project Graph Analysis
 
-When working with existing projects -- whether migrating from another platform, extending an established codebase, or validating a generated project -- Camel-Kit can build a **property graph** of the entire project structure. The graph captures classes, methods, Camel routes, endpoints, Maven dependencies, configuration properties, and -- for MuleSoft projects -- flows, sub-flows, connectors, endpoints, transforms, error handlers, and DataWeave scripts. Typed edges represent the relationships between nodes (extends, calls, routes-from, routes-to, depends-on, configures, flow-contains, calls-subflow, uses-connector, references-dwl).
+When working with existing projects -- whether migrating from another platform, extending an established codebase, or validating a generated project -- Camel-Kit can build a **property graph** of the entire project structure. The graph captures classes, methods, Camel routes, endpoints, Maven dependencies, configuration properties, and -- for MuleSoft projects -- flows, sub-flows, connectors, endpoints, transforms, error handlers, and DataWeave scripts, and -- for BizTalk projects -- orchestrations, shapes, maps, functoids, pipelines, pipeline components, ports, and adapters. Typed edges represent the relationships between nodes (extends, calls, routes-from, routes-to, depends-on, configures, flow-contains, calls-subflow, uses-connector, references-dwl, biztalk-orchestration-contains, biztalk-uses-map, biztalk-uses-schema, biztalk-calls-orchestration, biztalk-port-binding, biztalk-functoid-chain, biztalk-pipeline-stage).
 
 ### What the Graph Provides
 
@@ -468,6 +497,7 @@ When working with existing projects -- whether migrating from another platform, 
 | **Route topology mapping** | Maps route-to-route connections to determine which routes are independent | Claude uses this to dispatch independent routes to parallel subagents during `/camel-execute` |
 | **Project norm extraction** | Computes statistical norms from the codebase -- naming patterns, error handling coverage, route complexity (P75 step count) | Validation uses project-specific thresholds instead of hardcoded defaults |
 | **MuleSoft flow analysis** | Parses MuleSoft XML configs into graph nodes (flows, sub-flows, connectors, endpoints, transforms, error handlers) and DataWeave scripts | Understanding MuleSoft project structure before migration -- no manual XML deep-dives required |
+| **BizTalk artifact analysis** | Parses BizTalk orchestrations (.odx), maps (.btm), pipelines (.btp), and bindings into graph nodes (orchestrations, shapes, maps, functoids, pipelines, components, ports, adapters) | Understanding BizTalk project structure before migration -- 37 shape types recognized, 45 functoid type mappings |
 
 ### How the Pipeline Uses the Graph
 
@@ -476,7 +506,7 @@ The graph is consumed transparently by multiple skills:
 - **`/camel-validate`** -- Validation thresholds adapt to the project's actual patterns. A route with 15 steps is acceptable in a project where existing routes average 12 steps, but flagged in a project where they average 5. Dead code detection finds unused dependencies and orphaned routes.
 - **`/camel-implement`** -- The AI matches the project's existing conventions (naming patterns, bean reuse, dependency versions) rather than inventing new ones.
 - **`/camel-test`** -- Route topology awareness lets the AI understand upstream and downstream dependencies, generating tests that cover integration points rather than just individual routes.
-- **`/camel-migrate`** -- A full-project graph analysis in Phase 0 detects structural concerns (circular dependencies, deeply nested route chains, unused components) before any code is translated. Per-route impact analysis in Phase 2 identifies cross-cutting concerns for each route being migrated. For MuleSoft projects, the graph automatically parses all Mule XML flows, sub-flows, connectors, and DataWeave scripts -- giving the migration skill instant flow topology without manual XML deep-dives.
+- **`/camel-migrate`** -- A full-project graph analysis in Phase 0 detects structural concerns (circular dependencies, deeply nested route chains, unused components) before any code is translated. Per-route impact analysis in Phase 2 identifies cross-cutting concerns for each route being migrated. For MuleSoft projects, the graph automatically parses all Mule XML flows, sub-flows, connectors, and DataWeave scripts -- giving the migration skill instant flow topology without manual XML deep-dives. For BizTalk projects, the graph parses orchestrations, maps, pipelines, and bindings -- detecting adapters, functoid types, shape patterns, and pipeline components automatically.
 
 ### Graph Commands
 
@@ -500,6 +530,8 @@ camel-kit graph route-topology
 The graph is stored in `.camel-kit/project-graph.json` and rebuilt automatically when relevant commands detect changes. For greenfield projects where no code exists yet, the graph is not generated -- all skills fall back to sensible defaults. The graph **enhances but never gates**: its presence improves output quality, but its absence never blocks the pipeline.
 
 For MuleSoft projects, `graph generate` automatically detects Mule XML files (namespace sniffing for `mulesoft.org/schema/mule`) and parses them using the `MuleXmlFlowParser`. DataWeave `.dwl` files are parsed by the `DataWeaveParser`. No explicit configuration is required -- if the project contains MuleSoft artifacts, they are included in the graph automatically. Use `graph stats` to see MuleSoft-specific node counts (`MULE_FLOW`, `MULE_SUB_FLOW`, `MULE_CONNECTOR`, `MULE_ENDPOINT`, `MULE_PROCESSOR`, `MULE_TRANSFORM`, `MULE_ERROR_HANDLER`, `DATAWEAVE_SCRIPT`).
+
+For BizTalk projects, `graph generate` automatically detects BizTalk artifacts (namespace sniffing for `schemas.microsoft.com/BizTalk`) and parses them using the `BizTalkParser`. Orchestration (.odx), map (.btm), pipeline (.btp), and binding (.xml) files are analyzed. Use `graph stats` to see BizTalk-specific node counts (`BIZTALK_ORCHESTRATION`, `BIZTALK_SHAPE`, `BIZTALK_MAP`, `BIZTALK_FUNCTOID`, `BIZTALK_SCHEMA`, `BIZTALK_PIPELINE`, `BIZTALK_PIPELINE_COMPONENT`, `BIZTALK_PORT`, `BIZTALK_ADAPTER`, `BIZTALK_MESSAGE`).
 
 ---
 

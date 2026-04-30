@@ -1,11 +1,12 @@
 package io.github.luigidemasi.camelkit.graph;
 
-import io.github.luigidemasi.camelkit.graph.model.*;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
 import java.util.Map;
+
+import io.github.luigidemasi.camelkit.graph.model.*;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -20,8 +21,9 @@ class ProjectGraphTest {
 
     @Test
     void addAndRetrieveNode() {
-        GraphNode node = new GraphNode("class:com.example.Foo", NodeType.CLASS,
-            Map.of("name", "Foo"));
+        GraphNode node = new GraphNode(
+                "class:com.example.Foo", NodeType.CLASS,
+                Map.of("name", "Foo"));
         graph.addNode(node);
         assertTrue(graph.hasNode("class:com.example.Foo"));
         assertEquals(node, graph.getNode("class:com.example.Foo"));

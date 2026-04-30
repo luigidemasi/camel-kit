@@ -1,15 +1,16 @@
 package io.github.luigidemasi.camelkit.command.graph;
 
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import io.github.luigidemasi.camelkit.graph.ProjectGraph;
 import io.github.luigidemasi.camelkit.graph.model.GraphNode;
 import io.github.luigidemasi.camelkit.graph.model.NodeType;
 import io.github.luigidemasi.camelkit.graph.query.GraphQuery;
-import picocli.CommandLine.Command;
 
-import java.util.List;
-import java.util.stream.Collectors;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import picocli.CommandLine.Command;
 
 @Command(name = "project-context", description = "Extract project conventions for implementation (composite)")
 public class GraphProjectContextCommand extends GraphQueryCommand {
@@ -33,7 +34,8 @@ public class GraphProjectContextCommand extends GraphQueryCommand {
             ObjectNode o = propsArr.addObject();
             o.put("key", p.properties().getOrDefault("key", p.id()));
             String v = p.properties().getOrDefault("value", "");
-            if (!v.isEmpty()) o.put("value", v);
+            if (!v.isEmpty())
+                o.put("value", v);
         });
         pc.put("namingStyle", underCount > dotCount ? "underscore-separated" : "dot-separated-lowercase");
 
@@ -52,17 +54,18 @@ public class GraphProjectContextCommand extends GraphQueryCommand {
         ObjectNode versions = root.putObject("dependencyVersions");
         artifacts.forEach(a -> versions.put(
                 a.properties().getOrDefault("artifactId", a.id()),
-                a.properties().getOrDefault("version", "unknown")
-        ));
+                a.properties().getOrDefault("version", "unknown")));
 
         // Route directory
         List<GraphNode> resources = query.find(".*\\.camel\\.yaml", NodeType.RESOURCE_FILE);
-        if (resources.isEmpty()) resources = query.find(".*\\.xml", NodeType.RESOURCE_FILE);
+        if (resources.isEmpty())
+            resources = query.find(".*\\.xml", NodeType.RESOURCE_FILE);
         String dir = "src/main/resources/camel";
         if (!resources.isEmpty()) {
             String path = resources.get(0).properties().getOrDefault("path", "");
             int ls = path.lastIndexOf('/');
-            if (ls > 0) dir = path.substring(0, ls);
+            if (ls > 0)
+                dir = path.substring(0, ls);
         }
         root.put("routeDirectory", dir);
 

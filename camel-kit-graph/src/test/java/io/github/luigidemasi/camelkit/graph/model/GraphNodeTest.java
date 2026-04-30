@@ -1,7 +1,9 @@
 package io.github.luigidemasi.camelkit.graph.model;
 
-import org.junit.jupiter.api.Test;
 import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class GraphNodeTest {
@@ -9,13 +11,12 @@ class GraphNodeTest {
     @Test
     void createClassNode() {
         GraphNode node = new GraphNode(
-            "class:com.example.OrderRoute",
-            NodeType.CLASS,
-            Map.of("fqn", "com.example.OrderRoute",
-                   "name", "OrderRoute",
-                   "package", "com.example",
-                   "file", "src/main/java/com/example/OrderRoute.java")
-        );
+                "class:com.example.OrderRoute",
+                NodeType.CLASS,
+                Map.of("fqn", "com.example.OrderRoute",
+                        "name", "OrderRoute",
+                        "package", "com.example",
+                        "file", "src/main/java/com/example/OrderRoute.java"));
 
         assertEquals("class:com.example.OrderRoute", node.id());
         assertEquals(NodeType.CLASS, node.type());
@@ -25,10 +26,9 @@ class GraphNodeTest {
     @Test
     void createEndpointNode() {
         GraphNode node = new GraphNode(
-            "endpoint:kafka:orders",
-            NodeType.CAMEL_ENDPOINT,
-            Map.of("uri", "kafka:orders", "component", "kafka", "scheme", "kafka")
-        );
+                "endpoint:kafka:orders",
+                NodeType.CAMEL_ENDPOINT,
+                Map.of("uri", "kafka:orders", "component", "kafka", "scheme", "kafka"));
 
         assertEquals(NodeType.CAMEL_ENDPOINT, node.type());
         assertEquals("kafka", node.properties().get("component"));

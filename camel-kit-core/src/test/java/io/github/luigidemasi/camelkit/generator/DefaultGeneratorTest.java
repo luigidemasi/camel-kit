@@ -1,25 +1,30 @@
 package io.github.luigidemasi.camelkit.generator;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import java.nio.file.Files;
-import java.nio.file.Path;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class DefaultGeneratorTest {
 
-    @TempDir Path tempDir;
+    @TempDir
+    Path tempDir;
 
     private InitContext createContext(String agentName) {
         AgentConfig agent = AgentRegistry.get(agentName);
         String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf("/"));
         Path commandsDir = tempDir.resolve(agent.folder());
         Path skillsDir = tempDir.resolve(agentBaseFolder + "/skills");
-        return new InitContext(agent, agentName, commandsDir, skillsDir, tempDir,
-            "camel-kit", Printer.noop());
+        return new InitContext(
+                agent, agentName, commandsDir, skillsDir, tempDir,
+                "camel-kit", Printer.noop());
     }
 
     @Test

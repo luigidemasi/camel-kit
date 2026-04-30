@@ -1,11 +1,12 @@
 package io.github.luigidemasi.camelkit.command.graph;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.Map;
+
 import io.github.luigidemasi.camelkit.graph.ProjectGraph;
 import io.github.luigidemasi.camelkit.graph.query.GraphQuery;
-import picocli.CommandLine.Command;
 
-import java.util.Map;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import picocli.CommandLine.Command;
 
 @Command(name = "stats", description = "Show node and edge counts by type")
 public class GraphStatsCommand extends GraphQueryCommand {

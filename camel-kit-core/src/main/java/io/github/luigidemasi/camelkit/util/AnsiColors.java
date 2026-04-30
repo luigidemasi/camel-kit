@@ -7,7 +7,7 @@ public final class AnsiColors {
 
     // Camel brand colors (gradient from yellow to brown)
     public static final int[] CAMEL_GRADIENT = {
-        0xF4AF23, 0xEC7826, 0xD4691A, 0xB86B1B, 0x995B35, 0x7A4A2A
+            0xF4AF23, 0xEC7826, 0xD4691A, 0xB86B1B, 0x995B35, 0x7A4A2A
     };
 
     private static final String RESET = "\u001B[0m";

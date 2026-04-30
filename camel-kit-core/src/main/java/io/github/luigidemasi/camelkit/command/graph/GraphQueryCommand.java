@@ -1,14 +1,15 @@
 package io.github.luigidemasi.camelkit.command.graph;
 
-import io.github.luigidemasi.camelkit.graph.GraphSerializer;
-import io.github.luigidemasi.camelkit.graph.ProjectGraph;
-import picocli.CommandLine;
-import picocli.CommandLine.Option;
-
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
+
+import io.github.luigidemasi.camelkit.graph.GraphSerializer;
+import io.github.luigidemasi.camelkit.graph.ProjectGraph;
+
+import picocli.CommandLine;
+import picocli.CommandLine.Option;
 
 public abstract class GraphQueryCommand implements Callable<Integer> {
 

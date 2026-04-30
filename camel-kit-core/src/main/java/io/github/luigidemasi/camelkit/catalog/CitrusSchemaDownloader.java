@@ -1,19 +1,20 @@
 package io.github.luigidemasi.camelkit.catalog;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.io.InputStream;
 import java.net.URI;
-import java.util.function.Consumer;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Locale;
+import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Downloads and caches Citrus JSON schemas from Maven Central.
@@ -30,19 +31,18 @@ public class CitrusSchemaDownloader {
     public CitrusSchemaDownloader(Path cacheDir) {
         this.cacheDir = cacheDir;
         this.httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .followRedirects(HttpClient.Redirect.NORMAL)
-            .build();
+                .connectTimeout(Duration.ofSeconds(10))
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .build();
         this.mapper = new ObjectMapper();
     }
 
     /**
-     * Fetch Citrus schemas for a specific version.
-     * Downloads from Maven Central and extracts JSON schemas.
+     * Fetch Citrus schemas for a specific version. Downloads from Maven Central and extracts JSON schemas.
      *
-     * @param version Citrus version (e.g., "4.9.2")
-     * @param forceRefresh force re-download even if cached
-     * @return the index.json content
+     * @param  version      Citrus version (e.g., "4.9.2")
+     * @param  forceRefresh force re-download even if cached
+     * @return              the index.json content
      */
     public JsonNode fetchCitrusSchemas(String version, boolean forceRefresh) throws Exception {
         return fetchCitrusSchemas(version, forceRefresh, System.out::println);
@@ -59,19 +59,20 @@ public class CitrusSchemaDownloader {
         Files.createDirectories(citrusDir);
 
         // Download citrus-catalog-schema JAR
-        String jarUrl = String.format("%s/org/citrusframework/citrus-catalog-schema/%s/citrus-catalog-schema-%s.jar",
-            MAVEN_CENTRAL, version, version);
+        String jarUrl = String.format(Locale.ROOT,
+                "%s/org/citrusframework/citrus-catalog-schema/%s/citrus-catalog-schema-%s.jar",
+                MAVEN_CENTRAL, version, version);
 
         log.accept("  Downloading Citrus schemas for version " + version + "...");
 
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(jarUrl))
-            .timeout(TIMEOUT)
-            .GET()
-            .build();
+                .uri(URI.create(jarUrl))
+                .timeout(TIMEOUT)
+                .GET()
+                .build();
 
         HttpResponse<InputStream> response = httpClient.send(request,
-            HttpResponse.BodyHandlers.ofInputStream());
+                HttpResponse.BodyHandlers.ofInputStream());
 
         if (response.statusCode() != 200) {
             throw new RuntimeException("Failed to download Citrus schemas: HTTP " + response.statusCode());

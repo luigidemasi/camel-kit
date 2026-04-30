@@ -1,16 +1,16 @@
 package io.github.luigidemasi.camelkit.plan;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 /**
- * Parses implementation plan markdown to extract tasks and their file lists,
- * builds a dependency graph based on shared files, and computes parallel execution waves.
+ * Parses implementation plan markdown to extract tasks and their file lists, builds a dependency graph based on shared
+ * files, and computes parallel execution waves.
  */
 public class PlanAnalyzer {
 
@@ -27,12 +27,14 @@ public class PlanAnalyzer {
     /**
      * A task extracted from the plan, with its number, name, and list of files.
      */
-    public record TaskInfo(int number, String name, List<String> files) {}
+    public record TaskInfo(int number, String name, List<String> files) {
+    }
 
     /**
      * A wave of tasks that can be executed in parallel.
      */
-    public record Wave(int waveNumber, List<Integer> taskNumbers) {}
+    public record Wave(int waveNumber, List<Integer> taskNumbers) {
+    }
 
     /**
      * Parses task headers and their file lists from plan markdown.
@@ -85,8 +87,8 @@ public class PlanAnalyzer {
     }
 
     /**
-     * Finds dependencies between tasks based on shared files.
-     * A later task depends on an earlier task if they share any file.
+     * Finds dependencies between tasks based on shared files. A later task depends on an earlier task if they share any
+     * file.
      *
      * @return map from task number to list of dependency task numbers
      */
@@ -122,9 +124,8 @@ public class PlanAnalyzer {
     }
 
     /**
-     * Computes parallel execution waves using topological sort.
-     * Wave 1: tasks with no dependencies.
-     * Wave N: tasks whose dependencies are all in waves 1..N-1.
+     * Computes parallel execution waves using topological sort. Wave 1: tasks with no dependencies. Wave N: tasks whose
+     * dependencies are all in waves 1..N-1.
      */
     public List<Wave> computeWaves(List<TaskInfo> tasks) {
         Map<Integer, List<Integer>> deps = findDependencies(tasks);
@@ -140,7 +141,8 @@ public class PlanAnalyzer {
             List<Integer> currentWave = new ArrayList<>();
 
             for (int taskNum : allTaskNumbers) {
-                if (assigned.contains(taskNum)) continue;
+                if (assigned.contains(taskNum))
+                    continue;
 
                 List<Integer> taskDeps = deps.getOrDefault(taskNum, List.of());
                 if (assigned.containsAll(taskDeps)) {
@@ -187,8 +189,8 @@ public class PlanAnalyzer {
             wave.taskNumbers().forEach(tasksArr::add);
 
             ArrayNode namesArr = waveNode.putArray("taskNames");
-            wave.taskNumbers().forEach(n ->
-                    namesArr.add("Task " + n + ": " + namesByNumber.getOrDefault(n, "Unknown")));
+            wave.taskNumbers()
+                    .forEach(n -> namesArr.add("Task " + n + ": " + namesByNumber.getOrDefault(n, "Unknown")));
         }
 
         // Dependencies

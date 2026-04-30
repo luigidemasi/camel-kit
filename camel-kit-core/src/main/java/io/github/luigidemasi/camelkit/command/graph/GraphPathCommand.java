@@ -1,21 +1,27 @@
 package io.github.luigidemasi.camelkit.command.graph;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.List;
+
 import io.github.luigidemasi.camelkit.graph.ProjectGraph;
 import io.github.luigidemasi.camelkit.graph.model.GraphNode;
 import io.github.luigidemasi.camelkit.graph.query.GraphQuery;
+
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
-import java.util.List;
 
 @Command(name = "path", description = "Find shortest path between two nodes")
 public class GraphPathCommand extends GraphQueryCommand {
-    @Parameters(index = "0") String fromId;
-    @Parameters(index = "1") String toId;
-    @Option(names = {"--max-depth"}, defaultValue = "5") int maxDepth;
+    @Parameters(index = "0")
+    String fromId;
+    @Parameters(index = "1")
+    String toId;
+    @Option(names = {"--max-depth"}, defaultValue = "5")
+    int maxDepth;
 
-    @Override protected String execute(ProjectGraph graph) {
+    @Override
+    protected String execute(ProjectGraph graph) {
         List<GraphNode> path = new GraphQuery(graph).path(fromId, toId, maxDepth);
         ObjectNode root = GraphJsonWriter.createObject();
         if (path.isEmpty()) {

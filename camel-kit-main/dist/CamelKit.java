@@ -9,8 +9,7 @@ package main;
 import io.github.luigidemasi.camelkit.CamelKitMain;
 
 /**
- * JBang entry point for Camel-Kit CLI.
- * Design Apache Camel integrations with AI coding assistants.
+ * JBang entry point for Camel-Kit CLI. Design Apache Camel integrations with AI coding assistants.
  */
 public class CamelKit {
 

@@ -4,16 +4,18 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 import java.util.Properties;
 
 /**
  * Configuration loaded from distribution.properties with cascading overrides.
  *
- * <p>Resolution order (highest priority first):
+ * <p>
+ * Resolution order (highest priority first):
  * <ol>
- *   <li>CLI {@code -p key=value} overrides</li>
- *   <li>User config file ({@code -c path} or {@code ~/.camel-kit/config.properties})</li>
- *   <li>Built-in distribution.properties (from JAR classpath)</li>
+ * <li>CLI {@code -p key=value} overrides</li>
+ * <li>User config file ({@code -c path} or {@code ~/.camel-kit/config.properties})</li>
+ * <li>Built-in distribution.properties (from JAR classpath)</li>
  * </ol>
  */
 public class DistributionConfig {
@@ -58,9 +60,9 @@ public class DistributionConfig {
     /**
      * Load with cascading overrides: built-in defaults -> user config file -> CLI properties.
      *
-     * @param configFile  path to user config file, or null to use default (~/.camel-kit/config.properties)
-     * @param cliProperties  CLI -p overrides as "key=value" strings, or null/empty
-     * @return merged configuration
+     * @param  configFile    path to user config file, or null to use default (~/.camel-kit/config.properties)
+     * @param  cliProperties CLI -p overrides as "key=value" strings, or null/empty
+     * @return               merged configuration
      */
     public static DistributionConfig loadWithOverrides(Path configFile, List<String> cliProperties) {
         // Layer 1: built-in defaults from classpath
@@ -84,9 +86,10 @@ public class DistributionConfig {
                     props.setProperty(key, userProps.getProperty(key));
                     overrides++;
                 }
-                System.out.printf("  Config: %s (%d overrides)%n", userConfig, userProps.size());
+                System.out.printf(Locale.ROOT, "  Config: %s (%d overrides)%n", userConfig, userProps.size());
             } catch (Exception e) {
-                System.out.printf("  WARN: Failed to load config from %s: %s%n", userConfig, e.getMessage());
+                System.out.printf(Locale.ROOT, "  WARN: Failed to load config from %s: %s%n", userConfig,
+                        e.getMessage());
             }
         }
 
@@ -129,25 +132,66 @@ public class DistributionConfig {
     }
 
     /**
-     * Looks up the Quarkus platform BOM version for a given Camel Quarkus version.
-     * Falls back to the default {@link #quarkusPlatformVersion()} if no mapping is found.
+     * Looks up the Quarkus platform BOM version for a given Camel Quarkus version. Falls back to the default
+     * {@link #quarkusPlatformVersion()} if no mapping is found.
      */
     public String quarkusPlatformForVersion(String camelVersion) {
         return rawProps.getProperty("quarkus.platform." + camelVersion, quarkusPlatformVersion);
     }
 
-    public String camelMainVersion() { return camelMainVersion; }
-    public String camelSpringbootVersion() { return camelSpringbootVersion; }
-    public String camelQuarkusVersion() { return camelQuarkusVersion; }
-    public String springbootBomVersion() { return springbootBomVersion; }
-    public String quarkusPlatformVersion() { return quarkusPlatformVersion; }
-    public String camelMainSupported() { return camelMainSupported; }
-    public String camelSpringbootSupported() { return camelSpringbootSupported; }
-    public String camelQuarkusSupported() { return camelQuarkusSupported; }
-    public String camelMcpVersion() { return camelMcpVersion; }
-    public String knowledgeMcpVersion() { return knowledgeMcpVersion; }
-    public String camelMcpRepos() { return camelMcpRepos; }
-    public String knowledgeMcpRepos() { return knowledgeMcpRepos; }
-    public String camelCatalogRepos() { return camelCatalogRepos; }
-    public int overrideCount() { return overrideCount; }
+    public String camelMainVersion() {
+        return camelMainVersion;
+    }
+
+    public String camelSpringbootVersion() {
+        return camelSpringbootVersion;
+    }
+
+    public String camelQuarkusVersion() {
+        return camelQuarkusVersion;
+    }
+
+    public String springbootBomVersion() {
+        return springbootBomVersion;
+    }
+
+    public String quarkusPlatformVersion() {
+        return quarkusPlatformVersion;
+    }
+
+    public String camelMainSupported() {
+        return camelMainSupported;
+    }
+
+    public String camelSpringbootSupported() {
+        return camelSpringbootSupported;
+    }
+
+    public String camelQuarkusSupported() {
+        return camelQuarkusSupported;
+    }
+
+    public String camelMcpVersion() {
+        return camelMcpVersion;
+    }
+
+    public String knowledgeMcpVersion() {
+        return knowledgeMcpVersion;
+    }
+
+    public String camelMcpRepos() {
+        return camelMcpRepos;
+    }
+
+    public String knowledgeMcpRepos() {
+        return knowledgeMcpRepos;
+    }
+
+    public String camelCatalogRepos() {
+        return camelCatalogRepos;
+    }
+
+    public int overrideCount() {
+        return overrideCount;
+    }
 }

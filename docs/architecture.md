@@ -76,6 +76,7 @@ Shared guides live at `camel-kit-core/src/main/resources/skills/shared/` and are
 | `mcp-setup.md` | MCP version mapping and connection parameters |
 | `graph-availability.md` | Graph MCP server availability detection |
 | `mulesoft-graph.md` | MuleSoft graph node types and auto-detection |
+| `biztalk-phase1.md`, `biztalk-phase2.md`, `biztalk-component-mapping.md`, `biztalk-map-conversion.md`, `biztalk-expression-mapping.md`, `biztalk-pipeline-mapping.md` | BizTalk migration guides (adapter mappings, orchestration shape to EIP, functoid to Camel patterns, pipeline component mapping) |
 | `yaml-structure.md` | YAML DSL structure rules and Kaoto compatibility |
 | `yaml-components.md` | Component URI syntax and parameter rules |
 | `yaml-examples.md` | Reference YAML patterns for common integrations |
@@ -87,7 +88,7 @@ Shared guides live at `camel-kit-core/src/main/resources/skills/shared/` and are
 
 The `camel-kit-graph` module builds a property graph of the project structure by running a set of parsers over the project's source files. Each parser produces typed nodes and edges that the graph consumers (validation, implementation, testing, migration) can query.
 
-**8 parsers** are registered in `GraphBuilder`:
+**9 parsers** are registered in `GraphBuilder`:
 
 | Parser | What It Parses | Node Types |
 |--------|---------------|------------|
@@ -99,6 +100,7 @@ The `camel-kit-graph` module builds a property graph of the project structure by
 | `OpenApiParser` | `openapi.yaml`, `openapi.json` | `OPENAPI_OPERATION` |
 | `MuleXmlFlowParser` | MuleSoft XML configs (`*.xml` with `mulesoft.org/schema/mule` namespace) | `MULE_FLOW`, `MULE_SUB_FLOW`, `MULE_CONNECTOR`, `MULE_ENDPOINT`, `MULE_PROCESSOR`, `MULE_TRANSFORM`, `MULE_ERROR_HANDLER` |
 | `DataWeaveParser` | `.dwl` files | `DATAWEAVE_SCRIPT` |
+| `BizTalkParser` | BizTalk artifacts (`.odx`, `.btm`, `.btp`, binding `.xml`) | `BIZTALK_ORCHESTRATION`, `BIZTALK_SHAPE`, `BIZTALK_MAP`, `BIZTALK_FUNCTOID`, `BIZTALK_SCHEMA`, `BIZTALK_PIPELINE`, `BIZTALK_PIPELINE_COMPONENT`, `BIZTALK_PORT`, `BIZTALK_ADAPTER`, `BIZTALK_MESSAGE` (hybrid parser delegating to 4 internal StAX-based parsers) |
 
 **MuleSoft-specific edge types:**
 
@@ -109,11 +111,25 @@ The `camel-kit-graph` module builds a property graph of the project structure by
 | `MULE_USES_CONNECTOR` | A flow element uses a connector configuration |
 | `MULE_REFERENCES_DWL` | A transform step references an external DataWeave script |
 
-**Auto-detection:** When the graph builder encounters an XML file, it checks for the `mulesoft.org/schema/mule` namespace. If present, the file is routed to `MuleXmlFlowParser` instead of `CamelRouteParser`. No explicit configuration is required -- if the project contains MuleSoft XML files, they are parsed automatically.
+**BizTalk-specific edge types:**
 
-**`--source-platform` flag:** For cases where auto-detection needs hinting (e.g., the project has non-standard file layouts), `camel-kit init --source-platform mulesoft` explicitly declares the source platform.
+| Edge Type | Meaning |
+|-----------|---------|
+| `BIZTALK_ORCHESTRATION_CONTAINS` | Orchestration contains shape, port, or message |
+| `BIZTALK_USES_MAP` | Transform shape uses a BizTalk map |
+| `BIZTALK_USES_SCHEMA` | Message or map references an XSD schema |
+| `BIZTALK_CALLS_ORCHESTRATION` | Call/start shape invokes another orchestration |
+| `BIZTALK_PORT_BINDING` | Port uses adapter configuration |
+| `BIZTALK_FUNCTOID_CHAIN` | Map contains functoid |
+| `BIZTALK_PIPELINE_STAGE` | Pipeline contains component |
+
+**Auto-detection:** When the graph builder encounters an XML file, it checks for the `mulesoft.org/schema/mule` namespace. If present, the file is routed to `MuleXmlFlowParser` instead of `CamelRouteParser`. For BizTalk projects, the builder checks for the `schemas.microsoft.com/BizTalk` namespace and file extensions (`.odx`, `.btm`, `.btp`). If detected, files are routed to `BizTalkParser`. No explicit configuration is required -- if the project contains MuleSoft or BizTalk artifacts, they are parsed automatically.
+
+**`--source-platform` flag:** For cases where auto-detection needs hinting (e.g., the project has non-standard file layouts), `camel-kit init --source-platform mulesoft` or `camel-kit init --source-platform biztalk` explicitly declares the source platform.
 
 **DataWeave analysis:** The `DataWeaveParser` extracts version declarations, input/output content types, function definitions, and field access patterns from `.dwl` files. This helps the migration skill identify complex transformations that may need manual attention -- multi-function scripts, recursive field access, or format conversions that have no direct XSLT equivalent.
+
+**BizTalk parser architecture:** The `BizTalkParser` is a hybrid parser that delegates to 4 internal StAX-based parsers (`BizTalkOdxParser`, `BizTalkBtmParser`, `BizTalkBtpParser`, `BizTalkBindingParser`) based on file extension and content. StAX was chosen over DOM to handle large orchestration files efficiently (streaming parse instead of full in-memory tree). The parser recognizes 37 orchestration shape types (Receive, Send, Decide, Loop, Parallel, Call, Scope, etc.) and 45 functoid type mappings (string ops, math, looping, scripting, database lookup).
 
 ---
 

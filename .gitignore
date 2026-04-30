@@ -1,4 +1,5 @@
 .claude
+.backlog/
 .venv
 __pycache__/
 *.py[codz]

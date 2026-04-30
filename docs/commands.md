@@ -48,7 +48,7 @@ camel-kit init --here [options]
 | `--no-fetch` | `false` | Skip external catalog fetching |
 | `-p`, `--property` | -- | Override a config property (repeatable). Example: `-p "camel.version=4.18.0"` |
 | `-c`, `--config` | `~/.camel-kit/config.properties` | Path to a custom config properties file |
-| `--source-platform` | `auto` | Source platform for migration: `mulesoft`, `camel`, `auto` |
+| `--source-platform` | `auto` | Source platform for migration: `mulesoft`, `camel`, `biztalk`, `auto` |
 | `--silent` | `false` | Suppress all output (no banner, no TUI, no progress, no summary) -- useful for CI/scripted environments |
 
 **Examples:**
@@ -86,6 +86,9 @@ camel-kit init my-integration --ai claude -c /path/to/my-config.properties
 
 # Explicitly declare MuleSoft source platform
 camel-kit init my-integration --ai claude --source-platform mulesoft
+
+# Explicitly declare BizTalk source platform
+camel-kit init my-integration --ai claude --source-platform biztalk
 
 # Skip catalog fetch (faster)
 camel-kit init my-integration --ai bob --no-fetch
@@ -287,7 +290,7 @@ During execution, `/camel-execute` dispatches these internal skills as needed. T
 
 **Purpose:** Migrate an existing integration from another platform to Apache Camel.
 
-**When to use:** When you have an existing MuleSoft, Camel 2.x/3.x, or JBoss Fuse project to migrate.
+**When to use:** When you have an existing MuleSoft, Camel 2.x/3.x, JBoss Fuse, or BizTalk project to migrate.
 
 **Produces:** Same as `/camel-brainstorm` -- BRD and TDD files, plus a design spec tailored to the migration.
 
@@ -304,6 +307,7 @@ During execution, `/camel-execute` dispatches these internal skills as needed. T
 | MuleSoft Mule | 3.x, 4.x | XML namespace `mulesoft.org`, `pom.xml` groupId `org.mule` / `com.mulesoft` |
 | Apache Camel | 2.x, 3.x | `pom.xml` with `org.apache.camel` dependencies (older version) |
 | JBoss Fuse | 6.x, 7.x | `pom.xml` with `org.jboss.fuse` or `fuse-` BOMs |
+| Microsoft BizTalk | 3.x, 4.x | XML namespace `schemas.microsoft.com/BizTalk`, `.odx` / `.btm` / `.btp` files |
 
 **Graph-accelerated analysis:**
 
@@ -362,6 +366,16 @@ After both phases, the pipeline continues the same as greenfield: version select
 | ServiceNow | `camel-servicenow` (check API coverage) |
 
 For connectors with no direct equivalent, the command stops and asks the user before proceeding.
+
+**BizTalk-to-Camel adapter mapping highlights:**
+
+| BizTalk Adapter | Camel Equivalent | Notes |
+|---|---|---|
+| FILE | `file` | Direct drop-in replacement |
+| FTP / FTPS | `ftp` / `ftps` | Connection pooling supported |
+| SFTP | `sftp` | SSH key authentication |
+| SQL | `sql` / `jdbc` | `sql` for queries, `jdbc` for batch |
+| WCF-BasicHttp | `cxf` | SOAP 1.1/1.2 support |
 
 ---
 

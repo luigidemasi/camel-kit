@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Document xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" PolicyFilePath="BTSReceivePolicy.xml" MajorVersion="1" MinorVersion="0">
+  <Description>XML Receive Pipeline</Description>
+  <CategoryId>f66b9f5e-43ff-4f5f-ba46-885348ae1b4e</CategoryId>
+  <FriendlyName>XMLReceive</FriendlyName>
+  <Stages>
+    <Stage CategoryId="9d0e4103-4cce-4536-83fa-4a5040674ad6" ExecutionMode="All">
+      <Components>
+        <Component Name="Microsoft.BizTalk.Component.XmlDasmComp" ComponentName="XML disassembler" Version="1.0" Description="Streaming XML disassembler">
+          <Properties>
+            <Property Name="ValidateDocument">
+              <Value xsi:type="xsd:string">True</Value>
+            </Property>
+          </Properties>
+        </Component>
+      </Components>
+    </Stage>
+    <Stage CategoryId="9d0e4107-4cce-4536-83fa-4a5040674ad6" ExecutionMode="All">
+      <Components>
+        <Component Name="Microsoft.BizTalk.Component.XmlValidator" ComponentName="XML validator" Version="1.0" Description="XML validator component">
+          <Properties />
+        </Component>
+      </Components>
+    </Stage>
+  </Stages>
+</Document>

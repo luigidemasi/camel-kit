@@ -2,6 +2,7 @@ package io.github.luigidemasi.camelkit.jbang;
 
 import org.apache.camel.dsl.jbang.core.commands.CamelCommand;
 import org.apache.camel.dsl.jbang.core.commands.CamelJBangMain;
+
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 

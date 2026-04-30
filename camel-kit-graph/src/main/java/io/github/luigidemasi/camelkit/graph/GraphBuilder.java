@@ -1,35 +1,35 @@
 package io.github.luigidemasi.camelkit.graph;
 
-import io.github.luigidemasi.camelkit.graph.parser.*;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.*;
 
+import io.github.luigidemasi.camelkit.graph.parser.*;
+
 public class GraphBuilder {
 
     private final List<GraphParser> parsers = List.of(
-        new JavaGraphParser(),
-        new GroovyGraphParser(),
-        new XmlRouteParser(),
-        new MuleXmlFlowParser(),
-        new DataWeaveParser(),
-        new YamlRouteParser(),
-        new PomParser(),
-        new ConfigParser()
-    );
+            new JavaGraphParser(),
+            new GroovyGraphParser(),
+            new XmlRouteParser(),
+            new MuleXmlFlowParser(),
+            new DataWeaveParser(),
+            new BizTalkParser(),
+            new YamlRouteParser(),
+            new PomParser(),
+            new ConfigParser());
 
     public ProjectGraph build(Path projectRoot) {
         ProjectGraph graph = new ProjectGraph();
 
         ExecutorService executor = Executors.newFixedThreadPool(
-            Math.min(parsers.size(), Runtime.getRuntime().availableProcessors()));
+                Math.min(parsers.size(), Runtime.getRuntime().availableProcessors()));
         try {
             List<Future<?>> futures = parsers.stream()
-                .<Future<?>>map(parser -> executor.submit(() -> parser.parse(projectRoot, graph)))
-                .toList();
+                    .<Future<?>>map(parser -> executor.submit(() -> parser.parse(projectRoot, graph)))
+                    .toList();
 
             for (Future<?> future : futures) {
                 try {

@@ -1,22 +1,28 @@
 package io.github.luigidemasi.camelkit.command.graph;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.List;
+
 import io.github.luigidemasi.camelkit.graph.model.GraphEdge;
 import io.github.luigidemasi.camelkit.graph.model.GraphNode;
 
-import java.util.List;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 public final class GraphJsonWriter {
 
     static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private GraphJsonWriter() {}
+    private GraphJsonWriter() {
+    }
 
-    public static ObjectNode createObject() { return MAPPER.createObjectNode(); }
+    public static ObjectNode createObject() {
+        return MAPPER.createObjectNode();
+    }
 
-    public static ArrayNode createArray() { return MAPPER.createArrayNode(); }
+    public static ArrayNode createArray() {
+        return MAPPER.createArrayNode();
+    }
 
     public static ObjectNode nodeToJson(GraphNode node) {
         ObjectNode json = MAPPER.createObjectNode();

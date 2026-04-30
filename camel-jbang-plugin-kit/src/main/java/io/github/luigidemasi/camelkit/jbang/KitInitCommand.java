@@ -1,15 +1,17 @@
 package io.github.luigidemasi.camelkit.jbang;
 
-import io.github.luigidemasi.camelkit.CamelKitMain;
-import io.github.luigidemasi.camelkit.command.InitCommand;
+import java.nio.file.Path;
+import java.util.List;
+
 import org.apache.camel.dsl.jbang.core.commands.CamelCommand;
 import org.apache.camel.dsl.jbang.core.commands.CamelJBangMain;
+
+import io.github.luigidemasi.camelkit.CamelKitMain;
+import io.github.luigidemasi.camelkit.command.InitCommand;
+
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
-
-import java.nio.file.Path;
-import java.util.List;
 
 /**
  * Adapter command for `camel kit init` - delegates to camel-kit-core InitCommand
@@ -47,7 +49,7 @@ public class KitInitCommand extends CamelCommand {
     List<String> properties;
 
     @Option(names = {"--source-platform"},
-            description = "Source platform for migration graph analysis: mulesoft, camel, auto (default: auto)")
+            description = "Source platform for migration graph analysis: mulesoft, camel, biztalk, auto (default: auto)")
     String sourcePlatform;
 
     public KitInitCommand(CamelJBangMain main) {

@@ -1,10 +1,5 @@
 package io.github.luigidemasi.camelkit.generator;
 
-import io.github.luigidemasi.camelkit.CamelKitMain;
-import io.github.luigidemasi.camelkit.config.DistributionConfig;
-import io.github.luigidemasi.camelkit.util.AnsiColors;
-import io.github.luigidemasi.camelkit.util.TemplateUtils;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -16,7 +11,13 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+
+import io.github.luigidemasi.camelkit.CamelKitMain;
+import io.github.luigidemasi.camelkit.config.DistributionConfig;
+import io.github.luigidemasi.camelkit.util.AnsiColors;
+import io.github.luigidemasi.camelkit.util.TemplateUtils;
 
 public class DefaultGenerator implements AgentGenerator {
     @Override
@@ -31,16 +32,17 @@ public class DefaultGenerator implements AgentGenerator {
 
     private void generateAgentsMd(InitContext ctx) throws Exception {
         QuteTemplateEngine qute = new QuteTemplateEngine();
-        Map<String, Object> data = new java.util.HashMap<>(Map.of(
-            "COMMAND_PREFIX", ctx.commandPrefix()
-        ));
+        Map<String, Object> data = new java.util.HashMap<>(
+                Map.of(
+                        "COMMAND_PREFIX", ctx.commandPrefix()));
         String content = qute.render("templates/shared/agents-md.md", data);
         Files.writeString(ctx.projectDir().resolve("AGENTS.md"), content);
         ctx.printer().println(AnsiColors.green("✓") + " Generated AGENTS.md with skill routing and iron laws");
     }
 
     private void createCommandTemplates(InitContext ctx) throws Exception {
-        List<String> commands = List.of("brainstorm", "flow", "plan", "execute", "verify", "validate", "migrate", "knowledge");
+        List<String> commands
+                = List.of("brainstorm", "flow", "plan", "execute", "verify", "validate", "migrate", "knowledge");
 
         // Extract agent base folder (e.g., ".bob" from ".bob/commands")
         String agentBaseFolder = ctx.agent().folder().substring(0, ctx.agent().folder().lastIndexOf("/"));
@@ -49,7 +51,8 @@ public class DefaultGenerator implements AgentGenerator {
             String skillName = "camel-" + cmd;
 
             // Create reference to skill file
-            String content = "Read " + agentBaseFolder + "/skills/" + skillName + "/SKILL.md and follow those instructions";
+            String content
+                    = "Read " + agentBaseFolder + "/skills/" + skillName + "/SKILL.md and follow those instructions";
 
             // Wrap in TOML format if needed
             if ("toml".equals(ctx.agent().fileFormat())) {
@@ -66,13 +69,13 @@ public class DefaultGenerator implements AgentGenerator {
     private String wrapInToml(String cmd, String content) {
         // Escape triple quotes for TOML
         String escaped = content.replace("\"\"\"", "\\\"\\\"\\\"");
-        return """
-            description = "Camel-Kit %s command"
+        return String.format(Locale.ROOT, """
+                description = "Camel-Kit %s command"
 
-            prompt = \"\"\"
-            %s
-            \"\"\"
-            """.formatted(cmd, escaped);
+                prompt = \"\"\"
+                %s
+                \"\"\"
+                """, cmd, escaped);
     }
 
     private void copySkills(InitContext ctx) throws Exception {
@@ -151,13 +154,15 @@ public class DefaultGenerator implements AgentGenerator {
 
             // Count copied skills (directories only)
             int skillCount = (int) Files.list(ctx.skillsDir())
-                .filter(Files::isDirectory)
-                .count();
+                    .filter(Files::isDirectory)
+                    .count();
 
             if (filesCopied > 0) {
-                ctx.printer().println(AnsiColors.green("✓") + " Copied " + filesCopied + " files in " + skillCount + " skill folders");
+                ctx.printer().println(AnsiColors.green("✓") + " Copied " + filesCopied + " files in " + skillCount
+                                      + " skill folders");
             } else {
-                ctx.printer().println(AnsiColors.yellow("  No skills copied (this is normal - skills are embedded in command files)"));
+                ctx.printer().println(AnsiColors
+                        .yellow("  No skills copied (this is normal - skills are embedded in command files)"));
             }
 
         } finally {
@@ -173,8 +178,8 @@ public class DefaultGenerator implements AgentGenerator {
     }
 
     /**
-     * Append the platform-specific dispatch block to a SKILL.md file.
-     * Reads the dispatch template for the selected agent and appends it.
+     * Append the platform-specific dispatch block to a SKILL.md file. Reads the dispatch template for the selected
+     * agent and appends it.
      */
     private void appendDispatchBlock(Path skillMdFile, String agentName) throws Exception {
         String dispatchTemplatePath = "templates/dispatch/" + agentName + ".md";
@@ -198,7 +203,7 @@ public class DefaultGenerator implements AgentGenerator {
             String templatePath;
             Path configFile;
 
-            switch (ctx.agentName().toLowerCase()) {
+            switch (ctx.agentName().toLowerCase(Locale.ROOT)) {
                 case "claude" -> {
                     templatePath = "templates/mcp-configs/claude-code-mcp.json";
                     configFile = ctx.projectDir().resolve(".mcp.json");
@@ -231,7 +236,8 @@ public class DefaultGenerator implements AgentGenerator {
                     agentName = "OpenCode";
                 }
                 default -> {
-                    ctx.printer().println(AnsiColors.yellow("  Warning: Unknown agent '" + ctx.agentName() + "', skipping MCP config"));
+                    ctx.printer().println(AnsiColors
+                            .yellow("  Warning: Unknown agent '" + ctx.agentName() + "', skipping MCP config"));
                     return;
                 }
             }
@@ -239,13 +245,13 @@ public class DefaultGenerator implements AgentGenerator {
             QuteTemplateEngine qute = new QuteTemplateEngine();
             String template = TemplateUtils.readTemplate(templatePath);
             DistributionConfig dist = CamelKitMain.distribution();
-            Map<String, Object> templateData = new java.util.HashMap<>(Map.of(
-                "CAMEL_MCP_VERSION", CamelKitMain.CAMEL_MCP_VERSION,
-                "KNOWLEDGE_VERSION", CamelKitMain.KNOWLEDGE_MCP_VERSION,
-                "CAMEL_MCP_REPOS", camelMcpRepos,
-                "KNOWLEDGE_MCP_REPOS", knowledgeMcpRepos,
-                "CAMEL_CATALOG_REPOS", CamelKitMain.CAMEL_CATALOG_REPOS
-            ));
+            Map<String, Object> templateData = new java.util.HashMap<>(
+                    Map.of(
+                            "CAMEL_MCP_VERSION", CamelKitMain.CAMEL_MCP_VERSION,
+                            "KNOWLEDGE_VERSION", CamelKitMain.KNOWLEDGE_MCP_VERSION,
+                            "CAMEL_MCP_REPOS", camelMcpRepos,
+                            "KNOWLEDGE_MCP_REPOS", knowledgeMcpRepos,
+                            "CAMEL_CATALOG_REPOS", CamelKitMain.CAMEL_CATALOG_REPOS));
             templateData.put("CAMEL_VERSION", dist.camelMainVersion());
             templateData.put("CAMEL_MAIN_VERSION", dist.camelMainVersion());
             templateData.put("CAMEL_SPRINGBOOT_VERSION", dist.camelSpringbootVersion());
@@ -258,14 +264,13 @@ public class DefaultGenerator implements AgentGenerator {
 
             String knowledgeToolPrefix = "camel_docs_";
             String knowledgeToolsJson = String.join(", ",
-                "\"" + knowledgeToolPrefix + "component_info\"",
-                "\"" + knowledgeToolPrefix + "search\"",
-                "\"" + knowledgeToolPrefix + "jira_lookup\"",
-                "\"" + knowledgeToolPrefix + "cve_search\"",
-                "\"" + knowledgeToolPrefix + "bugfix_search\"",
-                "\"" + knowledgeToolPrefix + "release_info\"",
-                "\"" + knowledgeToolPrefix + "supported_configs\""
-            );
+                    "\"" + knowledgeToolPrefix + "component_info\"",
+                    "\"" + knowledgeToolPrefix + "search\"",
+                    "\"" + knowledgeToolPrefix + "jira_lookup\"",
+                    "\"" + knowledgeToolPrefix + "cve_search\"",
+                    "\"" + knowledgeToolPrefix + "bugfix_search\"",
+                    "\"" + knowledgeToolPrefix + "release_info\"",
+                    "\"" + knowledgeToolPrefix + "supported_configs\"");
             templateData.put("KNOWLEDGE_TOOLS_JSON", knowledgeToolsJson);
 
             String knowledgeDescription = "camel-kit Knowledge Server - documentation search for Apache Camel";

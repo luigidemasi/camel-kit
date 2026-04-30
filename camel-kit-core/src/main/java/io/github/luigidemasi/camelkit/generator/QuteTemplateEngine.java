@@ -1,12 +1,12 @@
 package io.github.luigidemasi.camelkit.generator;
 
-import io.quarkus.qute.Engine;
-import io.quarkus.qute.Template;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+
+import io.quarkus.qute.Engine;
+import io.quarkus.qute.Template;
 
 public class QuteTemplateEngine {
 

@@ -12,8 +12,13 @@ public interface TaskTracker {
     /** No-op implementation used in normal (non-TUI) mode. */
     static TaskTracker noop() {
         return new TaskTracker() {
-            @Override public void startTask(String emoji, String label) {}
-            @Override public void finishTask() {}
+            @Override
+            public void startTask(String emoji, String label) {
+            }
+
+            @Override
+            public void finishTask() {
+            }
         };
     }
 }

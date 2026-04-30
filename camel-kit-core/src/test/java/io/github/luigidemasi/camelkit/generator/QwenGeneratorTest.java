@@ -1,25 +1,30 @@
 package io.github.luigidemasi.camelkit.generator;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import java.nio.file.Files;
-import java.nio.file.Path;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class QwenGeneratorTest {
 
-    @TempDir Path tempDir;
+    @TempDir
+    Path tempDir;
 
     private InitContext createContext() {
         AgentConfig agent = AgentRegistry.get("qwen");
         String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf("/"));
         Path commandsDir = tempDir.resolve(agent.folder());
         Path skillsDir = tempDir.resolve(agentBaseFolder + "/skills");
-        return new InitContext(agent, "qwen", commandsDir, skillsDir, tempDir,
-            "camel-kit", Printer.noop());
+        return new InitContext(
+                agent, "qwen", commandsDir, skillsDir, tempDir,
+                "camel-kit", Printer.noop());
     }
 
     @Test
@@ -73,7 +78,7 @@ class QwenGeneratorTest {
         new QwenGenerator().generate(ctx);
 
         String content = Files.readString(
-            tempDir.resolve(".qwen/agents/camel-brainstormer.md"));
+                tempDir.resolve(".qwen/agents/camel-brainstormer.md"));
         assertTrue(content.contains("MUST BE USED"));
         assertTrue(content.contains("discovering integration requirements"));
     }
@@ -84,7 +89,7 @@ class QwenGeneratorTest {
         new QwenGenerator().generate(ctx);
 
         String content = Files.readString(
-            tempDir.resolve(".qwen/agents/camel-validator.md"));
+                tempDir.resolve(".qwen/agents/camel-validator.md"));
         assertTrue(content.contains("read_file"));
         assertTrue(content.contains("grep_search"));
         assertFalse(content.contains("write_file"));
@@ -97,7 +102,7 @@ class QwenGeneratorTest {
         new QwenGenerator().generate(ctx);
 
         String content = Files.readString(
-            tempDir.resolve(".qwen/agents/camel-implementer.md"));
+                tempDir.resolve(".qwen/agents/camel-implementer.md"));
         assertFalse(content.contains("tools:"));
     }
 
@@ -107,7 +112,7 @@ class QwenGeneratorTest {
         new QwenGenerator().generate(ctx);
 
         String content = Files.readString(
-            ctx.commandsDir().resolve("camel-validate.md"));
+                ctx.commandsDir().resolve("camel-validate.md"));
         assertTrue(content.contains("Delegate to the camel-validator sub-agent"));
         assertFalse(content.contains("Read .qwen/skills"));
     }
@@ -119,7 +124,7 @@ class QwenGeneratorTest {
 
         // Standard commands without sub-agents keep default content
         String content = Files.readString(
-            ctx.commandsDir().resolve("camel-knowledge.md"));
+                ctx.commandsDir().resolve("camel-knowledge.md"));
         assertTrue(content.contains("Read .qwen/skills"));
 
         // MCP config exists

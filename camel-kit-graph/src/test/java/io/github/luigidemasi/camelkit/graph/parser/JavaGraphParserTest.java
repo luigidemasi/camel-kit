@@ -1,12 +1,13 @@
 package io.github.luigidemasi.camelkit.graph.parser;
 
-import io.github.luigidemasi.camelkit.graph.ProjectGraph;
-import io.github.luigidemasi.camelkit.graph.model.*;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-
 import java.nio.file.Path;
 import java.util.List;
+
+import io.github.luigidemasi.camelkit.graph.ProjectGraph;
+import io.github.luigidemasi.camelkit.graph.model.*;
+
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -31,8 +32,8 @@ class JavaGraphParserTest {
     @Test
     void parsesInheritance() {
         List<GraphEdge> extendsEdges = graph.getOutgoingEdges("class:com.example.OrderRoute").stream()
-            .filter(e -> e.type() == EdgeType.EXTENDS)
-            .toList();
+                .filter(e -> e.type() == EdgeType.EXTENDS)
+                .toList();
         assertEquals(1, extendsEdges.size());
         assertEquals("class:com.example.BaseRoute", extendsEdges.get(0).to());
     }
@@ -46,8 +47,8 @@ class JavaGraphParserTest {
     @Test
     void createsDeclareEdges() {
         List<GraphEdge> declareEdges = graph.getOutgoingEdges("class:com.example.OrderProcessor").stream()
-            .filter(e -> e.type() == EdgeType.DECLARES)
-            .toList();
+                .filter(e -> e.type() == EdgeType.DECLARES)
+                .toList();
         assertTrue(declareEdges.size() >= 2);
     }
 
@@ -55,7 +56,7 @@ class JavaGraphParserTest {
     void parsesJavaDslRoutes() {
         assertTrue(graph.hasNode("route:processOrders"));
         assertEquals("kafka:orders",
-            graph.getNode("route:processOrders").properties().get("fromUri"));
+                graph.getNode("route:processOrders").properties().get("fromUri"));
     }
 
     @Test
@@ -68,8 +69,8 @@ class JavaGraphParserTest {
     @Test
     void createsRoutesFromEdges() {
         List<GraphEdge> routesFrom = graph.getOutgoingEdges("route:processOrders").stream()
-            .filter(e -> e.type() == EdgeType.ROUTES_FROM)
-            .toList();
+                .filter(e -> e.type() == EdgeType.ROUTES_FROM)
+                .toList();
         assertEquals(1, routesFrom.size());
         assertEquals("endpoint:kafka:orders", routesFrom.get(0).to());
     }
@@ -77,8 +78,8 @@ class JavaGraphParserTest {
     @Test
     void createsRoutesToEdges() {
         List<GraphEdge> routesTo = graph.getOutgoingEdges("route:processOrders").stream()
-            .filter(e -> e.type() == EdgeType.ROUTES_TO)
-            .toList();
+                .filter(e -> e.type() == EdgeType.ROUTES_TO)
+                .toList();
         assertEquals(1, routesTo.size());
         assertEquals("endpoint:direct:enrichOrder", routesTo.get(0).to());
     }
@@ -92,8 +93,9 @@ class JavaGraphParserTest {
     @Test
     void enrichRouteHasCorrectEndpoints() {
         List<GraphEdge> routesTo = graph.getOutgoingEdges("route:enrichOrder").stream()
-            .filter(e -> e.type() == EdgeType.ROUTES_TO)
-            .toList();
-        assertTrue(routesTo.size() >= 2, "enrichOrder route should have at least 2 endpoints (log:enriched and seda:storeOrder)");
+                .filter(e -> e.type() == EdgeType.ROUTES_TO)
+                .toList();
+        assertTrue(routesTo.size() >= 2,
+                "enrichOrder route should have at least 2 endpoints (log:enriched and seda:storeOrder)");
     }
 }

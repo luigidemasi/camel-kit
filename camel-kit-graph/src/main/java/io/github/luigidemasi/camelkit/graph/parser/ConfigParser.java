@@ -1,13 +1,13 @@
 package io.github.luigidemasi.camelkit.graph.parser;
 
-import io.github.luigidemasi.camelkit.graph.ProjectGraph;
-import io.github.luigidemasi.camelkit.graph.model.*;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
+
+import io.github.luigidemasi.camelkit.graph.ProjectGraph;
+import io.github.luigidemasi.camelkit.graph.model.*;
 
 public class ConfigParser implements GraphParser {
 
@@ -61,7 +61,7 @@ public class ConfigParser implements GraphParser {
     private String extractProfile(String fileName) {
         if (fileName.startsWith("application-") && fileName.endsWith(".properties")) {
             return fileName.substring("application-".length(),
-                fileName.length() - ".properties".length());
+                    fileName.length() - ".properties".length());
         }
         return null;
     }

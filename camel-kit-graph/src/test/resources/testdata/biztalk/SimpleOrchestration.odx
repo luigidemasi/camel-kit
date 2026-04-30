@@ -1,0 +1,84 @@
+#if __DESIGNER_DATA
+#error Do not define __DESIGNER_DATA.
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<om:MetaModel MajorVersion="1" MinorVersion="3" Core="2b131234-7959-458d-834f-2dc0769ce683" ScheduleModel="66366196-361d-448d-976f-cab5e87496d2" xmlns:om="http://schemas.microsoft.com/BizTalk/2003/DesignerData">
+    <om:Element Type="Module" OID="18fa1db3-2e14-4674-981e-1a9e576ef635" LowerBound="1.1" HigherBound="33.1">
+        <om:Property Name="ReportToAnalyst" Value="True" />
+        <om:Property Name="Name" Value="MyApp.Orchestrations" />
+        <om:Property Name="Signal" Value="False" />
+        <om:Element Type="PortType" OID="port-type-001" LowerBound="3.1" HigherBound="8.1">
+            <om:Property Name="Name" Value="ReceivePortType" />
+            <om:Property Name="Modifier" Value="Internal" />
+            <om:Element Type="OperationDeclaration" OID="op-001" LowerBound="4.1" HigherBound="7.1">
+                <om:Property Name="Name" Value="Operation_1" />
+                <om:Property Name="OperationType" Value="OneWay" />
+                <om:Element Type="MessageRef" OID="msgref-001" LowerBound="5.1" HigherBound="6.1">
+                    <om:Property Name="Name" Value="Request" />
+                    <om:Property Name="Ref" Value="MyApp.Schemas.OrderSchema" />
+                    <om:Property Name="Direction" Value="In" />
+                </om:Element>
+            </om:Element>
+        </om:Element>
+        <om:Element Type="ServiceDeclaration" OID="svc-001" LowerBound="14.1" HigherBound="32.1">
+            <om:Property Name="Name" Value="OrderProcessOrchestration" />
+            <om:Property Name="Signal" Value="False" />
+            <om:Element Type="MessageDeclaration" OID="msg-001" LowerBound="15.1" HigherBound="16.1">
+                <om:Property Name="Name" Value="OrderMsg" />
+                <om:Property Name="Type" Value="MyApp.Schemas.OrderSchema" />
+                <om:Property Name="Direction" Value="In" />
+            </om:Element>
+            <om:Element Type="MessageDeclaration" OID="msg-002" LowerBound="16.1" HigherBound="17.1">
+                <om:Property Name="Name" Value="InvoiceMsg" />
+                <om:Property Name="Type" Value="MyApp.Schemas.InvoiceSchema" />
+                <om:Property Name="Direction" Value="Out" />
+            </om:Element>
+            <om:Element Type="PortDeclaration" OID="port-001" LowerBound="17.1" HigherBound="18.1">
+                <om:Property Name="Name" Value="ReceivePort" />
+                <om:Property Name="PortType" Value="ReceivePortType" />
+                <om:Property Name="Direction" Value="Receive" />
+                <om:Property Name="Binding" Value="Physical" />
+                <om:Property Name="Adapter" Value="FILE" />
+                <om:Property Name="Address" Value="C:\Orders\In" />
+            </om:Element>
+            <om:Element Type="PortDeclaration" OID="port-002" LowerBound="18.1" HigherBound="19.1">
+                <om:Property Name="Name" Value="SendPort" />
+                <om:Property Name="PortType" Value="SendPortType" />
+                <om:Property Name="Direction" Value="Send" />
+                <om:Property Name="Binding" Value="Physical" />
+                <om:Property Name="Adapter" Value="SQL" />
+                <om:Property Name="Address" Value="mssql://localhost/InvoiceDB" />
+            </om:Element>
+            <om:Element Type="ServiceBody" OID="body-001" LowerBound="19.1" HigherBound="31.1">
+                <om:Element Type="Receive" OID="shape-001" LowerBound="20.1" HigherBound="21.1">
+                    <om:Property Name="Name" Value="ReceiveOrder" />
+                    <om:Property Name="Activate" Value="True" />
+                    <om:Property Name="PortName" Value="ReceivePort" />
+                    <om:Property Name="MessageName" Value="OrderMsg" />
+                    <om:Property Name="OperationName" Value="Operation_1" />
+                </om:Element>
+                <om:Element Type="Decide" OID="shape-002" LowerBound="21.1" HigherBound="27.1">
+                    <om:Property Name="Name" Value="CheckOrderType" />
+                    <om:Property Name="Expression" Value="OrderMsg(MyApp.Schemas.OrderSchema.OrderType) == &quot;Priority&quot;" />
+                </om:Element>
+                <om:Element Type="Construct" OID="shape-004" LowerBound="22.5" HigherBound="23.5">
+                    <om:Property Name="Name" Value="ConstructInvoice" />
+                    <om:Property Name="MessagesConstructed" Value="InvoiceMsg" />
+                    <om:Element Type="Transform" OID="shape-005" LowerBound="22.8" HigherBound="23.2">
+                        <om:Property Name="Name" Value="MapOrderToInvoice" />
+                        <om:Property Name="ClassName" Value="MyApp.Maps.OrderToInvoice" />
+                        <om:Property Name="InputMessages" Value="OrderMsg" />
+                        <om:Property Name="OutputMessages" Value="InvoiceMsg" />
+                    </om:Element>
+                </om:Element>
+                <om:Element Type="Send" OID="shape-008" LowerBound="27.1" HigherBound="28.1">
+                    <om:Property Name="Name" Value="SendInvoice" />
+                    <om:Property Name="PortName" Value="SendPort" />
+                    <om:Property Name="MessageName" Value="InvoiceMsg" />
+                    <om:Property Name="OperationName" Value="Operation_1" />
+                </om:Element>
+            </om:Element>
+        </om:Element>
+    </om:Element>
+</om:MetaModel>
+#endif
+__DESIGNER_DATA binary content follows...

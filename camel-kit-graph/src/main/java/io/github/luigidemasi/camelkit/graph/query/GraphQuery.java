@@ -1,11 +1,11 @@
 package io.github.luigidemasi.camelkit.graph.query;
 
-import io.github.luigidemasi.camelkit.graph.ProjectGraph;
-import io.github.luigidemasi.camelkit.graph.model.*;
-
 import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import io.github.luigidemasi.camelkit.graph.ProjectGraph;
+import io.github.luigidemasi.camelkit.graph.model.*;
 
 public class GraphQuery {
 
@@ -13,44 +13,46 @@ public class GraphQuery {
 
     private final ProjectGraph graph;
 
-    public record NeighborResult(List<GraphNode> nodes, List<GraphEdge> edges) {}
-    public record SubgraphResult(List<GraphNode> nodes, List<GraphEdge> edges) {}
+    public record NeighborResult(List<GraphNode> nodes, List<GraphEdge> edges) {
+    }
+
+    public record SubgraphResult(List<GraphNode> nodes, List<GraphEdge> edges) {
+    }
 
     public GraphQuery(ProjectGraph graph) {
         this.graph = graph;
     }
 
     /**
-     * Regex match on node id, name, or fqn properties.
-     * Returns matching nodes, capped at 50.
+     * Regex match on node id, name, or fqn properties. Returns matching nodes, capped at 50.
      */
     public List<GraphNode> find(String query, NodeType typeFilter) {
         Pattern pattern = Pattern.compile(query);
         // First pass: exact match on name or fqn properties
         List<GraphNode> byProperty = graph.getNodes().values().stream()
-            .filter(node -> typeFilter == null || node.type() == typeFilter)
-            .filter(node -> {
-                String name = node.properties().get("name");
-                if (name != null && pattern.matcher(name).matches()) return true;
-                String fqn = node.properties().get("fqn");
-                return fqn != null && pattern.matcher(fqn).matches();
-            })
-            .limit(MAX_RESULTS)
-            .collect(Collectors.toList());
+                .filter(node -> typeFilter == null || node.type() == typeFilter)
+                .filter(node -> {
+                    String name = node.properties().get("name");
+                    if (name != null && pattern.matcher(name).matches())
+                        return true;
+                    String fqn = node.properties().get("fqn");
+                    return fqn != null && pattern.matcher(fqn).matches();
+                })
+                .limit(MAX_RESULTS)
+                .collect(Collectors.toList());
         if (!byProperty.isEmpty()) {
             return byProperty;
         }
         // Second pass: substring search on node id
         return graph.getNodes().values().stream()
-            .filter(node -> typeFilter == null || node.type() == typeFilter)
-            .filter(node -> pattern.matcher(node.id()).find())
-            .limit(MAX_RESULTS)
-            .collect(Collectors.toList());
+                .filter(node -> typeFilter == null || node.type() == typeFilter)
+                .filter(node -> pattern.matcher(node.id()).find())
+                .limit(MAX_RESULTS)
+                .collect(Collectors.toList());
     }
 
     /**
-     * BFS from nodeId following edges in given direction.
-     * direction: "out", "in", or "both".
+     * BFS from nodeId following edges in given direction. direction: "out", "in", or "both".
      */
     public NeighborResult neighbors(String nodeId, String direction, EdgeType edgeType, int depth) {
         Set<String> visited = new LinkedHashSet<>();
@@ -64,11 +66,13 @@ public class GraphQuery {
         while (!frontier.isEmpty()) {
             String current = frontier.poll();
             int currentDepth = depthMap.get(current);
-            if (currentDepth >= depth) continue;
+            if (currentDepth >= depth)
+                continue;
 
             List<GraphEdge> adjacent = getEdges(current, direction);
             for (GraphEdge edge : adjacent) {
-                if (edgeType != null && edge.type() != edgeType) continue;
+                if (edgeType != null && edge.type() != edgeType)
+                    continue;
 
                 String neighbor = edge.from().equals(current) ? edge.to() : edge.from();
                 collectedEdges.add(edge);
@@ -84,16 +88,15 @@ public class GraphQuery {
         }
 
         List<GraphNode> nodes = visited.stream()
-            .map(graph::getNode)
-            .filter(Objects::nonNull)
-            .collect(Collectors.toList());
+                .map(graph::getNode)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
 
         return new NeighborResult(nodes, collectedEdges);
     }
 
     /**
-     * BFS shortest path from fromId to toId.
-     * Returns list of nodes in order, or empty list if no path found.
+     * BFS shortest path from fromId to toId. Returns list of nodes in order, or empty list if no path found.
      */
     public List<GraphNode> path(String fromId, String toId, int maxDepth) {
         if (fromId.equals(toId)) {
@@ -168,8 +171,7 @@ public class GraphQuery {
     }
 
     /**
-     * Transitive closure in given direction.
-     * Returns all affected nodes, capped at 50.
+     * Transitive closure in given direction. Returns all affected nodes, capped at 50.
      */
     public List<GraphNode> impact(String nodeId, String direction) {
         String bfsDirection = "downstream".equals(direction) ? "out" : "in";
@@ -191,10 +193,10 @@ public class GraphQuery {
         }
 
         return visited.stream()
-            .map(graph::getNode)
-            .filter(Objects::nonNull)
-            .limit(MAX_RESULTS)
-            .collect(Collectors.toList());
+                .map(graph::getNode)
+                .filter(Objects::nonNull)
+                .limit(MAX_RESULTS)
+                .collect(Collectors.toList());
     }
 
     private List<GraphEdge> getEdges(String nodeId, String direction) {
@@ -206,7 +208,8 @@ public class GraphQuery {
                 all.addAll(graph.getIncomingEdges(nodeId));
                 yield all;
             }
-            default -> throw new IllegalArgumentException("Invalid direction: " + direction + ". Use 'out', 'in', or 'both'.");
+            default ->
+                throw new IllegalArgumentException("Invalid direction: " + direction + ". Use 'out', 'in', or 'both'.");
         };
     }
 
