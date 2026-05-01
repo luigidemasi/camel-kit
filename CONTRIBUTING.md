@@ -111,7 +111,13 @@ camel-kit/
 │           ├── claude/          # Anthropic Claude Code
 │           ├── gemini/          # Google Gemini CLI
 │           ├── qwen/            # Qwen
-│           └── opencode/        # OpenCode
+n│           ├── opencode/        # OpenCode
+│           └── traits/          # Agent-specific trait files (appended to skills at init)
+│               ├── claude/      # Claude Code traits
+│               ├── gemini/      # Gemini CLI traits
+│               ├── bob/         # IBM Bob traits
+│               ├── qwen/        # Qwen traits
+│               └── opencode/    # OpenCode traits
 ├── camel-jbang-plugin-kit/      # Camel JBang plugin
 ├── camel-kit-graph/             # Project graph analysis (9 parsers)
 │   │   # Parsers: JavaClassParser, CamelRouteParser, MavenPomParser,
@@ -371,6 +377,21 @@ Each guide in `guides/` is a self-contained markdown file loaded by the agent wh
 - Update `docs/commands.md` if user-invocable
 
 See [Architecture Guide](docs/architecture.md#9-how-to-add-a-skill) for the full process.
+
+### 5. Add Agent Traits (Optional)
+
+If the skill benefits from agent-specific optimizations (parallel dispatch, tool-specific guidance, state management), add trait files:
+
+```
+templates/traits/{agent}/{skill-name}.append.md          # SKILL.md-level trait
+templates/traits/{agent}/{skill-name}/{guide-name}.append.md  # Guide-level trait
+```
+
+Traits are appended to the corresponding skill files during `camel-kit init` with idempotent sentinels. Each trait should contain instructions specific to that agent's tools and capabilities — not generic content that belongs in the shared skill.
+
+To register a new SKILL.md-level trait, add the skill name to the `skillNames` list in `DefaultGenerator.applyTraits()`. For guide-level traits, add the guide name to the `guideNames` list in `DefaultGenerator.applyGuideTraits()`.
+
+See [Architecture Guide](docs/architecture.md#agent-traits) for details on the trait system.
 
 ## Release Process
 

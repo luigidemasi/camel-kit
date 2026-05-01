@@ -288,6 +288,25 @@ All five agents receive the same skills (markdown instruction files). The templa
 - Parallelization strategy (only Claude supports parallel subagent dispatch)
 - Configuration format (YAML modes, TOML policies, markdown frontmatter)
 
+### Agent Traits
+
+Traits are agent-specific instruction fragments that are appended to shared skill files during `camel-kit init`. They bridge the gap between the equalization layer (identical skills) and the per-agent template layer (different dispatch models).
+
+**Location:** `camel-kit-core/src/main/resources/templates/traits/{agent}/`
+
+**How it works:** During `camel-kit init --ai {agent}`, `DefaultGenerator.applyTraits()` scans the traits directory for the selected agent and appends each `.append.md` file to the corresponding skill file. Idempotent HTML comment sentinels (`<!-- TRAIT:{agent} -->` / `<!-- /TRAIT:{agent} -->`) prevent duplicate application on re-init.
+
+**Two granularity levels:**
+
+| Level | Path Pattern | Appended To |
+|-------|-------------|-------------|
+| SKILL.md-level (strategy) | `traits/{agent}/{skill-name}.append.md` | `{skills-dir}/{skill-name}/SKILL.md` |
+| Guide-level (tactics) | `traits/{agent}/{skill-name}/{guide-name}.append.md` | `{skills-dir}/{skill-name}/guides/{guide-name}.md` |
+
+**Example:** `traits/claude/camel-execute.append.md` appends Claude-specific instructions to `camel-execute/SKILL.md` -- parallel subagent dispatch via the `Agent` tool, worktree isolation via `EnterWorktree`, build health monitoring via `CronCreate`. The same skill on Gemini gets different trait content: named agent delegation, TOML policy guidance, batch context loading via `read_many_files`.
+
+**What traits contain:** Agent-specific tool usage, dispatch strategies, state persistence mechanisms, and execution optimizations. Each trait is written for the specific agent's capabilities -- Claude traits reference `Agent`, `ScheduleWakeup`, `TaskCreate`; Gemini traits reference `save_memory`, `read_many_files`; Bob traits reference `switch_mode`, `insert_content`.
+
 ### Iron Laws
 
 The five Iron Laws from `skills/shared/iron-laws.md` are embedded in each agent's instruction file:
