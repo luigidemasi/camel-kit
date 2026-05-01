@@ -1,8 +1,8 @@
 ## Agent Optimization: OpenCode
 
-### Build Agent Type
+### Implementer Permissions
 
-When constructing the implementer subagent, specify the `Build` agent type. This agent type is optimized for code generation tasks — it has higher edit and bash permissions than the default.
+Configure the implementer subagent with full `edit` and `bash` permissions (matching the built-in Build primary agent's capabilities). Agent template frontmatter supports: `name`, `mode`, `description`, `steps`, and `permission.*` fields — agent type cannot be set at the template level.
 
 ### Step Limit
 

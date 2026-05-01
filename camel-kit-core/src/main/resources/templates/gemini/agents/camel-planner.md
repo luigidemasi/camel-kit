@@ -3,7 +3,7 @@ name: camel-planner
 tools:
   - read_file
   - glob
-  - grep
+  - grep_search
   - mcp_camel_*
 max_turns: 25
 timeout_mins: 10

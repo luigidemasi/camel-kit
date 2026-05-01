@@ -122,10 +122,9 @@ class DefaultGeneratorTest {
         new ClaudeGenerator().generate(ctx);
 
         Path implementerGuide = ctx.skillsDir().resolve("camel-execute/guides/implementer-context.md");
-        if (Files.exists(implementerGuide)) {
-            String content = Files.readString(implementerGuide);
-            assertTrue(content.length() > 0, "Guide should have content");
-        }
+        assertTrue(Files.exists(implementerGuide), "Guide-level trait should create implementer-context.md");
+        String content = Files.readString(implementerGuide);
+        assertTrue(content.length() > 0, "Guide should have content");
     }
 
     @Test

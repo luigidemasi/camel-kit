@@ -10,11 +10,11 @@ Set `steps` limits on each subagent to prevent runaway execution:
 
 If a subagent hits its step limit, report a warning and continue to the next task.
 
-### Strategic Agent Type Selection
+### Strategic Agent Selection
 
-OpenCode provides built-in agent types. Map task types to optimal agents:
+OpenCode provides two primary agents (`Build` for code generation, `Plan` for analysis) and two subagent types (`General` for multi-step tasks, `Explore` for read-only codebase search). When dispatching subagents:
 
-- Implementation tasks: use `Build` agent type (optimized for code generation)
-- Plan analysis: use `Plan` agent type (optimized for structured planning)
-- Review tasks: use `General` agent type (balanced read/write)
-- Quick checks: use `Fast` agent type (minimal context, fast response)
+- Implementation subagents: use `General` with full `edit` and `bash` permissions
+- Review subagents: use `General` with read-focused permissions
+- Codebase exploration: use `Explore` (read-only, no edit or bash access)
+- Plan analysis: stays in the `Plan` primary agent (no subagent dispatch needed)

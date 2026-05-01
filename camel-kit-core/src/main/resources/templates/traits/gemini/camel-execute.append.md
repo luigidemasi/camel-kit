@@ -16,9 +16,10 @@ The project's `.gemini/policies/camel-kit.toml` should include auto-approval for
 
 ```toml
 [[rules]]
-description = "Auto-approve Camel MCP catalog lookups"
-tools = ["mcp_camel_catalog_*", "mcp_camel_docs_*"]
-action = "allow"
+name = "Allow Camel MCP tools"
+toolName = "mcp_camel_*"
+decision = "allow"
+priority = 3
 ```
 
 This eliminates permission prompts during implementation, which would break autonomous execution.

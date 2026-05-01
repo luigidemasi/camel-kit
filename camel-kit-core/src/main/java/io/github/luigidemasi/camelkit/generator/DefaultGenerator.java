@@ -314,7 +314,7 @@ public class DefaultGenerator implements AgentGenerator {
         }
     }
 
-    private int applyGuideTraits(String traitDirPath, Path guidesDir, String agentName) {
+    private int applyGuideTraits(String traitDirPath, Path guidesDir, String agentName) throws Exception {
         int count = 0;
         List<String> guideNames = List.of(
                 "implementer-context", "spec-reviewer-criteria",
@@ -324,12 +324,8 @@ public class DefaultGenerator implements AgentGenerator {
         for (String guideName : guideNames) {
             String traitResourcePath = traitDirPath + guideName + ".append.md";
             Path targetGuide = guidesDir.resolve(guideName + ".md");
-            try {
-                if (appendTraitIfExists(traitResourcePath, targetGuide, agentName)) {
-                    count++;
-                }
-            } catch (Exception e) {
-                // Guide trait not found or target doesn't exist
+            if (appendTraitIfExists(traitResourcePath, targetGuide, agentName)) {
+                count++;
             }
         }
         return count;
