@@ -23,7 +23,6 @@ Location: `.camel-kit/ship-state.json`
     }
   },
   "inputFile": "path to input file or null",
-  "createPr": false,
   "fixAttempts": {
     "stage:task": 0
   }
@@ -38,6 +37,7 @@ Location: `.camel-kit/ship-state.json`
 | 1 | Plan | `docs/implementation-plan.md` |
 | 2 | Execute | generated routes in `src/` |
 | 3 | Verify | `docs/verification-report.md` |
+| 4 | Stamp | `docs/stamp-report.md` |
 
 ---
 
@@ -54,7 +54,6 @@ At pipeline start (no `--resume`):
   "currentStage": 0,
   "stageResults": {},
   "inputFile": "{parsed input-file or null}",
-  "createPr": false,
   "fixAttempts": {}
 }
 ```
@@ -96,7 +95,7 @@ When `--resume` is specified:
 
 When `--start-from <stage>` is specified:
 
-1. Map stage name to number: brainstorm=0, plan=1, execute=2, verify=3
+1. Map stage name to number: brainstorm=0, plan=1, execute=2, verify=3, stamp=4
 2. Verify prerequisite artifacts exist (see SKILL.md for requirements)
 3. Create fresh state with `currentStage` set to the specified stage
 4. Mark all prior stages as `"completed"` in stageResults (with current artifact paths)

@@ -24,13 +24,12 @@ Parse the skill arguments for these flags:
 | `--ask` | `smart` | Oversight level: `always`, `smart`, or `never` |
 | `--resume` | false | Continue from `.camel-kit/ship-state.json` |
 | `--start-from <stage>` | none | Skip to stage: `brainstorm`, `plan`, `execute`, `verify` |
-| `--create-pr` | false | Auto-create GitHub PR on success |
 
 ---
 
 ## Pipeline
 
-```
+```text
 Stage 0: BRAINSTORM  →  Stage 1: PLAN  →  Stage 2: EXECUTE  →  Stage 3: VERIFY  →  STAMP
 ```
 
@@ -59,7 +58,9 @@ For each stage:
 4. After the skill completes, apply oversight decision from the matrix
 5. If oversight says "pause": present results and wait for user input
 6. If oversight says "auto-proceed": save state and continue to next stage
-7. If a failure occurs during any stage: load `guides/auto-fix-loop.md` and attempt repair
+7. If a failure occurs during any stage:
+   - If matrix action is `AUTO-FIX`: load `guides/auto-fix-loop.md` and attempt repair
+   - Otherwise: PAUSE and wait for user decision
 
 ### Stamp Gate (After Stage 3)
 
@@ -68,11 +69,9 @@ After verification completes, run the final quality gate:
 1. Verify build passes: run `{COMMAND_PREFIX} verify` (or `mvn verify` directly)
 2. Check Iron Law compliance: scan generated YAML for Iron Law violations
 3. Constitution compliance: compare generated routes against `docs/constitution.md`
-4. Check for uncommitted artifacts: `git status` should show only expected files
-5. Acceptance criteria: cross-reference design spec acceptance criteria with generated output
+4. Acceptance criteria: cross-reference design spec acceptance criteria with generated output
 
 If ALL checks pass:
-- If `--create-pr`: run `gh pr create` with a summary
 - Report: "Pipeline complete. All checks passed."
 
 If ANY check fails:

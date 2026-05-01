@@ -12,7 +12,7 @@ The auto-fix loop is entered when:
 
 ## Loop Logic
 
-```
+```text
 ROUND = 0
 MAX_ROUNDS = 3
 
@@ -39,7 +39,7 @@ Categorize each finding:
 | **Important** | Passes build but violates rules | Iron Law violation, Constitution non-compliance, test failure |
 | **Suggestion** | Improvement opportunity | Code quality, performance optimization, style |
 
-- `--ask smart`: auto-fix Critical and Important. Pause on Suggestion (user decides).
+- `--ask smart`: follow `guides/oversight-matrix.md` for each stage outcome; only auto-fix when the matrix action is AUTO-FIX.
 - `--ask never`: auto-fix all categories.
 
 ## Step 2: Attempt Fix

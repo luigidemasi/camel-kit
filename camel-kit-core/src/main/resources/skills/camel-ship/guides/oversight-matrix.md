@@ -18,9 +18,9 @@ Decision rules for each oversight level at each pipeline stage. The orchestrator
 | **Execute** | Task implemented, tests fail | PAUSE | PAUSE | AUTO-FIX (up to 3 rounds) |
 | **Execute** | Task implementation failed | PAUSE | PAUSE | AUTO-FIX (up to 3 rounds) |
 | **Execute** | Auto-fix exhausted (3 rounds) | PAUSE | PAUSE | PAUSE (blocker) |
-| **Verify** | All checks pass | PAUSE (present report) | PAUSE (present report) | AUTO-PROCEED to PR |
+| **Verify** | All checks pass | PAUSE (present report) | PAUSE (present report) | AUTO-PROCEED to Stamp |
 | **Verify** | Some checks fail | PAUSE | PAUSE | AUTO-FIX (up to 3 rounds) |
-| **Stamp** | All gates pass | DONE (create PR if --create-pr) | DONE (create PR if --create-pr) | DONE (create PR if --create-pr) |
+| **Stamp** | All gates pass | DONE | DONE | DONE |
 | **Stamp** | Gate failure | PAUSE | PAUSE | PAUSE (blocker) |
 
 ---
@@ -29,7 +29,7 @@ Decision rules for each oversight level at each pipeline stage. The orchestrator
 
 For each stage completion, execute this logic:
 
-```
+```text
 1. Determine outcome category (success / partial / failure)
 2. Look up action in matrix for (stage, outcome, --ask level)
 3. If action is PAUSE:
