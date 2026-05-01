@@ -15,12 +15,14 @@ Each agent uses a different architecture designed to **maximize that agent's nat
 - MCP tool calls (same tools, same parameters)
 - Output formats (same YAML routes, properties, test files)
 
-**What equalization does NOT cover:**
+**What equalization does NOT cover (handled by traits and templates):**
 - Dispatch mechanism (subagents vs. modes vs. inline)
 - Tool restriction model (each agent's permission system is different)
 - File reading patterns (context isolation varies)
 - Parallelization strategy (only Claude supports parallel subagent dispatch)
 - Configuration format (YAML modes, TOML policies, markdown frontmatter)
+
+**Agent traits** bridge the gap: they append agent-specific instructions to shared skill files during `camel-kit init`. For example, all agents share the same `camel-execute/SKILL.md`, but Claude's trait adds `Agent` tool parallel dispatch, Gemini's adds named agent delegation, Bob's adds `switch_mode` orchestration, and OpenCode's adds step-limited subagents. See [Architecture Guide](architecture.md#agent-traits) for details.
 
 ---
 
@@ -198,11 +200,11 @@ name: camel-validator
 tools:
   - read_file
   - glob
-  - grep
+  - grep_search
   - run_shell_command
   - mcp_camel_*           # all tools from Camel catalog MCP server
 max_turns: 20
-timeout_mins: 10
+timeout_mins: 20
 ```
 
 `mcp_camel_*` automatically includes new tools when the MCP server adds them -- future-proof. Different subagents can have different MCP server access (e.g., validator gets catalog but not knowledge).

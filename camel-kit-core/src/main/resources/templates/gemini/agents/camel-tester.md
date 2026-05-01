@@ -3,9 +3,9 @@ name: camel-tester
 tools:
   - read_file
   - write_file
-  - edit
+  - replace
   - glob
-  - grep
+  - grep_search
   - run_shell_command
   - mcp_camel_*
 max_turns: 30

@@ -3,7 +3,7 @@ name: camel-brainstormer
 tools:
   - read_file
   - glob
-  - grep
+  - grep_search
   - mcp_camel_*
 max_turns: 20
 timeout_mins: 10
