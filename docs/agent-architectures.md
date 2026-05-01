@@ -198,11 +198,11 @@ name: camel-validator
 tools:
   - read_file
   - glob
-  - grep
+  - grep_search
   - run_shell_command
   - mcp_camel_*           # all tools from Camel catalog MCP server
 max_turns: 20
-timeout_mins: 10
+timeout_mins: 20
 ```
 
 `mcp_camel_*` automatically includes new tools when the MCP server adds them -- future-proof. Different subagents can have different MCP server access (e.g., validator gets catalog but not knowledge).
