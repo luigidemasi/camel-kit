@@ -22,6 +22,21 @@ class CatalogDownloaderTest {
     }
 
     @Test
+    void rejectsNullCacheDir() {
+        assertThrows(NullPointerException.class, () -> new CatalogDownloader(null, "4.14.7"));
+    }
+
+    @Test
+    void rejectsNullFallbackVersion() {
+        assertThrows(IllegalArgumentException.class, () -> new CatalogDownloader(tempDir, null));
+    }
+
+    @Test
+    void rejectsBlankFallbackVersion() {
+        assertThrows(IllegalArgumentException.class, () -> new CatalogDownloader(tempDir, "  "));
+    }
+
+    @Test
     void searchComponentsOnEmptyCatalog() throws Exception {
         CatalogDownloader downloader = new CatalogDownloader(tempDir, "4.14.7");
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();

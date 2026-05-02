@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -35,6 +36,10 @@ public class CatalogDownloader {
     private final ObjectMapper mapper;
 
     public CatalogDownloader(Path cacheDir, String fallbackVersion) {
+        Objects.requireNonNull(cacheDir, "cacheDir must not be null");
+        if (fallbackVersion == null || fallbackVersion.isBlank()) {
+            throw new IllegalArgumentException("fallbackVersion must not be null or blank");
+        }
         this.cacheDir = cacheDir;
         this.fallbackVersion = fallbackVersion;
         this.httpClient = HttpClient.newBuilder()
