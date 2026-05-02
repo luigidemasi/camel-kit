@@ -51,7 +51,7 @@ Define exactly two version properties:
 
 ```xml
 <properties>
-    <camel-spring-boot-version>4.14.4</camel-spring-boot-version>
+    <camel-spring-boot-version>{CAMEL_SPRINGBOOT_VERSION}</camel-spring-boot-version>
     <spring-boot-version>3.5.11</spring-boot-version>
 </properties>
 ```
@@ -68,8 +68,8 @@ Read the Spring Boot BOM version from `.camel-kit/config.properties`:
 
 ```properties
 project.runtime=spring-boot
-project.camelVersion=4.18.0
-project.platformBomVersion=4.18.0  # <- use THIS value
+project.camelVersion={CAMEL_SPRINGBOOT_VERSION}
+project.platformBomVersion={SPRINGBOOT_BOM_VERSION}  # <- use THIS value
 ```
 
 **Do NOT guess or derive** the Spring Boot BOM version from the Camel version. The correct value is pre-computed by `camel-kit init`.

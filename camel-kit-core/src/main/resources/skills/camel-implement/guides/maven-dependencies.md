@@ -36,8 +36,8 @@ The `camel-spring-boot-bom` version uses the **same base version** as Camel.
 
 ```properties
 project.runtime=spring-boot
-project.camelVersion=4.18.0
-project.platformBomVersion=4.18.0  # <- use THIS value
+project.camelVersion={CAMEL_SPRINGBOOT_VERSION}
+project.platformBomVersion={SPRINGBOOT_BOM_VERSION}  # <- use THIS value
 ```
 
 Do NOT guess or derive the version — it is pre-computed by `camel-kit init`.
@@ -75,8 +75,8 @@ The Quarkus platform version uses the Quarkus version scheme (3.x), not Camel (4
 
 ```properties
 project.runtime=quarkus
-project.camelVersion=4.18.0
-project.platformBomVersion=3.33.0  # <- use THIS value
+project.camelVersion={CAMEL_QUARKUS_VERSION}
+project.platformBomVersion={QUARKUS_PLATFORM_VERSION}  # <- use THIS value
 ```
 
 Do NOT guess or derive the version — it is pre-computed by `camel-kit init`.

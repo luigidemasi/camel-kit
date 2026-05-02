@@ -3,8 +3,10 @@ package io.github.luigidemasi.camelkit.config;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -137,6 +139,21 @@ public class DistributionConfig {
      */
     public String quarkusPlatformForVersion(String camelVersion) {
         return rawProps.getProperty("quarkus.platform." + camelVersion, quarkusPlatformVersion);
+    }
+
+    /**
+     * Returns all explicit Camel Quarkus → Quarkus platform version mappings from the {@code quarkus.platform.*}
+     * properties (excluding the default {@code quarkus.platform.version}).
+     */
+    public Map<String, String> quarkusPlatformMappings() {
+        Map<String, String> mappings = new LinkedHashMap<>();
+        for (String key : rawProps.stringPropertyNames()) {
+            if (key.startsWith("quarkus.platform.") && !key.equals("quarkus.platform.version")) {
+                String camelVersion = key.substring("quarkus.platform.".length());
+                mappings.put(camelVersion, rawProps.getProperty(key));
+            }
+        }
+        return mappings;
     }
 
     public String camelMainVersion() {

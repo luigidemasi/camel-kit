@@ -66,8 +66,7 @@ All listed versions are LTS (Long-Term Support) and receive patch updates.
 
 | Camel Version | Quarkus Platform BOM |
 |--------------|---------------------|
-| 4.18.0 | 3.33.0 |
-| 4.14.7 | 3.27.3 |
+{QUARKUS_PLATFORM_TABLE}
 
 Default: `{CAMEL_QUARKUS_VERSION}`
 
@@ -87,8 +86,8 @@ Append the selected values to `.camel-kit/config.properties`:
 
 ```properties
 project.runtime=quarkus
-project.camelVersion=4.18.0
-project.platformBomVersion=3.33.0
+project.camelVersion={CAMEL_QUARKUS_VERSION}
+project.platformBomVersion={QUARKUS_PLATFORM_VERSION}
 ```
 
 These values are the single source of truth for all subsequent skills.

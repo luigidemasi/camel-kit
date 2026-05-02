@@ -68,8 +68,8 @@ Version numbers are stored in `.camel-kit/config.properties`, set during `/camel
 
 ```properties
 project.runtime=quarkus
-project.camelVersion=4.18.0
-project.platformBomVersion=3.33.0
+project.camelVersion={CAMEL_QUARKUS_VERSION}
+project.platformBomVersion={QUARKUS_PLATFORM_VERSION}
 ```
 
 Default platform BOMs by runtime:
