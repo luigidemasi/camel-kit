@@ -107,13 +107,30 @@ This outputs JSON with parallel execution waves — groups of tasks that can run
 
 ---
 
+### Step 0.5: Environment Probe
+
+Before dispatching any implementers, validate the target environment.
+
+1. Load `guides/environment-probe.md`
+2. Execute the probe (skeleton pom.xml, docker-compose, empty route)
+3. If probe passes → proceed to task dispatch
+4. If probe finds mechanical failures → auto-fix and re-probe
+5. If probe finds architectural failures → load `guides/re-plan-loop.md`
+   - Re-plan modifies affected TDD(s), max 3 rounds
+   - After successful re-plan → re-probe, then proceed
+6. If probe still fails after re-plan → escalate to user
+
+The probe prevents wasting implementation cycles on environments that cannot support the planned architecture.
+
+---
+
 ## Iron Laws (enforced in this phase)
 
 Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces ALL five:
 
 - **Iron Law 1: MCP Catalog Verification** — implementer subagents MUST verify every component via MCP before generating YAML.
 - **Iron Law 3: Constitution Compliance** — quality reviewer checks all 7 constitution rules.
-- **Iron Law 4: No Code Without Spec Approval** — this phase runs ONLY after the plan is approved.
+- **Iron Law 3: No Code Without Design Approval** — this phase runs after the design spec is approved and planning is complete.
 - **Iron Law 4: Spec Compliance Before Quality** — ALWAYS spec review FIRST, then quality review. Never in parallel. Never reversed.
 
 ### Rationalization Table
@@ -265,6 +282,8 @@ After the cross-cutting review, run the full verification loop to validate the i
 - Verification runs **once** after all tasks complete — not per-task. Camel loads all routes at startup, so per-task verification would fail on routes that depend on other not-yet-implemented routes.
 - Verification failure does **NOT** block finishing. The user might want to merge/PR even with verification issues (e.g., external services unavailable in dev environment). The report is informational.
 - The verification report is included in Step 4's completion summary.
+
+**Re-plan trigger:** If verification failures persist after fix attempts within the verify loop, the verify loop may trigger `guides/re-plan-loop.md` to modify affected TDDs and re-execute. See `camel-verify/guides/verify-loop.md` Phase 2 for trigger conditions.
 
 ### Step 4: Completion Summary
 

@@ -95,23 +95,24 @@ The 7 rules are absolute. They apply to every route, every time, regardless of c
 
 ---
 
-## Iron Law 3: No Code Without Spec Approval
+## Iron Law 3: No Code Without Design Approval
 
 ```
 NEVER GENERATE IMPLEMENTATION ARTIFACTS BEFORE THE USER HAS APPROVED THE DESIGN SPEC.
 ```
 
-The pipeline is: Brainstorm → Plan → Execute. Brainstorm produces a design spec. The user reviews and approves it. ONLY THEN does planning begin. ONLY after the plan is approved does execution begin.
+The pipeline is: Brainstorm → Plan → Execute. Brainstorm produces a design spec. The user reviews and approves it. ONLY THEN does planning and execution begin. Planning flows directly into execution — there is no separate plan approval gate. The user's approval of the design is the single gate that authorizes all downstream work.
 
 **Gate function:**
-1. BRAINSTORM produces design spec
+1. BRAINSTORM produces design spec (BRD + TDDs)
 2. USER reviews and explicitly approves ("approved", "looks good", "go ahead", etc.)
 3. ONLY THEN invoke camel-plan
-4. PLAN produces implementation plan
-5. USER reviews and explicitly approves
-6. ONLY THEN invoke camel-execute
+4. PLAN produces implementation plan and auto-invokes camel-execute
+5. EXECUTE runs environment probe, implementation, and verification
 
-Skipping approval = generating code the user didn't ask for = wasted effort.
+Skipping design approval = generating code the user didn't ask for = wasted effort.
+
+**Why no plan approval gate:** The plan is a deterministic decomposition of approved TDDs into implementation tasks. If the design is approved, the plan is implementation detail. The environment probe (first step of execute) catches feasibility issues that a plan review never could. If architectural failures are found, the re-plan loop modifies affected TDDs and re-executes automatically (max 3 rounds).
 
 ### Rationalization Table
 
@@ -121,7 +122,8 @@ Skipping approval = generating code the user didn't ask for = wasted effort.
 | "I'll generate code and they can review it" | Review ≠ approve. Get approval BEFORE generating. |
 | "The spec is obvious, no need to wait" | Obvious to you. The user may have different priorities. |
 | "I'll save time by starting implementation early" | Rework costs more than waiting. Always. |
-| "The user said 'go' for the brainstorm, that covers execution too" | Each phase gets its own approval. No cascading. |
+| "The user said 'go' for the brainstorm, that covers execution too" | Brainstorm approval covers the design. It does authorize planning and execution. |
+| "I should wait for the user to approve the plan before executing" | Plan approval was removed. Execution auto-proceeds after planning. |
 
 ### Red Flags — STOP If You Think:
 

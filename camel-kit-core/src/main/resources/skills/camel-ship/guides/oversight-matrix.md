@@ -11,7 +11,7 @@ Decision rules for each oversight level at each pipeline stage. The orchestrator
 | **Brainstorm** | Design spec complete, no open questions | PAUSE | AUTO-PROCEED | AUTO-PROCEED |
 | **Brainstorm** | Design spec has open questions or ambiguities | PAUSE | PAUSE | AUTO-PROCEED (pick reasonable defaults) |
 | **Brainstorm** | Failed to produce design spec | PAUSE | PAUSE | PAUSE (blocker) |
-| **Plan** | Plan complete, all tasks defined | PAUSE | AUTO-PROCEED | AUTO-PROCEED |
+| **Plan** | Plan complete, all tasks defined | AUTO-PROCEED | AUTO-PROCEED | AUTO-PROCEED |
 | **Plan** | Plan has gaps or inconsistencies | PAUSE | PAUSE | AUTO-PROCEED (fill gaps) |
 | **Plan** | Failed to produce plan | PAUSE | PAUSE | PAUSE (blocker) |
 | **Execute** | Task implemented, tests pass | PAUSE | AUTO-PROCEED | AUTO-PROCEED |

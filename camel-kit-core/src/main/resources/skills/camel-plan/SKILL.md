@@ -15,7 +15,7 @@ Write comprehensive implementation plans assuming the engineer has zero context 
 **Violating the letter of these rules is violating the spirit of these rules.**
 
 <HARD-GATE>
-Do NOT generate any implementation artifacts (YAML, properties, POM, Docker Compose). The plan describes what to generate and how — the execution phase does the actual generation. Do NOT invoke camel-execute before the user has approved the plan.
+Do NOT generate any implementation artifacts (YAML, properties, POM, Docker Compose). The plan describes what to generate and how — the execution phase does the actual generation.
 </HARD-GATE>
 
 ---
@@ -55,7 +55,7 @@ digraph plan {
 
 Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
 
-- **Iron Law 4: No Code Without Spec Approval** — The plan is based on an APPROVED design spec. If the spec hasn't been approved, go back to camel-brainstorm.
+- **Iron Law 3: No Code Without Design Approval** — The plan is based on an APPROVED design spec. If the spec hasn't been approved, go back to camel-brainstorm.
 - **Iron Law 4: Spec Compliance Before Quality** — The plan MUST specify two-stage review for every implementation task: spec compliance first, then quality.
 
 ### Rationalization Table
@@ -69,6 +69,7 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
 | "Testing can be added later" | Test tasks are in the plan. Not later. NOW. |
 | "I'll skip the review specification" | Every task gets two-stage review. Spec compliance then quality. No exceptions. |
 | "I'll tell the user to run camel-execute next" | NO. YOU invoke camel-execute automatically after approval. The pipeline is seamless. |
+| "I should wait for the user to approve the plan before executing" | Plan approval gate was removed. Execution auto-proceeds after planning. |
 
 ### Red Flags — STOP If You Think:
 
@@ -185,17 +186,15 @@ Fix any issues inline.
 
 ## Execution Handoff
 
-After saving the plan and user approval:
+After saving the plan:
 
 ```
 Plan saved to docs/implementation-plan.md
 
-Ready to execute. I'll dispatch subagents for each task with two-stage review
-(spec compliance → code quality) between tasks.
-
-Shall I begin execution?
+Plan complete. Proceeding to execution — dispatching subagents for each task
+with two-stage review (spec compliance → code quality) between tasks.
 ```
 
 <HARD-RULE>
-When the user approves the plan, YOU must invoke/activate the `camel-execute` skill immediately and automatically. Do NOT tell the user to run it manually. Do NOT print "please run camel-execute" or "run /camel-execute". YOU do it — the transition is automatic.
+After the plan is complete, YOU must invoke/activate the `camel-execute` skill immediately and automatically. Do NOT tell the user to run it manually. Do NOT print "please run camel-execute" or "run /camel-execute". YOU do it — the transition is automatic.
 </HARD-RULE>

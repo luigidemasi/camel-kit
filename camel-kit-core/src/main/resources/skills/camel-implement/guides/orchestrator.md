@@ -149,29 +149,7 @@ Assign these as context variables for all subsequent steps:
 
 **SKIP** if schemas already exist or user declined generation.
 
-### Step 8: Smoke Test (ALWAYS — MANDATORY, DO NOT SKIP)
-
-**You MUST execute this step.** Read `guides/smoke-test.md` (in the same directory as this file) and follow its instructions completely before showing the Implementation Summary.
-
-**What to do concretely:**
-1. Read the file `guides/smoke-test.md`
-2. Start docker-compose if present (`docker compose up -d`)
-3. Run the application startup command for the runtime (JBang/Spring Boot/Quarkus) with a 60-second timeout
-4. Check the output for success markers
-5. If startup failed, analyze the error, fix it, and retry (up to 6 attempts)
-6. Report PASS or FAIL
-
-Pass these context variables:
-  - `FLOW_NAME`
-  - `MODULE_DIR`
-  - `RUNTIME`
-  - `CAMEL_VERSION`
-
-**HARD GATE:** Do NOT show the Implementation Summary until you have actually executed the startup command and observed the output. Showing the summary without running the smoke test is a skill violation.
-
----
-
-## Step 9: Completion Gate (ALWAYS — MANDATORY, DO NOT SKIP)
+## Step 8: Completion Gate (ALWAYS — MANDATORY, DO NOT SKIP)
 
 Before showing the Implementation Summary, verify that implementation actually happened by checking files on disk. Run `ls` or `test -f` for each expected file. This is the final defense against showing a success summary when no files were generated.
 
@@ -236,7 +214,7 @@ If no graph exists: skip silently. No suggestion.
 
 ## Implementation Summary
 
-**PREREQUISITE:** You can only show this summary if you have completed Step 8 (Smoke Test) and Step 9 (Completion Gate). If the route YAML does not exist on disk, go back and generate it.
+**PREREQUISITE:** You can only show this summary if you have completed Step 8 (Completion Gate). If the route YAML does not exist on disk, go back and generate it.
 
 After all steps complete, display:
 
@@ -291,7 +269,6 @@ Dependencies (from TDD):
   - [external dependencies]
 
 Completion Gate: ✅ ALL CHECKS PASSED / ⚠️ [N] warnings
-Smoke Test: ✅ PASSED / ⚠️ FAILED
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
