@@ -130,9 +130,9 @@ actions:
       jbang:
         run:
           integration:
-            file: "../{FLOW_NAME}.camel.yaml"
+            file: "{ROUTE_DIR}/{FLOW_NAME}.camel.yaml"
           systemProperties:
-            file: "application.test.properties"
+            file: "{TEST_DIR}/application-test.properties"
 
   # Echo test start
   - echo:

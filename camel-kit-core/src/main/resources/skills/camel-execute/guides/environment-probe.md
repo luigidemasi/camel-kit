@@ -19,7 +19,7 @@ Generate the skeleton in a **temporary directory**. Never write probe files into
 ### Steps
 
 1. Create a temp directory: `mktemp -d /tmp/camel-kit-probe-XXXXXX`
-2. Read ALL TDD files (`docs/flows/**/*.tdd.md`) and extract:
+2. Read ALL TDD files (`docs/flows/{flow-name}/{flow-name}.tdd.md`) and extract:
    - **Section 2 (Source System):** component, protocol, connection properties
    - **Section 4 (Sink System):** component, protocol, connection properties
    - **Section 7 (Configuration Properties):** all connection strings and credentials
@@ -95,13 +95,13 @@ Verify that all planned dependencies can be resolved from configured repositorie
 
 1. **For Quarkus / Spring Boot:**
    - Run: `./mvnw dependency:resolve -q` (in the temp directory)
-   - Parse output for `BUILD SUCCESS` or `BUILD FAILURE`
+   - Check the command exit code (0 = success, non-zero = failure). On failure, capture stderr for Step 5 classification.
 
 2. **For JBang:**
    - Skip this check — JBang resolves dependencies at runtime
    - Record: `SKIPPED (JBang)`
 
-3. If `BUILD FAILURE` → extract the error message and proceed to Step 5 (Error Classification)
+3. If dependency resolution fails → extract the error message and proceed to Step 5 (Error Classification)
 
 ---
 
@@ -148,7 +148,7 @@ Verify that the runtime can boot with the planned dependencies and configuration
 
    **Success patterns:**
    - Quarkus: `Listening on: http://`
-   - Spring Boot: `Started ` followed by ` in ` followed by ` seconds`
+   - Spring Boot: `Started` followed by a class name, then `in` followed by `seconds`
    - JBang: `Routes startup` or `Total` followed by `routes started`
 
    **Failure patterns:**
@@ -161,7 +161,13 @@ Verify that the runtime can boot with the planned dependencies and configuration
 4. If success pattern found → record: `PASS (Ns)` with the startup time
 5. If failure pattern found → extract the error and proceed to Step 5 (Error Classification)
 6. If 60 seconds elapse with no pattern → record: `FAIL (timeout)`
-7. Stop the skeleton application after the check completes
+7. Stop the skeleton application after the check completes:
+   - The runtime command must be started in the background (capture PID)
+   - Logs captured by tailing the output for up to 60 seconds
+   - After success/failure/timeout: send SIGINT to the process
+   - Wait 5 seconds grace period
+   - If still running, send SIGKILL
+   - This ensures the process does not remain bound to ports
 
 ---
 
@@ -192,7 +198,7 @@ All probe errors start classified as **MECHANICAL**. Only promote to **ARCHITECT
 
 For dependency and runtime errors, verify against the MCP catalog before attempting a fix:
 
-```
+```text
 camel_catalog_component(name="{component}", runtime="{runtime}", platformBom="{bom-gav}")
 ```
 
@@ -254,7 +260,7 @@ Generate a structured report summarizing all checks.
 
 ### Report Template
 
-```
+```text
 ENVIRONMENT PROBE
 Dependency Resolution: {PASS | FAIL (N fixes) | SKIPPED (JBang)}
 Docker Services:       {PASS (N services) | FAIL (service) | SKIPPED (no Docker / no services)}

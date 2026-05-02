@@ -33,7 +33,7 @@ digraph plan {
     decompose_tasks [label="Load task-decomposition.md\nBreak into bite-sized tasks", shape=box];
     generate [label="Generate plan document\nwith checklist tasks", shape=box];
     self_review [label="Self-review:\nspec coverage, placeholders,\nconsistency", shape=box];
-    user_approve [label="User reviews\nand approves plan?", shape=diamond];
+    plan_complete [label="Plan complete\n(auto handoff)", shape=doublecircle];
     execute [label="YOU invoke camel-execute\n(automatic, not manual)", shape=doublecircle];
     
     start -> scope;
@@ -43,9 +43,9 @@ digraph plan {
     load_template -> decompose_tasks;
     decompose_tasks -> generate;
     generate -> self_review;
-    self_review -> user_approve;
-    user_approve -> generate [label="changes requested"];
-    user_approve -> execute [label="approved"];
+    self_review -> plan_complete;
+    plan_complete -> generate [label="refinement needed"];
+    plan_complete -> execute [label="handoff"];
 }
 ```
 
@@ -188,7 +188,7 @@ Fix any issues inline.
 
 After saving the plan:
 
-```
+```text
 Plan saved to docs/implementation-plan.md
 
 Plan complete. Proceeding to execution — dispatching subagents for each task

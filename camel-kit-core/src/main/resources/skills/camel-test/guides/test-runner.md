@@ -43,10 +43,10 @@ The `camel test run` command:
 
 | Output Pattern | Meaning |
 |---|---|
-| `X tests executed, X passed, 0 failed` | All tests passed |
-| `FAILED` with test name and assertion message | Test failure — extract test name and expected vs actual |
-| `ContainerLaunchException` | Testcontainer failed to start — check Docker |
-| `ActionTimeoutException` | No response received within timeout |
+| Contains `passed` and `0 failed` | All tests passed |
+| Contains `FAILED` | Test failure — extract test name and expected vs actual |
+| Contains `ContainerLaunchException` | Testcontainer failed to start — check Docker |
+| Contains `ActionTimeoutException` | No response received within timeout |
 
 ### 6.6 Integration with Verify Loop
 

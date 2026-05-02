@@ -158,7 +158,7 @@ If round == 3:
 
 When escalating (either short-circuit or round limit), present the following report:
 
-```
+```text
 RE-PLAN ESCALATION
 Rounds attempted: {N}
 Exit reason:      {round limit | same failure class | no viable alternative}

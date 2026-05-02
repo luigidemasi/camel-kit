@@ -17,6 +17,7 @@ Before entering the phase loop, check which tools are available. Report explicit
    - If yes → use `./mvnw` for all Maven commands
    - If no → check for system `mvn` (`mvn --version`)
    - If neither → Maven is unavailable
+   2.1 Set `MAVEN_CMD` to the selected Maven executable (`./mvnw` or `mvn`)
 3. Check Docker: `docker --version`
    - If available → Testcontainers can manage external services in Phase 2
    - If unavailable → test verification will be skipped
@@ -28,7 +29,7 @@ Before entering the phase loop, check which tools are available. Report explicit
 
 Print the environment check report before proceeding:
 
-```
+```text
 ENVIRONMENT CHECK
 Runtime:        {runtime from config.properties}
 Maven:          {./mvnw (wrapper) | mvn (system) | not found}
@@ -62,18 +63,18 @@ Compile the project and verify it builds successfully.
 
 ### Steps
 
-1. Run: `./mvnw compile -q` (capture stdout + stderr)
+1. Run: `{MAVEN_CMD} compile -q` (capture stdout + stderr)
 2. If output contains `BUILD SUCCESS` → proceed to Phase 2
 3. If output contains `BUILD FAILURE` → enter the iteration loop:
 
 **Iteration loop (Phase 1):**
 
-```
+```text
 iteration_count = 0
 previous_error = null
 
 while iteration_count < 15:
-    1. Run: ./mvnw compile -q (capture output)
+    1. Run: {MAVEN_CMD} compile -q (capture output)
     2. If BUILD SUCCESS → break (proceed to Phase 2)
     
     3. Extract the error message from the output
@@ -128,7 +129,7 @@ Skip Phase 2 (with explicit message) when:
 
 When tests fail, classify and route the fix:
 
-```
+```text
 iteration_count = 0
 previous_error = null
 
@@ -179,7 +180,7 @@ Generate a structured verification report summarizing all phases.
 
 ### Report Template
 
-```
+```text
 VERIFICATION REPORT
 Runtime:          {runtime}
 Maven:            {status}
@@ -209,7 +210,7 @@ Last error:
 
 **Full success:**
 
-```
+```text
 VERIFICATION REPORT
 Runtime:          Quarkus
 Maven:            ./mvnw (wrapper)
@@ -226,7 +227,7 @@ Skipped checks:
 
 **Test failure with fix:**
 
-```
+```text
 VERIFICATION REPORT
 Runtime:          Spring Boot
 Maven:            ./mvnw (wrapper)
@@ -244,7 +245,7 @@ Skipped checks:
 
 **No tools available:**
 
-```
+```text
 VERIFICATION REPORT
 Runtime:          Quarkus
 Maven:            not found (no ./mvnw, no system mvn)
