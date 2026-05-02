@@ -22,8 +22,8 @@ Use `CronCreate` to schedule periodic build health checks during Stage 2 (Execut
 When the pipeline needs to pause for user input (based on --ask level), use `AskUserQuestion` with structured options:
 
 - For design spec approval: present summary with "Approve" / "Request changes" / "Abort pipeline" options
-- For plan approval: present task list with "Approve plan" / "Modify tasks" options
 - For execution failures: present the error with "Auto-fix" / "Manual fix" / "Skip task" / "Abort" options
+- For re-plan escalation: present the failure history with "Modify TDD manually" / "Try different approach" / "Abort pipeline" options
 - Always include an "Abort pipeline" option — the user should be able to stop at any point
 
 ### Smart Pacing with ScheduleWakeup
