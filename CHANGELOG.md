@@ -255,7 +255,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`camel-implement` — Route validation with MCP** — replaced Maven YAML DSL Validator with MCP `camel_validate_route` tool; validates all endpoint URIs against Camel catalog in real-time
 
+- **`/camel-ship` — autonomous end-to-end pipeline with configurable oversight** — new skill that chains the entire camel-kit pipeline (brainstorm → plan → execute → verify → stamp) with three oversight levels: `always` (pause at every stage), `smart` (auto-proceed on clear outcomes, pause on ambiguity), `never` (fully autonomous). State persistence via `.camel-kit/ship-state.json` for `--resume` and `--start-from`. Auto-fix loop: classify → fix → re-verify, max 3 rounds then escalate. Stamp gate: build, tests, Iron Laws, constitution, acceptance criteria.
+
+- **Agent traits system — build-time append of agent-specific instructions** — `applyTraits()` method in `DefaultGenerator` scans `templates/traits/{agent}/` and appends `.append.md` files to matching skill files during `camel-kit init`. Two granularity levels: SKILL.md-level (strategy) and guide-level (tactics). 24 trait files across 5 agents: Claude Code (worktrees, cron, parallel Agent), Gemini CLI (read_many_files, TOML auto-approval), IBM Bob (switch_mode, gates), Qwen Code (serial dispatch, todo_write), OpenCode (LSP, step limits). Idempotent via HTML comment sentinels (`<!-- TRAIT:agent -->`).
+
+### Changed
+
+- **BizTalk documentation updated** — added BizTalk migration references to `docs/user-guide.md`, `docs/commands.md`, `docs/architecture.md`, `docs/camel-kit-overview.md`, `README.md`, `CONTRIBUTING.md`. BizTalkMigrationStarter repository URL corrected. Camel validator-starter component reference corrected.
+
 ### Fixed
+
+- **README: `-d` flag in Camel JBang Plugin install command corrected to `--description`** — the `-d` short option is not recognized by current versions of Camel JBang. Fixed to use the correct `--description` long option.
+
+- **Hardcoded version numbers in skill files replaced with Qute-substituted placeholders** — skill Markdown files contained hardcoded Camel/Quarkus version numbers (e.g., `3.33.0`, `4.18.0`, `3.27.2`) that drifted from `distribution.properties`, causing stale versions in generated projects. Added Qute-based placeholder substitution to `copySkills` using an escape-then-unescape approach (escape all `{` to `\{`, restore only known version keys, then Qute-render). New `{QUARKUS_PLATFORM_TABLE}` placeholder dynamically generates the Camel-to-Quarkus mapping table from `quarkus.platform.*` keys. `DistributionConfig.quarkusPlatformMappings()` added. 16 hardcoded values replaced across 8 skill files.
+
+- **Fallback LTS version in `CatalogDownloader` no longer hardcoded** — `getLatestLtsVersion()` returned a hardcoded `"4.20.0"` when Maven Central was unreachable. Replaced with a `fallbackVersion` constructor parameter so callers provide the value from `DistributionConfig.camelMainVersion()`.
+
+- **LTS version detection no longer relies on even-number heuristic** — `getLatestLtsVersion()` assumed LTS versions have even minor numbers (`minor % 2 == 0`), which is not officially guaranteed by Apache Camel. Replaced with an explicit `Set<String>` of known LTS minor versions passed via constructor, built from `DistributionConfig.camelMainSupported()`.
 
 - **`.kaoto` filename and format hardening against hallucination**
   - Filename must be `.kaoto` (single project-level file) — NOT `kaoto-datamapper-{id}.kaoto` (per-mapping file invented by analogy with XSL naming)
