@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -32,16 +33,19 @@ public class CatalogDownloader {
 
     private final Path cacheDir;
     private final String fallbackVersion;
+    private final Set<String> ltsMinorVersions;
     private final HttpClient httpClient;
     private final ObjectMapper mapper;
 
-    public CatalogDownloader(Path cacheDir, String fallbackVersion) {
+    public CatalogDownloader(Path cacheDir, String fallbackVersion, Set<String> ltsMinorVersions) {
         Objects.requireNonNull(cacheDir, "cacheDir must not be null");
+        Objects.requireNonNull(ltsMinorVersions, "ltsMinorVersions must not be null");
         if (fallbackVersion == null || fallbackVersion.isBlank()) {
             throw new IllegalArgumentException("fallbackVersion must not be null or blank");
         }
         this.cacheDir = cacheDir;
         this.fallbackVersion = fallbackVersion;
+        this.ltsMinorVersions = Set.copyOf(ltsMinorVersions);
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .followRedirects(HttpClient.Redirect.NORMAL)
@@ -229,16 +233,11 @@ public class CatalogDownloader {
 
             for (JsonNode doc : docs) {
                 String version = doc.path("v").asText();
-                // LTS versions have even minor numbers (4.0, 4.4, 4.8, 4.10, 4.14, 4.18, 4.20, ...)
                 String[] parts = version.split("\\.");
                 if (parts.length >= 2) {
-                    try {
-                        int minor = Integer.parseInt(parts[1]);
-                        if (minor % 2 == 0) {
-                            return version;
-                        }
-                    } catch (NumberFormatException e) {
-                        // ignore
+                    String majorMinor = parts[0] + "." + parts[1];
+                    if (ltsMinorVersions.contains(majorMinor)) {
+                        return version;
                     }
                 }
             }
