@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -30,16 +31,26 @@ public class CatalogDownloader {
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
     private final Path cacheDir;
+    private final String fallbackVersion;
     private final HttpClient httpClient;
     private final ObjectMapper mapper;
 
-    public CatalogDownloader(Path cacheDir) {
+    public CatalogDownloader(Path cacheDir, String fallbackVersion) {
+        Objects.requireNonNull(cacheDir, "cacheDir must not be null");
+        if (fallbackVersion == null || fallbackVersion.isBlank()) {
+            throw new IllegalArgumentException("fallbackVersion must not be null or blank");
+        }
         this.cacheDir = cacheDir;
+        this.fallbackVersion = fallbackVersion;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
         this.mapper = new ObjectMapper();
+    }
+
+    String fallbackVersion() {
+        return fallbackVersion;
     }
 
     /**
@@ -238,7 +249,7 @@ public class CatalogDownloader {
             }
         }
 
-        return "4.20.0"; // fallback
+        return fallbackVersion;
     }
 
     /**
