@@ -52,7 +52,7 @@ Define exactly two version properties:
 ```xml
 <properties>
     <camel-spring-boot-version>{CAMEL_SPRINGBOOT_VERSION}</camel-spring-boot-version>
-    <spring-boot-version>3.5.11</spring-boot-version>
+    <spring-boot-version>[matching-spring-boot-version]</spring-boot-version>
 </properties>
 ```
 

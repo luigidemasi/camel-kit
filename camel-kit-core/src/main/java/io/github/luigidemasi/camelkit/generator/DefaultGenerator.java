@@ -149,7 +149,13 @@ public class DefaultGenerator implements AgentGenerator {
                             }
                             // Substitute version placeholders in all .md files
                             if (destination.getFileName().toString().endsWith(".md")) {
-                                substituteVersionPlaceholders(destination);
+                                try {
+                                    substituteVersionPlaceholders(destination);
+                                } catch (Exception e) {
+                                    ctx.printer().println(AnsiColors.yellow(
+                                            "  Warning: Failed to substitute version placeholders in "
+                                                                            + destination + ": " + e.getMessage()));
+                                }
                             }
                         }
                     } catch (Exception e) {

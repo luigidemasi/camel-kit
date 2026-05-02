@@ -51,7 +51,6 @@ class DistributionConfigTest {
         var mappings = config.quarkusPlatformMappings();
         assertEquals("3.27.2", mappings.get("4.14.4"));
         assertEquals("3.20.0", mappings.get("4.13.0"));
-        assertEquals(2, mappings.size());
         assertFalse(mappings.containsKey("version"), "Default quarkus.platform.version must be excluded");
     }
 

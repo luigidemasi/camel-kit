@@ -161,13 +161,15 @@ class DefaultGeneratorTest {
         String content = Files.readString(versionSelection);
 
         DistributionConfig dist = DistributionConfig.loadFromClasspathOrDefaults();
+        var mappings = dist.quarkusPlatformMappings();
+        assertFalse(mappings.isEmpty(), "Expected explicit Quarkus platform mappings");
         assertFalse(content.contains("{QUARKUS_PLATFORM_VERSION}"),
                 "Placeholder should be substituted");
         assertTrue(content.contains(dist.quarkusPlatformVersion()),
                 "Resolved value should appear");
         assertFalse(content.contains("{QUARKUS_PLATFORM_TABLE}"),
                 "Table placeholder should be substituted");
-        for (var entry : dist.quarkusPlatformMappings().entrySet()) {
+        for (var entry : mappings.entrySet()) {
             assertTrue(content.contains(entry.getValue()),
                     "Mapping for " + entry.getKey() + " should appear in table");
         }

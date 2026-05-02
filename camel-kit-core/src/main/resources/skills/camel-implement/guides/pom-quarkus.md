@@ -70,7 +70,7 @@ Read the Quarkus platform version from `.camel-kit/config.properties`:
 
 ```properties
 project.runtime=quarkus
-project.camelVersion=4.18.0
+project.camelVersion={CAMEL_QUARKUS_VERSION}
 project.platformBomVersion={QUARKUS_PLATFORM_VERSION}  # <- use THIS value
 ```
 
