@@ -49,6 +49,10 @@ public class CatalogDownloader {
         this.mapper = new ObjectMapper();
     }
 
+    String fallbackVersion() {
+        return fallbackVersion;
+    }
+
     /**
      * Fetch component catalog for a Camel version. Downloads from Maven Central and extracts component JSONs.
      */

@@ -13,12 +13,9 @@ class CatalogDownloaderTest {
     Path tempDir;
 
     @Test
-    void fallbackVersionComesFromConstructor() throws Exception {
+    void fallbackVersionComesFromConstructor() {
         CatalogDownloader downloader = new CatalogDownloader(tempDir, "4.14.7");
-        // getLatestLtsVersion hits Maven Central; if the network call fails or
-        // returns no LTS match, the fallback from the constructor is used.
-        // We can't control the network, but we verify the object accepts the value.
-        assertNotNull(downloader);
+        assertEquals("4.14.7", downloader.fallbackVersion());
     }
 
     @Test
