@@ -30,11 +30,13 @@ public class CatalogDownloader {
     private static final Duration TIMEOUT = Duration.ofSeconds(30);
 
     private final Path cacheDir;
+    private final String fallbackVersion;
     private final HttpClient httpClient;
     private final ObjectMapper mapper;
 
-    public CatalogDownloader(Path cacheDir) {
+    public CatalogDownloader(Path cacheDir, String fallbackVersion) {
         this.cacheDir = cacheDir;
+        this.fallbackVersion = fallbackVersion;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .followRedirects(HttpClient.Redirect.NORMAL)
@@ -238,7 +240,7 @@ public class CatalogDownloader {
             }
         }
 
-        return "4.20.0"; // fallback
+        return fallbackVersion;
     }
 
     /**
