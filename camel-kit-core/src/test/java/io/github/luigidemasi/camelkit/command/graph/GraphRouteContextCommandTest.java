@@ -3,6 +3,13 @@ package io.github.luigidemasi.camelkit.command.graph;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Path;
+import java.util.Map;
+
+import io.github.luigidemasi.camelkit.graph.ProjectGraph;
+import io.github.luigidemasi.camelkit.graph.model.EdgeType;
+import io.github.luigidemasi.camelkit.graph.model.GraphEdge;
+import io.github.luigidemasi.camelkit.graph.model.GraphNode;
+import io.github.luigidemasi.camelkit.graph.model.NodeType;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -62,12 +69,30 @@ class GraphRouteContextCommandTest {
         assertTrue(MAPPER.readTree(run("route:order-process")).has("errorFlow"));
     }
 
+    @Test
+    void doesNotThrowWhenProcessorLabelIsNull() throws Exception {
+        ProjectGraph graph = TestGraphs.sampleProject();
+        graph.addNode(new GraphNode(
+                "proc:no-type", NodeType.CAMEL_PROCESSOR, Map.of("name", "anonymous")));
+        graph.addEdge(new GraphEdge(
+                "route:order-process", "proc:no-type", EdgeType.PROCESSES, Map.of("order", "0")));
+        Path subDir = tempDir.resolve("null-label");
+        java.nio.file.Files.createDirectories(subDir);
+        Path gf = TestGraphs.writeToTempFile(graph, subDir);
+        String json = runWithGraph(gf, "route:order-process");
+        assertTrue(MAPPER.readTree(json).has("errorFlow"));
+    }
+
     private String run(String routeId) {
+        return runWithGraph(graphFile, routeId);
+    }
+
+    private String runWithGraph(Path gf, String routeId) {
         StringWriter out = new StringWriter(), err = new StringWriter();
         CommandLine cl = new CommandLine(new GraphRouteContextCommand());
         cl.setOut(new PrintWriter(out));
         cl.setErr(new PrintWriter(err));
-        assertEquals(0, cl.execute("--graph-file", graphFile.toString(), routeId));
+        assertEquals(0, cl.execute("--graph-file", gf.toString(), routeId));
         return out.toString().trim();
     }
 }
