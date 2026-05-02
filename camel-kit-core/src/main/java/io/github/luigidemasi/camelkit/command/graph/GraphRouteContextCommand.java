@@ -60,8 +60,8 @@ public class GraphRouteContextCommand extends GraphQueryCommand {
         ArrayNode ef = root.putArray("errorFlow");
         tracer.trace(routeId).stream()
                 .filter(s -> {
-                    String t = s.type().toLowerCase(Locale.ROOT);
-                    String l = s.label().toLowerCase(Locale.ROOT);
+                    String t = s.type() != null ? s.type().toLowerCase(Locale.ROOT) : "";
+                    String l = s.label() != null ? s.label().toLowerCase(Locale.ROOT) : "";
                     return t.contains("error") || t.contains("exception") || l.contains("dlq")
                             || l.contains("deadletter");
                 })
