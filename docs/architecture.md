@@ -55,9 +55,9 @@ The frontmatter fields:
 |-------|---------------|-----------|---------|
 | `camel-brainstorm` | Yes | -- | Orchestrate design phase: interview user, produce BRD + TDDs |
 | `camel-plan` | Yes | `camel-brainstorm` (after spec approval) | Produce detailed implementation plan from approved design spec |
-| `camel-execute` | Yes | `camel-plan` (after plan approval) | Dispatch subagents per task with two-stage review |
+| `camel-execute` | Yes | `camel-plan` (auto-invoked after planning) | Environment probe, dispatch subagents per task with two-stage review |
 | `camel-migrate` | Yes | -- | Migration entry point: shortcut into `camel-brainstorm` with project type pre-set |
-| `camel-verify` | Yes | `camel-execute` (after all tasks) | 5-phase runtime verification loop |
+| `camel-verify` | Yes | `camel-execute` (after all tasks) | 3-phase runtime verification loop (build, Citrus tests, report) |
 | `camel-design` | No | `camel-brainstorm` | Guides for component selection, EIP catalog, TDD assembly |
 | `camel-implement` | No | `camel-execute` | Guides for YAML generation, properties, Docker Compose, DataMapper |
 | `camel-validate` | No | `camel-execute` | Guides for schema validation, endpoint verification, security analysis |
@@ -70,7 +70,7 @@ Shared guides live at `camel-kit-core/src/main/resources/skills/shared/` and are
 
 | Guide | Purpose |
 |-------|---------|
-| `iron-laws.md` | Five non-negotiable pipeline process enforcement rules |
+| `iron-laws.md` | Four non-negotiable pipeline process enforcement rules |
 | `datamapper-canonicalize.md` | Engine selection and field mapping enrichment for DataMapper |
 | `flow-test-data.md` | Test data generation patterns for flow design |
 | `mcp-setup.md` | MCP version mapping and connection parameters |
@@ -159,6 +159,8 @@ brainstorm / migrate
        v
    artifacts + verification report
 ```
+
+The execute phase starts with an **environment probe** that validates the target environment before dispatching implementers. If architectural failures are found, a **re-plan loop** modifies affected TDDs and re-executes (max 3 rounds).
 
 Entry points diverge (`camel-brainstorm` for greenfield, `camel-migrate` for migration) but both produce the same artifact format -- a BRD (Business Requirements Document) with TDDs (Technical Design Documents). This means `camel-plan` and `camel-execute` work identically regardless of whether the project is greenfield or migrated.
 
@@ -309,12 +311,12 @@ Traits are agent-specific instruction fragments that are appended to shared skil
 
 ### Iron Laws
 
-The five Iron Laws from `skills/shared/iron-laws.md` are embedded in each agent's instruction file:
+The four Iron Laws from `skills/shared/iron-laws.md` are embedded in each agent's instruction file:
 
 1. **MCP Catalog Verification** -- every component, EIP, dataformat, and language must be verified via MCP before being written to any spec, TDD, or YAML file
 2. **Constitution Compliance** -- every generated route must pass all 7 constitution rules (incorporates and enforces the constitution)
-4. **No Code Without Spec Approval** -- never generate implementation artifacts before the user has approved the design spec
-5. **Spec Compliance Before Quality** -- always run spec compliance review before code quality review; wrong order wastes effort
+3. **No Code Without Design Approval** -- never generate implementation artifacts before the user has approved the design spec. Planning flows directly into execution (no separate plan approval gate).
+4. **Spec Compliance Before Quality** -- always run spec compliance review before code quality review; wrong order wastes effort
 
 ### Subagent-Driven Execution
 
@@ -468,21 +470,23 @@ If the MCP server is not available, skills fall back to local component data and
 
 ## 7. Verification Pipeline
 
-The verification pipeline (`camel-verify`) is a 5-phase feedback loop that builds, starts, and behaviorally tests the generated application.
+The verification pipeline (`camel-verify`) is a 3-phase feedback loop that builds and tests the generated application using Citrus integration tests.
 
 ### Phases
 
-1. **Environment Preparation** -- start external services via `docker-compose`
-2. **Build Verification** -- compile the project with `./mvnw`, classify and fix build errors
-3. **Startup Verification** -- start the application, classify and fix startup errors
-4. **Behavioral Verification** -- send test data, compare output, fix mismatches
-5. **Report** -- structured summary of all phases, fixes applied, and issues found
+1. **Build Verification** -- compile the project with `./mvnw`, classify and fix build errors (skipped for JBang runtime)
+2. **Test Verification** -- run Citrus YAML integration tests via `camel test run`, classify and fix test failures. Citrus tests are self-contained: Testcontainers start external services, `camel:jbang:run` starts the Camel integration, send/receive actions validate behavior.
+3. **Report** -- structured summary of all phases, fixes applied, and issues found
 
 Each phase has an independent iteration budget of **max 15 attempts**. On each iteration, errors are classified and routed to the appropriate fix strategy.
 
+### Environment Probe
+
+Before the verify loop runs, `camel-execute` performs an **environment probe** as its first step. The probe generates a throwaway skeleton (pom.xml, docker-compose, empty route) and checks dependency resolution, Docker service availability, and runtime startup. Failures are classified as **mechanical** (auto-fix and re-probe) or **architectural** (trigger re-plan loop).
+
 ### Error Taxonomy
 
-14 error patterns organized by fix target:
+Error patterns organized by fix target:
 
 | Category | Examples | Fix Target |
 |----------|----------|------------|
@@ -500,19 +504,31 @@ Each phase has an independent iteration budget of **max 15 attempts**. On each i
 | Expression failure | `ExpressionEvaluationException` | `camel-implement` |
 | Type conversion | `TypeConversionException` | `camel-implement` |
 | XSLT transformation | `XPathException`, `TransformerException` | `camel-implement` |
-
-### Behavioral Verification
-
-Uses `camel cmd send` to inject test payloads into the running application. Reads from sinks and performs semantic comparison: field-by-field matching that ignores key ordering and whitespace differences.
+| Citrus assertion mismatch | `CitrusRuntimeException`, validation failure | `camel-implement` |
+| Citrus test timeout | `ActionTimeoutException` | Self-repair or `camel-implement` |
+| Testcontainer failure | `ContainerLaunchException` | Self-repair |
+| Test YAML error | Parse/schema error in test file | `camel-test` |
+| Test logic error | Incorrect test assertion | `camel-test` |
 
 ### Fix Routing
 
-Errors route to one of four destinations:
+Errors route to one of six destinations:
 
-1. **Self-repair** -- fix pom.xml, application.properties, or docker-compose directly
+1. **Self-repair** -- fix pom.xml, application.properties, or test configuration directly
 2. **camel-validate** -- route to validation skill for endpoint URI fixes
 3. **camel-implement** -- route to implementation skill for route logic fixes
-4. **Escalate to user** -- when the error is outside the pipeline's control (build tool issues, Quarkus augmentation failures)
+4. **camel-test** -- route to test skill for test re-generation (when the test is wrong, not the code)
+5. **re-plan** -- trigger the re-plan loop for architectural failures (modifies affected TDDs, max 3 rounds)
+6. **Escalate to user** -- when the error is outside the pipeline's control
+
+### Re-Plan Promotion
+
+When fix attempts fail persistently, errors promote to re-planning via a two-tier model:
+
+- **Tier 1 (immediate):** After 1 failed fix, MCP catalog confirms the failure is structural (component doesn't exist for this runtime). Triggers re-plan immediately.
+- **Tier 2 (progressive):** After 3 failed fix attempts on the same error class. Triggers re-plan.
+
+The re-plan loop modifies affected TDD(s) only (never the BRD), max 3 rounds, with short-circuit on same failure class.
 
 ---
 

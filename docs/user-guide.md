@@ -30,7 +30,7 @@ Camel-Kit is an AI-powered toolkit that guides you through designing, planning, 
 | **TDD** (Technical Design Document) | Per-flow specification. Describes the source, processing steps, sink, error handling, data transformation, configuration, and dependencies for a single Camel route. |
 | **MCP** (Model Context Protocol) | Real-time catalog queries. The AI assistant queries the Camel MCP server to verify components, EIPs, data formats, and expression languages exist in your exact Camel version -- never relying on training data. |
 | **Constitution** | Seven route quality rules enforced on every generated route: route structure, single responsibility, separation of concerns, naming conventions, observability, external configuration, and component support verification. |
-| **Iron Laws** | Five non-negotiable pipeline rules that govern the entire workflow: (1) MCP catalog verification for every component, (2) constitution compliance on every route, (3) no code without spec approval, (4) spec compliance review before quality review. |
+| **Iron Laws** | Four non-negotiable pipeline rules that govern the entire workflow: (1) MCP catalog verification for every component, (2) constitution compliance on every route, (3) no code without design approval (planning and execution flow continuously after design is approved), (4) spec compliance review before quality review. |
 
 ---
 
@@ -271,7 +271,7 @@ The execute phase runs all tasks from the approved plan autonomously, without pa
 1. **`/camel-implement`** -- generates Camel YAML routes, properties, pom.xml dependencies, and DataMapper transformations from the TDD
 2. **`/camel-validate`** -- checks generated routes against the MCP catalog and the constitution's 7 rules
 3. **`/camel-test`** -- generates Citrus integration tests
-4. **`/camel-verify`** -- runs the full 5-phase verification loop (build, startup, behavioral)
+4. **`/camel-verify`** -- runs the 3-phase verification loop (build, Citrus tests, report)
 
 Each task goes through two-stage review: spec compliance first (does it match the design?), then code quality (does it follow the constitution?). If review fails, the task is sent back for fixes before moving on.
 
@@ -399,7 +399,7 @@ The migration output is fully compatible with the greenfield pipeline. From the 
 
 ### `/camel-verify`
 
-Verification is a structured 5-phase feedback loop that builds, starts, tests, diagnoses errors, applies fixes, and retries until the application runs correctly or the iteration limit is reached.
+Verification is a structured 3-phase feedback loop that builds the project, runs Citrus integration tests via `camel test run`, diagnoses errors, applies fixes, and retries until all tests pass or the iteration limit is reached. Citrus tests are self-contained: Testcontainers manage external services and `camel:jbang:run` starts the Camel integration within the test.
 
 **When it runs:**
 - **Automatically** at the end of `/camel-execute`, after all implementation tasks complete
