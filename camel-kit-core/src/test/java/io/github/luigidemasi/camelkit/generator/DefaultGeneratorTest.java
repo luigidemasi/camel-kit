@@ -1,10 +1,12 @@
 package io.github.luigidemasi.camelkit.generator;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
+import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.output.Printer;
 
 import org.junit.jupiter.api.Test;
@@ -147,6 +149,59 @@ class DefaultGeneratorTest {
         assertTrue(Files.exists(ctx.skillsDir().resolve("camel-ship/guides/oversight-matrix.md")));
         assertTrue(Files.exists(ctx.skillsDir().resolve("camel-ship/guides/state-management.md")));
         assertTrue(Files.exists(ctx.skillsDir().resolve("camel-ship/guides/auto-fix-loop.md")));
+    }
+
+    @Test
+    void substitutesVersionPlaceholdersInSkillFiles() throws Exception {
+        InitContext ctx = createContext("bob");
+        new DefaultGenerator().generate(ctx);
+
+        Path versionSelection = ctx.skillsDir().resolve("camel-brainstorm/guides/version-selection.md");
+        assertTrue(Files.exists(versionSelection));
+        String content = Files.readString(versionSelection);
+
+        DistributionConfig dist = DistributionConfig.loadFromClasspathOrDefaults();
+        var mappings = dist.quarkusPlatformMappings();
+        assertFalse(mappings.isEmpty(), "Expected explicit Quarkus platform mappings");
+        assertFalse(content.contains("{QUARKUS_PLATFORM_VERSION}"),
+                "Placeholder should be substituted");
+        assertTrue(content.contains(dist.quarkusPlatformVersion()),
+                "Resolved value should appear");
+        assertFalse(content.contains("{QUARKUS_PLATFORM_TABLE}"),
+                "Table placeholder should be substituted");
+        for (var entry : mappings.entrySet()) {
+            assertTrue(content.contains(entry.getValue()),
+                    "Mapping for " + entry.getKey() + " should appear in table");
+        }
+    }
+
+    @Test
+    void substitutionPreservesNonPlaceholderBraces() throws IOException {
+        Path mdFile = tempDir.resolve("test.md");
+        Files.writeString(mdFile, """
+                jackson: {}
+                ${quarkus.platform.version}
+                {COMMAND_PREFIX} graph stats
+                Version: {QUARKUS_PLATFORM_VERSION}
+                """);
+        DefaultGenerator.substituteVersionPlaceholders(mdFile);
+        String result = Files.readString(mdFile);
+
+        DistributionConfig dist = DistributionConfig.loadFromClasspathOrDefaults();
+        assertTrue(result.contains("jackson: {}"), "YAML empty map must be preserved");
+        assertTrue(result.contains("${quarkus.platform.version}"), "Maven property must be preserved");
+        assertTrue(result.contains("{COMMAND_PREFIX} graph stats"), "Non-version placeholder must be preserved");
+        assertTrue(result.contains(dist.quarkusPlatformVersion()), "Version placeholder must be resolved");
+        assertFalse(result.contains("{QUARKUS_PLATFORM_VERSION}"), "Version placeholder must not remain");
+    }
+
+    @Test
+    void substitutionSkipsFilesWithoutPlaceholders() throws IOException {
+        Path mdFile = tempDir.resolve("plain.md");
+        String original = "No placeholders here. Just some text with {braces} and ${maven}.";
+        Files.writeString(mdFile, original);
+        DefaultGenerator.substituteVersionPlaceholders(mdFile);
+        assertEquals(original, Files.readString(mdFile), "File without version placeholders must not change");
     }
 
     @Test

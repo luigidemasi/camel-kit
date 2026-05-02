@@ -147,6 +147,16 @@ public class DefaultGenerator implements AgentGenerator {
                             if (destination.getFileName().toString().equals("SKILL.md")) {
                                 appendDispatchBlock(destination, ctx.agentName());
                             }
+                            // Substitute version placeholders in all .md files
+                            if (destination.getFileName().toString().endsWith(".md")) {
+                                try {
+                                    substituteVersionPlaceholders(destination);
+                                } catch (Exception e) {
+                                    ctx.printer().println(AnsiColors.yellow(
+                                            "  Warning: Failed to substitute version placeholders in "
+                                                                            + destination + ": " + e.getMessage()));
+                                }
+                            }
                         }
                     } catch (Exception e) {
                         // Silent skip - this is expected for some paths
@@ -192,6 +202,64 @@ public class DefaultGenerator implements AgentGenerator {
         } catch (IOException e) {
             // Dispatch template not found — skill works without it (fallback to monolithic mode)
         }
+    }
+
+    /**
+     * Substitute version placeholders in a copied skill .md file using Qute. Escapes all {@code {}} to protect
+     * non-template braces (JSON, Maven {@code ${}}, YAML), then restores only known version placeholders before
+     * rendering.
+     */
+    static void substituteVersionPlaceholders(Path mdFile) throws IOException {
+        String content = Files.readString(mdFile);
+
+        DistributionConfig dist = CamelKitMain.distribution();
+        Map<String, String> versionData = buildVersionTemplateData(dist);
+
+        boolean hasPlaceholder = false;
+        for (String key : versionData.keySet()) {
+            if (content.contains("{" + key + "}")) {
+                hasPlaceholder = true;
+                break;
+            }
+        }
+        if (!hasPlaceholder) {
+            return;
+        }
+
+        // Escape ALL { to \{ so Qute treats them as literals
+        String escaped = content.replace("{", "\\{");
+
+        // Restore only known version placeholders so Qute will resolve them
+        for (String key : versionData.keySet()) {
+            escaped = escaped.replace("\\{" + key + "}", "{" + key + "}");
+        }
+
+        QuteTemplateEngine qute = new QuteTemplateEngine();
+        Map<String, Object> data = new java.util.HashMap<>(versionData);
+        String rendered = qute.renderString(escaped, data);
+        Files.writeString(mdFile, rendered);
+    }
+
+    private static Map<String, String> buildVersionTemplateData(DistributionConfig dist) {
+        Map<String, String> data = new java.util.LinkedHashMap<>();
+        data.put("CAMEL_VERSION", dist.camelMainVersion());
+        data.put("CAMEL_MAIN_VERSION", dist.camelMainVersion());
+        data.put("CAMEL_SPRINGBOOT_VERSION", dist.camelSpringbootVersion());
+        data.put("CAMEL_QUARKUS_VERSION", dist.camelQuarkusVersion());
+        data.put("SPRINGBOOT_BOM_VERSION", dist.springbootBomVersion());
+        data.put("QUARKUS_PLATFORM_VERSION", dist.quarkusPlatformVersion());
+        data.put("CAMEL_MAIN_SUPPORTED", dist.camelMainSupported());
+        data.put("CAMEL_SPRINGBOOT_SUPPORTED", dist.camelSpringbootSupported());
+        data.put("CAMEL_QUARKUS_SUPPORTED", dist.camelQuarkusSupported());
+
+        StringBuilder table = new StringBuilder();
+        for (var entry : dist.quarkusPlatformMappings().entrySet()) {
+            table.append("| ").append(entry.getKey())
+                    .append(" | ").append(entry.getValue())
+                    .append(" |\n");
+        }
+        data.put("QUARKUS_PLATFORM_TABLE", table.toString().stripTrailing());
+        return data;
     }
 
     private void createMcpConfigs(InitContext ctx) throws Exception {

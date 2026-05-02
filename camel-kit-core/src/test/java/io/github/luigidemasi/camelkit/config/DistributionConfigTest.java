@@ -44,6 +44,17 @@ class DistributionConfigTest {
     }
 
     @Test
+    void quarkusPlatformMappingsReturnsExplicitEntries() {
+        InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
+        DistributionConfig config = DistributionConfig.load(in);
+
+        var mappings = config.quarkusPlatformMappings();
+        assertEquals("3.27.2", mappings.get("4.14.4"));
+        assertEquals("3.20.0", mappings.get("4.13.0"));
+        assertFalse(mappings.containsKey("version"), "Default quarkus.platform.version must be excluded");
+    }
+
+    @Test
     void loadsMcpConfig() {
         InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
         DistributionConfig config = DistributionConfig.load(in);

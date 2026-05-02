@@ -39,7 +39,7 @@ Define platform version properties using the community coordinates:
 
 ```xml
 <properties>
-    <quarkus.platform.version>3.27.2</quarkus.platform.version>
+    <quarkus.platform.version>{QUARKUS_PLATFORM_VERSION}</quarkus.platform.version>
     <camel-quarkus.platform.version>${quarkus.platform.version}</camel-quarkus.platform.version>
 
     <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
@@ -70,8 +70,8 @@ Read the Quarkus platform version from `.camel-kit/config.properties`:
 
 ```properties
 project.runtime=quarkus
-project.camelVersion=4.18.0
-project.platformBomVersion=3.33.0  # <- use THIS value
+project.camelVersion={CAMEL_QUARKUS_VERSION}
+project.platformBomVersion={QUARKUS_PLATFORM_VERSION}  # <- use THIS value
 ```
 
 **Do NOT guess or derive** the Quarkus platform version from the Camel version. The mapping is non-obvious (Camel 4.14 -> Quarkus 3.27, NOT 3.14) and is pre-computed by `camel-kit init`.
