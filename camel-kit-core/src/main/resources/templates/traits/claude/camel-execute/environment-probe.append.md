@@ -1,12 +1,8 @@
 ## Agent Optimization: Claude Code
 
-### Background Dependency Resolution
+### Single-Command Probe
 
-Run the Maven dependency resolution in the background to avoid blocking:
-
-- Use `Bash` with `run_in_background: true` for `{MAVEN_CMD} dependency:resolve -q`
-- Use `ScheduleWakeup` with `delaySeconds: 90` and `reason: "waiting for dependency resolution to complete"`
-- On wake, check the background task exit code
+For dependency resolution alone, run in the foreground — `{MAVEN_CMD} dependency:resolve -q` typically completes in 30-90s, well within the 300s cache TTL. No background task or wakeup needed.
 
 ### Docker Health Polling
 
@@ -20,6 +16,11 @@ When waiting for Docker services to become healthy, avoid tight polling loops:
 
 If the skeleton has both Maven dependencies and Docker services, run both checks in parallel:
 
-- Dispatch `mvn dependency:resolve` via `Bash` with `run_in_background: true`
+- Dispatch `{MAVEN_CMD} dependency:resolve -q` via `Bash` with `run_in_background: true` — note the returned task ID
 - Run `docker compose up -d` in the foreground (faster, non-blocking)
-- Wait for both to complete before proceeding to runtime startup
+- Use `ScheduleWakeup` with `delaySeconds: 90` and `reason: "waiting for parallel Maven + Docker probe"`
+- On wake, use `TaskOutput` with the task ID and `block: false` to check Maven status:
+  - If completed with exit code 0 → Maven passed
+  - If completed with non-zero exit code → Maven failed, capture stderr for classification
+  - If still running → re-schedule one more wakeup at 60s. If still running after that, classify as timeout (mechanical failure)
+- Only proceed to runtime startup after BOTH Maven and Docker checks are confirmed complete

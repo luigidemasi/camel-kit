@@ -27,11 +27,7 @@ For long implementation sessions (3+ tasks), use `CronCreate` to schedule a peri
 
 ### Environment Probe Pacing
 
-The environment probe runs before dispatching implementers. Use pacing tools to avoid blocking:
-
-- Run `{MAVEN_CMD} dependency:resolve` via `Bash` with `run_in_background: true`
-- Use `ScheduleWakeup` with `delaySeconds: 90` to wait for dependency resolution
-- See `camel-execute/guides/environment-probe.md` trait for detailed probe optimizations
+The environment probe runs before dispatching implementers. Dependency resolution typically takes 30-90s — well within the 300s cache TTL, so foreground execution is fine for the single-command case. Use background only when parallelizing Maven + Docker (see the environment-probe trait for details).
 
 ### State Tracking
 
