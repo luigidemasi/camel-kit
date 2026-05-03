@@ -44,13 +44,13 @@ The most common way to use an AI coding assistant is: describe what you want, ge
 
 The problem is not that AI is bad at writing code. The problem is that it skips understanding. It never asks "what should happen when Kafka is unavailable?" or "do you need idempotent processing?" -- it guesses, and its guesses are drawn from training data that may be outdated or wrong for your version.
 
-Camel-Kit enforces a strict separation: **understand before designing, design before planning, plan before coding.** Each phase has a deliverable, and you approve it before the next phase begins.
+Camel-Kit enforces a strict separation: **understand before designing, design before planning, plan before coding.** The design phase has a deliverable that you approve before anything else proceeds. After design approval, planning and execution flow continuously.
 
 ```mermaid
 flowchart LR
     U["Understand\n(interview)"] -->|"you approve\ndesign spec"| D["Design\n(components, flows)"]
-    D -->|"you approve\nplan"| P["Plan\n(task breakdown)"]
-    P -->|"automated review\nat each step"| A["Act\n(implement, validate,\ntest, verify)"]
+    D -->|"auto"| P["Plan\n(task breakdown)"]
+    P -->|"auto + review\nat each step"| A["Act\n(implement, validate,\ntest, verify)"]
 ```
 
 This means you are never surprised by what the AI produces. If the design is wrong, you catch it before any code exists. If the plan is wrong, you catch it before code is generated.
@@ -64,7 +64,7 @@ Camel-Kit uses gates everywhere:
 | Gate | What It Blocks |
 |------|---------------|
 | **User approval after design** | Cannot start planning until you confirm the design spec matches your intent |
-| **User approval after plan** | Cannot start implementing until you confirm the approach |
+| **Environment probe** | Cannot start implementing until the environment probe confirms dependencies resolve and runtime boots |
 | **MCP catalog verification** | Cannot use a component until the live catalog confirms it exists in your Camel version |
 | **Constitution validation** | Routes without a `routeId`, with hardcoded credentials, or with unsupported components fail validation -- not warned, failed |
 | **Two-stage review** | Spec compliance is checked before code quality. Cannot skip to quality review on a route that doesn't match the design. |
@@ -227,7 +227,7 @@ flowchart TB
 
     A --> B
     B -->|"user approves BRD"| C
-    C -->|"user approves plan"| D
+    C -->|"auto-proceeds"| D
     D --> I --> V --> T --> R
     D --> E
 ```
@@ -262,7 +262,7 @@ The plan phase reviews the approved BRD and decomposes it into bite-sized implem
 
 **Output:** An implementation plan (`docs/implementation-plan.md`).
 
-After the user reviews and approves the plan, the pipeline transitions automatically to the execute phase.
+After the plan is complete, the pipeline transitions automatically to the execute phase. There is no separate plan approval gate -- the design approval authorizes all downstream work. The environment probe (first step of execute) validates feasibility before code generation begins.
 
 ### Phase 3: Execute (`/camel-execute`)
 

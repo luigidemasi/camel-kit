@@ -54,7 +54,7 @@ The frontmatter fields:
 | Skill | User-Invocable | Loaded By | Purpose |
 |-------|---------------|-----------|---------|
 | `camel-brainstorm` | Yes | -- | Orchestrate design phase: interview user, produce BRD + TDDs |
-| `camel-plan` | Yes | `camel-brainstorm` (after spec approval) | Produce detailed implementation plan from approved design spec |
+| `camel-plan` | Yes | `camel-brainstorm` (after design approval) | Produce detailed implementation plan from approved design spec |
 | `camel-execute` | Yes | `camel-plan` (auto-invoked after planning) | Environment probe, dispatch subagents per task with two-stage review |
 | `camel-migrate` | Yes | -- | Migration entry point: shortcut into `camel-brainstorm` with project type pre-set |
 | `camel-verify` | Yes | `camel-execute` (after all tasks) | 3-phase runtime verification loop (build, Citrus tests, report) |
@@ -552,7 +552,7 @@ Skills are markdown instruction files -- the same skill works across all five su
 
 The **Constitution** defines 7 route quality rules (what makes a good route): route structure, single responsibility, separation of concerns, naming conventions, observability, external configuration, component support verification.
 
-The **Iron Laws** define pipeline process enforcement rules (how the pipeline operates): MCP verification, constitution compliance, no code without spec approval, spec compliance before quality.
+The **Iron Laws** define pipeline process enforcement rules (how the pipeline operates): MCP verification, constitution compliance, no code without design approval, spec compliance before quality.
 
 Iron Law 3 explicitly incorporates and enforces the 7 constitution rules. They are complementary, not overlapping -- the constitution says what to check, the iron laws say when and how to enforce it.
 

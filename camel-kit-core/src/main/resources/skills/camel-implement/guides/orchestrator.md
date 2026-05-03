@@ -161,8 +161,8 @@ Verify these files exist and are non-empty:
 |-------|------|-----------|
 | Route YAML | `{ROUTE_DIR}/{flow-name}.camel.yaml` | MUST exist, MUST be non-empty |
 | Properties | `{PROPS_DIR}/application.properties` | MUST exist |
-| Docker Compose | `{MODULE_DIR}/docker-compose.yaml` | MUST exist if TDD lists external services |
-| Maven POM | `{MODULE_DIR}/pom.xml` | MUST exist (Spring Boot / Quarkus only) |
+| Docker Compose | `{MODULE_DIR}/docker-compose.yaml` | MUST exist and be non-empty if TDD lists external services |
+| Maven POM | `{MODULE_DIR}/pom.xml` | MUST exist and be non-empty (Spring Boot / Quarkus only) |
 | Run script | `{MODULE_DIR}/run.sh` | MUST exist (JBang only) |
 
 **If the route YAML does not exist or is empty, STOP.** Do not show the Implementation Summary. Go back to Step 2 (Route Generation) and actually generate the file. This check exists because the most common failure mode is the AI reading guides without executing them.
