@@ -25,6 +25,10 @@ For long implementation sessions (3+ tasks), use `CronCreate` to schedule a peri
 - This catches regressions early, before the full verification phase
 - Delete the cron job (`CronDelete`) when execution completes
 
+### Environment Probe Pacing
+
+The environment probe runs before dispatching implementers. Dependency resolution typically takes 30-90s — well within the 300s cache TTL, so foreground execution is fine for the single-command case. Use background only when parallelizing Maven + Docker (see the environment-probe trait for details).
+
 ### State Tracking
 
 Use Claude Code's task tracking tools for real-time progress visibility:
@@ -33,3 +37,4 @@ Use Claude Code's task tracking tools for real-time progress visibility:
 - `TaskUpdate` to mark tasks `in_progress` when the implementer subagent is dispatched
 - `TaskUpdate` to mark tasks `completed` after both review stages pass
 - `TaskList` to report progress after each wave completes
+- Track re-plan rounds as tasks when the re-plan loop triggers

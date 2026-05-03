@@ -107,13 +107,30 @@ This outputs JSON with parallel execution waves — groups of tasks that can run
 
 ---
 
+### Step 0.5: Environment Probe
+
+Before dispatching any implementers, validate the target environment.
+
+1. Load `guides/environment-probe.md`
+2. Execute the probe (skeleton pom.xml, docker-compose, empty route)
+3. If probe passes → proceed to task dispatch
+4. If probe finds mechanical failures → auto-fix and re-probe
+5. If probe finds architectural failures → load `guides/re-plan-loop.md`
+   - Re-plan modifies affected TDD(s), max 3 rounds
+   - After successful re-plan → re-probe, then proceed
+6. If probe still fails after re-plan → escalate to user
+
+The probe prevents wasting implementation cycles on environments that cannot support the planned architecture.
+
+---
+
 ## Iron Laws (enforced in this phase)
 
-Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces ALL five:
+Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces ALL four:
 
 - **Iron Law 1: MCP Catalog Verification** — implementer subagents MUST verify every component via MCP before generating YAML.
-- **Iron Law 3: Constitution Compliance** — quality reviewer checks all 7 constitution rules.
-- **Iron Law 4: No Code Without Spec Approval** — this phase runs ONLY after the plan is approved.
+- **Iron Law 2: Constitution Compliance** — quality reviewer checks all 7 constitution rules.
+- **Iron Law 3: No Code Without Design Approval** — this phase runs after the design spec is approved and planning is complete.
 - **Iron Law 4: Spec Compliance Before Quality** — ALWAYS spec review FIRST, then quality review. Never in parallel. Never reversed.
 
 ### Rationalization Table
@@ -166,7 +183,7 @@ Extract ALL tasks with:
 
 ### Step 2: Per-Task Loop
 
-For each task in order:
+For each wave (sequential across waves, parallel within a wave for agents that support it). For single-conversation agents, execute tasks within each wave sequentially in plan order:
 
 #### 2a: Dispatch Implementer Subagent
 
@@ -239,7 +256,7 @@ Do NOT:
 - Pause for confirmation between tasks
 - Say "The camel-execute/camel-migrate command has completed" (it hasn't — there are more tasks)
 
-The user approved the entire plan — that approval covers ALL tasks. Execute them ALL sequentially without interruption. The ONLY time you stop is after the LAST task, when you print the Step 4 completion summary.
+The user approved the entire plan — that approval covers ALL tasks. Execute them ALL without interruption, following wave policy (parallel within a wave where supported, sequential across waves). The ONLY time you stop is after the LAST task, when you print the Step 4 completion summary.
 </HARD-RULE>
 
 ### Step 3: Final Cross-Cutting Review
@@ -258,13 +275,15 @@ After the cross-cutting review, run the full verification loop to validate the i
 
 1. Load the `camel-verify` skill (`skills/camel-verify/SKILL.md`)
 2. Load both guides: `verify-loop.md` and `error-taxonomy.md`
-3. Execute the full verification loop (all 5 phases)
+3. Execute the full verification loop (3 phases: build, Citrus tests, report)
 4. Capture the verification report
 
 **Key rules:**
 - Verification runs **once** after all tasks complete — not per-task. Camel loads all routes at startup, so per-task verification would fail on routes that depend on other not-yet-implemented routes.
 - Verification failure does **NOT** block finishing. The user might want to merge/PR even with verification issues (e.g., external services unavailable in dev environment). The report is informational.
 - The verification report is included in Step 4's completion summary.
+
+**Re-plan trigger:** If verification failures persist after fix attempts within the verify loop, the verify loop may trigger `guides/re-plan-loop.md` to modify affected TDDs and re-execute. See `camel-verify/guides/verify-loop.md` Phase 2 for trigger conditions.
 
 ### Step 4: Completion Summary
 
@@ -301,7 +320,7 @@ Verification: PASS/PARTIAL/FAIL/NOT_RUN
 - Start implementation without an approved plan
 - Skip reviews (spec compliance OR code quality)
 - Run reviews in parallel or reversed order
-- Dispatch multiple implementers simultaneously
+- Dispatch implementers simultaneously outside of wave analysis — only parallelize within waves from `plan analyze`, and only for agents that support concurrent conversations
 - Make subagents read the plan file (provide full text)
 - Ignore subagent questions
 - Accept "close enough" on spec compliance

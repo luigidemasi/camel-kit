@@ -395,17 +395,11 @@ For connectors with no direct equivalent, the command stops and asks the user be
 /camel-verify
 ```
 
-**How it works (5-phase loop):**
+**How it works (3-phase loop):**
 
-1. **Environment Preparation** -- checks for Maven (`./mvnw`), Docker, JDK, Camel CLI. Starts external services via `docker compose up -d` if a `docker-compose.yaml` exists. Gracefully degrades when tools are unavailable.
-
-2. **Build Verification** -- runs `./mvnw compile` and enters an iteration loop (max 15 attempts per phase) if the build fails. Each error is classified, routed to the appropriate fix target, and retried. Skipped entirely for JBang runtime.
-
-3. **Startup Verification** -- starts the application using the runtime-specific command (`./mvnw quarkus:dev`, `./mvnw spring-boot:run`, or `camel run`) and watches for success or failure patterns in the logs. Errors are classified and fixed in an iteration loop (max 15 attempts).
-
-4. **Behavioral Verification** -- sends test data to the running application, compares actual output against expected output using semantic comparison (field-by-field, ignoring key ordering and whitespace). Mismatches are classified and fixed in an iteration loop (max 15 attempts).
-
-5. **Report** -- structured summary of all phases, fixes applied, issues found, and any skipped checks with reasons.
+1. **Build Verification** -- compiles the project with `./mvnw` (skipped for JBang runtime). Classifies build errors and auto-fixes (missing dependencies, version conflicts) or routes to `camel-implement`/`camel-validate`. Up to 15 iterations.
+2. **Test Verification** -- runs Citrus integration tests via `camel test run`. Citrus tests are self-contained: Testcontainers start external services, `camel:jbang:run` starts the Camel integration, send/receive actions validate behavior. Classifies test failures and routes to `camel-implement` (route fix), `camel-test` (test re-generation), or self-repair. Up to 15 iterations.
+3. **Report** -- structured summary with phase outcomes, fixes applied, and issues found.
 
 **Error classification (14 patterns):**
 
@@ -427,6 +421,8 @@ For connectors with no direct equivalent, the command stops and asks the user be
 | XSLT transformation | `XPathException`, `TransformerException` | `/camel-implement` |
 
 Each phase has an independent iteration budget of 15 attempts. If the same error recurs after a fix attempt, the loop short-circuits and escalates to the user. Unclassified errors are also escalated with the raw log output.
+
+During **Test Verification** (Phase 2), test failures may also route to `/camel-test` for test re-generation. For persistent **architectural** failures, the loop triggers the **re-plan** flow per `camel-execute/guides/re-plan-loop.md`.
 
 ---
 

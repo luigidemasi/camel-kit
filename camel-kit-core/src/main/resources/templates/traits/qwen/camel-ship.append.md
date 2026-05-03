@@ -19,3 +19,15 @@ Maintain a pipeline progress list using `todo_write`:
 ### Checkpoint Between Stages
 
 After each stage completes, write the state to `.camel-kit/ship-state.json` AND update the todo list. This dual-write ensures state is recoverable from either mechanism.
+
+### Plan Auto-Progression
+
+Stage 1 (Plan) auto-proceeds to Stage 2 (Execute). Do not wait for plan approval — update the todo list to check off "Stage 1: Plan" and immediately proceed to "Stage 2: Execute".
+
+### Re-Plan Checkpoints
+
+If the re-plan loop triggers during Stage 2:
+
+- Add temporary todo items: "Re-plan round 1", "Re-plan round 2", "Re-plan round 3"
+- Write state to `.camel-kit/ship-state.json` after each round
+- If interrupted during re-plan, resume from the correct round using saved state

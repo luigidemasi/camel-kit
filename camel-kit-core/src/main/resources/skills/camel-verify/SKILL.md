@@ -6,15 +6,13 @@ user_invocable: true
 
 # Camel Verify
 
-Runtime verification feedback loop. Replaces the one-shot "try running" instruction with a structured 5-phase loop:
+Runtime verification feedback loop. Builds, tests, diagnoses, fixes, and retries in a structured 3-phase loop:
 
-1. **Environment Preparation** — start external services via docker-compose
-2. **Build Verification** — compile the project, classify and fix build errors
-3. **Startup Verification** — start the application, classify and fix startup errors
-4. **Behavioral Verification** — send test data, compare output, fix mismatches
-5. **Report** — structured summary of all phases, fixes applied, and issues found
+1. **Build Verification** — compile the project, classify and fix build errors
+2. **Test Verification** — run Citrus integration tests via `camel test run`, classify and fix test failures
+3. **Report** — structured summary of all phases, fixes applied, and issues found
 
-Each phase retries up to 15 times with error classification and fix routing to existing skills (`camel-validate`, `camel-implement`, or self-repair). Graceful degradation when tools (Maven, Docker, JBang) are unavailable.
+Each phase retries up to 15 times with error classification and fix routing to existing skills (`camel-validate`, `camel-implement`, `camel-test`, or self-repair). Persistent architectural failures trigger automatic re-planning via `camel-execute/guides/re-plan-loop.md`. Graceful degradation when tools (Maven, Docker, `camel test` CLI) are unavailable.
 
 ## Invocation
 
@@ -32,5 +30,5 @@ When invoked standalone, runs the full verification loop on the project as-is. W
 
 | Guide | When Loaded | Purpose |
 |-------|-------------|---------|
-| `guides/verify-loop.md` | Always | Core verification loop — 5 phases, iteration, fix routing, report |
+| `guides/verify-loop.md` | Always | Core verification loop — 3 phases, iteration, fix routing, report |
 | `guides/error-taxonomy.md` | Always (reference) | Error classification tables — patterns, categories, fix actions |

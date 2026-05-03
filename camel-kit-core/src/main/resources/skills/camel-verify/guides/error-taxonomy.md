@@ -24,7 +24,7 @@ Each entry follows this structure:
 - **Pattern:** regex or string to match in log output
 - **Phase:** Build | Startup
 - **Category:** the error family
-- **Fix target:** Self-repair | camel-validate | camel-implement | Escalate
+- **Fix target:** Self-repair | camel-validate | camel-implement | camel-test | re-plan | Escalate
 - **Fix action:** what to do
 
 ---
@@ -184,6 +184,97 @@ For Simple or XPath expressions: check the expression syntax in the route YAML a
 **Category:** Transformation
 **Fix target:** camel-implement
 **Fix action:** The XSLT stylesheet has an error. Re-run `datamapper-validation.md` to verify the XSLT against TDD field mappings. If validation finds issues, re-generate the XSLT using the appropriate approach guide (`datamapper-approach-a.md` or `datamapper-approach-b.md`).
+
+---
+
+## Test Errors (Phase 2)
+
+These errors appear during `camel test run *.it.yaml`.
+
+### Citrus Assertion Mismatch
+
+**Pattern:** `CitrusRuntimeException` or `Failed validation` or `expected:<` followed by `> but was:<`
+**Phase:** Test
+**Category:** Assertion mismatch
+**Fix target:** camel-implement
+**Fix action:** The route produces incorrect output for the test input. Read the TDD field mappings and compare against the actual route transformation. Fix the route logic (Groovy script, XSLT, Simple expression), not the test. Re-check with `datamapper-validation.md` if the flow uses DataMapper.
+
+### Citrus Test Timeout
+
+**Pattern:** `ActionTimeoutException` or `Timeout waiting for message` or `timeout after`
+**Phase:** Test
+**Category:** Timeout
+**Fix target:** Self-repair
+**Fix action:** The test waited for a response message that never arrived. Possible causes:
+1. Route is not processing (check startup logs within Citrus test output)
+2. Endpoint configuration mismatch between test YAML and route YAML (different topic name, queue name, etc.)
+3. Timeout value too low for the processing pipeline
+
+Increase timeout first. If still failing after timeout increase, check route endpoint URIs match the test endpoint URIs — this becomes a camel-implement fix target.
+
+### Testcontainer Launch Failure
+
+**Pattern:** `ContainerLaunchException` or `Could not start container` or `container exited`
+**Phase:** Test
+**Category:** Container startup
+**Fix target:** Self-repair
+**Fix action:** A Testcontainer failed to start within the Citrus test. Possible causes:
+1. Docker daemon not running → report and skip
+2. Docker image not available or tag invalid → fix the image reference in the test YAML
+3. Port conflict with an already-running container → stop conflicting containers
+
+Check Docker status first. If Docker is running, inspect the container name and image in the test YAML. Fix the image reference or version tag.
+
+### Test YAML Parse Error
+
+**Pattern:** `Failed to parse test file` or `Invalid test action` or `Unknown action type` or YAML syntax error in test file
+**Phase:** Test
+**Category:** Test syntax
+**Fix target:** camel-test
+**Fix action:** The Citrus test YAML has a syntax or schema error. The test itself is malformed — not the route. Re-generate the test using `camel-test/guides/test-generation.md`. Common causes: wrong YAML indentation, unknown action name, incorrect endpoint format, variable syntax error.
+
+### Test Logic Error
+
+**Pattern:** Test fails but manual inspection of route output shows correct behavior. The test assertion itself expects the wrong value.
+**Phase:** Test
+**Category:** Test logic
+**Fix target:** camel-test
+**Fix action:** The test expectations are wrong, not the route. This happens when the TDD was modified after the test was generated, or when the test-data expectations in `docs/flows/{flow-name}/test-data/` are incorrect. Re-read the TDD field mappings, regenerate the synthetic I/O pairs via `shared/flow-test-data.md`, then regenerate the test from the updated TDD.
+
+---
+
+## Re-Plan Promotion Rules
+
+When fix attempts fail to resolve an error, it may indicate an architectural problem requiring TDD changes rather than code fixes.
+
+### Tier 1: Immediate Promotion
+
+After 1 failed fix attempt, query the MCP catalog to check if the failure is structural:
+- Component does not exist for this runtime/version → `re-plan`
+- Required EIP pattern not available in this Camel version → `re-plan`
+- Incompatible component combination confirmed → `re-plan`
+
+**Detection:** After the first fix attempt fails, call `camel_catalog_component(name={component}, runtime={runtime}, platformBom={bom})`. If MCP returns no result, the failure is structural. Route to `re-plan` immediately — do not consume additional fix attempts.
+
+### Tier 2: Progressive Promotion
+
+After 3 failed fix attempts on the same error class (each with a different fix strategy):
+- Build error with same root cause after 3 dependency changes → `re-plan`
+- Startup error with same exception after 3 route modifications → `re-plan`
+- Test error with same assertion failure after 3 transformation fixes → `re-plan`
+
+**Detection:** Track the error class (the category from this taxonomy) and the fix attempts count per class. When attempt count for a class reaches 3, route to `re-plan`.
+
+### Short-Circuit Rule
+
+If the error after a fix attempt is the exact same pattern and message as before the fix, short-circuit immediately:
+- If this is a Tier 1 candidate (component/dependency error) → verify with MCP, then `re-plan`
+- If this is a Tier 2 candidate → increment attempt count, trigger `re-plan` if count >= 3
+
+### Fix Target: re-plan
+
+**Fix target:** re-plan
+**Fix action:** Load `camel-execute/guides/re-plan-loop.md`. Pass the failure details, affected TDD file(s), error output, and MCP catalog response (if applicable). The re-plan loop modifies the affected TDD sections and re-executes. Maximum 3 re-plan rounds.
 
 ---
 

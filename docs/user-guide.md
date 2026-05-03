@@ -30,7 +30,7 @@ Camel-Kit is an AI-powered toolkit that guides you through designing, planning, 
 | **TDD** (Technical Design Document) | Per-flow specification. Describes the source, processing steps, sink, error handling, data transformation, configuration, and dependencies for a single Camel route. |
 | **MCP** (Model Context Protocol) | Real-time catalog queries. The AI assistant queries the Camel MCP server to verify components, EIPs, data formats, and expression languages exist in your exact Camel version -- never relying on training data. |
 | **Constitution** | Seven route quality rules enforced on every generated route: route structure, single responsibility, separation of concerns, naming conventions, observability, external configuration, and component support verification. |
-| **Iron Laws** | Five non-negotiable pipeline rules that govern the entire workflow: (1) MCP catalog verification for every component, (2) constitution compliance on every route, (3) no code without spec approval, (4) spec compliance review before quality review. |
+| **Iron Laws** | Four non-negotiable pipeline rules that govern the entire workflow: (1) MCP catalog verification for every component, (2) constitution compliance on every route, (3) no code without design approval (planning and execution flow continuously after design is approved), (4) spec compliance review before quality review. |
 
 ---
 
@@ -44,13 +44,13 @@ The most common way to use an AI coding assistant is: describe what you want, ge
 
 The problem is not that AI is bad at writing code. The problem is that it skips understanding. It never asks "what should happen when Kafka is unavailable?" or "do you need idempotent processing?" -- it guesses, and its guesses are drawn from training data that may be outdated or wrong for your version.
 
-Camel-Kit enforces a strict separation: **understand before designing, design before planning, plan before coding.** Each phase has a deliverable, and you approve it before the next phase begins.
+Camel-Kit enforces a strict separation: **understand before designing, design before planning, plan before coding.** The design phase has a deliverable that you approve before anything else proceeds. After design approval, planning and execution flow continuously.
 
 ```mermaid
 flowchart LR
     U["Understand\n(interview)"] -->|"you approve\ndesign spec"| D["Design\n(components, flows)"]
-    D -->|"you approve\nplan"| P["Plan\n(task breakdown)"]
-    P -->|"automated review\nat each step"| A["Act\n(implement, validate,\ntest, verify)"]
+    D -->|"auto"| P["Plan\n(task breakdown)"]
+    P -->|"auto + review\nat each step"| A["Act\n(implement, validate,\ntest, verify)"]
 ```
 
 This means you are never surprised by what the AI produces. If the design is wrong, you catch it before any code exists. If the plan is wrong, you catch it before code is generated.
@@ -64,7 +64,7 @@ Camel-Kit uses gates everywhere:
 | Gate | What It Blocks |
 |------|---------------|
 | **User approval after design** | Cannot start planning until you confirm the design spec matches your intent |
-| **User approval after plan** | Cannot start implementing until you confirm the approach |
+| **Environment probe** | Cannot start implementing until the environment probe confirms dependencies resolve and runtime boots |
 | **MCP catalog verification** | Cannot use a component until the live catalog confirms it exists in your Camel version |
 | **Constitution validation** | Routes without a `routeId`, with hardcoded credentials, or with unsupported components fail validation -- not warned, failed |
 | **Two-stage review** | Spec compliance is checked before code quality. Cannot skip to quality review on a route that doesn't match the design. |
@@ -199,7 +199,7 @@ The init command copies skill files, configures MCP, and sets up the Maven wrapp
 
 ## 4. The Workflow: Greenfield Projects
 
-Camel-Kit follows a 3-phase pipeline: **Design**, **Plan**, **Execute**. Each phase produces a document, the user approves it, and the pipeline advances automatically.
+Camel-Kit follows a 3-phase pipeline: **Design**, **Plan**, **Execute**. You approve the design output, then planning and execution auto-proceed under that approval.
 
 ```mermaid
 flowchart TB
@@ -227,7 +227,7 @@ flowchart TB
 
     A --> B
     B -->|"user approves BRD"| C
-    C -->|"user approves plan"| D
+    C -->|"auto-proceeds"| D
     D --> I --> V --> T --> R
     D --> E
 ```
@@ -262,7 +262,7 @@ The plan phase reviews the approved BRD and decomposes it into bite-sized implem
 
 **Output:** An implementation plan (`docs/implementation-plan.md`).
 
-After the user reviews and approves the plan, the pipeline transitions automatically to the execute phase.
+After the plan is complete, the pipeline transitions automatically to the execute phase. There is no separate plan approval gate -- the design approval authorizes all downstream work. The environment probe (first step of execute) validates feasibility before code generation begins.
 
 ### Phase 3: Execute (`/camel-execute`)
 
@@ -271,7 +271,7 @@ The execute phase runs all tasks from the approved plan autonomously, without pa
 1. **`/camel-implement`** -- generates Camel YAML routes, properties, pom.xml dependencies, and DataMapper transformations from the TDD
 2. **`/camel-validate`** -- checks generated routes against the MCP catalog and the constitution's 7 rules
 3. **`/camel-test`** -- generates Citrus integration tests
-4. **`/camel-verify`** -- runs the full 5-phase verification loop (build, startup, behavioral)
+4. **`/camel-verify`** -- runs the 3-phase verification loop (build, Citrus tests, report)
 
 Each task goes through two-stage review: spec compliance first (does it match the design?), then code quality (does it follow the constitution?). If review fails, the task is sent back for fixes before moving on.
 
@@ -294,16 +294,16 @@ cd order-processing
 #   - BRD covering the order processing domain
 #   - TDD for the order-ingestion flow (Kafka -> validate -> enrich -> PostgreSQL)
 #   - Error handling: dead letter queue on kafka:orders-dlq
-# You review and approve.
+# You review and approve the design.
 
 # 3. The pipeline auto-transitions to /camel-plan
 # The AI creates an implementation plan with tasks:
 #   Task 1: Project scaffolding (pom.xml, application.properties)
 #   Task 2: Order ingestion route (Kafka source, SQL sink)
 #   Task 3: Integration tests
-# You review and approve.
+# No separate plan approval — pipeline auto-transitions to /camel-execute.
 
-# 4. The pipeline auto-transitions to /camel-execute
+# 4. /camel-execute starts with the environment probe, then implements
 # The AI executes all tasks:
 #   - Generates route YAML with MCP-verified components
 #   - Validates against the constitution
@@ -399,21 +399,19 @@ The migration output is fully compatible with the greenfield pipeline. From the 
 
 ### `/camel-verify`
 
-Verification is a structured 5-phase feedback loop that builds, starts, tests, diagnoses errors, applies fixes, and retries until the application runs correctly or the iteration limit is reached.
+Verification is a structured 3-phase feedback loop that builds the project, runs Citrus integration tests via `camel test run`, diagnoses errors, applies fixes, and retries until all tests pass or the iteration limit is reached. Citrus tests are self-contained: Testcontainers manage external services and `camel:jbang:run` starts the Camel integration within the test.
 
 **When it runs:**
 - **Automatically** at the end of `/camel-execute`, after all implementation tasks complete
 - **Manually** via `/camel-verify` if you want to re-verify an existing project
 
-### The 5 Phases
+### The 3 Phases
 
 | Phase | What It Does |
 |-------|-------------|
-| **1. Environment Preparation** | Starts external services (databases, message brokers) via `docker compose`. Skipped if Docker is unavailable. |
-| **2. Build Verification** | Runs `./mvnw compile` and classifies any build errors. Skipped for JBang runtime (JBang compiles at runtime). |
-| **3. Startup Verification** | Starts the application and watches logs for success or failure patterns. Runtime-specific commands (`./mvnw quarkus:dev`, `./mvnw spring-boot:run`, `camel run`). |
-| **4. Behavioral Verification** | Sends test data to running flows and compares actual output against expected output using semantic comparison (field-by-field, ignoring key ordering and insignificant whitespace). |
-| **5. Report** | Structured summary of all phases, fixes applied, and issues found. |
+| **1. Build Verification** | Runs `./mvnw compile` and classifies any build errors. Skipped for JBang runtime (JBang compiles at runtime). |
+| **2. Test Verification** | Runs Citrus integration tests via `camel test run`. Citrus tests are self-contained: Testcontainers start external services, `camel:jbang:run` starts the Camel integration, send/receive actions validate behavior. |
+| **3. Report** | Structured summary of all phases, fixes applied, and issues found. |
 
 ### Error Classification
 
@@ -422,12 +420,13 @@ Each phase uses an error taxonomy of 14 patterns organized by phase (build error
 | Fix Target | Examples |
 |-----------|----------|
 | **Self-repair** | Missing dependency in pom.xml, missing property in `application.properties`, Docker service restart |
-| **Route to internal skill** | Wrong component options (to `/camel-validate`), broken route YAML (to `/camel-implement`), XSLT/Groovy transformation error (to `/camel-implement`) |
-| **Escalate to user** | Unclassified errors, same error after fix attempt, iteration limit (15) reached |
+| **Route to internal skill** | Wrong component options (to `/camel-validate`), broken route YAML (to `/camel-implement`), test syntax error (to `/camel-test`) |
+| **Re-plan** | Persistent architectural failures trigger automatic TDD modification via the re-plan loop (max 3 rounds) |
+| **Escalate to user** | Unclassified errors, same error after fix attempt, iteration limit (15) reached, re-plan limit (3) reached |
 
 ### Graceful Degradation
 
-Verification adapts to available tools. If Maven is missing, build and startup phases are skipped. If Docker is unavailable, environment preparation is skipped. If the `camel` CLI is missing, behavioral verification is skipped. Every skipped phase is reported explicitly -- nothing fails silently.
+Verification adapts to available tools. If Maven is missing, build verification is skipped. If Docker is unavailable, test verification is skipped (Testcontainers requires Docker). If the `camel test` CLI is unavailable, test verification is skipped. Every skipped phase is reported explicitly -- nothing fails silently.
 
 ---
 

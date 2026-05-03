@@ -149,31 +149,9 @@ Assign these as context variables for all subsequent steps:
 
 **SKIP** if schemas already exist or user declined generation.
 
-### Step 8: Smoke Test (ALWAYS — MANDATORY, DO NOT SKIP)
+## Step 8: Completion Gate (ALWAYS — MANDATORY, DO NOT SKIP)
 
-**You MUST execute this step.** Read `guides/smoke-test.md` (in the same directory as this file) and follow its instructions completely before showing the Implementation Summary.
-
-**What to do concretely:**
-1. Read the file `guides/smoke-test.md`
-2. Start docker-compose if present (`docker compose up -d`)
-3. Run the application startup command for the runtime (JBang/Spring Boot/Quarkus) with a 60-second timeout
-4. Check the output for success markers
-5. If startup failed, analyze the error, fix it, and retry (up to 6 attempts)
-6. Report PASS or FAIL
-
-Pass these context variables:
-  - `FLOW_NAME`
-  - `MODULE_DIR`
-  - `RUNTIME`
-  - `CAMEL_VERSION`
-
-**HARD GATE:** Do NOT show the Implementation Summary until you have actually executed the startup command and observed the output. Showing the summary without running the smoke test is a skill violation.
-
----
-
-## Step 9: Completion Gate (ALWAYS — MANDATORY, DO NOT SKIP)
-
-Before showing the Implementation Summary, verify that implementation actually happened by checking files on disk. Run `ls` or `test -f` for each expected file. This is the final defense against showing a success summary when no files were generated.
+Before showing the Implementation Summary, verify that implementation actually happened by checking files on disk. Run `test -s` for each expected file (tests for existence AND non-empty). This is the final defense against showing a success summary when no files were generated.
 
 ### 9.1 Required Files Check
 
@@ -181,13 +159,13 @@ Verify these files exist and are non-empty:
 
 | Check | Path | Condition |
 |-------|------|-----------|
-| Route YAML | `{ROUTE_DIR}{flow-name}.camel.yaml` | MUST exist, MUST be non-empty |
-| Properties | `{PROPS_DIR}application.properties` | MUST exist |
-| Docker Compose | `{MODULE_DIR}docker-compose.yaml` | MUST exist if TDD lists external services |
-| Maven POM | `{MODULE_DIR}pom.xml` | MUST exist (Spring Boot / Quarkus only) |
-| Run script | `{MODULE_DIR}run.sh` | MUST exist (JBang only) |
+| Route YAML | `{ROUTE_DIR}/{flow-name}.camel.yaml` | MUST exist, MUST be non-empty |
+| Properties | `{PROPS_DIR}/application.properties` | MUST exist |
+| Docker Compose | `{MODULE_DIR}/docker-compose.yaml` | MUST exist and be non-empty if TDD lists external services |
+| Maven POM | `{MODULE_DIR}/pom.xml` | MUST exist and be non-empty (Spring Boot / Quarkus only) |
+| Run script | `{MODULE_DIR}/run.sh` | MUST exist (JBang only) |
 
-**If the route YAML does not exist, STOP.** Do not show the Implementation Summary. Go back to Step 2 (Route Generation) and actually generate the file. This check exists because the most common failure mode is the AI reading guides without executing them.
+**If the route YAML does not exist or is empty, STOP.** Do not show the Implementation Summary. Go back to Step 2 (Route Generation) and actually generate the file. This check exists because the most common failure mode is the AI reading guides without executing them.
 
 ### 9.2 TDD Conformance Check
 
@@ -236,7 +214,7 @@ If no graph exists: skip silently. No suggestion.
 
 ## Implementation Summary
 
-**PREREQUISITE:** You can only show this summary if you have completed Step 8 (Smoke Test) and Step 9 (Completion Gate). If the route YAML does not exist on disk, go back and generate it.
+**PREREQUISITE:** You can only show this summary if you have completed Step 8 (Completion Gate). If the route YAML does not exist on disk, go back and generate it.
 
 After all steps complete, display:
 
@@ -275,7 +253,7 @@ Generated Files:
     Executable script to start integration
 
   ✓ Maven dependencies added to pom.xml [Spring Boot/Quarkus only — IF Step 5 ran]
-    Location: {MODULE_DIR}pom.xml
+    Location: {MODULE_DIR}/pom.xml
 
   ✓ schemas/{flow-name}-input.json [IF Step 7 ran]
     Location: {SCHEMA_DIR}
@@ -291,7 +269,6 @@ Dependencies (from TDD):
   - [external dependencies]
 
 Completion Gate: ✅ ALL CHECKS PASSED / ⚠️ [N] warnings
-Smoke Test: ✅ PASSED / ⚠️ FAILED
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
