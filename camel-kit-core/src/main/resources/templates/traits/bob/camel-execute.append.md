@@ -8,13 +8,13 @@ Use `switch_mode` to transition to "camel-implement" custom mode before dispatch
 - Implementation gate from `gates/camel-implement.md`
 - The gate validates that each implementation task meets quality criteria before marking complete
 
-### Gate Validation Before Phase Transitions
+### Gate Validation Between Tasks
 
-Before transitioning from implementation to review, the gate file (`gates/camel-execute.md`) automatically validates:
+The gate file (`gates/camel-execute.md`) enforces two-stage review per task:
 
-- All tasks in the plan are addressed
-- Generated files exist at expected paths
-- No YAML syntax errors in generated routes
+- Per-task spec compliance review (does the output match the TDD?)
+- Per-task code quality review (constitution compliance, security, anti-patterns)
+- Final cross-cutting review across all routes (naming consistency, duplicate route IDs, orphaned properties)
 
 Let the gate system handle validation rather than implementing manual checks.
 

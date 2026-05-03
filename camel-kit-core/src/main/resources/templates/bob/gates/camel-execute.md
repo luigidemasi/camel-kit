@@ -200,18 +200,13 @@ Report any cross-cutting issues.
 </Step>
 
 <Step>
-## Run Smoke Test
+## Run Verification
 
-If the plan includes a smoke test task:
+Load the verification loop and run integration tests:
 
-Load `guides/smoke-test.md`.
-
-Run:
-```bash
-mvn test -Dtest=SmokeTest
-```
-
-Verify all smoke tests pass.
+1. Run: `camel test run *.it.yaml`
+2. Verify all Citrus integration tests pass
+3. If tests fail, classify errors and apply fixes (see verify-loop.md)
 </Step>
 
 <Step>
@@ -299,11 +294,11 @@ NEVER:
 
 ## Iron Laws
 
-Execution enforces ALL five Iron Laws:
+Execution enforces ALL four Iron Laws:
 
 - **Iron Law 1**: MCP Catalog Verification — verify every component via MCP before generating YAML
 - **Iron Law 2**: Constitution Compliance — every route passes all 7 rules
-- **Iron Law 3**: No Code Without Spec Approval — only runs after plan approval
+- **Iron Law 3**: No Code Without Design Approval — only runs after design approval
 - **Iron Law 4**: Spec Compliance Before Quality — ALWAYS spec first, quality second
 
 ## Guide Reference

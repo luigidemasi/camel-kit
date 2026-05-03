@@ -19,8 +19,8 @@ Plan saved. Before starting execution, how would you like to handle file edits?
 ```
 
 4. Based on the user's choice:
-   - **Auto-accept:** Instruct the user to run `/approval-mode auto-edit` to switch to auto-edit mode. Alternatively, the user can press `Shift+Tab` to cycle modes. Confirm the mode is active, then invoke `camel-execute`.
-   - **Manual:** Invoke `camel-execute` immediately (current mode stays as-is).
+   - **Auto-accept:** Instruct the user to run `/approval-mode auto-edit` to switch to auto-edit mode. Alternatively, the user can press `Shift+Tab` to cycle modes. Confirm the mode is active, then invoke `camel-execute`. Once the mode is confirmed, `camel-execute` is invoked immediately — no additional approval prompt.
+   - **Manual:** Invoke `camel-execute` immediately (current mode stays as-is). Execution starts immediately in the current mode.
    - **Refine:** Return to plan generation with the user's feedback.
 
 ### Serial Execution Reminder

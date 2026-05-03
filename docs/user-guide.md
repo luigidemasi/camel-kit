@@ -405,15 +405,13 @@ Verification is a structured 3-phase feedback loop that builds the project, runs
 - **Automatically** at the end of `/camel-execute`, after all implementation tasks complete
 - **Manually** via `/camel-verify` if you want to re-verify an existing project
 
-### The 5 Phases
+### The 3 Phases
 
 | Phase | What It Does |
 |-------|-------------|
-| **1. Environment Preparation** | Starts external services (databases, message brokers) via `docker compose`. Skipped if Docker is unavailable. |
-| **2. Build Verification** | Runs `./mvnw compile` and classifies any build errors. Skipped for JBang runtime (JBang compiles at runtime). |
-| **3. Startup Verification** | Starts the application and watches logs for success or failure patterns. Runtime-specific commands (`./mvnw quarkus:dev`, `./mvnw spring-boot:run`, `camel run`). |
-| **4. Behavioral Verification** | Sends test data to running flows and compares actual output against expected output using semantic comparison (field-by-field, ignoring key ordering and insignificant whitespace). |
-| **5. Report** | Structured summary of all phases, fixes applied, and issues found. |
+| **1. Build Verification** | Runs `./mvnw compile` and classifies any build errors. Skipped for JBang runtime (JBang compiles at runtime). |
+| **2. Test Verification** | Runs Citrus integration tests via `camel test run`. Citrus tests are self-contained: Testcontainers start external services, `camel:jbang:run` starts the Camel integration, send/receive actions validate behavior. |
+| **3. Report** | Structured summary of all phases, fixes applied, and issues found. |
 
 ### Error Classification
 
@@ -422,12 +420,13 @@ Each phase uses an error taxonomy of 14 patterns organized by phase (build error
 | Fix Target | Examples |
 |-----------|----------|
 | **Self-repair** | Missing dependency in pom.xml, missing property in `application.properties`, Docker service restart |
-| **Route to internal skill** | Wrong component options (to `/camel-validate`), broken route YAML (to `/camel-implement`), XSLT/Groovy transformation error (to `/camel-implement`) |
-| **Escalate to user** | Unclassified errors, same error after fix attempt, iteration limit (15) reached |
+| **Route to internal skill** | Wrong component options (to `/camel-validate`), broken route YAML (to `/camel-implement`), test syntax error (to `/camel-test`) |
+| **Re-plan** | Persistent architectural failures trigger automatic TDD modification via the re-plan loop (max 3 rounds) |
+| **Escalate to user** | Unclassified errors, same error after fix attempt, iteration limit (15) reached, re-plan limit (3) reached |
 
 ### Graceful Degradation
 
-Verification adapts to available tools. If Maven is missing, build and startup phases are skipped. If Docker is unavailable, environment preparation is skipped. If the `camel` CLI is missing, behavioral verification is skipped. Every skipped phase is reported explicitly -- nothing fails silently.
+Verification adapts to available tools. If Maven is missing, build verification is skipped. If Docker is unavailable, test verification is skipped (Testcontainers requires Docker). If the `camel test` CLI is unavailable, test verification is skipped. Every skipped phase is reported explicitly -- nothing fails silently.
 
 ---
 

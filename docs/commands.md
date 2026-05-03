@@ -422,6 +422,8 @@ For connectors with no direct equivalent, the command stops and asks the user be
 
 Each phase has an independent iteration budget of 15 attempts. If the same error recurs after a fix attempt, the loop short-circuits and escalates to the user. Unclassified errors are also escalated with the raw log output.
 
+During **Test Verification** (Phase 2), test failures may also route to `/camel-test` for test re-generation. For persistent **architectural** failures, the loop triggers the **re-plan** flow per `camel-execute/guides/re-plan-loop.md`.
+
 ---
 
 ## Command Cheat Sheet

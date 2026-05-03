@@ -225,9 +225,9 @@ Apply a targeted fix for the classified error, then re-run ONLY the check that f
 
 After applying a fix, re-run ONLY the check that failed:
 
-- Dependency fix → re-run Step 2 only
-- Docker fix → re-run Step 3 only
-- Runtime fix → re-run Step 4 only
+- Dependency fix → re-run Step 2
+- Docker fix → re-run Step 3
+- Runtime fix → re-run Step 4
 
 Do NOT re-run all checks. Do NOT re-run checks that already passed.
 

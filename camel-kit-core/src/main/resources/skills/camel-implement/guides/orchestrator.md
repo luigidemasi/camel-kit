@@ -151,7 +151,7 @@ Assign these as context variables for all subsequent steps:
 
 ## Step 8: Completion Gate (ALWAYS — MANDATORY, DO NOT SKIP)
 
-Before showing the Implementation Summary, verify that implementation actually happened by checking files on disk. Run `ls` or `test -f` for each expected file. This is the final defense against showing a success summary when no files were generated.
+Before showing the Implementation Summary, verify that implementation actually happened by checking files on disk. Run `test -s` for each expected file (tests for existence AND non-empty). This is the final defense against showing a success summary when no files were generated.
 
 ### 9.1 Required Files Check
 
@@ -165,7 +165,7 @@ Verify these files exist and are non-empty:
 | Maven POM | `{MODULE_DIR}/pom.xml` | MUST exist (Spring Boot / Quarkus only) |
 | Run script | `{MODULE_DIR}/run.sh` | MUST exist (JBang only) |
 
-**If the route YAML does not exist, STOP.** Do not show the Implementation Summary. Go back to Step 2 (Route Generation) and actually generate the file. This check exists because the most common failure mode is the AI reading guides without executing them.
+**If the route YAML does not exist or is empty, STOP.** Do not show the Implementation Summary. Go back to Step 2 (Route Generation) and actually generate the file. This check exists because the most common failure mode is the AI reading guides without executing them.
 
 ### 9.2 TDD Conformance Check
 
@@ -253,7 +253,7 @@ Generated Files:
     Executable script to start integration
 
   ✓ Maven dependencies added to pom.xml [Spring Boot/Quarkus only — IF Step 5 ran]
-    Location: {MODULE_DIR}pom.xml
+    Location: {MODULE_DIR}/pom.xml
 
   ✓ schemas/{flow-name}-input.json [IF Step 7 ran]
     Location: {SCHEMA_DIR}

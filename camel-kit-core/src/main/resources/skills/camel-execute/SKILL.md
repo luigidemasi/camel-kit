@@ -183,7 +183,7 @@ Extract ALL tasks with:
 
 ### Step 2: Per-Task Loop
 
-For each task in order:
+For each wave (sequential across waves, parallel within a wave for agents that support it). For single-conversation agents, execute tasks within each wave sequentially in plan order:
 
 #### 2a: Dispatch Implementer Subagent
 
@@ -275,7 +275,7 @@ After the cross-cutting review, run the full verification loop to validate the i
 
 1. Load the `camel-verify` skill (`skills/camel-verify/SKILL.md`)
 2. Load both guides: `verify-loop.md` and `error-taxonomy.md`
-3. Execute the full verification loop (all 5 phases)
+3. Execute the full verification loop (3 phases: build, Citrus tests, report)
 4. Capture the verification report
 
 **Key rules:**

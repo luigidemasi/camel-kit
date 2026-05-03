@@ -482,7 +482,7 @@ Each phase has an independent iteration budget of **max 15 attempts**. On each i
 
 ### Environment Probe
 
-Before the verify loop runs, `camel-execute` performs an **environment probe** as its first step. The probe generates a throwaway skeleton (pom.xml, docker-compose, empty route) and checks dependency resolution, Docker service availability, and runtime startup. Failures are classified as **mechanical** (auto-fix and re-probe) or **architectural** (trigger re-plan loop).
+Before the verify loop runs, `camel-execute` performs an **environment probe** as its first step. The probe generates a throwaway skeleton (pom.xml, docker-compose, empty route) and checks dependency resolution, Docker service availability, and runtime startup. Failures are classified as **mechanical** (auto-fix and re-probe) or **architectural** (trigger re-plan loop). Mechanical failures route to the automated self-repair path (fix and re-probe without entering the re-plan loop). Architectural failures trigger the re-plan loop, which modifies affected TDDs and re-executes.
 
 ### Error Taxonomy
 
@@ -520,6 +520,8 @@ Errors route to one of six destinations:
 4. **camel-test** -- route to test skill for test re-generation (when the test is wrong, not the code)
 5. **re-plan** -- trigger the re-plan loop for architectural failures (modifies affected TDDs, max 3 rounds)
 6. **Escalate to user** -- when the error is outside the pipeline's control
+
+`re-plan` is not a separate error category -- it is a promotion destination. When the same error class persists after failed fix attempts, the error promotes to re-plan via the two-tier promotion model (Tier 1: MCP confirms structural after 1 attempt; Tier 2: 3 failed attempts on same error class).
 
 ### Re-Plan Promotion
 
