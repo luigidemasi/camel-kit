@@ -188,6 +188,10 @@ Fix any issues inline.
 
 After saving the plan:
 
+1. Save the implementation plan to `docs/implementation-plan.md`
+2. **If agent-specific handoff instructions exist below** (appended by traits), follow those instead of step 3
+3. **Default (no trait override):** auto-invoke `camel-execute` immediately
+
 ```text
 Plan saved to docs/implementation-plan.md
 
@@ -196,5 +200,5 @@ with two-stage review (spec compliance → code quality) between tasks.
 ```
 
 <HARD-RULE>
-After the plan is complete, YOU must invoke/activate the `camel-execute` skill immediately and automatically. Do NOT tell the user to run it manually. Do NOT print "please run camel-execute" or "run /camel-execute". YOU do it — the transition is automatic.
+After the plan is complete, YOU must transition to execution. Do NOT tell the user to run it manually. Do NOT print "please run camel-execute" or "run /camel-execute". The transition is automatic — either through the agent-specific handoff mechanism (if trait instructions exist below) or by directly invoking camel-execute.
 </HARD-RULE>
