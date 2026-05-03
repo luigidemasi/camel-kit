@@ -320,7 +320,7 @@ Verification: PASS/PARTIAL/FAIL/NOT_RUN
 - Start implementation without an approved plan
 - Skip reviews (spec compliance OR code quality)
 - Run reviews in parallel or reversed order
-- Dispatch multiple implementers simultaneously
+- Dispatch implementers simultaneously outside of wave analysis — only parallelize within waves from `plan analyze`, and only for agents that support concurrent conversations
 - Make subagents read the plan file (provide full text)
 - Ignore subagent questions
 - Accept "close enough" on spec compliance
