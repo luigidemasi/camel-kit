@@ -256,7 +256,7 @@ Do NOT:
 - Pause for confirmation between tasks
 - Say "The camel-execute/camel-migrate command has completed" (it hasn't — there are more tasks)
 
-The user approved the entire plan — that approval covers ALL tasks. Execute them ALL sequentially without interruption. The ONLY time you stop is after the LAST task, when you print the Step 4 completion summary.
+The user approved the entire plan — that approval covers ALL tasks. Execute them ALL without interruption, following wave policy (parallel within a wave where supported, sequential across waves). The ONLY time you stop is after the LAST task, when you print the Step 4 completion summary.
 </HARD-RULE>
 
 ### Step 3: Final Cross-Cutting Review

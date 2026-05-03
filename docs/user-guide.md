@@ -199,7 +199,7 @@ The init command copies skill files, configures MCP, and sets up the Maven wrapp
 
 ## 4. The Workflow: Greenfield Projects
 
-Camel-Kit follows a 3-phase pipeline: **Design**, **Plan**, **Execute**. Each phase produces a document, the user approves it, and the pipeline advances automatically.
+Camel-Kit follows a 3-phase pipeline: **Design**, **Plan**, **Execute**. You approve the design output, then planning and execution auto-proceed under that approval.
 
 ```mermaid
 flowchart TB
@@ -294,16 +294,16 @@ cd order-processing
 #   - BRD covering the order processing domain
 #   - TDD for the order-ingestion flow (Kafka -> validate -> enrich -> PostgreSQL)
 #   - Error handling: dead letter queue on kafka:orders-dlq
-# You review and approve.
+# You review and approve the design.
 
 # 3. The pipeline auto-transitions to /camel-plan
 # The AI creates an implementation plan with tasks:
 #   Task 1: Project scaffolding (pom.xml, application.properties)
 #   Task 2: Order ingestion route (Kafka source, SQL sink)
 #   Task 3: Integration tests
-# You review and approve.
+# No separate plan approval — pipeline auto-transitions to /camel-execute.
 
-# 4. The pipeline auto-transitions to /camel-execute
+# 4. /camel-execute starts with the environment probe, then implements
 # The AI executes all tasks:
 #   - Generates route YAML with MCP-verified components
 #   - Validates against the constitution
