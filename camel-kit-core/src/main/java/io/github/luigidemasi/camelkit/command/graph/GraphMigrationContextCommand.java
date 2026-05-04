@@ -1,5 +1,9 @@
 package io.github.luigidemasi.camelkit.command.graph;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 
 import io.github.luigidemasi.camelkit.graph.ProjectGraph;
@@ -11,6 +15,7 @@ import io.github.luigidemasi.camelkit.graph.query.GraphQuery;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
 @Command(name = "migration-context",
@@ -19,6 +24,9 @@ public class GraphMigrationContextCommand extends GraphQueryCommand {
 
     @Parameters(index = "0", description = "Route ID (without route: prefix)")
     String routeId;
+
+    @Option(names = {"--depth"}, defaultValue = "3", description = "BFS expansion depth (default: 3)")
+    int depth;
 
     @Override
     protected String execute(ProjectGraph graph) {
@@ -29,18 +37,26 @@ public class GraphMigrationContextCommand extends GraphQueryCommand {
         }
 
         GraphQuery query = new GraphQuery(graph);
-        Set<GraphNode> expanded = query.expandWithInterfaces(nodeId, "both", 3);
+        Set<GraphNode> expanded = query.expandWithInterfaces(nodeId, "both", depth);
         // Include the route node itself in the working set
         expanded.add(routeNode);
 
         ObjectNode root = GraphJsonWriter.createObject();
         root.put("route", routeId);
+        root.put("runtime", detectRuntime());
 
         // Components: deduplicated schemes from CAMEL_ENDPOINT nodes
         Set<String> components = new TreeSet<>();
         for (GraphNode node : expanded) {
             if (node.type() == NodeType.CAMEL_ENDPOINT) {
                 String scheme = node.properties().get("scheme");
+                if (scheme == null) {
+                    String uri = node.properties().getOrDefault("uri", "");
+                    int colonIdx = uri.indexOf(':');
+                    if (colonIdx > 0) {
+                        scheme = uri.substring(0, colonIdx);
+                    }
+                }
                 if (scheme != null && !scheme.isEmpty()) {
                     components.add(scheme);
                 }
@@ -55,7 +71,7 @@ public class GraphMigrationContextCommand extends GraphQueryCommand {
             if (node.type() == NodeType.CAMEL_ROUTE) {
                 ObjectNode routeJson = GraphJsonWriter.createObject();
                 routeJson.put("id", node.id());
-                routeJson.put("from", node.properties().getOrDefault("from", ""));
+                routeJson.put("from", node.properties().getOrDefault("fromUri", ""));
                 routeJson.put("file", node.properties().getOrDefault("file", ""));
                 routesArray.add(routeJson);
             }
@@ -123,5 +139,22 @@ public class GraphMigrationContextCommand extends GraphQueryCommand {
         }
 
         return GraphJsonWriter.toJson(root);
+    }
+
+    private String detectRuntime() {
+        Path configFile = Path.of(".camel-kit", "config.properties");
+        if (Files.exists(configFile)) {
+            Properties props = new Properties();
+            try (InputStream in = Files.newInputStream(configFile)) {
+                props.load(in);
+                String runtime = props.getProperty("project.runtime");
+                if (runtime != null && !runtime.isEmpty()) {
+                    return runtime;
+                }
+            } catch (IOException e) {
+                // Fall through to unknown
+            }
+        }
+        return "unknown";
     }
 }

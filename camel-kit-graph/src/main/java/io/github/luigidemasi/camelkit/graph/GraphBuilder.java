@@ -6,6 +6,8 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.*;
 
+import io.github.luigidemasi.camelkit.graph.model.GraphNode;
+import io.github.luigidemasi.camelkit.graph.model.NodeType;
 import io.github.luigidemasi.camelkit.graph.parser.*;
 
 public class GraphBuilder {
@@ -48,12 +50,28 @@ public class GraphBuilder {
         crossLinker.link(graph);
 
         PropertyBindingParser propertyBindingParser = new PropertyBindingParser();
-        propertyBindingParser.parse(graph, null);
+        propertyBindingParser.parse(graph, detectRuntime(graph));
         propertyBindingParser.resolvePlaceholders(graph);
 
         crossLinker.expandInterfaces(graph);
 
         return graph;
+    }
+
+    private String detectRuntime(ProjectGraph graph) {
+        for (GraphNode artifact : graph.findByType(NodeType.MAVEN_ARTIFACT)) {
+            String artifactId = artifact.properties().getOrDefault("artifactId", "");
+            if (artifactId.startsWith("camel-spring-boot")) {
+                return "spring-boot";
+            }
+            if (artifactId.startsWith("camel-quarkus")) {
+                return "quarkus";
+            }
+            if ("camel-blueprint".equals(artifactId)) {
+                return "karaf";
+            }
+        }
+        return "camel-main";
     }
 
     public void buildAndSerialize(Path projectRoot, Path outputFile) {

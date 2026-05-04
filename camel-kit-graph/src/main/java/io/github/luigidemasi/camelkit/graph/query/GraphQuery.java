@@ -265,7 +265,7 @@ public class GraphQuery {
                 .map(graph::getNode)
                 .filter(Objects::nonNull)
                 .limit(MAX_RESULTS)
-                .collect(Collectors.toSet());
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     private List<GraphEdge> getEdges(String nodeId, String direction) {
