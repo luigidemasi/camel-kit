@@ -149,11 +149,19 @@ public class InitCommand extends CamelKitCommand {
         Path agentsMd = targetDir.resolve("AGENTS.md");
         Path camelKitDir = targetDir.resolve(".camel-kit");
         if (!force && (Files.exists(agentsMd) || Files.isDirectory(camelKitDir))) {
-            printer().println(yellow("⚠") + " Project already initialized in " + targetDir);
-            String found = (Files.exists(agentsMd) ? "AGENTS.md " : "")
-                           + (Files.isDirectory(camelKitDir) ? ".camel-kit/" : "");
-            printer().println("  Found: " + found.trim());
-            printer().println("  Use --force to overwrite, or choose a different directory.");
+            printer().println();
+            printer().println(yellow("⚠") + bold(" Project already initialized"));
+            printer().println(dim("  Directory: ") + cyan(targetDir.toString()));
+            if (Files.exists(agentsMd)) {
+                printer().println(dim("  Found:     ") + "AGENTS.md");
+            }
+            if (Files.isDirectory(camelKitDir)) {
+                printer().println(dim("  Found:     ") + ".camel-kit/");
+            }
+            printer().println();
+            printer().println(dim("  To overwrite: ") + bold("--force"));
+            printer().println(dim("  Example:      ") + "camel-kit init " + projectName + " --ai " + ai + " --force");
+            printer().println();
             return 1;
         }
 

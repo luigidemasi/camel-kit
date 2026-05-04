@@ -36,11 +36,19 @@ public final class PrerequisiteChecker {
         results.add(checkCamelJBang());
         results.add(checkCamelTestPlugin());
 
-        printer.println("Prerequisites:");
+        printer.println(AnsiColors.bold("Prerequisites:"));
         for (CheckResult r : results) {
             String icon = r.found ? AnsiColors.green("✓") : AnsiColors.red("✗");
-            String detail
-                    = r.found ? "(" + r.version + ")" : "(not found" + (r.hint != null ? " — " + r.hint : "") + ")";
+            String detail;
+            if (r.found) {
+                detail = AnsiColors.dim("(" + r.version + ")");
+            } else {
+                String msg = "not found";
+                if (r.hint != null) {
+                    msg += " — " + AnsiColors.yellow(r.hint);
+                }
+                detail = AnsiColors.red("(" + msg + ")");
+            }
             printer.println(String.format(Locale.ROOT, "  %-19s %s %s", r.name, icon, detail));
         }
         printer.println();
