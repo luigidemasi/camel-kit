@@ -102,6 +102,37 @@ public class InitCommand extends CamelKitCommand {
             return 1;
         }
 
+        // Resolve target directory early for overwrite check
+        Path targetDir;
+        if (here) {
+            targetDir = Path.of("").toAbsolutePath();
+            projectName = targetDir.getFileName().toString();
+        } else {
+            targetDir = Path.of(projectName).toAbsolutePath();
+        }
+
+        // Overwrite detection (runs before TUI so colors work on error)
+        Path agentsMd = targetDir.resolve("AGENTS.md");
+        Path camelKitDir = targetDir.resolve(".camel-kit");
+        if (!force && (Files.exists(agentsMd) || Files.isDirectory(camelKitDir))) {
+            if (!silent)
+                main.printBanner();
+            printer().println();
+            printer().println(yellow("⚠") + bold(" Project already initialized"));
+            printer().println(dim("  Directory: ") + cyan(targetDir.toString()));
+            if (Files.exists(agentsMd)) {
+                printer().println(dim("  Found:     ") + "AGENTS.md");
+            }
+            if (Files.isDirectory(camelKitDir)) {
+                printer().println(dim("  Found:     ") + ".camel-kit/");
+            }
+            printer().println();
+            printer().println(dim("  To overwrite: ") + bold("--force"));
+            printer().println(dim("  Example:      ") + "camel-kit init " + projectName + " --ai " + ai + " --force");
+            printer().println();
+            return 1;
+        }
+
         if (!silent) {
             // If native image protocol is available and TUI is enabled, run the full
             // split-screen experience. Falls back to normal mode on any failure
@@ -130,40 +161,21 @@ public class InitCommand extends CamelKitCommand {
     }
 
     private Integer doInitWork() throws Exception {
-        // Prerequisite check (non-blocking, skipped in silent mode)
+        // Prerequisite check (non-blocking, informational)
         if (!silent) {
             PrerequisiteChecker.check(printer());
         }
 
         AgentConfig agent = AgentRegistry.get(ai);
-        // Resolve target directory
+
+        // targetDir already resolved and validated in doCall()
         Path targetDir;
         if (here) {
             targetDir = Path.of("").toAbsolutePath();
-            projectName = targetDir.getFileName().toString();
         } else {
             targetDir = Path.of(projectName).toAbsolutePath();
         }
-
-        // Overwrite detection
-        Path agentsMd = targetDir.resolve("AGENTS.md");
         Path camelKitDir = targetDir.resolve(".camel-kit");
-        if (!force && (Files.exists(agentsMd) || Files.isDirectory(camelKitDir))) {
-            printer().println();
-            printer().println(yellow("⚠") + bold(" Project already initialized"));
-            printer().println(dim("  Directory: ") + cyan(targetDir.toString()));
-            if (Files.exists(agentsMd)) {
-                printer().println(dim("  Found:     ") + "AGENTS.md");
-            }
-            if (Files.isDirectory(camelKitDir)) {
-                printer().println(dim("  Found:     ") + ".camel-kit/");
-            }
-            printer().println();
-            printer().println(dim("  To overwrite: ") + bold("--force"));
-            printer().println(dim("  Example:      ") + "camel-kit init " + projectName + " --ai " + ai + " --force");
-            printer().println();
-            return 1;
-        }
 
         // Get Citrus version
         String citrusVer = "default".equals(citrusVersion)

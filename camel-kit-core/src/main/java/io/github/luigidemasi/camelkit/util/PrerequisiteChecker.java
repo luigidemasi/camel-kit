@@ -60,19 +60,12 @@ public final class PrerequisiteChecker {
 
     private static CheckResult checkJava() {
         try {
-            // java -version writes to stderr
             ProcessBuilder pb = new ProcessBuilder("java", "-version");
             pb.redirectErrorStream(true);
             Process proc = pb.start();
 
-            String output;
-            try (BufferedReader reader
-                    = new BufferedReader(new InputStreamReader(proc.getInputStream(), StandardCharsets.UTF_8))) {
-                output = reader.lines().reduce("", (a, b) -> a + "\n" + b).trim();
-            }
-
-            if (!proc.waitFor(TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                proc.destroyForcibly();
+            String output = drainWithTimeout(proc);
+            if (output == null) {
                 return new CheckResult("Java 17+", false, null, null);
             }
 
@@ -116,14 +109,8 @@ public final class PrerequisiteChecker {
             pb.redirectErrorStream(true);
             Process proc = pb.start();
 
-            String output;
-            try (BufferedReader reader
-                    = new BufferedReader(new InputStreamReader(proc.getInputStream(), StandardCharsets.UTF_8))) {
-                output = reader.lines().reduce("", (a, b) -> a + "\n" + b).trim();
-            }
-
-            if (!proc.waitFor(TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                proc.destroyForcibly();
+            String output = drainWithTimeout(proc);
+            if (output == null) {
                 return new CheckResult(name, false, null, null);
             }
 
@@ -135,6 +122,33 @@ public final class PrerequisiteChecker {
         } catch (Exception e) {
             return new CheckResult(name, false, null, null);
         }
+    }
+
+    /**
+     * Drain process output in a daemon thread while the main thread holds the timed wait. Returns the output string, or
+     * null if the process timed out.
+     */
+    private static String drainWithTimeout(Process proc) throws InterruptedException {
+        StringBuilder sb = new StringBuilder();
+        Thread drainer = new Thread(() -> {
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(proc.getInputStream(), StandardCharsets.UTF_8))) {
+                reader.lines().forEach(line -> sb.append(line).append('\n'));
+            } catch (java.io.IOException ignored) {
+            }
+        });
+        drainer.setDaemon(true);
+        drainer.start();
+
+        if (!proc.waitFor(TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+            proc.destroyForcibly();
+            return null;
+        }
+        try {
+            drainer.join(500);
+        } catch (InterruptedException ignored) {
+        }
+        return sb.toString().trim();
     }
 
     /**
