@@ -33,7 +33,9 @@ public class GraphMigrationContextCommand extends GraphQueryCommand {
         String nodeId = "route:" + routeId;
         GraphNode routeNode = graph.getNode(nodeId);
         if (routeNode == null) {
-            return "{\"error\":\"Route not found: " + routeId + "\"}";
+            ObjectNode errorNode = GraphJsonWriter.createObject();
+            errorNode.put("error", "Route not found: " + routeId);
+            return GraphJsonWriter.toJson(errorNode);
         }
 
         GraphQuery query = new GraphQuery(graph);

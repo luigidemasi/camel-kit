@@ -124,9 +124,11 @@ public class PropertyBindingParser {
 
         if (hasDataSourceProps) {
             String dataSourceNodeId = "synthetic:javax.sql.DataSource";
-            graph.addNode(new GraphNode(
-                    dataSourceNodeId, NodeType.CLASS,
-                    Map.of("name", "javax.sql.DataSource", "bean", "true", "synthetic", "true")));
+            if (!graph.hasNode(dataSourceNodeId)) {
+                graph.addNode(new GraphNode(
+                        dataSourceNodeId, NodeType.CLASS,
+                        Map.of("name", "javax.sql.DataSource", "bean", "true", "synthetic", "true")));
+            }
 
             for (GraphNode node : graph.findByType(NodeType.CONFIG_PROPERTY)) {
                 String key = node.properties().get("key");

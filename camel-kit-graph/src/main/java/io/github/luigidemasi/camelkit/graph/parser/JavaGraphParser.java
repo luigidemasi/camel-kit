@@ -12,6 +12,7 @@ import io.github.luigidemasi.camelkit.graph.model.*;
 
 import com.github.javaparser.JavaParser;
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.*;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
@@ -62,7 +63,7 @@ public class JavaGraphParser implements GraphParser {
                     .orElse("");
 
             for (ClassOrInterfaceDeclaration classDecl : cu.findAll(ClassOrInterfaceDeclaration.class)) {
-                parseClass(classDecl, packageName, projectRoot, file, graph);
+                parseClass(classDecl, packageName, projectRoot, file, graph, cu);
             }
         } catch (IOException e) {
             throw new RuntimeException("Failed to parse Java file: " + file, e);
@@ -71,7 +72,7 @@ public class JavaGraphParser implements GraphParser {
 
     private void parseClass(
             ClassOrInterfaceDeclaration classDecl, String packageName,
-            Path projectRoot, Path file, ProjectGraph graph) {
+            Path projectRoot, Path file, ProjectGraph graph, CompilationUnit cu) {
         String fqcn = packageName.isEmpty()
                 ? classDecl.getNameAsString()
                 : packageName + "." + classDecl.getNameAsString();
@@ -94,14 +95,14 @@ public class JavaGraphParser implements GraphParser {
 
         // Parse extends
         for (ClassOrInterfaceType extended : classDecl.getExtendedTypes()) {
-            String parentFqcn = resolveTypeName(extended, packageName);
+            String parentFqcn = resolveTypeName(extended, packageName, cu);
             String parentNodeId = "class:" + parentFqcn;
             graph.addEdge(new GraphEdge(classNodeId, parentNodeId, EdgeType.EXTENDS, Map.of()));
         }
 
         // Parse implements
         for (ClassOrInterfaceType implemented : classDecl.getImplementedTypes()) {
-            String ifaceFqcn = resolveTypeName(implemented, packageName);
+            String ifaceFqcn = resolveTypeName(implemented, packageName, cu);
             String ifaceNodeId = "class:" + ifaceFqcn;
             graph.addEdge(new GraphEdge(classNodeId, ifaceNodeId, EdgeType.IMPLEMENTS, Map.of()));
         }
@@ -121,7 +122,7 @@ public class JavaGraphParser implements GraphParser {
                 graph.addEdge(new GraphEdge(classNodeId, fieldId, EdgeType.DECLARES, Map.of()));
 
                 // Create USES_TYPE edge for field types
-                String typeFqn = resolveFieldTypeName(var, packageName);
+                String typeFqn = resolveFieldTypeName(var, packageName, cu);
                 if (typeFqn != null && isAllowedType(typeFqn, graph, allowedPrefixes)) {
                     Map<String, String> edgeProps = new HashMap<>();
                     if (hasInjectionAnnotation(field)) {
@@ -144,7 +145,7 @@ public class JavaGraphParser implements GraphParser {
         // Parse constructors for USES_TYPE on constructor parameters
         for (ConstructorDeclaration constructor : classDecl.getConstructors()) {
             for (com.github.javaparser.ast.body.Parameter param : constructor.getParameters()) {
-                String typeFqn = resolveParameterTypeName(param, packageName);
+                String typeFqn = resolveParameterTypeName(param, packageName, cu);
                 if (typeFqn != null && isAllowedType(typeFqn, graph, allowedPrefixes)) {
                     Map<String, String> edgeProps = new HashMap<>();
                     if (hasAnnotation(param, INJECTION_ANNOTATIONS)) {
@@ -379,13 +380,13 @@ public class JavaGraphParser implements GraphParser {
     /**
      * Resolves a field variable's type to a fully qualified name. Returns null for primitive types.
      */
-    private String resolveFieldTypeName(VariableDeclarator var, String packageName) {
+    private String resolveFieldTypeName(VariableDeclarator var, String packageName, CompilationUnit cu) {
         var type = var.getType();
         if (type.isPrimitiveType() || type.isVoidType()) {
             return null;
         }
         if (type.isClassOrInterfaceType()) {
-            return resolveTypeName(type.asClassOrInterfaceType(), packageName);
+            return resolveTypeName(type.asClassOrInterfaceType(), packageName, cu);
         }
         return null;
     }
@@ -393,13 +394,15 @@ public class JavaGraphParser implements GraphParser {
     /**
      * Resolves a constructor/method parameter's type to a fully qualified name. Returns null for primitive types.
      */
-    private String resolveParameterTypeName(com.github.javaparser.ast.body.Parameter param, String packageName) {
+    private String resolveParameterTypeName(
+            com.github.javaparser.ast.body.Parameter param, String packageName,
+            CompilationUnit cu) {
         var type = param.getType();
         if (type.isPrimitiveType() || type.isVoidType()) {
             return null;
         }
         if (type.isClassOrInterfaceType()) {
-            return resolveTypeName(type.asClassOrInterfaceType(), packageName);
+            return resolveTypeName(type.asClassOrInterfaceType(), packageName, cu);
         }
         return null;
     }
@@ -552,14 +555,23 @@ public class JavaGraphParser implements GraphParser {
     }
 
     /**
-     * Resolves a type name to a fully qualified name. For simple names (no dots), assumes same package as the declaring
-     * class.
+     * Resolves a type name to a fully qualified name. Checks import declarations first, then falls back to assuming the
+     * same package as the declaring class.
      */
-    private String resolveTypeName(ClassOrInterfaceType type, String packageName) {
+    private String resolveTypeName(ClassOrInterfaceType type, String packageName, CompilationUnit cu) {
         String name = type.getNameAsString();
         if (name.contains(".")) {
-            return name;
+            return name; // Already qualified
         }
+        // Check explicit imports
+        if (cu != null) {
+            for (ImportDeclaration imp : cu.getImports()) {
+                if (!imp.isAsterisk() && imp.getNameAsString().endsWith("." + name)) {
+                    return imp.getNameAsString();
+                }
+            }
+        }
+        // Fallback: assume same package
         return packageName.isEmpty() ? name : packageName + "." + name;
     }
 }

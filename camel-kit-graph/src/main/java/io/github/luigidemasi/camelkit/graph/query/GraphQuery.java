@@ -239,7 +239,8 @@ public class GraphQuery {
                 }
 
                 // Interface boundary crossing: if this is an IMPLEMENTS edge, also find USES_TYPE predecessors
-                if (edge.type() == EdgeType.IMPLEMENTS) {
+                // Only cross to consumers when traversing "in" or "both"
+                if (edge.type() == EdgeType.IMPLEMENTS && !"out".equals(direction)) {
                     String interfaceNode = edge.to(); // The interface being implemented
                     List<GraphEdge> usesTypeEdges = graph.getIncomingEdges(interfaceNode);
 

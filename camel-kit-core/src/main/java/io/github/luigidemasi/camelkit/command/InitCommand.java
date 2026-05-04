@@ -17,6 +17,7 @@ import io.github.luigidemasi.camelkit.generator.InitContext;
 import io.github.luigidemasi.camelkit.generator.QuteTemplateEngine;
 import io.github.luigidemasi.camelkit.graph.GraphBuilder;
 import io.github.luigidemasi.camelkit.graph.ProjectGraph;
+import io.github.luigidemasi.camelkit.graph.RuntimeDetector;
 import io.github.luigidemasi.camelkit.output.Printer;
 import io.github.luigidemasi.camelkit.tui.InitTuiView;
 import io.github.luigidemasi.camelkit.tui.TaskTracker;
@@ -346,22 +347,6 @@ public class InitCommand extends CamelKitCommand {
         return "Apache Camel";
     }
 
-    private String detectRuntime(ProjectGraph graph) {
-        for (var node : graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.MAVEN_ARTIFACT)) {
-            String artifactId = node.properties().getOrDefault("artifactId", "");
-            if (artifactId.startsWith("camel-spring-boot")) {
-                return "spring-boot";
-            }
-            if (artifactId.startsWith("camel-quarkus")) {
-                return "quarkus";
-            }
-            if ("camel-blueprint".equals(artifactId)) {
-                return "karaf";
-            }
-        }
-        return "camel-main";
-    }
-
     private String findMavenProperty(ProjectGraph graph, String propertyName) {
         var node = graph.getNode("maven-property:" + propertyName);
         if (node != null) {
@@ -418,7 +403,7 @@ public class InitCommand extends CamelKitCommand {
         }
 
         // Detect and set runtime
-        String runtime = detectRuntime(graph);
+        String runtime = RuntimeDetector.detect(graph);
         config.setProperty("project.runtime", runtime);
 
         // Write back
