@@ -10,6 +10,7 @@ import picocli.CommandLine.Command;
                  GraphPathCommand.class, GraphSubgraphCommand.class, GraphRouteFlowCommand.class,
                  GraphImpactCommand.class, GraphRouteTopologyCommand.class, GraphDeadCodeCommand.class,
                  GraphProjectNormsCommand.class, GraphProjectContextCommand.class, GraphRouteContextCommand.class,
+                 GraphMigrationContextCommand.class,
                  GraphGenerateCommand.class, GraphVisualizeCommand.class,
                  CommandLine.HelpCommand.class
          })
