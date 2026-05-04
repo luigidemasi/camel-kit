@@ -35,8 +35,9 @@ class ConfigParserTest {
     }
 
     @Test
-    void ignoresNonCamelProperties() {
-        assertFalse(graph.hasNode("config:server.port"));
+    void capturesNonCamelProperties() {
+        assertTrue(graph.hasNode("config:spring.datasource.url"));
+        assertTrue(graph.hasNode("config:order.max-retries"));
     }
 
     @Test
@@ -49,5 +50,20 @@ class ConfigParserTest {
         String file = graph.getNode("config:camel.component.kafka.brokers")
                 .properties().get("file");
         assertTrue(file.endsWith("application.properties"));
+    }
+
+    @Test
+    void capturesAllProperties() throws Exception {
+        ProjectGraph graph = new ProjectGraph();
+        new ConfigParser().parse(Path.of("src/test/resources/testdata/di"), graph);
+
+        assertNotNull(graph.getNode("config:camel.component.kafka.brokers"),
+                "Should capture camel.* properties");
+        assertNotNull(graph.getNode("config:spring.datasource.url"),
+                "Should capture spring.* properties");
+        assertNotNull(graph.getNode("config:order.max-retries"),
+                "Should capture application-specific properties");
+        assertNotNull(graph.getNode("config:payment.gateway.url"),
+                "Should capture all custom properties");
     }
 }

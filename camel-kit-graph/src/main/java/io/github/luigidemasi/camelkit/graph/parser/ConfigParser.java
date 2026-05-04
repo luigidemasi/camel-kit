@@ -11,8 +11,6 @@ import io.github.luigidemasi.camelkit.graph.model.*;
 
 public class ConfigParser implements GraphParser {
 
-    private static final String CAMEL_PREFIX = "camel.";
-
     @Override
     public void parse(Path projectRoot, ProjectGraph graph) {
         try {
@@ -44,17 +42,15 @@ public class ConfigParser implements GraphParser {
 
         props.forEach((key, value) -> {
             String keyStr = key.toString();
-            if (keyStr.startsWith(CAMEL_PREFIX)) {
-                String nodeId = "config:" + keyStr;
-                Map<String, String> nodeProps = new HashMap<>();
-                nodeProps.put("key", keyStr);
-                nodeProps.put("value", value.toString());
-                nodeProps.put("file", relativePath);
-                if (profile != null) {
-                    nodeProps.put("profile", profile);
-                }
-                graph.addNode(new GraphNode(nodeId, NodeType.CONFIG_PROPERTY, nodeProps));
+            String nodeId = "config:" + keyStr;
+            Map<String, String> nodeProps = new HashMap<>();
+            nodeProps.put("key", keyStr);
+            nodeProps.put("value", value.toString());
+            nodeProps.put("file", relativePath);
+            if (profile != null) {
+                nodeProps.put("profile", profile);
             }
+            graph.addNode(new GraphNode(nodeId, NodeType.CONFIG_PROPERTY, nodeProps));
         });
     }
 
