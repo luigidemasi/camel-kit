@@ -196,6 +196,9 @@ public class InitCommand extends CamelKitCommand {
                 if (!detected.isEmpty()) {
                     printer().println("     Detected: " + cyan(detected));
                 }
+
+                // Update config file with detected runtime
+                updateConfigWithRuntime(camelKitDir, projectGraph);
             } else {
                 printer().println(yellow("  No source files found — graph skipped"));
             }
@@ -343,6 +346,22 @@ public class InitCommand extends CamelKitCommand {
         return "Apache Camel";
     }
 
+    private String detectRuntime(ProjectGraph graph) {
+        for (var node : graph.findByType(io.github.luigidemasi.camelkit.graph.model.NodeType.MAVEN_ARTIFACT)) {
+            String artifactId = node.properties().getOrDefault("artifactId", "");
+            if (artifactId.startsWith("camel-spring-boot")) {
+                return "spring-boot";
+            }
+            if (artifactId.startsWith("camel-quarkus")) {
+                return "quarkus";
+            }
+            if ("camel-blueprint".equals(artifactId)) {
+                return "karaf";
+            }
+        }
+        return "camel-main";
+    }
+
     private String findMavenProperty(ProjectGraph graph, String propertyName) {
         var node = graph.getNode("maven-property:" + propertyName);
         if (node != null) {
@@ -382,6 +401,27 @@ public class InitCommand extends CamelKitCommand {
         }
 
         Path configFile = dir.resolve("config.properties");
+        try (var out = Files.newOutputStream(configFile)) {
+            config.store(out, "Camel-Kit Project Configuration");
+        }
+    }
+
+    private void updateConfigWithRuntime(Path dir, ProjectGraph graph) throws Exception {
+        Path configFile = dir.resolve("config.properties");
+        java.util.Properties config = new java.util.Properties();
+
+        // Load existing properties
+        if (Files.exists(configFile)) {
+            try (var in = Files.newInputStream(configFile)) {
+                config.load(in);
+            }
+        }
+
+        // Detect and set runtime
+        String runtime = detectRuntime(graph);
+        config.setProperty("project.runtime", runtime);
+
+        // Write back
         try (var out = Files.newOutputStream(configFile)) {
             config.store(out, "Camel-Kit Project Configuration");
         }
