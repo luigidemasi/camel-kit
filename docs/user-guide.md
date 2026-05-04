@@ -495,6 +495,9 @@ When working with existing projects -- whether migrating from another platform, 
 | **Dead code detection** | Identifies unused Maven dependencies, orphaned routes (not referenced by any other route), and stale configuration properties | Cleaning up projects after incremental changes, catching leftover artifacts from migration |
 | **Route topology mapping** | Maps route-to-route connections to determine which routes are independent | Claude uses this to dispatch independent routes to parallel subagents during `/camel-execute` |
 | **Project norm extraction** | Computes statistical norms from the codebase -- naming patterns, error handling coverage, route complexity (P75 step count) | Validation uses project-specific thresholds instead of hardcoded defaults |
+| **DI-aware dependency tracking** | Detects dependency injection annotations (@Inject, @Autowired, @Value, @ConfigProperty) and creates USES_TYPE edges for injected fields and constructor parameters | Understanding which services are injected into routes, processors, or beans -- traces dependencies across interface boundaries |
+| **Property-based bean wiring** | Parses `application.properties` for Camel's PropertyBindingSupport syntax (#class:, #bean:, #autowired, #type:) to discover beans instantiated or referenced in configuration | Finding beans that exist only in properties files, not in source code -- critical for migration projects where beans are configured via properties |
+| **Interface expansion** | Creates DEPENDS_ON_VIA_INTERFACE shortcut edges and expands queries to traverse across interface boundaries via `GraphQuery.expandWithInterfaces()` | Tracing dependencies when a route injects `OrderService` interface but needs to know the concrete `OrderServiceImpl` dependencies |
 | **MuleSoft flow analysis** | Parses MuleSoft XML configs into graph nodes (flows, sub-flows, connectors, endpoints, transforms, error handlers) and DataWeave scripts | Understanding MuleSoft project structure before migration -- no manual XML deep-dives required |
 | **BizTalk artifact analysis** | Parses BizTalk orchestrations (.odx), maps (.btm), pipelines (.btp), and bindings into graph nodes (orchestrations, shapes, maps, functoids, pipelines, components, ports, adapters) | Understanding BizTalk project structure before migration -- 37 shape types recognized, 45 functoid type mappings |
 
@@ -524,9 +527,78 @@ camel-kit graph project-context
 
 # Map route topology (connections between routes)
 camel-kit graph route-topology
+
+# Extract migration context for a specific route (JSON output)
+camel-kit graph migration-context <routeId> [--depth N]
 ```
 
 The graph is stored in `.camel-kit/project-graph.json` and rebuilt automatically when relevant commands detect changes. For greenfield projects where no code exists yet, the graph is not generated -- all skills fall back to sensible defaults. The graph **enhances but never gates**: its presence improves output quality, but its absence never blocks the pipeline.
+
+### Migration Context Command
+
+The `migration-context` command produces a structured JSON report containing all dependencies, services, artifacts, and properties relevant to a specific route. This is used internally by the `/camel-migrate` skill to gather comprehensive context before translating a route.
+
+**Example usage:**
+```bash
+camel-kit graph migration-context order-ingestion-route
+camel-kit graph migration-context order-ingestion-route --depth 5
+```
+
+**Output structure:**
+```json
+{
+  "route": "processOrders",
+  "runtime": "spring-boot",
+  "components": ["kafka", "http", "bean"],
+  "routes": [
+    {
+      "id": "processOrders",
+      "from": "kafka:orders",
+      "file": "src/main/resources/routes/orders.camel.yaml"
+    }
+  ],
+  "services": [
+    {
+      "class": "com.example.OrderService",
+      "bean": true,
+      "beanName": "orderService"
+    }
+  ],
+  "artifacts": [
+    {
+      "groupId": "org.apache.camel",
+      "artifactId": "camel-kafka",
+      "version": "4.14.4"
+    }
+  ],
+  "properties": [
+    {
+      "key": "camel.component.kafka.brokers",
+      "value": "localhost:9092",
+      "edgeType": "REFERENCES_PROPERTY",
+      "target": "component:kafka"
+    }
+  ],
+  "warnings": [
+    {
+      "type": "synthetic-node",
+      "name": "UnknownService",
+      "reason": "Node was inferred, not parsed from source"
+    }
+  ]
+}
+```
+
+**What it includes:**
+- **Runtime detection** -- Spring Boot, Quarkus, Camel Main, or Karaf (inferred from Maven artifacts)
+- **Related routes** -- all routes connected via `direct:`, `seda:`, or `vm:` endpoints
+- **Camel components** -- components used by this route and their Maven artifacts
+- **Services** -- beans/services injected into processors or referenced in route steps, with injection type (@Inject, @Autowired, @Value, @ConfigProperty) and interface hierarchy
+- **Maven artifacts** -- non-Camel dependencies relevant to this route (JDBC drivers, Jackson modules, etc.)
+- **Configuration properties** -- properties from `application.properties` used by this route or its services
+- **Warnings** -- migration-relevant alerts (DI annotation mismatches, version incompatibilities, deprecated components)
+
+The migration context query uses **interface expansion** automatically. If a route injects `OrderService` interface, the query follows the `DEPENDS_ON_VIA_INTERFACE` edge to find `OrderServiceImpl`, then recursively discovers all dependencies of the concrete implementation -- including its injected fields, referenced properties, and Maven artifacts. This ensures the migration has complete visibility into what a route actually depends on at runtime, not just what it declares in its annotations.
 
 For MuleSoft projects, `graph generate` automatically detects Mule XML files (namespace sniffing for `mulesoft.org/schema/mule`) and parses them using the `MuleXmlFlowParser`. DataWeave `.dwl` files are parsed by the `DataWeaveParser`. No explicit configuration is required -- if the project contains MuleSoft artifacts, they are included in the graph automatically. Use `graph stats` to see MuleSoft-specific node counts (`MULE_FLOW`, `MULE_SUB_FLOW`, `MULE_CONNECTOR`, `MULE_ENDPOINT`, `MULE_PROCESSOR`, `MULE_TRANSFORM`, `MULE_ERROR_HANDLER`, `DATAWEAVE_SCRIPT`).
 
