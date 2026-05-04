@@ -11,7 +11,8 @@ import picocli.CommandLine.Command;
 /**
  * Base command for `camel kit` - displays usage information
  */
-@Command(name = "kit", description = "Design Apache Camel Integrations with AI")
+@Command(name = "kit", versionProvider = VersionProvider.class,
+         description = "Design Apache Camel Integrations with AI")
 public class KitCommand extends CamelCommand {
 
     @CommandLine.Option(names = {"-V", "--version"}, versionHelp = true, description = "Print version information")
