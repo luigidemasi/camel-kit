@@ -33,6 +33,14 @@ public class JavaGraphParser implements GraphParser {
             "log", "choice", "multicast", "recipientList", "wireTap",
             "throttle", "delay", "setHeader", "setBody", "removeHeader");
 
+    private static final Set<String> JAVA_LANG_TYPES = Set.of(
+            "String", "Object", "Integer", "Long", "Double", "Float", "Boolean",
+            "Byte", "Short", "Character", "Number", "Void",
+            "Class", "Enum", "Record", "Throwable", "Exception", "RuntimeException",
+            "Error", "StringBuilder", "StringBuffer", "Math", "System",
+            "Comparable", "Iterable", "AutoCloseable", "Cloneable", "Runnable",
+            "Thread", "Override", "Deprecated", "SuppressWarnings");
+
     @Override
     public void parse(Path projectRoot, ProjectGraph graph) {
         JavaParser parser = new JavaParser();
@@ -565,6 +573,10 @@ public class JavaGraphParser implements GraphParser {
                     return imp.getNameAsString();
                 }
             }
+        }
+        // java.lang.* types are implicitly imported — don't resolve as same-package
+        if (JAVA_LANG_TYPES.contains(name)) {
+            return "java.lang." + name;
         }
         // Fallback: assume same package
         return packageName.isEmpty() ? name : packageName + "." + name;
