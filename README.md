@@ -83,6 +83,31 @@ camel plugin add kit \
 camel kit init my-integration --ai bob
 ```
 
+### Build from Source (development version)
+
+Some features (including `--ai qwen` and `--ai opencode`) are only available in the development version. To build from source:
+
+```bash
+git clone https://github.com/luigidemasi/camel-kit.git
+cd camel-kit
+./mvnw clean install -DskipTests
+
+# Install the development version globally via JBang
+jbang app install --name camel-kit --force \
+  camel-kit-main/src/main/jbang/main/CamelKit.java
+
+# Verify
+camel-kit --help
+```
+
+To also build the [Knowledge MCP server](https://github.com/luigidemasi/camel-kit-knowledge) (documentation search, CVE tracking, component catalog):
+
+```bash
+git clone https://github.com/luigidemasi/camel-kit-knowledge.git
+cd camel-kit-knowledge
+./mvnw clean install -DskipTests
+```
+
 ---
 
 ## Quick Start
@@ -92,8 +117,8 @@ camel kit init my-integration --ai bob
 camel-kit init my-integration --ai claude   # Anthropic Claude Code
 camel-kit init my-integration --ai bob      # IBM Project Bob
 camel-kit init my-integration --ai gemini   # Google Gemini CLI
-camel-kit init my-integration --ai qwen     # Qwen
-camel-kit init my-integration --ai opencode # OpenCode
+camel-kit init my-integration --ai qwen     # Qwen (requires dev build)
+camel-kit init my-integration --ai opencode # OpenCode (requires dev build)
 
 # 2. Override configuration if needed
 camel-kit init my-integration --ai claude -p "camel.version=4.18.0"
