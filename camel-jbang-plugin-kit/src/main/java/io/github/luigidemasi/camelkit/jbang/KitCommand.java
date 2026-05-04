@@ -3,13 +3,18 @@ package io.github.luigidemasi.camelkit.jbang;
 import org.apache.camel.dsl.jbang.core.commands.CamelCommand;
 import org.apache.camel.dsl.jbang.core.commands.CamelJBangMain;
 
+import io.github.luigidemasi.camelkit.VersionProvider;
+
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
 /**
  * Base command for `camel kit` - displays usage information
  */
-@Command(name = "kit", description = "Design Apache Camel Integrations with AI")
+@Command(name = "kit",
+         mixinStandardHelpOptions = true,
+         versionProvider = VersionProvider.class,
+         description = "Design Apache Camel Integrations with AI")
 public class KitCommand extends CamelCommand {
 
     public KitCommand(CamelJBangMain main) {
