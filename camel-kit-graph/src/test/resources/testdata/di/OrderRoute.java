@@ -11,7 +11,7 @@ public class OrderRoute extends RouteBuilder {
     @Override
     public void configure() throws Exception {
         from("kafka:orders")
-            .routeId("processOrders")
+            .routeId("processOrdersDi")
             .bean(orderService, "process")
             .to("direct:payment");
     }

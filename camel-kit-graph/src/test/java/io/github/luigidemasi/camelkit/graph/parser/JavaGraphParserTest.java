@@ -7,6 +7,7 @@ import io.github.luigidemasi.camelkit.graph.ProjectGraph;
 import io.github.luigidemasi.camelkit.graph.model.*;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -97,5 +98,70 @@ class JavaGraphParserTest {
                 .toList();
         assertTrue(routesTo.size() >= 2,
                 "enrichOrder route should have at least 2 endpoints (log:enriched and seda:storeOrder)");
+    }
+
+    @Nested
+    class DiAnnotations {
+
+        static ProjectGraph graph;
+
+        @BeforeAll
+        static void setUp() {
+            graph = new ProjectGraph();
+            new PomParser().parse(Path.of("src/test/resources/testdata/di"), graph);
+            new JavaGraphParser().parse(Path.of("src/test/resources/testdata/di"), graph);
+        }
+
+        @Test
+        void createsUsesTypeEdgeForInjectedField() {
+            var edges = graph.getOutgoingEdges("class:com.example.di.OrderRoute").stream()
+                    .filter(e -> e.type() == EdgeType.USES_TYPE)
+                    .toList();
+            assertTrue(edges.stream().anyMatch(e -> e.to().equals("class:com.example.di.OrderService")),
+                    "OrderRoute should have USES_TYPE edge to OrderService");
+        }
+
+        @Test
+        void marksInjectedEdge() {
+            var edge = graph.getOutgoingEdges("class:com.example.di.OrderRoute").stream()
+                    .filter(e -> e.type() == EdgeType.USES_TYPE && e.to().equals("class:com.example.di.OrderService"))
+                    .findFirst()
+                    .orElseThrow();
+            assertEquals("true", edge.properties().get("injection"));
+        }
+
+        @Test
+        void detectsBeanAnnotation() {
+            var node = graph.getNode("class:com.example.di.OrderServiceImpl");
+            assertNotNull(node);
+            assertEquals("true", node.properties().get("bean"));
+            assertEquals("orderService", node.properties().get("beanName"));
+        }
+
+        @Test
+        void detectsSpringServiceAnnotation() {
+            var node = graph.getNode("class:com.example.di.PaymentProcessor");
+            assertNotNull(node);
+            assertEquals("true", node.properties().get("bean"));
+            assertEquals("paymentProcessor", node.properties().get("beanName"));
+        }
+
+        @Test
+        void createsUsesTypeForAutowiredField() {
+            var edges = graph.getOutgoingEdges("class:com.example.di.PaymentProcessor").stream()
+                    .filter(e -> e.type() == EdgeType.USES_TYPE && e.to().equals("class:com.example.di.OrderService"))
+                    .toList();
+            assertFalse(edges.isEmpty(), "PaymentProcessor should have USES_TYPE to OrderService via @Autowired");
+            assertEquals("true", edges.get(0).properties().get("injection"));
+        }
+
+        @Test
+        void skipsJdkTypes() {
+            var edges = graph.getOutgoingEdges("class:com.example.di.PaymentProcessor").stream()
+                    .filter(e -> e.type() == EdgeType.USES_TYPE)
+                    .toList();
+            assertTrue(edges.stream().noneMatch(e -> e.to().contains("java.lang.String")),
+                    "Should NOT create USES_TYPE edge to String");
+        }
     }
 }
