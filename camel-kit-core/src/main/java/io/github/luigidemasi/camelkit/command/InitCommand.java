@@ -21,6 +21,7 @@ import io.github.luigidemasi.camelkit.graph.RuntimeDetector;
 import io.github.luigidemasi.camelkit.output.Printer;
 import io.github.luigidemasi.camelkit.tui.InitTuiView;
 import io.github.luigidemasi.camelkit.tui.TaskTracker;
+import io.github.luigidemasi.camelkit.util.PrerequisiteChecker;
 import io.github.luigidemasi.camelkit.util.TemplateUtils;
 
 import dev.tamboui.image.capability.TerminalImageCapabilities;
@@ -51,6 +52,9 @@ public class InitCommand extends CamelKitCommand {
 
     @Option(names = {"--no-fetch"}, description = "Skip external catalog fetching")
     public boolean noFetch;
+
+    @Option(names = {"--force"}, description = "Overwrite existing project without prompting")
+    public boolean force;
 
     @Option(names = {"--silent"}, description = "Suppress all output (no banner, no progress, no summary)")
     public boolean silent;
@@ -126,6 +130,11 @@ public class InitCommand extends CamelKitCommand {
     }
 
     private Integer doInitWork() throws Exception {
+        // Prerequisite check (non-blocking, skipped in silent mode)
+        if (!silent) {
+            PrerequisiteChecker.check(printer());
+        }
+
         AgentConfig agent = AgentRegistry.get(ai);
         // Resolve target directory
         Path targetDir;
@@ -134,6 +143,18 @@ public class InitCommand extends CamelKitCommand {
             projectName = targetDir.getFileName().toString();
         } else {
             targetDir = Path.of(projectName).toAbsolutePath();
+        }
+
+        // Overwrite detection
+        Path agentsMd = targetDir.resolve("AGENTS.md");
+        Path camelKitDir = targetDir.resolve(".camel-kit");
+        if (!force && (Files.exists(agentsMd) || Files.isDirectory(camelKitDir))) {
+            printer().println(yellow("⚠") + " Project already initialized in " + targetDir);
+            String found = (Files.exists(agentsMd) ? "AGENTS.md " : "")
+                           + (Files.isDirectory(camelKitDir) ? ".camel-kit/" : "");
+            printer().println("  Found: " + found.trim());
+            printer().println("  Use --force to overwrite, or choose a different directory.");
+            return 1;
         }
 
         // Get Citrus version
@@ -148,7 +169,6 @@ public class InitCommand extends CamelKitCommand {
         Files.createDirectories(targetDir);
         Path commandsDir = targetDir.resolve(agent.folder());
         Files.createDirectories(commandsDir);
-        Path camelKitDir = targetDir.resolve(".camel-kit");
         Files.createDirectories(camelKitDir);
         Path docsDir = targetDir.resolve("docs");
         Files.createDirectories(docsDir.resolve("flows"));
