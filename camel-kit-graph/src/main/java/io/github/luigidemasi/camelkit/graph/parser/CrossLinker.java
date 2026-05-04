@@ -126,6 +126,47 @@ public class CrossLinker {
     }
 
     /**
+     * Expands interface-based dependencies by creating DEPENDS_ON_VIA_INTERFACE edges.
+     *
+     * For each USES_TYPE edge pointing to an interface, creates edges to all concrete implementations of that
+     * interface.
+     *
+     * @param graph the project graph to process
+     */
+    public void expandInterfaces(ProjectGraph graph) {
+        // Find all USES_TYPE edges pointing to interfaces
+        List<GraphEdge> usesTypeEdges = graph.getEdges().stream()
+                .filter(edge -> edge.type() == EdgeType.USES_TYPE)
+                .toList();
+
+        for (GraphEdge usesTypeEdge : usesTypeEdges) {
+            String consumerId = usesTypeEdge.from();
+            String interfaceId = usesTypeEdge.to();
+
+            // Check if the target is an interface
+            GraphNode targetNode = graph.getNode(interfaceId);
+            if (targetNode == null || !"true".equals(targetNode.properties().get("interface"))) {
+                continue;
+            }
+
+            // Find all implementors of this interface
+            List<String> implementors = graph.getIncomingEdges(interfaceId).stream()
+                    .filter(edge -> edge.type() == EdgeType.IMPLEMENTS)
+                    .map(GraphEdge::from)
+                    .toList();
+
+            // Create DEPENDS_ON_VIA_INTERFACE edges from consumer to each implementor
+            for (String implementorId : implementors) {
+                graph.addEdge(new GraphEdge(
+                        consumerId,
+                        implementorId,
+                        EdgeType.DEPENDS_ON_VIA_INTERFACE,
+                        Map.of("via", interfaceId)));
+            }
+        }
+    }
+
+    /**
      * Extracts the scheme from an endpoint node. Supports both "scheme" property (explicit) and "uri" property
      * (extracts scheme from URI).
      *

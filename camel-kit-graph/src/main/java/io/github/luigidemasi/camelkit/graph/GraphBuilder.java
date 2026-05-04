@@ -10,7 +10,9 @@ import io.github.luigidemasi.camelkit.graph.parser.*;
 
 public class GraphBuilder {
 
-    private final List<GraphParser> parsers = List.of(
+    private final PomParser pomParser = new PomParser();
+
+    private final List<GraphParser> remainingParsers = List.of(
             new JavaGraphParser(),
             new GroovyGraphParser(),
             new XmlRouteParser(),
@@ -18,16 +20,18 @@ public class GraphBuilder {
             new DataWeaveParser(),
             new BizTalkParser(),
             new YamlRouteParser(),
-            new PomParser(),
             new ConfigParser());
 
     public ProjectGraph build(Path projectRoot) {
         ProjectGraph graph = new ProjectGraph();
 
+        // Run PomParser first so MAVEN_ARTIFACT nodes are available for all other parsers
+        pomParser.parse(projectRoot, graph);
+
         ExecutorService executor = Executors.newFixedThreadPool(
-                Math.min(parsers.size(), Runtime.getRuntime().availableProcessors()));
+                Math.min(remainingParsers.size(), Runtime.getRuntime().availableProcessors()));
         try {
-            List<Future<?>> futures = parsers.stream()
+            List<Future<?>> futures = remainingParsers.stream()
                     .<Future<?>>map(parser -> executor.submit(() -> parser.parse(projectRoot, graph)))
                     .toList();
 
@@ -44,7 +48,15 @@ public class GraphBuilder {
             executor.shutdown();
         }
 
-        new CrossLinker().link(graph);
+        CrossLinker crossLinker = new CrossLinker();
+        crossLinker.link(graph);
+
+        PropertyBindingParser propertyBindingParser = new PropertyBindingParser();
+        propertyBindingParser.parse(graph, RuntimeDetector.detect(graph));
+        propertyBindingParser.resolvePlaceholders(graph);
+
+        crossLinker.expandInterfaces(graph);
+
         return graph;
     }
 

@@ -17,6 +17,7 @@ import io.github.luigidemasi.camelkit.generator.InitContext;
 import io.github.luigidemasi.camelkit.generator.QuteTemplateEngine;
 import io.github.luigidemasi.camelkit.graph.GraphBuilder;
 import io.github.luigidemasi.camelkit.graph.ProjectGraph;
+import io.github.luigidemasi.camelkit.graph.RuntimeDetector;
 import io.github.luigidemasi.camelkit.output.Printer;
 import io.github.luigidemasi.camelkit.tui.InitTuiView;
 import io.github.luigidemasi.camelkit.tui.TaskTracker;
@@ -196,6 +197,9 @@ public class InitCommand extends CamelKitCommand {
                 if (!detected.isEmpty()) {
                     printer().println("     Detected: " + cyan(detected));
                 }
+
+                // Update config file with detected runtime
+                updateConfigWithRuntime(camelKitDir, projectGraph);
             } else {
                 printer().println(yellow("  No source files found — graph skipped"));
             }
@@ -382,6 +386,27 @@ public class InitCommand extends CamelKitCommand {
         }
 
         Path configFile = dir.resolve("config.properties");
+        try (var out = Files.newOutputStream(configFile)) {
+            config.store(out, "Camel-Kit Project Configuration");
+        }
+    }
+
+    private void updateConfigWithRuntime(Path dir, ProjectGraph graph) throws Exception {
+        Path configFile = dir.resolve("config.properties");
+        java.util.Properties config = new java.util.Properties();
+
+        // Load existing properties
+        if (Files.exists(configFile)) {
+            try (var in = Files.newInputStream(configFile)) {
+                config.load(in);
+            }
+        }
+
+        // Detect and set runtime
+        String runtime = RuntimeDetector.detect(graph);
+        config.setProperty("project.runtime", runtime);
+
+        // Write back
         try (var out = Files.newOutputStream(configFile)) {
             config.store(out, "Camel-Kit Project Configuration");
         }
