@@ -79,4 +79,56 @@ class CrossLinkerTest {
         List<GraphEdge> configures = graph.getEdges().stream().filter(e -> e.type() == EdgeType.CONFIGURES).toList();
         assertEquals(1, configures.size());
     }
+
+    @Test
+    void expandsInterfaceConsumers() {
+        ProjectGraph graph = new ProjectGraph();
+
+        graph.addNode(new GraphNode(
+                "class:com.example.OrderService", NodeType.CLASS,
+                Map.of("name", "OrderService", "interface", "true")));
+        graph.addNode(new GraphNode(
+                "class:com.example.OrderServiceImpl", NodeType.CLASS,
+                Map.of("name", "OrderServiceImpl")));
+        graph.addNode(new GraphNode(
+                "class:com.example.OrderRoute", NodeType.CLASS,
+                Map.of("name", "OrderRoute")));
+
+        graph.addEdge(new GraphEdge(
+                "class:com.example.OrderServiceImpl", "class:com.example.OrderService",
+                EdgeType.IMPLEMENTS, Map.of()));
+        graph.addEdge(new GraphEdge(
+                "class:com.example.OrderRoute", "class:com.example.OrderService",
+                EdgeType.USES_TYPE, Map.of("injection", "true")));
+
+        new CrossLinker().expandInterfaces(graph);
+
+        var expansion = graph.getOutgoingEdges("class:com.example.OrderRoute").stream()
+                .filter(e -> e.type() == EdgeType.DEPENDS_ON_VIA_INTERFACE)
+                .toList();
+        assertEquals(1, expansion.size());
+        assertEquals("class:com.example.OrderServiceImpl", expansion.get(0).to());
+        assertEquals("class:com.example.OrderService", expansion.get(0).properties().get("via"));
+    }
+
+    @Test
+    void expandsMultipleImplementors() {
+        ProjectGraph graph = new ProjectGraph();
+
+        graph.addNode(new GraphNode("class:Service", NodeType.CLASS, Map.of("interface", "true")));
+        graph.addNode(new GraphNode("class:Impl1", NodeType.CLASS, Map.of()));
+        graph.addNode(new GraphNode("class:Impl2", NodeType.CLASS, Map.of()));
+        graph.addNode(new GraphNode("class:Consumer", NodeType.CLASS, Map.of()));
+
+        graph.addEdge(new GraphEdge("class:Impl1", "class:Service", EdgeType.IMPLEMENTS, Map.of()));
+        graph.addEdge(new GraphEdge("class:Impl2", "class:Service", EdgeType.IMPLEMENTS, Map.of()));
+        graph.addEdge(new GraphEdge("class:Consumer", "class:Service", EdgeType.USES_TYPE, Map.of()));
+
+        new CrossLinker().expandInterfaces(graph);
+
+        var expansions = graph.getOutgoingEdges("class:Consumer").stream()
+                .filter(e -> e.type() == EdgeType.DEPENDS_ON_VIA_INTERFACE)
+                .toList();
+        assertEquals(2, expansions.size());
+    }
 }
