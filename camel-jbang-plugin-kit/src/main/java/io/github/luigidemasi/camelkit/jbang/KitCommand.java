@@ -13,7 +13,7 @@ import picocli.CommandLine.Command;
          description = "Design Apache Camel Integrations with AI")
 public class KitCommand extends CamelCommand {
 
-    @CommandLine.Option(names = {"-V", "--version"}, versionHelp = true, description = "Print version information")
+    @CommandLine.Option(names = {"-V", "--version"}, description = "Print version information")
     private boolean versionRequested;
 
     public KitCommand(CamelJBangMain main) {
