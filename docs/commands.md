@@ -222,7 +222,7 @@ Returns structured JSON with the complete context needed for migration analysis:
     {
       "key": "camel.component.kafka.brokers",
       "value": "localhost:9092",
-      "edgeType": "configures",
+      "edgeType": "CONFIGURES",
       "target": "component:kafka"
     }
   ],
@@ -230,7 +230,7 @@ Returns structured JSON with the complete context needed for migration analysis:
     {
       "type": "synthetic-node",
       "name": "UnknownService",
-      "reason": "Service referenced but not found in project"
+      "reason": "Node was inferred, not parsed from source"
     }
   ]
 }

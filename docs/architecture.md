@@ -92,11 +92,11 @@ The `camel-kit-graph` module builds a property graph of the project structure by
 
 | Parser | What It Parses | Node Types | Execution Order |
 |--------|---------------|------------|-----------------|
-| `PomParser` | `pom.xml` | `MAVEN_ARTIFACT`, `MAVEN_DEPENDENCY`, `MAVEN_PLUGIN` | First (synchronous, provides runtime detection and dependency allowlist) |
+| `PomParser` | `pom.xml` | `MAVEN_ARTIFACT`, `CONFIG_PROPERTY` | First (synchronous, provides runtime detection and dependency allowlist) |
 | `JavaGraphParser` | `.java` files | `CLASS`, `METHOD`, `FIELD`, `CONFIG_PROPERTY` | After PomParser |
 | `GroovyGraphParser` | `.groovy` files | `CLASS`, `METHOD`, `FIELD` | After PomParser |
-| `XmlRouteParser` | `.camel.xml` | `CAMEL_ROUTE`, `CAMEL_ENDPOINT`, `PROCESSOR` | After PomParser |
-| `YamlRouteParser` | `.camel.yaml` | `CAMEL_ROUTE`, `CAMEL_ENDPOINT`, `PROCESSOR` | After PomParser |
+| `XmlRouteParser` | `.camel.xml` | `CAMEL_ROUTE`, `CAMEL_ENDPOINT`, `CAMEL_PROCESSOR` | After PomParser |
+| `YamlRouteParser` | `.camel.yaml` | `CAMEL_ROUTE`, `CAMEL_ENDPOINT`, `CAMEL_PROCESSOR` | After PomParser |
 | `ConfigParser` | `application.properties` | `CONFIG_PROPERTY` | After PomParser |
 | `MuleXmlFlowParser` | MuleSoft XML configs (`*.xml` with `mulesoft.org/schema/mule` namespace) | `MULE_FLOW`, `MULE_SUB_FLOW`, `MULE_CONNECTOR`, `MULE_ENDPOINT`, `MULE_PROCESSOR`, `MULE_TRANSFORM`, `MULE_ERROR_HANDLER` | After PomParser |
 | `DataWeaveParser` | `.dwl` files | `DATAWEAVE_SCRIPT` | After PomParser |
@@ -108,14 +108,22 @@ The `camel-kit-graph` module builds a property graph of the project structure by
 
 | Edge Type | Meaning | Created By |
 |-----------|---------|------------|
-| `DEPENDS_ON` | A class depends on another class | `JavaGraphParser` |
-| `CALLS` | A method calls another method | `JavaGraphParser` |
+| `EXTENDS` | A class extends another class | `JavaGraphParser`, `GroovyGraphParser` |
+| `IMPLEMENTS` | A class implements an interface | `JavaGraphParser`, `GroovyGraphParser` |
+| `DECLARES` | A class declares a field, method, or route | `JavaGraphParser`, `GroovyGraphParser` |
+| `CALLS` | Reserved (not currently created by any parser) | -- |
 | `USES_TYPE` | A field or constructor parameter references a type (DI-annotated) | `JavaGraphParser` |
+| `ROUTES_FROM` | A route consumes from an endpoint | `XmlRouteParser`, `YamlRouteParser`, `JavaGraphParser`, `GroovyGraphParser` |
+| `ROUTES_TO` | A route produces to an endpoint | `XmlRouteParser`, `YamlRouteParser`, `JavaGraphParser`, `GroovyGraphParser` |
+| `PROCESSES` | A route contains a processor step | `XmlRouteParser`, `YamlRouteParser`, `JavaGraphParser`, `GroovyGraphParser` |
+| `LINKS_TO` | A producer route is linked to a consumer route via direct/seda endpoints | `CrossLinker` |
+| `DEPENDS_ON` | A Maven artifact depends on another artifact | `PomParser` |
+| `USES_COMPONENT` | An endpoint uses a Maven artifact (scheme to camel-{scheme} convention) | `CrossLinker` |
+| `CONFIGURES` | A config property configures an endpoint, datasource, or other target | `CrossLinker`, `PropertyBindingParser` |
 | `INJECTS_INTO` | A bean is injected into a field or constructor | `JavaGraphParser` |
-| `INSTANTIATES` | A method instantiates a class | `JavaGraphParser` |
-| `REFERENCES_BEAN` | A CONFIG_PROPERTY references a Spring/Camel bean | `PropertyBindingParser` |
-| `REFERENCES_PROPERTY` | A CONFIG_PROPERTY references another property | `PropertyBindingParser` |
-| `ROUTE_CONTAINS` | A route contains an endpoint or processor | `CamelRouteParser` |
+| `INSTANTIATES` | A CONFIG_PROPERTY instantiates a class via `#class:` syntax | `PropertyBindingParser` |
+| `REFERENCES_BEAN` | A CONFIG_PROPERTY references a bean via `#bean:`, `#autowired`, or `#type:` syntax | `PropertyBindingParser` |
+| `REFERENCES_PROPERTY` | A CONFIG_PROPERTY references another property via `#property:` syntax | `PropertyBindingParser` |
 | `DEPENDS_ON_VIA_INTERFACE` | A class depends on another class via an interface | `CrossLinker` |
 | `MULE_FLOW_CONTAINS` | A Mule flow or sub-flow contains a processor, transform, or endpoint | `MuleXmlFlowParser` |
 | `MULE_CALLS_SUBFLOW` | A flow-ref element invokes a sub-flow by name | `MuleXmlFlowParser` |
@@ -131,7 +139,7 @@ The `camel-kit-graph` module builds a property graph of the project structure by
 
 **Parser execution order:** PomParser runs first (synchronously) to ensure `MAVEN_ARTIFACT` nodes are available for runtime detection and dependency allowlist construction. All other parsers run in parallel after PomParser completes. CrossLinker runs after all content parsers finish, and PropertyBindingParser runs last to analyze the complete CONFIG_PROPERTY graph.
 
-**Enhanced JavaGraphParser:** Detects dependency injection annotations (`@Inject`, `@Autowired`, `@Value`, `@ConfigProperty`, `@Component`, `@Service`, `@Named`, `@Singleton`, `@ApplicationScoped`) on fields and constructor parameters. Creates `USES_TYPE` edges for annotated fields/params, with POM-driven scope guard allowlist filtering framework types (Camel, Spring, Quarkus, Mule). Import-aware type resolution via `CompilationUnit.getImports()` matches short type names to fully-qualified class names.
+**Enhanced JavaGraphParser:** Detects dependency injection annotations (`@Inject`, `@Autowired`) and bean annotations (`@Component`, `@Service`, `@Repository`, `@Controller`, `@Named`, `@Singleton`, `@ApplicationScoped`, `@RequestScoped`) on fields, constructor parameters, and class declarations. Also detects `@Value` and `@ConfigProperty` for property references. Creates `USES_TYPE` edges for annotated fields/params, with POM-driven scope guard allowlist filtering framework types (Camel, Spring, Quarkus, Mule). Import-aware type resolution via `CompilationUnit.getImports()` matches short type names to fully-qualified class names.
 
 **PropertyBindingParser:** Scans CONFIG_PROPERTY node values for Camel's PropertyBindingSupport syntax (`#class:`, `#bean:`, `#autowired`, `#type:`, `#property:`) and creates typed edges to referenced classes or beans. Convention-based detection identifies Spring Boot (`spring.datasource.*`) and Quarkus (`quarkus.datasource.*`, build-time properties) configuration patterns. Placeholder resolution (`{{key}}`) extracts property references from endpoint URIs.
 
