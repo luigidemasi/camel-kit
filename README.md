@@ -59,6 +59,8 @@ Standalone:   /camel-verify        (runtime verification only)
 
 Camel JBang and its test plugin are needed for the full pipeline (environment probe, endpoint validation, runtime verification). The design and planning phases work without them.
 
+`camel-kit init` automatically checks for these prerequisites and reports their status. Missing tools produce warnings but don't block initialization.
+
 ### Standalone (JBang)
 
 ```bash

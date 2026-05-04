@@ -49,7 +49,9 @@ camel-kit init --here [options]
 | `-p`, `--property` | -- | Override a config property (repeatable). Example: `-p "camel.version=4.18.0"` |
 | `-c`, `--config` | `~/.camel-kit/config.properties` | Path to a custom config properties file |
 | `--source-platform` | `auto` | Source platform for migration: `mulesoft`, `camel`, `biztalk`, `auto` |
+| `--force` | `false` | Overwrite existing project without prompting (skips overwrite detection) |
 | `--silent` | `false` | Suppress all output (no banner, no TUI, no progress, no summary) -- useful for CI/scripted environments |
+| `-V`, `--version` | -- | Print camel-kit version and exit |
 
 **Examples:**
 
@@ -92,7 +94,43 @@ camel-kit init my-integration --ai claude --source-platform biztalk
 
 # Skip catalog fetch (faster)
 camel-kit init my-integration --ai bob --no-fetch
+
+# Overwrite an existing project
+camel-kit init my-integration --ai claude --force
+
+# Check version
+camel-kit --version
 ```
+
+**Prerequisite check:**
+
+On startup, `init` checks for required tools and reports their status:
+
+```
+Prerequisites:
+  Java 17+          ✓ (21.0.3)
+  JBang             ✓ (0.136.0)
+  Camel JBang       ✓ (4.18.1)
+  Camel test plugin ✗ (not found — /camel-verify will skip test phase)
+```
+
+The check is non-blocking -- it warns but never fails the init. Design and planning work without Camel JBang; only execution and verification need it.
+
+**Overwrite detection:**
+
+If the target directory already contains `AGENTS.md` or `.camel-kit/`, init warns and exits:
+
+```
+⚠ Project already initialized
+  Directory: /path/to/my-integration
+  Found:     AGENTS.md
+  Found:     .camel-kit/
+
+  To overwrite: --force
+  Example:      camel-kit init my-integration --ai claude --force
+```
+
+Use `--force` to overwrite an existing project.
 
 **TUI experience:**
 
