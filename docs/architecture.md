@@ -88,21 +88,21 @@ Shared guides live at `camel-kit-core/src/main/resources/skills/shared/` and are
 
 The `camel-kit-graph` module builds a property graph of the project structure by running a set of parsers over the project's source files. Each parser produces typed nodes and edges that the graph consumers (validation, implementation, testing, migration) can query.
 
-**10 parsers** are registered in `GraphBuilder`:
+**9 content parsers and 2 post-processors** are registered in `GraphBuilder`:
 
 | Parser | What It Parses | Node Types | Execution Order |
 |--------|---------------|------------|-----------------|
 | `PomParser` | `pom.xml` | `MAVEN_ARTIFACT`, `MAVEN_DEPENDENCY`, `MAVEN_PLUGIN` | First (synchronous, provides runtime detection and dependency allowlist) |
 | `JavaGraphParser` | `.java` files | `CLASS`, `METHOD`, `FIELD`, `CONFIG_PROPERTY` | After PomParser |
-| `CamelRouteParser` | `.camel.yaml`, `.xml` | `ROUTE`, `ENDPOINT`, `PROCESSOR` | After PomParser |
+| `GroovyGraphParser` | `.groovy` files | `CLASS`, `METHOD`, `FIELD` | After PomParser |
+| `XmlRouteParser` | `.camel.xml` | `CAMEL_ROUTE`, `CAMEL_ENDPOINT`, `PROCESSOR` | After PomParser |
+| `YamlRouteParser` | `.camel.yaml` | `CAMEL_ROUTE`, `CAMEL_ENDPOINT`, `PROCESSOR` | After PomParser |
 | `ConfigParser` | `application.properties` | `CONFIG_PROPERTY` | After PomParser |
-| `DockerComposeParser` | `docker-compose.yaml` | `DOCKER_SERVICE` | After PomParser |
-| `OpenApiParser` | `openapi.yaml`, `openapi.json` | `OPENAPI_OPERATION` | After PomParser |
-| `CrossLinker` | Graph topology | Creates cross-references and shortcuts | After all content parsers |
-| `PropertyBindingParser` | `CONFIG_PROPERTY` values | Extracts bean/type/property references | After CrossLinker |
 | `MuleXmlFlowParser` | MuleSoft XML configs (`*.xml` with `mulesoft.org/schema/mule` namespace) | `MULE_FLOW`, `MULE_SUB_FLOW`, `MULE_CONNECTOR`, `MULE_ENDPOINT`, `MULE_PROCESSOR`, `MULE_TRANSFORM`, `MULE_ERROR_HANDLER` | After PomParser |
 | `DataWeaveParser` | `.dwl` files | `DATAWEAVE_SCRIPT` | After PomParser |
 | `BizTalkParser` | BizTalk artifacts (`.odx`, `.btm`, `.btp`, binding `.xml`) | `BIZTALK_ORCHESTRATION`, `BIZTALK_SHAPE`, `BIZTALK_MAP`, `BIZTALK_FUNCTOID`, `BIZTALK_SCHEMA`, `BIZTALK_PIPELINE`, `BIZTALK_PIPELINE_COMPONENT`, `BIZTALK_PORT`, `BIZTALK_ADAPTER`, `BIZTALK_MESSAGE` | After PomParser (hybrid parser delegating to 4 internal StAX-based parsers) |
+| `CrossLinker` | Graph topology | Creates cross-references and shortcuts | After all content parsers (post-processor) |
+| `PropertyBindingParser` | `CONFIG_PROPERTY` values | Extracts bean/type/property references | After CrossLinker (post-processor) |
 
 **All edge types:**
 
@@ -155,7 +155,7 @@ The `camel-kit-graph` module builds a property graph of the project structure by
 
 The `graph migration-context` CLI command produces a comprehensive structured JSON analysis of a project's integration landscape by traversing the property graph. This context powers the migration skills by providing a complete dependency map before any transformation work begins.
 
-**Usage:** `camel-kit graph migration-context --project-path <path> [--output <file>]`
+**Usage:** `camel-kit graph migration-context <routeId> [--depth N]`
 
 **Output sections:**
 

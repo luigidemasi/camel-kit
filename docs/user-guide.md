@@ -529,7 +529,7 @@ camel-kit graph project-context
 camel-kit graph route-topology
 
 # Extract migration context for a specific route (JSON output)
-camel-kit graph migration-context <routeId>
+camel-kit graph migration-context <routeId> [--depth N]
 ```
 
 The graph is stored in `.camel-kit/project-graph.json` and rebuilt automatically when relevant commands detect changes. For greenfield projects where no code exists yet, the graph is not generated -- all skills fall back to sensible defaults. The graph **enhances but never gates**: its presence improves output quality, but its absence never blocks the pipeline.
@@ -541,39 +541,50 @@ The `migration-context` command produces a structured JSON report containing all
 **Example usage:**
 ```bash
 camel-kit graph migration-context order-ingestion-route
+camel-kit graph migration-context order-ingestion-route --depth 5
 ```
 
 **Output structure:**
 ```json
 {
-  "routeId": "order-ingestion-route",
-  "runtime": {
-    "type": "SPRING_BOOT",
-    "version": "3.2.1"
-  },
-  "relatedRoutes": [
-    {"id": "order-validation-route", "type": "CAMEL_ROUTE"},
-    {"id": "order-enrichment-route", "type": "CAMEL_ROUTE"}
-  ],
-  "camelComponents": [
-    {"name": "kafka", "artifactId": "camel-kafka"},
-    {"name": "sql", "artifactId": "camel-sql"}
+  "route": "processOrders",
+  "runtime": "spring-boot",
+  "components": ["kafka", "http", "bean"],
+  "routes": [
+    {
+      "id": "processOrders",
+      "from": "kafka:orders",
+      "file": "src/main/resources/routes/orders.camel.yaml"
+    }
   ],
   "services": [
     {
-      "className": "com.example.OrderValidator",
-      "injectionType": "AUTOWIRED",
-      "implementsInterfaces": ["com.example.Validator"]
+      "class": "com.example.OrderService",
+      "bean": true,
+      "beanName": "orderService"
     }
   ],
   "artifacts": [
-    {"groupId": "org.springframework.boot", "artifactId": "spring-boot-starter-data-jpa"}
+    {
+      "groupId": "org.apache.camel",
+      "artifactId": "camel-kafka",
+      "version": "4.14.4"
+    }
   ],
   "properties": [
-    {"key": "spring.datasource.url", "value": "jdbc:postgresql://localhost:5432/orders"}
+    {
+      "key": "camel.component.kafka.brokers",
+      "value": "localhost:9092",
+      "edgeType": "REFERENCES_PROPERTY",
+      "target": "component:kafka"
+    }
   ],
   "warnings": [
-    "Service OrderValidator uses @Autowired - consider CDI @Inject for Quarkus migration"
+    {
+      "type": "synthetic-node",
+      "name": "UnknownService",
+      "reason": "Node was inferred, not parsed from source"
+    }
   ]
 }
 ```
