@@ -182,19 +182,14 @@ public class JavaGraphParser implements GraphParser {
     }
 
     /**
-     * Computes the set of allowed package prefixes based on MAVEN_ARTIFACT nodes in the graph. If no MAVEN_ARTIFACT
-     * nodes exist yet (e.g., PomParser still running in parallel), returns a minimal default set to avoid missing
-     * project-local types.
+     * Computes the set of allowed package prefixes based on MAVEN_ARTIFACT nodes in the graph. PomParser is guaranteed
+     * to have finished before this method is called (it runs synchronously before other parsers).
      */
     private Set<String> computeAllowedPrefixes(ProjectGraph graph) {
         Set<String> prefixes = new HashSet<>();
         prefixes.add("org.apache.camel.");
 
         Collection<GraphNode> artifacts = graph.findByType(NodeType.MAVEN_ARTIFACT);
-        if (artifacts.isEmpty()) {
-            // PomParser may not have finished yet; return minimal defaults
-            return prefixes;
-        }
 
         for (GraphNode node : artifacts) {
             String artifactId = node.properties().get("artifactId");
