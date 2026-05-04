@@ -21,6 +21,7 @@ import io.github.luigidemasi.camelkit.graph.RuntimeDetector;
 import io.github.luigidemasi.camelkit.output.Printer;
 import io.github.luigidemasi.camelkit.tui.InitTuiView;
 import io.github.luigidemasi.camelkit.tui.TaskTracker;
+import io.github.luigidemasi.camelkit.util.PrerequisiteChecker;
 import io.github.luigidemasi.camelkit.util.TemplateUtils;
 
 import dev.tamboui.image.capability.TerminalImageCapabilities;
@@ -52,6 +53,9 @@ public class InitCommand extends CamelKitCommand {
     @Option(names = {"--no-fetch"}, description = "Skip external catalog fetching")
     public boolean noFetch;
 
+    @Option(names = {"--force"}, description = "Overwrite existing project without prompting")
+    public boolean force;
+
     @Option(names = {"--silent"}, description = "Suppress all output (no banner, no progress, no summary)")
     public boolean silent;
 
@@ -66,6 +70,8 @@ public class InitCommand extends CamelKitCommand {
     @Option(names = {"--source-platform"},
             description = "Source platform for migration graph analysis: mulesoft, camel, biztalk, auto (default: auto)")
     public String sourcePlatform;
+
+    private Path resolvedTargetDir;
 
     public InitCommand(CamelKitMain main) {
         super(main);
@@ -98,6 +104,36 @@ public class InitCommand extends CamelKitCommand {
             return 1;
         }
 
+        // Resolve target directory once — reused in doInitWork()
+        if (here) {
+            resolvedTargetDir = Path.of("").toAbsolutePath();
+            projectName = resolvedTargetDir.getFileName().toString();
+        } else {
+            resolvedTargetDir = Path.of(projectName).toAbsolutePath();
+        }
+
+        // Overwrite detection (runs before TUI so colors work on error)
+        Path agentsMd = resolvedTargetDir.resolve("AGENTS.md");
+        Path camelKitDir = resolvedTargetDir.resolve(".camel-kit");
+        if (!force && (Files.exists(agentsMd) || Files.isDirectory(camelKitDir))) {
+            if (!silent)
+                main.printBanner();
+            printer().println();
+            printer().println(yellow("⚠") + bold(" Project already initialized"));
+            printer().println(dim("  Directory: ") + cyan(resolvedTargetDir.toString()));
+            if (Files.exists(agentsMd)) {
+                printer().println(dim("  Found:     ") + "AGENTS.md");
+            }
+            if (Files.isDirectory(camelKitDir)) {
+                printer().println(dim("  Found:     ") + ".camel-kit/");
+            }
+            printer().println();
+            printer().println(dim("  To overwrite: ") + bold("--force"));
+            printer().println(dim("  Example:      ") + "camel-kit init " + projectName + " --ai " + ai + " --force");
+            printer().println();
+            return 1;
+        }
+
         if (!silent) {
             // If native image protocol is available and TUI is enabled, run the full
             // split-screen experience. Falls back to normal mode on any failure
@@ -126,15 +162,14 @@ public class InitCommand extends CamelKitCommand {
     }
 
     private Integer doInitWork() throws Exception {
-        AgentConfig agent = AgentRegistry.get(ai);
-        // Resolve target directory
-        Path targetDir;
-        if (here) {
-            targetDir = Path.of("").toAbsolutePath();
-            projectName = targetDir.getFileName().toString();
-        } else {
-            targetDir = Path.of(projectName).toAbsolutePath();
+        // Prerequisite check (non-blocking, informational)
+        if (!silent) {
+            PrerequisiteChecker.check(printer());
         }
+
+        AgentConfig agent = AgentRegistry.get(ai);
+        Path targetDir = resolvedTargetDir;
+        Path camelKitDir = targetDir.resolve(".camel-kit");
 
         // Get Citrus version
         String citrusVer = "default".equals(citrusVersion)
@@ -148,7 +183,6 @@ public class InitCommand extends CamelKitCommand {
         Files.createDirectories(targetDir);
         Path commandsDir = targetDir.resolve(agent.folder());
         Files.createDirectories(commandsDir);
-        Path camelKitDir = targetDir.resolve(".camel-kit");
         Files.createDirectories(camelKitDir);
         Path docsDir = targetDir.resolve("docs");
         Files.createDirectories(docsDir.resolve("flows"));
