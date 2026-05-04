@@ -88,50 +88,89 @@ Shared guides live at `camel-kit-core/src/main/resources/skills/shared/` and are
 
 The `camel-kit-graph` module builds a property graph of the project structure by running a set of parsers over the project's source files. Each parser produces typed nodes and edges that the graph consumers (validation, implementation, testing, migration) can query.
 
-**9 parsers** are registered in `GraphBuilder`:
+**10 parsers** are registered in `GraphBuilder`:
 
-| Parser | What It Parses | Node Types |
-|--------|---------------|------------|
-| `JavaClassParser` | `.java` files | `CLASS`, `METHOD`, `FIELD` |
-| `CamelRouteParser` | `.camel.yaml`, `.xml` | `ROUTE`, `ENDPOINT`, `PROCESSOR` |
-| `MavenPomParser` | `pom.xml` | `MAVEN_DEPENDENCY`, `MAVEN_PLUGIN` |
-| `PropertiesParser` | `application.properties` | `PROPERTY` |
-| `DockerComposeParser` | `docker-compose.yaml` | `DOCKER_SERVICE` |
-| `OpenApiParser` | `openapi.yaml`, `openapi.json` | `OPENAPI_OPERATION` |
-| `MuleXmlFlowParser` | MuleSoft XML configs (`*.xml` with `mulesoft.org/schema/mule` namespace) | `MULE_FLOW`, `MULE_SUB_FLOW`, `MULE_CONNECTOR`, `MULE_ENDPOINT`, `MULE_PROCESSOR`, `MULE_TRANSFORM`, `MULE_ERROR_HANDLER` |
-| `DataWeaveParser` | `.dwl` files | `DATAWEAVE_SCRIPT` |
-| `BizTalkParser` | BizTalk artifacts (`.odx`, `.btm`, `.btp`, binding `.xml`) | `BIZTALK_ORCHESTRATION`, `BIZTALK_SHAPE`, `BIZTALK_MAP`, `BIZTALK_FUNCTOID`, `BIZTALK_SCHEMA`, `BIZTALK_PIPELINE`, `BIZTALK_PIPELINE_COMPONENT`, `BIZTALK_PORT`, `BIZTALK_ADAPTER`, `BIZTALK_MESSAGE` (hybrid parser delegating to 4 internal StAX-based parsers) |
+| Parser | What It Parses | Node Types | Execution Order |
+|--------|---------------|------------|-----------------|
+| `PomParser` | `pom.xml` | `MAVEN_ARTIFACT`, `MAVEN_DEPENDENCY`, `MAVEN_PLUGIN` | First (synchronous, provides runtime detection and dependency allowlist) |
+| `JavaGraphParser` | `.java` files | `CLASS`, `METHOD`, `FIELD`, `CONFIG_PROPERTY` | After PomParser |
+| `CamelRouteParser` | `.camel.yaml`, `.xml` | `ROUTE`, `ENDPOINT`, `PROCESSOR` | After PomParser |
+| `ConfigParser` | `application.properties` | `CONFIG_PROPERTY` | After PomParser |
+| `DockerComposeParser` | `docker-compose.yaml` | `DOCKER_SERVICE` | After PomParser |
+| `OpenApiParser` | `openapi.yaml`, `openapi.json` | `OPENAPI_OPERATION` | After PomParser |
+| `CrossLinker` | Graph topology | Creates cross-references and shortcuts | After all content parsers |
+| `PropertyBindingParser` | `CONFIG_PROPERTY` values | Extracts bean/type/property references | After CrossLinker |
+| `MuleXmlFlowParser` | MuleSoft XML configs (`*.xml` with `mulesoft.org/schema/mule` namespace) | `MULE_FLOW`, `MULE_SUB_FLOW`, `MULE_CONNECTOR`, `MULE_ENDPOINT`, `MULE_PROCESSOR`, `MULE_TRANSFORM`, `MULE_ERROR_HANDLER` | After PomParser |
+| `DataWeaveParser` | `.dwl` files | `DATAWEAVE_SCRIPT` | After PomParser |
+| `BizTalkParser` | BizTalk artifacts (`.odx`, `.btm`, `.btp`, binding `.xml`) | `BIZTALK_ORCHESTRATION`, `BIZTALK_SHAPE`, `BIZTALK_MAP`, `BIZTALK_FUNCTOID`, `BIZTALK_SCHEMA`, `BIZTALK_PIPELINE`, `BIZTALK_PIPELINE_COMPONENT`, `BIZTALK_PORT`, `BIZTALK_ADAPTER`, `BIZTALK_MESSAGE` | After PomParser (hybrid parser delegating to 4 internal StAX-based parsers) |
 
-**MuleSoft-specific edge types:**
+**All edge types:**
 
-| Edge Type | Meaning |
-|-----------|---------|
-| `MULE_FLOW_CONTAINS` | A Mule flow or sub-flow contains a processor, transform, or endpoint |
-| `MULE_CALLS_SUBFLOW` | A flow-ref element invokes a sub-flow by name |
-| `MULE_USES_CONNECTOR` | A flow element uses a connector configuration |
-| `MULE_REFERENCES_DWL` | A transform step references an external DataWeave script |
+| Edge Type | Meaning | Created By |
+|-----------|---------|------------|
+| `DEPENDS_ON` | A class depends on another class | `JavaGraphParser` |
+| `CALLS` | A method calls another method | `JavaGraphParser` |
+| `USES_TYPE` | A field or constructor parameter references a type (DI-annotated) | `JavaGraphParser` |
+| `INJECTS_INTO` | A bean is injected into a field or constructor | `JavaGraphParser` |
+| `INSTANTIATES` | A method instantiates a class | `JavaGraphParser` |
+| `REFERENCES_BEAN` | A CONFIG_PROPERTY references a Spring/Camel bean | `PropertyBindingParser` |
+| `REFERENCES_PROPERTY` | A CONFIG_PROPERTY references another property | `PropertyBindingParser` |
+| `ROUTE_CONTAINS` | A route contains an endpoint or processor | `CamelRouteParser` |
+| `DEPENDS_ON_VIA_INTERFACE` | A class depends on another class via an interface | `CrossLinker` |
+| `MULE_FLOW_CONTAINS` | A Mule flow or sub-flow contains a processor, transform, or endpoint | `MuleXmlFlowParser` |
+| `MULE_CALLS_SUBFLOW` | A flow-ref element invokes a sub-flow by name | `MuleXmlFlowParser` |
+| `MULE_USES_CONNECTOR` | A flow element uses a connector configuration | `MuleXmlFlowParser` |
+| `MULE_REFERENCES_DWL` | A transform step references an external DataWeave script | `MuleXmlFlowParser` |
+| `BIZTALK_ORCHESTRATION_CONTAINS` | Orchestration contains shape, port, or message | `BizTalkParser` |
+| `BIZTALK_USES_MAP` | Transform shape uses a BizTalk map | `BizTalkParser` |
+| `BIZTALK_USES_SCHEMA` | Message or map references an XSD schema | `BizTalkParser` |
+| `BIZTALK_CALLS_ORCHESTRATION` | Call/start shape invokes another orchestration | `BizTalkParser` |
+| `BIZTALK_PORT_BINDING` | Port uses adapter configuration | `BizTalkParser` |
+| `BIZTALK_FUNCTOID_CHAIN` | Map contains functoid | `BizTalkParser` |
+| `BIZTALK_PIPELINE_STAGE` | Pipeline contains component | `BizTalkParser` |
 
-**BizTalk-specific edge types:**
+**Parser execution order:** PomParser runs first (synchronously) to ensure `MAVEN_ARTIFACT` nodes are available for runtime detection and dependency allowlist construction. All other parsers run in parallel after PomParser completes. CrossLinker runs after all content parsers finish, and PropertyBindingParser runs last to analyze the complete CONFIG_PROPERTY graph.
 
-| Edge Type | Meaning |
-|-----------|---------|
-| `BIZTALK_ORCHESTRATION_CONTAINS` | Orchestration contains shape, port, or message |
-| `BIZTALK_USES_MAP` | Transform shape uses a BizTalk map |
-| `BIZTALK_USES_SCHEMA` | Message or map references an XSD schema |
-| `BIZTALK_CALLS_ORCHESTRATION` | Call/start shape invokes another orchestration |
-| `BIZTALK_PORT_BINDING` | Port uses adapter configuration |
-| `BIZTALK_FUNCTOID_CHAIN` | Map contains functoid |
-| `BIZTALK_PIPELINE_STAGE` | Pipeline contains component |
+**Enhanced JavaGraphParser:** Detects dependency injection annotations (`@Inject`, `@Autowired`, `@Value`, `@ConfigProperty`, `@Component`, `@Service`, `@Named`, `@Singleton`, `@ApplicationScoped`) on fields and constructor parameters. Creates `USES_TYPE` edges for annotated fields/params, with POM-driven scope guard allowlist filtering framework types (Camel, Spring, Quarkus, Mule). Import-aware type resolution via `CompilationUnit.getImports()` matches short type names to fully-qualified class names.
+
+**PropertyBindingParser:** Scans CONFIG_PROPERTY node values for Camel's PropertyBindingSupport syntax (`#class:`, `#bean:`, `#autowired`, `#type:`, `#property:`) and creates typed edges to referenced classes or beans. Convention-based detection identifies Spring Boot (`spring.datasource.*`) and Quarkus (`quarkus.datasource.*`, build-time properties) configuration patterns. Placeholder resolution (`{{key}}`) extracts property references from endpoint URIs.
+
+**CrossLinker enhancements:** New `expandInterfaces()` pass creates `DEPENDS_ON_VIA_INTERFACE` shortcut edges across interface boundaries. This enables graph queries to traverse from interface consumers to all implementing classes without manual graph traversal. The `GraphQuery.expandWithInterfaces()` method performs BFS traversal that crosses interface boundaries, with direction-aware expansion (follows both `DEPENDS_ON` and `DEPENDS_ON_VIA_INTERFACE` edges). The interface-consumer expansion algorithm is inspired by the deterministic knowledge base (DKB) approach described in Chinthareddy, ["Reliable Graph-RAG for Codebases: AST-Derived Graphs vs LLM-Extracted Knowledge Graphs"](https://arxiv.org/pdf/2601.08773) (Jan 2026), which demonstrates that bidirectional AST-derived graph traversal with interface-boundary crossing achieves significantly higher correctness than vector-only RAG for multi-hop architectural queries on Java codebases.
+
+**RuntimeDetector utility:** Shared utility that detects runtime environment (Spring Boot, Quarkus, Camel Main, Karaf) from `MAVEN_ARTIFACT` nodes. Used by JavaGraphParser to build the framework type allowlist and by the migration-context command to classify the project runtime.
 
 **Auto-detection:** When the graph builder encounters an XML file, it checks for the `mulesoft.org/schema/mule` namespace. If present, the file is routed to `MuleXmlFlowParser` instead of `CamelRouteParser`. For BizTalk projects, the builder checks for the `schemas.microsoft.com/BizTalk` namespace and file extensions (`.odx`, `.btm`, `.btp`). If detected, files are routed to `BizTalkParser`. No explicit configuration is required -- if the project contains MuleSoft or BizTalk artifacts, they are parsed automatically.
 
 **`--source-platform` flag:** For cases where auto-detection needs hinting (e.g., the project has non-standard file layouts), `camel-kit init --source-platform mulesoft` or `camel-kit init --source-platform biztalk` explicitly declares the source platform.
+
+**ConfigParser expansion:** Now captures ALL application.properties keys, not just `camel.*` prefixes. This enables PropertyBindingParser to analyze datasource configurations, Quarkus build-time properties, and other framework-specific settings.
 
 **DataWeave analysis:** The `DataWeaveParser` extracts version declarations, input/output content types, function definitions, and field access patterns from `.dwl` files. This helps the migration skill identify complex transformations that may need manual attention -- multi-function scripts, recursive field access, or format conversions that have no direct XSLT equivalent.
 
 **BizTalk parser architecture:** The `BizTalkParser` is a hybrid parser that delegates to 4 internal StAX-based parsers (`BizTalkOdxParser`, `BizTalkBtmParser`, `BizTalkBtpParser`, `BizTalkBindingParser`) based on file extension and content. StAX was chosen over DOM to handle large orchestration files efficiently (streaming parse instead of full in-memory tree). The parser recognizes 37 orchestration shape types (Receive, Send, Decide, Loop, Parallel, Call, Scope, etc.) and 45 functoid type mappings (string ops, math, looping, scripting, database lookup).
 
 **Reference implementation:** The [BizTalkMigrationStarter](https://github.com/haroldcampos/BizTalkMigrationStarter) project (BizTalk → Azure Logic Apps) provided the reference parsing patterns. Its C# `BizTalkOrchestrationParser` (ODX text extraction + XPath), `BtmParser` (functoid/link resolution), `PipelineParser` (XmlSerializer deserialization), and `BindingSnapshot` (LINQ-to-XML) were translated to Java StAX equivalents for camel-kit.
+
+### Graph Migration Context Command
+
+The `graph migration-context` CLI command produces a comprehensive structured JSON analysis of a project's integration landscape by traversing the property graph. This context powers the migration skills by providing a complete dependency map before any transformation work begins.
+
+**Usage:** `camel-kit graph migration-context --project-path <path> [--output <file>]`
+
+**Output sections:**
+
+| Section | Content | Source |
+|---------|---------|--------|
+| `routes` | List of all Camel routes with IDs, endpoints, and processors | `CamelRouteParser` nodes |
+| `components` | Used Camel components with URIs and properties | Endpoint URI analysis |
+| `services` | Business services and their dependencies (including interface-based) | `JavaGraphParser` + `CrossLinker` |
+| `artifacts` | Maven dependencies, plugins, and runtime detection | `PomParser` + `RuntimeDetector` |
+| `properties` | Configuration properties with bean/type/property references | `ConfigParser` + `PropertyBindingParser` |
+| `warnings` | Detected migration risks (unsupported patterns, complex DI, etc.) | Cross-parser heuristics |
+
+The command uses `GraphQuery.expandWithInterfaces()` to traverse service dependencies across interface boundaries, ensuring all implementation classes are discovered even when references only declare interfaces. Runtime detection via `RuntimeDetector` classifies the project as Spring Boot, Quarkus, Camel Main, or Karaf, informing component availability checks and migration strategy selection.
+
+This graph-aware context replaces file-by-file static analysis with topology-driven dependency resolution, surfacing transitive dependencies and cross-cutting concerns that would otherwise require manual discovery.
 
 ---
 

@@ -149,6 +149,111 @@ my-integration/
 
 The MCP configuration file created depends on the `--ai` option chosen.
 
+### camel-kit graph
+
+Project graph analysis and query commands. The project graph is automatically detected during `camel-kit init` and stored in `.camel-kit/project-graph.json`. It contains nodes (routes, components, services, artifacts, properties, processors) and edges (dependencies, references, configurations) extracted from source code, build files, and configuration files.
+
+**Usage:**
+
+```bash
+camel-kit graph <subcommand> [options]
+```
+
+**Subcommands:**
+
+| Subcommand | Description |
+|------------|-------------|
+| `stats` | Show graph statistics (node counts by type, edge counts by type) |
+| `find <query>` | Find nodes by name, type, or pattern |
+| `neighbors <nodeId>` | Show direct neighbors of a node |
+| `impact <nodeId>` | Show all downstream dependencies of a node |
+| `route-topology <routeId>` | Show the topology of a specific route |
+| `project-norms` | Analyze project-wide patterns and conventions |
+| `project-context` | Collect comprehensive project context for analysis |
+| `route-context <routeId>` | Collect route-specific context with component details |
+| `migration-context <routeId>` | Collect migration context for a route with expanded graph traversal |
+
+**migration-context command:**
+
+The `migration-context` command performs BFS expansion from a route through interface boundaries (REST endpoints, queues, beans, config) to collect the complete migration context.
+
+```bash
+camel-kit graph migration-context <routeId> [--depth N]
+```
+
+**Parameters:**
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `<routeId>` | required | Route ID to analyze (without `route:` prefix) |
+| `--depth N` | `3` | BFS expansion depth for graph traversal |
+
+**Output format:**
+
+Returns structured JSON with the complete context needed for migration analysis:
+
+```json
+{
+  "route": "processOrders",
+  "runtime": "spring-boot",
+  "components": ["kafka", "http", "bean"],
+  "routes": [
+    {
+      "id": "processOrders",
+      "from": "kafka:orders",
+      "file": "src/main/resources/routes/orders.camel.yaml"
+    }
+  ],
+  "services": [
+    {
+      "class": "com.example.OrderService",
+      "bean": true,
+      "beanName": "orderService"
+    }
+  ],
+  "artifacts": [
+    {
+      "groupId": "org.apache.camel",
+      "artifactId": "camel-kafka",
+      "version": "4.14.4"
+    }
+  ],
+  "properties": [
+    {
+      "key": "camel.component.kafka.brokers",
+      "value": "localhost:9092",
+      "edgeType": "configures",
+      "target": "component:kafka"
+    }
+  ],
+  "warnings": [
+    {
+      "type": "synthetic-node",
+      "name": "UnknownService",
+      "reason": "Service referenced but not found in project"
+    }
+  ]
+}
+```
+
+**Use case:**
+
+The `/camel-migrate` skill uses this command during migration analysis:
+
+1. Graph expansion identifies all routes, components, services, and artifacts connected to the target route
+2. Component list is passed to `camel_docs_component` MCP tool for documentation lookup
+3. Migration skill receives both structural context (from graph) and semantic context (from MCP) for accurate migration planning
+
+**Example:**
+
+```bash
+# Analyze the processOrders route with default depth
+camel-kit graph migration-context processOrders
+
+# Expand to depth 5 for complex route dependencies
+camel-kit graph migration-context processOrders --depth 5
+```
+
 ---
 
 ## Slash Commands
