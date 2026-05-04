@@ -18,30 +18,46 @@ Camel-Kit adds structured slash commands to your AI assistant that guide you thr
 ## The Workflow
 
 ```
-Greenfield:   /camel-design  → /camel-plan → /camel-execute
-                                                   ├── implements (camel-implement)
-                                                   ├── validates (camel-validate)
-                                                   ├── tests (camel-test)
-                                                   └── verifies (camel-verify)
+Greenfield:   /camel-brainstorm → /camel-plan → /camel-execute
+                                                      ├── implements (camel-implement)
+                                                      ├── validates (camel-validate)
+                                                      ├── tests (camel-test)
+                                                      └── verifies (camel-verify)
 
-Migration:    /camel-migrate → /camel-plan → /camel-execute
+Migration:    /camel-migrate   → /camel-plan → /camel-execute
 
-Manual:       /camel-verify      (standalone runtime verification)
+Shortcuts:    /camel-flow          (greenfield shortcut → brainstorm)
+              /camel-ship          (autonomous full pipeline with oversight levels)
+
+Standalone:   /camel-verify        (runtime verification only)
 ```
 
 | Command | Purpose |
 |---------|---------|
-| `/camel-design` | Interactive design session — produces a Blueprint Reference Document (BRD) with Technical Design Documents (TDDs) |
-| `/camel-plan` | Reviews approved design, creates a detailed implementation plan |
-| `/camel-execute` | Orchestrated execution — implements, validates, tests, and verifies all flows |
+| `/camel-brainstorm` | Interactive design session — produces a Blueprint Reference Document (BRD) with Technical Design Documents (TDDs) |
+| `/camel-flow` | Greenfield shortcut — jumps directly into brainstorm for new integrations |
 | `/camel-migrate` | Migration from MuleSoft, Microsoft BizTalk, legacy Camel, or JBoss Fuse to modern Camel |
-| `/camel-verify` | Runtime verification — builds, starts, diagnoses errors, retries until the app runs |
+| `/camel-plan` | Reviews approved design, creates a detailed implementation plan with wave analysis for parallel execution |
+| `/camel-execute` | Orchestrated execution — environment probe, then implements, validates, tests, and verifies all flows |
+| `/camel-verify` | Runtime verification — 3-phase loop (build, Citrus tests, report) with error classification and fix routing |
+| `/camel-ship` | Autonomous pipeline — runs brainstorm, plan, execute, and verify end-to-end with configurable oversight (`always`, `smart`, `never`) |
+
+[Command Reference →](docs/commands.md)
 
 ---
 
 ## Installation
 
-**Requires:** Java 17+, [JBang](https://www.jbang.dev/), AI model with **64K+ context window** (128K recommended)
+### Prerequisites
+
+| Requirement | Purpose | Install |
+|-------------|---------|---------|
+| Java 17+ | Runtime | [SDKMAN](https://sdkman.io/), [Adoptium](https://adoptium.net/), or your package manager |
+| [JBang](https://www.jbang.dev/) | CLI launcher for camel-kit | See below |
+| [Camel JBang](https://camel.apache.org/manual/camel-jbang.html) | `camel run`, `camel run --check` for route execution and validation | `jbang app install camel@apache/camel` |
+| [Camel JBang test plugin](https://camel.apache.org/manual/camel-jbang.html) | `camel test run` for Citrus integration tests in the verify loop | `camel plugin add test` |
+
+Camel JBang and its test plugin are needed for the full pipeline (environment probe, endpoint validation, runtime verification). The design and planning phases work without them.
 
 ### Standalone (JBang)
 
@@ -76,6 +92,31 @@ camel plugin add kit \
 camel kit init my-integration --ai bob
 ```
 
+### Build from Source (development version)
+
+Some features (including `--ai qwen` and `--ai opencode`) are only available in the development version. To build from source:
+
+```bash
+git clone https://github.com/luigidemasi/camel-kit.git
+cd camel-kit
+./mvnw clean install -DskipTests
+
+# Install the development version globally via JBang
+jbang app install --name camel-kit --force \
+  camel-kit-main/src/main/jbang/main/CamelKit.java
+
+# Verify
+camel-kit --help
+```
+
+To also build the [Knowledge MCP server](https://github.com/luigidemasi/camel-kit-knowledge) (documentation search, CVE tracking, component catalog):
+
+```bash
+git clone https://github.com/luigidemasi/camel-kit-knowledge.git
+cd camel-kit-knowledge
+./mvnw clean install -DskipTests
+```
+
 ---
 
 ## Quick Start
@@ -85,8 +126,8 @@ camel kit init my-integration --ai bob
 camel-kit init my-integration --ai claude   # Anthropic Claude Code
 camel-kit init my-integration --ai bob      # IBM Project Bob
 camel-kit init my-integration --ai gemini   # Google Gemini CLI
-camel-kit init my-integration --ai qwen     # Qwen
-camel-kit init my-integration --ai opencode # OpenCode
+camel-kit init my-integration --ai qwen     # Qwen (requires dev build)
+camel-kit init my-integration --ai opencode # OpenCode (requires dev build)
 
 # 2. Override configuration if needed
 camel-kit init my-integration --ai claude -p "camel.version=4.18.0"
@@ -95,7 +136,7 @@ camel-kit init my-integration --ai claude -p "camel.version=4.18.0"
 cd my-integration
 
 # 4. Start designing
-/camel-design
+/camel-brainstorm
 ```
 
 ---
@@ -110,29 +151,51 @@ cd my-integration
 | Qwen | `--ai qwen` | `QWEN.md` | `.qwen/mcp.json` |
 | OpenCode | `--ai opencode` | `AGENTS.md` | `.opencode/mcp.json` |
 
-All agents use the same skills — camel-kit generates agent-specific instruction files that load the shared skill guides. The skills are the equalization layer.
+All agents use the same skills — camel-kit generates agent-specific instruction files with per-agent traits that load the shared skill guides. The skills are the equalization layer. [Architecture Guide →](docs/architecture.md)
 
 ---
 
 ## Key Features
 
-- **3-phase orchestrated pipeline** — brainstorm the design, plan the implementation, execute with automated review
-- **Multi-agent parity** — same skills work across 5 AI agents (Claude, Bob, Gemini, Qwen, OpenCode)
-- **MCP integration** — real-time catalog queries, route validation, and security analysis via the Apache Camel MCP server
-- **DataMapper** — automatic data transformation with two engines: XSLT for complex mappings, Groovy for simple ones
-- **Runtime verification** — `/camel-verify` builds, starts, diagnoses errors, and retries until the app runs
-- **Migration support** — migrate from MuleSoft, legacy Apache Camel, or JBoss Fuse with graph-accelerated analysis
-- **MuleSoft graph analysis** — automatic parsing of Mule XML flows, sub-flows, connectors, and DataWeave scripts into a project graph for migration
-- **BizTalk graph analysis** — automatic parsing of BizTalk orchestrations (.odx), maps (.btm), pipelines (.btp), and binding files
-- **Knowledge layer** — Apache Camel documentation searchable via MCP
+### Pipeline
+
+- **3-phase orchestrated pipeline** — brainstorm the design, plan the implementation, execute with environment probe and automated review. [Learn more →](docs/user-guide.md)
+- **Autonomous mode** — `/camel-ship` runs the full pipeline end-to-end with three oversight levels: `always` (pause at every gate), `smart` (pause on uncertainty), `never` (fully autonomous with re-planning). [Learn more →](docs/commands.md)
+- **Environment probe** — validates the target environment (dependency resolution, Docker services, runtime startup) before implementation begins. Mechanical failures are auto-fixed; architectural failures trigger re-planning. [Learn more →](docs/architecture.md)
+- **Wave analysis** — the plan analyzer identifies independent tasks and groups them into parallel execution waves for faster implementation.
+
+### Runtime Verification
+
+- **3-phase verification loop** — build, run Citrus integration tests with Testcontainers, report results. Error taxonomy classifies failures and routes fixes to the right skill (implementation, test re-generation, or re-planning). [Learn more →](docs/user-guide.md)
+
+### Migration
+
+- **Multi-platform migration** — migrate from MuleSoft 3.x/4.x, Microsoft BizTalk, legacy Apache Camel 2.x/3.x, or JBoss Fuse to modern Camel 4.x with YAML DSL. [Learn more →](docs/user-guide.md)
+
+### Graph Intelligence
+
+- **9 parsers + 2 post-processors** — build a queryable property graph of your codebase covering Java classes, Camel routes (XML, YAML, Java DSL, Groovy), Maven dependencies, configuration properties, MuleSoft flows, DataWeave scripts, and BizTalk orchestrations. [Learn more →](docs/architecture.md)
+- **DI-aware analysis** — detects `@Inject`, `@Autowired`, `@Value`, `@ConfigProperty`, `@Component`, `@Service` annotations and traces dependencies across interface boundaries. Inspired by [Chinthareddy, "Reliable Graph-RAG for Codebases"](https://arxiv.org/abs/2601.08773) (2026). [Learn more →](docs/architecture.md)
+- **Migration context** — `graph migration-context <routeId>` produces structured JSON with a route's full dependency chain (components, services, artifacts, properties, warnings), bridging the project graph with the Knowledge MCP for targeted documentation lookup. [Learn more →](docs/commands.md)
+- **PropertyBindingSupport analysis** — understands Camel's `#class:`, `#bean:`, `#autowired` property syntax that instantiates and wires beans from `application.properties`. [Learn more →](docs/architecture.md)
+
+### Knowledge & MCP
+
+- **MCP integration** — real-time catalog queries, route validation, and security analysis via the Apache Camel MCP server. [Learn more →](docs/architecture.md)
+- **Knowledge layer** — hybrid BM25 + vector search over Apache Camel documentation, component catalogs, release notes, and CVE/errata advisories, exposed via 5 MCP tools. [Learn more →](docs/architecture.md)
+- **DataMapper** — automatic data transformation with two engines: XSLT for complex schema-driven mappings, Groovy for simple field-level transformations. [Learn more →](docs/architecture.md)
+
+### Multi-Agent
+
+- **5 AI agents** — same skills work across Claude Code, IBM Bob, Gemini CLI, Qwen, and OpenCode. Agent-specific traits customize behavior (pacing, approval modes, tool usage) without changing the shared skills. [Learn more →](docs/architecture.md)
 
 ---
 
 ## Documentation
 
 - **[User Guide](docs/user-guide.md)** — workflows, migration, verification, DataMapper
-- **[Command Reference](docs/commands.md)** — all slash commands and CLI options
-- **[Architecture Guide](docs/architecture.md)** — skills internals, MCP, DataMapper pipeline (for contributors)
+- **[Command Reference](docs/commands.md)** — all slash commands, CLI options, graph subcommands
+- **[Architecture Guide](docs/architecture.md)** — skills, MCP, graph intelligence, pipeline internals
 - **[Contributing](CONTRIBUTING.md)** — development setup, how to add skills
 
 ---

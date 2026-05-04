@@ -29,7 +29,7 @@ import picocli.CommandLine.Command;
 @Command(
          name = "camel-kit",
          mixinStandardHelpOptions = true,
-         version = "0.3.1-SNAPSHOT",
+         versionProvider = VersionProvider.class,
          description = "Design Apache Camel integrations with AI coding assistants")
 public class CamelKitMain implements Callable<Integer> {
 
