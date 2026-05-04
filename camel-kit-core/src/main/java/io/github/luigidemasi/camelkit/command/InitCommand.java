@@ -71,6 +71,8 @@ public class InitCommand extends CamelKitCommand {
             description = "Source platform for migration graph analysis: mulesoft, camel, biztalk, auto (default: auto)")
     public String sourcePlatform;
 
+    private Path resolvedTargetDir;
+
     public InitCommand(CamelKitMain main) {
         super(main);
     }
@@ -102,24 +104,23 @@ public class InitCommand extends CamelKitCommand {
             return 1;
         }
 
-        // Resolve target directory early for overwrite check
-        Path targetDir;
+        // Resolve target directory once — reused in doInitWork()
         if (here) {
-            targetDir = Path.of("").toAbsolutePath();
-            projectName = targetDir.getFileName().toString();
+            resolvedTargetDir = Path.of("").toAbsolutePath();
+            projectName = resolvedTargetDir.getFileName().toString();
         } else {
-            targetDir = Path.of(projectName).toAbsolutePath();
+            resolvedTargetDir = Path.of(projectName).toAbsolutePath();
         }
 
         // Overwrite detection (runs before TUI so colors work on error)
-        Path agentsMd = targetDir.resolve("AGENTS.md");
-        Path camelKitDir = targetDir.resolve(".camel-kit");
+        Path agentsMd = resolvedTargetDir.resolve("AGENTS.md");
+        Path camelKitDir = resolvedTargetDir.resolve(".camel-kit");
         if (!force && (Files.exists(agentsMd) || Files.isDirectory(camelKitDir))) {
             if (!silent)
                 main.printBanner();
             printer().println();
             printer().println(yellow("⚠") + bold(" Project already initialized"));
-            printer().println(dim("  Directory: ") + cyan(targetDir.toString()));
+            printer().println(dim("  Directory: ") + cyan(resolvedTargetDir.toString()));
             if (Files.exists(agentsMd)) {
                 printer().println(dim("  Found:     ") + "AGENTS.md");
             }
@@ -167,14 +168,7 @@ public class InitCommand extends CamelKitCommand {
         }
 
         AgentConfig agent = AgentRegistry.get(ai);
-
-        // targetDir already resolved and validated in doCall()
-        Path targetDir;
-        if (here) {
-            targetDir = Path.of("").toAbsolutePath();
-        } else {
-            targetDir = Path.of(projectName).toAbsolutePath();
-        }
+        Path targetDir = resolvedTargetDir;
         Path camelKitDir = targetDir.resolve(".camel-kit");
 
         // Get Citrus version
