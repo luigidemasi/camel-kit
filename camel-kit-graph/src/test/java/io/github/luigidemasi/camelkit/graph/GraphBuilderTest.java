@@ -47,4 +47,24 @@ class GraphBuilderTest {
         assertEquals(0, graph.nodeCount());
         assertEquals(0, graph.edgeCount());
     }
+
+    @Test
+    void buildsPropertyBindingEdges() {
+        ProjectGraph graph = new GraphBuilder().build(Path.of("src/test/resources/testdata/di"));
+        var edges = graph.getEdges().stream()
+                .filter(e -> e.type() == EdgeType.INSTANTIATES || e.type() == EdgeType.REFERENCES_BEAN)
+                .toList();
+        assertFalse(edges.isEmpty(),
+                "GraphBuilder should run PropertyBindingParser to create INSTANTIATES/REFERENCES_BEAN edges");
+    }
+
+    @Test
+    void buildsInterfaceExpansionEdges() {
+        ProjectGraph graph = new GraphBuilder().build(Path.of("src/test/resources/testdata/di"));
+        var edges = graph.getEdges().stream()
+                .filter(e -> e.type() == EdgeType.DEPENDS_ON_VIA_INTERFACE)
+                .toList();
+        assertFalse(edges.isEmpty(),
+                "GraphBuilder should run CrossLinker.expandInterfaces to create DEPENDS_ON_VIA_INTERFACE edges");
+    }
 }

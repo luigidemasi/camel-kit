@@ -44,7 +44,15 @@ public class GraphBuilder {
             executor.shutdown();
         }
 
-        new CrossLinker().link(graph);
+        CrossLinker crossLinker = new CrossLinker();
+        crossLinker.link(graph);
+
+        PropertyBindingParser propertyBindingParser = new PropertyBindingParser();
+        propertyBindingParser.parse(graph, null);
+        propertyBindingParser.resolvePlaceholders(graph);
+
+        crossLinker.expandInterfaces(graph);
+
         return graph;
     }
 
