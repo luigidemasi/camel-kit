@@ -82,7 +82,7 @@ public class GraphMigrationContextCommand extends GraphQueryCommand {
         for (GraphNode node : expanded) {
             if (node.type() == NodeType.CLASS && "true".equals(node.properties().get("bean"))) {
                 ObjectNode serviceJson = GraphJsonWriter.createObject();
-                serviceJson.put("class", node.properties().getOrDefault("fqcn", node.id()));
+                serviceJson.put("class", node.properties().getOrDefault("fqn", node.id()));
                 serviceJson.put("bean", true);
                 serviceJson.put("beanName", node.properties().getOrDefault("beanName", ""));
                 servicesArray.add(serviceJson);

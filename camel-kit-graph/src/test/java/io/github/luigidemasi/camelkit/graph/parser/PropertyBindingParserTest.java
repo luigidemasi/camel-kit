@@ -76,4 +76,74 @@ class PropertyBindingParserTest {
                 .toList();
         assertFalse(edges.isEmpty(), "spring.datasource.url should CONFIGURES the synthetic DataSource");
     }
+
+    @Test
+    void handlesHyphenatedBeanName() {
+        ProjectGraph g = new ProjectGraph();
+        g.addNode(new GraphNode(
+                "config:test.prop", NodeType.CONFIG_PROPERTY,
+                Map.of("key", "test.prop", "value", "#bean:my-connection-factory")));
+        g.addNode(new GraphNode(
+                "class:MyFactory", NodeType.CLASS,
+                Map.of("name", "MyFactory", "bean", "true", "beanName", "my-connection-factory")));
+
+        new PropertyBindingParser().parse(g, null);
+
+        var edges = g.getOutgoingEdges("config:test.prop").stream()
+                .filter(e -> e.type() == EdgeType.REFERENCES_BEAN)
+                .toList();
+        assertEquals(1, edges.size(), "Should match hyphenated bean name");
+        assertEquals("class:MyFactory", edges.get(0).to());
+    }
+
+    @Test
+    void createsReferencesBeanForAutowired() {
+        ProjectGraph g = new ProjectGraph();
+        g.addNode(new GraphNode(
+                "config:test.auto", NodeType.CONFIG_PROPERTY,
+                Map.of("key", "test.auto", "value", "#autowired")));
+
+        new PropertyBindingParser().parse(g, null);
+
+        var edges = g.getOutgoingEdges("config:test.auto").stream()
+                .filter(e -> e.type() == EdgeType.REFERENCES_BEAN)
+                .toList();
+        assertEquals(1, edges.size());
+        assertTrue(edges.get(0).to().contains("synthetic:autowired:"));
+    }
+
+    @Test
+    void createsReferencesPropertyForPropertyPrefix() {
+        ProjectGraph g = new ProjectGraph();
+        g.addNode(new GraphNode(
+                "config:test.ref", NodeType.CONFIG_PROPERTY,
+                Map.of("key", "test.ref", "value", "#property:other.key")));
+        g.addNode(new GraphNode(
+                "config:other.key", NodeType.CONFIG_PROPERTY,
+                Map.of("key", "other.key", "value", "someValue")));
+
+        new PropertyBindingParser().parse(g, null);
+
+        var edges = g.getOutgoingEdges("config:test.ref").stream()
+                .filter(e -> e.type() == EdgeType.REFERENCES_PROPERTY)
+                .toList();
+        assertEquals(1, edges.size());
+        assertEquals("config:other.key", edges.get(0).to());
+    }
+
+    @Test
+    void createsReferencesBeanForTypePrefix() {
+        ProjectGraph g = new ProjectGraph();
+        g.addNode(new GraphNode(
+                "config:test.typed", NodeType.CONFIG_PROPERTY,
+                Map.of("key", "test.typed", "value", "#type:com.example.MyConverter")));
+
+        new PropertyBindingParser().parse(g, null);
+
+        var edges = g.getOutgoingEdges("config:test.typed").stream()
+                .filter(e -> e.type() == EdgeType.REFERENCES_BEAN)
+                .toList();
+        assertEquals(1, edges.size());
+        assertTrue(edges.get(0).to().contains("MyConverter"));
+    }
 }

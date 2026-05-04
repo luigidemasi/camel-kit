@@ -5,7 +5,7 @@
 </p>
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Website](https://img.shields.io/badge/Website-luigidemasi.github.io%2Fcamel--kit-orange)](https://luigidemasi.github.io/camel-kit/)
+[![Website](https://img.shields.io/badge/Website-luigidemasi.github.io%2Fcamel--kit--web-orange)](https://luigidemasi.github.io/camel-kit-web/)
 
 > Design, implement, and verify Apache Camel integrations with AI coding assistants.
 

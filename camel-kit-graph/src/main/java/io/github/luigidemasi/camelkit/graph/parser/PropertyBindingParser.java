@@ -14,9 +14,9 @@ import io.github.luigidemasi.camelkit.graph.model.NodeType;
 public class PropertyBindingParser {
 
     private static final Pattern CLASS_PATTERN = Pattern.compile("#class:([^(#]+)(?:\\(([^)]+)\\))?(?:#(\\w+))?");
-    private static final Pattern BEAN_PATTERN = Pattern.compile("#bean:(\\w+)");
+    private static final Pattern BEAN_PATTERN = Pattern.compile("#bean:([\\w.-]+)");
     private static final Pattern TYPE_PATTERN = Pattern.compile("#type:([\\w.]+)");
-    private static final Pattern PROPERTY_PATTERN = Pattern.compile("#property:([\\w.]+)");
+    private static final Pattern PROPERTY_PATTERN = Pattern.compile("#property:([\\w.-]+)");
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\{\\{([^}:]+)(?::([^}]+))?\\}\\}");
 
     public void parse(ProjectGraph graph, String runtime) {
