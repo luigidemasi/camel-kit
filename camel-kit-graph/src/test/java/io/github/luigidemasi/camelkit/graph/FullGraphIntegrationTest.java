@@ -73,4 +73,54 @@ class FullGraphIntegrationTest {
         assertEquals(graph.nodeCount(), loaded.nodeCount());
         assertEquals(graph.edgeCount(), loaded.edgeCount());
     }
+
+    @Test
+    void fullDiPipelineProducesExpectedGraph() {
+        ProjectGraph diGraph = new GraphBuilder().build(Path.of("src/test/resources/testdata/di"));
+
+        // USES_TYPE edges exist
+        var usesTypeEdges = diGraph.getEdges().stream()
+                .filter(e -> e.type() == EdgeType.USES_TYPE)
+                .toList();
+        assertFalse(usesTypeEdges.isEmpty(), "Should have USES_TYPE edges");
+
+        // Interface expansion worked
+        var expansionEdges = diGraph.getEdges().stream()
+                .filter(e -> e.type() == EdgeType.DEPENDS_ON_VIA_INTERFACE)
+                .toList();
+        assertFalse(expansionEdges.isEmpty(), "Should have DEPENDS_ON_VIA_INTERFACE edges");
+
+        // PropertyBindingParser created INSTANTIATES edge
+        var instantiatesEdges = diGraph.getEdges().stream()
+                .filter(e -> e.type() == EdgeType.INSTANTIATES)
+                .toList();
+        assertFalse(instantiatesEdges.isEmpty(), "Should have INSTANTIATES edges from #class: properties");
+
+        // Bean annotations detected
+        var beanNodes = diGraph.findByType(NodeType.CLASS).stream()
+                .filter(n -> "true".equals(n.properties().get("bean")))
+                .toList();
+        assertFalse(beanNodes.isEmpty(), "Should have CLASS nodes with bean=true");
+
+        // expandWithInterfaces works end-to-end
+        // Find the route node ID
+        var routes = diGraph.findByType(NodeType.CAMEL_ROUTE);
+        assertFalse(routes.isEmpty(), "Should have at least one route");
+        String routeNodeId = routes.stream()
+                .filter(n -> "processOrdersDi".equals(n.properties().get("routeId")))
+                .findFirst()
+                .orElseThrow()
+                .id();
+
+        GraphQuery query = new GraphQuery(diGraph);
+        java.util.Set<GraphNode> expanded = query.expandWithInterfaces(routeNodeId, "both", 5);
+        assertFalse(expanded.isEmpty(), "Expansion should find connected nodes");
+
+        // The expanded set should include the OrderServiceImpl (crossing interface boundary)
+        java.util.Set<String> expandedIds = expanded.stream()
+                .map(GraphNode::id)
+                .collect(java.util.stream.Collectors.toSet());
+        assertTrue(expandedIds.stream().anyMatch(id -> id.contains("OrderServiceImpl")),
+                "Expansion should cross interface boundary to find OrderServiceImpl");
+    }
 }
