@@ -199,6 +199,75 @@ public class GraphQuery {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * BFS expansion that crosses interface boundaries (DKB Algorithm 1). When encountering an IMPLEMENTS edge, also
+     * traverses USES_TYPE predecessors of the interface. Returns all expanded nodes (excluding the start node), capped
+     * at MAX_RESULTS.
+     */
+    public Set<GraphNode> expandWithInterfaces(String nodeId, String direction, int maxDepth) {
+        record QueueEntry(String nodeId, int depth) {
+        }
+
+        Set<String> visited = new LinkedHashSet<>();
+        Queue<QueueEntry> frontier = new ArrayDeque<>();
+        Set<String> inQueue = new HashSet<>();
+
+        frontier.add(new QueueEntry(nodeId, 0));
+        inQueue.add(nodeId);
+
+        while (!frontier.isEmpty() && visited.size() < MAX_RESULTS) {
+            QueueEntry entry = frontier.poll();
+            String current = entry.nodeId();
+            int currentDepth = entry.depth();
+
+            if (currentDepth >= maxDepth) {
+                continue;
+            }
+
+            List<GraphEdge> adjacent = getEdges(current, direction);
+
+            for (GraphEdge edge : adjacent) {
+                String neighbor = edge.from().equals(current) ? edge.to() : edge.from();
+
+                if (!visited.contains(neighbor) && !neighbor.equals(nodeId)) {
+                    visited.add(neighbor);
+
+                    if (!inQueue.contains(neighbor)) {
+                        frontier.add(new QueueEntry(neighbor, currentDepth + 1));
+                        inQueue.add(neighbor);
+                    }
+                }
+
+                // Interface boundary crossing: if this is an IMPLEMENTS edge, also find USES_TYPE predecessors
+                if (edge.type() == EdgeType.IMPLEMENTS) {
+                    String interfaceNode = edge.to(); // The interface being implemented
+                    List<GraphEdge> usesTypeEdges = graph.getIncomingEdges(interfaceNode);
+
+                    for (GraphEdge usesEdge : usesTypeEdges) {
+                        if (usesEdge.type() == EdgeType.USES_TYPE) {
+                            String user = usesEdge.from();
+
+                            if (!visited.contains(user) && !user.equals(nodeId)) {
+                                visited.add(user);
+
+                                if (!inQueue.contains(user)) {
+                                    frontier.add(new QueueEntry(user, currentDepth + 1));
+                                    inQueue.add(user);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return visited.stream()
+                .map(graph::getNode)
+                .filter(Objects::nonNull)
+                .limit(MAX_RESULTS)
+                .collect(Collectors.toSet());
+    }
+
     private List<GraphEdge> getEdges(String nodeId, String direction) {
         return switch (direction) {
             case "out" -> graph.getOutgoingEdges(nodeId);
