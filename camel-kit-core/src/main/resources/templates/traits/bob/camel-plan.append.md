@@ -59,8 +59,42 @@ subagent with a fresh 200K context.
 | Plan generation | `auto_edit` | Writes markdown plan file only |
 | Plan verification | done inline | Parent reads plan header, no dispatch needed |
 
-### Fallback
+### Fallback: Incremental Writing When Dispatch Is Unavailable
 
-If `dispatchSubagent` is unavailable (MCP server not running), fall back to inline
-plan generation. Use `insert_content` to write the plan incrementally — header first,
-then each task as a separate insert — to avoid truncation from large `write_to_file` calls.
+If `dispatchSubagent` is unavailable (MCP server not running or dispatch fails),
+generate the plan inline but NEVER use `write_to_file` for the full document.
+Large single writes get truncated when context is near capacity.
+
+**Incremental writing protocol:**
+
+1. **Create the file with header only** using `write_to_file`:
+   ```
+   write_to_file("docs/implementation-plan.md",
+     "# Implementation Plan\n\n> Goal: ...\n\n> Architecture: ...\n\n---\n")
+   ```
+
+2. **Append each task as a separate `insert_content` call:**
+   ```
+   insert_content("docs/implementation-plan.md", AFTER_LAST_LINE,
+     "### Task 1: ...\n\n**Files:**\n- Create: ...\n\n- [ ] Step 1: ...\n...")
+   ```
+
+3. **One task per insert** — never batch multiple tasks into a single insert.
+   Each `insert_content` call should be under 100 lines. If a task has many steps,
+   split into two inserts (steps 1-3 in one, steps 4-6 in the next).
+
+4. **Verify after each insert** — read the last 5 lines of the file to confirm
+   the insert landed correctly. If truncated, re-insert just the missing portion.
+
+5. **Final self-review** — after all tasks are inserted, read the full plan
+   and check for spec coverage gaps, placeholder text, and type consistency.
+
+**Why this prevents truncation:**
+- Each insert is small (~50-100 lines) instead of one 200+ line write
+- If the context nears capacity mid-generation, only one task is lost, not the entire plan
+- The file accumulates correctly because `insert_content` appends without replacing
+- Recovery is straightforward — just re-insert the missing task
+
+**Rule:** Even when dispatch IS available, if the subagent's plan output was truncated
+(detected in step 3 of the dispatch workflow), use this incremental protocol to
+complete the missing tasks rather than re-dispatching the entire plan.
