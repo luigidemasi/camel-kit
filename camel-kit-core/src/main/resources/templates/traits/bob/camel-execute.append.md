@@ -45,7 +45,7 @@ When architectural failures trigger re-planning:
 ### Subagent Dispatch via MCP
 
 You have access to the `camel-dispatch` MCP server which spawns fresh Bob Shell
-processes as subagents. Each dispatch gets its own 200K context window — your
+processes as subagents. Each dispatch gets its own fresh context window — your
 context stays clean for orchestration.
 
 **When to dispatch:**

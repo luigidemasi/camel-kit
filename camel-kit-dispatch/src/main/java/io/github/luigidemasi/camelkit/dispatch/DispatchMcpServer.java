@@ -24,7 +24,7 @@ public class DispatchMcpServer {
     @Inject
     DispatchConfig config;
 
-    @Tool(description = "Dispatch a task to a fresh Bob Shell subagent with isolated 200K context. "
+    @Tool(description = "Dispatch a task to a fresh Bob Shell subagent with isolated context. "
                         + "The subagent runs in a new process with its own context window. "
                         + "Returns a compact summary - all intermediate work stays in the subagent's context.")
     public String dispatchSubagent(
@@ -43,7 +43,7 @@ public class DispatchMcpServer {
     }
 
     @Tool(description = "Dispatch multiple tasks to parallel Bob Shell subagents. "
-                        + "Each task gets its own fresh 200K context. Independent tasks run concurrently.")
+                        + "Each task gets its own fresh context. Independent tasks run concurrently.")
     public String dispatchParallel(
             @ToolArg(description = "Array of tasks: [{task, mode, approvalMode, timeoutSeconds, filesContext}]") List<TaskSpec> tasks,
             @ToolArg(description = "Maximum concurrent subagents") Integer maxConcurrent) {

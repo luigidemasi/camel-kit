@@ -4,7 +4,7 @@
 
 Plan documents are large (200+ lines) and the brainstorm phase has already consumed
 significant context. To avoid truncated writes, dispatch plan generation to a
-subagent with a fresh 200K context.
+subagent with a fresh context.
 
 **Workflow:**
 
