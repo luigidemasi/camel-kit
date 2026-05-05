@@ -346,6 +346,8 @@ public class DefaultGenerator implements AgentGenerator {
             String knowledgeDescription = "camel-kit Knowledge Server - documentation search for Apache Camel";
             templateData.put("KNOWLEDGE_DESCRIPTION", knowledgeDescription);
 
+            templateData.put("DISPATCH_VERSION", CamelKitMain.DISPATCH_MCP_VERSION);
+
             String processed = qute.renderString(template, templateData);
             Files.writeString(configFile, processed);
 

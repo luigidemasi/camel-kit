@@ -41,3 +41,46 @@ When architectural failures trigger re-planning:
 - The re-plan modifies TDD files, which are markdown — editable in "camel-implement" mode
 - Gate validation after re-plan should re-check the probe results
 - Max 3 re-plan rounds — if all fail, the gate reports a blocker regardless of oversight level
+
+### Subagent Dispatch via MCP
+
+You have access to the `camel-dispatch` MCP server which spawns fresh Bob Shell
+processes as subagents. Each dispatch gets its own 200K context window — your
+context stays clean for orchestration.
+
+**When to dispatch:**
+
+- ALWAYS dispatch route implementation tasks via `dispatchSubagent`
+- Use `dispatchParallel` when the graph topology shows independent routes
+- Use direct implementation (no dispatch) ONLY for single-file edits under 50 lines
+
+**Dispatch workflow:**
+
+1. Run `{COMMAND_PREFIX} graph route-topology` to identify independent routes
+2. For independent routes: call `dispatchParallel` with one task per route
+3. For dependent routes: call `dispatchSubagent` sequentially in dependency order
+4. After all dispatches complete: review summaries and validate integration
+
+**Prompt construction for subagents:**
+
+Each subagent prompt MUST include:
+- The specific section of TDD.md relevant to the route
+- The target file path for the generated route
+- "Use YAML DSL" (or the project's chosen DSL)
+- "Verify all components via the camel MCP catalog tools"
+
+**Permission scoping:**
+
+| Task | approvalMode | Rationale |
+|---|---|---|
+| Route implementation | `auto_edit` | File edits only, no shell commands |
+| Build verification | `yolo` | Needs mvn/gradle execution |
+| Validation | `read_only` | Must not modify files |
+
+**Your role as orchestrator:**
+
+Your context is for ORCHESTRATION only:
+- Read graph topology and construct dispatch prompts
+- Call dispatch tools and aggregate summaries
+- Validate integration across routes
+- Do NOT implement routes inline when dispatch is available

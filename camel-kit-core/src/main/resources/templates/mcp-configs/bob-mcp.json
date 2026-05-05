@@ -35,6 +35,24 @@
       "description": "{KNOWLEDGE_DESCRIPTION}",
       "autoApprove": [{KNOWLEDGE_TOOLS_JSON}],
       "alwaysAllow": [{KNOWLEDGE_TOOLS_JSON}]
+    },
+    "camel-dispatch": {
+      "command": "jbang",
+      "args": [
+        "-Dquarkus.log.level=WARN",
+        "io.github.luigidemasi:camel-kit-dispatch:{DISPATCH_VERSION}:runner"
+      ],
+      "description": "Subagent dispatch - spawns fresh Bob Shell processes as isolated subagents",
+      "autoApprove": [
+        "dispatchSubagent",
+        "dispatchParallel",
+        "dispatchStatus"
+      ],
+      "alwaysAllow": [
+        "dispatchSubagent",
+        "dispatchParallel",
+        "dispatchStatus"
+      ]
     }
   }
 }

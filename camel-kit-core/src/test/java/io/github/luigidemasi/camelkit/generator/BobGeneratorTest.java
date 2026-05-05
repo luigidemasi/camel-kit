@@ -118,6 +118,22 @@ class BobGeneratorTest {
     }
 
     @Test
+    void mcpConfigIncludesDispatchServer() throws Exception {
+        InitContext ctx = createContext();
+        new BobGenerator().generate(ctx);
+
+        Path mcpConfig = tempDir.resolve(".bob/mcp.json");
+        assertTrue(Files.exists(mcpConfig));
+        String content = Files.readString(mcpConfig);
+        assertTrue(content.contains("camel-dispatch"),
+                "MCP config should include camel-dispatch server");
+        assertTrue(content.contains("camel-kit-dispatch"),
+                "MCP config should reference camel-kit-dispatch artifact");
+        assertTrue(content.contains("dispatchSubagent"),
+                "MCP config should auto-approve dispatchSubagent");
+    }
+
+    @Test
     void generatesIronLawsRule() throws Exception {
         InitContext ctx = createContext();
         new BobGenerator().generate(ctx);

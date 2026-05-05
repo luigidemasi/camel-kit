@@ -36,6 +36,7 @@ public class DistributionConfig {
     private final String camelQuarkusSupported;
     private final String camelMcpVersion;
     private final String knowledgeMcpVersion;
+    private final String dispatchMcpVersion;
     private final String camelMcpRepos;
     private final String knowledgeMcpRepos;
     private final String camelCatalogRepos;
@@ -53,6 +54,7 @@ public class DistributionConfig {
         this.camelQuarkusSupported = props.getProperty("camel.quarkus.supported", "4.18.0");
         this.camelMcpVersion = props.getProperty("camel.mcp.version", "4.20.0");
         this.knowledgeMcpVersion = props.getProperty("knowledge.mcp.version", "0.0.1-SNAPSHOT");
+        this.dispatchMcpVersion = props.getProperty("dispatch.mcp.version", "0.3.2-SNAPSHOT");
         this.camelMcpRepos = props.getProperty("camel.mcp.repos", "maven");
         this.knowledgeMcpRepos = props.getProperty("knowledge.mcp.repos", "maven");
         this.camelCatalogRepos = props.getProperty("camel.catalog.repos", "maven");
@@ -194,6 +196,10 @@ public class DistributionConfig {
 
     public String knowledgeMcpVersion() {
         return knowledgeMcpVersion;
+    }
+
+    public String dispatchMcpVersion() {
+        return dispatchMcpVersion;
     }
 
     public String camelMcpRepos() {
