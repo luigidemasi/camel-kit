@@ -317,6 +317,22 @@ Constitution Compliance: PASS/FAIL (all 7 rules)
 </Step>
 </Steps>
 
+## Valid Pipeline Commands
+
+These are the ONLY user-invocable camel-kit commands. Use these exact names if you
+must reference them. There is NO `/camel-implement` and NO `/camel-test` command.
+
+| Command | Purpose |
+|---|---|
+| `/camel-brainstorm` | Interview, discovery, design spec |
+| `/camel-plan` | Decompose spec into implementation tasks |
+| `/camel-execute` | Implement all routes (includes validation and testing) |
+| `/camel-validate` | Standalone validation pass |
+| `/camel-ship` | Autonomous end-to-end pipeline |
+
+Modes (`camel-implement`, `camel-test`) are internal mode names for `switch_mode`,
+NOT user-invocable commands. Never present them as commands the user should run.
+
 ## Never
 
 - Stop after implementation to print a summary or "Next Steps"
@@ -325,6 +341,7 @@ Constitution Compliance: PASS/FAIL (all 7 rules)
 - Skip validation or testing
 - Generate a README mid-pipeline instead of continuing to the next step
 - Say "implementation has been completed" while steps remain uncompleted
+- Reference `/camel-implement` or `/camel-test` — these commands do not exist
 
 ## Iron Laws
 
