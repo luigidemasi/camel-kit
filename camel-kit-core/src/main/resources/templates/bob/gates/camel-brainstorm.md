@@ -186,6 +186,12 @@ dispatchSubagent(
             - Test execution command: camel test run {file}.camel.it.yaml
          7. Validation (route validation, build verification)
 
+         NAMING CONVENTIONS for all file paths in the plan:
+         - Route files: {flow-name}.camel.yaml in src/main/resources/camel/
+         - Route ID: id: {flow-name} (matches filename without .camel.yaml)
+         - Test files: {flow-name}.camel.it.yaml
+         - XSLT files: {flow-name}.xsl in src/main/resources/xslt/
+
          A plan without Citrus test tasks is INCOMPLETE. Self-review must verify
          test tasks exist for every route.",
   mode: "plan",
@@ -236,6 +242,13 @@ dispatchSubagent(
          1. Run constitution checks, generate docs/validation-report.md
          2. Run all tests: mvn test
          3. Report: routes implemented, tests written, test results (pass/fail count)
+
+         NAMING CONVENTIONS (mandatory):
+         - Route files: {flow-name}.camel.yaml in src/main/resources/camel/
+         - Route ID inside YAML: id: {flow-name} (must match filename without .camel.yaml)
+         - Test files: {flow-name}.camel.it.yaml
+         - XSLT files: {flow-name}.xsl in src/main/resources/xslt/
+         Do NOT create route files without the .camel.yaml suffix.
 
          Use graph topology ({COMMAND_PREFIX} graph route-topology) to identify
          independent routes and implement them in the correct dependency order.",
