@@ -193,7 +193,7 @@ order-processing/
   mvnw / mvnw.cmd            # Maven wrapper
 ```
 
-The init command copies skill files, configures MCP, and sets up the Maven wrapper so you can start designing immediately.
+The init command checks prerequisites (Java, JBang, Camel JBang, test plugin), copies skill files, configures MCP, and sets up the Maven wrapper so you can start designing immediately. If the target directory already contains a camel-kit project (`AGENTS.md` or `.camel-kit/`), init warns and exits — use `--force` to overwrite.
 
 ---
 
