@@ -106,7 +106,7 @@ camel-kit --version
 
 On startup, `init` checks for required tools and reports their status:
 
-```
+```text
 Prerequisites:
   Java 17+          ✓ (21.0.3)
   JBang             ✓ (0.136.0)
@@ -120,7 +120,7 @@ The check is non-blocking -- it warns but never fails the init. Design and plann
 
 If the target directory already contains `AGENTS.md` or `.camel-kit/`, init warns and exits:
 
-```
+```text
 ⚠ Project already initialized
   Directory: /path/to/my-integration
   Found:     AGENTS.md
