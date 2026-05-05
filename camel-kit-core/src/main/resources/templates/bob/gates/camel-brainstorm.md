@@ -175,12 +175,13 @@ dispatchSubagent(
          3. Route implementation (one task per route from TDD)
          4. XSLT/data transformations
          5. Configuration (application.properties, docker-compose)
-         6. Citrus integration tests — ONE TASK PER ROUTE. Each test task must specify:
-            - Test class name and path (src/test/java/...)
+         6. Citrus integration tests in YAML format — ONE TASK PER ROUTE. Each test task must specify:
+            - Test file name and path (src/test/resources/tests/...)
+            - YAML DSL format (NOT Java, NOT XML — Citrus YAML tests only)
             - Which route it tests
             - Test scenarios from the TDD test criteria section
             - Expected inputs and outputs
-            - Camel test dependencies needed in POM
+            - Camel Citrus test dependencies needed in POM
          7. Validation (route validation, build verification)
 
          A plan without Citrus test tasks is INCOMPLETE. Self-review must verify
@@ -221,9 +222,9 @@ dispatchSubagent(
 
          CRITICAL — TEST TASKS ARE MANDATORY:
          The plan contains Citrus integration test tasks. You MUST execute them.
-         Each test task creates a test class in src/test/java/ that verifies a route.
-         Tests use Apache Camel test framework with Citrus. Do NOT skip test tasks
-         even if the build already passes — passing build != passing tests.
+         Each test task creates a YAML test file in src/test/resources/tests/.
+         Tests MUST be in Citrus YAML DSL format — NOT Java classes, NOT XML.
+         Do NOT skip test tasks even if the build already passes.
 
          After all tasks complete:
          1. Run constitution checks, generate docs/validation-report.md
