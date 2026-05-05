@@ -175,13 +175,15 @@ dispatchSubagent(
          3. Route implementation (one task per route from TDD)
          4. XSLT/data transformations
          5. Configuration (application.properties, docker-compose)
-         6. Citrus integration tests in YAML format — ONE TASK PER ROUTE. Each test task must specify:
-            - Test file name and path (src/test/resources/tests/...)
-            - YAML DSL format (NOT Java, NOT XML — Citrus YAML tests only)
-            - Which route it tests
+         6. Citrus integration tests in YAML format — ONE TASK PER ROUTE. Each test task must:
+            - Reference the test generation guide: .bob/skills/camel-test/guides/test-generation.md
+            - Reference the test runner guide: .bob/skills/camel-test/guides/test-runner.md
+            - Reference the test configuration guide: .bob/skills/camel-test/guides/test-configuration.md
+            - Specify test file path using Citrus naming: {test-dir}/{flow-name}.camel.it.yaml
+            - YAML DSL format ONLY (NOT Java, NOT XML)
             - Test scenarios from the TDD test criteria section
-            - Expected inputs and outputs
-            - Camel Citrus test dependencies needed in POM
+            - Testcontainers required (Kafka, PostgreSQL, etc.)
+            - Test execution command: camel test run {file}.camel.it.yaml
          7. Validation (route validation, build verification)
 
          A plan without Citrus test tasks is INCOMPLETE. Self-review must verify
@@ -222,8 +224,12 @@ dispatchSubagent(
 
          CRITICAL — TEST TASKS ARE MANDATORY:
          The plan contains Citrus integration test tasks. You MUST execute them.
-         Each test task creates a YAML test file in src/test/resources/tests/.
-         Tests MUST be in Citrus YAML DSL format — NOT Java classes, NOT XML.
+         Read these guides for test generation:
+         - .bob/skills/camel-test/guides/test-generation.md (Citrus YAML structure, schema rules)
+         - .bob/skills/camel-test/guides/test-configuration.md (test properties, dependencies)
+         - .bob/skills/camel-test/guides/test-runner.md (how to run tests with camel test run)
+         Tests MUST be Citrus YAML DSL files ({flow-name}.camel.it.yaml) — NOT Java, NOT XML.
+         Run tests with: camel test run {file}.camel.it.yaml
          Do NOT skip test tasks even if the build already passes.
 
          After all tasks complete:
