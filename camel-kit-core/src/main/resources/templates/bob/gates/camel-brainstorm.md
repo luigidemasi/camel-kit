@@ -168,7 +168,23 @@ dispatchSubagent(
          Load the appropriate template: task-template-greenfield.md or task-template-migration.md.
          Generate a step-by-step implementation plan at docs/implementation-plan.md.
          The plan is a RECIPE — instructions on HOW to generate code, NOT the code itself.
-         Self-review for spec coverage, placeholders, type consistency.",
+
+         MANDATORY: The plan MUST include these task categories in order:
+         1. Project scaffolding (POM, structure, config)
+         2. Data models and services (entities, repositories, validators)
+         3. Route implementation (one task per route from TDD)
+         4. XSLT/data transformations
+         5. Configuration (application.properties, docker-compose)
+         6. Citrus integration tests — ONE TASK PER ROUTE. Each test task must specify:
+            - Test class name and path (src/test/java/...)
+            - Which route it tests
+            - Test scenarios from the TDD test criteria section
+            - Expected inputs and outputs
+            - Camel test dependencies needed in POM
+         7. Validation (route validation, build verification)
+
+         A plan without Citrus test tasks is INCOMPLETE. Self-review must verify
+         test tasks exist for every route.",
   mode: "plan",
   approvalMode: "auto_edit",
   filesContext: ["docs/design-spec.md", "docs/business-requirements.md"]
@@ -195,16 +211,27 @@ dispatchSubagent(
          full task list. Read .bob/skills/camel-execute/SKILL.md for execution rules.
          Read .bob/skills/camel-implement/guides/orchestrator.md for implementation rules.
 
-         Execute ALL tasks in the plan:
-         1. For each task: load guides, implement, verify, two-stage review, commit
-         2. After all tasks: switch to validation mode, run constitution checks,
-            generate validation report at docs/validation-report.md
-         3. After validation: write and run integration tests, verify all pass
+         Execute ALL tasks in the plan in order. The plan includes:
+         - Scaffolding and model tasks (project structure, POM, entities, services)
+         - Route implementation tasks (one per Camel route)
+         - Citrus integration test tasks (one per route — DO NOT SKIP THESE)
+         - Validation and build verification tasks
+
+         For each task: load guides, implement, verify, two-stage review, commit.
+
+         CRITICAL — TEST TASKS ARE MANDATORY:
+         The plan contains Citrus integration test tasks. You MUST execute them.
+         Each test task creates a test class in src/test/java/ that verifies a route.
+         Tests use Apache Camel test framework with Citrus. Do NOT skip test tasks
+         even if the build already passes — passing build != passing tests.
+
+         After all tasks complete:
+         1. Run constitution checks, generate docs/validation-report.md
+         2. Run all tests: mvn test
+         3. Report: routes implemented, tests written, test results (pass/fail count)
 
          Use graph topology ({COMMAND_PREFIX} graph route-topology) to identify
-         independent routes and implement them in the correct dependency order.
-
-         Report final status: routes implemented, validation result, test results.",
+         independent routes and implement them in the correct dependency order.",
   mode: "advanced",
   approvalMode: "yolo",
   timeoutSeconds: 600,
