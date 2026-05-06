@@ -134,7 +134,7 @@ dispatchSubagent(
   task: "Read docs/design-spec.md and docs/business-requirements.md.
          Read .bob/skills/camel-migrate/guides/camel-version-phase2.md for TDD format.
          Generate Technical Design Documents for each flow.
-         Save to docs/flows/{flow-name}/{flow-name}.tdd.md.
+         Save to docs/flows/<flow-name>/<flow-name>.tdd.md.
          Each TDD specifies: endpoints, transformations, error handling,
          component configurations, test criteria.",
   mode: "plan",
@@ -181,18 +181,18 @@ dispatchSubagent(
             - Reference the test generation guide: .bob/skills/camel-test/guides/test-generation.md
             - Reference the test runner guide: .bob/skills/camel-test/guides/test-runner.md
             - Reference the test configuration guide: .bob/skills/camel-test/guides/test-configuration.md
-            - Specify test file path using Citrus naming: {test-dir}/{flow-name}.camel.it.yaml
+            - Specify test file path using Citrus naming: <test-dir>/<flow-name>.camel.it.yaml
             - YAML DSL format ONLY (NOT Java, NOT XML)
             - Test scenarios from the TDD test criteria section
             - Testcontainers required (Kafka, PostgreSQL, etc.)
-            - Test execution command: camel test run {file}.camel.it.yaml
+            - Test execution command: camel test run <file>.camel.it.yaml
          7. Validation (route validation, build verification)
 
          NAMING CONVENTIONS for all file paths in the plan:
-         - Route files: {flow-name}.camel.yaml in src/main/resources/camel/
-         - Route ID: id: {flow-name} (matches filename without .camel.yaml)
-         - Test files: {flow-name}.camel.it.yaml
-         - XSLT files: {flow-name}.xsl in src/main/resources/xslt/
+         - Route files: <flow-name>.camel.yaml in src/main/resources/camel/
+         - Route ID: id: <flow-name> (matches filename without .camel.yaml)
+         - Test files: <flow-name>.camel.it.yaml
+         - XSLT files: <flow-name>.xsl in src/main/resources/xslt/
 
          A plan without Citrus test tasks is INCOMPLETE. Self-review must verify
          test tasks exist for every route.",
@@ -240,8 +240,8 @@ dispatchSubagent(
          - .bob/skills/camel-test/guides/test-generation.md (Citrus YAML structure, schema rules)
          - .bob/skills/camel-test/guides/test-configuration.md (test properties, dependencies)
          - .bob/skills/camel-test/guides/test-runner.md (how to run tests with camel test run)
-         Tests MUST be Citrus YAML DSL files ({flow-name}.camel.it.yaml) — NOT Java, NOT XML.
-         Run tests with: camel test run {file}.camel.it.yaml
+         Tests MUST be Citrus YAML DSL files (<flow-name>.camel.it.yaml) — NOT Java, NOT XML.
+         Run tests with: camel test run <file>.camel.it.yaml
          Do NOT skip test tasks even if the build already passes.
 
          After all tasks complete:
@@ -250,10 +250,10 @@ dispatchSubagent(
          3. Report: routes implemented, tests written, test results (pass/fail count)
 
          NAMING CONVENTIONS (mandatory):
-         - Route files: {flow-name}.camel.yaml in src/main/resources/camel/
-         - Route ID inside YAML: id: {flow-name} (must match filename without .camel.yaml)
-         - Test files: {flow-name}.camel.it.yaml
-         - XSLT files: {flow-name}.xsl in src/main/resources/xslt/
+         - Route files: <flow-name>.camel.yaml in src/main/resources/camel/
+         - Route ID inside YAML: id: <flow-name> (must match filename without .camel.yaml)
+         - Test files: <flow-name>.camel.it.yaml
+         - XSLT files: <flow-name>.xsl in src/main/resources/xslt/
          Do NOT create route files without the .camel.yaml suffix.
 
          Use graph topology ({COMMAND_PREFIX} graph route-topology) to identify
