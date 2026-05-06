@@ -112,7 +112,7 @@ If project graph is available, read `.bob/skills/camel-brainstorm/guides/migrati
 
 Confirm all findings with the user.
 
-**Persist findings to disk:** After confirming, write a structured summary to `docs/interview-notes.md`:
+**Persist findings to disk:** After confirming, create the `docs/` directory if it does not exist, then write a structured summary to `docs/interview-notes.md`:
 - Systems identified and their roles
 - Data flow requirements and key decisions
 - Components discussed and their MCP verification status
@@ -326,9 +326,9 @@ Switch to **camel-test** mode.
 
 Write Citrus integration tests for all routes. Tests MUST be in **YAML DSL format** — NOT Java classes, NOT XML.
 Read these guides:
-- `.bob/skills/camel-test/guides/test-generation.md` (Citrus YAML structure, schema rules)
-- `.bob/skills/camel-test/guides/test-configuration.md` (test properties, dependencies)
-- `.bob/skills/camel-test/guides/test-runner.md` (how to run with `camel test run`)
+- `.bob/skills/camel-test/guides/test-generation.md` — Citrus YAML structure, schema rules
+- `.bob/skills/camel-test/guides/test-configuration.md` — test properties, dependencies
+- `.bob/skills/camel-test/guides/test-runner.md` — how to run with `camel test run`
 
 Run tests with: `camel test run <file>.camel.it.yaml`
 Verify all tests pass.
