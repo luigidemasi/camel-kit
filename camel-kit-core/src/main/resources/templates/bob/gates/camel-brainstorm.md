@@ -9,6 +9,22 @@ Turn integration ideas into fully formed design specs through collaborative dial
 
 **Core principle:** Understand before designing. Design before planning. Plan before coding.
 
+**Context budget:** You have 100K tokens. The interview consumes ~40K. Be concise in later steps — avoid loading full documents when only headers are needed for approval decisions.
+
+## Valid Pipeline Commands
+
+These are the ONLY user-invocable camel-kit commands. Use these exact names if you must reference them.
+
+| Command | Purpose |
+|---|---|
+| `/camel-brainstorm` | Interview, discovery, design spec |
+| `/camel-plan` | Decompose spec into implementation tasks |
+| `/camel-execute` | Implement all routes (includes validation and testing) |
+| `/camel-validate` | Standalone validation pass |
+| `/camel-ship` | Autonomous end-to-end pipeline |
+
+Modes (`camel-implement`, `camel-test`) are internal `switch_mode` targets, NOT user-invocable commands. Never present them as commands the user should run.
+
 ## Guide Locations
 
 All guides are in `.bob/skills/`. Always use these full paths from the project root:
@@ -95,6 +111,14 @@ Scan source artifacts and detect:
 If project graph is available, read `.bob/skills/camel-brainstorm/guides/migration-graph-analysis.md` for graph-accelerated analysis.
 
 Confirm all findings with the user.
+
+**Persist findings to disk:** After confirming, write a structured summary to `docs/interview-notes.md`:
+- Systems identified and their roles
+- Data flow requirements and key decisions
+- Components discussed and their MCP verification status
+- Migration concerns (if migration)
+
+This file survives context condensation and is referenced by later steps.
 </Step>
 
 <Step>
@@ -230,6 +254,12 @@ Load the appropriate task template:
 
 Load decomposition rules: `.bob/skills/camel-plan/guides/task-decomposition.md`
 
+**MANDATORY:** The plan MUST include Citrus integration test tasks — ONE TASK PER ROUTE:
+- Reference guides: `.bob/skills/camel-test/guides/test-generation.md`, `test-runner.md`, `test-configuration.md`
+- Tests MUST be in Citrus YAML DSL format (NOT Java, NOT XML)
+- Test execution command: `camel test run <file>.camel.it.yaml`
+- A plan without Citrus test tasks is INCOMPLETE
+
 **APPROVAL GATE:**
 "The implementation plan is ready. Do you approve? (yes / changes needed)"
 
@@ -294,7 +324,13 @@ Switch to **camel-test** mode.
 
 **CHECKPOINT** — Create a post-implementation checkpoint.
 
-Write and run integration tests for all routes.
+Write Citrus integration tests for all routes. Tests MUST be in **YAML DSL format** — NOT Java classes, NOT XML.
+Read these guides:
+- `.bob/skills/camel-test/guides/test-generation.md` (Citrus YAML structure, schema rules)
+- `.bob/skills/camel-test/guides/test-configuration.md` (test properties, dependencies)
+- `.bob/skills/camel-test/guides/test-runner.md` (how to run with `camel test run`)
+
+Run tests with: `camel test run <file>.camel.it.yaml`
 Verify all tests pass.
 
 **This is the FINAL step.** Now print the completion summary:
@@ -325,6 +361,9 @@ Constitution Compliance: PASS/FAIL (all 7 rules)
 - Skip validation or testing
 - Generate a README mid-pipeline instead of continuing to the next step
 - Say "implementation has been completed" while steps remain uncompleted
+- Reference `/camel-implement` or `/camel-test` — these commands do not exist
+- Generate Citrus tests in Java or XML — YAML DSL only
+- Create a plan without Citrus test tasks for every route
 
 ## Iron Laws
 
