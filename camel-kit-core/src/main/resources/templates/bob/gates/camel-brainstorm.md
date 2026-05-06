@@ -9,7 +9,7 @@ Turn integration ideas into design specs through collaborative dialogue. Follow 
 
 **Core principle:** Understand before designing. Design before planning. Plan before coding.
 
-**Context budget:** You have 100K tokens. The interview (steps 1-7) uses ~40K. Steps 8-14 MUST use `dispatchSubagent` for all document generation to stay within budget. Your role after step 7 is ORCHESTRATOR: dispatch, review summaries, handle approvals.
+**Context budget:** You have 100K tokens. The interview (steps 1-7) uses ~40K. Steps 8-12 MUST use `dispatchSubagent` for all document generation to stay within budget. Your role after step 7 is ORCHESTRATOR: dispatch, review summaries, handle approvals.
 
 ## Guide Locations
 
@@ -116,7 +116,8 @@ dispatchSubagent(
          Save to docs/business-requirements.md.",
   mode: "plan",
   approvalMode: "auto_edit",
-  filesContext: ["docs/design-spec.md", "docs/interview-notes.md"]
+  filesContext: ["docs/design-spec.md", "docs/interview-notes.md",
+                 ".bob/skills/camel-migrate/guides/camel-version-phase1.md"]
 )
 ```
 
@@ -138,7 +139,8 @@ dispatchSubagent(
          component configurations, test criteria.",
   mode: "plan",
   approvalMode: "auto_edit",
-  filesContext: ["docs/design-spec.md", "docs/business-requirements.md"]
+  filesContext: ["docs/design-spec.md", "docs/business-requirements.md",
+                 ".bob/skills/camel-migrate/guides/camel-version-phase2.md"]
 )
 ```
 

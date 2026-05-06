@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class GitChangeDetector {
@@ -71,8 +72,11 @@ public class GitChangeDetector {
                         .collect(Collectors.toList());
             }
 
-            int exitCode = process.waitFor();
-            if (exitCode != 0) {
+            if (!process.waitFor(30, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                return List.of();
+            }
+            if (process.exitValue() != 0) {
                 return List.of();
             }
             return lines;

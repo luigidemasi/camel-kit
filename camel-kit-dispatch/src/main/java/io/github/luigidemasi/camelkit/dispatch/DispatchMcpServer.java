@@ -1,6 +1,7 @@
 package io.github.luigidemasi.camelkit.dispatch;
 
 import java.util.List;
+import java.util.Map;
 
 import jakarta.inject.Inject;
 
@@ -16,7 +17,8 @@ import io.quarkiverse.mcp.server.ToolArg;
 
 public class DispatchMcpServer {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    @Inject
+    ObjectMapper mapper;
 
     @Inject
     BobShellRunner runner;
@@ -65,11 +67,14 @@ public class DispatchMcpServer {
 
     private String toJson(Object obj) {
         try {
-            return MAPPER.writeValueAsString(obj);
+            return mapper.writeValueAsString(obj);
         } catch (JsonProcessingException e) {
             String msg = e.getMessage() != null ? e.getMessage() : "JSON serialization failed";
-            msg = msg.replace("\"", "'").replace("\\", "").replace("\n", " ");
-            return "{\"error\":\"" + msg + "\"}";
+            try {
+                return mapper.writeValueAsString(Map.of("error", msg));
+            } catch (JsonProcessingException ignored) {
+                return "{\"error\":\"serialization_failed\"}";
+            }
         }
     }
 }

@@ -41,7 +41,8 @@ subagent with a fresh context.
 3. **Verify plan was written** (do this in YOUR context):
    - Check that `docs/implementation-plan.md` exists
    - Read the first 20 lines to confirm the header and task count
-   - If the dispatch failed or the plan is truncated, re-dispatch with a more focused prompt
+   - If the dispatch failed or the plan is truncated, complete the missing tasks
+     using the incremental writing protocol below (do NOT re-dispatch the entire plan)
 
 4. **Plan approval gate** — present the plan summary to the user for approval
 

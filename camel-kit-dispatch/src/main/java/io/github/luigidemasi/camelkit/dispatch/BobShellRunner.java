@@ -83,7 +83,8 @@ public class BobShellRunner {
         } catch (Exception e) {
             activeDispatches.remove(dispatchId);
             int elapsed = (int) Duration.between(start, Instant.now()).toSeconds();
-            return DispatchResult.failure(dispatchId, e.getMessage(), elapsed);
+            String errorMsg = e.getMessage() != null ? e.getMessage() : e.toString();
+            return DispatchResult.failure(dispatchId, errorMsg, elapsed);
         }
     }
 
