@@ -20,18 +20,19 @@ class GitChangeDetectorTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        new ProcessBuilder("git", "init").directory(tempDir.toFile()).start().waitFor();
-        new ProcessBuilder("git", "config", "user.email", "test@test.com")
-                .directory(tempDir.toFile()).start().waitFor();
-        new ProcessBuilder("git", "config", "user.name", "Test")
-                .directory(tempDir.toFile()).start().waitFor();
+        assertEquals(0, run("git", "init"), "git init failed");
+        assertEquals(0, run("git", "config", "user.email", "test@test.com"), "git config email failed");
+        assertEquals(0, run("git", "config", "user.name", "Test"), "git config name failed");
 
         Files.writeString(tempDir.resolve("existing.txt"), "original");
-        new ProcessBuilder("git", "add", ".").directory(tempDir.toFile()).start().waitFor();
-        new ProcessBuilder("git", "commit", "-m", "init")
-                .directory(tempDir.toFile()).start().waitFor();
+        assertEquals(0, run("git", "add", "."), "git add failed");
+        assertEquals(0, run("git", "commit", "-m", "init"), "git commit failed");
 
         detector = new GitChangeDetector(tempDir);
+    }
+
+    private int run(String... cmd) throws Exception {
+        return new ProcessBuilder(cmd).directory(tempDir.toFile()).start().waitFor();
     }
 
     @Test

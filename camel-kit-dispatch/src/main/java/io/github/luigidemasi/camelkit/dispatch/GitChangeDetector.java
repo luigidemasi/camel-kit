@@ -61,7 +61,7 @@ public class GitChangeDetector {
         try {
             ProcessBuilder pb = new ProcessBuilder(command);
             pb.directory(workingDir.toFile());
-            pb.redirectErrorStream(true);
+            pb.redirectError(ProcessBuilder.Redirect.DISCARD);
             Process process = pb.start();
 
             List<String> lines;
@@ -70,7 +70,11 @@ public class GitChangeDetector {
                         .filter(line -> !line.isBlank())
                         .collect(Collectors.toList());
             }
-            process.waitFor();
+
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                return List.of();
+            }
             return lines;
         } catch (Exception e) {
             return List.of();

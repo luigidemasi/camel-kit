@@ -88,26 +88,33 @@ public class BobShellRunner {
     }
 
     public ParallelResult runParallel(List<TaskSpec> tasks, int maxConcurrent) {
-        ExecutorService executor = Executors.newFixedThreadPool(
-                Math.min(maxConcurrent, tasks.size()));
+        if (tasks == null || tasks.isEmpty()) {
+            return new ParallelResult(List.of(), 0);
+        }
+
+        int poolSize = Math.max(1, Math.min(maxConcurrent, tasks.size()));
+        ExecutorService executor = Executors.newFixedThreadPool(poolSize);
         Instant start = Instant.now();
 
-        List<CompletableFuture<DispatchResult>> futures = tasks.stream()
-                .map(t -> CompletableFuture.supplyAsync(
-                        () -> run(t.task(), t.mode(), t.approvalMode(),
-                                t.timeoutSeconds(), t.filesContext()),
-                        executor))
-                .toList();
+        try {
+            List<CompletableFuture<DispatchResult>> futures = tasks.stream()
+                    .map(t -> CompletableFuture.supplyAsync(
+                            () -> run(t.task(), t.mode(), t.approvalMode(),
+                                    t.timeoutSeconds(), t.filesContext()),
+                            executor))
+                    .toList();
 
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
-        List<DispatchResult> results = futures.stream()
-                .map(CompletableFuture::join)
-                .toList();
+            List<DispatchResult> results = futures.stream()
+                    .map(CompletableFuture::join)
+                    .toList();
 
-        executor.shutdown();
-        int wallClock = (int) Duration.between(start, Instant.now()).toSeconds();
-        return new ParallelResult(results, wallClock);
+            int wallClock = (int) Duration.between(start, Instant.now()).toSeconds();
+            return new ParallelResult(results, wallClock);
+        } finally {
+            executor.shutdown();
+        }
     }
 
     public StatusResult status(String dispatchId) {

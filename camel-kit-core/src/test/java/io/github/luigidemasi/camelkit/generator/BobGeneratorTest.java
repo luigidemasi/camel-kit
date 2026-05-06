@@ -130,7 +130,7 @@ class BobGeneratorTest {
         assertTrue(content.contains("camel-kit-dispatch"),
                 "MCP config should reference camel-kit-dispatch artifact");
         assertTrue(content.contains("dispatchSubagent"),
-                "MCP config should auto-approve dispatchSubagent");
+                "MCP config should contain dispatchSubagent tool reference");
     }
 
     @Test

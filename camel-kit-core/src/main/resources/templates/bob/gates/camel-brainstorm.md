@@ -108,7 +108,7 @@ Only proceed after explicit approval. Create a **CHECKPOINT** after approval.
 
 Switch to **camel-plan** mode. Use `dispatchSubagent` to generate the BRD in a fresh context:
 
-```
+```text
 dispatchSubagent(
   task: "Read docs/design-spec.md and docs/interview-notes.md.
          Read .bob/skills/camel-migrate/guides/camel-version-phase1.md for BRD format.
@@ -128,7 +128,7 @@ Verify `docs/business-requirements.md` was created by reading its first 10 lines
 
 Use `dispatchSubagent` to generate TDDs for each flow:
 
-```
+```text
 dispatchSubagent(
   task: "Read docs/design-spec.md and docs/business-requirements.md.
          Read .bob/skills/camel-migrate/guides/camel-version-phase2.md for TDD format.
@@ -160,7 +160,7 @@ Wait for explicit approval.
 
 Use `dispatchSubagent` to generate the implementation plan:
 
-```
+```text
 dispatchSubagent(
   task: "Read docs/design-spec.md, docs/business-requirements.md, and all TDD files
          in docs/flows/. Read .bob/skills/camel-plan/SKILL.md for planning rules.
@@ -196,7 +196,11 @@ dispatchSubagent(
          test tasks exist for every route.",
   mode: "plan",
   approvalMode: "auto_edit",
-  filesContext: ["docs/design-spec.md", "docs/business-requirements.md"]
+  filesContext: ["docs/design-spec.md", "docs/business-requirements.md",
+                 ".bob/skills/camel-plan/guides/task-decomposition.md",
+                 ".bob/skills/camel-plan/guides/task-template-greenfield.md",
+                 ".bob/skills/camel-plan/guides/task-template-migration.md",
+                 ".bob/skills/camel-plan/guides/task-template-testing.md"]
 )
 ```
 
@@ -214,7 +218,7 @@ Create a **CHECKPOINT** before execution.
 
 Use `dispatchSubagent` to run the full implementation pipeline in a fresh context:
 
-```
+```text
 dispatchSubagent(
   task: "You are an implementation agent. Read docs/implementation-plan.md for the
          full task list. Read .bob/skills/camel-execute/SKILL.md for execution rules.
@@ -261,7 +265,7 @@ dispatchSubagent(
 
 Review the dispatch summary. If successful, print completion summary:
 
-```
+```text
 ===============================================================
 IMPLEMENTATION COMPLETE
 ===============================================================

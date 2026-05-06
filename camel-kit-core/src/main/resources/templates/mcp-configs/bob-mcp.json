@@ -39,6 +39,7 @@
     "camel-dispatch": {
       "command": "jbang",
       "args": [
+        "--repos", "{KNOWLEDGE_MCP_REPOS}",
         "-Dquarkus.log.level=WARN",
         "io.github.luigidemasi:camel-kit-dispatch:{DISPATCH_VERSION}:runner"
       ],

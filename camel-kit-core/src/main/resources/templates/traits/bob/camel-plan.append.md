@@ -14,7 +14,7 @@ subagent with a fresh context.
    - Do NOT read the full spec into your context — the subagent will read it
 
 2. **Dispatch plan generation** via `dispatchSubagent`:
-   ```
+   ```text
    dispatchSubagent(
      task: "You are a planning agent. Read the design spec at docs/<spec-file>.md
             and the task decomposition guide at <skill-path>/guides/task-decomposition.md.
@@ -32,7 +32,9 @@ subagent with a fresh context.
      approvalMode: "auto_edit",
      filesContext: ["docs/<spec-file>.md",
                     "<skill-path>/guides/task-decomposition.md",
-                    "<skill-path>/guides/task-template-greenfield.md"]
+                    "<skill-path>/guides/task-template-greenfield.md",
+                    "<skill-path>/guides/task-template-migration.md",
+                    "<skill-path>/guides/task-template-testing.md"]
    )
    ```
 
@@ -68,13 +70,13 @@ Large single writes get truncated when context is near capacity.
 **Incremental writing protocol:**
 
 1. **Create the file with header only** using `write_to_file`:
-   ```
+   ```text
    write_to_file("docs/implementation-plan.md",
      "# Implementation Plan\n\n> Goal: ...\n\n> Architecture: ...\n\n---\n")
    ```
 
 2. **Append each task as a separate `insert_content` call:**
-   ```
+   ```text
    insert_content("docs/implementation-plan.md", AFTER_LAST_LINE,
      "### Task 1: ...\n\n**Files:**\n- Create: ...\n\n- [ ] Step 1: ...\n...")
    ```

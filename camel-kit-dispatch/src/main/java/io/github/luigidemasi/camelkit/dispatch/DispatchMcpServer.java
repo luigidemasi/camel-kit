@@ -35,10 +35,11 @@ public class DispatchMcpServer {
             @ToolArg(description = "Files the subagent should read as initial context") List<String> filesContext) {
 
         int timeout = timeoutSeconds != null ? timeoutSeconds : config.defaultTimeoutSeconds();
+        String effectiveMode = mode != null ? mode : "code";
         String approval = approvalMode != null ? approvalMode : "auto_edit";
         List<String> files = filesContext != null ? filesContext : List.of();
 
-        DispatchResult result = runner.run(task, mode, approval, timeout, files);
+        DispatchResult result = runner.run(task, effectiveMode, approval, timeout, files);
         return toJson(result);
     }
 
@@ -66,7 +67,9 @@ public class DispatchMcpServer {
         try {
             return MAPPER.writeValueAsString(obj);
         } catch (JsonProcessingException e) {
-            return "{\"error\":\"" + e.getMessage().replace("\"", "'") + "\"}";
+            String msg = e.getMessage() != null ? e.getMessage() : "JSON serialization failed";
+            msg = msg.replace("\"", "'").replace("\\", "").replace("\n", " ");
+            return "{\"error\":\"" + msg + "\"}";
         }
     }
 }
