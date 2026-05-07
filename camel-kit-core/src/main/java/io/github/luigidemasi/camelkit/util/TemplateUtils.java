@@ -43,6 +43,14 @@ public final class TemplateUtils {
         throw new IOException("Template not found: " + templatePath);
     }
 
+    public static String readTemplateOrNull(String templatePath) {
+        try {
+            return readTemplate(templatePath);
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
     /**
      * Read a resource file as an array of lines.
      *

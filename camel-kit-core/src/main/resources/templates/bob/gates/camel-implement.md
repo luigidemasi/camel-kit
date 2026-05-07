@@ -26,7 +26,7 @@ This enables full code generation capabilities.
 
 Read one of:
 - `docs/implementation-plan.md` (for planned execution)
-- `docs/flows/\{flow-name\}/\{flow-name\}.tdd.md` (for direct TDD implementation)
+- `docs/flows/<flow-name>/<flow-name>.tdd.md` (for direct TDD implementation)
 
 If neither exists or hasn't been approved, STOP and return to camel-plan.
 Implementation only happens after approval.
@@ -59,7 +59,7 @@ For EACH route in the plan:
 
 ### Route Implementation Process
 
-1. **Read the TDD** at `docs/flows/\{flow-name\}/\{flow-name\}.tdd.md`
+1. **Read the TDD** at `docs/flows/<flow-name>/<flow-name>.tdd.md`
 2. **Verify components via MCP:**
    - For EVERY component: `camel_catalog_component(name="X", runtime="Y", platformBom="Z")`
    - For EVERY EIP: `camel_catalog_eip(name="X")`
@@ -73,7 +73,7 @@ For EACH route in the plan:
    - Load `guides/yaml-structure.md`
    - Load `guides/yaml-catalog-rules.md`
    - Follow catalog schema EXACTLY (use MCP results)
-   - Save to `src/main/resources/camel/\{flow-name\}.camel.yaml`
+   - Save to `src/main/resources/camel/<flow-name>.camel.yaml`
 5. **Update properties:**
    - Load `guides/properties-generation.md`
    - Add component configurations to `src/main/resources/application.properties`
@@ -82,14 +82,14 @@ For EACH route in the plan:
    - Load runtime-specific guide: `guides/pom-spring-boot.md` or `guides/pom-quarkus.md`
    - Add component dependencies to `pom.xml`
 7. **Run the test:**
-   - Execute: `mvn test -Dtest=\{RouteTest\}`
+   - Execute: `mvn test -Dtest=<RouteTest>`
    - Test MUST pass
 8. **Self-validate the route:**
    - Load `guides/route-validation.md`
    - Check: YAML syntax, component options, endpoint URIs, constitution compliance
 9. **Commit:**
-   - Stage: `git add src/main/resources/camel/\{flow-name\}.camel.yaml src/main/resources/application.properties pom.xml src/test/java/**/\{RouteTest\}.java`
-   - Commit: `git commit -m "feat: implement \{flow-name\} route"`
+   - Stage: `git add src/main/resources/camel/<flow-name>.camel.yaml src/main/resources/application.properties pom.xml src/test/java/**/<RouteTest>.java`
+   - Commit: `git commit -m "feat: implement <flow-name> route"`
 </Step>
 
 <Step>
@@ -98,7 +98,7 @@ For EACH route in the plan:
 **When DataMapper is needed:**
 - Read the TDD's DataMapper section for approach (A or B)
 - Load `guides/datamapper-approach-a.md` (useJsonBody) or `guides/datamapper-approach-b.md` (header param)
-- Generate XSLT at `src/main/resources/xslt/\{transform-name\}.xslt`
+- Generate XSLT at `src/main/resources/xslt/<transform-name>.xslt`
 - Load `guides/datamapper-validation.md` and self-validate XSLT against TDD field mappings
 
 **When Docker Compose services are needed:**
