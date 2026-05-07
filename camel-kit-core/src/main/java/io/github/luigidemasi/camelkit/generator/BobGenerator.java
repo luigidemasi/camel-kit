@@ -83,7 +83,7 @@ public class BobGenerator extends DefaultGenerator {
                 continue;
             }
 
-            String gateContent = qute.render(gatePath, data);
+            String gateContent = qute.renderString(gateTemplate, data);
             Files.writeString(skillMd, gateContent);
         }
     }
