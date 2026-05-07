@@ -16,3 +16,33 @@ Use `WebSearch` to research integration patterns when the user describes unfamil
 ### Interview Progress Tracking
 
 Use `TaskCreate` to create a task for each interview phase (discovery, component selection, design assembly). Mark each as `in_progress` when entering the phase and `completed` when exiting. This gives the user visible progress.
+
+### Typed Subagent Dispatch
+
+When dispatching subagents during brainstorming, use the Claude Code Dispatch Map:
+
+**Integration architect** (design analysis, component selection, flow design):
+
+```text
+Agent({
+  subagent_type: "Plan",
+  model: "opus",
+  description: "Architect: [flow or design topic]",
+  prompt: "[architect prompt with persona from agents/integration-architect.md]"
+})
+```
+
+The `Plan` type provides architectural focus with no Edit/Write access — the architect analyzes and returns design output, the orchestrator writes the design doc.
+
+**Migration specialist** (source artifact scanning, component mapping):
+
+```text
+Agent({
+  subagent_type: "Explore",
+  model: "opus",
+  description: "Migration scan: [source platform]",
+  prompt: "[migration prompt with persona from agents/migration-specialist.md]"
+})
+```
+
+The `Explore` type provides fast read-only search — scanning source artifacts and mapping components without risking file modifications. Use `Explore` only for analysis tasks. If the migration specialist needs to write files (implementation tasks during `camel-execute`), the execute trait switches to `general-purpose`.

@@ -38,3 +38,35 @@ Use Claude Code's task tracking tools for real-time progress visibility:
 - `TaskUpdate` to mark tasks `completed` after both review stages pass
 - `TaskList` to report progress after each wave completes
 - Track re-plan rounds as tasks when the re-plan loop triggers
+
+### Claude Code Dispatch Map
+
+When dispatching subagents during execution, use this map to set the `subagent_type` and `model` parameters on the `Agent` tool call. Read the persona from the task's `**Agent:**` field in the implementation plan.
+
+| Persona | `subagent_type` | `model` |
+|---------|----------------|---------|
+| `integration-architect` | `Plan` | `opus` |
+| `implementation-engineer` | `general-purpose` | `sonnet` |
+| `migration-specialist` | See resolution rule below | `opus` |
+| `test-engineer` | `general-purpose` | `sonnet` |
+| `spec-compliance-reviewer` | `general-purpose` | `sonnet` |
+| `code-quality-reviewer` | `code-simplifier` | `opus` |
+
+**Migration-specialist resolution:** Check the task's `**Files:**` section:
+- If it contains only "Read" or "Analyze" entries (no "Create" or "Modify") → `Explore`
+- If it contains any "Create" or "Modify" entries → `general-purpose`
+- If the `**Files:**` section is absent or ambiguous → `general-purpose` (safe default)
+
+**Always set both parameters.** Example:
+
+```text
+Agent({
+  subagent_type: "general-purpose",
+  model: "sonnet",
+  description: "Task 3: Purchase ingestion route",
+  prompt: "...",
+  run_in_background: true
+})
+```
+
+If a persona is not in the map, fall back to `general-purpose` with `model: "sonnet"`.
