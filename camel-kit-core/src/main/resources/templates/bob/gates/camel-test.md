@@ -414,7 +414,7 @@ Present the report to the user.
 After all tests pass:
 
 ```bash
-git add src/test/java src/test/resources docs/test-report.md
+git add src/test/resources docs/test-report.md
 git commit -m "test: add integration tests for all routes"
 ```
 </Step>
