@@ -54,7 +54,7 @@ public final class TemplateUtils {
         try {
             return readTemplate(templatePath);
         } catch (IOException e) {
-            if (!e.getMessage().startsWith("Template not found:")) {
+            if (e.getMessage() == null || !e.getMessage().startsWith("Template not found:")) {
                 System.err.println(
                         "[WARN] Unexpected I/O error reading template '" + templatePath + "': " + e.getMessage());
             }
