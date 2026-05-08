@@ -155,8 +155,8 @@ If quality review finds only **Important/Suggestion** issues:
 
 After both reviews pass:
 ```bash
-git add \{files from task\}
-git commit -m "feat: \{task description\}"
+git add <files from task>
+git commit -m "feat: <task description>"
 ```
 
 **Step 7: Mark Complete and Continue**
@@ -257,7 +257,7 @@ After successful completion:
 
 **CHECKPOINT** — Create a final checkpoint.
 
-Label: `implementation-complete-\{date\}`
+Label: `implementation-complete-<date>`
 
 This checkpoint captures:
 - All generated routes

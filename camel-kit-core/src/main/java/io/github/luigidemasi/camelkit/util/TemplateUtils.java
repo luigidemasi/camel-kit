@@ -40,7 +40,26 @@ public final class TemplateUtils {
             return Files.readString(filePath);
         }
 
-        throw new IOException("Template not found: " + templatePath);
+        throw new TemplateNotFoundException(templatePath);
+    }
+
+    /**
+     * Read a template file from bundled resources, returning {@code null} instead of throwing if the template cannot be
+     * found.
+     *
+     * @param  templatePath the path to the template (e.g., "templates/bob/gates/camel-plan.md")
+     * @return              the template content, or {@code null} if the template cannot be loaded
+     */
+    public static String readTemplateOrNull(String templatePath) {
+        try {
+            return readTemplate(templatePath);
+        } catch (TemplateNotFoundException e) {
+            return null;
+        } catch (IOException e) {
+            System.err.println(
+                    "[WARN] Unexpected I/O error reading template '" + templatePath + "': " + e.getMessage());
+            return null;
+        }
     }
 
     /**

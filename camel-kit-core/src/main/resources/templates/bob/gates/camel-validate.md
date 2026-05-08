@@ -62,7 +62,7 @@ Load `guides/schema-validation.md`.
 Check:
 - Valid YAML syntax
 - Required fields present (`- route:`, `from:`, `steps:`)
-- Component URI structure matches pattern: `\{scheme\}:\{path\}?\{options\}`
+- Component URI structure matches pattern: `<scheme>:<path>?<options>`
 - EIP structure matches catalog schema
 - No unknown properties
 
@@ -78,7 +78,7 @@ Load `guides/endpoint-validation.md`.
 
 For EVERY endpoint URI:
 1. Extract scheme (component name)
-2. Call `camel_catalog_component(name="\{scheme\}", runtime="...", platformBom="...")`
+2. Call `camel_catalog_component(name="<scheme>", runtime="...", platformBom="...")`
 3. Parse URI options
 4. Validate each option against catalog schema
 5. Check for typos in option names
@@ -239,9 +239,9 @@ Assemble all findings into a validation report at `docs/validation-report.md`:
 
 ## Findings by Route
 
-### Route: \{route-name\}
+### Route: <route-name>
 
-**File:** `src/main/resources/camel/\{route-name\}.camel.yaml`
+**File:** `src/main/resources/camel/<route-name>.camel.yaml`
 
 #### Schema Validation
 - [✓] Valid YAML syntax

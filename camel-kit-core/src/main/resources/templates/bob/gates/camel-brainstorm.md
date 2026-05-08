@@ -211,7 +211,7 @@ Generate the Business Requirements Document (BRD) at `docs/business-requirements
 
 Read `.bob/skills/camel-migrate/guides/camel-version-phase2.md` for TDD generation.
 
-Generate Technical Design Documents (TDDs) at `docs/flows/\{flow-name\}/\{flow-name\}.tdd.md`.
+Generate Technical Design Documents (TDDs) at `docs/flows/<flow-name>/<flow-name>.tdd.md`.
 
 For each flow, the TDD specifies:
 - Source and sink endpoints

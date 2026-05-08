@@ -5,6 +5,8 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
+import io.github.luigidemasi.camelkit.util.TemplateUtils;
+
 public class BobGenerator extends DefaultGenerator {
 
     private static final String[] SKILLS_WITH_GATES = {
@@ -76,12 +78,13 @@ public class BobGenerator extends DefaultGenerator {
                 continue;
             }
 
-            try {
-                String gateContent = qute.render(gatePath, data);
-                Files.writeString(skillMd, gateContent);
-            } catch (RuntimeException e) {
-                // Gate template not found — keep the default SKILL.md
+            String gateTemplate = TemplateUtils.readTemplateOrNull(gatePath);
+            if (gateTemplate == null) {
+                continue;
             }
+
+            String gateContent = qute.renderString(gateTemplate, data);
+            Files.writeString(skillMd, gateContent);
         }
     }
 }
