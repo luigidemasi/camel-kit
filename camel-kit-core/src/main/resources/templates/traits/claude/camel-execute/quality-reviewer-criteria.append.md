@@ -31,10 +31,11 @@ After the quality reviewer subagent returns, verify no files were modified:
 
 1. Run `git diff --stat`
 2. If output is empty — proceed normally
-3. If files were modified:
-   a. Revert: `git checkout -- <modified files>`
-   b. Log: "Quality reviewer modified files despite review-only override — re-dispatching as general-purpose"
-   c. Re-dispatch the same review with `subagent_type: "general-purpose"` and `model: "opus"`
-   d. Use the re-dispatched result
+3. If files were modified or new files were created:
+   a. Revert tracked changes: `git restore --worktree --staged .`
+   b. Remove untracked files created by the reviewer: `git clean -fd`
+   c. Log: "Quality reviewer modified files despite review-only override — re-dispatching as general-purpose"
+   d. Re-dispatch the same review with `subagent_type: "general-purpose"` and `model: "opus"`
+   e. Use the re-dispatched result
 
 Do NOT use `run_in_background` for review subagents — the orchestrator must wait for the review result before proceeding.

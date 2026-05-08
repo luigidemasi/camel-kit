@@ -53,8 +53,8 @@ When dispatching subagents during execution, use this map to set the `subagent_t
 | `code-quality-reviewer` | `code-simplifier` | `opus` |
 
 **Migration-specialist resolution:** Check the task's `**Files:**` section:
-- If it contains only "Read" or "Analyze" entries (no "Create" or "Modify") → `Explore`
-- If it contains any "Create" or "Modify" entries → `general-purpose`
+- If every entry is strictly read-only (e.g., "Read", "Analyze", "Inspect") → `Explore`
+- If any entry implies mutation (e.g., "Create", "Modify", "Update", "Delete", "Rename", "Move") → `general-purpose`
 - If the `**Files:**` section is absent or ambiguous → `general-purpose` (safe default)
 
 **Always set both parameters.** Example:
