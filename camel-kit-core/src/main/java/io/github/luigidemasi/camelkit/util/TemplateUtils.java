@@ -40,7 +40,7 @@ public final class TemplateUtils {
             return Files.readString(filePath);
         }
 
-        throw new IOException("Template not found: " + templatePath);
+        throw new TemplateNotFoundException(templatePath);
     }
 
     /**
@@ -53,11 +53,11 @@ public final class TemplateUtils {
     public static String readTemplateOrNull(String templatePath) {
         try {
             return readTemplate(templatePath);
+        } catch (TemplateNotFoundException e) {
+            return null;
         } catch (IOException e) {
-            if (e.getMessage() == null || !e.getMessage().startsWith("Template not found:")) {
-                System.err.println(
-                        "[WARN] Unexpected I/O error reading template '" + templatePath + "': " + e.getMessage());
-            }
+            System.err.println(
+                    "[WARN] Unexpected I/O error reading template '" + templatePath + "': " + e.getMessage());
             return null;
         }
     }
