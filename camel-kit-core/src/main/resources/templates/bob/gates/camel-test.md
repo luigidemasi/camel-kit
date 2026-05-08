@@ -123,76 +123,90 @@ Load `guides/test-generation.md`.
 
 ### Test Generation Process
 
-1. **Create test class:**
-   - Location: `src/test/java/.../routes/<RouteNameTest>.java`
-   - Naming: `<RouteName>Test` (e.g., `OrderProcessingRouteTest`)
+1. **Create test file:**
+   - Location: `src/test/resources/<flow-name>.camel.it.yaml`
+   - Naming: `<flow-name>.camel.it.yaml` (e.g., `order-processing.camel.it.yaml`)
 
 2. **Write happy path test:**
-   ```java
-   @Test
-   @CitrusTest
-   void shouldProcessValidOrder(@CitrusResource TestRunner runner) {
-       runner.given(
-           send(inputQueue)
-               .message()
-               .body("<order><id>123</id></order>")
-       );
-       
-       runner.when(
-           receive(outputQueue)
-               .message()
-               .body("<orderConfirmation><id>123</id></orderConfirmation>")
-       );
-       
-       runner.then(
-           // Verify database state, external API calls, etc.
-       );
-   }
+   ```yaml
+   name: <flow-name>-happy-path
+   variables:
+     - name: kafka.brokers
+       value: localhost:9092
+
+   actions:
+     - camel:
+         jbang:
+           run:
+             integration:
+               file: "../main/resources/camel/<flow-name>.camel.yaml"
+             wait:
+               for:
+                 log:
+                   message: "started and consuming"
+               timeout: 30000
+
+     - send:
+         endpoint:
+           uri: <source-endpoint>
+         message:
+           body:
+             file: test-data/valid-input.json
+
+     - receive:
+         endpoint:
+           uri: <sink-endpoint>
+         timeout: 10000
+         message:
+           body:
+             file: test-data/expected-output.json
    ```
 
 3. **Write error path tests:**
-   ```java
-   @Test
-   @CitrusTest
-   void shouldHandleInvalidOrderGracefully(@CitrusResource TestRunner runner) {
-       runner.given(
-           send(inputQueue)
-               .message()
-               .body("<order><invalid/></order>")
-       );
-       
-       runner.when(
-           receive(errorQueue)
-               .message()
-               .body(contains("Validation failed"))
-       );
-   }
+   ```yaml
+     - send:
+         endpoint:
+           uri: <source-endpoint>
+         message:
+           body:
+             data: '{"invalid": "data"}'
+
+     - receive:
+         endpoint:
+           uri: <dead-letter-endpoint>
+         timeout: 10000
    ```
 
 4. **Write edge case tests:**
-   ```java
-   @Test
-   @CitrusTest
-   void shouldHandleEmptyInput(@CitrusResource TestRunner runner) {
-       // Test empty body
-   }
-   
-   @Test
-   @CitrusTest
-   void shouldHandleLargePayload(@CitrusResource TestRunner runner) {
-       // Test 10MB+ payload
-   }
+   ```yaml
+     - send:
+         endpoint:
+           uri: <source-endpoint>
+         message:
+           body:
+             data: ''
+
+     - send:
+         endpoint:
+           uri: <source-endpoint>
+         message:
+           body:
+             file: test-data/large-payload.json
    ```
 
 5. **Write external service failure tests:**
-   ```java
-   @Test
-   @CitrusTest
-   void shouldRetryOnExternalServiceTimeout(@CitrusResource TestRunner runner) {
-       // Mock external API timeout
-       // Verify circuit breaker activates
-       // Verify retry logic
-   }
+   ```yaml
+     - send:
+         endpoint:
+           uri: <source-endpoint>
+         message:
+           body:
+             file: test-data/valid-input.json
+
+     - receive:
+         endpoint:
+           uri: <fallback-endpoint>
+         timeout: 30000
    ```
 
 Follow TDD's test criteria from the route's TDD file.
@@ -201,10 +215,10 @@ Follow TDD's test criteria from the route's TDD file.
 <Step>
 ## Run Tests
 
-For each test class:
+For each test file:
 
 ```bash
-mvn test -Dtest=<RouteNameTest>
+camel test run src/test/resources/<flow-name>.camel.it.yaml
 ```
 
 **Expected outcome:**
@@ -260,61 +274,66 @@ Write integration tests that:
 2. Verify Route B receives and processes the message
 3. Verify end-to-end data flow
 
-Example:
-```java
-@Test
-@CitrusTest
-void shouldProcessOrderEndToEnd(@CitrusResource TestRunner runner) {
-    runner.given(
-        http()
-            .client("orderApi")
-            .send()
-            .post("/orders")
-            .body("<order><id>123</id></order>")
-    );
-    
-    runner.when(
-        receive(orderQueue)
-            .message()
-            .body("<order><id>123</id></order>")
-    );
-    
-    runner.then(
-        receive(confirmationQueue)
-            .message()
-            .body("<confirmation><id>123</id></confirmation>")
-    );
-}
+Example (`end-to-end.camel.it.yaml`):
+```yaml
+name: order-end-to-end
+
+actions:
+  - camel:
+      jbang:
+        run:
+          integration:
+            file: "../main/resources/camel/order-processing.camel.yaml"
+          wait:
+            for:
+              log:
+                message: "started and consuming"
+            timeout: 30000
+
+  - send:
+      endpoint:
+        uri: http://localhost:8080/orders
+      message:
+        body:
+          data: '{"id": "123"}'
+
+  - receive:
+      endpoint:
+        uri: kafka:order-queue
+      timeout: 10000
+      message:
+        body:
+          data: '{"id": "123"}'
+
+  - receive:
+      endpoint:
+        uri: kafka:confirmation-queue
+      timeout: 10000
+      message:
+        body:
+          data: '{"id": "123", "status": "confirmed"}'
 ```
 </Step>
 
 <Step>
 ## Test Documentation
 
-For each test class, add JavaDoc:
+Each test file should include a descriptive `name` field and inline comments:
 
-```java
-/**
- * Integration tests for the Order Processing route.
- * 
- * <p>This route consumes orders from the input queue, validates them,
- * transforms them, and sends confirmations to the output queue.</p>
- * 
- * <p>Test coverage:</p>
- * <ul>
- *   <li>Happy path: valid order → confirmation</li>
- *   <li>Error path: invalid order → error queue</li>
- *   <li>Edge case: empty order → validation error</li>
- *   <li>Failure case: external API timeout → retry</li>
- * </ul>
- * 
- * @see OrderProcessingRoute
- */
-@CitrusSpringSupport
-@SpringBootTest
-class OrderProcessingRouteTest {
-    // tests...
-}
+```yaml
+# Integration tests for the Order Processing route.
+#
+# This route consumes orders from the input queue, validates them,
+# transforms them, and sends confirmations to the output queue.
+#
+# Test coverage:
+#   - Happy path: valid order → confirmation
+#   - Error path: invalid order → error queue
+#   - Edge case: empty order → validation error
+#   - Failure case: external API timeout → retry
+
+name: order-processing-integration-tests
+# ...test actions...
 ```
 </Step>
 
@@ -366,7 +385,7 @@ Create a test report at `docs/test-report.md`:
 ### Route: <route-name>
 
 **File:** `src/main/resources/camel/<route-name>.camel.yaml`
-**Test Class:** `src/test/java/.../routes/<RouteNameTest>.java`
+**Test File:** `src/test/resources/<route-name>.camel.it.yaml`
 
 **Tests:**
 - ✓ Happy path: valid input → expected output

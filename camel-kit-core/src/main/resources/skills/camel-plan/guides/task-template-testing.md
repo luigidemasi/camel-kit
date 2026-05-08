@@ -17,7 +17,7 @@ Test tasks come after all implementation and validation tasks. Generate one test
 **Agent:** test-engineer
 
 **Files:**
-- Create: `[MODULE_DIR]src/test/java/[package]/[FlowName]IntegrationTest.java`
+- Create: `[MODULE_DIR]src/test/resources/[flow-name].camel.it.yaml`
 - Create: `[MODULE_DIR]src/test/resources/test-data/[flow-name]-input.[ext]`
 - Create: `[MODULE_DIR]src/test/resources/test-data/[flow-name]-expected.[ext]`
 - Modify: `[MODULE_DIR]pom.xml` (add test dependencies if not present)
@@ -41,8 +41,8 @@ Test tasks come after all implementation and validation tasks. Generate one test
   - Happy path: [data flows from source to sink correctly]
   - Error path: [error handling triggers correctly]
   - Edge cases: [empty messages, malformed data, timeouts]
-- [ ] Load test-generation.md to create test class:
-  - Citrus test runner setup
+- [ ] Load test-generation.md to create test file:
+  - Citrus YAML DSL test structure
   - Mock endpoints for external systems
   - Test data preparation
 - [ ] Load test-configuration.md to set up infrastructure:
@@ -51,15 +51,15 @@ Test tasks come after all implementation and validation tasks. Generate one test
 - [ ] Create test data files:
   - Input: representative test message in [format]
   - Expected: expected output message
-- [ ] Generate test methods:
-  - `test[FlowName]HappyPath()` — end-to-end success
-  - `test[FlowName]ErrorHandling()` — error triggers DLQ/retry
-  - `test[FlowName]InvalidInput()` — malformed input handled
+- [ ] Generate test scenarios in the `.camel.it.yaml` file:
+  - Happy path — end-to-end success
+  - Error handling — error triggers DLQ/retry
+  - Invalid input — malformed input handled
 - [ ] Add test dependencies to pom.xml if not present:
   - `org.citrusframework:citrus-*`
   - `org.testcontainers:testcontainers`
   - `org.testcontainers:[module]` for each external service
-- [ ] Verify: `mvn test -pl [module] -Dtest=[FlowName]IntegrationTest` compiles
+- [ ] Verify: `camel test run src/test/resources/[flow-name].camel.it.yaml` passes
 
 **Review:**
 - [ ] Spec compliance: tests cover all behaviors in design spec

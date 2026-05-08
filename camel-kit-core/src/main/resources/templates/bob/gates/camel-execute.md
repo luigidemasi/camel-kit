@@ -229,8 +229,8 @@ Generated Files:
   - src/main/resources/camel/inventory-sync.camel.yaml
   - src/main/resources/application.properties
   - pom.xml (updated)
-  - src/test/java/.../routes/OrderProcessingRouteTest.java
-  - src/test/java/.../routes/InventorySyncRouteTest.java
+  - src/test/resources/order-processing.camel.it.yaml
+  - src/test/resources/inventory-sync.camel.it.yaml
   - docker-compose.yml
   - docs/test-report.md
 

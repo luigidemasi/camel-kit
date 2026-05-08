@@ -8,7 +8,7 @@
 ## Test Conventions
 
 - Integration tests use Citrus framework when configured.
-- Test file naming: `{route-id}.test.yaml` (Citrus) or `{RouteId}Test.java` (JUnit).
+- Test file naming: `{route-id}.camel.it.yaml` (Citrus YAML DSL).
 - Test data goes in `test/data/` directory.
 - Each route gets at least one happy-path test and one error-path test.
 
