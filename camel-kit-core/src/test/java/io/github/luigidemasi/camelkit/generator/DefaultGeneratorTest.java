@@ -37,6 +37,8 @@ class DefaultGeneratorTest {
         assertTrue(Files.exists(ctx.commandsDir().resolve("camel-migrate.md")));
         assertTrue(Files.exists(ctx.commandsDir().resolve("camel-brainstorm.md")));
         assertTrue(Files.exists(ctx.commandsDir().resolve("camel-execute.md")));
+        assertTrue(Files.exists(ctx.commandsDir().resolve("camel-start.md")));
+        assertFalse(Files.exists(ctx.commandsDir().resolve("camel-flow.md")));
         assertFalse(Files.exists(ctx.commandsDir().resolve("camel-implement.md")));
         assertFalse(Files.exists(ctx.commandsDir().resolve("camel-test.md")));
         String content = Files.readString(ctx.commandsDir().resolve("camel-migrate.md"));
