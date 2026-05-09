@@ -32,3 +32,9 @@ When invoked standalone, runs the full verification loop on the project as-is. W
 |-------|-------------|---------|
 | `guides/verify-loop.md` | Always | Core verification loop — 3 phases, iteration, fix routing, report |
 | `guides/error-taxonomy.md` | Always (reference) | Error classification tables — patterns, categories, fix actions |
+
+## After Verification
+
+When all verification phases pass, suggest to the user:
+
+> "Verification complete. For a comprehensive quality report (anti-patterns, security, schema compliance), run `/camel-validate`."
