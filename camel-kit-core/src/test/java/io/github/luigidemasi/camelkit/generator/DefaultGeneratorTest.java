@@ -81,10 +81,10 @@ class DefaultGeneratorTest {
         Path agentsMd = ctx.projectDir().resolve("AGENTS.md");
         assertTrue(Files.exists(agentsMd));
         String content = Files.readString(agentsMd);
-        assertTrue(content.contains("Skill Routing"));
+        assertTrue(content.contains("/camel-start"));
         assertTrue(content.contains("/camel-brainstorm"));
-        assertTrue(content.contains("Iron Laws"));
-        assertTrue(content.contains("MCP Catalog Verification"));
+        assertTrue(content.contains("Laws"));
+        assertTrue(content.contains("config.properties"));
     }
 
     @Test
