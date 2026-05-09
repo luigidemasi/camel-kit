@@ -32,12 +32,12 @@ Users may arrive partway through a pipeline:
 ### Pipeline Overview
 
 **Pipeline 1 — Greenfield / New Feature:**
-```
+```text
 /camel-brainstorm → /camel-plan → /camel-execute → /camel-verify
 ```
 
 **Pipeline 2 — Migration:**
-```
+```text
 /camel-migrate → /camel-plan → /camel-execute → /camel-verify
 ```
 

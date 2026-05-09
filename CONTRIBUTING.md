@@ -111,7 +111,7 @@ camel-kit/
 │           ├── claude/          # Anthropic Claude Code
 │           ├── gemini/          # Google Gemini CLI
 │           ├── qwen/            # Qwen
-n│           ├── opencode/        # OpenCode
+│           ├── opencode/        # OpenCode
 │           └── traits/          # Agent-specific trait files (appended to skills at init)
 │               ├── claude/      # Claude Code traits
 │               ├── gemini/      # Gemini CLI traits

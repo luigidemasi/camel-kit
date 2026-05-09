@@ -29,7 +29,7 @@ A skill is a directory containing a manifest file (`SKILL.md`) and an optional `
 ---
 name: camel-{name}
 description: Brief description with trigger keywords
-user_invocable: true
+user_invocable: false
 ---
 
 # /camel-{name}
@@ -43,6 +43,8 @@ user_invocable: true
 | `guides/main-guide.md` | Always | Primary instruction guide |
 | `guides/optional-guide.md` | When condition X | Supplementary guide |
 ```
+
+**Note:** Only `camel-start` sets `user_invocable: true`.
 
 The frontmatter fields:
 - `name` -- skill identifier, used in cross-references
@@ -59,6 +61,7 @@ The frontmatter fields:
 | `camel-execute` | No | `camel-plan` (auto-invoked after planning) | Environment probe, dispatch subagents per task with two-stage review |
 | `camel-migrate` | No | `camel-start` (migration) | Migration entry point: shortcut into `camel-brainstorm` with project type pre-set |
 | `camel-verify` | No | `camel-execute` (after all tasks) | 3-phase runtime verification loop (build, Citrus tests, report) |
+| `camel-ship` | No | `camel-verify` (post-verification) | Autonomous pipeline — chains brainstorm → plan → execute → verify with configurable oversight |
 | `camel-design` | No | `camel-brainstorm` | Guides for component selection, EIP catalog, TDD assembly |
 | `camel-implement` | No | `camel-execute` | Guides for YAML generation, properties, Docker Compose, DataMapper |
 | `camel-validate` | No | `camel-execute` | Guides for schema validation, endpoint verification, security analysis |
