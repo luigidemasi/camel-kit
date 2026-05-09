@@ -43,6 +43,10 @@ public class GeminiGenerator extends DefaultGenerator {
             new String[]{
                     "Migrate integrations to Apache Camel",
                     "Delegate this task to the camel-migrator subagent.\nRead .gemini/skills/camel-migrate/SKILL.md and follow those instructions."},
+            "camel-start",
+            new String[]{
+                    "Route to the right camel-kit skill for integration work",
+                    "Read .gemini/skills/camel-start/SKILL.md and follow those instructions."},
             "camel-execute",
             new String[]{
                     "Execute implementation plan by dispatching to specialized subagents",
