@@ -18,29 +18,31 @@ Camel-Kit adds structured slash commands to your AI assistant that guide you thr
 ## The Workflow
 
 ```
-Greenfield:   /camel-brainstorm → /camel-plan → /camel-execute
+Entry:        /camel-start         (routes to the right skill based on context)
+
+Greenfield:   /camel-brainstorm → /camel-plan → /camel-execute → /camel-verify
                                                       ├── implements (camel-implement)
                                                       ├── validates (camel-validate)
-                                                      ├── tests (camel-test)
-                                                      └── verifies (camel-verify)
+                                                      └── tests (camel-test)
 
-Migration:    /camel-migrate   → /camel-plan → /camel-execute
+Migration:    /camel-migrate    → /camel-plan → /camel-execute → /camel-verify
 
-Shortcuts:    /camel-flow          (greenfield shortcut → brainstorm)
+Utilities:    /camel-validate      (endpoint validation only)
               /camel-ship          (autonomous full pipeline with oversight levels)
-
-Standalone:   /camel-verify        (runtime verification only)
+              /camel-knowledge     (documentation Q&A)
 ```
 
 | Command | Purpose |
 |---------|---------|
+| `/camel-start` | Entry point — routes to brainstorm (greenfield) or migrate based on context |
 | `/camel-brainstorm` | Interactive design session — produces a Blueprint Reference Document (BRD) with Technical Design Documents (TDDs) |
-| `/camel-flow` | Greenfield shortcut — jumps directly into brainstorm for new integrations |
 | `/camel-migrate` | Migration from MuleSoft, Microsoft BizTalk, legacy Camel, or JBoss Fuse to modern Camel |
 | `/camel-plan` | Reviews approved design, creates a detailed implementation plan with wave analysis for parallel execution |
 | `/camel-execute` | Orchestrated execution — environment probe, then implements, validates, tests, and verifies all flows |
 | `/camel-verify` | Runtime verification — 3-phase loop (build, Citrus tests, report) with error classification and fix routing |
+| `/camel-validate` | Standalone endpoint validation — checks component configuration without full implementation |
 | `/camel-ship` | Autonomous pipeline — runs brainstorm, plan, execute, and verify end-to-end with configurable oversight (`always`, `smart`, `never`) |
+| `/camel-knowledge` | Documentation Q&A — semantic search over Apache Camel docs, CVEs, errata, and component catalog |
 
 [Command Reference →](docs/commands.md)
 
@@ -138,7 +140,7 @@ camel-kit init my-integration --ai claude -p "camel.version=4.18.0"
 cd my-integration
 
 # 4. Start designing
-/camel-brainstorm
+/camel-start
 ```
 
 ---
