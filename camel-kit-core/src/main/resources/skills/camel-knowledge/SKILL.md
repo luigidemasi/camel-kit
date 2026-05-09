@@ -1,12 +1,12 @@
 ---
 name: camel-knowledge
-description: Use this skill to look up Apache Camel documentation, component details, CVEs, errata, migration guides, release notes, or JIRA issues. Trigger when the user asks 'what are the options for camel-kafka', 'is there a CVE for', 'what changed in version', 'look up the docs for', 'is this component supported', 'show me the release notes', 'check for security advisories', or any question about Camel component configuration, API details, version-specific behavior, supported configurations, or security vulnerabilities.
-user_invocable: true
+description: Look up Camel documentation, components, CVEs, errata, and versions.
+user_invocable: false
 ---
 
 # Camel Knowledge — Apache Camel Documentation Reference
 
-> This skill is NOT user-invocable. It is loaded by pipeline skills (`camel-brainstorm`, `camel-execute`) when documentation lookup is needed.
+> Invocable standalone via `/camel-knowledge` or loaded by pipeline skills for documentation lookup.
 
 ## Purpose
 

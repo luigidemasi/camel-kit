@@ -1,7 +1,7 @@
 ---
 name: camel-ship
-description: Use this skill when the user wants to run the entire integration workflow autonomously — from brainstorm through verification — in a single command. Trigger for phrases like 'ship it', 'build the whole thing', 'run the full pipeline', 'autonomous mode', 'end to end', or when the user provides requirements and wants everything generated without manual phase transitions. Also use when the user references '--ask', 'oversight level', 'resume pipeline', or 'auto-fix'.
-user_invocable: true
+description: Run the full pipeline autonomously with configurable oversight.
+user_invocable: false
 ---
 
 # Camel Ship — Autonomous Pipeline

@@ -1,7 +1,7 @@
 ---
 name: camel-migrate
 description: Migrate an existing integration from another product to Apache Camel
-user-invocable: true
+user_invocable: false
 metadata:
   version: "2.0.0"
   author: "camel-kit"

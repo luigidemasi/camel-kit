@@ -1,12 +1,12 @@
 ---
 name: camel-validate
-description: Use this skill to validate existing Camel routes for correctness, quality, and security. Trigger when the user says 'check my route', 'validate this YAML', 'is this correct', 'review my route', 'find issues', 'what's wrong with my route', 'verify the YAML', 'check for anti-patterns', 'security review', 'constitution compliance', or wants to inspect any .camel.yaml file for component existence, property correctness, URI syntax, EIP pattern usage, or best practice violations. Generates timestamped validation reports.
-user_invocable: true
+description: Static quality analysis of Camel routes — correctness, security, anti-patterns.
+user_invocable: false
 ---
 
 # Camel Validate Reference
 
-> This skill is NOT user-invocable. It is loaded by `camel-execute` when dispatching quality review subagents.
+> Invocable standalone via `/camel-validate` or loaded by `camel-execute` for quality review.
 
 ## Purpose
 

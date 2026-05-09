@@ -1,7 +1,7 @@
 ---
 name: camel-plan
-description: Use this skill when a design specification or technical design document exists and needs to be broken into implementation tasks. Trigger when the user says 'create a plan', 'break this into tasks', 'how should we implement this', 'decompose the spec', 'what are the implementation steps', or has an approved design at docs/design-spec.md. Also use when the user references an existing spec and wants to move to implementation, or asks about task dependencies, parallel execution, or wave analysis for their approved design.
-user_invocable: true
+description: Break a design spec into implementation tasks with wave analysis.
+user_invocable: false
 ---
 
 # Camel Plan — Phase 2 Orchestrator

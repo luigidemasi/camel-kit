@@ -1,7 +1,7 @@
 ---
 name: camel-brainstorm
-description: Use this skill whenever the user wants to design, architect, or plan ANY integration — connecting systems, building data pipelines, creating message flows, or starting a new Camel project. Also use when migrating from MuleSoft, Fuse, TIBCO, or older Camel versions. Trigger for phrases like 'I need to connect X to Y', 'build an integration', 'design a flow', 'create a data pipeline', 'set up message routing', 'integrate our systems', or any request involving multiple systems that need to exchange data, even if the user doesn't mention Camel, routes, or integration explicitly. This is the primary entry point for all camel-kit work.
-user_invocable: true
+description: Design and plan Camel integrations through collaborative dialogue.
+user_invocable: false
 ---
 
 # Camel Brainstorm — Phase 1 Orchestrator
