@@ -298,10 +298,10 @@ OpenCode uses 7 agents with the most granular permission system of any supported
 
 | File | Purpose |
 |------|---------|
-| `templates/opencode/agents-md.md` | `AGENTS.md` -- project root (iron laws, Camel version, MCP usage) |
+| `templates/opencode/agents-md.md` | `AGENTS.md` -- ultra-minimal bootstrap (compressed iron laws + `/camel-start` directive) |
 | `templates/opencode/agents/*.md` | 7 agent definitions with per-type glob-pattern permissions |
 
-OpenCode reads `CLAUDE.md` as fallback if no `AGENTS.md` exists, but Camel-Kit generates `AGENTS.md` explicitly to take precedence and include OpenCode-specific guidance.
+OpenCode reads `CLAUDE.md` as fallback if no `AGENTS.md` exists, but Camel-Kit generates `AGENTS.md` explicitly to take precedence. The AGENTS.md is now ultra-minimal (~80 tokens): compressed iron laws + a single bootstrap directive pointing to `/camel-start`, which loads the full context via progressive skill loading.
 
 No `.opencodeignore` -- OpenCode uses `.gitignore` for file exclusion (simpler than Qwen/Gemini).
 
@@ -378,4 +378,4 @@ Each agent has a `steps` limit. When reached, OpenCode instructs the agent to su
 | Parallel execution | Yes (graph-based) | No | No | No | No |
 | Execute phase | Subagent with parallel dispatch | Gate file with mode switch | Main agent (recursion prevention) | Sub-agent with `task` tool | Agent with `task` permission |
 | Agent-specific ignore | No | No | `.geminiignore` | `.qwenignore` | No (uses `.gitignore`) |
-| Instruction composition | Single `CLAUDE.md` | Modes + gates + rules | `@file.md` modular imports | Single `QWEN.md` | Single `AGENTS.md` |
+| Instruction composition | Single `CLAUDE.md` | Modes + gates + rules | `@file.md` modular imports | Single `QWEN.md` | Ultra-minimal `AGENTS.md` (~80 tokens) |

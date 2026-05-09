@@ -47,22 +47,25 @@ user_invocable: true
 The frontmatter fields:
 - `name` -- skill identifier, used in cross-references
 - `description` -- trigger keywords that help agents match user intent to the correct skill
-- `user_invocable` -- `true` if users can invoke it directly via slash command; `false` if it is loaded by other skills
+- `user_invocable` -- `true` only for `camel-start` (the meta-router). All other skills have `user_invocable: false`. Note: slash commands still work for all skills — this is an independent mechanism from skill metadata
 
 ### All Skills
 
 | Skill | User-Invocable | Loaded By | Purpose |
 |-------|---------------|-----------|---------|
-| `camel-brainstorm` | Yes | -- | Orchestrate design phase: interview user, produce BRD + TDDs |
-| `camel-plan` | Yes | `camel-brainstorm` (after design approval) | Produce detailed implementation plan from approved design spec |
-| `camel-execute` | Yes | `camel-plan` (auto-invoked after planning) | Environment probe, dispatch subagents per task with two-stage review |
-| `camel-migrate` | Yes | -- | Migration entry point: shortcut into `camel-brainstorm` with project type pre-set |
-| `camel-verify` | Yes | `camel-execute` (after all tasks) | 3-phase runtime verification loop (build, Citrus tests, report) |
+| `camel-start` | Yes | -- | Meta-router and primary entry point: detects intent, loads appropriate pipeline |
+| `camel-brainstorm` | No | `camel-start` (greenfield) | Orchestrate design phase: interview user, produce BRD + TDDs |
+| `camel-plan` | No | `camel-brainstorm` (after design approval) | Produce detailed implementation plan from approved design spec |
+| `camel-execute` | No | `camel-plan` (auto-invoked after planning) | Environment probe, dispatch subagents per task with two-stage review |
+| `camel-migrate` | No | `camel-start` (migration) | Migration entry point: shortcut into `camel-brainstorm` with project type pre-set |
+| `camel-verify` | No | `camel-execute` (after all tasks) | 3-phase runtime verification loop (build, Citrus tests, report) |
 | `camel-design` | No | `camel-brainstorm` | Guides for component selection, EIP catalog, TDD assembly |
 | `camel-implement` | No | `camel-execute` | Guides for YAML generation, properties, Docker Compose, DataMapper |
 | `camel-validate` | No | `camel-execute` | Guides for schema validation, endpoint verification, security analysis |
 | `camel-test` | No | `camel-execute` | Guides for route analysis and test generation with Citrus + Testcontainers |
 | `camel-knowledge` | No | `camel-brainstorm`, `camel-execute` | Routes questions to knowledge MCP tools |
+
+**Note:** Only `camel-start` has `user_invocable: true` in its skill metadata. All other skills have `user_invocable: false`. Slash commands still work for all skills (independent mechanism).
 
 ### Shared Guides
 
@@ -617,7 +620,7 @@ Iron Law 3 explicitly incorporates and enforces the 7 constitution rules. They a
 ---
 name: camel-{name}
 description: Brief description with trigger keywords
-user_invocable: true
+user_invocable: false
 ---
 
 # /camel-{name}
@@ -631,9 +634,11 @@ user_invocable: true
 | `guides/main-guide.md` | Always | Primary instruction guide |
 ```
 
+**Note:** Only `camel-start` should have `user_invocable: true`. All other skills have `user_invocable: false`. Slash commands still work independently of this metadata.
+
 3. **Write guide files** in `guides/`. Each guide is a self-contained markdown instruction file loaded by the agent when the skill is active.
 
-4. **If user-invocable:** update agent templates to register the command. Each agent needs the slash command added to its instruction file:
+4. **If registering slash commands:** update agent templates to register the command. Each agent needs the slash command added to its instruction file:
    - Claude Code: update `templates/claude/claude-md.md`
    - IBM Project Bob: update `templates/bob/custom_modes.yaml` and add rules directory
    - Gemini CLI: update `templates/gemini/gemini-md.md`
