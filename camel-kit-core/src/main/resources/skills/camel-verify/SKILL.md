@@ -35,6 +35,8 @@ When invoked standalone, runs the full verification loop on the project as-is. W
 
 ## After Verification
 
-When all verification phases pass, suggest to the user:
+When all verification phases pass, inform the user:
 
-> "Verification complete. For a comprehensive quality report (anti-patterns, security, schema compliance), run `/camel-validate`."
+> "Verification complete. The next recommended step is a quality review. Run `/camel-validate` to generate a comprehensive report (anti-patterns, security, schema compliance)."
+
+Do NOT invoke `/camel-validate` automatically — the user must run it manually.

@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Progressive skill loading via meta-router** — introduced `/camel-start` as the single auto-discovered skill that routes users into two pipelines (greenfield: brainstorm → plan → execute → verify, migration: migrate → plan → execute → verify). All other skills set to `user_invocable: false` — slash commands still work as on-demand loaders. Context baseline reduced from ~1,260 to ~110 tokens (91% reduction).
+  - New `camel-start/SKILL.md` with decision tree, "When NOT to use" table, pipeline overview, and Tier 2 utility references
+  - AGENTS.md rewritten to ultra-minimal bootstrap (~80 tokens): compressed iron laws + entry point directive
+  - Skill tiering: Tier 1 (pipeline: brainstorm, migrate, plan, execute, verify), Tier 2 (utilities: validate, ship, knowledge), Internal (guide libraries: design, implement, test)
+
+### Removed
+
+- **`/camel-flow` skill** — redundant 14-line redirect to `/camel-brainstorm` with greenfield preset, now handled by `/camel-start` routing
+
+### Fixed
+
+- **Incorrect relative path in Bob test template** — `camel-test.md` used `../main/resources/` instead of `../../main/resources/` for route YAML references in test examples
+- **Stale body text in `camel-validate` and `camel-knowledge`** — both had "NOT user-invocable" text contradicting their actual invocability via slash commands
+
 ### Added
 
 - **Project graph analysis (`camel-kit-graph` module)** — new module that builds an in-memory graph of an entire Camel project and exposes it through CLI commands
