@@ -1,7 +1,7 @@
 ---
 name: camel-verify
-description: Use this skill when the user wants to verify that a Camel application actually works — building it, starting it, testing it, and fixing errors automatically. Trigger for 'it doesn't start', 'build failed', 'verify the app works', 'run the verification loop', 'test if it runs', 'the route throws an error', 'debug the startup', 'check if the build passes', or any request about compilation errors, startup failures, runtime exceptions, or behavioral testing of Camel routes. This is the runtime feedback loop that builds, starts, tests, classifies errors, and fixes them iteratively.
-user_invocable: true
+description: Build, test, diagnose, and fix a Camel application iteratively.
+user_invocable: false
 ---
 
 # Camel Verify
@@ -32,3 +32,11 @@ When invoked standalone, runs the full verification loop on the project as-is. W
 |-------|-------------|---------|
 | `guides/verify-loop.md` | Always | Core verification loop — 3 phases, iteration, fix routing, report |
 | `guides/error-taxonomy.md` | Always (reference) | Error classification tables — patterns, categories, fix actions |
+
+## After Verification
+
+When all verification phases pass, inform the user:
+
+> "Verification complete. The next recommended step is a quality review. Run `/camel-validate` to generate a comprehensive report (anti-patterns, security, schema compliance)."
+
+Do NOT invoke `/camel-validate` automatically — the user must run it manually.

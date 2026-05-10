@@ -139,7 +139,7 @@ Load `guides/test-generation.md`.
          jbang:
            run:
              integration:
-               file: "../main/resources/camel/<flow-name>.camel.yaml"
+               file: "../../main/resources/camel/<flow-name>.camel.yaml"
              wait:
                for:
                  log:
@@ -283,7 +283,7 @@ actions:
       jbang:
         run:
           integration:
-            file: "../main/resources/camel/order-processing.camel.yaml"
+            file: "../../main/resources/camel/order-processing.camel.yaml"
           wait:
             for:
               log:

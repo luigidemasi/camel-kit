@@ -94,8 +94,9 @@ camel-kit/
 │   └── src/main/resources/
 │       ├── distribution.properties  # Single source of truth for all config defaults
 │       ├── skills/              # Skill definitions (markdown instruction files)
+│       │   ├── camel-start/       # Meta-router and primary entry point
 │       │   ├── camel-design/      # Design-phase reference guides (internal, loaded by camel-brainstorm)
-│       │   ├── camel-brainstorm/  # Interactive design session (/camel-design slash command)
+│       │   ├── camel-brainstorm/  # Interactive design session
 │       │   ├── camel-plan/        # Implementation planning
 │       │   ├── camel-execute/     # Orchestrated execution
 │       │   ├── camel-migrate/     # Migration orchestrator
@@ -104,14 +105,13 @@ camel-kit/
 │       │   ├── camel-validate/    # Quality review (internal)
 │       │   ├── camel-test/        # Test generation (internal)
 │       │   ├── camel-knowledge/   # Camel docs (internal)
-│       │   ├── camel-flow/        # Single-flow shortcut (internal, legacy)
 │       │   └── shared/            # Shared guides (iron laws, DataMapper, MCP)
 │       └── templates/           # Agent-specific instruction templates
 │           ├── bob/             # IBM Project Bob
 │           ├── claude/          # Anthropic Claude Code
 │           ├── gemini/          # Google Gemini CLI
 │           ├── qwen/            # Qwen
-n│           ├── opencode/        # OpenCode
+│           ├── opencode/        # OpenCode
 │           └── traits/          # Agent-specific trait files (appended to skills at init)
 │               ├── claude/      # Claude Code traits
 │               ├── gemini/      # Gemini CLI traits
@@ -351,7 +351,7 @@ skills/camel-{name}/
 ---
 name: camel-{name}
 description: Brief description with trigger keywords for AI agent discovery
-user_invocable: true
+user_invocable: false
 ---
 
 # /camel-{name}

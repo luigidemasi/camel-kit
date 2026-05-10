@@ -35,7 +35,8 @@ class OpenCodeGeneratorTest {
         Path agentsMd = tempDir.resolve("AGENTS.md");
         assertTrue(Files.exists(agentsMd));
         String content = Files.readString(agentsMd);
-        assertTrue(content.contains("Iron Laws"));
+        assertTrue(content.contains("/camel-start"));
+        assertTrue(content.contains("Laws"));
         assertTrue(content.contains("config.properties"));
         assertTrue(content.contains("camel-kit graph stats"));
     }

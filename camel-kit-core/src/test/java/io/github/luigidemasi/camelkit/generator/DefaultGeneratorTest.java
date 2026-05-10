@@ -37,6 +37,8 @@ class DefaultGeneratorTest {
         assertTrue(Files.exists(ctx.commandsDir().resolve("camel-migrate.md")));
         assertTrue(Files.exists(ctx.commandsDir().resolve("camel-brainstorm.md")));
         assertTrue(Files.exists(ctx.commandsDir().resolve("camel-execute.md")));
+        assertTrue(Files.exists(ctx.commandsDir().resolve("camel-start.md")));
+        assertFalse(Files.exists(ctx.commandsDir().resolve("camel-flow.md")));
         assertFalse(Files.exists(ctx.commandsDir().resolve("camel-implement.md")));
         assertFalse(Files.exists(ctx.commandsDir().resolve("camel-test.md")));
         String content = Files.readString(ctx.commandsDir().resolve("camel-migrate.md"));
@@ -79,10 +81,10 @@ class DefaultGeneratorTest {
         Path agentsMd = ctx.projectDir().resolve("AGENTS.md");
         assertTrue(Files.exists(agentsMd));
         String content = Files.readString(agentsMd);
-        assertTrue(content.contains("Skill Routing"));
+        assertTrue(content.contains("/camel-start"));
         assertTrue(content.contains("/camel-brainstorm"));
-        assertTrue(content.contains("Iron Laws"));
-        assertTrue(content.contains("MCP Catalog Verification"));
+        assertTrue(content.contains("Laws"));
+        assertTrue(content.contains("config.properties"));
     }
 
     @Test

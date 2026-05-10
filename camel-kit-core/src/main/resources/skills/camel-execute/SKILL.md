@@ -1,7 +1,7 @@
 ---
 name: camel-execute
-description: Use this skill when an implementation plan is approved and ready for execution — the user wants all tasks implemented, code generated, tests written, and validation run. Trigger when the user says 'execute the plan', 'implement everything', 'generate the code', 'run all tasks', 'go ahead and build it', 'the plan is approved, start', or references docs/implementation-plan.md being ready. Also use when the user wants to dispatch implementation with two-stage review (spec compliance + code quality) for each task.
-user_invocable: true
+description: Execute an approved implementation plan with two-stage review.
+user_invocable: false
 ---
 
 # Camel Execute — Phase 3 Orchestrator
