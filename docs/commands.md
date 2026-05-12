@@ -11,7 +11,8 @@ This document is the reference for all Camel-Kit commands: the `camel-kit` CLI a
   - [/camel-plan](#camel-plan)
   - [/camel-execute](#camel-execute)
   - [/camel-migrate](#camel-migrate)
-  - [/camel-verify](#camel-verify)
+  - [/camel-validate](#camel-validate)
+  - [/camel-verify (internal)](#camel-verify)
 - [Command Cheat Sheet](#command-cheat-sheet)
 
 ---
@@ -296,7 +297,7 @@ camel-kit graph migration-context processOrders --depth 5
 
 ## Slash Commands
 
-These commands are used inside your AI coding assistant after project initialization. There are six user-invocable slash commands.
+These commands are used inside your AI coding assistant after project initialization. There are six user-invocable slash commands: `/camel-brainstorm`, `/camel-plan`, `/camel-execute`, `/camel-migrate`, `/camel-validate`, and `/camel-ship`.
 
 Four additional skills (`/camel-implement`, `/camel-verify`, `/camel-test`, `/camel-knowledge`) are internal -- they are orchestrated automatically by `/camel-execute` and should not be run directly.
 
@@ -521,6 +522,27 @@ For connectors with no direct equivalent, the command stops and asks the user be
 | SFTP | `sftp` | SSH key authentication |
 | SQL | `sql` / `jdbc` | `sql` for queries, `jdbc` for batch |
 | WCF-BasicHttp | `cxf` | SOAP 1.1/1.2 support |
+
+---
+
+### /camel-validate
+
+> **Tier 1 pipeline step.** Final stage after execute — produces a comprehensive quality report.
+
+**Purpose:** Static quality analysis of generated Camel routes across multiple dimensions: schema validation, endpoint verification, constitution compliance, security analysis, and anti-pattern detection.
+
+**When to use:** After `/camel-execute` completes (standalone or as Stage 3 in the `/camel-ship` pipeline). Use whenever you have generated routes that need quality validation before shipping.
+
+**Produces:**
+- Validation report saved to `docs/validation-report-YYYY-MM-DD_HH-mm.md`
+- Categorized findings: PASS / FAIL / WARN per quality dimension
+- Constitution compliance check (all 7 rules)
+- Recommendations for priority fixes
+
+**Example:**
+```
+/camel-validate
+```
 
 ---
 

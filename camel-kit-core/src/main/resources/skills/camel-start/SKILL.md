@@ -20,7 +20,8 @@ Answer these questions in order. The first "yes" is your destination.
 | 2 | Is there an approved design spec ready for task decomposition? | Plan it | `/camel-plan` |
 | 3 | Is there an approved implementation plan ready for execution? | Execute it | `/camel-execute` |
 | 4 | Are there generated routes that need quality validation? | Validate them | `/camel-validate` |
-| 5 | None of the above — new integration, new feature, or unclear? | Design it | `/camel-brainstorm` |
+| 5 | Is something broken — build fails, startup errors, runtime exceptions? | Re-execute with verification | `/camel-execute` |
+| 6 | None of the above — new integration, new feature, or unclear? | Design it | `/camel-brainstorm` |
 
 ### Mid-Pipeline Entry
 
@@ -28,6 +29,7 @@ Users may arrive partway through a pipeline:
 - "I already have a design spec" → skip brainstorm, go to `/camel-plan`
 - "The plan is approved, start building" → skip brainstorm+plan, go to `/camel-execute`
 - "I have generated routes that need checking" → go to `/camel-validate`
+- "It was working but now it's broken" → go to `/camel-execute` (includes runtime verification via `camel-verify`)
 
 ### Pipeline Overview
 

@@ -23,6 +23,8 @@ Decision rules for each oversight level at each pipeline stage. The orchestrator
 | **Stamp** | All gates pass | DONE | DONE | DONE |
 | **Stamp** | Gate failure | PAUSE | PAUSE | PAUSE (blocker) |
 
+**Why Execute always pauses for `smart` but Validate auto-proceeds:** Execute produces code (high-risk artifact). The user should always see the execution report before the pipeline moves on. Validate produces a read-only quality report with no side effects — if there are no Critical findings, auto-proceeding to Stamp is safe. Critical findings always PAUSE regardless of oversight level.
+
 ---
 
 ## Decision Logic

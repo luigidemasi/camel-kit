@@ -204,8 +204,8 @@ If `.camel-kit/project-graph.json` already exists (adding to existing project or
 
 ```
 Note: The project graph may be stale — it was built before this
-implementation. Run /camel-init to rebuild it before running
-/camel-validate or /camel-test.
+implementation. Run /camel-init to rebuild it before the
+post-execute validation and testing phases.
 ```
 
 If no graph exists: skip silently. No suggestion.
@@ -284,10 +284,9 @@ NEXT STEPS
 
 1. Review generated files
 
-2. Validate the implementation:
-   /camel-validate {flow-name}
+2. Continue with remaining implementation tasks
 
-3. Generate integration tests:
-   /camel-test {flow-name}
+3. After all tasks complete, /camel-validate runs as the
+   final pipeline quality gate (Stage 3)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```

@@ -42,7 +42,7 @@ digraph execute {
     mark_done [label="Mark task complete", shape=box];
     more [label="More tasks?", shape=diamond];
     final [label="Final cross-cutting\nreview", shape=box];
-    verify [label="Verification phase\n(camel-verify)", shape=box];
+    verify [label="Internal verification\n(camel-verify subagent)", shape=box];
     done [label="Completion summary", shape=doublecircle];
     next [label="Pipeline continues to\n/camel-validate (Stage 3)", shape=note, style=dashed];
     
