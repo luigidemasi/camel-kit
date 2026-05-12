@@ -235,6 +235,30 @@ flowchart TB
     VF --> E
 ```
 
+### Pipeline Files
+
+Each pipeline run creates a directory under `docs/camel-kit/` to persist artifacts across sessions:
+
+```
+docs/camel-kit/001-order-processing/
+  design-spec.md           <- brainstorm output (Phase 1)
+  implementation-plan.md   <- plan output (Phase 2)
+  execution-report.md      <- execute output (Phase 3)
+  validation-report.md     <- validate output (Phase 4)
+```
+
+**Starting a pipeline:**
+
+```bash
+# Generate a pipeline ID and create the directory
+{COMMAND_PREFIX} nextId order-processing
+# Output: 001-order-processing
+```
+
+The pipeline state is tracked in `.camel-kit/pipeline.json`, which records the active pipeline ID. Each skill reads this file to know where to find and save artifacts.
+
+**Session resilience:** Because all artifacts are saved to disk, you can close your session and resume later. The pipeline picks up where you left off based on which artifacts already exist.
+
 ### Phase 1: Design (`/camel-brainstorm`)
 
 The design phase is an interactive interview that produces the design spec. The AI asks questions one at a time -- never in batches -- to understand your integration before designing it.
@@ -263,7 +287,7 @@ The plan phase reviews the approved BRD and decomposes it into bite-sized implem
 - Two-stage review specification per task (spec compliance, then code quality)
 - Agent persona assignment per task
 
-**Output:** An implementation plan (`docs/implementation-plan.md`).
+**Output:** An implementation plan (`docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`).
 
 After the plan is complete, the pipeline transitions automatically to the execute phase. There is no separate plan approval gate -- the design approval authorizes all downstream work. The environment probe (first step of execute) validates feasibility before code generation begins.
 
