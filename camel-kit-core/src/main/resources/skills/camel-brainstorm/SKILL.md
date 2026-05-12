@@ -145,16 +145,17 @@ Are you building a new integration from scratch, or migrating an existing one fr
 You MUST complete these items in order:
 
 1. **Detect project type** — greenfield or migration
-2. **Load context** — read `docs/constitution.md` (if it exists), `.camel-kit/config.properties` (if it exists)
-3. **Run interview/discovery** — load the appropriate guide:
+2. **Resolve pipeline** — read `shared/pipeline-infrastructure.md` for pipeline resolution logic. If no active pipeline exists, prompt the user to run `{COMMAND_PREFIX} nextId <slug>` to create one. The pipeline ID determines where artifacts are saved.
+3. **Load context** — read `docs/constitution.md` (if it exists), `.camel-kit/config.properties` (if it exists)
+4. **Run interview/discovery** — load the appropriate guide:
    - Greenfield: `guides/greenfield-interview.md`
    - Migration: `guides/migration-discovery.md`
-4. **Select Camel version** — load `guides/version-selection.md`
-5. **Design flows** — for each flow, load relevant `camel-design/` guides (component selection, EIPs, data formats, error handling, security, resilience)
-6. **Assemble design spec** — load `guides/design-assembly.md`
-7. **Self-review spec** — scan for placeholders, contradictions, unverified components
-8. **User reviews spec** — present spec, wait for explicit approval (Iron Law 4)
-9. **Transition** — YOU invoke the `camel-plan` skill automatically (do NOT tell the user to run it)
+5. **Select Camel version** — load `guides/version-selection.md`
+6. **Design flows** — for each flow, load relevant `camel-design/` guides (component selection, EIPs, data formats, error handling, security, resilience)
+7. **Assemble design spec** — load `guides/design-assembly.md`
+8. **Self-review spec** — scan for placeholders, contradictions, unverified components
+9. **User reviews spec** — present spec, wait for explicit approval (Iron Law 4)
+10. **Transition** — YOU invoke the `camel-plan` skill automatically (do NOT tell the user to run it)
 
 ---
 

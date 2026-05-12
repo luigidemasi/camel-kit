@@ -2,7 +2,7 @@
 
 > **Context:** Loaded by `camel-brainstorm` after the interview/discovery and version selection are complete.
 > **Purpose:** Assemble all gathered information into the design spec document.
-> **Output:** Design spec saved to `docs/design-spec.md` (or `docs/migration-spec.md` for migrations).
+> **Output:** Design spec saved to `docs/camel-kit/<PIPELINE_ID>/design-spec.md`. The pipeline ID is resolved from `.camel-kit/pipeline.json` (see `shared/pipeline-infrastructure.md`).
 
 ---
 
@@ -144,10 +144,13 @@ All flows in this spec are designed to comply with the 7 constitution rules:
 ```
 [project-name]/
 ├── .camel-kit/
-│   └── config.properties
+│   ├── config.properties
+│   └── pipeline.json
 ├── docs/
 │   ├── constitution.md
-│   └── design-spec.md          ← this file
+│   └── camel-kit/
+│       └── <PIPELINE_ID>/
+│           └── design-spec.md          ← this file
 ├── src/main/resources/
 │   ├── camel/
 │   │   ├── [flow-1].camel.yaml
@@ -214,8 +217,17 @@ Fix any issues inline.
 
 ## Save and Present
 
-1. Save the spec to `docs/design-spec.md` (greenfield) or `docs/migration-spec.md` (migration)
-2. Create `.camel-kit/config.properties` if it doesn't exist:
+1. Save the spec to `docs/camel-kit/<PIPELINE_ID>/design-spec.md` (both greenfield and migration)
+2. Create or update `.camel-kit/pipeline.json` with:
+   ```json
+   {
+     "activePipeline": "<PIPELINE_ID>",
+     "mode": "manual",
+     "started": "<current ISO-8601 timestamp>"
+   }
+   ```
+   Create `.camel-kit/` directory if it doesn't exist. If `pipeline.json` already exists with `mode: "ship"`, preserve the existing ship state and only update `activePipeline`.
+3. Create `.camel-kit/config.properties` if it doesn't exist:
    ```properties
    project.runtime=[main/spring-boot/quarkus]
    project.camelVersion=[full version]
