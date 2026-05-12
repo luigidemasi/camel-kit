@@ -6,6 +6,7 @@ This document is the reference for all Camel-Kit commands: the `camel-kit` CLI a
 
 - [CLI Commands](#cli-commands)
   - [camel-kit init](#camel-kit-init)
+  - [camel-kit nextId](#camel-kit-nextid)
 - [Slash Commands](#slash-commands)
   - [/camel-brainstorm](#camel-brainstorm)
   - [/camel-plan](#camel-plan)
@@ -292,6 +293,48 @@ camel-kit graph migration-context processOrders
 # Expand to depth 5 for complex route dependencies
 camel-kit graph migration-context processOrders --depth 5
 ```
+
+### camel-kit nextId
+
+Generate the next sequential pipeline ID and create the pipeline directory.
+
+**Usage:**
+
+```bash
+camel-kit nextId <slug>
+```
+
+**Arguments:**
+
+| Argument | Required | Description |
+|---|---|---|
+| `<slug>` | Yes | Pipeline slug — lowercase alphanumeric with hyphens (e.g., `order-processing`) |
+
+**Behavior:**
+
+1. Scans `docs/camel-kit/` for existing `NNN-*` directories
+2. Finds the maximum `NNN` value (or 0 if none exist)
+3. Creates `docs/camel-kit/<NNN+1>-<slug>/` directory
+4. Prints the generated pipeline ID to stdout
+
+**Examples:**
+
+```bash
+# First pipeline in a project
+$ camel-kit nextId order-processing
+001-order-processing
+
+# Subsequent pipelines
+$ camel-kit nextId inventory-sync
+002-inventory-sync
+```
+
+**Exit Codes:**
+
+| Code | Meaning |
+|---|---|
+| 0 | Success — pipeline ID generated and directory created |
+| 1 | Error — invalid slug or directory creation failure |
 
 ---
 

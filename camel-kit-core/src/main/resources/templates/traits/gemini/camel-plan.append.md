@@ -6,7 +6,7 @@
 
 When the implementation plan is ready:
 
-1. Save the plan to `docs/implementation-plan.md`
+1. Save the plan to `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`
 2. Present the plan summary to the user
 3. Ask the user how they want to handle file edits during execution:
 

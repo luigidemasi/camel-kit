@@ -122,7 +122,14 @@ Load decomposition rules: `guides/task-decomposition.md`
 
 ## Plan Document Format
 
-Save to `docs/implementation-plan.md`:
+### Pipeline Resolution
+
+Before generating the plan, resolve the active pipeline using `shared/pipeline-infrastructure.md`:
+1. Read `.camel-kit/pipeline.json` -> get `activePipeline`
+2. Read the design spec from `docs/camel-kit/<activePipeline>/design-spec.md`
+3. Save the plan to `docs/camel-kit/<activePipeline>/implementation-plan.md`
+
+Save to `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`:
 
 ```markdown
 # [Project Name] Implementation Plan
@@ -136,7 +143,7 @@ Save to `docs/implementation-plan.md`:
 
 **Tech Stack:** Apache Camel [version], [runtime], [key components]
 
-**Design Spec:** `docs/design-spec.md` (approved [date])
+**Design Spec:** `docs/camel-kit/<PIPELINE_ID>/design-spec.md` (approved [date])
 
 ---
 
@@ -188,12 +195,12 @@ Fix any issues inline.
 
 After saving the plan:
 
-1. Save the implementation plan to `docs/implementation-plan.md`
+1. Save the implementation plan to `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`
 2. **If agent-specific handoff instructions exist below** (appended by traits), follow those instead of step 3
 3. **Default (no trait override):** auto-invoke `camel-execute` immediately
 
 ```text
-Plan saved to docs/implementation-plan.md
+Plan saved to docs/camel-kit/<PIPELINE_ID>/implementation-plan.md
 
 Plan complete. Proceeding to execution — dispatching subagents for each task
 with two-stage review (spec compliance → code quality) between tasks.

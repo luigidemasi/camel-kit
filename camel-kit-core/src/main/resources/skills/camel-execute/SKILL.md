@@ -80,7 +80,7 @@ digraph execute {
 Before executing tasks, analyze the plan for parallel execution waves:
 
 ```bash
-{COMMAND_PREFIX} plan analyze docs/implementation-plan.md
+{COMMAND_PREFIX} plan analyze docs/camel-kit/<activePipeline>/implementation-plan.md
 ```
 
 This outputs JSON with parallel execution waves — groups of tasks that can run simultaneously because they touch different files:
@@ -172,7 +172,10 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces ALL four:
 
 ### Step 1: Read Plan and Extract Tasks
 
-Read `docs/implementation-plan.md` (or the plan path specified).
+Resolve the active pipeline using `shared/pipeline-infrastructure.md`:
+1. Read `.camel-kit/pipeline.json` -> get `activePipeline`
+2. Read the plan from `docs/camel-kit/<activePipeline>/implementation-plan.md`
+3. The execution report will be saved to `docs/camel-kit/<activePipeline>/execution-report.md`
 
 Extract ALL tasks with:
 - Full task text (don't summarize)
@@ -346,8 +349,9 @@ After the cross-cutting review, dispatch the full verification loop as a subagen
 IMPLEMENTATION COMPLETE
 ===============================================================
 
-Plan: docs/implementation-plan.md
-Design Spec: docs/design-spec.md
+Pipeline: <PIPELINE_ID>
+Plan: docs/camel-kit/<PIPELINE_ID>/implementation-plan.md
+Design Spec: docs/camel-kit/<PIPELINE_ID>/design-spec.md
 
 Tasks Completed: [N/N]
 
@@ -366,6 +370,8 @@ Verification: PASS/PARTIAL/FAIL/NOT_RUN
 
 ===============================================================
 ```
+
+Save the completion summary as `docs/camel-kit/<PIPELINE_ID>/execution-report.md`.
 
 ---
 

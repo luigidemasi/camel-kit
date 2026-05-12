@@ -2,7 +2,7 @@
 
 > **Context:** Loaded by `camel-brainstorm` after the interview/discovery and version selection are complete.
 > **Purpose:** Assemble all gathered information into the design spec document.
-> **Output:** Design spec saved to `docs/design-spec.md` (or `docs/migration-spec.md` for migrations).
+> **Output:** Design spec saved to `docs/camel-kit/<PIPELINE_ID>/design-spec.md`. The pipeline ID is resolved from `.camel-kit/pipeline.json` (see `shared/pipeline-infrastructure.md`).
 
 ---
 
@@ -64,12 +64,24 @@ The design spec is the single source of truth for what gets built. It contains:
 **Source:**
 - System: [name]
 - Component: `[camel-component]` (MCP-verified)
+- **Rationale:** [Why this component was chosen over alternatives]
+- **Constraints:** [Technical constraints that influenced this choice]
 - Trigger: [description]
 - Endpoint options: [key options from MCP catalog]
+
+**Rationale examples (good):**
+- "Chose `camel-kafka` over `camel-jms` because the source system is Kafka and direct consumption avoids message format translation overhead."
+- "Selected `camel-sql` over `camel-jdbc` because we need named parameter binding and result set streaming for large queries."
+
+**Rationale examples (bad — do not accept):**
+- "Best component for this use case" (too generic — explain the specific technical reason)
+- "Recommended by MCP catalog" (the catalog lists options, it doesn't recommend)
 
 **Transformations:**
 1. [step description]
    - EIP: `[eip-name]` (MCP-verified)
+   - **Rationale:** [Why this EIP was chosen over alternatives]
+   - **Constraints:** [Technical constraints that influenced this choice]
    - Details: [configuration]
 
 **DataMapper:** (if applicable)
@@ -84,6 +96,8 @@ The design spec is the single source of truth for what gets built. It contains:
 **Sink:**
 - System: [name]
 - Component: `[camel-component]` (MCP-verified)
+- **Rationale:** [Why this component was chosen over alternatives]
+- **Constraints:** [Technical constraints that influenced this choice]
 - Action: [description]
 - Endpoint options: [key options from MCP catalog]
 
@@ -138,10 +152,13 @@ All flows in this spec are designed to comply with the 7 constitution rules:
 ```
 [project-name]/
 ├── .camel-kit/
-│   └── config.properties
+│   ├── config.properties
+│   └── pipeline.json
 ├── docs/
 │   ├── constitution.md
-│   └── design-spec.md          ← this file
+│   └── camel-kit/
+│       └── <PIPELINE_ID>/
+│           └── design-spec.md          ← this file
 ├── src/main/resources/
 │   ├── camel/
 │   │   ├── [flow-1].camel.yaml
@@ -200,6 +217,7 @@ After assembling the spec, check:
 4. **Constitution compliance:** Would each flow pass all 7 rules as designed?
 5. **Property completeness:** Does every externalized value have a property name?
 6. **Flow completeness:** Does each flow from the interview have a design section?
+7. **Decision rationale:** Does every component and EIP selection have Rationale and Constraints filled in? Generic answers like "best fit" are not sufficient — explain the specific technical reasons.
 
 Fix any issues inline.
 
@@ -207,8 +225,17 @@ Fix any issues inline.
 
 ## Save and Present
 
-1. Save the spec to `docs/design-spec.md` (greenfield) or `docs/migration-spec.md` (migration)
-2. Create `.camel-kit/config.properties` if it doesn't exist:
+1. Save the spec to `docs/camel-kit/<PIPELINE_ID>/design-spec.md` (both greenfield and migration)
+2. Create or update `.camel-kit/pipeline.json` with:
+   ```json
+   {
+     "activePipeline": "<PIPELINE_ID>",
+     "mode": "manual",
+     "started": "<current ISO-8601 timestamp>"
+   }
+   ```
+   Create `.camel-kit/` directory if it doesn't exist. If `pipeline.json` already exists with `mode: "ship"`, preserve the existing ship state and only update `activePipeline`.
+3. Create `.camel-kit/config.properties` if it doesn't exist:
    ```properties
    project.runtime=[main/spring-boot/quarkus]
    project.camelVersion=[full version]
@@ -219,7 +246,7 @@ Fix any issues inline.
 Present the spec to the user:
 
 ```
-Design spec saved to docs/design-spec.md
+Design spec saved to docs/camel-kit/<PIPELINE_ID>/design-spec.md
 
 Please review the spec. Once you approve it, I'll create a detailed implementation plan.
 

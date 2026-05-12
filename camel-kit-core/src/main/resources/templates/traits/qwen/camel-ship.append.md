@@ -45,7 +45,7 @@ Maintain a pipeline progress list using `todo_write`:
 
 ### Checkpoint Between Stages
 
-After each stage completes, write the state to `.camel-kit/ship-state.json` AND update the todo list. This dual-write ensures state is recoverable from either mechanism.
+After each stage completes, write the state to `.camel-kit/pipeline.json` AND update the todo list. This dual-write ensures state is recoverable from either mechanism.
 
 ### Catalog and Knowledge Research via Fork
 
