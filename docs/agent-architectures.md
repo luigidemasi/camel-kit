@@ -158,11 +158,15 @@ Bob supports three checkpoint types used in gate files:
 
 ---
 
-## Gemini CLI -- Policy Engine + Modular Imports
+## Gemini CLI -- Parallel Scheduler + Policy Engine + Modular Imports
 
 ### Dispatch Model
 
-Gemini uses subagents for 6 pipeline phases, but `/camel-execute` runs in the **main agent context** because Gemini subagents cannot invoke other subagents (recursion prevention). The main agent can dispatch to all 6 subagents for orchestration.
+Gemini exposes a single unified `invoke_subagent` tool (`AgentTool` class) that dispatches to subagents by name. Three invocation types are supported: **Local** (in-process context loop), **Remote** (A2A protocol), and **Browser** (headless automation). Users can also invoke via `@subagent_name` syntax.
+
+The `Scheduler` class implements **native parallel tool execution** -- all tool calls within a turn are assessed for parallelizability and batched via `Promise.all()` by default. Tools opt-out of parallelism via `wait_for_previous: true`.
+
+However, subagents **cannot invoke other subagents** -- `Kind.Agent` tools are hardcoded-filtered during registry creation. This means `/camel-execute` runs in the **main agent context** so it can dispatch to all 6 subagents for orchestration.
 
 ### Template Files
 
@@ -247,21 +251,51 @@ timeout_mins: 20
 
 `mcp_camel_*` automatically includes new tools when the MCP server adds them -- future-proof. Different subagents can have different MCP server access (e.g., validator gets catalog but not knowledge).
 
+### Path-Scoped Edits via Policy Engine
+
+The Policy Engine supports per-subagent tool restrictions based on regex matching against serialized tool arguments:
+
+```toml
+[[rules]]
+toolName = "edit_file"
+subagent = "frontend-specialist"
+argsPattern = "\"file_path\":\"src/frontend/"
+decision = "allow"
+priority = 600
+
+[[rules]]
+toolName = "edit_file"
+subagent = "frontend-specialist"
+decision = "deny"
+priority = 500
+```
+
+This restricts the `frontend-specialist` to only edit files under `src/frontend/`.
+
 ### Unique Capabilities
 
+- **Default-parallel scheduler:** `Promise.all()` batches all parallelizable tool calls within a turn -- only agent with native scheduler-level parallelism
 - **`@file.md` modular imports:** only agent that supports composing instructions from multiple files -- each concern is independently editable
 - **Server-scoped MCP wildcards:** `mcp_camel_*` grants all tools from a specific server, auto-discovers new tools
-- **TOML policy engine with priority tiers:** workspace policies can be overridden by user policies
+- **TOML policy engine with priority tiers:** workspace policies can be overridden by user policies, per-subagent `argsPattern` targeting
+- **Three invocation kinds:** Local (in-process), Remote (A2A protocol), Browser (headless)
 - **Execution limits per subagent:** `max_turns` and `timeout_mins` prevent runaway execution
 - **Execute in main agent:** the only agent where `/camel-execute` runs outside a subagent (platform constraint turned into a feature -- main agent has full delegation ability)
 
 ---
 
-## Qwen -- Auto-Delegation with Sub-Agents
+## Qwen -- Dual Dispatch with Fork Model
 
 ### Dispatch Model
 
-Qwen uses 7 sub-agents with description-based auto-delegation. When a user describes their intent (e.g., "validate my routes"), Qwen automatically routes to the right sub-agent based on keyword matching in the description field.
+Qwen uses a **dual dispatch model** via the `Agent` tool:
+
+1. **Named subagents** -- when `subagent_type` is provided, a registered subagent is loaded and executed with its own system prompt, no parent history. The parent **blocks** until completion.
+2. **Fork** -- when `subagent_type` is omitted, an implicit fork is created. The fork **inherits the parent's full conversation context** and runs in the background while the parent continues. Fork children cannot create further forks (enforced via `AsyncLocalStorage`).
+
+The fork mechanism shares the parent's exact system prompt and tool declarations to exploit **DashScope prompt caching** -- all forks hit the same cache prefix, saving 80%+ tokens. This is a provider-specific optimization.
+
+Qwen also supports 7 sub-agents with description-based auto-delegation. When a user describes their intent (e.g., "validate my routes"), Qwen automatically routes to the right sub-agent based on keyword matching in the description field.
 
 ### Template Files
 
@@ -317,20 +351,33 @@ Working directory: ${current_directory}
 
 These are resolved by Qwen at invocation time, providing context-aware behavior without hardcoding project paths.
 
+### Parallel Execution
+
+Qwen implements a **batch-based concurrency model** in the `CoreToolScheduler`. Read, Search, and Fetch tool calls are marked concurrency-safe and batched via `Promise.all()` with a configurable cap (default: max 10). Agent tool invocations are sequential by default.
+
+Multi-agent parallelism is achieved through the **fork model**: the parent omits `subagent_type`, creating a background fork that inherits the full conversation context. The parent continues immediately. This enables parallel research or review tasks — but fork children cannot create further forks.
+
 ### Unique Capabilities
 
+- **Dual dispatch (named + fork):** named subagents for clean-context tasks, forks for background tasks with parent context sharing
+- **DashScope prompt caching:** fork model shares parent's exact system prompt prefix, saving 80%+ tokens across concurrent forks
 - **Description-matching auto-delegation:** user intent is automatically matched to the right sub-agent without explicit command invocation
 - **Template variables (`${project_name}`, `${current_directory}`):** resolved at runtime for context-aware prompts
-- **Binary tool whitelists:** simple and explicit -- tools are either available or not
-- **7 sub-agents (most of any agent):** every phase gets auto-delegation, even full-access phases benefit from context isolation
+- **Allowlist + blocklist:** `tools` and `disallowedTools` for flexible per-subagent tool control
+- **Approval mode per subagent:** `default`, `plan`, `auto-edit`, `yolo`
+- **Background flag:** `background: true` in frontmatter for non-blocking execution
 
 ---
 
-## OpenCode -- Granular Permission System
+## OpenCode -- Granular Permission System + Opt-In Delegation
 
 ### Dispatch Model
 
-OpenCode uses 7 agents with the most granular permission system of any supported agent. 14 permission types support glob patterns with last-match-wins evaluation. This enables path-scoped file edits, command-level bash control, and per-agent execution limits.
+OpenCode dispatches via the `task` tool, which creates a **child session** with `parentID` and derived permissions. 14 permission types support glob patterns with last-match-wins evaluation, enabling path-scoped file edits, command-level bash control, and per-agent execution limits.
+
+**Subagent-to-subagent delegation** was historically blocked (task tool removed from subagent sessions). PR #7756 added opt-in delegation with configurable call budgets and depth limits. Users can also invoke agents via `@agent-name` syntax.
+
+**Permission inheritance:** Parent agent deny rules are forwarded to child sessions via `deriveSubagentSessionPermission()`. Known gap: permissions are not fully transitive — a restricted parent can invoke a subagent with broader permissions.
 
 ### Template Files
 
@@ -401,6 +448,9 @@ Each agent has a `steps` limit. When reached, OpenCode instructs the agent to su
 - **`steps` limit per agent:** prevents runaway execution with graceful summarization
 - **`doom_loop` detection:** catches agents stuck in repetitive tool call patterns (inherited default behavior)
 - **Last-match-wins evaluation:** glob patterns are order-sensitive, allowing fine-grained overrides
+- **Opt-in subagent delegation:** PR #7756 enables subagent-to-subagent dispatch with configurable depth limits and call budgets
+- **LLM-level parallel tool calls:** multiple tool calls in a single LLM response execute concurrently
+- **Mixed-provider model support:** agents can use different model providers (e.g., `anthropic/claude-opus-4-6`, `openai/gpt-4o`)
 
 ---
 
@@ -408,12 +458,13 @@ Each agent has a `steps` limit. When reached, OpenCode instructs the agent to su
 
 | Aspect | Claude | Bob | Gemini | Qwen | OpenCode |
 |--------|--------|-----|--------|------|----------|
-| Dispatch model | Parallel subagents | Mode switching | 6 subagents + main-agent execute | 7 auto-delegating sub-agents | 7 permission-scoped agents |
+| Dispatch model | Parallel subagents | Mode switching | `invoke_subagent` unified tool (local/remote/browser) | Dual: named subagent + fork (context-sharing background task) | `task` tool creating child sessions with `parentID` |
 | Template files | 3 | 17+ | 12 | 9 | 8 |
-| Tool restriction | Instruction-based | Mode tool groups | Subagent tools + TOML policy | Binary tool whitelists | 14-type glob permissions |
-| Path-scoped edits | No | `.md` only (via fileRegex) | No | No | Yes (glob patterns) |
+| Tool restriction | Instruction-based | Mode tool groups | Allowlist + TOML policy + server-scoped wildcards | Allowlist + blocklist (`disallowedTools`) | 3-state (`allow`/`ask`/`deny`) + bash glob patterns |
+| Path-scoped edits | No | `.md` only (via fileRegex) | Yes (Policy Engine `argsPattern` regex + `subagent` field) | No | Yes (glob patterns) |
 | MCP auto-approval | No (manual) | No (manual) | Yes (TOML policy) | No (manual) | No (manual) |
-| Parallel execution | Yes (graph-based) | No | No | No | No |
+| Parallel execution | Yes (graph-based) | No | Yes (scheduler `Promise.all()`, default-parallel) | Partial (read-only tools concurrent, max 10; fork runs in background) | Partial (LLM-level parallel tool calls; true async requested) |
+| Subagent recursion | Yes (no limit) | N/A | No (hardcoded `Kind.Agent` filter) | No (fork-of-fork blocked via `AsyncLocalStorage`) | Opt-in (PR #7756, configurable depth limits) |
 | Execute phase | Subagent with parallel dispatch | Gate file with mode switch | Main agent (recursion prevention) | Sub-agent with `task` tool | Agent with `task` permission |
 | Agent-specific ignore | No | No | `.geminiignore` | `.qwenignore` | No (uses `.gitignore`) |
 | Instruction composition | Single `CLAUDE.md` | Modes + gates + rules | `@file.md` modular imports | Single `QWEN.md` | Ultra-minimal `AGENTS.md` (~80 tokens) |

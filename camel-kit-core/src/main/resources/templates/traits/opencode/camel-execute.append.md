@@ -1,5 +1,23 @@
 ## Agent Optimization: OpenCode
 
+### LLM-Level Parallel Tool Calls
+
+OpenCode supports parallel tool calls at the LLM level — multiple tool call blocks in a single response execute concurrently. Leverage this for within-task parallelism:
+
+- Read multiple files in a single response (parallel reads)
+- Dispatch catalog verification alongside context loading
+- Run build commands alongside file generation where safe
+
+**Note:** True async background delegation is not yet available (Issue #5887). Subagent dispatch via `task` is modal — it blocks the primary flow.
+
+### Opt-In Subagent Delegation
+
+OpenCode now supports subagent-to-subagent dispatch (PR #7756) with configurable depth limits. For the executor agent dispatching implementer subagents:
+
+- Set `task: {"*": allow}` on the executor agent
+- Configure depth limits to prevent runaway delegation chains
+- The implementer subagent can optionally dispatch to exploration agents for codebase analysis
+
 ### Step-Limited Subagents
 
 Set `steps` limits on each subagent to prevent runaway execution:
@@ -7,6 +25,8 @@ Set `steps` limits on each subagent to prevent runaway execution:
 - Implementation subagents: `steps: 100` (enough for complex route generation)
 - Spec review subagents: `steps: 50` (review is read-heavy, fewer writes)
 - Quality review subagents: `steps: 50`
+- Catalog research subagents: `steps: 30` (batch MCP calls, structured summary)
+- Knowledge research subagents: `steps: 20` (focused query, synthesized answer)
 
 If a subagent hits its step limit, report a warning and continue to the next task.
 
@@ -16,6 +36,8 @@ OpenCode provides two primary agents (`Build` for code generation, `Plan` for an
 
 - Implementation subagents: use `General` with full `edit` and `bash` permissions
 - Review subagents: use `General` with read-focused permissions
+- Catalog research: use `Explore` (read-only, MCP calls only)
+- Knowledge research: use `Explore` (read-only, MCP calls only)
 - Codebase exploration: use `Explore` (read-only, no edit or bash access)
 - Plan analysis: stays in the `Plan` primary agent (no subagent dispatch needed)
 

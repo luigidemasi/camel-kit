@@ -383,11 +383,11 @@ Four of the five agents support this natively through **subagent dispatch**:
 
 - **Claude Code** -- uses the `Agent` tool to spawn fresh subagents per task. Each subagent receives the task text, relevant TDD section, guide file paths, and MCP parameters. Before implementation, a `catalog-researcher` subagent batch-verifies all MCP catalog artifacts (research isolation). After implementation, an in-flight doubt cycle spot-checks key claims, then a spec-compliance reviewer subagent checks the design spec, then a code-quality reviewer subagent checks constitution compliance. At the Stamp Gate, three reviewers run in parallel (spec, quality, security). Claude uniquely supports **parallel dispatch**: the route graph topology (from `camel-kit-graph`) identifies independent routes (no shared `direct:`, `seda:`, or `vm:` endpoints, no shared configuration properties), and independent tasks are dispatched simultaneously to multiple subagents.
 
-- **Gemini CLI** -- dispatches to 6 specialized subagents (brainstormer, planner, implementer, validator, tester, migrator). However, `/camel-execute` runs in the **main agent context** because Gemini prevents recursive subagent invocation -- a subagent cannot dispatch another subagent. The main agent orchestrates by dispatching individual tasks to the implementer subagent, then to the validator subagent, sequentially.
+- **Gemini CLI** -- dispatches via a unified `invoke_subagent` tool to 6 specialized subagents. The scheduler natively supports **parallel tool execution** via `Promise.all()` (default-parallel). However, subagents cannot invoke other subagents (hardcoded `Kind.Agent` filter), so `/camel-execute` runs in the **main agent context** where it can dispatch to all subagents. Within-wave parallelism is achieved through the scheduler batching multiple `invoke_subagent` calls.
 
-- **Qwen** -- 7 sub-agents with description-based auto-delegation. The `"MUST BE USED for..."` phrasing in each sub-agent's description forces Qwen to automatically route work to the correct sub-agent based on intent keywords. The executor sub-agent has access to the `task` tool for dispatching work to other sub-agents.
+- **Qwen** -- dual dispatch model: **named subagents** (clean context, parent blocks) and **forks** (inherit parent context, run in background). The fork model enables parallel review and research tasks. Read-only tools (Read, Search, Fetch) are concurrent with a configurable cap (max 10). The `"MUST BE USED for..."` phrasing in description fields forces automatic delegation.
 
-- **OpenCode** -- 7 agents with granular, per-type glob permissions. The executor agent has `task: {"*": allow}` permission, enabling it to dispatch work to the implementer, validator, and tester agents. Each agent has a `steps` limit (implementer: 50, executor: 100) that triggers graceful summarization rather than hard failure.
+- **OpenCode** -- 7 agents with granular, per-type glob permissions. The executor agent has `task: {"*": allow}` permission. Subagent-to-subagent delegation is now opt-in (PR #7756) with configurable depth limits and call budgets. LLM-level parallel tool calls are supported. Each agent has a `steps` limit (implementer: 50, executor: 100) that triggers graceful summarization rather than hard failure.
 
 **IBM Project Bob does not support subagents.** It uses a fundamentally different architecture -- the **B+A (Behavior + Advanced) hybrid with mode switching**:
 
@@ -406,7 +406,7 @@ The trade-off table:
 | Context isolation | Per-task (fresh subagent) | Per-session (accumulated) |
 | Reviewer independence | Separate subagent | Same session self-reviews |
 | Tool restriction mechanism | Instruction-based / tool whitelists / policies | Platform-enforced mode tool groups |
-| Parallel execution | Claude only (graph topology) | Not possible |
+| Parallel execution | Claude (graph topology), Gemini (scheduler `Promise.all()`), Qwen (fork), OpenCode (LLM-level) | Not possible |
 | Skill loading | Loaded into subagent context on dispatch | Inlined in monolithic gate files |
 | Template complexity | 3-12 files per agent | 17+ files (gates + rules + modes) |
 | Failure isolation | Subagent failure doesn't affect other tasks | Phase failure affects entire session |
@@ -417,9 +417,9 @@ The trade-off table:
 |-------|---------------|-------------------|
 | Claude Code | Parallel subagent dispatch | Route graph topology, research isolation, parallel fan-out, doubt cycle |
 | IBM Project Bob | B+A hybrid with 5 custom modes | Monolithic gate files, 3 checkpoint types |
-| Gemini CLI | 6 subagents + main-agent execute | `@file.md` imports, TOML policy engine, MCP wildcards |
-| Qwen | 7 sub-agents with auto-delegation | Description matching, template variables |
-| OpenCode | 7 agents with granular permissions | 14 permission types, glob patterns, path-scoped edits |
+| Gemini CLI | `invoke_subagent` + parallel scheduler | Default-parallel `Promise.all()`, TOML policy, MCP wildcards, A2A remote agents |
+| Qwen | Dual dispatch (named + fork) | Fork background tasks, DashScope cache sharing, auto-delegation |
+| OpenCode | `task` child sessions + opt-in delegation | 14 permission types, glob patterns, configurable depth limits |
 
 For full per-agent deep dives (template files, tool restriction models, configuration examples, unique capabilities), see **[Agent Architectures](agent-architectures.md)**.
 
