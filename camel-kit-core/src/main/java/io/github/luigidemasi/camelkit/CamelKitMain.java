@@ -7,6 +7,7 @@ import java.util.concurrent.Callable;
 
 import io.github.luigidemasi.camelkit.command.InitCommand;
 import io.github.luigidemasi.camelkit.command.graph.GraphCommand;
+import io.github.luigidemasi.camelkit.command.pipeline.NextIdCommand;
 import io.github.luigidemasi.camelkit.command.plan.PlanCommand;
 import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.output.JLinePrinter;
@@ -141,7 +142,8 @@ public class CamelKitMain implements Callable<Integer> {
         CommandLine commandLine = new CommandLine(main)
                 .addSubcommand("init", new InitCommand(main))
                 .addSubcommand("graph", new CommandLine(new GraphCommand()))
-                .addSubcommand("plan", new CommandLine(new PlanCommand()));
+                .addSubcommand("plan", new CommandLine(new PlanCommand()))
+                .addSubcommand("nextId", new NextIdCommand());
 
         int exitCode = commandLine.execute(args);
         System.exit(exitCode);
