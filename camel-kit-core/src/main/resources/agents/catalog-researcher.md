@@ -28,7 +28,7 @@ This pattern keeps MCP response traces (often 500+ tokens each) out of the orche
 
 ## Output Format
 
-```
+```text
 ## Catalog Verification Summary
 
 Runtime: [runtime]

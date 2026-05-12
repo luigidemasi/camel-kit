@@ -93,10 +93,10 @@ If no pre-verification was run (e.g., single-task wave with few components), inc
 
 #### 8. Iron Laws Reminder
 
-```
+```text
 ## Iron Laws (non-negotiable)
 
-1. VERIFY every component/EIP/dataformat via MCP catalog BEFORE writing YAML
+1. VERIFY every component/EIP/dataformat/language via MCP catalog BEFORE writing YAML
    (If a pre-verified catalog summary is provided above, trust it — do not re-verify.)
 2. EVERY route MUST pass all 7 constitution rules
 3. Generate ONLY what the task specifies — no extras
