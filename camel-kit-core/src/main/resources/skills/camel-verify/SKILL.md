@@ -38,11 +38,19 @@ After each verification iteration (whether PASS or FAIL), append an entry to `.c
 1. Read the active pipeline ID from `.camel-kit/pipeline.json` (if it exists)
 2. Append a new `## Iteration N` section with:
    - Pipeline ID, trigger context, and result (PASS/FAIL)
-   - Findings with severity (`[CRITICAL]`, `[WARNING]`, `[INFO]`)
+   - Findings with severity (see table below)
    - Actions taken (fixes applied during this iteration)
 3. Create the file if it doesn't exist
 
 The verify-log is an operational audit trail — it persists across multiple verify cycles and sessions.
+
+### Severity Classification
+
+| Severity | When to Use | Examples |
+|----------|-------------|---------|
+| `[CRITICAL]` | Build fails, route doesn't start, data loss risk | Compilation error, endpoint not found, missing required dependency |
+| `[WARNING]` | Route starts but behavior is incorrect or degraded | Wrong data format, missing error handler, performance regression |
+| `[INFO]` | Observation with no immediate impact | All routes started, test passed after retry, non-blocking suggestion |
 
 ## After Verification
 

@@ -15,6 +15,8 @@ user_invocable: true
 
 When invoked standalone, validates routes in the current project. When invoked as a pipeline stage, reads the generated routes from the execute phase and produces the validation report.
 
+**Announce at start:** "I'm using the camel-validate skill to analyze route quality."
+
 ## Purpose
 
 Provides the domain knowledge guides needed to validate generated Apache Camel routes across multiple quality dimensions. These guides are referenced by the `quality-engineer` and `code-quality-reviewer` agent personas.
@@ -26,7 +28,7 @@ Before running validation, resolve the active pipeline using `shared/pipeline-in
 2. Load prior artifacts from `docs/camel-kit/<activePipeline>/` for cross-reference:
    - `design-spec.md` — for spec compliance checking
    - `implementation-plan.md` — for task coverage verification
-   - `execution-report.md` — for execution context
+   - `execution-report.md` — for verifying generated file list, review results, and verification status
 3. Save the validation report to `docs/camel-kit/<activePipeline>/validation-report.md`
 
 When invoked standalone (no pipeline context), fall back to scanning routes in the current project and saving the report to `docs/validation-report-YYYY-MM-DD_HH-mm.md` (existing behavior).

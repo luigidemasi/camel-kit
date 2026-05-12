@@ -69,6 +69,14 @@ The design spec is the single source of truth for what gets built. It contains:
 - Trigger: [description]
 - Endpoint options: [key options from MCP catalog]
 
+**Rationale examples (good):**
+- "Chose `camel-kafka` over `camel-jms` because the source system is Kafka and direct consumption avoids message format translation overhead."
+- "Selected `camel-sql` over `camel-jdbc` because we need named parameter binding and result set streaming for large queries."
+
+**Rationale examples (bad — do not accept):**
+- "Best component for this use case" (too generic — explain the specific technical reason)
+- "Recommended by MCP catalog" (the catalog lists options, it doesn't recommend)
+
 **Transformations:**
 1. [step description]
    - EIP: `[eip-name]` (MCP-verified)
