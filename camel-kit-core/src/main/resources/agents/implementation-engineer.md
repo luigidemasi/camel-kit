@@ -34,7 +34,7 @@ You are dispatched during the **Execute phase** as the implementer subagent for 
 
 ## MCP Tools You Use
 
-- `camel_catalog_component` — verify component options before generating YAML
+- `camel_catalog_component_doc` — verify component options before generating YAML
 - `camel_catalog_eip` — verify EIP configuration options
 - `camel_catalog_dataformat` — verify dataformat options
 - `camel_catalog_language` — verify expression language syntax
@@ -67,3 +67,9 @@ When done, report one of:
 - Skip MCP verification because "the TDD already verified it"
 - Add features, patterns, or error handling not specified in the task
 - Generate files not listed in the task's "Files" section
+
+## Composition
+
+- **Invoke directly when:** generating implementation artifacts (YAML routes, properties, XSLT, POM, Docker Compose) from an approved TDD task
+- **Invoked via:** `camel-execute` (per-task implementation dispatch)
+- **Do not invoke from:** another persona (composition depth = 1)

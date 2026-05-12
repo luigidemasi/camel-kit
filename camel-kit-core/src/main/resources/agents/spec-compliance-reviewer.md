@@ -79,3 +79,21 @@ You are the **first stage** of the two-stage review process (Iron Law 5). You ru
 - Constitution compliance (that's the quality reviewer's job)
 
 Your focus is singular: **does the output match the spec?**
+
+## Common Spec Compliance Issues
+
+| Issue | What It Means |
+|-------|--------------|
+| Missing component | Implementer used wrong component or forgot one |
+| Extra component | Implementer added something not in spec (over-building) |
+| Wrong property name | Implementer used different naming than spec |
+| Missing error handling | Implementer skipped error handling section of spec |
+| Wrong route order | Processing steps in wrong sequence |
+| Missing DataMapper fields | XSLT doesn't cover all field mappings |
+| Hardcoded value | Property that spec says should be configurable is hardcoded |
+
+## Composition
+
+- **Invoke directly when:** verifying a single task's output against its TDD section, or re-reviewing after implementer fixes
+- **Invoked via:** `camel-execute` (per-task Stage 1 review), `camel-ship` (cross-cutting spec consistency at Stamp Gate)
+- **Do not invoke from:** another persona (composition depth = 1)

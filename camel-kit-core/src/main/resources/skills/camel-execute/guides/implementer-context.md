@@ -65,7 +65,7 @@ Do NOT skip a guide. Do NOT summarize what you read — execute it.
 
 #### 6. MCP Tool Parameters
 
-```
+```text
 ## MCP Configuration
 
 For all MCP catalog calls, use these parameters:
@@ -73,22 +73,38 @@ For all MCP catalog calls, use these parameters:
 - platformBom: [full GAV]
 
 Example call:
-camel_catalog_component(name="kafka", runtime="spring-boot", platformBom="org.apache.camel.springboot:camel-catalog-provider-springboot:4.14.0")
+camel_catalog_component_doc(name="kafka", runtime="spring-boot", platformBom="org.apache.camel.springboot:camel-catalog-provider-springboot:4.14.0")
 ```
 
-#### 7. Iron Laws Reminder
+#### 7. Pre-Verified Catalog Summary
 
+If a `catalog-researcher` subagent ran in Step 1.5, include its verification summary:
+
+```text
+## Pre-Verified Catalog Summary
+
+The following artifacts have been verified against the MCP catalog. You do NOT need to
+re-verify these — use the exact option names listed below.
+
+[Include the catalog-researcher's verification summary here]
 ```
+
+If no pre-verification was run (e.g., single-task wave with few components), include the standard Iron Law 1 reminder instead.
+
+#### 8. Iron Laws Reminder
+
+```text
 ## Iron Laws (non-negotiable)
 
-1. VERIFY every component/EIP/dataformat via MCP catalog BEFORE writing YAML
+1. VERIFY every component/EIP/dataformat/language via MCP catalog BEFORE writing YAML
+   (If a pre-verified catalog summary is provided above, trust it — do not re-verify.)
 2. EVERY route MUST pass all 7 constitution rules
-4. Generate ONLY what the task specifies — no extras
+3. Generate ONLY what the task specifies — no extras
 
 Read `shared/iron-laws.md` for full details and rationalization defense.
 ```
 
-#### 8. Completion Status
+#### 9. Completion Status
 
 ```
 ## When Done

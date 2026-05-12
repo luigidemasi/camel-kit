@@ -62,20 +62,40 @@ For each stage:
    - If matrix action is `AUTO-FIX`: load `guides/auto-fix-loop.md` and attempt repair
    - Otherwise: PAUSE and wait for user decision
 
-### Stamp Gate (After Stage 3)
+### Stamp Gate (After Stage 3) — Parallel Fan-Out
 
-After verification completes, run the final quality gate:
+After verification completes, run the final quality gate using parallel reviewer subagents. This keeps review traces out of the main ship context — only structured reports flow back.
 
-1. Verify build passes: run `{COMMAND_PREFIX} verify` (or `mvn verify` directly)
-2. Check Iron Law compliance: scan generated YAML for Iron Law violations
-3. Constitution compliance: compare generated routes against `docs/constitution.md`
-4. Acceptance criteria: cross-reference design spec acceptance criteria with generated output
+**Step 1: Build verification** (inline — not subagent)
+- Run `{COMMAND_PREFIX} verify` (or `mvn verify` directly)
+- If build fails → PAUSE regardless of --ask level
+
+**Step 2: Parallel reviewer fan-out** (3 subagents dispatched simultaneously)
+
+Dispatch these three reviewer subagents in parallel:
+
+| Reviewer | Persona | Focus |
+|----------|---------|-------|
+| Spec consistency | `agents/spec-compliance-reviewer.md` | Cross-route spec consistency — naming patterns, property conventions, shared endpoints |
+| Code quality | `agents/code-quality-reviewer.md` | Constitution compliance across ALL routes, anti-patterns, YAML quality |
+| Security scan | `agents/code-quality-reviewer.md` (security-only mode) | CVE checks via `camel_docs_cve_search`, credential scan, TLS verification |
+
+Each reviewer receives ALL generated route files and returns a structured report. The orchestrator does NOT read the full review traces — only the reports.
+
+**Why parallel is safe here:** Iron Law 4 (spec before quality) applies to per-task reviews in `camel-execute`. By this point, every task has already passed both spec and quality reviews individually. The Stamp Gate checks are cross-cutting and independent — they CAN run in parallel.
+
+**Step 3: Merge reports**
+- Combine the three reviewer reports into a single Stamp Gate report
+- Categorize issues: Critical / Important / Suggestion
+- Cross-reference acceptance criteria from the design spec
+
+**Step 4: Decision**
 
 If ALL checks pass:
 - Report: "Pipeline complete. All checks passed."
 
 If ANY check fails:
-- Report failures clearly
+- Report failures clearly with the merged report
 - If `--ask never`: attempt auto-fix (load `guides/auto-fix-loop.md`)
 - Otherwise: present failures and ask user for next steps
 

@@ -1,12 +1,39 @@
 ## Agent Optimization: Qwen Code
 
-### Serial Pipeline Execution
+### Fork-Based Parallel Reviews at Stamp Gate
 
-Execute all pipeline stages sequentially. Since Qwen Code dispatches one subagent at a time:
+At the Stamp Gate, use the fork model to run reviewers in parallel:
 
-- Complete each stage fully before starting the next
-- Do not attempt to parallelize any part of the pipeline
-- Use checkpoints between stages to save state
+```text
+# Fork 1: spec consistency (background)
+Agent({
+  prompt: "[spec-compliance-reviewer persona + all route files + cross-route focus]"
+})
+
+# Fork 2: security scan (background)
+Agent({
+  prompt: "[code-quality-reviewer persona (security-only) + all route files + CVE check]"
+})
+
+# Named subagent: code quality (foreground, blocks)
+Agent({
+  subagent_type: "camel-validator",
+  prompt: "[code-quality-reviewer persona + all route files + constitution]"
+})
+```
+
+Fork 1 and Fork 2 run in parallel while the named quality review blocks. After the quality review completes, read fork results from their output. Merge all three reports.
+
+**Cache benefit:** All forks share the same system prompt prefix → DashScope prompt caching saves 80%+ tokens across concurrent reviews.
+
+### Sequential Pipeline Stages
+
+Execute pipeline stages sequentially — each stage must complete before the next starts:
+
+- Stage 0 (Brainstorm): direct
+- Stage 1 (Plan): direct, auto-proceeds to Stage 2
+- Stage 2 (Execute): dispatches implementation tasks, uses forks for research isolation
+- Stage 3 (Verify): direct
 
 ### State Tracking via todo_write
 
@@ -20,14 +47,10 @@ Maintain a pipeline progress list using `todo_write`:
 
 After each stage completes, write the state to `.camel-kit/ship-state.json` AND update the todo list. This dual-write ensures state is recoverable from either mechanism.
 
-### Plan Auto-Progression
+### Catalog and Knowledge Research via Fork
 
-Stage 1 (Plan) auto-proceeds to Stage 2 (Execute). Do not wait for plan approval — update the todo list to check off "Stage 1: Plan" and immediately proceed to "Stage 2: Execute".
+During Stage 2 (Execute), use forks for research isolation:
 
-### Re-Plan Checkpoints
-
-If the re-plan loop triggers during Stage 2:
-
-- Add temporary todo items: "Re-plan round 1", "Re-plan round 2", "Re-plan round 3"
-- Write state to `.camel-kit/ship-state.json` after each round
-- If interrupted during re-plan, resume from the correct round using saved state
+- Fork a catalog-researcher task before each implementation wave
+- Fork knowledge-researcher queries when documentation context is needed
+- Forks run in background, parent continues with preparation work

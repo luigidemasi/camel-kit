@@ -53,6 +53,22 @@ camel_docs_search(query="migrating from Camel 3 to Camel 4.14", version="4.14", 
 camel_docs_jira_lookup(jira_id="CAMEL-22784")
 ```
 
+## Subagent Dispatch Pattern
+
+When invoked from within another skill (not standalone), the orchestrator should dispatch knowledge queries as a `knowledge-researcher` subagent (from `agents/knowledge-researcher.md`). This keeps full MCP search results out of the orchestrator context — only the synthesized answer flows back.
+
+**Standalone invocation** (`/camel-knowledge`): runs inline in the current context.
+
+**Pipeline invocation** (from `camel-brainstorm`, `camel-execute`, etc.): dispatch as subagent:
+1. Build the subagent prompt with:
+   - The `knowledge-researcher` persona (full text from `agents/knowledge-researcher.md`)
+   - The specific question or lookup request
+   - Relevant context (Camel version, component name, CVE ID, etc.)
+2. The subagent runs the appropriate MCP tools
+3. Only the structured answer (see `agents/knowledge-researcher.md` output format) flows back
+
+This pattern prevents ~2000-5000 tokens of raw search results per query from accumulating in the orchestrator context. For a migration brainstorm with 5-10 knowledge lookups, this saves 10,000-50,000 tokens.
+
 ## Important Notes
 
 - Pass `max_results=5` unless more results are needed

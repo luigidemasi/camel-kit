@@ -181,6 +181,24 @@ Extract ALL tasks with:
 - Design spec section reference
 - Review specification
 
+### Step 1.5: Pre-Implementation Catalog Research
+
+Before dispatching implementers for a wave, batch-verify all MCP catalog artifacts referenced in the wave's tasks. This keeps MCP response traces (~500 tokens each) out of the orchestrator and implementer contexts.
+
+1. Scan each task's TDD section for components, EIPs, dataformats, and languages
+2. Deduplicate across tasks in the wave
+3. Dispatch a `catalog-researcher` subagent (from `agents/catalog-researcher.md`) with:
+   - The deduplicated artifact list
+   - Runtime and platformBom parameters
+4. Receive the structured verification summary
+5. If any artifact is NOT FOUND: flag it in the task context before dispatch — the implementer must find an alternative
+
+**The verification summary replaces per-implementer MCP lookups.** The implementer receives pre-verified catalog data and MUST use it as the source of truth for this wave. Iron Law 1 remains enforced via delegated MCP verification by `catalog-researcher`.
+
+Pass the verification summary to each implementer subagent as part of the context (see `guides/implementer-context.md`).
+
+---
+
 ### Step 2: Per-Task Loop
 
 For each wave (sequential across waves, parallel within a wave for agents that support it). For single-conversation agents, execute tasks within each wave sequentially in plan order:
@@ -210,6 +228,34 @@ Dispatch a fresh subagent with:
 | **DONE_WITH_CONCERNS** | Read concerns. If correctness/scope issues: address before review. If observations: note and proceed. |
 | **NEEDS_CONTEXT** | Provide missing context, re-dispatch same subagent |
 | **BLOCKED** | Assess blocker: context problem → provide more context. Task too large → break it up. Plan wrong → note for user. |
+
+#### 2b.5: In-Flight Doubt Cycle
+
+After the implementer reports DONE (or DONE_WITH_CONCERNS), run a lightweight doubt cycle before dispatching the full spec review. This catches obvious errors cheaply — before the more expensive two-stage review.
+
+```text
+CLAIM → EXTRACT → DOUBT → accept or correct
+```
+
+1. **CLAIM:** The implementer claims the task is complete with specific generated files
+2. **EXTRACT:** The orchestrator extracts testable claims from the output:
+   - Components used (names and key options)
+   - Route structure (number of routes, flow direction)
+   - File list (paths of generated files)
+3. **DOUBT:** Spot-check 2-3 extracted claims:
+   - Verify 1-2 component option names via `camel_catalog_component_doc` (or use the pre-verified catalog summary from Step 1.5)
+   - Confirm generated files exist on disk
+   - Check route count matches TDD
+4. **Decision:**
+   - If all spot-checks pass → proceed to spec compliance review (Step 2c)
+   - If any spot-check fails → send correction back to implementer, re-dispatch
+5. **Hard cap:** 3 doubt cycles. If claims still fail after 3 rounds, proceed to spec review anyway — the spec reviewer will catch the details
+
+The doubt cycle is NOT a replacement for two-stage review. It's a fast pre-filter that prevents dispatching expensive reviews on obviously broken output.
+
+**Skip the doubt cycle for trivial tasks** (single-file properties generation, Docker Compose, run scripts). Only run it for tasks that generate route YAML or XSLT.
+
+---
 
 #### 2c: Spec Compliance Review (Stage 1)
 
@@ -259,24 +305,30 @@ Do NOT:
 The user approved the entire plan — that approval covers ALL tasks. Execute them ALL without interruption, following wave policy (parallel within a wave where supported, sequential across waves). The ONLY time you stop is after the LAST task, when you print the Step 4 completion summary.
 </HARD-RULE>
 
-### Step 3: Final Cross-Cutting Review
+### Step 3: Final Cross-Cutting Review (Subagent-Isolated)
 
-After all tasks complete:
+After all tasks complete, dispatch the cross-cutting review as a subagent to keep review traces out of the orchestrator context:
 
-1. Dispatch code-quality-reviewer for a cross-cutting review of ALL generated routes
-2. Check constitution compliance across all routes (not just individually)
-3. Check for cross-route consistency (naming conventions, property patterns, error handling consistency)
-4. Run smoke test if plan includes one
-5. **Generate validation report** — save findings to `docs/validation-report-YYYY-MM-DD_HH-mm.md` following the format in `camel-validate/SKILL.md`. This creates an audit trail.
+1. Dispatch `code-quality-reviewer` subagent (from `agents/code-quality-reviewer.md`) with:
+   - ALL generated route file paths
+   - Constitution rules (`docs/constitution.md`)
+   - Instruction to check cross-route consistency (naming conventions, property patterns, error handling consistency)
+2. The subagent checks constitution compliance across all routes (not just individually) and returns the structured review report
+3. Run smoke test if plan includes one (this stays in the orchestrator context — it's a build command, not a review)
+4. **Generate validation report** — save findings to `docs/validation-report-YYYY-MM-DD_HH-mm.md` following the format in `camel-validate/SKILL.md`. This creates an audit trail.
 
-### Step 3.5: Verification Phase
+Only the structured report flows back to the orchestrator. The full review trace (file reads, MCP calls, reasoning) stays in the subagent's context.
 
-After the cross-cutting review, run the full verification loop to validate the implementation against the runtime environment.
+### Step 3.5: Verification Phase (Subagent-Isolated)
 
-1. Load the `camel-verify` skill (`skills/camel-verify/SKILL.md`)
-2. Load both guides: `verify-loop.md` and `error-taxonomy.md`
-3. Execute the full verification loop (3 phases: build, Citrus tests, report)
-4. Capture the verification report
+After the cross-cutting review, dispatch the full verification loop as a subagent to keep build output and fix traces out of the orchestrator context.
+
+1. Dispatch a verification subagent with:
+   - The `camel-verify` skill (`skills/camel-verify/SKILL.md`)
+   - Both guides: `verify-loop.md` and `error-taxonomy.md`
+   - Project configuration (runtime, Camel version, module path)
+2. The subagent executes the full verification loop (3 phases: build, Citrus tests, report)
+3. Only the structured verification report flows back to the orchestrator
 
 **Key rules:**
 - Verification runs **once** after all tasks complete — not per-task. Camel loads all routes at startup, so per-task verification would fail on routes that depend on other not-yet-implemented routes.
@@ -329,3 +381,7 @@ Verification: PASS/PARTIAL/FAIL/NOT_RUN
 - Stop or pause between tasks to ask the user
 - Print "Next Steps" or completion summaries between tasks (only after the LAST task)
 - Say "command has completed" or "phases are complete" while tasks remain
+- Skip the catalog research step (Step 1.5) — MCP verification is delegated, not eliminated
+- Let implementers re-verify components already verified by the catalog-researcher — trust the pre-verified summary
+- Skip the doubt cycle for non-trivial tasks (route YAML, XSLT) — it's a cheap pre-filter that saves expensive review cycles
+- Run doubt cycle more than 3 times — proceed to spec review and let the reviewer catch remaining issues

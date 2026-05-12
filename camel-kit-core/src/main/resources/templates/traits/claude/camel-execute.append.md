@@ -51,6 +51,8 @@ When dispatching subagents during execution, use this map to set the `subagent_t
 | `test-engineer` | `general-purpose` | `sonnet` |
 | `spec-compliance-reviewer` | `general-purpose` | `sonnet` |
 | `code-quality-reviewer` | `code-simplifier` | `opus` |
+| `catalog-researcher` | `Explore` | `sonnet` |
+| `knowledge-researcher` | `Explore` | `sonnet` |
 
 **Migration-specialist resolution:** Check the task's `**Files:**` section:
 - If every entry is strictly read-only (e.g., "Read", "Analyze", "Inspect") → `Explore`
