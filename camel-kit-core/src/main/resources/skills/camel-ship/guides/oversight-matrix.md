@@ -18,7 +18,7 @@ Decision rules for each oversight level at each pipeline stage. The orchestrator
 | **Execute** | Tasks done, verification FAIL | PAUSE | PAUSE | AUTO-FIX (up to 3 rounds) |
 | **Execute** | Task implementation failed | PAUSE | PAUSE | AUTO-FIX (up to 3 rounds) |
 | **Execute** | Auto-fix exhausted (3 rounds) | PAUSE | PAUSE | PAUSE (blocker) |
-| **Validate** | No Critical findings | PAUSE (present report) | DONE | DONE |
+| **Validate** | No Critical findings | PAUSE (present report) | AUTO-PROCEED to Stamp | AUTO-PROCEED to Stamp |
 | **Validate** | Critical findings | PAUSE | PAUSE | PAUSE (blocker) |
 | **Stamp** | All gates pass | DONE | DONE | DONE |
 | **Stamp** | Gate failure | PAUSE | PAUSE | PAUSE (blocker) |

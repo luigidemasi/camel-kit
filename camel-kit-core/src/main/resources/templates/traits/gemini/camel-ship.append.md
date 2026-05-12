@@ -22,7 +22,7 @@ Chain the pipeline using named agent delegation:
 - Stage 0 (Brainstorm): self (main agent orchestrates interview directly)
 - Stage 1 (Plan): self (plan generation stays in main context)
 - Stage 2 (Execute): delegate wave execution to `camel-implementer` agents — scheduler parallelizes within-wave dispatch
-- Stage 3 (Validate): delegate to `camel-validator` with `timeout_mins: 20`
+- Stage 3 (Validate): self (main agent runs static quality analysis directly — no subagent needed for read-only validation)
 
 ### State Persistence via Memory
 

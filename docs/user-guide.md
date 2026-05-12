@@ -231,7 +231,7 @@ flowchart TB
     B -->|"user approves BRD"| C
     C -->|"auto-proceeds"| D
     D --> I --> T --> R
-    D --> VF
+    D -->|"after all tasks"| VF
     VF --> E
 ```
 

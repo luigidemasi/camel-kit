@@ -16,7 +16,7 @@ Apply step limits per pipeline stage to prevent any single stage from consuming 
 
 - Stage 0 (Brainstorm): `steps: 200` (interview can be lengthy)
 - Stage 1 (Plan): `steps: 100` (structured output)
-- Stage 2 (Execute): `steps: 500` (most complex, multiple subagents)
+- Stage 2 (Execute): `steps: 700` (most complex, multiple subagents + internal runtime verification via camel-verify)
 - Stage 3 (Validate): `steps: 100` (static quality analysis, report generation)
 
 ### Agent Type Mapping
@@ -41,7 +41,7 @@ Stage 1 (Plan) auto-proceeds to Stage 2 (Execute). No step budget is consumed wa
 
 ### Re-Plan Step Budget
 
-If the re-plan loop triggers during Stage 2, the total step budget may exceed the initial `steps: 500`. The executor should not hard-fail when approaching the limit if a re-plan is in progress — report progress and let the re-plan complete its current round before yielding.
+If the re-plan loop triggers during Stage 2, the total step budget may exceed the initial `steps: 700`. The executor should not hard-fail when approaching the limit if a re-plan is in progress — report progress and let the re-plan complete its current round before yielding.
 
 ### Opt-In Delegation for Cascading Tasks
 
