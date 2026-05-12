@@ -35,8 +35,8 @@ Location: `.camel-kit/ship-state.json`
 |---|---|---|
 | 0 | Brainstorm | `docs/design-spec.md` |
 | 1 | Plan | `docs/implementation-plan.md` |
-| 2 | Execute | generated routes in `src/` |
-| 3 | Verify | `docs/verification-report.md` |
+| 2 | Execute | generated routes in `src/` (includes runtime verification via `camel-verify` subagent) |
+| 3 | Validate | `docs/validation-report-YYYY-MM-DD_HH-mm.md` |
 | 4 | Stamp | `docs/stamp-report.md` |
 
 ---
@@ -95,7 +95,7 @@ When `--resume` is specified:
 
 When `--start-from <stage>` is specified:
 
-1. Map stage name to number: brainstorm=0, plan=1, execute=2, verify=3, stamp=4
+1. Map stage name to number: brainstorm=0, plan=1, execute=2, validate=3, stamp=4
 2. Verify prerequisite artifacts exist (see SKILL.md for requirements)
 3. Create fresh state with `currentStage` set to the specified stage
 4. Mark all prior stages as `"completed"` in stageResults (with current artifact paths)

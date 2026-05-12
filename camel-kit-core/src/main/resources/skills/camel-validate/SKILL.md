@@ -1,12 +1,19 @@
 ---
 name: camel-validate
 description: Static quality analysis of Camel routes — correctness, security, anti-patterns.
-user_invocable: false
+user_invocable: true
 ---
 
-# Camel Validate Reference
+# Camel Validate — Pipeline Quality Gate
 
-> Invocable standalone via `/camel-validate` or loaded by `camel-execute` for quality review.
+> **Tier 1 pipeline step.** Final stage after execute — produces a comprehensive quality report.
+
+## Invocation
+
+- **User:** `/camel-validate` — run standalone on any project with generated routes
+- **Pipeline:** invoked as Stage 3 by `camel-ship` after execute completes (including verification)
+
+When invoked standalone, validates routes in the current project. When invoked as a pipeline stage, reads the generated routes from the execute phase and produces the validation report.
 
 ## Purpose
 

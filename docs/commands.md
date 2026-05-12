@@ -11,7 +11,8 @@ This document is the reference for all Camel-Kit commands: the `camel-kit` CLI a
   - [/camel-plan](#camel-plan)
   - [/camel-execute](#camel-execute)
   - [/camel-migrate](#camel-migrate)
-  - [/camel-verify](#camel-verify)
+  - [/camel-validate](#camel-validate)
+  - [/camel-verify (internal)](#camel-verify)
 - [Command Cheat Sheet](#command-cheat-sheet)
 
 ---
@@ -296,9 +297,9 @@ camel-kit graph migration-context processOrders --depth 5
 
 ## Slash Commands
 
-These commands are used inside your AI coding assistant after project initialization. There are six user-invocable slash commands.
+These commands are used inside your AI coding assistant after project initialization. There are six user-invocable slash commands: `/camel-brainstorm`, `/camel-plan`, `/camel-execute`, `/camel-migrate`, `/camel-validate`, and `/camel-ship`.
 
-Four additional skills (`/camel-implement`, `/camel-validate`, `/camel-test`, `/camel-knowledge`) are internal -- they are orchestrated automatically by `/camel-execute` and should not be run directly.
+Four additional skills (`/camel-implement`, `/camel-verify`, `/camel-test`, `/camel-knowledge`) are internal -- they are orchestrated automatically by `/camel-execute` and should not be run directly.
 
 ---
 
@@ -405,8 +406,10 @@ The plan is a recipe, not the meal -- it contains instructions on how to generat
    - **Code quality review** -- checks constitution rules, security, and anti-patterns
    - If review fails, the implementer fixes and re-submits until both reviews pass
 3. **Cross-cutting review** -- after all tasks complete, reviews all generated routes together for consistency
-4. **Verification phase** -- runs `/camel-verify` as a final validation (build, start, diagnose, fix). Verification is optional -- failure does not block completion
+4. **Verification phase** -- dispatches `/camel-verify` internally (build, start, diagnose, fix). Verification is optional -- failure does not block completion
 5. **Completion summary** -- reports task status, review results, and verification outcome
+
+After `/camel-execute` completes, the pipeline continues to `/camel-validate` as the final quality gate.
 
 **Agent-specific execution:**
 
@@ -423,7 +426,7 @@ During execution, `/camel-execute` dispatches these internal skills as needed. T
 | Internal Skill | Role |
 |---|---|
 | `/camel-implement` | Generate Camel YAML DSL routes from TDD specifications |
-| `/camel-validate` | Validate routes for correctness, security, and constitution compliance |
+| `/camel-verify` | Runtime verification loop: build, start, diagnose errors, apply fixes |
 | `/camel-test` | Generate Citrus integration tests |
 | `/camel-knowledge` | Query documentation for component support and guidance |
 
@@ -522,11 +525,34 @@ For connectors with no direct equivalent, the command stops and asks the user be
 
 ---
 
+### /camel-validate
+
+> **Tier 1 pipeline step.** Final stage after execute — produces a comprehensive quality report.
+
+**Purpose:** Static quality analysis of generated Camel routes across multiple dimensions: schema validation, endpoint verification, constitution compliance, security analysis, and anti-pattern detection.
+
+**When to use:** After `/camel-execute` completes (standalone or as Stage 3 in the `/camel-ship` pipeline). Use whenever you have generated routes that need quality validation before shipping.
+
+**Produces:**
+- Validation report saved to `docs/validation-report-YYYY-MM-DD_HH-mm.md`
+- Categorized findings: PASS / FAIL / WARN per quality dimension
+- Constitution compliance check (all 7 rules)
+- Recommendations for priority fixes
+
+**Example:**
+```
+/camel-validate
+```
+
+---
+
 ### /camel-verify
+
+> **Internal skill** -- dispatched automatically by `/camel-execute`. Not intended for standalone use. For quality checks after the pipeline completes, use `/camel-validate`.
 
 **Purpose:** Runtime verification feedback loop that builds, starts, diagnoses errors, applies fixes, and retries until the application runs correctly or the iteration limit is reached.
 
-**When to use:** After implementation is complete and you want to verify the project actually runs. Can be used standalone or is run automatically as the final phase of `/camel-execute`.
+**When to use:** This skill is invoked internally by `/camel-execute` during its verification phase. Users should not run it directly; use `/camel-validate` for post-pipeline quality validation.
 
 **Produces:**
 - Verification report (printed to console)
@@ -578,13 +604,12 @@ camel-kit init my-project --ai claude
 # Greenfield (in AI assistant)
 /camel-brainstorm                        # Design integration
 /camel-plan                          # Create implementation plan
-/camel-execute                       # Implement, validate, test, verify
+/camel-execute                       # Implement, test, verify (internal)
+/camel-validate                      # Final quality gate
 
 # Migration
 /camel-migrate                       # Analyze legacy project
 /camel-plan                          # Plan migration
 /camel-execute                       # Execute migration
-
-# Verification (standalone)
-/camel-verify                        # Build, start, diagnose, fix
+/camel-validate                      # Final quality gate
 ```
