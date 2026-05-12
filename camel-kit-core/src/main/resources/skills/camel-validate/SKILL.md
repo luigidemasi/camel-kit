@@ -19,6 +19,18 @@ When invoked standalone, validates routes in the current project. When invoked a
 
 Provides the domain knowledge guides needed to validate generated Apache Camel routes across multiple quality dimensions. These guides are referenced by the `quality-engineer` and `code-quality-reviewer` agent personas.
 
+## Pipeline Resolution
+
+Before running validation, resolve the active pipeline using `shared/pipeline-infrastructure.md`:
+1. Read `.camel-kit/pipeline.json` -> get `activePipeline`
+2. Load prior artifacts from `docs/camel-kit/<activePipeline>/` for cross-reference:
+   - `design-spec.md` — for spec compliance checking
+   - `implementation-plan.md` — for task coverage verification
+   - `execution-report.md` — for execution context
+3. Save the validation report to `docs/camel-kit/<activePipeline>/validation-report.md`
+
+When invoked standalone (no pipeline context), fall back to scanning routes in the current project and saving the report to `docs/validation-report-YYYY-MM-DD_HH-mm.md` (existing behavior).
+
 ## Guide Manifest
 
 | Guide | When to Load | Purpose |
@@ -35,9 +47,8 @@ Provides the domain knowledge guides needed to validate generated Apache Camel r
 
 After completing all validation checks, generate a markdown report saved to:
 
-```
-docs/validation-report-YYYY-MM-DD_HH-mm.md
-```
+- **Pipeline mode:** `docs/camel-kit/<PIPELINE_ID>/validation-report.md`
+- **Standalone mode:** `docs/validation-report-YYYY-MM-DD_HH-mm.md`
 
 Use the current date and time for the filename (e.g., `validation-report-2026-04-22_14-30.md`).
 
