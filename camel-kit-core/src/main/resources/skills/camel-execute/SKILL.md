@@ -193,7 +193,7 @@ Before dispatching implementers for a wave, batch-verify all MCP catalog artifac
 4. Receive the structured verification summary
 5. If any artifact is NOT FOUND: flag it in the task context before dispatch — the implementer must find an alternative
 
-**The verification summary replaces per-implementer MCP lookups.** The implementer receives the pre-verified catalog data and does NOT re-verify components. Iron Law 1 is still enforced — the verification is delegated, not skipped.
+**The verification summary replaces per-implementer MCP lookups.** The implementer receives pre-verified catalog data and MUST use it as the source of truth for this wave. Iron Law 1 remains enforced via delegated MCP verification by `catalog-researcher`.
 
 Pass the verification summary to each implementer subagent as part of the context (see `guides/implementer-context.md`).
 
@@ -243,7 +243,7 @@ CLAIM → EXTRACT → DOUBT → accept or correct
    - Route structure (number of routes, flow direction)
    - File list (paths of generated files)
 3. **DOUBT:** Spot-check 2-3 extracted claims:
-   - Verify 1-2 component option names via `camel_catalog_component` (or use the pre-verified catalog summary from Step 1.5)
+   - Verify 1-2 component option names via `camel_catalog_component_doc` (or use the pre-verified catalog summary from Step 1.5)
    - Confirm generated files exist on disk
    - Check route count matches TDD
 4. **Decision:**

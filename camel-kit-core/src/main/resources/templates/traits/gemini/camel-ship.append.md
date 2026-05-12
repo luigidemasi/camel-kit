@@ -4,7 +4,7 @@
 
 Gemini's scheduler batches parallel tool calls automatically. At the Stamp Gate, invoke all three reviewers in the same turn:
 
-```
+```text
 # In a single response, call invoke_subagent three times:
 invoke_subagent(agent_name="camel-validator", prompt="[spec consistency review — cross-route]")
 invoke_subagent(agent_name="camel-validator", prompt="[code quality review — constitution + anti-patterns]")

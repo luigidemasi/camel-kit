@@ -14,9 +14,8 @@ OpenCode supports parallel tool calls at the LLM level — multiple tool call bl
 
 OpenCode now supports subagent-to-subagent dispatch (PR #7756) with configurable depth limits. For the executor agent dispatching implementer subagents:
 
-- Set `task: {"*": allow}` on the executor agent
-- Configure depth limits to prevent runaway delegation chains
-- The implementer subagent can optionally dispatch to exploration agents for codebase analysis
+- Set `task: {"*": allow}` on the executor agent only
+- Keep delegation single-hop: executor dispatches implementers and exploration agents directly; implementer subagents do not dispatch other personas (composition depth = 1)
 
 ### Step-Limited Subagents
 

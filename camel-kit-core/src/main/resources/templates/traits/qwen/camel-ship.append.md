@@ -4,7 +4,7 @@
 
 At the Stamp Gate, use the fork model to run reviewers in parallel:
 
-```
+```text
 # Fork 1: spec consistency (background)
 Agent({
   prompt: "[spec-compliance-reviewer persona + all route files + cross-route focus]"

@@ -11,7 +11,7 @@ Qwen Code's dual dispatch enables parallel background work via the **fork model*
 
 Before dispatching implementers for a wave, fork a catalog verification task:
 
-```
+```text
 # Fork runs in background — parent continues to next instruction
 Agent({
   prompt: "[catalog-researcher persona + artifact list + runtime + platformBom]"
@@ -27,7 +27,7 @@ The fork verifies all MCP catalog artifacts and writes results to a temporary fi
 
 Named subagent dispatch for implementation tasks (parent blocks until complete):
 
-```
+```text
 Agent({
   subagent_type: "camel-implementer",
   prompt: "[full task text + design spec + pre-verified catalog summary]"
@@ -40,7 +40,7 @@ Execute tasks sequentially within a wave (named subagents are blocking). Across 
 
 After an implementer completes, use forks for the doubt cycle spot-checks while preparing the spec review prompt:
 
-```
+```text
 # Fork 1: spot-check component options via MCP (background)
 Agent({
   prompt: "[doubt cycle — verify 2-3 component options]"
