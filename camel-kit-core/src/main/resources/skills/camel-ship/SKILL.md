@@ -22,7 +22,7 @@ Parse the skill arguments for these flags:
 |---|---|---|
 | `[input-file]` | none | Requirements document, design spec, or brainstorm notes |
 | `--ask` | `smart` | Oversight level: `always`, `smart`, or `never` |
-| `--resume` | false | Continue from `.camel-kit/ship-state.json` |
+| `--resume` | false | Continue from `.camel-kit/pipeline.json` (mode=ship) |
 | `--start-from <stage>` | none | Skip to stage: `brainstorm`, `plan`, `execute`, `validate` |
 
 ---
@@ -35,14 +35,15 @@ Stage 0: BRAINSTORM  →  Stage 1: PLAN  →  Stage 2: EXECUTE  →  Stage 3: VA
 
 ### Before Starting
 
-1. Check for `--resume` flag. If set, read `.camel-kit/ship-state.json` and jump to `currentStage`.
-2. Check for `--start-from` flag. If set, verify prerequisite artifacts exist:
-   - `plan` requires `docs/design-spec.md`
-   - `execute` requires `docs/design-spec.md` AND `docs/implementation-plan.md`
+1. Generate pipeline ID: run `{COMMAND_PREFIX} nextId <slug>` (derive slug from input file name or user request).
+2. Check for `--resume` flag. If set, read `.camel-kit/pipeline.json`, verify `mode = "ship"`, and jump to `currentStage`.
+3. Check for `--start-from` flag. If set, verify prerequisite artifacts exist in `docs/camel-kit/<activePipeline>/`:
+   - `plan` requires `design-spec.md`
+   - `execute` requires `design-spec.md` AND `implementation-plan.md`
    - `validate` requires generated route files to exist
-3. If neither flag is set, start from Stage 0.
-4. Parse `--ask` level (default: `smart`).
-5. Initialize state file: write `.camel-kit/ship-state.json` with initial state.
+4. If neither flag is set, start from Stage 0.
+5. Parse `--ask` level (default: `smart`).
+6. Initialize state file: write `.camel-kit/pipeline.json` with `mode: "ship"` and initial state.
 
 ### Stage Execution
 
