@@ -60,8 +60,8 @@ The frontmatter fields:
 | `camel-plan` | No | `camel-brainstorm` (after design approval) | Produce detailed implementation plan from approved design spec |
 | `camel-execute` | No | `camel-plan` (auto-invoked after planning) | Environment probe, dispatch subagents per task with two-stage review |
 | `camel-migrate` | No | `camel-start` (migration) | Migration entry point: shortcut into `camel-brainstorm` with project type pre-set |
-| `camel-verify` | No | `camel-execute` (after all tasks) | 3-phase runtime verification loop (build, Citrus tests, report) |
-| `camel-ship` | No | -- (standalone orchestrator) | Autonomous pipeline — chains brainstorm → plan → execute → verify with configurable oversight |
+| `camel-verify` | No | `camel-execute` (internal subagent) | 3-phase runtime verification loop (build, Citrus tests, report) — runs inside execute, not as a standalone pipeline stage |
+| `camel-ship` | No | -- (standalone orchestrator) | Autonomous pipeline — chains brainstorm → plan → execute → validate with configurable oversight |
 | `camel-design` | No | `camel-brainstorm` | Guides for component selection, EIP catalog, TDD assembly |
 | `camel-implement` | No | `camel-execute` | Guides for YAML generation, properties, Docker Compose, DataMapper |
 | `camel-validate` | No | `camel-execute` | Guides for schema validation, endpoint verification, security analysis |
@@ -229,8 +229,9 @@ Entry points diverge (`camel-brainstorm` for greenfield, `camel-migrate` for mig
    - If either reviewer finds critical issues, return to the implementer for fixes, then re-review
    - Mark task complete and immediately start the next task (no pause, no user confirmation)
 4. After all tasks: dispatch a **cross-cutting review** as a subagent across all generated routes
-5. Dispatch the **verification phase** (`camel-verify`) as a subagent
-6. Print the completion summary
+5. Dispatch the **verification phase** (`camel-verify`) as an internal subagent within execute (build, Citrus tests, report)
+6. Dispatch the **validation phase** (`camel-validate`) as a subagent — the final pipeline stage after execute
+7. Print the completion summary
 
 All reviews, verification, and catalog lookups run as subagents with isolated context windows. Only structured reports flow back to the orchestrator -- preventing ~60-70% of pipeline tokens from accumulating in the main conversation.
 
@@ -527,7 +528,7 @@ If the MCP server is not available, skills fall back to local component data and
 
 ## 7. Verification Pipeline
 
-The verification pipeline (`camel-verify`) is a 3-phase feedback loop that builds and tests the generated application using Citrus integration tests.
+The verification pipeline (`camel-verify`) is a 3-phase feedback loop that builds and tests the generated application using Citrus integration tests. It runs as an internal subagent within `camel-execute`, not as a standalone pipeline stage. After verification completes inside execute, `camel-validate` runs as the final pipeline stage.
 
 ### Phases
 

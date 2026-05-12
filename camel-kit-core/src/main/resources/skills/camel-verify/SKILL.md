@@ -16,10 +16,8 @@ Each phase retries up to 15 times with error classification and fix routing to e
 
 ## Invocation
 
-- **User:** `/camel-verify`
-- **Automatic:** loaded by `camel-execute` after all implementation tasks complete
-
-When invoked standalone, runs the full verification loop on the project as-is. When loaded by `camel-execute`, runs as a final phase before the completion summary.
+- **Internal only** — dispatched as a subagent by `camel-execute` (Step 3.5) after all implementation tasks complete
+- This skill is NOT user-invocable. It runs as part of the execute phase, not as a standalone pipeline stage.
 
 ## Prerequisites
 
@@ -35,8 +33,6 @@ When invoked standalone, runs the full verification loop on the project as-is. W
 
 ## After Verification
 
-When all verification phases pass, inform the user:
+When all verification phases pass, return a structured verification report to the orchestrator (`camel-execute`). The orchestrator includes this report in the Step 4 completion summary.
 
-> "Verification complete. The next recommended step is a quality review. Run `/camel-validate` to generate a comprehensive report (anti-patterns, security, schema compliance)."
-
-Do NOT invoke `/camel-validate` automatically — the user must run it manually.
+The pipeline proceeds to `/camel-validate` (Tier 1) as the next stage — this is handled by the orchestrating skill (`camel-ship` or the user), not by this skill.

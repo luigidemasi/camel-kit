@@ -6,7 +6,7 @@ user_invocable: false
 
 # Camel Ship — Autonomous Pipeline
 
-Chain the full camel-kit pipeline (brainstorm → plan → execute → verify) with configurable human oversight.
+Chain the full camel-kit pipeline (brainstorm → plan → execute → validate) with configurable human oversight.
 
 **Announce at start:** "I'm using the camel-ship skill to run the full pipeline."
 
@@ -23,14 +23,14 @@ Parse the skill arguments for these flags:
 | `[input-file]` | none | Requirements document, design spec, or brainstorm notes |
 | `--ask` | `smart` | Oversight level: `always`, `smart`, or `never` |
 | `--resume` | false | Continue from `.camel-kit/ship-state.json` |
-| `--start-from <stage>` | none | Skip to stage: `brainstorm`, `plan`, `execute`, `verify` |
+| `--start-from <stage>` | none | Skip to stage: `brainstorm`, `plan`, `execute`, `validate` |
 
 ---
 
 ## Pipeline
 
 ```text
-Stage 0: BRAINSTORM  →  Stage 1: PLAN  →  Stage 2: EXECUTE  →  Stage 3: VERIFY  →  STAMP
+Stage 0: BRAINSTORM  →  Stage 1: PLAN  →  Stage 2: EXECUTE  →  Stage 3: VALIDATE  →  STAMP
 ```
 
 ### Before Starting
@@ -39,7 +39,7 @@ Stage 0: BRAINSTORM  →  Stage 1: PLAN  →  Stage 2: EXECUTE  →  Stage 3: VE
 2. Check for `--start-from` flag. If set, verify prerequisite artifacts exist:
    - `plan` requires `docs/design-spec.md`
    - `execute` requires `docs/design-spec.md` AND `docs/implementation-plan.md`
-   - `verify` requires generated route files to exist
+   - `validate` requires generated route files to exist
 3. If neither flag is set, start from Stage 0.
 4. Parse `--ask` level (default: `smart`).
 5. Initialize state file: write `.camel-kit/ship-state.json` with initial state.
@@ -53,8 +53,8 @@ For each stage:
 3. Invoke the corresponding skill:
    - Stage 0: invoke `/camel-brainstorm` with `[input-file]` as context
    - Stage 1: invoke `/camel-plan` (reads design spec from Stage 0)
-   - Stage 2: invoke `/camel-execute` (reads plan from Stage 1)
-   - Stage 3: invoke `/camel-verify` (verifies generated routes)
+   - Stage 2: invoke `/camel-execute` (reads plan from Stage 1; includes runtime verification via `camel-verify` subagent)
+   - Stage 3: invoke `/camel-validate` (static quality analysis of generated routes)
 4. After the skill completes, apply oversight decision from the matrix
 5. If oversight says "pause": present results and wait for user input
 6. If oversight says "auto-proceed": save state and continue to next stage
@@ -64,7 +64,7 @@ For each stage:
 
 ### Stamp Gate (After Stage 3) — Parallel Fan-Out
 
-After verification completes, run the final quality gate using parallel reviewer subagents. This keeps review traces out of the main ship context — only structured reports flow back.
+After validation completes, run the final quality gate using parallel reviewer subagents. This keeps review traces out of the main ship context — only structured reports flow back.
 
 **Step 1: Build verification** (inline — not subagent)
 - Run `{COMMAND_PREFIX} verify` (or `mvn verify` directly)

@@ -33,13 +33,13 @@ Execute pipeline stages sequentially — each stage must complete before the nex
 - Stage 0 (Brainstorm): direct
 - Stage 1 (Plan): direct, auto-proceeds to Stage 2
 - Stage 2 (Execute): dispatches implementation tasks, uses forks for research isolation
-- Stage 3 (Verify): direct
+- Stage 3 (Validate): direct
 
 ### State Tracking via todo_write
 
 Maintain a pipeline progress list using `todo_write`:
 
-- Write a todo item for each stage: "Stage 0: Brainstorm", "Stage 1: Plan", "Stage 2: Execute", "Stage 3: Verify", "Final: Stamp"
+- Write a todo item for each stage: "Stage 0: Brainstorm", "Stage 1: Plan", "Stage 2: Execute", "Stage 3: Validate", "Final: Stamp"
 - Check off each stage as it completes
 - If the pipeline is interrupted, the todo list shows which stages are done
 

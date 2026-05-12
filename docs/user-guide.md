@@ -98,7 +98,7 @@ This is why you may see the AI fix something during review that it didn't catch 
 
 Code that passes static analysis can still fail at runtime -- wrong component options for the target version, missing dependencies at startup, external services not running. Research has shown that AI models cause approximately 30% of runtime errors that are invisible to static analysis (Li et al., *"Environment-in-the-Loop"*, ICSE 2026). The fix is not better prediction -- it is actual execution in a real environment.
 
-Camel-Kit applies this principle through `/camel-verify`, which implements a structured feedback loop:
+Camel-Kit applies this principle through its verification loop (now internal to `/camel-execute`), which implements a structured feedback loop. For standalone quality checks after execution, use `/camel-validate`:
 
 ```mermaid
 flowchart LR
@@ -216,10 +216,13 @@ flowchart TB
         D["/camel-execute"]
         subgraph "Internal Skills"
             I["/camel-implement"]
-            V["/camel-validate"]
+            V2["/camel-validate (internal)"]
             T["/camel-test"]
-            R["/camel-verify"]
+            R["/camel-verify (internal)"]
         end
+    end
+    subgraph "Phase 4: Validate"
+        VF["/camel-validate"]
     end
     subgraph Output
         E["YAML routes + tests + verification report"]
@@ -228,8 +231,9 @@ flowchart TB
     A --> B
     B -->|"user approves BRD"| C
     C -->|"auto-proceeds"| D
-    D --> I --> V --> T --> R
-    D --> E
+    D --> I --> V2 --> T --> R
+    D --> VF
+    VF --> E
 ```
 
 ### Phase 1: Design (`/camel-brainstorm`)
@@ -269,9 +273,11 @@ After the plan is complete, the pipeline transitions automatically to the execut
 The execute phase runs all tasks from the approved plan autonomously, without pausing between tasks. For each task, it orchestrates four internal skills:
 
 1. **`/camel-implement`** -- generates Camel YAML routes, properties, pom.xml dependencies, and DataMapper transformations from the TDD
-2. **`/camel-validate`** -- checks generated routes against the MCP catalog and the constitution's 7 rules
+2. **`/camel-validate`** (internal) -- checks generated routes against the MCP catalog and the constitution's 7 rules
 3. **`/camel-test`** -- generates Citrus integration tests
-4. **`/camel-verify`** -- runs the 3-phase verification loop (build, Citrus tests, report)
+4. **`/camel-verify`** (internal) -- runs the 3-phase verification loop (build, Citrus tests, report)
+
+After all execute tasks complete, `/camel-validate` runs as a separate Tier 1 pipeline step -- the final user-facing quality gate.
 
 Each task goes through two-stage review: spec compliance first (does it match the design?), then code quality (does it follow the constitution?). If review fails, the task is sent back for fixes before moving on.
 
@@ -388,7 +394,7 @@ The command scans all project artifacts, detects the source platform automatical
 The migration produces a BRD and TDDs in the same format as `/camel-brainstorm`. This means the rest of the pipeline is identical:
 
 ```
-/camel-migrate  -->  /camel-plan  -->  /camel-execute  -->  /camel-verify
+/camel-migrate  -->  /camel-plan  -->  /camel-execute  -->  /camel-validate
 ```
 
 The migration output is fully compatible with the greenfield pipeline. From the plan phase onward, there is no difference between a migrated project and a greenfield project.
@@ -397,13 +403,13 @@ The migration output is fully compatible with the greenfield pipeline. From the 
 
 ## 6. Verification
 
-### `/camel-verify`
+### `/camel-verify` (Internal to `/camel-execute`)
 
 Verification is a structured 3-phase feedback loop that builds the project, runs Citrus integration tests via `camel test run`, diagnoses errors, applies fixes, and retries until all tests pass or the iteration limit is reached. Citrus tests are self-contained: Testcontainers manage external services and `camel:jbang:run` starts the Camel integration within the test.
 
 **When it runs:**
-- **Automatically** at the end of `/camel-execute`, after all implementation tasks complete
-- **Manually** via `/camel-verify` if you want to re-verify an existing project
+- **Automatically** inside `/camel-execute`, as a subagent-only skill dispatched per task
+- `/camel-verify` is not a standalone user-facing command. For standalone quality checks after execution, use `/camel-validate`.
 
 ### The 3 Phases
 
@@ -769,7 +775,7 @@ When Docker is not installed or not running, verification phases that depend on 
 
 ### Verification Fails Repeatedly
 
-If `/camel-verify` fails after multiple fix iterations:
+If verification fails after multiple fix iterations (the verify loop runs inside `/camel-execute`):
 1. Check the verification report for the error classification and fix history
 2. Look for "same error after fix attempt" messages -- these indicate the automated fix did not resolve the root cause
 3. Check if the error is classified as "Escalate" -- these require manual intervention

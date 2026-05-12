@@ -14,12 +14,12 @@ Decision rules for each oversight level at each pipeline stage. The orchestrator
 | **Plan** | Plan complete, all tasks defined | AUTO-PROCEED | AUTO-PROCEED | AUTO-PROCEED |
 | **Plan** | Plan has gaps or inconsistencies | PAUSE | PAUSE | AUTO-PROCEED (fill gaps) |
 | **Plan** | Failed to produce plan | PAUSE | PAUSE | PAUSE (blocker) |
-| **Execute** | Task implemented, tests pass | PAUSE | AUTO-PROCEED | AUTO-PROCEED |
-| **Execute** | Task implemented, tests fail | PAUSE | PAUSE | AUTO-FIX (up to 3 rounds) |
+| **Execute** | Tasks done, verification PASS | PAUSE (present report) | PAUSE (present report) | AUTO-PROCEED |
+| **Execute** | Tasks done, verification FAIL | PAUSE | PAUSE | AUTO-FIX (up to 3 rounds) |
 | **Execute** | Task implementation failed | PAUSE | PAUSE | AUTO-FIX (up to 3 rounds) |
 | **Execute** | Auto-fix exhausted (3 rounds) | PAUSE | PAUSE | PAUSE (blocker) |
-| **Verify** | All checks pass | PAUSE (present report) | PAUSE (present report) | AUTO-PROCEED to Stamp |
-| **Verify** | Some checks fail | PAUSE | PAUSE | AUTO-FIX (up to 3 rounds) |
+| **Validate** | No Critical findings | PAUSE (present report) | DONE | DONE |
+| **Validate** | Critical findings | PAUSE | PAUSE | PAUSE (blocker) |
 | **Stamp** | All gates pass | DONE | DONE | DONE |
 | **Stamp** | Gate failure | PAUSE | PAUSE | PAUSE (blocker) |
 
@@ -66,11 +66,12 @@ For each stage completion, execute this logic:
 - Circular dependencies in the task graph
 - Tasks referencing components not in the design spec
 
-### Execute Stage
+### Execute Stage (includes verification)
 - Test failures (clear signal — not ambiguous, but requires decision)
 - Compilation errors (clear signal)
 - MCP verification failures (component not found in catalog)
+- Partial runtime verification (some checks pass, some fail)
 
-### Verify Stage
-- Partial verification (some checks pass, some fail)
-- Constitution violations (may be intentional deviations)
+### Validate Stage
+- Critical findings detected (security vulnerabilities, constitution violations)
+- Mixed results across quality dimensions (some pass, some fail)
