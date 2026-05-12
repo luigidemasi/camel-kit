@@ -29,7 +29,7 @@ Chain the pipeline using named agent delegation:
 Use `save_memory` to persist pipeline state between stages:
 
 - Key: `camel-kit:ship:state`
-- Value: JSON string matching the `.camel-kit/ship-state.json` format
+- Value: JSON string matching the `.camel-kit/pipeline.json` format
 - This provides an additional persistence mechanism alongside the file-based state
 
 ### Batch Context Loading

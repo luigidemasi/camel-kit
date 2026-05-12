@@ -73,5 +73,5 @@ Include explicit file paths to prior outputs in each subagent prompt — don't a
 ### Environment Probe Checkpoint
 
 - Run the probe as the first task in the execution sequence
-- Write a checkpoint to `.camel-kit/ship-state.json` after the probe passes
+- Write a checkpoint to `.camel-kit/pipeline.json` after the probe passes
 - If the probe triggers a re-plan loop, track each re-plan round as a separate todo item
