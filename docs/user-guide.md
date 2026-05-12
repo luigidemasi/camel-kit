@@ -216,7 +216,6 @@ flowchart TB
         D["/camel-execute"]
         subgraph "Internal Skills"
             I["/camel-implement"]
-            V2["/camel-validate (internal)"]
             T["/camel-test"]
             R["/camel-verify (internal)"]
         end
@@ -225,13 +224,13 @@ flowchart TB
         VF["/camel-validate"]
     end
     subgraph Output
-        E["YAML routes + tests + verification report"]
+        E["YAML routes + tests + validation report"]
     end
 
     A --> B
     B -->|"user approves BRD"| C
     C -->|"auto-proceeds"| D
-    D --> I --> V2 --> T --> R
+    D --> I --> T --> R
     D --> VF
     VF --> E
 ```
@@ -273,9 +272,8 @@ After the plan is complete, the pipeline transitions automatically to the execut
 The execute phase runs all tasks from the approved plan autonomously, without pausing between tasks. For each task, it orchestrates four internal skills:
 
 1. **`/camel-implement`** -- generates Camel YAML routes, properties, pom.xml dependencies, and DataMapper transformations from the TDD
-2. **`/camel-validate`** (internal) -- checks generated routes against the MCP catalog and the constitution's 7 rules
-3. **`/camel-test`** -- generates Citrus integration tests
-4. **`/camel-verify`** (internal) -- runs the 3-phase verification loop (build, Citrus tests, report)
+2. **`/camel-test`** -- generates Citrus integration tests
+3. **`/camel-verify`** (internal) -- runs the 3-phase verification loop (build, Citrus tests, report)
 
 After all execute tasks complete, `/camel-validate` runs as a separate Tier 1 pipeline step -- the final user-facing quality gate.
 

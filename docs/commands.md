@@ -405,7 +405,7 @@ The plan is a recipe, not the meal -- it contains instructions on how to generat
    - **Code quality review** -- checks constitution rules, security, and anti-patterns
    - If review fails, the implementer fixes and re-submits until both reviews pass
 3. **Cross-cutting review** -- after all tasks complete, reviews all generated routes together for consistency
-4. **Verification phase** -- dispatches `/camel-verify` internally as Step 3.5 (build, start, diagnose, fix). Verification is optional -- failure does not block completion
+4. **Verification phase** -- dispatches `/camel-verify` internally (build, start, diagnose, fix). Verification is optional -- failure does not block completion
 5. **Completion summary** -- reports task status, review results, and verification outcome
 
 After `/camel-execute` completes, the pipeline continues to `/camel-validate` as the final quality gate.

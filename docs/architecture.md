@@ -44,12 +44,12 @@ user_invocable: false
 | `guides/optional-guide.md` | When condition X | Supplementary guide |
 ```
 
-**Note:** Only `camel-start` sets `user_invocable: true`.
+**Note:** Both `camel-start` and `camel-validate` set `user_invocable: true`.
 
 The frontmatter fields:
 - `name` -- skill identifier, used in cross-references
 - `description` -- trigger keywords that help agents match user intent to the correct skill
-- `user_invocable` -- `true` only for `camel-start` (the meta-router). All other skills have `user_invocable: false`. Note: slash commands still work for all skills — this is an independent mechanism from skill metadata
+- `user_invocable` -- `true` for `camel-start` (meta-router) and `camel-validate` (Tier 1 quality gate). All other skills have `user_invocable: false`. Note: slash commands still work for all skills — this is an independent mechanism from skill metadata
 
 ### All Skills
 
@@ -64,11 +64,11 @@ The frontmatter fields:
 | `camel-ship` | No | -- (standalone orchestrator) | Autonomous pipeline — chains brainstorm → plan → execute → validate with configurable oversight |
 | `camel-design` | No | `camel-brainstorm` | Guides for component selection, EIP catalog, TDD assembly |
 | `camel-implement` | No | `camel-execute` | Guides for YAML generation, properties, Docker Compose, DataMapper |
-| `camel-validate` | No | `camel-execute` | Guides for schema validation, endpoint verification, security analysis |
+| `camel-validate` | Yes | `camel-ship` (Stage 3) | Tier 1 quality gate: schema validation, endpoint verification, security analysis |
 | `camel-test` | No | `camel-execute` | Guides for route analysis and test generation with Citrus + Testcontainers |
 | `camel-knowledge` | No | `camel-brainstorm`, `camel-execute` | Routes questions to knowledge MCP tools |
 
-**Note:** Only `camel-start` has `user_invocable: true` in its skill metadata. All other skills have `user_invocable: false`. Slash commands still work for all skills (independent mechanism).
+**Note:** `camel-start` and `camel-validate` have `user_invocable: true` in their skill metadata. All other skills have `user_invocable: false`. Slash commands still work for all skills (independent mechanism).
 
 ### Shared Guides
 
@@ -230,8 +230,9 @@ Entry points diverge (`camel-brainstorm` for greenfield, `camel-migrate` for mig
    - Mark task complete and immediately start the next task (no pause, no user confirmation)
 4. After all tasks: dispatch a **cross-cutting review** as a subagent across all generated routes
 5. Dispatch the **verification phase** (`camel-verify`) as an internal subagent within execute (build, Citrus tests, report)
-6. Dispatch the **validation phase** (`camel-validate`) as a subagent — the final pipeline stage after execute
-7. Print the completion summary
+6. Print the completion summary
+
+After execute completes, the pipeline continues to **validation** (`camel-validate`) as Stage 3 — the final quality gate.
 
 All reviews, verification, and catalog lookups run as subagents with isolated context windows. Only structured reports flow back to the orchestrator -- preventing ~60-70% of pipeline tokens from accumulating in the main conversation.
 
