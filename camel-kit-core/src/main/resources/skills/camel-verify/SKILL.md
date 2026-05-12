@@ -16,7 +16,7 @@ Each phase retries up to 15 times with error classification and fix routing to e
 
 ## Invocation
 
-- **Internal only** — dispatched as a subagent by `camel-execute` (Step 3.5) after all implementation tasks complete
+- **Internal only** — dispatched as a subagent by `camel-execute` after all implementation tasks complete
 - This skill is NOT user-invocable. It runs as part of the execute phase, not as a standalone pipeline stage.
 
 ## Prerequisites

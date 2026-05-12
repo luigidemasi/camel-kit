@@ -85,7 +85,7 @@ Each reviewer receives ALL generated route files and returns a structured report
 **Why parallel is safe here:** Iron Law 4 (spec before quality) applies to per-task reviews in `camel-execute`. By this point, every task has already passed both spec and quality reviews individually. The Stamp Gate checks are cross-cutting and independent — they CAN run in parallel.
 
 **Step 3: Merge reports**
-- Combine the three reviewer reports into a single Stamp Gate report
+- Combine the three reviewer reports into a single Stamp Gate report saved to `docs/stamp-report.md`
 - Categorize issues: Critical / Important / Suggestion
 - Cross-reference acceptance criteria from the design spec
 

@@ -526,7 +526,7 @@ For connectors with no direct equivalent, the command stops and asks the user be
 
 ### /camel-verify
 
-> **Internal skill** -- dispatched automatically by `/camel-execute` as Step 3.5. Not intended for standalone use. For quality checks after the pipeline completes, use `/camel-validate`.
+> **Internal skill** -- dispatched automatically by `/camel-execute`. Not intended for standalone use. For quality checks after the pipeline completes, use `/camel-validate`.
 
 **Purpose:** Runtime verification feedback loop that builds, starts, diagnoses errors, applies fixes, and retries until the application runs correctly or the iteration limit is reached.
 
