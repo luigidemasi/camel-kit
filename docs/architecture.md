@@ -220,15 +220,19 @@ Entry points diverge (`camel-brainstorm` for greenfield, `camel-migrate` for mig
 ### How camel-execute Dispatches Work
 
 1. Read the approved implementation plan and extract all tasks
-2. For each task:
-   - Dispatch an implementer subagent with full task text, design spec section, guide paths, and MCP parameters
-   - On completion, dispatch a **spec compliance reviewer** -- does the output match the design spec?
-   - If spec review passes, dispatch a **code quality reviewer** -- constitution compliance, security, anti-patterns
+2. **Catalog research** (Step 1.5): dispatch a `catalog-researcher` subagent to batch-verify all MCP catalog artifacts for the wave. Only the structured summary flows back -- MCP response traces stay in the research subagent's context.
+3. For each task:
+   - Dispatch an implementer subagent with full task text, design spec section, pre-verified catalog summary, and MCP parameters
+   - **In-flight doubt cycle** (Step 2b.5): spot-check the implementer's key claims (component options, route structure, file list) before expensive review. Hard cap: 3 cycles.
+   - Dispatch a **spec compliance reviewer** (subagent) -- does the output match the design spec?
+   - If spec review passes, dispatch a **code quality reviewer** (subagent) -- constitution compliance, security, anti-patterns
    - If either reviewer finds critical issues, return to the implementer for fixes, then re-review
    - Mark task complete and immediately start the next task (no pause, no user confirmation)
-3. After all tasks: run a **cross-cutting review** across all generated routes
-4. Run the **verification phase** (`camel-verify`)
-5. Print the completion summary
+4. After all tasks: dispatch a **cross-cutting review** as a subagent across all generated routes
+5. Dispatch the **verification phase** (`camel-verify`) as a subagent
+6. Print the completion summary
+
+All reviews, verification, and catalog lookups run as subagents with isolated context windows. Only structured reports flow back to the orchestrator -- preventing ~60-70% of pipeline tokens from accumulating in the main conversation.
 
 ### Agent-Specific Execution
 
@@ -377,7 +381,7 @@ The `/camel-execute` pipeline relies on dispatching discrete units of work to is
 
 Four of the five agents support this natively through **subagent dispatch**:
 
-- **Claude Code** -- uses the `Agent` tool to spawn fresh subagents per task. Each subagent receives the task text, relevant TDD section, guide file paths, and MCP parameters. After implementation, a separate reviewer subagent checks spec compliance, then a third checks code quality. Claude uniquely supports **parallel dispatch**: the route graph topology (from `camel-kit-graph`) identifies independent routes (no shared `direct:`, `seda:`, or `vm:` endpoints, no shared configuration properties), and independent tasks are dispatched simultaneously to multiple subagents.
+- **Claude Code** -- uses the `Agent` tool to spawn fresh subagents per task. Each subagent receives the task text, relevant TDD section, guide file paths, and MCP parameters. Before implementation, a `catalog-researcher` subagent batch-verifies all MCP catalog artifacts (research isolation). After implementation, an in-flight doubt cycle spot-checks key claims, then a spec-compliance reviewer subagent checks the design spec, then a code-quality reviewer subagent checks constitution compliance. At the Stamp Gate, three reviewers run in parallel (spec, quality, security). Claude uniquely supports **parallel dispatch**: the route graph topology (from `camel-kit-graph`) identifies independent routes (no shared `direct:`, `seda:`, or `vm:` endpoints, no shared configuration properties), and independent tasks are dispatched simultaneously to multiple subagents.
 
 - **Gemini CLI** -- dispatches to 6 specialized subagents (brainstormer, planner, implementer, validator, tester, migrator). However, `/camel-execute` runs in the **main agent context** because Gemini prevents recursive subagent invocation -- a subagent cannot dispatch another subagent. The main agent orchestrates by dispatching individual tasks to the implementer subagent, then to the validator subagent, sequentially.
 
@@ -411,7 +415,7 @@ The trade-off table:
 
 | Agent | Dispatch Model | Key Differentiator |
 |-------|---------------|-------------------|
-| Claude Code | Parallel subagent dispatch | Route graph topology for parallelization |
+| Claude Code | Parallel subagent dispatch | Route graph topology, research isolation, parallel fan-out, doubt cycle |
 | IBM Project Bob | B+A hybrid with 5 custom modes | Monolithic gate files, 3 checkpoint types |
 | Gemini CLI | 6 subagents + main-agent execute | `@file.md` imports, TOML policy engine, MCP wildcards |
 | Qwen | 7 sub-agents with auto-delegation | Description matching, template variables |

@@ -56,3 +56,9 @@ You are dispatched during the **Execute phase** for test generation tasks. You r
 - **DONE_WITH_CONCERNS** — tests generated but coverage gaps noted
 - **NEEDS_CONTEXT** — missing route files or TDD detail
 - **BLOCKED** — cannot determine testable behaviors from provided context
+
+## Composition
+
+- **Invoke directly when:** generating Citrus integration tests from approved TDD sections and generated route YAML files
+- **Invoked via:** `camel-execute` (test generation tasks), `camel-test` (standalone test generation)
+- **Do not invoke from:** another persona (composition depth = 1)

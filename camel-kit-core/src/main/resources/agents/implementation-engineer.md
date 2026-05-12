@@ -67,3 +67,9 @@ When done, report one of:
 - Skip MCP verification because "the TDD already verified it"
 - Add features, patterns, or error handling not specified in the task
 - Generate files not listed in the task's "Files" section
+
+## Composition
+
+- **Invoke directly when:** generating implementation artifacts (YAML routes, properties, XSLT, POM, Docker Compose) from an approved TDD task
+- **Invoked via:** `camel-execute` (per-task implementation dispatch)
+- **Do not invoke from:** another persona (composition depth = 1)

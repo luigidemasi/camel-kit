@@ -4,6 +4,41 @@
 
 ---
 
+## Three-Layer Composition Model
+
+Camel-Kit uses a three-layer composition model to separate concerns between user interaction, workflow orchestration, and domain expertise:
+
+| Layer | What it is | Examples |
+|-------|-----------|---------|
+| **Skill** | Workflow with steps and exit criteria | `camel-brainstorm`, `camel-execute`, `camel-ship` |
+| **Persona** | Role with perspective, output format, and composition rules | `integration-architect`, `catalog-researcher`, `code-quality-reviewer` |
+| **Command** | User-facing entry point | `/camel-brainstorm`, `/camel-ship`, `/camel-validate` |
+
+### Composition Rules
+
+1. **Personas do not invoke other personas.** Composition is the job of skills or the user.
+2. Every persona has a `## Composition` block stating: invoke directly when / invoked via / do not invoke from another persona.
+3. **Max depth = 1:** command → persona (no deep persona trees).
+
+### Subagent Dispatch Patterns
+
+| Pattern | Purpose | Example |
+|---------|---------|---------|
+| **Direct dispatch** | One persona, one task, structured output | Implementer generates route YAML |
+| **Parallel fan-out with merge** | Multiple independent reviewers, merged reports | Stamp Gate: spec + quality + security in parallel |
+| **Research isolation** | Batch lookups, return summary only | `catalog-researcher` verifies 8 components, returns 100-token summary |
+| **In-flight doubt cycle** | Spot-check subagent claims before expensive review | CLAIM → EXTRACT → DOUBT with 3-cycle cap |
+
+### Context Savings
+
+Each subagent has its own context window. Only structured summaries flow back to the orchestrator:
+- **Research isolation** prevents ~500 tokens per MCP call from accumulating (8 components = ~4,000 tokens saved per task)
+- **Review isolation** prevents review traces (file reads, reasoning, MCP spot-checks) from accumulating (~2,000-5,000 tokens per review)
+- **Verification isolation** prevents build output and fix cycles from accumulating (~5,000-10,000 tokens)
+- For a typical 5-task plan with 2-stage review per task, subagent isolation prevents ~60-70% of pipeline tokens from accumulating in the main conversation
+
+---
+
 ## Design Philosophy
 
 Each agent uses a different architecture designed to **maximize that agent's native capabilities** -- not lowest-common-denominator parity. The equalization layer ensures identical pipeline behavior (same skills, same output), while the template layer exploits each agent's strongest features for dispatch, tool restriction, and configuration.
@@ -60,6 +95,9 @@ Claude has no formal permission system. It relies on skill instructions to const
 - **Parallel dispatch:** only agent that can run multiple pipeline tasks simultaneously
 - **Route graph topology:** uses `camel-kit graph` to determine route independence for parallelization decisions
 - **Context isolation:** each subagent gets a fresh context window -- no cross-contamination between phases
+- **Research isolation:** `catalog-researcher` and `knowledge-researcher` subagents batch MCP lookups and return only summaries
+- **Parallel reviewer fan-out:** Stamp Gate dispatches spec, quality, and security reviewers simultaneously
+- **In-flight doubt cycle:** orchestrator spot-checks implementer claims before expensive two-stage review
 - **Simplest configuration:** 3 template files total (fewest of any agent)
 
 ---

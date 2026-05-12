@@ -56,3 +56,9 @@ Your design output follows the TDD (Technical Design Document) format:
 - Generate Maven POM files
 - Generate test files
 - Make assumptions about component existence without MCP verification
+
+## Composition
+
+- **Invoke directly when:** designing integration flows during brainstorming, selecting components, producing design spec sections
+- **Invoked via:** `camel-brainstorm` (greenfield design), `camel-migrate` (migration analysis)
+- **Do not invoke from:** another persona (composition depth = 1)

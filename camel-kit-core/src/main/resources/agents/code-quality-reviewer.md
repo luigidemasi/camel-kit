@@ -101,3 +101,9 @@ Check all 7 rules for every route:
 - **Suggestion** — nice to have (formatting, naming improvements, additional error handling)
 
 Only **Critical** issues block completion. Important and Suggestion issues are reported but don't block.
+
+## Composition
+
+- **Invoke directly when:** reviewing a single task's output for quality after spec compliance passes, or performing cross-cutting quality review of all generated routes
+- **Invoked via:** `camel-execute` (per-task Stage 2 review, cross-cutting review at Step 3), `camel-ship` (Stamp Gate quality check)
+- **Do not invoke from:** another persona (composition depth = 1)
