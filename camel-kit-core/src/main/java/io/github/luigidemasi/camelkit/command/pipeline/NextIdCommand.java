@@ -3,6 +3,7 @@ package io.github.luigidemasi.camelkit.command.pipeline;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -49,7 +50,7 @@ public class NextIdCommand implements Runnable {
             }
         }
 
-        String pipelineId = String.format("%03d-%s", maxId + 1, slug);
+        String pipelineId = String.format(Locale.ROOT, "%03d-%s", maxId + 1, slug);
         Path pipelineDir = docsDir.resolve(pipelineId);
 
         try {

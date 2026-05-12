@@ -2,6 +2,7 @@ package io.github.luigidemasi.camelkit.command.pipeline;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -21,7 +22,7 @@ class NextIdCommandTest {
         cmd.baseDir = baseDir;
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        PrintStream out = new PrintStream(baos);
+        PrintStream out = new PrintStream(baos, true, StandardCharsets.UTF_8);
         PrintStream oldOut = System.out;
         System.setOut(out);
         try {
@@ -29,7 +30,7 @@ class NextIdCommandTest {
         } finally {
             System.setOut(oldOut);
         }
-        return baos.toString().trim();
+        return baos.toString(StandardCharsets.UTF_8).trim();
     }
 
     @Test
