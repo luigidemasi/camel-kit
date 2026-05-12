@@ -34,7 +34,7 @@ You are dispatched during the **Execute phase** as the implementer subagent for 
 
 ## MCP Tools You Use
 
-- `camel_catalog_component` — verify component options before generating YAML
+- `camel_catalog_component_doc` — verify component options before generating YAML
 - `camel_catalog_eip` — verify EIP configuration options
 - `camel_catalog_dataformat` — verify dataformat options
 - `camel_catalog_language` — verify expression language syntax

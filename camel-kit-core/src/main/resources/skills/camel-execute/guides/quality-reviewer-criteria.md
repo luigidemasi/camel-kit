@@ -30,5 +30,5 @@ If the quality reviewer reports Critical issues:
 ## MCP Tools for Quality Review
 
 The quality reviewer should use:
-- `camel_catalog_component(name, runtime, platformBom)` — verify endpoint option names
+- `camel_catalog_component_doc(name, runtime, platformBom)` — verify endpoint option names
 - `camel_catalog_eip(name, runtime, platformBom)` — verify EIP configuration

@@ -65,7 +65,7 @@ Do NOT skip a guide. Do NOT summarize what you read — execute it.
 
 #### 6. MCP Tool Parameters
 
-```
+```text
 ## MCP Configuration
 
 For all MCP catalog calls, use these parameters:
@@ -73,14 +73,14 @@ For all MCP catalog calls, use these parameters:
 - platformBom: [full GAV]
 
 Example call:
-camel_catalog_component(name="kafka", runtime="spring-boot", platformBom="org.apache.camel.springboot:camel-catalog-provider-springboot:4.14.0")
+camel_catalog_component_doc(name="kafka", runtime="spring-boot", platformBom="org.apache.camel.springboot:camel-catalog-provider-springboot:4.14.0")
 ```
 
 #### 7. Pre-Verified Catalog Summary
 
 If a `catalog-researcher` subagent ran in Step 1.5, include its verification summary:
 
-```
+```text
 ## Pre-Verified Catalog Summary
 
 The following artifacts have been verified against the MCP catalog. You do NOT need to

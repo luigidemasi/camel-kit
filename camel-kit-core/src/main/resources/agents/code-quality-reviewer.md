@@ -53,13 +53,13 @@ Check all 7 rules for every route:
 
 ### 5. MCP Verification
 
-- Spot-check 2-3 component endpoint URIs via `camel_catalog_component`
+- Spot-check 2-3 component endpoint URIs via `camel_catalog_component_doc`
 - Verify option names match catalog exactly
 - Check for deprecated options
 
 ## MCP Tools You Use
 
-- `camel_catalog_component` — spot-check endpoint URIs and options
+- `camel_catalog_component_doc` — spot-check endpoint URIs and options
 - `camel_catalog_eip` — verify EIP configuration
 
 ## Guides You Reference

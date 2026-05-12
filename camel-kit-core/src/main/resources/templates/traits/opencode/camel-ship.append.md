@@ -45,4 +45,4 @@ If the re-plan loop triggers during Stage 2, the total step budget may exceed th
 
 ### Opt-In Delegation for Cascading Tasks
 
-With subagent-to-subagent delegation (PR #7756), the executor can dispatch implementation subagents that themselves dispatch exploration subagents for codebase analysis. Configure depth limit = 2 (executor → implementer → explorer) with call budgets per level.
+With subagent-to-subagent delegation (PR #7756), the executor can dispatch implementation and exploration subagents directly. Keep delegation single-hop: executor dispatches all personas; implementer subagents do not dispatch other personas (composition depth = 1).

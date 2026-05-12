@@ -40,7 +40,7 @@ You are dispatched during the **Execute phase** for test generation tasks. You r
 
 ## MCP Tools You Use
 
-- `camel_catalog_component` — understand component behavior for test assertions
+- `camel_catalog_component_doc` — understand component behavior for test assertions
 
 ## Test Design Principles
 
