@@ -35,13 +35,13 @@ Stage 0: BRAINSTORM  →  Stage 1: PLAN  →  Stage 2: EXECUTE  →  Stage 3: VA
 
 ### Before Starting
 
-1. Generate pipeline ID: run `{COMMAND_PREFIX} nextId <slug>` (derive slug from input file name or user request).
-2. Check for `--resume` flag. If set, read `.camel-kit/pipeline.json`, verify `mode = "ship"`, and jump to `currentStage`.
+1. Check for `--resume` flag. If set, read `.camel-kit/pipeline.json`, verify `mode = "ship"`, and jump to `currentStage`. Skip steps 2-6.
+2. Generate pipeline ID: run `{COMMAND_PREFIX} nextId <slug>` (derive slug from input file name or user request).
 3. Check for `--start-from` flag. If set, verify prerequisite artifacts exist in `docs/camel-kit/<activePipeline>/`:
    - `plan` requires `design-spec.md`
    - `execute` requires `design-spec.md` AND `implementation-plan.md`
    - `validate` requires generated route files to exist
-4. If neither flag is set, start from Stage 0.
+4. If neither `--resume` nor `--start-from` is set, start from Stage 0.
 5. Parse `--ask` level (default: `smart`).
 6. Initialize state file: write `.camel-kit/pipeline.json` with `mode: "ship"` and initial state.
 
@@ -50,7 +50,7 @@ Stage 0: BRAINSTORM  →  Stage 1: PLAN  →  Stage 2: EXECUTE  →  Stage 3: VA
 For each stage:
 
 1. Load the oversight matrix: read `guides/oversight-matrix.md`
-2. Update state: set `currentStage` in `.camel-kit/ship-state.json`
+2. Update state: set `currentStage` in `.camel-kit/pipeline.json`
 3. Invoke the corresponding skill:
    - Stage 0: invoke `/camel-brainstorm` with `[input-file]` as context
    - Stage 1: invoke `/camel-plan` (reads design spec from Stage 0)
@@ -86,7 +86,7 @@ Each reviewer receives ALL generated route files and returns a structured report
 **Why parallel is safe here:** Iron Law 4 (spec before quality) applies to per-task reviews in `camel-execute`. By this point, every task has already passed both spec and quality reviews individually. The Stamp Gate checks are cross-cutting and independent — they CAN run in parallel.
 
 **Step 3: Merge reports**
-- Combine the three reviewer reports into a single Stamp Gate report saved to `docs/stamp-report.md`
+- Combine the three reviewer reports into a single Stamp Gate report saved to `docs/camel-kit/<activePipeline>/stamp-report.md`
 - Categorize issues: Critical / Important / Suggestion
 - Cross-reference acceptance criteria from the design spec
 

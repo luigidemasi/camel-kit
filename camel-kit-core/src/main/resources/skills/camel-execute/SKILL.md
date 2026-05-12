@@ -80,7 +80,7 @@ digraph execute {
 Before executing tasks, analyze the plan for parallel execution waves:
 
 ```bash
-{COMMAND_PREFIX} plan analyze docs/implementation-plan.md
+{COMMAND_PREFIX} plan analyze docs/camel-kit/<activePipeline>/implementation-plan.md
 ```
 
 This outputs JSON with parallel execution waves — groups of tasks that can run simultaneously because they touch different files:

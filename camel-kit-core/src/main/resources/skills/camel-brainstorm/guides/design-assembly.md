@@ -238,7 +238,7 @@ Fix any issues inline.
 Present the spec to the user:
 
 ```
-Design spec saved to docs/design-spec.md
+Design spec saved to docs/camel-kit/<PIPELINE_ID>/design-spec.md
 
 Please review the spec. Once you approve it, I'll create a detailed implementation plan.
 

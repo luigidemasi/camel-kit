@@ -14,7 +14,7 @@ import picocli.CommandLine.Parameters;
 @Command(name = "nextId", description = "Generate next sequential pipeline ID and create directory")
 public class NextIdCommand implements Runnable {
 
-    private static final Pattern ID_PATTERN = Pattern.compile("^(\\d{3})-.*$");
+    private static final Pattern ID_PATTERN = Pattern.compile("^(\\d+)-.*$");
     private static final Pattern SLUG_PATTERN = Pattern.compile("^[a-z0-9]+(-[a-z0-9]+)*$");
 
     @Parameters(index = "0",
@@ -26,9 +26,9 @@ public class NextIdCommand implements Runnable {
     @Override
     public void run() {
         if (!SLUG_PATTERN.matcher(slug).matches()) {
-            System.err.println("Invalid slug: '" + slug
-                               + "'. Must be lowercase alphanumeric with hyphens (e.g. 'order-processing').");
-            return;
+            throw new IllegalArgumentException(
+                    "Invalid slug: '" + slug
+                                               + "'. Must be lowercase alphanumeric with hyphens (e.g. 'order-processing').");
         }
 
         Path docsDir = baseDir.resolve("docs/camel-kit");
@@ -45,8 +45,7 @@ public class NextIdCommand implements Runnable {
                         .max()
                         .orElse(0);
             } catch (IOException e) {
-                System.err.println("Error scanning docs/camel-kit: " + e.getMessage());
-                return;
+                throw new RuntimeException("Error scanning docs/camel-kit: " + e.getMessage(), e);
             }
         }
 
@@ -56,8 +55,7 @@ public class NextIdCommand implements Runnable {
         try {
             Files.createDirectories(pipelineDir);
         } catch (IOException e) {
-            System.err.println("Error creating directory: " + e.getMessage());
-            return;
+            throw new RuntimeException("Error creating directory: " + e.getMessage(), e);
         }
 
         System.out.println(pipelineId);

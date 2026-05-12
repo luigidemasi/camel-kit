@@ -80,4 +80,20 @@ class NextIdCommandTest {
         String id = runNextId(tempDir, "second");
         assertEquals("002-second", id);
     }
+
+    @Test
+    void handlesIdsBeyond999() throws Exception {
+        Path docsDir = tempDir.resolve("docs/camel-kit");
+        Files.createDirectories(docsDir.resolve("999-last"));
+        Files.createDirectories(docsDir.resolve("1000-current"));
+
+        String id = runNextId(tempDir, "next");
+        assertEquals("1001-next", id);
+        assertTrue(Files.isDirectory(docsDir.resolve("1001-next")));
+    }
+
+    @Test
+    void invalidSlugThrowsException() {
+        assertThrows(IllegalArgumentException.class, () -> runNextId(tempDir, "UPPER-case"));
+    }
 }

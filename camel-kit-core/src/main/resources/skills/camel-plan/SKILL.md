@@ -200,7 +200,7 @@ After saving the plan:
 3. **Default (no trait override):** auto-invoke `camel-execute` immediately
 
 ```text
-Plan saved to docs/implementation-plan.md
+Plan saved to docs/camel-kit/<PIPELINE_ID>/implementation-plan.md
 
 Plan complete. Proceeding to execution — dispatching subagents for each task
 with two-stage review (spec compliance → code quality) between tasks.

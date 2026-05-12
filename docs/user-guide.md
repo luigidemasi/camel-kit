@@ -239,7 +239,7 @@ flowchart TB
 
 Each pipeline run creates a directory under `docs/camel-kit/` to persist artifacts across sessions:
 
-```
+```text
 docs/camel-kit/001-order-processing/
   design-spec.md           <- brainstorm output (Phase 1)
   implementation-plan.md   <- plan output (Phase 2)

@@ -105,7 +105,7 @@ Use the current date and time for the filename (e.g., `validation-report-2026-04
 ```
 
 <HARD-RULE>
-ALWAYS generate the validation report. Every validation run MUST produce a timestamped report in `docs/`. This creates an audit trail of validation results over time.
+ALWAYS generate the validation report. In pipeline mode, save to `docs/camel-kit/<PIPELINE_ID>/validation-report.md`. In standalone mode, save a timestamped report to `docs/validation-report-YYYY-MM-DD_HH-mm.md`. This creates an audit trail of validation results over time.
 </HARD-RULE>
 
 ## Iron Laws
