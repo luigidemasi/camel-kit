@@ -64,12 +64,16 @@ The design spec is the single source of truth for what gets built. It contains:
 **Source:**
 - System: [name]
 - Component: `[camel-component]` (MCP-verified)
+- **Rationale:** [Why this component was chosen over alternatives]
+- **Constraints:** [Technical constraints that influenced this choice]
 - Trigger: [description]
 - Endpoint options: [key options from MCP catalog]
 
 **Transformations:**
 1. [step description]
    - EIP: `[eip-name]` (MCP-verified)
+   - **Rationale:** [Why this EIP was chosen over alternatives]
+   - **Constraints:** [Technical constraints that influenced this choice]
    - Details: [configuration]
 
 **DataMapper:** (if applicable)
@@ -84,6 +88,8 @@ The design spec is the single source of truth for what gets built. It contains:
 **Sink:**
 - System: [name]
 - Component: `[camel-component]` (MCP-verified)
+- **Rationale:** [Why this component was chosen over alternatives]
+- **Constraints:** [Technical constraints that influenced this choice]
 - Action: [description]
 - Endpoint options: [key options from MCP catalog]
 
@@ -200,6 +206,7 @@ After assembling the spec, check:
 4. **Constitution compliance:** Would each flow pass all 7 rules as designed?
 5. **Property completeness:** Does every externalized value have a property name?
 6. **Flow completeness:** Does each flow from the interview have a design section?
+7. **Decision rationale:** Does every component and EIP selection have Rationale and Constraints filled in? Generic answers like "best fit" are not sufficient — explain the specific technical reasons.
 
 Fix any issues inline.
 
