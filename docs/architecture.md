@@ -629,6 +629,29 @@ docs/camel-kit/<PIPELINE_ID>/
 
 For manual pipelines, the stage is determined by which artifacts exist in the pipeline directory — no explicit stage tracking. This follows the spec-kit pattern where artifact presence IS the state.
 
+### Dual-Mode Invocation
+
+Every pipeline skill (brainstorm, plan, execute, validate) supports two invocation modes:
+
+- **Chained mode** — the skill is auto-invoked by the previous stage within the same conversation. HARD-RULE auto-transitions are enforced (brainstorm → plan → execute → validate).
+- **Standalone mode** — the skill is invoked independently (new session, CI/CD, or manual re-entry). It reads its input from pipeline artifacts on disk and writes its output to the same directory. Auto-transitions are suppressed — the caller manages stage progression.
+
+Detection is automatic: if the skill was auto-invoked in conversation context, it runs in chained mode. If invoked independently with pipeline artifacts available, it runs in standalone mode.
+
+### Re-iteration and Staleness Markers
+
+When `/camel-brainstorm <PIPELINE_ID>` is invoked on a pipeline that already has a design spec, the skill enters **amend mode**: it loads the existing spec, lets the user modify it, and writes the updated version back. All downstream artifacts (`implementation-plan.md`, `execution-report.md`, `validation-report.md`, `stamp-report.md`) are marked stale.
+
+Staleness markers are embedded directly in the artifact file:
+
+```markdown
+> ⚠️ **STALE** — upstream artifact `design-spec.md` was modified on YYYY-MM-DD HH:MM.
+> This document was generated from an earlier version and may be out of date.
+> Re-run the corresponding pipeline stage to regenerate.
+```
+
+When `camel-ship --resume` detects stale artifacts, it automatically re-runs from the earliest stale stage instead of the stored `currentStage`. This ensures the pipeline produces consistent output after upstream amendments.
+
 ### Verify Iteration Log
 
 `.camel-kit/verify-log.md` is an append-only audit trail of verify cycles, recording findings, severity, and actions taken per iteration.

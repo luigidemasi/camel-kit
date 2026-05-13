@@ -145,3 +145,119 @@ Append-only audit trail for verify cycles. Each iteration follows this format:
 ```
 
 Created by the verify skill during execute. Append new iterations at the end of the file.
+
+---
+
+## Standalone Mode Detection
+
+Each pipeline skill supports **two invocation modes**:
+
+### Chained Mode (default)
+
+The skill is auto-invoked by the previous stage within the same conversation. Conversation context provides the input data.
+
+- brainstorm auto-invokes plan after spec approval
+- plan auto-invokes execute after planning
+- execute auto-invokes validate after task completion
+- HARD-RULEs for automatic transitions remain enforced
+
+### Standalone Mode
+
+The skill is invoked independently (new session, CI/CD, or manual re-entry). No conversation context exists — the skill reads input from pipeline artifacts on disk.
+
+**Detection logic (checked at skill start):**
+
+1. If the skill was auto-invoked by the previous stage in this conversation → **chained mode**
+2. If the skill is invoked with `<PIPELINE_ID>` as argument or `.camel-kit/pipeline.json` exists, AND the required input artifact exists on disk → **standalone mode**
+3. If neither → prompt the user (normal first-run behavior)
+
+**Standalone input artifacts per skill:**
+
+| Skill | Required Input Artifact | Output Artifact |
+|---|---|---|
+| brainstorm | _(none — starts from scratch or amends existing)_ | `design-spec.md` |
+| plan | `design-spec.md` | `implementation-plan.md` |
+| execute | `implementation-plan.md` | `execution-report.md` |
+| validate | `execution-report.md` (or generated routes in `src/`) | `validation-report.md` |
+
+**Standalone behavior:**
+
+- Read the input artifact from `docs/camel-kit/<PIPELINE_ID>/`
+- Execute the skill's full workflow using the file contents as input
+- Write the output artifact to the same pipeline directory
+- Do NOT auto-invoke the next stage (the caller manages stage transitions in standalone mode)
+
+**When to suppress auto-transition:**
+
+In standalone mode, the skill must NOT auto-invoke the next stage. The `<HARD-RULE>` auto-transitions (e.g., brainstorm → plan, plan → execute) apply ONLY in chained mode. In standalone mode, the skill writes its output artifact and stops.
+
+---
+
+## Re-iteration (Amend Mode)
+
+When `/camel-brainstorm <PIPELINE_ID>` is invoked on a pipeline that already has a `design-spec.md`:
+
+1. Read the existing `design-spec.md` as the starting point
+2. Present it to the user for amendment (not a full re-interview)
+3. After the user approves the amended spec, overwrite `design-spec.md`
+4. Mark all downstream artifacts as **stale** (see Staleness Markers below)
+
+This enables iterative refinement without restarting the entire pipeline.
+
+---
+
+## Staleness Markers
+
+When an upstream artifact is modified (e.g., `design-spec.md` is amended), all downstream artifacts become potentially invalid. Staleness markers embed this signal directly in the downstream files.
+
+### Marker Format
+
+Insert at the top of the file, immediately after any YAML frontmatter or title:
+
+```markdown
+> ⚠️ **STALE** — upstream artifact `design-spec.md` was modified on YYYY-MM-DD HH:MM.
+> This document was generated from an earlier version and may be out of date.
+> Re-run the corresponding pipeline stage to regenerate.
+```
+
+### Staleness Cascade
+
+When `design-spec.md` is amended:
+
+| Downstream Artifact | Marked Stale? |
+|---|---|
+| `implementation-plan.md` | Yes |
+| `execution-report.md` | Yes |
+| `validation-report.md` | Yes |
+| `stamp-report.md` | Yes |
+
+When `implementation-plan.md` is regenerated (stale marker cleared):
+
+| Downstream Artifact | Marked Stale? |
+|---|---|
+| `execution-report.md` | Yes (if not already) |
+| `validation-report.md` | Yes (if not already) |
+| `stamp-report.md` | Yes (if not already) |
+
+### Applying Staleness Markers
+
+When a skill writes or amends an artifact, it must:
+
+1. Identify all downstream artifacts that exist in `docs/camel-kit/<PIPELINE_ID>/`
+2. For each existing downstream artifact, prepend the staleness marker (if not already present)
+3. Record the modification timestamp in the marker
+
+### Clearing Staleness Markers
+
+When a skill regenerates an artifact (full re-run, not an amendment):
+
+1. The regenerated artifact is written fresh — no staleness marker
+2. The staleness markers on further-downstream artifacts remain until those stages are also re-run
+
+### Detecting Staleness
+
+Any skill can detect staleness in its input by checking the first 10 lines for a blockquote containing `⚠️ **STALE**`. The marker is always inserted immediately after the title, so it appears within the first few lines of any pipeline artifact. If found:
+
+- **Chained mode:** Warn the user but proceed (the regeneration will produce a fresh artifact)
+- **Standalone mode:** Warn the user and ask whether to proceed with stale input or abort
+- **Ship --resume:** Automatically re-run from the earliest stale stage (see camel-ship)

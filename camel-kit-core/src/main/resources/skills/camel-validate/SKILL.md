@@ -8,12 +8,37 @@ user_invocable: true
 
 > **Tier 1 pipeline step.** Final stage after execute — produces a comprehensive quality report.
 
-## Invocation
+## Invocation Modes
 
-- **User:** `/camel-validate` — run standalone on any project with generated routes
-- **Pipeline:** invoked as Stage 3 by `camel-ship` after execute completes (including verification)
+This skill supports two invocation modes (see `shared/pipeline-infrastructure.md` for details):
 
-When invoked standalone, validates routes in the current project. When invoked as a pipeline stage, reads the generated routes from the execute phase and produces the validation report.
+### Chained Mode
+
+Invoked as Stage 3 by `camel-ship` after execute completes, or auto-invoked by `camel-execute` at the end of its task loop. Pipeline context is available in the conversation.
+
+### Standalone Mode
+
+Invoked directly by the user: `/camel-validate` or `/camel-validate <PIPELINE_ID>`.
+
+**Detection at start:**
+
+1. If auto-invoked by execute or ship in this conversation → **chained mode** (pipeline)
+2. If invoked with `<PIPELINE_ID>` and pipeline artifacts exist → **standalone mode** (pipeline-scoped)
+3. If invoked without `<PIPELINE_ID>` and `.camel-kit/pipeline.json` exists → **standalone mode** (pipeline-scoped, use `activePipeline`)
+4. If invoked without `<PIPELINE_ID>` and no `.camel-kit/pipeline.json` → **standalone mode** (project-scoped, validates routes in current project)
+
+**Standalone behavior (pipeline-scoped):**
+
+- Read prior artifacts from `docs/camel-kit/<PIPELINE_ID>/` for cross-reference
+- Check input artifacts for staleness markers (`⚠️ **STALE**`) — if found, warn but proceed
+- Execute the full validation workflow
+- Write `validation-report.md` to the pipeline directory
+- STOP (no further stage transitions)
+
+**Standalone behavior (project-scoped — no pipeline):**
+
+- Validate routes found in the current project
+- Write a timestamped report to `docs/validation-report-YYYY-MM-DD_HH-mm.md`
 
 **Announce at start:** "I'm using the camel-validate skill to analyze route quality."
 
@@ -31,7 +56,7 @@ Before running validation, resolve the active pipeline using `shared/pipeline-in
    - `execution-report.md` — for verifying generated file list, review results, and verification status
 3. Save the validation report to `docs/camel-kit/<activePipeline>/validation-report.md`
 
-When invoked standalone (no pipeline context), fall back to scanning routes in the current project and saving the report to `docs/validation-report-YYYY-MM-DD_HH-mm.md` (existing behavior).
+When invoked standalone without pipeline context (project-scoped), fall back to scanning routes in the current project and saving the report to `docs/validation-report-YYYY-MM-DD_HH-mm.md`.
 
 ## Guide Manifest
 
@@ -49,10 +74,10 @@ When invoked standalone (no pipeline context), fall back to scanning routes in t
 
 After completing all validation checks, generate a markdown report saved to:
 
-- **Pipeline mode:** `docs/camel-kit/<PIPELINE_ID>/validation-report.md`
-- **Standalone mode:** `docs/validation-report-YYYY-MM-DD_HH-mm.md`
+- **Chained mode and standalone pipeline-scoped:** `docs/camel-kit/<PIPELINE_ID>/validation-report.md`
+- **Standalone project-scoped (no pipeline):** `docs/validation-report-YYYY-MM-DD_HH-mm.md`
 
-Use the current date and time for the filename (e.g., `validation-report-2026-04-22_14-30.md`).
+Use the current date and time for the timestamped filename (e.g., `validation-report-2026-04-22_14-30.md`).
 
 ### Report Format
 
@@ -107,8 +132,13 @@ Use the current date and time for the filename (e.g., `validation-report-2026-04
 ```
 
 <HARD-RULE>
-ALWAYS generate the validation report. In pipeline mode, save to `docs/camel-kit/<PIPELINE_ID>/validation-report.md`. In standalone mode, save a timestamped report to `docs/validation-report-YYYY-MM-DD_HH-mm.md`. This creates an audit trail of validation results over time.
+ALWAYS generate the validation report.
+- In chained mode and standalone pipeline-scoped mode, save to `docs/camel-kit/<PIPELINE_ID>/validation-report.md`.
+- In standalone project-scoped mode (no pipeline), save to `docs/validation-report-YYYY-MM-DD_HH-mm.md`.
+This creates an audit trail of validation results over time.
 </HARD-RULE>
+
+**Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, after saving the validation report, check for an existing `stamp-report.md` in the pipeline directory and prepend the staleness marker if it exists.
 
 ## Iron Laws
 

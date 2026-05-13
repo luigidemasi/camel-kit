@@ -13,6 +13,7 @@ This document is the reference for all Camel-Kit commands: the `camel-kit` CLI a
   - [/camel-execute](#camel-execute)
   - [/camel-migrate](#camel-migrate)
   - [/camel-validate](#camel-validate)
+  - [/camel-ship](#camel-ship)
   - [/camel-verify (internal)](#camel-verify)
 - [Command Cheat Sheet](#command-cheat-sheet)
 
@@ -357,26 +358,40 @@ Four additional skills (`/camel-implement`, `/camel-verify`, `/camel-test`, `/ca
 - `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md` (one TDD per flow)
 - `docs/constitution.md`
 
-**Example:**
+**Examples:**
 
-```
+```bash
+# Start a new design (chained mode — auto-invokes plan after approval)
 /camel-brainstorm
+
+# Start a new design in standalone mode (if design-spec.md does not exist)
+/camel-brainstorm 001-order-processing
+
+# Amend an existing design spec (if design-spec.md already exists)
+/camel-brainstorm 001-order-processing
 ```
+
+**Standalone and amend mode:**
+
+When invoked with a `<PIPELINE_ID>` argument:
+- If `design-spec.md` does not exist → runs the full interview in standalone mode (no auto-transition to plan)
+- If `design-spec.md` already exists → enters **amend mode**: loads the existing spec, lets you modify it, marks downstream artifacts stale, then stops
 
 **How it works:**
 
-1. **Detect project type** -- greenfield or migration (based on keywords like "create", "build" vs "migrate", "convert")
-2. **Load context** -- reads `docs/constitution.md` and `.camel-kit/config.yaml` if they exist
-3. **Run interview or discovery** -- Socratic interview (one question at a time) for greenfield; artifact scanning and confirmation for migration
-4. **Select Camel version** -- presents available versions for selection
-5. **Design flows** -- for each flow, verifies components, EIPs, data formats, and languages against the MCP catalog. Asks conditional questions only when relevant:
+1. **Detect invocation mode** -- check for `<PIPELINE_ID>` argument and existing design spec
+2. **Detect project type** -- greenfield or migration (based on keywords like "create", "build" vs "migrate", "convert")
+3. **Load context** -- reads `docs/constitution.md` and `.camel-kit/config.yaml` if they exist
+4. **Run interview or discovery** -- Socratic interview (one question at a time) for greenfield; artifact scanning and confirmation for migration
+5. **Select Camel version** -- presents available versions for selection
+6. **Design flows** -- for each flow, verifies components, EIPs, data formats, and languages against the MCP catalog. Asks conditional questions only when relevant:
    - Circuit breaker configuration (if HTTP components detected)
    - Idempotent consumer (if message broker components detected)
    - Transaction boundaries (if multiple sinks detected)
-6. **Assemble design spec** -- compiles the full BRD and TDD files
-7. **Self-review** -- scans for placeholders, contradictions, unverified components
-8. **User approval** -- presents the spec and waits for explicit approval
-9. **Automatic transition** -- after approval, invokes `/camel-plan` automatically (the user does not need to run it manually)
+7. **Assemble design spec** -- compiles the full BRD and TDD files
+8. **Self-review** -- scans for placeholders, contradictions, unverified components
+9. **User approval** -- presents the spec and waits for explicit approval
+10. **Transition** -- in chained mode, invokes `/camel-plan` automatically after approval. In standalone/amend mode, writes output and stops.
 
 **MCP tools used:**
 
@@ -394,11 +409,11 @@ Four additional skills (`/camel-implement`, `/camel-verify`, `/camel-test`, `/ca
 **When to use:** After `/camel-brainstorm` has produced an approved design spec. Usually invoked automatically by `/camel-brainstorm`, but can also be run directly if a design spec already exists.
 
 **Produces:**
-- `docs/implementation-plan.md`
+- `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`
 
 **Example:**
 
-```
+```bash
 /camel-plan
 ```
 
@@ -442,7 +457,7 @@ The plan is a recipe, not the meal -- it contains instructions on how to generat
 
 **How it works:**
 
-1. **Read plan** -- extracts all tasks from `docs/implementation-plan.md`
+1. **Read plan** -- extracts all tasks from `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`
 2. **Per-task loop** (autonomous, uninterrupted -- the user approved the entire plan):
    - **Dispatch implementer** -- fresh subagent with full task context, guide paths, and MCP parameters
    - **Spec compliance review** -- verifies the generated artifacts match the design spec exactly
@@ -589,6 +604,43 @@ For connectors with no direct equivalent, the command stops and asks the user be
 
 ---
 
+### /camel-ship
+
+**Purpose:** Run the full pipeline autonomously (brainstorm → plan → execute → validate → stamp) with configurable oversight.
+
+**When to use:** When you want the AI to run the entire pipeline end-to-end with minimal intervention.
+
+**Arguments:**
+
+| Argument | Default | Description |
+|---|---|---|
+| `[input-file]` | none | Requirements document, design spec, or brainstorm notes |
+| `--ask` | `smart` | Oversight level: `always`, `smart`, or `never` |
+| `--resume` | false | Continue from `.camel-kit/pipeline.json` with staleness detection |
+| `--start-from <stage>` | none | Skip to stage: `brainstorm`, `plan`, `execute`, `validate` |
+
+**Examples:**
+
+```bash
+# Run full pipeline from requirements doc
+/camel-ship requirements.md
+
+# Run with always-ask oversight
+/camel-ship requirements.md --ask always
+
+# Resume a previously interrupted pipeline
+/camel-ship --resume
+
+# Start from execution (design spec and plan must already exist)
+/camel-ship --start-from execute
+```
+
+**Staleness detection on resume:**
+
+When `--resume` is used, camel-ship scans all pipeline artifacts for staleness markers (`⚠️ **STALE**`). If stale artifacts are found, it automatically re-runs from the earliest stale stage instead of continuing from the stored `currentStage`. This handles the case where `/camel-brainstorm <PIPELINE_ID>` amended the design spec between sessions — downstream artifacts are automatically regenerated.
+
+---
+
 ### /camel-verify
 
 > **Internal skill** -- dispatched automatically by `/camel-execute`. Not intended for standalone use. For quality checks after the pipeline completes, use `/camel-validate`.
@@ -644,15 +696,26 @@ During **Test Verification** (Phase 2), test failures may also route to `/camel-
 # CLI
 camel-kit init my-project --ai claude
 
-# Greenfield (in AI assistant)
-/camel-brainstorm                        # Design integration
-/camel-plan                          # Create implementation plan
-/camel-execute                       # Implement, test, verify (internal)
-/camel-validate                      # Final quality gate
+# Greenfield (in AI assistant) — chained mode
+/camel-brainstorm                        # Design → auto plan → auto execute → auto validate
+
+# Greenfield — standalone mode (each stage independently)
+/camel-brainstorm 001-order-processing   # Design (standalone, no auto-transition)
+/camel-plan 001-order-processing         # Plan from existing spec (standalone)
+/camel-execute 001-order-processing      # Execute from existing plan (standalone)
+/camel-validate 001-order-processing     # Validate (standalone)
+
+# Re-iteration (amend existing design, marks downstream stale)
+/camel-brainstorm 001-order-processing   # Amend design-spec.md → downstream marked stale
+
+# Autonomous pipeline
+/camel-ship requirements.md              # Full pipeline end-to-end
+/camel-ship --resume                     # Resume with staleness detection
+/camel-ship --start-from execute         # Skip to execution stage
 
 # Migration
-/camel-migrate                       # Analyze legacy project
-/camel-plan                          # Plan migration
-/camel-execute                       # Execute migration
-/camel-validate                      # Final quality gate
+/camel-migrate                           # Analyze legacy project → auto plan → auto execute
+
+# Validate (standalone, any project)
+/camel-validate                          # Validate routes in current project
 ```

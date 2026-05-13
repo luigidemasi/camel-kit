@@ -20,6 +20,35 @@ AUTONOMOUS EXECUTION: Execute ALL tasks from the plan using wave analysis. Run `
 
 ---
 
+## Invocation Modes
+
+This skill supports two invocation modes (see `shared/pipeline-infrastructure.md` for details):
+
+### Chained Mode (default)
+
+Auto-invoked by `camel-plan` after planning completes. The plan content is available in conversation context. After execution, auto-invokes `camel-validate`.
+
+### Standalone Mode
+
+Invoked directly (e.g., `/camel-execute` or `/camel-execute <PIPELINE_ID>`) in a new session. No conversation context — reads the implementation plan from `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`.
+
+**Detection at start:**
+
+1. If auto-invoked by plan in this conversation → **chained mode**
+2. If invoked independently and `implementation-plan.md` exists in the pipeline directory → **standalone mode**
+3. If `implementation-plan.md` does not exist → error: "No implementation plan found. Run /camel-plan first."
+
+**Standalone behavior:**
+
+- Read `implementation-plan.md` from disk as the input
+- Also read `design-spec.md` (needed for spec compliance reviews)
+- Check both files for staleness markers (`⚠️ **STALE**`) — if found, warn but proceed
+- Execute the full task loop (Step 0 through Step 4)
+- Write `execution-report.md` to the pipeline directory
+- Do NOT auto-invoke `camel-validate` (standalone mode suppresses auto-transitions)
+
+---
+
 ## Process Flow
 
 ```dot
@@ -148,6 +177,7 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces ALL four:
 | "The subagent can read the plan file itself" | Provide full task text. Don't make subagents read plan files. |
 | "I should ask before proceeding to the next task" | The user approved the ENTIRE plan. Execute ALL tasks without asking. |
 | "Let me check if the user wants to continue" | They already said yes — to the whole plan. Keep going. |
+| "The input plan is stale but I'll ignore the warning" | Always warn about staleness. Execution will produce fresh output, but the user should know the plan may be outdated. |
 | "Let me summarize what was completed so far" | No mid-plan summaries. Print ONE LINE per task. Summary only at the END (Step 4). |
 | "The scaffolding phase is complete, ready for implementation" | Scaffolding is ONE task. The plan has N tasks. Execute all N. Don't stop at 1. |
 | "Next Steps: Ready to proceed with Task N" | There are no "Next Steps" — you ARE executing the next step RIGHT NOW. |
@@ -372,6 +402,13 @@ Verification: PASS/PARTIAL/FAIL/NOT_RUN
 ```
 
 Save the completion summary as `docs/camel-kit/<PIPELINE_ID>/execution-report.md`.
+
+**Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, check for existing downstream artifacts (`validation-report.md`, `stamp-report.md`) and prepend the staleness marker if they exist.
+
+**Post-completion transition (invocation mode dependent):**
+
+- **Chained mode:** auto-invoke `camel-validate` (the pipeline continues to Stage 3)
+- **Standalone mode:** print confirmation and STOP. Do NOT auto-invoke validate.
 
 ---
 
