@@ -119,7 +119,7 @@ When `--resume` is used, camel-ship checks all pipeline artifacts for staleness 
    - `execution-report.md` (Stage 2 output)
    - `validation-report.md` (Stage 3 output)
    - `stamp-report.md` (Stamp gate output)
-2. For each artifact, check for the staleness marker in the first 5 lines: a blockquote line containing `⚠️ **STALE**` followed by upstream artifact reference and timestamp (see `shared/pipeline-infrastructure.md` for the full marker format)
+2. For each artifact, check the first 10 lines for a blockquote containing `⚠️ **STALE**` (see `shared/pipeline-infrastructure.md` for the full marker format)
 3. Find the **earliest stale stage** — the lowest stage number whose artifact is marked stale
 
 ### Re-run Decision

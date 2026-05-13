@@ -381,17 +381,17 @@ When invoked with a `<PIPELINE_ID>` argument:
 
 1. **Detect invocation mode** -- check for `<PIPELINE_ID>` argument and existing design spec
 2. **Detect project type** -- greenfield or migration (based on keywords like "create", "build" vs "migrate", "convert")
-2. **Load context** -- reads `docs/constitution.md` and `.camel-kit/config.yaml` if they exist
-3. **Run interview or discovery** -- Socratic interview (one question at a time) for greenfield; artifact scanning and confirmation for migration
-4. **Select Camel version** -- presents available versions for selection
-5. **Design flows** -- for each flow, verifies components, EIPs, data formats, and languages against the MCP catalog. Asks conditional questions only when relevant:
+3. **Load context** -- reads `docs/constitution.md` and `.camel-kit/config.yaml` if they exist
+4. **Run interview or discovery** -- Socratic interview (one question at a time) for greenfield; artifact scanning and confirmation for migration
+5. **Select Camel version** -- presents available versions for selection
+6. **Design flows** -- for each flow, verifies components, EIPs, data formats, and languages against the MCP catalog. Asks conditional questions only when relevant:
    - Circuit breaker configuration (if HTTP components detected)
    - Idempotent consumer (if message broker components detected)
    - Transaction boundaries (if multiple sinks detected)
-6. **Assemble design spec** -- compiles the full BRD and TDD files
-7. **Self-review** -- scans for placeholders, contradictions, unverified components
-8. **User approval** -- presents the spec and waits for explicit approval
-9. **Transition** -- in chained mode, invokes `/camel-plan` automatically after approval. In standalone/amend mode, writes output and stops.
+7. **Assemble design spec** -- compiles the full BRD and TDD files
+8. **Self-review** -- scans for placeholders, contradictions, unverified components
+9. **User approval** -- presents the spec and waits for explicit approval
+10. **Transition** -- in chained mode, invokes `/camel-plan` automatically after approval. In standalone/amend mode, writes output and stops.
 
 **MCP tools used:**
 
@@ -409,11 +409,11 @@ When invoked with a `<PIPELINE_ID>` argument:
 **When to use:** After `/camel-brainstorm` has produced an approved design spec. Usually invoked automatically by `/camel-brainstorm`, but can also be run directly if a design spec already exists.
 
 **Produces:**
-- `docs/implementation-plan.md`
+- `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`
 
 **Example:**
 
-```
+```bash
 /camel-plan
 ```
 
@@ -457,7 +457,7 @@ The plan is a recipe, not the meal -- it contains instructions on how to generat
 
 **How it works:**
 
-1. **Read plan** -- extracts all tasks from `docs/implementation-plan.md`
+1. **Read plan** -- extracts all tasks from `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`
 2. **Per-task loop** (autonomous, uninterrupted -- the user approved the entire plan):
    - **Dispatch implementer** -- fresh subagent with full task context, guide paths, and MCP parameters
    - **Spec compliance review** -- verifies the generated artifacts match the design spec exactly

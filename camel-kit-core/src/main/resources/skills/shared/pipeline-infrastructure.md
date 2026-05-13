@@ -256,7 +256,7 @@ When a skill regenerates an artifact (full re-run, not an amendment):
 
 ### Detecting Staleness
 
-Any skill can detect staleness in its input by checking for the `⚠️ **STALE**` marker at the top of the file. If found:
+Any skill can detect staleness in its input by checking the first 10 lines for a blockquote containing `⚠️ **STALE**`. The marker is always inserted immediately after the title, so it appears within the first few lines of any pipeline artifact. If found:
 
 - **Chained mode:** Warn the user but proceed (the regeneration will produce a fresh artifact)
 - **Standalone mode:** Warn the user and ask whether to proceed with stale input or abort

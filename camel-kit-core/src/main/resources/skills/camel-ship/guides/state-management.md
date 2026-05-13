@@ -124,7 +124,7 @@ When `--resume` is specified, the state management layer adds a staleness check 
 1. Read `.camel-kit/pipeline.json`
 2. Verify `mode` is `"ship"`
 3. Scan all artifacts in `docs/camel-kit/<activePipeline>/` for staleness markers
-4. If any artifact has `⚠️ **STALE**` in its first 5 lines:
+4. If any artifact has `⚠️ **STALE**` in its first 10 lines:
    a. Map each stale artifact to its stage number (see Stage Numbers table)
    b. Find the minimum stale stage number
    c. Set `currentStage` to that minimum (overrides the stored value)
