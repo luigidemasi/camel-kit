@@ -225,11 +225,12 @@ Fix any issues inline.
 After saving the plan:
 
 1. Save the implementation plan to `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`
-2. **Check invocation mode:**
+2. **Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, check for existing downstream artifacts (`execution-report.md`, `validation-report.md`, `stamp-report.md`) and prepend the staleness marker if they exist
+3. **Check invocation mode:**
    - **Standalone mode:** print confirmation and STOP. Do NOT auto-invoke execute.
-   - **Chained mode:** continue to step 3.
-3. **If agent-specific handoff instructions exist below** (appended by traits), follow those instead of step 4
-4. **Default (no trait override):** auto-invoke `camel-execute` immediately
+   - **Chained mode:** continue to step 4.
+4. **If agent-specific handoff instructions exist below** (appended by traits), follow those instead of step 5
+5. **Default (no trait override):** auto-invoke `camel-execute` immediately
 
 **Chained mode output:**
 ```text

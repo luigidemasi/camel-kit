@@ -138,6 +138,8 @@ ALWAYS generate the validation report.
 This creates an audit trail of validation results over time.
 </HARD-RULE>
 
+**Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, after saving the validation report, check for an existing `stamp-report.md` in the pipeline directory and prepend the staleness marker if it exists.
+
 ## Iron Laws
 
 All guides in this skill enforce:

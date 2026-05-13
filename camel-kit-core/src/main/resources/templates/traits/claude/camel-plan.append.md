@@ -2,7 +2,7 @@
 
 ### Override: Use Native Plan Mode for Execution Handoff
 
-**This replaces the default handoff in Step 3 above.**
+**This replaces the default handoff in Step 5 above.**
 
 When the implementation plan is ready:
 

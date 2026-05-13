@@ -2,7 +2,7 @@
 
 ### Override: Approval Mode Selection Before Execution
 
-**This replaces the default handoff in Step 3 above.**
+**This replaces the default handoff in Step 5 above.**
 
 When the implementation plan is ready:
 

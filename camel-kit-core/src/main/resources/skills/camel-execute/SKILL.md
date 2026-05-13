@@ -403,6 +403,8 @@ Verification: PASS/PARTIAL/FAIL/NOT_RUN
 
 Save the completion summary as `docs/camel-kit/<PIPELINE_ID>/execution-report.md`.
 
+**Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, check for existing downstream artifacts (`validation-report.md`, `stamp-report.md`) and prepend the staleness marker if they exist.
+
 **Post-completion transition (invocation mode dependent):**
 
 - **Chained mode:** auto-invoke `camel-validate` (the pipeline continues to Stage 3)
