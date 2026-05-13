@@ -41,7 +41,7 @@ Invoked directly (e.g., `/camel-plan` or `/camel-plan <PIPELINE_ID>`) in a new s
 **Standalone behavior:**
 
 - Read `design-spec.md` from disk as the input
-- Check for staleness marker (`⚠️ **STALE**`) — if found, warn but proceed (the regenerated plan will be fresh)
+- Run `{COMMAND_PREFIX} doc check <file>` to detect staleness — if stale, warn but proceed (the regenerated plan will be fresh)
 - Execute the full planning workflow
 - Write `implementation-plan.md` to the pipeline directory
 - Do NOT auto-invoke `camel-execute` (standalone mode suppresses auto-transitions)
@@ -225,7 +225,7 @@ Fix any issues inline.
 After saving the plan:
 
 1. Save the implementation plan to `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`
-2. **Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, check for existing downstream artifacts (`execution-report.md`, `validation-report.md`, `stamp-report.md`) and prepend the staleness marker if they exist
+2. **Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, run `{COMMAND_PREFIX} doc stale --reason "implementation plan regenerated" --cascade <implementation-plan.md>` to propagate staleness to downstream artifacts
 3. **Check invocation mode:**
    - **Standalone mode:** print confirmation and STOP. Do NOT auto-invoke execute.
    - **Chained mode:** continue to step 4.

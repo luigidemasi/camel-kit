@@ -206,58 +206,90 @@ This enables iterative refinement without restarting the entire pipeline.
 
 ---
 
-## Staleness Markers
+## Document Staleness
 
-When an upstream artifact is modified (e.g., `design-spec.md` is amended), all downstream artifacts become potentially invalid. Staleness markers embed this signal directly in the downstream files.
+When an upstream artifact is modified (e.g., `design-spec.md` is amended), all downstream artifacts become potentially invalid. Staleness is tracked via structured YAML frontmatter and managed by the `doc` CLI subcommands — not by text markers.
 
-### Marker Format
+### Frontmatter Schema
 
-Insert at the top of the file, immediately after any YAML frontmatter or title:
+Each pipeline artifact carries YAML frontmatter with two namespaced blocks:
 
-```markdown
-> ⚠️ **STALE** — upstream artifact `design-spec.md` was modified on YYYY-MM-DD HH:MM.
-> This document was generated from an earlier version and may be out of date.
-> Re-run the corresponding pipeline stage to regenerate.
+```yaml
+---
+staleness:
+  stale: false
+  since: null
+  reason: null
+generated:
+  at: "2026-05-13T09:00:00Z"
+  by: camel-plan
+  from: design-spec.md
+---
 ```
 
-### Staleness Cascade
+- `staleness` — mutable, written by `{COMMAND_PREFIX} doc stale` and `{COMMAND_PREFIX} doc unstale`
+- `generated` — immutable after creation, written by the pipeline skill that produces the artifact
+- `generated.from` enables data-driven cascade without hardcoded pipeline topology
 
-When `design-spec.md` is amended:
+### CLI Commands
 
-| Downstream Artifact | Marked Stale? |
-|---|---|
-| `implementation-plan.md` | Yes |
-| `execution-report.md` | Yes |
-| `validation-report.md` | Yes |
-| `stamp-report.md` | Yes |
+```
+{COMMAND_PREFIX} doc check <file>                              # Query staleness → JSON
+{COMMAND_PREFIX} doc stale --reason "..." [--cascade] <file>   # Mark stale
+{COMMAND_PREFIX} doc unstale <file>                            # Clear staleness
+```
 
-When `implementation-plan.md` is regenerated (stale marker cleared):
+### `doc check` Output
 
-| Downstream Artifact | Marked Stale? |
-|---|---|
-| `execution-report.md` | Yes (if not already) |
-| `validation-report.md` | Yes (if not already) |
-| `stamp-report.md` | Yes (if not already) |
+Returns JSON to stdout:
 
-### Applying Staleness Markers
+```json
+{
+  "file": "docs/camel-kit/007/implementation-plan.md",
+  "stale": true,
+  "since": "2026-05-13T10:00:00Z",
+  "reason": "design-spec.md was refined",
+  "generated": {
+    "at": "2026-05-13T09:00:00Z",
+    "by": "camel-plan",
+    "from": "design-spec.md"
+  }
+}
+```
 
-When a skill writes or amends an artifact, it must:
+Exit code 0 for successful execution regardless of staleness. Non-zero for errors only. Documents without frontmatter return `{"stale": false, ...null fields}`.
 
-1. Identify all downstream artifacts that exist in `docs/camel-kit/<PIPELINE_ID>/`
-2. For each existing downstream artifact, prepend the staleness marker (if not already present)
-3. Record the modification timestamp in the marker
+### Cascade
 
-### Clearing Staleness Markers
+`--cascade` flag on `doc stale` walks the `generated.from` chain in sibling files to propagate staleness to all downstream artifacts. Single-file marking is the default.
 
-When a skill regenerates an artifact (full re-run, not an amendment):
+### Skill Contract
 
-1. The regenerated artifact is written fresh — no staleness marker
-2. The staleness markers on further-downstream artifacts remain until those stages are also re-run
+- Each pipeline skill writes frontmatter when generating artifacts (documents are "born with metadata")
+- Skills call `{COMMAND_PREFIX} doc check` via tool call instead of scanning text
+- `--reason` is required on `doc stale` for audit trail
 
 ### Detecting Staleness
 
-Any skill can detect staleness in its input by checking the first 10 lines for a blockquote containing `⚠️ **STALE**`. The marker is always inserted immediately after the title, so it appears within the first few lines of any pipeline artifact. If found:
+Run `{COMMAND_PREFIX} doc check <file>` and inspect the JSON output. If `stale` is `true`:
 
 - **Chained mode:** Warn the user but proceed (the regeneration will produce a fresh artifact)
 - **Standalone mode:** Warn the user and ask whether to proceed with stale input or abort
 - **Ship --resume:** Automatically re-run from the earliest stale stage (see camel-ship)
+
+### Applying Staleness
+
+When a skill writes or amends an artifact, it must run:
+
+```
+{COMMAND_PREFIX} doc stale --reason "<description>" --cascade <amended-file>
+```
+
+This marks the target file and all downstream artifacts (via `generated.from` chain) as stale.
+
+### Clearing Staleness
+
+When a skill regenerates an artifact (full re-run, not an amendment):
+
+1. The regenerated artifact is written with fresh frontmatter (`stale: false`)
+2. The staleness on further-downstream artifacts remains until those stages are also re-run

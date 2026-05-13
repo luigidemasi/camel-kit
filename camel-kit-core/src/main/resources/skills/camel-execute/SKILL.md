@@ -42,7 +42,7 @@ Invoked directly (e.g., `/camel-execute` or `/camel-execute <PIPELINE_ID>`) in a
 
 - Read `implementation-plan.md` from disk as the input
 - Also read `design-spec.md` (needed for spec compliance reviews)
-- Check both files for staleness markers (`⚠️ **STALE**`) — if found, warn but proceed
+- Run `{COMMAND_PREFIX} doc check <file>` on both files to detect staleness — if stale, warn but proceed
 - Execute the full task loop (Step 0 through Step 4)
 - Write `execution-report.md` to the pipeline directory
 - Do NOT auto-invoke `camel-validate` (standalone mode suppresses auto-transitions)
@@ -403,7 +403,7 @@ Verification: PASS/PARTIAL/FAIL/NOT_RUN
 
 Save the completion summary as `docs/camel-kit/<PIPELINE_ID>/execution-report.md`.
 
-**Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, check for existing downstream artifacts (`validation-report.md`, `stamp-report.md`) and prepend the staleness marker if they exist.
+**Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, run `{COMMAND_PREFIX} doc stale --reason "execution report regenerated" --cascade <execution-report.md>` to propagate staleness to downstream artifacts.
 
 **Post-completion transition (invocation mode dependent):**
 

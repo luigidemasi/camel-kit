@@ -109,18 +109,19 @@ If ANY check fails:
 
 ## Staleness Detection on Resume
 
-When `--resume` is used, camel-ship checks all pipeline artifacts for staleness markers before continuing.
+When `--resume` is used, camel-ship checks all pipeline artifacts for staleness via the `doc check` CLI command before continuing.
 
 ### Detection Algorithm
 
-1. Read all artifacts in `docs/camel-kit/<activePipeline>/`:
+1. For each artifact in `docs/camel-kit/<activePipeline>/`:
    - `design-spec.md` (Stage 0 output)
    - `implementation-plan.md` (Stage 1 output)
    - `execution-report.md` (Stage 2 output)
    - `validation-report.md` (Stage 3 output)
    - `stamp-report.md` (Stamp gate output)
-2. For each artifact, check the first 10 lines for a blockquote containing `⚠️ **STALE**` (see `shared/pipeline-infrastructure.md` for the full marker format)
-3. Find the **earliest stale stage** — the lowest stage number whose artifact is marked stale
+2. Run `{COMMAND_PREFIX} doc check <artifact>` and parse the JSON output
+3. If `"stale": true` in the response, record the artifact as stale
+4. Find the **earliest stale stage** — the lowest stage number whose artifact is stale
 
 ### Re-run Decision
 
@@ -128,7 +129,7 @@ When `--resume` is used, camel-ship checks all pipeline artifacts for staleness 
 |---|---|
 | No stale artifacts | Resume from `currentStage` (normal behavior) |
 | Stale artifacts found | Report stale stages to user, then re-run from the earliest stale stage |
-| `design-spec.md` itself is stale | Edge case (e.g., manual marker addition). Warn that the design spec is the root artifact and should not be marked stale, then re-run from Stage 0. |
+| `design-spec.md` itself is stale | Edge case. Warn that the design spec is the root artifact and should not be marked stale, then re-run from Stage 0. |
 
 ### Re-run Behavior
 
@@ -137,16 +138,16 @@ When re-running stale stages:
 1. Update `currentStage` in `.camel-kit/pipeline.json` to the earliest stale stage
 2. Report to the user:
    ```text
-   ⚠️ Staleness detected in pipeline <PIPELINE_ID>:
-     - implementation-plan.md: STALE (design-spec.md modified on YYYY-MM-DD)
-     - execution-report.md: STALE
-     - validation-report.md: STALE
+   Staleness detected in pipeline <PIPELINE_ID>:
+     - implementation-plan.md: stale (reason from doc check JSON)
+     - execution-report.md: stale
+     - validation-report.md: stale
    
    Re-running from Stage 1 (plan) to regenerate stale artifacts.
    ```
 3. Execute stages sequentially from the earliest stale stage
-4. Each regenerated artifact is written fresh (no staleness marker)
-5. Downstream artifacts are regenerated in order — their staleness markers are naturally cleared
+4. Each regenerated artifact is written with fresh frontmatter (`stale: false`)
+5. Downstream artifacts are regenerated in order — their staleness is naturally cleared
 
 ---
 
