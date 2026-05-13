@@ -35,7 +35,12 @@ Stage 0: BRAINSTORM  →  Stage 1: PLAN  →  Stage 2: EXECUTE  →  Stage 3: VA
 
 ### Before Starting
 
-1. Check for `--resume` flag. If set, read `.camel-kit/pipeline.json`, verify `mode = "ship"`, and jump to `currentStage`. Skip steps 2-6.
+1. Check for `--resume` flag. If set:
+   a. Read `.camel-kit/pipeline.json`, verify `mode = "ship"`
+   b. **Run staleness detection** (see Staleness Detection on Resume below)
+   c. If stale artifacts found → re-run from the earliest stale stage (overrides `currentStage`)
+   d. If no staleness → jump to `currentStage`
+   e. Skip steps 2-6
 2. Generate pipeline ID: run `{COMMAND_PREFIX} nextId <slug>` (derive slug from input file name or user request).
 3. Check for `--start-from` flag. If set, verify prerequisite artifacts exist in `docs/camel-kit/<activePipeline>/`:
    - `plan` requires `design-spec.md`
@@ -99,6 +104,49 @@ If ANY check fails:
 - Report failures clearly with the merged report
 - If `--ask never`: attempt auto-fix (load `guides/auto-fix-loop.md`)
 - Otherwise: present failures and ask user for next steps
+
+---
+
+## Staleness Detection on Resume
+
+When `--resume` is used, camel-ship checks all pipeline artifacts for staleness markers before continuing.
+
+### Detection Algorithm
+
+1. Read all artifacts in `docs/camel-kit/<activePipeline>/`:
+   - `design-spec.md` (Stage 0 output)
+   - `implementation-plan.md` (Stage 1 output)
+   - `execution-report.md` (Stage 2 output)
+   - `validation-report.md` (Stage 3 output)
+   - `stamp-report.md` (Stamp gate output)
+2. For each artifact, check for the staleness marker: `⚠️ **STALE**` in the first 5 lines
+3. Find the **earliest stale stage** — the lowest stage number whose artifact is marked stale
+
+### Re-run Decision
+
+| Scenario | Action |
+|---|---|
+| No stale artifacts | Resume from `currentStage` (normal behavior) |
+| Stale artifacts found | Report stale stages to user, then re-run from the earliest stale stage |
+| `design-spec.md` itself is stale | This should not happen (design spec is the root). If found, warn and re-run from Stage 0. |
+
+### Re-run Behavior
+
+When re-running stale stages:
+
+1. Update `currentStage` in `.camel-kit/pipeline.json` to the earliest stale stage
+2. Report to the user:
+   ```text
+   ⚠️ Staleness detected in pipeline <PIPELINE_ID>:
+     - implementation-plan.md: STALE (design-spec.md modified on YYYY-MM-DD)
+     - execution-report.md: STALE
+     - validation-report.md: STALE
+   
+   Re-running from Stage 1 (plan) to regenerate stale artifacts.
+   ```
+3. Execute stages sequentially from the earliest stale stage
+4. Each regenerated artifact is written fresh (no staleness marker)
+5. Downstream artifacts are regenerated in order — their staleness markers are naturally cleared
 
 ---
 

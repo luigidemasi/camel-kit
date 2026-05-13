@@ -20,6 +20,34 @@ Do NOT generate any implementation artifacts (YAML, properties, POM, Docker Comp
 
 ---
 
+## Invocation Modes
+
+This skill supports two invocation modes (see `shared/pipeline-infrastructure.md` for details):
+
+### Chained Mode (default)
+
+Auto-invoked by `camel-brainstorm` after design spec approval. The design spec content is available in conversation context. After planning, auto-invokes `camel-execute`.
+
+### Standalone Mode
+
+Invoked directly (e.g., `/camel-plan` or `/camel-plan <PIPELINE_ID>`) in a new session. No conversation context — reads the design spec from `docs/camel-kit/<PIPELINE_ID>/design-spec.md`.
+
+**Detection at start:**
+
+1. If auto-invoked by brainstorm in this conversation → **chained mode**
+2. If invoked independently and `design-spec.md` exists in the pipeline directory → **standalone mode**
+3. If `design-spec.md` does not exist → error: "No design spec found. Run /camel-brainstorm first."
+
+**Standalone behavior:**
+
+- Read `design-spec.md` from disk as the input
+- Check for staleness marker (`⚠️ **STALE**`) — if found, warn but proceed (the regenerated plan will be fresh)
+- Execute the full planning workflow
+- Write `implementation-plan.md` to the pipeline directory
+- Do NOT auto-invoke `camel-execute` (standalone mode suppresses auto-transitions)
+
+---
+
 ## Process Flow
 
 ```dot
@@ -68,8 +96,9 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
 | "I'll combine multiple flows into one task" | One task = one outcome. Split flows into separate tasks. |
 | "Testing can be added later" | Test tasks are in the plan. Not later. NOW. |
 | "I'll skip the review specification" | Every task gets two-stage review. Spec compliance then quality. No exceptions. |
-| "I'll tell the user to run camel-execute next" | NO. YOU invoke camel-execute automatically after approval. The pipeline is seamless. |
-| "I should wait for the user to approve the plan before executing" | Plan approval gate was removed. Execution auto-proceeds after planning. |
+| "I'll tell the user to run camel-execute next" | In chained mode: NO, YOU invoke camel-execute automatically. In standalone mode: STOP after writing the plan. |
+| "I should wait for the user to approve the plan before executing" | Plan approval gate was removed. In chained mode, execution auto-proceeds. In standalone mode, the caller manages transitions. |
+| "The input spec is stale but I'll ignore the warning" | Always warn about staleness. The plan will be fresh, but the user should know. |
 
 ### Red Flags — STOP If You Think:
 
@@ -196,9 +225,13 @@ Fix any issues inline.
 After saving the plan:
 
 1. Save the implementation plan to `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`
-2. **If agent-specific handoff instructions exist below** (appended by traits), follow those instead of step 3
-3. **Default (no trait override):** auto-invoke `camel-execute` immediately
+2. **Check invocation mode:**
+   - **Standalone mode:** print confirmation and STOP. Do NOT auto-invoke execute.
+   - **Chained mode:** continue to step 3.
+3. **If agent-specific handoff instructions exist below** (appended by traits), follow those instead of step 4
+4. **Default (no trait override):** auto-invoke `camel-execute` immediately
 
+**Chained mode output:**
 ```text
 Plan saved to docs/camel-kit/<PIPELINE_ID>/implementation-plan.md
 
@@ -206,6 +239,15 @@ Plan complete. Proceeding to execution — dispatching subagents for each task
 with two-stage review (spec compliance → code quality) between tasks.
 ```
 
+**Standalone mode output:**
+```text
+Plan saved to docs/camel-kit/<PIPELINE_ID>/implementation-plan.md
+
+Plan complete. Run /camel-execute or /camel-ship --start-from execute to proceed.
+```
+
 <HARD-RULE>
-After the plan is complete, YOU must transition to execution. Do NOT tell the user to run it manually. Do NOT print "please run camel-execute" or "run /camel-execute". The transition is automatic — either through the agent-specific handoff mechanism (if trait instructions exist below) or by directly invoking camel-execute.
+In chained mode: after the plan is complete, YOU must transition to execution. Do NOT tell the user to run it manually. Do NOT print "please run camel-execute" or "run /camel-execute". The transition is automatic — either through the agent-specific handoff mechanism (if trait instructions exist below) or by directly invoking camel-execute.
+
+In standalone mode: write the plan artifact and STOP. Do NOT auto-invoke execute. Print the standalone mode output above.
 </HARD-RULE>

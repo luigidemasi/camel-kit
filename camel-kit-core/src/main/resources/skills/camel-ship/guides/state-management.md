@@ -115,6 +115,40 @@ When `--start-from <stage>` is specified:
 
 ---
 
+## Staleness-Aware Resume
+
+When `--resume` is specified, the state management layer adds a staleness check before jumping to `currentStage`.
+
+### Extended Resume Flow
+
+1. Read `.camel-kit/pipeline.json`
+2. Verify `mode` is `"ship"`
+3. Scan all artifacts in `docs/camel-kit/<activePipeline>/` for staleness markers
+4. If any artifact has `⚠️ **STALE**` in its first 5 lines:
+   a. Map each stale artifact to its stage number (see Stage Numbers table)
+   b. Find the minimum stale stage number
+   c. Set `currentStage` to that minimum (overrides the stored value)
+   d. Mark previously completed stages >= minimum as needing re-run in stageResults
+5. Restore `--ask` level from state
+6. Continue normal stage execution from the (possibly adjusted) `currentStage`
+
+### State After Staleness Adjustment
+
+When staleness forces a re-run, update the state file:
+
+```json
+{
+  "currentStage": 1,
+  "staleRerun": true,
+  "staleDetectedAt": "ISO-8601 timestamp",
+  "staleArtifacts": ["implementation-plan.md", "execution-report.md", "validation-report.md"]
+}
+```
+
+The `staleRerun`, `staleDetectedAt`, and `staleArtifacts` fields are informational — they record that this resume was triggered by staleness detection rather than a normal continuation. They are cleared (removed) when the pipeline completes successfully.
+
+---
+
 ## Cleanup
 
 After successful pipeline completion (all stages complete, stamp gate passes):

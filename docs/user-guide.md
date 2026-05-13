@@ -259,6 +259,49 @@ The pipeline state is tracked in `.camel-kit/pipeline.json`, which records the a
 
 **Session resilience:** Because all artifacts are saved to disk, you can close your session and resume later. The pipeline picks up where you left off based on which artifacts already exist.
 
+### Standalone Mode
+
+Every pipeline skill supports **standalone invocation** — you can run any stage independently in a new session by passing the pipeline ID:
+
+```bash
+# Run plan standalone (reads design-spec.md from disk)
+/camel-plan 001-order-processing
+
+# Run execute standalone (reads implementation-plan.md from disk)
+/camel-execute 001-order-processing
+```
+
+In standalone mode, skills read their input from pipeline artifacts on disk instead of conversation context, and they do NOT auto-invoke the next stage. This enables:
+
+- **Session resilience** — close your session, come back later, and pick up any stage
+- **CI/CD integration** — trigger individual pipeline stages from automation
+- **Selective re-runs** — re-run just the stages you need after changes
+
+### Re-iteration (Amending a Design)
+
+If you need to change a design spec after downstream artifacts have been generated:
+
+```bash
+# Amend an existing design spec
+/camel-brainstorm 001-order-processing
+```
+
+When brainstorm detects that `design-spec.md` already exists, it enters **amend mode**:
+1. Loads the existing spec and presents it for modification
+2. After you approve the amendments, overwrites the design spec
+3. Marks all downstream artifacts (`implementation-plan.md`, `execution-report.md`, etc.) as **stale**
+
+Stale artifacts have a marker at the top:
+```
+> ⚠️ **STALE** — upstream artifact `design-spec.md` was modified on 2026-05-12 14:30.
+> This document was generated from an earlier version and may be out of date.
+> Re-run the corresponding pipeline stage to regenerate.
+```
+
+To regenerate stale artifacts, either:
+- Run each stale stage standalone: `/camel-plan 001-order-processing`, then `/camel-execute 001-order-processing`
+- Use `camel-ship --resume` — it automatically detects staleness and re-runs from the earliest stale stage
+
 ### Phase 1: Design (`/camel-brainstorm`)
 
 The design phase is an interactive interview that produces the design spec. The AI asks questions one at a time -- never in batches -- to understand your integration before designing it.

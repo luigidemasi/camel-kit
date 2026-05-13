@@ -8,12 +8,36 @@ user_invocable: true
 
 > **Tier 1 pipeline step.** Final stage after execute — produces a comprehensive quality report.
 
-## Invocation
+## Invocation Modes
 
-- **User:** `/camel-validate` — run standalone on any project with generated routes
-- **Pipeline:** invoked as Stage 3 by `camel-ship` after execute completes (including verification)
+This skill supports two invocation modes (see `shared/pipeline-infrastructure.md` for details):
 
-When invoked standalone, validates routes in the current project. When invoked as a pipeline stage, reads the generated routes from the execute phase and produces the validation report.
+### Chained Mode
+
+Invoked as Stage 3 by `camel-ship` after execute completes, or auto-invoked by `camel-execute` at the end of its task loop. Pipeline context is available in the conversation.
+
+### Standalone Mode
+
+Invoked directly by the user: `/camel-validate` or `/camel-validate <PIPELINE_ID>`.
+
+**Detection at start:**
+
+1. If auto-invoked by execute or ship in this conversation → **chained mode** (pipeline)
+2. If invoked with `<PIPELINE_ID>` and pipeline artifacts exist → **standalone mode** (pipeline-scoped)
+3. If invoked without `<PIPELINE_ID>` and no `.camel-kit/pipeline.json` → **standalone mode** (project-scoped, validates routes in current project)
+
+**Standalone behavior (pipeline-scoped):**
+
+- Read prior artifacts from `docs/camel-kit/<PIPELINE_ID>/` for cross-reference
+- Check input artifacts for staleness markers (`⚠️ **STALE**`) — if found, warn but proceed
+- Execute the full validation workflow
+- Write `validation-report.md` to the pipeline directory
+- STOP (no further stage transitions)
+
+**Standalone behavior (project-scoped — no pipeline):**
+
+- Validate routes found in the current project
+- Write a timestamped report to `docs/validation-report-YYYY-MM-DD_HH-mm.md`
 
 **Announce at start:** "I'm using the camel-validate skill to analyze route quality."
 
