@@ -341,9 +341,13 @@ $ camel-kit nextId inventory-sync
 
 ## Slash Commands
 
-These commands are used inside your AI coding assistant after project initialization. There are six user-invocable slash commands: `/camel-brainstorm`, `/camel-plan`, `/camel-execute`, `/camel-migrate`, `/camel-validate`, and `/camel-ship`.
+These commands are used inside your AI coding assistant after project initialization. The entry point is `/camel-start`, which routes to the right pipeline skill. Skills are organized into tiers:
 
-Four additional skills (`/camel-implement`, `/camel-verify`, `/camel-test`, `/camel-knowledge`) are internal -- they are orchestrated automatically by `/camel-execute` and should not be run directly.
+**Tier 1 — Pipeline:** `/camel-brainstorm`, `/camel-plan`, `/camel-execute`, `/camel-migrate`, `/camel-validate` — the five pipeline steps, invoked via the `/camel-start` decision tree or directly via slash command.
+
+**Tier 2 — Standalone utilities:** `/camel-ship`, `/camel-knowledge` — can be invoked at any point without affecting pipeline state.
+
+**Internal:** `/camel-implement`, `/camel-verify`, `/camel-test`, `/camel-design` — subagent-only, dispatched automatically by pipeline skills. Not intended for direct use.
 
 ---
 

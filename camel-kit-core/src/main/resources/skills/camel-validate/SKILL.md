@@ -1,7 +1,7 @@
 ---
 name: camel-validate
 description: Static quality analysis of Camel routes — correctness, security, anti-patterns.
-user_invocable: true
+user_invocable: false
 ---
 
 # Camel Validate — Pipeline Quality Gate
