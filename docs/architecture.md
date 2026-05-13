@@ -44,12 +44,12 @@ user_invocable: false
 | `guides/optional-guide.md` | When condition X | Supplementary guide |
 ```
 
-**Note:** Both `camel-start` and `camel-validate` set `user_invocable: true`.
+**Note:** Only `camel-start` sets `user_invocable: true` — it is the single auto-discovered entry point (meta-router).
 
 The frontmatter fields:
 - `name` -- skill identifier, used in cross-references
 - `description` -- trigger keywords that help agents match user intent to the correct skill
-- `user_invocable` -- `true` for `camel-start` (meta-router) and `camel-validate` (Tier 1 quality gate). All other skills have `user_invocable: false`. Note: slash commands still work for all skills — this is an independent mechanism from skill metadata
+- `user_invocable` -- `true` for `camel-start` (meta-router) only. All other skills have `user_invocable: false` and are routed through the meta-router or invoked via explicit slash commands
 
 ### All Skills
 
@@ -64,11 +64,11 @@ The frontmatter fields:
 | `camel-ship` | No | -- (standalone orchestrator) | Autonomous pipeline — chains brainstorm → plan → execute → validate with configurable oversight |
 | `camel-design` | No | `camel-brainstorm` | Guides for component selection, EIP catalog, TDD assembly |
 | `camel-implement` | No | `camel-execute` | Guides for YAML generation, properties, Docker Compose, DataMapper |
-| `camel-validate` | Yes | `camel-ship` (Stage 3) | Tier 1 quality gate: schema validation, endpoint verification, security analysis |
+| `camel-validate` | No | `camel-ship` (Stage 3) | Tier 1 quality gate: schema validation, endpoint verification, security analysis |
 | `camel-test` | No | `camel-execute` | Guides for route analysis and test generation with Citrus + Testcontainers |
 | `camel-knowledge` | No | `camel-brainstorm`, `camel-execute` | Routes questions to knowledge MCP tools |
 
-**Note:** `camel-start` and `camel-validate` have `user_invocable: true` in their skill metadata. All other skills have `user_invocable: false`. Slash commands still work for all skills (independent mechanism).
+**Note:** Only `camel-start` has `user_invocable: true` in its skill metadata. All other skills have `user_invocable: false` and are routed through the meta-router or invoked via explicit slash commands.
 
 ### Shared Guides
 

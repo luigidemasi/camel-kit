@@ -70,7 +70,7 @@ Tier 1 skills are the main pipeline stages — invoke them via the decision tree
 
 ## Also Available (Tier 2)
 
-These standalone utilities are not part of the main pipelines but are accessible via slash command:
+These standalone utilities are not part of the main pipelines but are accessible via slash command. They can be invoked at any point without affecting the active pipeline state of Tier 1 skills.
 
 | Slash Command | Purpose |
 |---|---|
