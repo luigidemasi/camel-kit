@@ -360,14 +360,14 @@ Four additional skills (`/camel-implement`, `/camel-verify`, `/camel-test`, `/ca
 
 **Examples:**
 
-```
+```bash
 # Start a new design (chained mode — auto-invokes plan after approval)
 /camel-brainstorm
 
-# Start a new design in standalone mode (writes output, does not auto-invoke plan)
+# Start a new design in standalone mode (if design-spec.md does not exist)
 /camel-brainstorm 001-order-processing
 
-# Amend an existing design spec (re-iteration)
+# Amend an existing design spec (if design-spec.md already exists)
 /camel-brainstorm 001-order-processing
 ```
 
@@ -391,7 +391,7 @@ When invoked with a `<PIPELINE_ID>` argument:
 6. **Assemble design spec** -- compiles the full BRD and TDD files
 7. **Self-review** -- scans for placeholders, contradictions, unverified components
 8. **User approval** -- presents the spec and waits for explicit approval
-9. **Automatic transition** -- after approval, invokes `/camel-plan` automatically (the user does not need to run it manually)
+9. **Transition** -- in chained mode, invokes `/camel-plan` automatically after approval. In standalone/amend mode, writes output and stops.
 
 **MCP tools used:**
 
@@ -621,7 +621,7 @@ For connectors with no direct equivalent, the command stops and asks the user be
 
 **Examples:**
 
-```
+```bash
 # Run full pipeline from requirements doc
 /camel-ship requirements.md
 

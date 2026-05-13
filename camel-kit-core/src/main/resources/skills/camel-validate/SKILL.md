@@ -24,7 +24,8 @@ Invoked directly by the user: `/camel-validate` or `/camel-validate <PIPELINE_ID
 
 1. If auto-invoked by execute or ship in this conversation → **chained mode** (pipeline)
 2. If invoked with `<PIPELINE_ID>` and pipeline artifacts exist → **standalone mode** (pipeline-scoped)
-3. If invoked without `<PIPELINE_ID>` and no `.camel-kit/pipeline.json` → **standalone mode** (project-scoped, validates routes in current project)
+3. If invoked without `<PIPELINE_ID>` and `.camel-kit/pipeline.json` exists → **standalone mode** (pipeline-scoped, use `activePipeline`)
+4. If invoked without `<PIPELINE_ID>` and no `.camel-kit/pipeline.json` → **standalone mode** (project-scoped, validates routes in current project)
 
 **Standalone behavior (pipeline-scoped):**
 
@@ -55,7 +56,7 @@ Before running validation, resolve the active pipeline using `shared/pipeline-in
    - `execution-report.md` — for verifying generated file list, review results, and verification status
 3. Save the validation report to `docs/camel-kit/<activePipeline>/validation-report.md`
 
-When invoked standalone (no pipeline context), fall back to scanning routes in the current project and saving the report to `docs/validation-report-YYYY-MM-DD_HH-mm.md` (existing behavior).
+When invoked standalone without pipeline context (project-scoped), fall back to scanning routes in the current project and saving the report to `docs/validation-report-YYYY-MM-DD_HH-mm.md`.
 
 ## Guide Manifest
 
@@ -73,10 +74,10 @@ When invoked standalone (no pipeline context), fall back to scanning routes in t
 
 After completing all validation checks, generate a markdown report saved to:
 
-- **Pipeline mode:** `docs/camel-kit/<PIPELINE_ID>/validation-report.md`
-- **Standalone mode:** `docs/validation-report-YYYY-MM-DD_HH-mm.md`
+- **Chained mode and standalone pipeline-scoped:** `docs/camel-kit/<PIPELINE_ID>/validation-report.md`
+- **Standalone project-scoped (no pipeline):** `docs/validation-report-YYYY-MM-DD_HH-mm.md`
 
-Use the current date and time for the filename (e.g., `validation-report-2026-04-22_14-30.md`).
+Use the current date and time for the timestamped filename (e.g., `validation-report-2026-04-22_14-30.md`).
 
 ### Report Format
 
@@ -131,7 +132,10 @@ Use the current date and time for the filename (e.g., `validation-report-2026-04
 ```
 
 <HARD-RULE>
-ALWAYS generate the validation report. In pipeline mode, save to `docs/camel-kit/<PIPELINE_ID>/validation-report.md`. In standalone mode, save a timestamped report to `docs/validation-report-YYYY-MM-DD_HH-mm.md`. This creates an audit trail of validation results over time.
+ALWAYS generate the validation report.
+- In chained mode and standalone pipeline-scoped mode, save to `docs/camel-kit/<PIPELINE_ID>/validation-report.md`.
+- In standalone project-scoped mode (no pipeline), save to `docs/validation-report-YYYY-MM-DD_HH-mm.md`.
+This creates an audit trail of validation results over time.
 </HARD-RULE>
 
 ## Iron Laws

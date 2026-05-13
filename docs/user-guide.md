@@ -292,7 +292,7 @@ When brainstorm detects that `design-spec.md` already exists, it enters **amend 
 3. Marks all downstream artifacts (`implementation-plan.md`, `execution-report.md`, etc.) as **stale**
 
 Stale artifacts have a marker at the top:
-```
+```markdown
 > ⚠️ **STALE** — upstream artifact `design-spec.md` was modified on 2026-05-12 14:30.
 > This document was generated from an earlier version and may be out of date.
 > Re-run the corresponding pipeline stage to regenerate.

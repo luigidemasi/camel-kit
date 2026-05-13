@@ -119,7 +119,7 @@ When `--resume` is used, camel-ship checks all pipeline artifacts for staleness 
    - `execution-report.md` (Stage 2 output)
    - `validation-report.md` (Stage 3 output)
    - `stamp-report.md` (Stamp gate output)
-2. For each artifact, check for the staleness marker: `⚠️ **STALE**` in the first 5 lines
+2. For each artifact, check for the staleness marker in the first 5 lines: a blockquote line containing `⚠️ **STALE**` followed by upstream artifact reference and timestamp (see `shared/pipeline-infrastructure.md` for the full marker format)
 3. Find the **earliest stale stage** — the lowest stage number whose artifact is marked stale
 
 ### Re-run Decision
@@ -128,7 +128,7 @@ When `--resume` is used, camel-ship checks all pipeline artifacts for staleness 
 |---|---|
 | No stale artifacts | Resume from `currentStage` (normal behavior) |
 | Stale artifacts found | Report stale stages to user, then re-run from the earliest stale stage |
-| `design-spec.md` itself is stale | This should not happen (design spec is the root). If found, warn and re-run from Stage 0. |
+| `design-spec.md` itself is stale | Edge case (e.g., manual marker addition). Warn that the design spec is the root artifact and should not be marked stale, then re-run from Stage 0. |
 
 ### Re-run Behavior
 

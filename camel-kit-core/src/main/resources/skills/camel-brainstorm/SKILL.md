@@ -35,7 +35,7 @@ Invoked with a `<PIPELINE_ID>` argument (e.g., `/camel-brainstorm 001-order-proc
 
 **Detection at start:**
 
-```
+```text
 if <PIPELINE_ID> argument provided:
     resolve pipeline directory
     if design-spec.md exists → AMEND MODE
@@ -120,10 +120,12 @@ digraph brainstorm {
 }
 ```
 
-**The terminal state is YOU invoking camel-plan.** Do NOT invoke camel-execute, generate YAML, or take any implementation action.
+**The terminal state depends on invocation mode.** In chained mode: YOU invoke camel-plan. In standalone mode: write output and STOP. In both modes: do NOT invoke camel-execute, generate YAML, or take any implementation action.
 
 <HARD-RULE>
-When the user approves the design spec, YOU must invoke/activate the `camel-plan` skill immediately and automatically. Do NOT tell the user to run it manually. Do NOT print "please run camel-plan" or "run /camel-plan". YOU do it — the transition is automatic.
+When the user approves the design spec in **chained mode**, YOU must invoke/activate the `camel-plan` skill immediately and automatically. Do NOT tell the user to run it manually. Do NOT print "please run camel-plan" or "run /camel-plan". YOU do it — the transition is automatic.
+
+In **standalone mode** (including amend mode), write the output artifact and STOP. Do NOT auto-invoke camel-plan.
 </HARD-RULE>
 
 ---
