@@ -47,6 +47,17 @@ Both pipelines share plan → execute → validate. Only the entry point differs
 
 Runtime verification (`camel-verify`) runs automatically as part of `/camel-execute` — it is not a standalone pipeline stage.
 
+### Skill Tiers
+
+| Tier | Skills | Role |
+|------|--------|------|
+| Meta | `camel-start` | Routes to the right pipeline |
+| Tier 1 (Pipeline) | `camel-brainstorm`, `camel-migrate`, `camel-plan`, `camel-execute`, `camel-validate` | The 5 pipeline steps |
+| Tier 2 (Power) | `camel-ship`, `camel-knowledge` | Standalone utilities |
+| Internal | `camel-design`, `camel-implement`, `camel-test`, `camel-verify` | Guide libraries / subagent-only |
+
+Tier 1 skills are the main pipeline stages — invoke them via the decision tree above. Tier 2 skills are standalone utilities available anytime. Internal skills are not user-invocable; they are dispatched as subagents by pipeline skills.
+
 ## When NOT to Use Each Skill
 
 | Skill | Do NOT use for |
@@ -57,9 +68,9 @@ Runtime verification (`camel-verify`) runs automatically as part of `/camel-exec
 | `/camel-execute` | No approved plan, questions, validation-only tasks |
 | `/camel-validate` | Runtime debugging (build failures, startup errors) — use `/camel-execute` which includes runtime verification |
 
-## Also Available
+## Also Available (Tier 2)
 
-These skills are not part of the main pipelines but are accessible via slash command:
+These standalone utilities are not part of the main pipelines but are accessible via slash command:
 
 | Slash Command | Purpose |
 |---|---|
