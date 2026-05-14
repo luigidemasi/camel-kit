@@ -138,7 +138,7 @@ ALWAYS generate the validation report.
 This creates an audit trail of validation results over time.
 </HARD-RULE>
 
-**Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, after saving the validation report, run `{COMMAND_PREFIX} doc stale --reason "validation report regenerated" --cascade <validation-report.md>` to propagate staleness to downstream artifacts.
+**Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, after saving the validation report, if `stamp-report.md` exists, run `{COMMAND_PREFIX} doc stale --reason "validation report regenerated" <stamp-report.md>`. Do NOT mark the freshly regenerated `validation-report.md` itself stale.
 
 ## Iron Laws
 

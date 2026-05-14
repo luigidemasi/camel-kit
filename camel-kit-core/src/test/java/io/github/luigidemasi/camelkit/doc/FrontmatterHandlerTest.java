@@ -271,4 +271,52 @@ class FrontmatterHandlerTest {
         String body = FrontmatterHandler.extractBody(result);
         assertTrue(body.startsWith("# Body"));
     }
+
+    private static final String CRLF_FRONTMATTER = "---\r\n"
+                                                   + "staleness:\r\n"
+                                                   + "  stale: true\r\n"
+                                                   + "  since: \"2026-05-13T10:00:00Z\"\r\n"
+                                                   + "  reason: \"spec changed\"\r\n"
+                                                   + "generated:\r\n"
+                                                   + "  at: \"2026-05-13T09:00:00Z\"\r\n"
+                                                   + "  by: camel-plan\r\n"
+                                                   + "  from: design-spec.md\r\n"
+                                                   + "---\r\n"
+                                                   + "# Plan\r\n"
+                                                   + "Body content.\r\n";
+
+    @Test
+    void crlfHasFrontmatter() {
+        assertTrue(FrontmatterHandler.hasFrontmatter(CRLF_FRONTMATTER));
+    }
+
+    @Test
+    void crlfExtractFrontmatterYaml() {
+        String yaml = FrontmatterHandler.extractFrontmatterYaml(CRLF_FRONTMATTER);
+        assertNotNull(yaml);
+        assertTrue(yaml.contains("staleness:"));
+        assertTrue(yaml.contains("generated:"));
+    }
+
+    @Test
+    void crlfParseStaleness() {
+        String yaml = FrontmatterHandler.extractFrontmatterYaml(CRLF_FRONTMATTER);
+        StalenessInfo info = FrontmatterHandler.parseStaleness(yaml);
+        assertTrue(info.isStale());
+        assertEquals("spec changed", info.getReason());
+    }
+
+    @Test
+    void crlfExtractBody() {
+        String body = FrontmatterHandler.extractBody(CRLF_FRONTMATTER);
+        assertTrue(body.contains("# Plan"));
+        assertTrue(body.contains("Body content."));
+    }
+
+    @Test
+    void crlfToCheckJson() {
+        String json = FrontmatterHandler.toCheckJson("crlf.md", CRLF_FRONTMATTER);
+        assertTrue(json.contains("\"stale\" : true"));
+        assertTrue(json.contains("\"from\" : \"design-spec.md\""));
+    }
 }

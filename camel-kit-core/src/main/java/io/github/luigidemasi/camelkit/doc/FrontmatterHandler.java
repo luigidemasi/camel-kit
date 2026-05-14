@@ -24,10 +24,15 @@ public final class FrontmatterHandler {
         return content != null && content.startsWith(DELIMITER);
     }
 
+    private static String normalizeCrlf(String content) {
+        return content.replace("\r\n", "\n");
+    }
+
     public static String extractFrontmatterYaml(String content) {
         if (!hasFrontmatter(content)) {
             return null;
         }
+        content = normalizeCrlf(content);
         int start = DELIMITER.length();
         int end = content.indexOf("\n" + DELIMITER, start);
         if (end < 0) {
@@ -40,6 +45,7 @@ public final class FrontmatterHandler {
         if (!hasFrontmatter(content)) {
             return content;
         }
+        content = normalizeCrlf(content);
         int start = DELIMITER.length();
         int end = content.indexOf("\n" + DELIMITER, start);
         if (end < 0) {

@@ -225,7 +225,7 @@ Fix any issues inline.
 After saving the plan:
 
 1. Save the implementation plan to `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`
-2. **Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, run `{COMMAND_PREFIX} doc stale --reason "implementation plan regenerated" --cascade <implementation-plan.md>` to propagate staleness to downstream artifacts
+2. **Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, for each existing downstream artifact (`execution-report.md`, `validation-report.md`, `stamp-report.md`), run `{COMMAND_PREFIX} doc stale --reason "implementation plan regenerated" --cascade <first-downstream-artifact>` to propagate staleness. Do NOT mark the freshly regenerated `implementation-plan.md` itself stale.
 3. **Check invocation mode:**
    - **Standalone mode:** print confirmation and STOP. Do NOT auto-invoke execute.
    - **Chained mode:** continue to step 4.

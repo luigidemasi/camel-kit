@@ -136,6 +136,18 @@ class DocCommandsTest {
     }
 
     @Test
+    void staleRejectsBlankReason() throws Exception {
+        Path file = writeDoc("doc.md",
+                FrontmatterHandler.writeFrontmatter(StalenessInfo.fresh(), null, "# Doc\n"));
+        int code = runStale("--reason", "", file.toString());
+        assertEquals(1, code);
+
+        StalenessInfo info = FrontmatterHandler.parseStaleness(
+                FrontmatterHandler.extractFrontmatterYaml(Files.readString(file)));
+        assertFalse(info.isStale());
+    }
+
+    @Test
     void staleNonexistentFileReturnsError() {
         int code = runStale("--reason", "test", tempDir.resolve("missing.md").toString());
         assertEquals(1, code);

@@ -45,6 +45,12 @@ public class DocStaleCommand implements Callable<Integer> {
             return 1;
         }
 
+        if (reason == null || reason.isBlank()) {
+            err.println("Error: --reason must not be blank");
+            err.flush();
+            return 1;
+        }
+
         String since = Instant.now().toString();
 
         try {

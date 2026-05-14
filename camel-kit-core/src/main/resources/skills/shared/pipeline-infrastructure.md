@@ -277,19 +277,20 @@ Run `{COMMAND_PREFIX} doc check <file>` and inspect the JSON output. If `stale` 
 - **Standalone mode:** Warn the user and ask whether to proceed with stale input or abort
 - **Ship --resume:** Automatically re-run from the earliest stale stage (see camel-ship)
 
-### Applying Staleness
+### Applying Staleness — Amendments
 
-When a skill writes or amends an artifact, it must run:
+When a skill amends an upstream artifact (partial edit, not a full regeneration), it must mark downstream outputs stale:
 
 ```
-{COMMAND_PREFIX} doc stale --reason "<description>" --cascade <amended-file>
+{COMMAND_PREFIX} doc stale --reason "<description>" --cascade <first-downstream-artifact>
 ```
 
-This marks the target file and all downstream artifacts (via `generated.from` chain) as stale.
+This marks the downstream artifact and all further-downstream artifacts (via `generated.from` chain) as stale. Do NOT mark the freshly amended artifact itself stale — it was just updated and is current.
 
-### Clearing Staleness
+### Clearing Staleness — Regeneration
 
-When a skill regenerates an artifact (full re-run, not an amendment):
+When a skill regenerates an artifact (full re-run of a pipeline stage):
 
 1. The regenerated artifact is written with fresh frontmatter (`stale: false`)
-2. The staleness on further-downstream artifacts remains until those stages are also re-run
+2. Mark downstream artifacts stale (they were generated from the previous version)
+3. The staleness on further-downstream artifacts remains until those stages are also re-run
