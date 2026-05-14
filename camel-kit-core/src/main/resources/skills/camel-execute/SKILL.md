@@ -275,7 +275,7 @@ Dispatch a fresh subagent with:
 
 After the implementer reports DONE (or DONE_WITH_CONCERNS), run the doubt-driven review cycle before dispatching the full spec review. This adversarial pre-filter assumes the implementer is overconfident and actively looks for what's wrong, what's missing, and what will fail.
 
-**Load `guides/doubt-driven-review.md` for the full protocol.** Summary below.
+**Load `guides/doubt-driven-review.md` for the full protocol.** `guides/doubt-driven-review.md` is the single source of truth for all constraints, thresholds, and cycle mechanics. The summary below is a non-authoritative quick reference — if it conflicts with the guide, the guide wins.
 
 **Step 1 — Triviality Gate:** Classify the task's implementation decisions using the triviality gate in `guides/doubt-driven-review.md`. If ALL decisions are trivial (properties, Docker Compose, run scripts, timer with fixed period), skip directly to spec compliance review (Step 2c). If ANY decision is non-trivial (introduces branching logic, crosses a system boundary, asserts something the type system can't verify, depends on invisible context, or is irreversible), proceed to Step 2.
 
