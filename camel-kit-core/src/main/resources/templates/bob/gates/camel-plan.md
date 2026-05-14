@@ -199,4 +199,4 @@ The plan is a RECIPE, not the MEAL.
 Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
 
 - **Iron Law 4: No Code Without Spec Approval** — The plan is based on an APPROVED design spec.
-- **Iron Law 5: Spec Compliance Before Quality** — The plan MUST specify two-stage review for every implementation task: spec compliance first, then quality.
+- **Iron Law 4: Spec Compliance Before Quality** — The plan MUST specify two-stage review for every implementation task: spec compliance first, then quality.
