@@ -40,4 +40,4 @@ If the spec reviewer reports one or more **Actionable** findings:
 
 ### Convergence check
 
-Track Actionable finding count across iterations. If the count is not strictly decreasing between consecutive iterations, escalate immediately — the implementer and reviewer are stuck.
+Track Actionable findings by identity across iterations. Convergence means at least one previously-reported Actionable finding was resolved. New findings may appear as fixes reveal deeper issues — that is progress. If zero previously-reported findings were resolved between consecutive iterations, escalate immediately — the implementer and reviewer are stuck.

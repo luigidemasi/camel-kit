@@ -34,11 +34,11 @@ A decision is non-trivial if it:
 
 | Criterion | Example |
 |---|---|
-| **Introduces branching logic** | `choice`, `filter`, `circuitBreaker`, content-based routing conditions |
-| **Crosses a system boundary** | External API call, database query, message broker producer/consumer |
-| **Asserts something the type system can't verify** | DataMapper field mappings, expression language predicates, header-based routing |
-| **Depends on invisible context** | Message ordering assumptions, timing-dependent logic, shared state between routes |
-| **Is irreversible** | Data transformation that discards fields, deletion operations, one-way format conversions |
+| **Introduces branching logic** | `choice`, `filter`, `circuitBreaker`, content-based routing conditions, `recipientList`, `routingSlip`, `dynamicRouter` (runtime-resolved destinations are branching — the target depends on message content or state) |
+| **Crosses a system boundary** | External API call, database query, message broker producer/consumer, `enrich`/`pollEnrich` (content enrichment calls an external system mid-route) |
+| **Asserts something the type system can't verify** | DataMapper field mappings, expression language predicates, header-based routing, aggregation correlation keys and completion predicates |
+| **Depends on invisible context** | Message ordering assumptions, timing-dependent logic, shared state between routes, `aggregate` completion conditions (timeout, size, predicate), idempotent consumer key selection |
+| **Is irreversible** | Data transformation that discards fields, deletion operations, one-way format conversions, `saga` compensation logic (the compensating action is itself a non-trivial design decision) |
 
 ### Trivial decisions (skip doubt cycle)
 
@@ -74,7 +74,7 @@ Extract testable claims from the implementer's output:
 - **Boundary claims** — external systems contacted, protocols used, authentication configured
 - **File claims** — paths of generated files, expected content patterns
 
-Focus extraction on decisions that matched non-trivial criteria from the triviality gate.
+**Extraction discipline:** Extract a claim for EVERY decision that matched a non-trivial criterion from the triviality gate — not just the ones that feel uncertain. Overconfident assumptions (decisions the orchestrator considers "obvious") are the primary target of doubt-driven review. If a non-trivial decision has no corresponding extracted claim, the doubt reviewer cannot challenge it.
 
 ### Step 3: DOUBT
 
@@ -99,6 +99,18 @@ For each extracted claim, answer:
 2. What would cause this to fail in production?
 3. What's missing that the claim doesn't mention?
 
+Before flagging a MISSING feature (no circuit breaker, no async processing, no saga,
+no idempotent consumer), check whether the TDD's conditional sections deliberately
+omit it. The TDD includes conditional sections only when the design requires them —
+absence of a section (e.g., no "Resilience / Circuit Breaker" section) is a deliberate
+design decision, not an oversight. Do not flag missing features that the TDD
+intentionally excludes.
+
+Similarly, if the implementation uses a component or pattern that seems suboptimal
+in isolation (e.g., `direct:` instead of `seda:`), check the TDD's Rationale and
+Constraints fields before flagging. The choice may be constrained by cross-flow
+dependencies or transaction boundaries documented in the design spec.
+
 Classify each finding using the taxonomy below.
 ```
 
@@ -111,9 +123,11 @@ Each finding from the doubt reviewer is classified:
 | **Contract misread** | The reviewer misunderstood the TDD contract | Dismiss — attach the specific TDD section that contradicts the finding |
 | **Actionable** | Real defect the implementer must fix before proceeding | Fix required — return to implementer with finding details |
 | **Trade-off** | Valid concern but resolution depends on business context | Document — present to user for decision |
-| **Noise** | Stylistic preference or hypothetical concern with no concrete failure mode | Dismiss — attach reason |
+| **Noise** | Stylistic preference or hypothetical concern with no concrete failure mode | Dismiss — attach the specific TDD section or code evidence that proves no concrete failure mode exists |
 
 The orchestrator (not the doubt reviewer) performs classification. The reviewer's job is to find problems; the orchestrator's job is to triage them.
+
+**Evidence-based dismissal:** Every dismissal (contract misread or noise) requires concrete evidence — a TDD section, a code reference, or a verifiable fact. "Stylistic concern" or "hypothetical" without a citation is not a valid dismissal. If the orchestrator cannot produce evidence to dismiss a finding, it stays actionable by default. The burden of proof is on the dismisser, not the finder.
 
 ### Step 5: DECIDE
 
@@ -148,15 +162,22 @@ Please advise: fix these findings, accept as trade-offs, or dismiss.
 
 ### Convergence detection
 
-Track findings across cycles. Convergence means the number of actionable findings is strictly decreasing:
+Track findings across cycles by identity, not just count. Convergence means at least one previously-reported finding was resolved between cycles. New findings may appear (fixes can reveal deeper issues) — that is progress, not stagnation:
 
-| Cycle | Actionable findings | Converging? |
-|---|---|---|
-| 1 | 4 | — |
-| 2 | 2 | Yes |
-| 3 | 2 | No — escalate |
+| Cycle | Prior findings resolved | New findings discovered | Total | Converging? |
+|---|---|---|---|---|
+| 1 | — | 4 | 4 | — |
+| 2 | 3 resolved | 1 new | 2 | Yes — prior findings are being fixed |
+| 3 | 1 resolved | 1 new | 2 | Yes — prior finding resolved, new one is legitimate |
 
-If actionable findings are not decreasing between consecutive cycles, the implementer and reviewer are stuck. Escalate immediately rather than burning the remaining cycles.
+Non-convergence is when ZERO previously-reported findings were resolved:
+
+| Cycle | Prior findings resolved | New findings discovered | Total | Converging? |
+|---|---|---|---|---|
+| 1 | — | 3 | 3 | — |
+| 2 | 0 resolved | 0 new | 3 | No — same 3 findings, nothing fixed. Escalate |
+
+If no prior findings were resolved between consecutive cycles, the implementer is stuck. Escalate immediately rather than burning the remaining cycles.
 
 ### Doubt theater detection
 
