@@ -12,6 +12,13 @@ Write comprehensive implementation plans assuming the engineer has zero context 
 
 **Core principle:** The plan contains detailed instructions on HOW to generate code, NOT the generated code itself.
 
+## When NOT to use this skill
+
+- Ad-hoc changes or single-file edits — just make the change directly
+- Quick fixes or property tweaks — no plan needed for trivial modifications
+- No approved design spec exists yet — use `/camel-brainstorm` first (Iron Law 3)
+- You want to generate code or YAML — this skill produces plans, not artifacts; use `/camel-execute` for implementation
+
 **Violating the letter of these rules is violating the spirit of these rules.**
 
 <HARD-GATE>

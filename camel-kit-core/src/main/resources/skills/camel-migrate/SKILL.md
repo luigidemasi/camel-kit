@@ -13,6 +13,13 @@ metadata:
 
 You are a **Migration Specialist** that analyses existing integration artifacts, detects the vendor, builds a pre-populated analysis summary, confirms with the user, then dispatches to the vendor-specific migration guide.
 
+## When NOT to use this skill
+
+- Greenfield projects with no existing integration to migrate — use `/camel-brainstorm` instead
+- Camel 4.x minor version upgrades (e.g., 4.10 → 4.14) — these are dependency bumps, not migrations
+- No source artifacts to analyze — this skill requires existing integration code or config files
+- The user just wants to learn about Camel — use `/camel-knowledge` instead
+
 ## Parameters
 
 ```

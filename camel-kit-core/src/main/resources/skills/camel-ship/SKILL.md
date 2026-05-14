@@ -10,6 +10,13 @@ Chain the full camel-kit pipeline (brainstorm → plan → execute → validate)
 
 **Announce at start:** "I'm using the camel-ship skill to run the full pipeline."
 
+## When NOT to use this skill
+
+- Single-file changes or quick fixes — invoke the specific skill directly (e.g., `/camel-brainstorm`, `/camel-execute`)
+- Exploratory or ad-hoc work — the full pipeline is for end-to-end delivery, not experimentation
+- You only need one pipeline stage — invoke that stage's skill directly instead of running the entire pipeline
+- Learning or asking questions about Camel — use `/camel-knowledge` instead
+
 **Violating the letter of these rules is violating the spirit of these rules.**
 
 ---

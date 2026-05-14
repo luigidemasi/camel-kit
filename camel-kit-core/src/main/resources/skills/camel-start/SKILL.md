@@ -62,11 +62,13 @@ Tier 1 skills are the main pipeline stages — invoke them via the decision tree
 
 | Skill | Do NOT use for |
 |-------|---------------|
-| `/camel-brainstorm` | Quick property changes, version bumps, single-component additions, Camel questions |
-| `/camel-migrate` | Greenfield projects, Camel 4.x minor version upgrades |
-| `/camel-plan` | Ad-hoc changes, single-file edits, no design spec yet |
-| `/camel-execute` | No approved plan, questions, validation-only tasks |
-| `/camel-validate` | Runtime debugging (build failures, startup errors) — use `/camel-execute` which includes runtime verification |
+| `/camel-brainstorm` | Quick property changes, version bumps, single-component additions, Camel questions, migrations from other platforms |
+| `/camel-migrate` | Greenfield projects, Camel 4.x minor version upgrades, no source artifacts to analyze |
+| `/camel-plan` | Ad-hoc changes, single-file edits, quick fixes, no approved design spec yet |
+| `/camel-execute` | No approved plan, Camel questions, validation-only tasks, design work |
+| `/camel-validate` | Runtime debugging (build failures, startup errors), generating routes, design work, fixing issues |
+| `/camel-ship` | Single-file changes, quick fixes, exploratory work, only one pipeline stage needed |
+| `/camel-knowledge` | Implementation tasks, code generation, route validation, design work |
 
 ## Also Available (Tier 2)
 

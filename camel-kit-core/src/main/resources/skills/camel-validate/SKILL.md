@@ -8,6 +8,13 @@ user_invocable: false
 
 > **Tier 1 pipeline step.** Final stage after execute — produces a comprehensive quality report.
 
+## When NOT to use this skill
+
+- Runtime debugging (build failures, startup errors, exceptions) — `camel-verify` handles that within `/camel-execute`
+- Generating or modifying routes — use `/camel-execute` for implementation
+- Design work or architecture decisions — use `/camel-brainstorm` instead
+- Fixing the issues found — this skill reports problems, it does not fix them
+
 ## Invocation Modes
 
 This skill supports two invocation modes (see `shared/pipeline-infrastructure.md` for details):
