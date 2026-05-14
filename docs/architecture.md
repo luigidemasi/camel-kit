@@ -44,12 +44,12 @@ user_invocable: false
 | `guides/optional-guide.md` | When condition X | Supplementary guide |
 ```
 
-**Note:** Only `camel-start` sets `user_invocable: true` — it is the single auto-discovered entry point (meta-router).
+**Note:** Only `camel-start` sets `user_invocable: true` — it is the single auto-discovered entry point (meta-router). Pipeline and standalone skills (Tier 1/2) are invoked via explicit slash commands. Internal skills are dispatched only by pipeline skills.
 
 The frontmatter fields:
 - `name` -- skill identifier, used in cross-references
 - `description` -- trigger keywords that help agents match user intent to the correct skill
-- `user_invocable` -- `true` for `camel-start` (meta-router) only. All other skills have `user_invocable: false` and are routed through the meta-router or invoked via explicit slash commands
+- `user_invocable` -- `true` for `camel-start` (meta-router) only. Pipeline and standalone skills (Tier 1/2) have explicit slash commands despite `user_invocable: false`. Internal skills (`camel-verify`, `camel-design`, `camel-implement`, `camel-test`) are dispatched only by pipeline skills
 
 ### All Skills
 
@@ -67,8 +67,9 @@ The frontmatter fields:
 | `camel-validate` | No | `camel-ship` (Stage 3) | Tier 1 quality gate: schema validation, endpoint verification, security analysis |
 | `camel-test` | No | `camel-execute` | Guides for route analysis and test generation with Citrus + Testcontainers |
 | `camel-knowledge` | No | `camel-brainstorm`, `camel-execute` | Routes questions to knowledge MCP tools |
+| `camel-debug` | No | `camel-start` (ad-hoc troubleshooting) | Standalone debugging: STOP → PRESERVE → DIAGNOSE → FIX → GUARD workflow |
 
-**Note:** Only `camel-start` has `user_invocable: true` in its skill metadata. All other skills have `user_invocable: false` and are routed through the meta-router or invoked via explicit slash commands.
+**Note:** Only `camel-start` has `user_invocable: true` in its skill metadata. Pipeline and standalone skills have explicit slash commands despite `user_invocable: false`. Internal skills (`camel-verify`, `camel-design`, `camel-implement`, `camel-test`) are dispatched only by pipeline skills.
 
 ### Shared Guides
 

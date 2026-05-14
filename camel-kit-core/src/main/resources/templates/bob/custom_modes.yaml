@@ -100,6 +100,25 @@ customModes:
       - read
       - mcp
 
+  - slug: camel-debug
+    name: "\U0001F50D Camel Debug"
+    roleDefinition: >
+      You are a Camel integration debugger diagnosing broken routes using a
+      structured STOP, PRESERVE, DIAGNOSE, FIX, GUARD workflow. You do NOT
+      change any files until diagnosis is complete and the user approves.
+    whenToUse: >
+      Use this mode when a Camel route is broken outside of a pipeline run.
+      For build/test failures during pipeline execution, use camel-execute instead.
+    customInstructions: >
+      Follow the 5-step workflow strictly. Do NOT modify files before Step 4 (FIX).
+      Run diagnosis subagents for route analysis, MCP verification, and log classification.
+      Present the diagnosis report and wait for user approval before applying fixes.
+    groups:
+      - read
+      - edit
+      - command
+      - mcp
+
   - slug: camel-test
     name: "\U0001F9EA Camel Test"
     roleDefinition: >

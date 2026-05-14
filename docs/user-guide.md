@@ -846,3 +846,13 @@ If verification fails after multiple fix iterations (the verify loop runs inside
 3. Check if the error is classified as "Escalate" -- these require manual intervention
 4. For connection errors, verify that external services are actually running and reachable
 5. For component errors, ask your AI assistant to check whether the component exists in your Camel version
+
+### Ad-hoc Route Debugging
+
+If a route breaks outside of a pipeline run (e.g., after a manual edit, dependency upgrade, or configuration change), use the standalone debug skill:
+
+```
+/camel-debug
+```
+
+This runs a structured troubleshooting workflow (STOP → PRESERVE → DIAGNOSE → FIX → GUARD) that captures state before making changes, classifies the error, and applies targeted fixes. Unlike the pipeline verification loop (`camel-verify`), the debug skill is designed for ad-hoc use and does not require an active pipeline.

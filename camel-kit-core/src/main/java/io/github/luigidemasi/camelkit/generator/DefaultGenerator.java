@@ -44,7 +44,7 @@ public class DefaultGenerator implements AgentGenerator {
     private void createCommandTemplates(InitContext ctx) throws Exception {
         List<String> commands
                 = List.of("start", "brainstorm", "plan", "execute", "verify", "validate", "migrate", "knowledge",
-                        "ship");
+                        "ship", "debug");
 
         // Extract agent base folder (e.g., ".bob" from ".bob/commands")
         String agentBaseFolder = ctx.agent().folder().substring(0, ctx.agent().folder().lastIndexOf("/"));
@@ -362,7 +362,7 @@ public class DefaultGenerator implements AgentGenerator {
         List<String> skillNames = List.of(
                 "camel-brainstorm", "camel-execute", "camel-implement", "camel-verify",
                 "camel-validate", "camel-test", "camel-plan", "camel-ship",
-                "camel-migrate", "camel-knowledge", "camel-start");
+                "camel-migrate", "camel-knowledge", "camel-start", "camel-debug");
 
         for (String skillName : skillNames) {
             String traitResourcePath = traitsBasePath + skillName + ".append.md";

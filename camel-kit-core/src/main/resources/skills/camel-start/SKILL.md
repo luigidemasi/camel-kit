@@ -20,7 +20,7 @@ Answer these questions in order. The first "yes" is your destination.
 | 2 | Is there an approved design spec ready for task decomposition? | Plan it | `/camel-plan` |
 | 3 | Is there an approved implementation plan ready for execution? | Execute it | `/camel-execute` |
 | 4 | Are there generated routes that need quality validation? | Validate them | `/camel-validate` |
-| 5 | Is something broken — build fails, startup errors, runtime exceptions? | Re-execute with verification | `/camel-execute` |
+| 5 | Is something broken — build fails, startup errors, runtime exceptions — outside of a pipeline run? | Debug it | `/camel-debug` |
 | 6 | None of the above — new integration, new feature, or unclear? | Design it | `/camel-brainstorm` |
 
 ### Mid-Pipeline Entry
@@ -29,7 +29,7 @@ Users may arrive partway through a pipeline:
 - "I already have a design spec" → skip brainstorm, go to `/camel-plan`
 - "The plan is approved, start building" → skip brainstorm+plan, go to `/camel-execute`
 - "I have generated routes that need checking" → go to `/camel-validate`
-- "It was working but now it's broken" → go to `/camel-execute` (includes runtime verification via `camel-verify`)
+- "It was working but now it's broken" → go to `/camel-debug` (standalone troubleshooting)
 
 ### Pipeline Overview
 
@@ -53,7 +53,7 @@ Runtime verification (`camel-verify`) runs automatically as part of `/camel-exec
 |------|--------|------|
 | Meta | `camel-start` | Routes to the right pipeline |
 | Tier 1 (Pipeline) | `camel-brainstorm`, `camel-migrate`, `camel-plan`, `camel-execute`, `camel-validate` | The 5 pipeline steps |
-| Tier 2 (Power) | `camel-ship`, `camel-knowledge` | Standalone utilities |
+| Tier 2 (Power) | `camel-ship`, `camel-knowledge`, `camel-debug` | Standalone utilities |
 | Internal | `camel-design`, `camel-implement`, `camel-test`, `camel-verify` | Guide libraries / subagent-only |
 
 Tier 1 skills are the main pipeline stages — invoke them via the decision tree above. Tier 2 skills are standalone utilities available anytime. Internal skills are not user-invocable; they are dispatched as subagents by pipeline skills.
@@ -68,6 +68,7 @@ Tier 1 skills are the main pipeline stages — invoke them via the decision tree
 | `/camel-execute` | No approved plan, Camel questions, validation-only tasks, design work |
 | `/camel-validate` | Runtime debugging (build failures, startup errors), generating routes, design work, fixing issues |
 | `/camel-ship` | Single-file changes, quick fixes, exploratory work, only one pipeline stage needed |
+| `/camel-debug` | Build/test failures during pipeline execution (use `/camel-execute` which dispatches `camel-verify`), quality validation, designing integrations |
 | `/camel-knowledge` | Implementation tasks, code generation, route validation, design work |
 
 ## Also Available (Tier 2)
@@ -78,3 +79,4 @@ These standalone utilities are not part of the main pipelines but are accessible
 |---|---|
 | `/camel-ship` | Run the full pipeline autonomously with configurable oversight (`--ask always\|smart\|never`) |
 | `/camel-knowledge` | Look up Apache Camel documentation, components, CVEs, errata, versions |
+| `/camel-debug` | Ad-hoc troubleshooting for broken routes outside of a pipeline run |
