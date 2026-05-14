@@ -290,7 +290,7 @@ After the implementer reports DONE (or DONE_WITH_CONCERNS), run the doubt-driven
 
 **Hard cap:** 3 doubt cycles per task. If actionable findings persist after 3 rounds, or the actionable count is not strictly decreasing between consecutive cycles, escalate to the user.
 
-**Doubt theater detection:** If 2+ cycles complete with zero actionable findings across all cycles, log a warning and proceed — the process is validating rather than doubting.
+**Doubt theater detection:** If the doubt reviewer reports findings but the orchestrator classifies all of them as non-actionable (contract misread or noise), log a warning and proceed — the process is validating rather than doubting.
 
 ---
 

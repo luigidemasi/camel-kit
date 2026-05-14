@@ -160,18 +160,19 @@ If actionable findings are not decreasing between consecutive cycles, the implem
 
 ### Doubt theater detection
 
-If across 2 or more cycles, **zero** findings are classified as actionable, the doubt process is validating rather than doubting. This is a red flag:
+If the doubt reviewer reports findings but the orchestrator classifies **all** of them as non-actionable (contract misread or noise), the doubt process is validating rather than doubting. This is detectable in a single cycle and is a red flag:
 
 ```
 DOUBT THEATER WARNING — Task: <task-name>
 
-2+ doubt cycles completed with zero actionable findings across all cycles.
+Doubt reviewer reported [N] finding(s), but all were classified as
+non-actionable (contract misread: [count], noise: [count]).
 The doubt process may be confirming rather than challenging.
 
 Proceeding to spec review, but flagging for awareness.
 ```
 
-Log the warning and proceed to spec compliance review. Do not loop further.
+Log the warning and proceed to spec compliance review. Do not loop further — re-running with the same classification bias will produce the same result.
 
 ---
 
