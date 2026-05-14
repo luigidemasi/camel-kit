@@ -285,9 +285,27 @@ class FrontmatterHandlerTest {
                                                    + "# Plan\r\n"
                                                    + "Body content.\r\n";
 
+    private static final String CRLF_FRESH_FRONTMATTER = "---\r\n"
+                                                         + "staleness:\r\n"
+                                                         + "  stale: false\r\n"
+                                                         + "  since: null\r\n"
+                                                         + "  reason: null\r\n"
+                                                         + "generated:\r\n"
+                                                         + "  at: \"2026-05-13T09:00:00Z\"\r\n"
+                                                         + "  by: camel-plan\r\n"
+                                                         + "  from: design-spec.md\r\n"
+                                                         + "---\r\n"
+                                                         + "# Implementation Plan\r\n";
+
+    private static final String CRLF_NO_FRONTMATTER = "# Just a plain markdown document\r\n"
+                                                      + "\r\n"
+                                                      + "No frontmatter here.\r\n";
+
     @Test
     void crlfHasFrontmatter() {
         assertTrue(FrontmatterHandler.hasFrontmatter(CRLF_FRONTMATTER));
+        assertTrue(FrontmatterHandler.hasFrontmatter(CRLF_FRESH_FRONTMATTER));
+        assertFalse(FrontmatterHandler.hasFrontmatter(CRLF_NO_FRONTMATTER));
     }
 
     @Test
@@ -296,6 +314,15 @@ class FrontmatterHandlerTest {
         assertNotNull(yaml);
         assertTrue(yaml.contains("staleness:"));
         assertTrue(yaml.contains("generated:"));
+
+        String freshYaml = FrontmatterHandler.extractFrontmatterYaml(CRLF_FRESH_FRONTMATTER);
+        assertNotNull(freshYaml);
+        assertTrue(freshYaml.contains("stale: false"));
+    }
+
+    @Test
+    void crlfExtractFrontmatterYamlReturnsNullForPlain() {
+        assertNull(FrontmatterHandler.extractFrontmatterYaml(CRLF_NO_FRONTMATTER));
     }
 
     @Test
@@ -307,6 +334,25 @@ class FrontmatterHandlerTest {
     }
 
     @Test
+    void crlfParseStalenessFromFreshDocument() {
+        String yaml = FrontmatterHandler.extractFrontmatterYaml(CRLF_FRESH_FRONTMATTER);
+        StalenessInfo info = FrontmatterHandler.parseStaleness(yaml);
+        assertFalse(info.isStale());
+        assertNull(info.getSince());
+        assertNull(info.getReason());
+    }
+
+    @Test
+    void crlfParseGenerated() {
+        String yaml = FrontmatterHandler.extractFrontmatterYaml(CRLF_FRONTMATTER);
+        GeneratedInfo gen = FrontmatterHandler.parseGenerated(yaml);
+        assertNotNull(gen);
+        assertEquals("2026-05-13T09:00:00Z", gen.getAt());
+        assertEquals("camel-plan", gen.getBy());
+        assertEquals("design-spec.md", gen.getFrom());
+    }
+
+    @Test
     void crlfExtractBody() {
         String body = FrontmatterHandler.extractBody(CRLF_FRONTMATTER);
         assertTrue(body.contains("# Plan"));
@@ -314,9 +360,55 @@ class FrontmatterHandlerTest {
     }
 
     @Test
+    void crlfExtractBodyReturnsFullContentWithoutFrontmatter() {
+        String body = FrontmatterHandler.extractBody(CRLF_NO_FRONTMATTER);
+        assertEquals(CRLF_NO_FRONTMATTER, body);
+    }
+
+    @Test
     void crlfToCheckJson() {
         String json = FrontmatterHandler.toCheckJson("crlf.md", CRLF_FRONTMATTER);
         assertTrue(json.contains("\"stale\" : true"));
         assertTrue(json.contains("\"from\" : \"design-spec.md\""));
+    }
+
+    @Test
+    void crlfToCheckJsonForDocumentWithoutFrontmatter() {
+        String json = FrontmatterHandler.toCheckJson("plain-crlf.md", CRLF_NO_FRONTMATTER);
+        assertTrue(json.contains("\"stale\" : false"));
+        assertTrue(json.contains("\"since\" : null"));
+        assertTrue(json.contains("\"reason\" : null"));
+        assertTrue(json.contains("\"generated\" : null"));
+    }
+
+    @Test
+    void crlfMarkStaleUpdatesFields() {
+        String result = FrontmatterHandler.markStale(CRLF_FRESH_FRONTMATTER, "crlf change", "2026-05-13T11:00:00Z");
+        assertTrue(FrontmatterHandler.hasFrontmatter(result));
+
+        String yaml = FrontmatterHandler.extractFrontmatterYaml(result);
+        StalenessInfo info = FrontmatterHandler.parseStaleness(yaml);
+        assertTrue(info.isStale());
+        assertEquals("crlf change", info.getReason());
+
+        GeneratedInfo gen = FrontmatterHandler.parseGenerated(yaml);
+        assertNotNull(gen);
+        assertEquals("design-spec.md", gen.getFrom());
+    }
+
+    @Test
+    void crlfClearStaleResetsFields() {
+        String result = FrontmatterHandler.clearStale(CRLF_FRONTMATTER);
+        assertTrue(FrontmatterHandler.hasFrontmatter(result));
+
+        String yaml = FrontmatterHandler.extractFrontmatterYaml(result);
+        StalenessInfo info = FrontmatterHandler.parseStaleness(yaml);
+        assertFalse(info.isStale());
+        assertNull(info.getSince());
+        assertNull(info.getReason());
+
+        GeneratedInfo gen = FrontmatterHandler.parseGenerated(yaml);
+        assertNotNull(gen);
+        assertEquals("camel-plan", gen.getBy());
     }
 }
