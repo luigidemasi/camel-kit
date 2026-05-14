@@ -12,6 +12,13 @@ Execute the approved implementation plan by dispatching fresh subagents per task
 
 **Core principle:** Fresh subagent per task + two-stage review (spec then quality) = high quality, fast iteration.
 
+## When NOT to use this skill
+
+- No approved implementation plan exists — use `/camel-plan` first to create one
+- Questions about Apache Camel — use `/camel-knowledge` instead
+- Validation-only tasks (checking existing routes without changing them) — use `/camel-validate` instead
+- You need a design spec — use `/camel-brainstorm` first; this skill implements plans, not ideas
+
 <HARD-RULE>
 AUTONOMOUS EXECUTION: Execute ALL tasks from the plan using wave analysis. Run `{COMMAND_PREFIX} plan analyze` first to get parallel waves. Tasks within a wave can run in parallel if the agent supports it. Tasks across waves run sequentially (wave N completes before wave N+1 starts). If wave analysis is unavailable, fall back to sequential execution. Do NOT stop, pause, or ask the user between tasks or waves. The user approved the entire plan — that is your authorization.
 </HARD-RULE>

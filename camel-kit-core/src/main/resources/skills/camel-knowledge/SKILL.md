@@ -8,6 +8,12 @@ user_invocable: false
 
 > Invocable standalone via `/camel-knowledge` or loaded by pipeline skills for documentation lookup.
 
+## When NOT to use this skill
+
+- Implementation tasks (generating routes, writing code) — use `/camel-execute` instead
+- Route validation or quality analysis — use `/camel-validate` instead
+- Designing integrations — use `/camel-brainstorm` for design work; this skill answers factual questions
+
 ## Purpose
 
 Provides access to Apache Camel documentation via MCP knowledge tools. Used during:

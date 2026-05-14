@@ -12,6 +12,14 @@ Turn integration ideas into fully formed design specs through collaborative dial
 
 **Core principle:** Understand before designing. Design before planning. Plan before coding.
 
+## When NOT to use this skill
+
+- Quick property changes or version bumps — edit the file directly
+- Adding a single well-known component — no design spec needed for a one-line route change
+- Questions about Apache Camel — use `/camel-knowledge` instead
+- You already have a design spec — use `/camel-plan` to decompose it into tasks
+- Migrating from another platform (MuleSoft, BizTalk, Fuse, Camel 2.x/3.x) — use `/camel-migrate` instead
+
 **Violating the letter of these rules is violating the spirit of these rules.**
 
 <HARD-GATE>
