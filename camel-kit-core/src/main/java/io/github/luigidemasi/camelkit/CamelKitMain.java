@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.util.concurrent.Callable;
 
 import io.github.luigidemasi.camelkit.command.InitCommand;
+import io.github.luigidemasi.camelkit.command.doc.DocCommand;
 import io.github.luigidemasi.camelkit.command.graph.GraphCommand;
 import io.github.luigidemasi.camelkit.command.pipeline.NextIdCommand;
 import io.github.luigidemasi.camelkit.command.plan.PlanCommand;
@@ -141,6 +142,7 @@ public class CamelKitMain implements Callable<Integer> {
     public static void run(CamelKitMain main, String... args) {
         CommandLine commandLine = new CommandLine(main)
                 .addSubcommand("init", new InitCommand(main))
+                .addSubcommand("doc", new CommandLine(new DocCommand()))
                 .addSubcommand("graph", new CommandLine(new GraphCommand()))
                 .addSubcommand("plan", new CommandLine(new PlanCommand()))
                 .addSubcommand("nextId", new NextIdCommand());

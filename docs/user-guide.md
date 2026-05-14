@@ -289,18 +289,18 @@ If you need to change a design spec after downstream artifacts have been generat
 When brainstorm detects that `design-spec.md` already exists, it enters **amend mode**:
 1. Loads the existing spec and presents it for modification
 2. After you approve the amendments, overwrites the design spec
-3. Marks all downstream artifacts (`implementation-plan.md`, `execution-report.md`, etc.) as **stale**
+3. Marks all downstream artifacts as **stale** via `camel-kit doc stale --reason "design spec was amended" --cascade docs/camel-kit/001-order-processing/implementation-plan.md`
 
-Stale artifacts have a marker at the top:
-```markdown
-> ⚠️ **STALE** — upstream artifact `design-spec.md` was modified on 2026-05-12 14:30.
-> This document was generated from an earlier version and may be out of date.
-> Re-run the corresponding pipeline stage to regenerate.
+Staleness is tracked in structured YAML frontmatter within each artifact. You can check any artifact's status:
+```bash
+camel-kit doc check docs/camel-kit/001-order-processing/implementation-plan.md
 ```
 
 To regenerate stale artifacts, either:
 - Run each stale stage standalone: `/camel-plan 001-order-processing`, then `/camel-execute 001-order-processing`
 - Use `camel-ship --resume` — it automatically detects staleness and re-runs from the earliest stale stage
+
+See [camel-kit doc](commands.md#camel-kit-doc) for the full CLI reference.
 
 ### Phase 1: Design (`/camel-brainstorm`)
 

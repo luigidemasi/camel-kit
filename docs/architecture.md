@@ -638,17 +638,15 @@ Every pipeline skill (brainstorm, plan, execute, validate) supports two invocati
 
 Detection is automatic: if the skill was auto-invoked in conversation context, it runs in chained mode. If invoked independently with pipeline artifacts available, it runs in standalone mode.
 
-### Re-iteration and Staleness Markers
+### Re-iteration and Staleness
 
-When `/camel-brainstorm <PIPELINE_ID>` is invoked on a pipeline that already has a design spec, the skill enters **amend mode**: it loads the existing spec, lets the user modify it, and writes the updated version back. All downstream artifacts (`implementation-plan.md`, `execution-report.md`, `validation-report.md`, `stamp-report.md`) are marked stale.
+When `/camel-brainstorm <PIPELINE_ID>` is invoked on a pipeline that already has a design spec, the skill enters **amend mode**: it loads the existing spec, lets the user modify it, and writes the updated version back. All downstream artifacts are marked stale via:
 
-Staleness markers are embedded directly in the artifact file:
-
-```markdown
-> ⚠️ **STALE** — upstream artifact `design-spec.md` was modified on YYYY-MM-DD HH:MM.
-> This document was generated from an earlier version and may be out of date.
-> Re-run the corresponding pipeline stage to regenerate.
+```bash
+camel-kit doc stale --reason "design spec was amended" --cascade design-spec.md
 ```
+
+Staleness is tracked in structured YAML frontmatter within each artifact (see [camel-kit doc](commands.md#camel-kit-doc) for the full schema and CLI reference). Skills detect staleness by running `camel-kit doc check <file>` and inspecting the JSON output.
 
 When `camel-ship --resume` detects stale artifacts, it automatically re-runs from the earliest stale stage instead of the stored `currentStage`. This ensures the pipeline produces consistent output after upstream amendments.
 

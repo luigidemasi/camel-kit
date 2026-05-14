@@ -6,6 +6,8 @@ This document is the reference for all Camel-Kit commands: the `camel-kit` CLI a
 
 - [CLI Commands](#cli-commands)
   - [camel-kit init](#camel-kit-init)
+  - [camel-kit graph](#camel-kit-graph)
+  - [camel-kit doc](#camel-kit-doc)
   - [camel-kit nextId](#camel-kit-nextid)
 - [Slash Commands](#slash-commands)
   - [/camel-brainstorm](#camel-brainstorm)
@@ -336,6 +338,107 @@ $ camel-kit nextId inventory-sync
 |---|---|
 | 0 | Success — pipeline ID generated and directory created |
 | 1 | Error — invalid slug or directory creation failure |
+
+### camel-kit doc
+
+Pipeline document staleness management. Replaces the text-marker-based staleness system with deterministic YAML frontmatter operations.
+
+**Usage:**
+
+```bash
+camel-kit doc <subcommand> [options]
+```
+
+**Subcommands:**
+
+| Subcommand | Description |
+|------------|-------------|
+| `init --by <skill> --from <source> <file>` | Add provenance frontmatter metadata to a document |
+| `check <file>` | Query document staleness status — outputs JSON to stdout |
+| `stale --reason "..." [--cascade] <file>` | Mark a document as stale |
+| `unstale <file>` | Clear staleness from a document |
+
+**Frontmatter Schema:**
+
+Each pipeline artifact carries YAML frontmatter with two namespaced blocks:
+
+```yaml
+---
+staleness:
+  stale: false
+  since: null
+  reason: null
+generated:
+  at: "2026-05-13T09:00:00Z"
+  by: camel-plan
+  from: design-spec.md
+---
+```
+
+- `staleness` — mutable, written by `doc stale` and `doc unstale`
+- `generated` — immutable after creation, written by `doc init` when the pipeline skill produces the artifact
+- `generated.from` enables data-driven cascade without hardcoded pipeline topology
+
+**`doc check` output:**
+
+```json
+{
+  "file": "docs/camel-kit/007/implementation-plan.md",
+  "stale": true,
+  "since": "2026-05-13T10:00:00Z",
+  "reason": "design-spec.md was refined",
+  "generated": {
+    "at": "2026-05-13T09:00:00Z",
+    "by": "camel-plan",
+    "from": "design-spec.md"
+  }
+}
+```
+
+Exit code 0 for successful execution regardless of staleness. Non-zero for errors only. Documents without frontmatter return `{"stale": false, ...null fields}`.
+
+**`doc stale` options:**
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--reason "..."` | Yes | Reason for marking the document stale (audit trail) |
+| `--cascade` | No | Propagate staleness to downstream artifacts via `generated.from` chain |
+
+**Cascade behavior:**
+
+When `--cascade` is used, the command walks sibling files in the same directory. For each file whose `generated.from` matches the target filename, it marks that file stale and recursively continues down the chain.
+
+**`doc init` options:**
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--by <skill>` | Yes | Skill that generated this artifact (e.g., `camel-plan`) |
+| `--from <source>` | Yes | Source artifact this was generated from (e.g., `design-spec.md`) |
+
+`doc init` is idempotent — if the file already has frontmatter, it is preserved unchanged. This makes it safe to call unconditionally after every save.
+
+**Examples:**
+
+```bash
+# Add provenance metadata after generating an artifact
+camel-kit doc init --by camel-plan --from design-spec.md docs/camel-kit/001-order-processing/implementation-plan.md
+
+# Check if a document is stale
+camel-kit doc check docs/camel-kit/001-order-processing/implementation-plan.md
+
+# Mark stale with cascade to all downstream artifacts
+camel-kit doc stale --reason "design spec was amended" --cascade docs/camel-kit/001-order-processing/design-spec.md
+
+# Clear staleness after regeneration
+camel-kit doc unstale docs/camel-kit/001-order-processing/implementation-plan.md
+```
+
+**Exit Codes:**
+
+| Code | Meaning |
+|---|---|
+| 0 | Success — command completed (for `check`: regardless of staleness) |
+| 1 | Error — file not found, I/O failure, or invalid arguments (e.g., blank `--reason`) |
 
 ---
 

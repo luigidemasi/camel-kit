@@ -30,7 +30,7 @@ Invoked directly by the user: `/camel-validate` or `/camel-validate <PIPELINE_ID
 **Standalone behavior (pipeline-scoped):**
 
 - Read prior artifacts from `docs/camel-kit/<PIPELINE_ID>/` for cross-reference
-- Check input artifacts for staleness markers (`⚠️ **STALE**`) — if found, warn but proceed
+- Run `{COMMAND_PREFIX} doc check <file>` on input artifacts to detect staleness — if stale, warn but proceed
 - Execute the full validation workflow
 - Write `validation-report.md` to the pipeline directory
 - STOP (no further stage transitions)
@@ -82,6 +82,16 @@ Use the current date and time for the timestamped filename (e.g., `validation-re
 ### Report Format
 
 ```markdown
+---
+staleness:
+  stale: false
+  since: null
+  reason: null
+generated:
+  at: "<current ISO-8601 timestamp>"
+  by: camel-validate
+  from: execution-report.md
+---
 # Validation Report
 
 **Date:** YYYY-MM-DD HH:mm
@@ -138,7 +148,9 @@ ALWAYS generate the validation report.
 This creates an audit trail of validation results over time.
 </HARD-RULE>
 
-**Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, after saving the validation report, check for an existing `stamp-report.md` in the pipeline directory and prepend the staleness marker if it exists.
+**Add frontmatter metadata** — run `{COMMAND_PREFIX} doc init --by camel-validate --from execution-report.md <validation-report.md>` to add provenance metadata. This is idempotent — if frontmatter already exists, it is preserved.
+
+**Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, after saving the validation report, if `stamp-report.md` exists, run `{COMMAND_PREFIX} doc stale --reason "validation report regenerated" --cascade <stamp-report.md>`. Do NOT mark the freshly regenerated `validation-report.md` itself stale.
 
 ## Iron Laws
 
