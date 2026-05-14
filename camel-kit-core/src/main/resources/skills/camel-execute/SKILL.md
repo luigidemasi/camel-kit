@@ -403,7 +403,7 @@ Verification: PASS/PARTIAL/FAIL/NOT_RUN
 
 Save the completion summary as `docs/camel-kit/<PIPELINE_ID>/execution-report.md`.
 
-**Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, for each existing downstream artifact (`validation-report.md`, `stamp-report.md`), run `{COMMAND_PREFIX} doc stale --reason "execution report regenerated" --cascade <first-downstream-artifact>` to propagate staleness. Do NOT mark the freshly regenerated `execution-report.md` itself stale.
+**Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, run `{COMMAND_PREFIX} doc stale --reason "execution report regenerated" --cascade <first-downstream-artifact>` (e.g., `validation-report.md`) to propagate staleness to all downstream artifacts. The `--cascade` flag walks the `generated.from` chain automatically — do NOT loop over individual artifacts. Do NOT mark the freshly regenerated `execution-report.md` itself stale.
 
 **Post-completion transition (invocation mode dependent):**
 

@@ -425,7 +425,7 @@ camel-kit doc unstale docs/camel-kit/001-order-processing/implementation-plan.md
 | Code | Meaning |
 |---|---|
 | 0 | Success — command completed (for `check`: regardless of staleness) |
-| 1 | Error — file not found or I/O failure |
+| 1 | Error — file not found, I/O failure, or invalid arguments (e.g., blank `--reason`) |
 
 ---
 

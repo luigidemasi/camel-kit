@@ -233,7 +233,7 @@ generated:
 
 ### CLI Commands
 
-```
+```bash
 {COMMAND_PREFIX} doc check <file>                              # Query staleness → JSON
 {COMMAND_PREFIX} doc stale --reason "..." [--cascade] <file>   # Mark stale
 {COMMAND_PREFIX} doc unstale <file>                            # Clear staleness
@@ -281,7 +281,7 @@ Run `{COMMAND_PREFIX} doc check <file>` and inspect the JSON output. If `stale` 
 
 When a skill amends an upstream artifact (partial edit, not a full regeneration), it must mark downstream outputs stale:
 
-```
+```bash
 {COMMAND_PREFIX} doc stale --reason "<description>" --cascade <first-downstream-artifact>
 ```
 

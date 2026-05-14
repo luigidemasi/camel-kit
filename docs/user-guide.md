@@ -289,7 +289,7 @@ If you need to change a design spec after downstream artifacts have been generat
 When brainstorm detects that `design-spec.md` already exists, it enters **amend mode**:
 1. Loads the existing spec and presents it for modification
 2. After you approve the amendments, overwrites the design spec
-3. Marks all downstream artifacts as **stale** via `camel-kit doc stale --reason "design spec was amended" --cascade`
+3. Marks all downstream artifacts as **stale** via `camel-kit doc stale --reason "design spec was amended" --cascade docs/camel-kit/001-order-processing/implementation-plan.md`
 
 Staleness is tracked in structured YAML frontmatter within each artifact. You can check any artifact's status:
 ```bash
