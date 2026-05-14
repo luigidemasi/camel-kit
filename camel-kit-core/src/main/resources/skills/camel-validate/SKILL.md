@@ -82,6 +82,16 @@ Use the current date and time for the timestamped filename (e.g., `validation-re
 ### Report Format
 
 ```markdown
+---
+staleness:
+  stale: false
+  since: null
+  reason: null
+generated:
+  at: "<current ISO-8601 timestamp>"
+  by: camel-validate
+  from: execution-report.md
+---
 # Validation Report
 
 **Date:** YYYY-MM-DD HH:mm
@@ -137,6 +147,8 @@ ALWAYS generate the validation report.
 - In standalone project-scoped mode (no pipeline), save to `docs/validation-report-YYYY-MM-DD_HH-mm.md`.
 This creates an audit trail of validation results over time.
 </HARD-RULE>
+
+**Add frontmatter metadata** — run `{COMMAND_PREFIX} doc init --by camel-validate --from execution-report.md <validation-report.md>` to add provenance metadata. This is idempotent — if frontmatter already exists, it is preserved.
 
 **Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, after saving the validation report, if `stamp-report.md` exists, run `{COMMAND_PREFIX} doc stale --reason "validation report regenerated" --cascade <stamp-report.md>`. Do NOT mark the freshly regenerated `validation-report.md` itself stale.
 

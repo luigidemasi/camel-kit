@@ -353,6 +353,7 @@ camel-kit doc <subcommand> [options]
 
 | Subcommand | Description |
 |------------|-------------|
+| `init --by <skill> --from <source> <file>` | Add provenance frontmatter metadata to a document |
 | `check <file>` | Query document staleness status — outputs JSON to stdout |
 | `stale --reason "..." [--cascade] <file>` | Mark a document as stale |
 | `unstale <file>` | Clear staleness from a document |
@@ -375,7 +376,7 @@ generated:
 ```
 
 - `staleness` — mutable, written by `doc stale` and `doc unstale`
-- `generated` — immutable after creation, written by the pipeline skill that produces the artifact
+- `generated` — immutable after creation, written by `doc init` when the pipeline skill produces the artifact
 - `generated.from` enables data-driven cascade without hardcoded pipeline topology
 
 **`doc check` output:**
@@ -407,9 +408,21 @@ Exit code 0 for successful execution regardless of staleness. Non-zero for error
 
 When `--cascade` is used, the command walks sibling files in the same directory. For each file whose `generated.from` matches the target filename, it marks that file stale and recursively continues down the chain.
 
+**`doc init` options:**
+
+| Option | Required | Description |
+|--------|----------|-------------|
+| `--by <skill>` | Yes | Skill that generated this artifact (e.g., `camel-plan`) |
+| `--from <source>` | Yes | Source artifact this was generated from (e.g., `design-spec.md`) |
+
+`doc init` is idempotent — if the file already has frontmatter, it is preserved unchanged. This makes it safe to call unconditionally after every save.
+
 **Examples:**
 
 ```bash
+# Add provenance metadata after generating an artifact
+camel-kit doc init --by camel-plan --from design-spec.md docs/camel-kit/001-order-processing/implementation-plan.md
+
 # Check if a document is stale
 camel-kit doc check docs/camel-kit/001-order-processing/implementation-plan.md
 

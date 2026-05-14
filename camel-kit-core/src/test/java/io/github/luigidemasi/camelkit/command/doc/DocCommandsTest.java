@@ -237,6 +237,72 @@ class DocCommandsTest {
         assertFalse(FrontmatterHandler.hasFrontmatter(unrelatedContent));
     }
 
+    private int runInit(String... args) {
+        StringWriter out = new StringWriter();
+        StringWriter err = new StringWriter();
+        CommandLine cl = new CommandLine(new DocInitCommand());
+        cl.setOut(new PrintWriter(out));
+        cl.setErr(new PrintWriter(err));
+        return cl.execute(args);
+    }
+
+    @Test
+    void initAddsMetadataToPlainDocument() throws Exception {
+        Path file = writeDoc("plan.md", "# Implementation Plan\n\nBody content.\n");
+
+        int code = runInit("--by", "camel-plan", "--from", "design-spec.md", file.toString());
+        assertEquals(0, code);
+
+        String updated = Files.readString(file);
+        assertTrue(FrontmatterHandler.hasFrontmatter(updated));
+
+        String yaml = FrontmatterHandler.extractFrontmatterYaml(updated);
+        StalenessInfo info = FrontmatterHandler.parseStaleness(yaml);
+        assertFalse(info.isStale());
+
+        GeneratedInfo gen = FrontmatterHandler.parseGenerated(yaml);
+        assertNotNull(gen);
+        assertEquals("camel-plan", gen.getBy());
+        assertEquals("design-spec.md", gen.getFrom());
+        assertNotNull(gen.getAt());
+    }
+
+    @Test
+    void initIsIdempotent() throws Exception {
+        String content = FrontmatterHandler.writeFrontmatter(
+                StalenessInfo.stale("old reason", "2026-05-13T10:00:00Z"),
+                new GeneratedInfo("2026-05-13T09:00:00Z", "camel-plan", "design-spec.md"),
+                "# Plan\n");
+        Path file = writeDoc("plan.md", content);
+
+        int code = runInit("--by", "camel-execute", "--from", "other.md", file.toString());
+        assertEquals(0, code);
+
+        String updated = Files.readString(file);
+        GeneratedInfo gen = FrontmatterHandler.parseGenerated(
+                FrontmatterHandler.extractFrontmatterYaml(updated));
+        assertEquals("camel-plan", gen.getBy());
+        assertEquals("design-spec.md", gen.getFrom());
+    }
+
+    @Test
+    void initRejectsNonexistentFile() {
+        int code = runInit("--by", "test", "--from", "source.md",
+                tempDir.resolve("missing.md").toString());
+        assertEquals(1, code);
+    }
+
+    @Test
+    void initPreservesBody() throws Exception {
+        Path file = writeDoc("report.md", "# Validation Report\n\nDetailed findings.\n");
+
+        runInit("--by", "camel-validate", "--from", "execution-report.md", file.toString());
+
+        String body = FrontmatterHandler.extractBody(Files.readString(file));
+        assertTrue(body.startsWith("# Validation Report"));
+        assertTrue(body.contains("Detailed findings."));
+    }
+
     @Test
     void staleWithoutCascadeDoesNotPropagate() throws Exception {
         Path spec = writeDoc("design-spec.md",

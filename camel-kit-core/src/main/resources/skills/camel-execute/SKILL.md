@@ -403,6 +403,8 @@ Verification: PASS/PARTIAL/FAIL/NOT_RUN
 
 Save the completion summary as `docs/camel-kit/<PIPELINE_ID>/execution-report.md`.
 
+**Add frontmatter metadata** — run `{COMMAND_PREFIX} doc init --by camel-execute --from implementation-plan.md <execution-report.md>` to add provenance metadata. This is idempotent — if frontmatter already exists, it is preserved.
+
 **Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, run `{COMMAND_PREFIX} doc stale --reason "execution report regenerated" --cascade <first-downstream-artifact>` (e.g., `validation-report.md`) to propagate staleness to all downstream artifacts. The `--cascade` flag walks the `generated.from` chain automatically — do NOT loop over individual artifacts. Do NOT mark the freshly regenerated `execution-report.md` itself stale.
 
 **Post-completion transition (invocation mode dependent):**

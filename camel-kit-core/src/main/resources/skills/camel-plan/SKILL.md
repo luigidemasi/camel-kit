@@ -161,6 +161,16 @@ Before generating the plan, resolve the active pipeline using `shared/pipeline-i
 Save to `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`:
 
 ```markdown
+---
+staleness:
+  stale: false
+  since: null
+  reason: null
+generated:
+  at: "<current ISO-8601 timestamp>"
+  by: camel-plan
+  from: design-spec.md
+---
 # [Project Name] Implementation Plan
 
 > **For agentic workers:** Use camel-execute to implement this plan task-by-task.
@@ -225,6 +235,7 @@ Fix any issues inline.
 After saving the plan:
 
 1. Save the implementation plan to `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`
+1b. **Add frontmatter metadata** — run `{COMMAND_PREFIX} doc init --by camel-plan --from design-spec.md <implementation-plan.md>` to add provenance metadata. This is idempotent — if frontmatter already exists, it is preserved.
 2. **Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, run `{COMMAND_PREFIX} doc stale --reason "implementation plan regenerated" --cascade <first-downstream-artifact>` (e.g., `execution-report.md`) to propagate staleness to all downstream artifacts. The `--cascade` flag walks the `generated.from` chain automatically — do NOT loop over individual artifacts. Do NOT mark the freshly regenerated `implementation-plan.md` itself stale.
 3. **Check invocation mode:**
    - **Standalone mode:** print confirmation and STOP. Do NOT auto-invoke execute.
