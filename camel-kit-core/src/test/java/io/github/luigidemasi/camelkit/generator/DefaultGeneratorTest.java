@@ -154,6 +154,16 @@ class DefaultGeneratorTest {
     }
 
     @Test
+    void generatesDebugCommand() throws Exception {
+        InitContext ctx = createContext("bob");
+        new DefaultGenerator().generate(ctx);
+
+        assertTrue(Files.exists(ctx.commandsDir().resolve("camel-debug.md")));
+        String content = Files.readString(ctx.commandsDir().resolve("camel-debug.md"));
+        assertTrue(content.contains("SKILL.md"));
+    }
+
+    @Test
     void copiesDebugSkill() throws Exception {
         InitContext ctx = createContext("bob");
         new DefaultGenerator().generate(ctx);
