@@ -16,6 +16,7 @@ This document is the reference for all Camel-Kit commands: the `camel-kit` CLI a
   - [/camel-migrate](#camel-migrate)
   - [/camel-validate](#camel-validate)
   - [/camel-ship](#camel-ship)
+  - [/camel-debug](#camel-debug)
   - [/camel-verify (internal)](#camel-verify)
 - [Command Cheat Sheet](#command-cheat-sheet)
 
@@ -448,7 +449,7 @@ These commands are used inside your AI coding assistant after project initializa
 
 **Tier 1 — Pipeline:** `/camel-brainstorm`, `/camel-plan`, `/camel-execute`, `/camel-migrate`, `/camel-validate` — the five pipeline steps, invoked via the `/camel-start` decision tree or directly via slash command.
 
-**Tier 2 — Standalone utilities:** `/camel-ship`, `/camel-knowledge` — can be invoked at any point without affecting pipeline state.
+**Tier 2 — Standalone utilities:** `/camel-ship`, `/camel-knowledge`, `/camel-debug` — can be invoked at any point without affecting pipeline state.
 
 **Internal:** `/camel-implement`, `/camel-verify`, `/camel-test`, `/camel-design` — subagent-only, dispatched automatically by pipeline skills. Not intended for direct use.
 
@@ -748,6 +749,45 @@ When `--resume` is used, camel-ship scans all pipeline artifacts for staleness m
 
 ---
 
+### /camel-debug
+
+**Purpose:** Ad-hoc troubleshooting for broken Camel routes outside of a pipeline run. Follows a structured STOP → PRESERVE → DIAGNOSE → FIX → GUARD workflow.
+
+**When to use:** When a route was working but is now broken, or when a user needs help debugging a Camel application outside of an active pipeline. For build/test failures during pipeline execution, `/camel-execute` dispatches `camel-verify` automatically.
+
+**Examples:**
+
+```bash
+# Debug a broken route
+/camel-debug
+
+# Debug with context
+/camel-debug my route is failing with a ClassNotFoundException
+```
+
+**How it works (5-step workflow):**
+
+1. **STOP** -- gather context (runtime, Camel version, error message, recent changes). Do NOT modify files yet.
+2. **PRESERVE** -- capture current state via `git status`/`git diff`. Warn if uncommitted changes exist.
+3. **DIAGNOSE** -- reproduce the error, classify it against the error taxonomy, verify components via MCP catalog, inspect route structure. Diagnosis steps run as subagents to keep verbose output out of the main context.
+4. **FIX** -- explain the proposed fix, apply minimal targeted changes, verify the fix resolves the issue. Up to 5 fix attempts before escalating.
+5. **GUARD** -- suggest a preventive measure (test, validation rule, CI check) to prevent recurrence.
+
+**Error classification:** Reuses the same 14-pattern error taxonomy as `/camel-verify`:
+
+| Category | Examples | Fix Target |
+|---|---|---|
+| Missing dependency | `ClassNotFoundException`, missing Camel component | Self-repair (add to pom.xml) |
+| Route creation | `FailedToCreateRouteException` | Re-generate route |
+| Wrong endpoint options | `ResolveEndpointFailedException` | Re-validate via MCP catalog |
+| Expression failure | `ExpressionEvaluationException` | Fix expression |
+| External service | `Connection refused` | Fix service configuration |
+| Unclassified | No matching pattern | Escalate to user |
+
+**Subagent isolation:** Diagnosis dispatches three subagents (route analyzer, MCP verifier, log analyzer) to keep raw diagnostic output out of the main conversation. Only the structured diagnosis report flows back.
+
+---
+
 ### /camel-verify
 
 > **Internal skill** -- dispatched automatically by `/camel-execute`. Not intended for standalone use. For quality checks after the pipeline completes, use `/camel-validate`.
@@ -825,4 +865,7 @@ camel-kit init my-project --ai claude
 
 # Validate (standalone, any project)
 /camel-validate                          # Validate routes in current project
+
+# Debug (ad-hoc troubleshooting)
+/camel-debug                             # Diagnose and fix a broken route
 ```

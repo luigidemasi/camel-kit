@@ -1,7 +1,7 @@
 # Camel-Kit Project
 
 Integration work → `/camel-start`
-Direct skill invocation → `/camel-brainstorm`, `/camel-migrate`, `/camel-plan`, `/camel-execute`, `/camel-verify`
+Direct skill invocation → `/camel-brainstorm`, `/camel-migrate`, `/camel-plan`, `/camel-execute`, `/camel-verify`, `/camel-debug`
 
 ## Laws (NEVER violate)
 

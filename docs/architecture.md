@@ -67,6 +67,7 @@ The frontmatter fields:
 | `camel-validate` | No | `camel-ship` (Stage 3) | Tier 1 quality gate: schema validation, endpoint verification, security analysis |
 | `camel-test` | No | `camel-execute` | Guides for route analysis and test generation with Citrus + Testcontainers |
 | `camel-knowledge` | No | `camel-brainstorm`, `camel-execute` | Routes questions to knowledge MCP tools |
+| `camel-debug` | No | `camel-start` (ad-hoc troubleshooting) | Standalone debugging: STOP → PRESERVE → DIAGNOSE → FIX → GUARD workflow |
 
 **Note:** Only `camel-start` has `user_invocable: true` in its skill metadata. All other skills have `user_invocable: false` and are routed through the meta-router or invoked via explicit slash commands.
 
