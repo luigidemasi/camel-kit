@@ -83,22 +83,24 @@ If spec compliance fails, the output is wrong regardless of quality.
 
 ---
 
-## Iron Law 5: Doubt-Driven Review (Adversarial Validation)
+## Iron Law 5: Adversarial Code Review
 
 ```
-EVERY GENERATED CODE ARTIFACT MUST PASS A DOUBT-DRIVEN ADVERSARIAL REVIEW.
-ASSUME THE AUTHOR IS OVERCONFIDENT; ACTIVELY LOOK FOR WHAT WILL FAIL.
+EVERY GENERATED CODE ARTIFACT MUST PASS AN ADVERSARIAL CODE REVIEW.
+PARALLEL CRITIC LANES RUN AFTER IMPLEMENTATION AND BEFORE STAGE 1 REVIEW.
+EACH CRITIC OPERATES IN A FRESH CONTEXT WITH NO ACCUMULATED SESSION STATE.
 ```
 
-Doubt-driven review is the "Adversarial Gate" that runs after implementation but BEFORE spec compliance review. It assumes the implementer made overconfident assumptions or missed hidden complexity.
+Adversarial Code Review (ACR) is the "Adversarial Gate" that runs after implementation but BEFORE spec compliance review. It dispatches a Moderator that dynamically selects specialized Critic Lanes (Route Architecture, Security, Performance, Boundary Compliance, Behavioral Equivalence), each running in a fresh-context subagent.
 
 **Gate function:**
 1. Implementer completes code generation.
-2. Dispatch a **fresh-context subagent** (Doubt Reviewer) with only the code and the TDD.
-3. ADVERSARIAL POSTURE: The reviewer is instructed to assume the code is broken and find proof.
-4. CLASSIFY findings as Actionable, Trade-off, or Noise.
-5. If Actionable findings exist → return to implementer for fix. Max 3 cycles.
-6. If 0 Actionable findings exist → proceed to Stage 1 Review (Iron Law 4).
+2. Dispatch the **ACR Moderator** subagent with the code and the TDD.
+3. Moderator selects Critic Lanes based on TDD content.
+4. Each Critic runs adversarially in its own fresh context — no accumulated session state.
+5. Moderator synthesizes findings: deduplicate, prioritize, produce verdict.
+6. If FAIL (actionable findings) → return to implementer for fix. Max 3 cycles.
+7. If PASS or PASS_WITH_TRADEOFFS → proceed to Stage 1 Review (Iron Law 4).
 
 ---
 

@@ -170,7 +170,7 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces ALL six:
 - **Iron Law 2: Constitution Compliance** — quality reviewer checks all 7 constitution rules.
 - **Iron Law 3: No Code Without Plan & Design Approval** — this phase runs after the design spec is approved and planning is complete. NO code is generated during design or migration phases.
 - **Iron Law 4: Spec Compliance Before Quality** — ALWAYS spec review FIRST, then quality review. Never in parallel. Never reversed.
-- **Iron Law 5: Doubt-Driven Review** — adversarial validation runs after implementation and before Stage 1 review.
+- **Iron Law 5: Adversarial Code Review** — parallel Critic Lanes run after implementation and before Stage 1 review. Each critic operates in a fresh context with no accumulated session state.
 - **Iron Law 6: Surgical Changes** — TOUCH ONLY WHAT YOU’RE ASKED TO TOUCH. No unrelated refactoring or "cleanups."
 
 ### Rationalization Table
@@ -273,31 +273,31 @@ Dispatch a fresh subagent with:
 | **NEEDS_CONTEXT** | Provide missing context, re-dispatch same subagent |
 | **BLOCKED** | Assess blocker: context problem → provide more context. Task too large → break it up. Plan wrong → note for user. |
 
-#### 2b.5: In-Flight Doubt Cycle
+#### 2b.5: Adversarial Code Review (ACR)
 
-After the implementer reports DONE (or DONE_WITH_CONCERNS), run a lightweight doubt cycle before dispatching the full spec review. This catches obvious errors cheaply — before the more expensive two-stage review.
+After the implementer reports DONE (or DONE_WITH_CONCERNS), run the Adversarial Code Review pre-filter. This dispatches parallel Critic Lanes via a Moderator subagent to catch defects before the more expensive two-stage review.
 
-```text
-CLAIM → EXTRACT → DOUBT → accept or correct
-```
+1. **Dispatch ACR Moderator** subagent (from `agents/acr-moderator.md`) with:
+   - The generated files (read contents, not just paths)
+   - The TDD section for this task
+   - Source contracts if available for migration pipelines
+   - The implementer's status and concerns
+2. **Moderator selects Critic Lanes** based on TDD content:
+   - Route Architecture — always active
+   - Security — if external boundaries
+   - Performance — if throughput/aggregation/batch
+   - Boundary Compliance — if data transformation/mapping
+   - Behavioral Equivalence — if migration pipeline
+3. **Moderator dispatches critics** in parallel as fresh-context subagents (model: most capable)
+4. **Moderator synthesizes** findings: deduplicate, prioritize, produce verdict
+5. **Handle verdict:**
+   - PASS → proceed to spec compliance review (Step 2c)
+   - FAIL → send actionable findings to implementer, re-dispatch ACR after fixes
+   - PASS_WITH_TRADEOFFS → document trade-offs, proceed to spec compliance review
+6. **Hard cap:** 3 ACR cycles per task. If actionable findings persist, escalate to user
+7. **Trade-offs carry forward** to spec compliance review as context
 
-1. **CLAIM:** The implementer claims the task is complete with specific generated files
-2. **EXTRACT:** The orchestrator extracts testable claims from the output:
-   - Components used (names and key options)
-   - Route structure (number of routes, flow direction)
-   - File list (paths of generated files)
-3. **DOUBT:** Spot-check 2-3 extracted claims:
-   - Verify 1-2 component option names via `camel_catalog_component_doc` (or use the pre-verified catalog summary from Step 1.5)
-   - Confirm generated files exist on disk
-   - Check route count matches TDD
-4. **Decision:**
-   - If all spot-checks pass → proceed to spec compliance review (Step 2c)
-   - If any spot-check fails → send correction back to implementer, re-dispatch
-5. **Hard cap:** 3 doubt cycles. If claims still fail after 3 rounds, proceed to spec review anyway — the spec reviewer will catch the details
-
-The doubt cycle is NOT a replacement for two-stage review. It's a fast pre-filter that prevents dispatching expensive reviews on obviously broken output.
-
-**Skip the doubt cycle for trivial tasks** (single-file properties generation, Docker Compose, run scripts). Only run it for tasks that generate route YAML or XSLT.
+See `guides/adversarial-code-review.md` for full workflow, convergence tracking, and theater detection.
 
 ---
 
@@ -439,5 +439,5 @@ Save the completion summary as `docs/camel-kit/<PIPELINE_ID>/execution-report.md
 - Say "command has completed" or "phases are complete" while tasks remain
 - Skip the catalog research step (Step 1.5) — MCP verification is delegated, not eliminated
 - Let implementers re-verify components already verified by the catalog-researcher — trust the pre-verified summary
-- Skip the doubt cycle for non-trivial tasks (route YAML, XSLT) — it's a cheap pre-filter that saves expensive review cycles
-- Run doubt cycle more than 3 times — proceed to spec review and let the reviewer catch remaining issues
+- Skip ACR — Route Architecture critic always runs. Other lanes activate dynamically based on TDD content
+- Run ACR more than 3 times — escalate to user after 3 cycles without convergence
