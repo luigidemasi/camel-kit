@@ -42,8 +42,16 @@ Check if `.camel-kit/project-graph.json` exists (check existence only — do NOT
 NEVER read `.camel-kit/project-graph.json` directly. It is a large JSON file (thousands of lines) that will overflow your context window. Always use `{COMMAND_PREFIX} graph` CLI commands to query the graph.
 </HARD-RULE>
 
-- **If yes:** Load `guides/migration-graph-analysis.md` for accelerated analysis. The graph provides instant route topology, component inventory, and migration ordering via CLI commands. Skip Steps 2-4 (the graph covers them).
-- **If no:** Continue with manual scanning below.
+- **If no:** Continue with manual scanning below (Steps 2-4).
+- **If yes:** Run `{COMMAND_PREFIX} graph stats` and inspect the `nodesByType` field to detect the vendor, then load the correct guide. Skip Steps 2-4 (the graph covers them).
+
+| Node type in stats | Vendor | Guide to load |
+|--------------------|--------|---------------|
+| `CAMEL_ROUTE` | Apache Camel | `guides/migration-graph-analysis.md` |
+| `MULE_FLOW` | MuleSoft Mule | `guides/migration-mule-graph-analysis.md` |
+| `BIZTALK_ORCHESTRATION` | Microsoft BizTalk | `guides/migration-biztalk-graph-analysis.md` |
+
+If the graph contains none of these node types, it may be incomplete or from an unsupported vendor. Continue with manual scanning below (Steps 2-4).
 
 ---
 

@@ -98,7 +98,10 @@ digraph brainstorm {
         label="Migration Path";
         mg_discovery [label="Load migration-discovery.md\nScan artifacts, detect vendor", shape=box];
         mg_graph [label="Project graph available?", shape=diamond];
-        mg_graph_analysis [label="Load migration-graph-analysis.md\nGraph-accelerated analysis", shape=box];
+        mg_vendor [label="Detect vendor from\ngraph stats nodesByType", shape=diamond];
+        mg_graph_camel [label="Load migration-graph-analysis.md\nCamel graph analysis", shape=box];
+        mg_graph_mule [label="Load migration-mule-graph-analysis.md\nMuleSoft graph analysis", shape=box];
+        mg_graph_biztalk [label="Load migration-biztalk-graph-analysis.md\nBizTalk graph analysis", shape=box];
         mg_confirm [label="Confirm analysis with user\nFill unknowns", shape=box];
     }
     
@@ -115,9 +118,15 @@ digraph brainstorm {
     gf_interview -> version;
     
     mg_discovery -> mg_graph;
-    mg_graph -> mg_graph_analysis [label="yes"];
+    mg_graph -> mg_vendor [label="yes"];
     mg_graph -> mg_confirm [label="no"];
-    mg_graph_analysis -> mg_confirm;
+    mg_vendor -> mg_graph_camel [label="CAMEL_ROUTE"];
+    mg_vendor -> mg_graph_mule [label="MULE_FLOW"];
+    mg_vendor -> mg_graph_biztalk [label="BIZTALK_ORCHESTRATION"];
+    mg_vendor -> mg_confirm [label="unknown"];
+    mg_graph_camel -> mg_confirm;
+    mg_graph_mule -> mg_confirm;
+    mg_graph_biztalk -> mg_confirm;
     mg_confirm -> version;
     
     version -> design;

@@ -43,12 +43,18 @@ No arguments. The command asks for the path interactively.
 
 **If graph exists AND `graph_stats` MCP tool is available:**
 
-1. Call `graph_stats` to verify the graph is loaded and contains Camel route data
-2. If `CAMEL_ROUTE` nodes are present (confirming this is a Camel project):
-   - Load `guides/camel-version-graph-analysis.md`
-   - Follow its Phase 0 steps (produces `.camel-kit/project-snapshot.md` + pre-populated analysis summary)
-   - **Skip directly to Step 5** (user confirmation) — Steps 1-4 are replaced by Phase 0
-3. If no `CAMEL_ROUTE` nodes found, proceed with Steps 1-4 as normal
+1. Call `graph_stats` to verify the graph is loaded and inspect the `nodesByType` field
+2. Dispatch to the correct vendor-specific graph analysis guide based on node types present:
+
+| Node type in stats | Vendor | Guide to load |
+|--------------------|--------|---------------|
+| `CAMEL_ROUTE` | Apache Camel | `camel-brainstorm/guides/migration-graph-analysis.md` |
+| `MULE_FLOW` | MuleSoft Mule | `camel-brainstorm/guides/migration-mule-graph-analysis.md` |
+| `BIZTALK_ORCHESTRATION` | Microsoft BizTalk | `camel-brainstorm/guides/migration-biztalk-graph-analysis.md` |
+
+3. Follow the guide's steps (produces `.camel-kit/project-snapshot.md` + pre-populated analysis summary)
+4. **Skip directly to Step 5** (user confirmation) — Steps 1-4 are replaced by graph analysis
+5. If none of the above node types are found, the graph may be incomplete or from an unsupported vendor — proceed with Steps 1-4 as normal
 
 **If no graph exists or `graph_stats` tool is not available:**
 
@@ -162,7 +168,9 @@ After user confirms the analysis summary, dispatch to the vendor-specific guide.
 
 | Step | Guide | Shared Guide | ~Tokens | When |
 |------|-------|-------------|---------|------|
-| B0 | guides/camel-version-graph-analysis.md | — | 2K | Graph exists + Camel detected |
+| B0 | camel-brainstorm/guides/migration-graph-analysis.md | — | 2K | Graph exists + Camel detected |
+| A0 | camel-brainstorm/guides/migration-mule-graph-analysis.md | — | 2.5K | Graph exists + MuleSoft detected |
+| C0 | camel-brainstorm/guides/migration-biztalk-graph-analysis.md | — | 2.8K | Graph exists + BizTalk detected |
 | A1 | guides/mulesoft-phase1.md | guides/mule-component-mapping.md | 3.5K | MuleSoft detected |
 | A2 | guides/mulesoft-phase2.md | guides/mule-dataweave-conversion.md | 4K | MuleSoft detected |
 | A2 | guides/mulesoft-phase2.md | shared/datamapper-canonicalize.md | 1.2K | MuleSoft with DataMapper |
