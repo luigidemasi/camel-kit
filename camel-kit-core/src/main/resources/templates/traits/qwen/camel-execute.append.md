@@ -38,12 +38,12 @@ Execute tasks sequentially within a wave (named subagents are blocking). Across 
 
 ### Fork-Based Review Parallelism
 
-After an implementer completes, use forks for the doubt cycle spot-checks while preparing the spec review prompt:
+After an implementer completes, use forks for the ACR critic spot-checks while preparing the spec review prompt:
 
 ```text
-# Fork 1: spot-check component options via MCP (background)
+# Fork 1: dispatch ACR Moderator for adversarial review (background)
 Agent({
-  prompt: "[doubt cycle — verify 2-3 component options]"
+  prompt: "[ACR Moderator — lane selection, critic dispatch, synthesis]"
 })
 
 # Meanwhile, prepare spec review context (foreground)

@@ -153,7 +153,7 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
 
 - **Iron Law 1: MCP Catalog Verification** — Every component, EIP, dataformat, and language in the design spec MUST be MCP-verified before inclusion. You do NOT guess component names.
 - **Iron Law 3: No Code Without Plan & Design Approval** — NEVER generate implementation artifacts (YAML, Java) during this phase. Brainstorming produces TDDs and Specs, not code.
-- **Iron Law 5: Doubt-Driven Review** — while no code is generated here, the adversarial mindset applies to the design: assume the design will fail and look for gaps.
+- **Iron Law 5: Adversarial Code Review** — while no code is generated here, the adversarial mindset applies to the design: assume the design will fail and look for gaps.
 
 ### Rationalization Table
 

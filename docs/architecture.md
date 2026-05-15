@@ -224,7 +224,7 @@ Entry points diverge (`camel-brainstorm` for greenfield, `camel-migrate` for mig
 2. **Catalog research** (Step 1.5): dispatch a `catalog-researcher` subagent to batch-verify all MCP catalog artifacts for the wave. Only the structured summary flows back -- MCP response traces stay in the research subagent's context.
 3. For each task:
    - Dispatch an implementer subagent with full task text, design spec section, pre-verified catalog summary, and MCP parameters
-   - **In-flight doubt cycle** (Step 2b.5): spot-check the implementer's key claims (component options, route structure, file list) before expensive review. Hard cap: 3 cycles.
+   - **Adversarial Code Review** (Step 2b.5): dispatch parallel Critic Lanes via a Moderator subagent to adversarially review the implementation against the TDD. Hard cap: 3 cycles.
    - Dispatch a **spec compliance reviewer** (subagent) -- does the output match the design spec?
    - If spec review passes, dispatch a **code quality reviewer** (subagent) -- constitution compliance, security, anti-patterns
    - If either reviewer finds critical issues, return to the implementer for fixes, then re-review
@@ -384,7 +384,7 @@ The `/camel-execute` pipeline relies on dispatching discrete units of work to is
 
 Four of the five agents support this natively through **subagent dispatch**:
 
-- **Claude Code** -- uses the `Agent` tool to spawn fresh subagents per task. Each subagent receives the task text, relevant TDD section, guide file paths, and MCP parameters. Before implementation, a `catalog-researcher` subagent batch-verifies all MCP catalog artifacts (research isolation). After implementation, an in-flight doubt cycle spot-checks key claims, then a spec-compliance reviewer subagent checks the design spec, then a code-quality reviewer subagent checks constitution compliance. At the Stamp Gate, three reviewers run in parallel (spec, quality, security). Claude uniquely supports **parallel dispatch**: the route graph topology (from `camel-kit-graph`) identifies independent routes (no shared `direct:`, `seda:`, or `vm:` endpoints, no shared configuration properties), and independent tasks are dispatched simultaneously to multiple subagents.
+- **Claude Code** -- uses the `Agent` tool to spawn fresh subagents per task. Each subagent receives the task text, relevant TDD section, guide file paths, and MCP parameters. Before implementation, a `catalog-researcher` subagent batch-verifies all MCP catalog artifacts (research isolation). After implementation, an Adversarial Code Review dispatches parallel Critic Lanes (Route Architecture, Security, Performance, Boundary Compliance, Behavioral Equivalence) via a Moderator subagent, then a spec-compliance reviewer subagent checks the design spec, then a code-quality reviewer subagent checks constitution compliance. At the Stamp Gate, three reviewers run in parallel (spec, quality, security). Claude uniquely supports **parallel dispatch**: the route graph topology (from `camel-kit-graph`) identifies independent routes (no shared `direct:`, `seda:`, or `vm:` endpoints, no shared configuration properties), and independent tasks are dispatched simultaneously to multiple subagents.
 
 - **Gemini CLI** -- dispatches via a unified `invoke_subagent` tool to 6 specialized subagents. The scheduler natively supports **parallel tool execution** via `Promise.all()` (default-parallel). However, subagents cannot invoke other subagents (hardcoded `Kind.Agent` filter), so `/camel-execute` runs in the **main agent context** where it can dispatch to all subagents. Within-wave parallelism is achieved through the scheduler batching multiple `invoke_subagent` calls.
 
@@ -418,7 +418,7 @@ The trade-off table:
 
 | Agent | Dispatch Model | Key Differentiator |
 |-------|---------------|-------------------|
-| Claude Code | Parallel subagent dispatch | Route graph topology, research isolation, parallel fan-out, doubt cycle |
+| Claude Code | Parallel subagent dispatch | Route graph topology, research isolation, parallel fan-out, adversarial code review |
 | IBM Project Bob | B+A hybrid with 5 custom modes | Monolithic gate files, 3 checkpoint types |
 | Gemini CLI | `invoke_subagent` + parallel scheduler | Default-parallel `Promise.all()`, TOML policy, MCP wildcards, A2A remote agents |
 | Qwen | Dual dispatch (named + fork) | Fork background tasks, DashScope cache sharing, auto-delegation |

@@ -13,7 +13,7 @@
    - The generated files (or paths to them)
    - The design spec section this task implements
    - The task's review specification
-   - Any trade-offs documented by the doubt cycle (from `guides/doubt-driven-review.md`), if the doubt cycle ran for this task
+   - Any trade-offs documented by the ACR Moderator (from `guides/adversarial-code-review.md`), if ACR ran for this task
 3. Dispatch as a subagent — the reviewer runs in its own context and returns only the structured review report
 
 ## Handling Review Results
