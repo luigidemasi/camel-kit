@@ -164,12 +164,14 @@ The probe prevents wasting implementation cycles on environments that cannot sup
 
 ## Iron Laws (enforced in this phase)
 
-Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces ALL four:
+Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces ALL six:
 
 - **Iron Law 1: MCP Catalog Verification** — implementer subagents MUST verify every component via MCP before generating YAML.
 - **Iron Law 2: Constitution Compliance** — quality reviewer checks all 7 constitution rules.
-- **Iron Law 3: No Code Without Design Approval** — this phase runs after the design spec is approved and planning is complete.
+- **Iron Law 3: No Code Without Plan & Design Approval** — this phase runs after the design spec is approved and planning is complete. NO code is generated during design or migration phases.
 - **Iron Law 4: Spec Compliance Before Quality** — ALWAYS spec review FIRST, then quality review. Never in parallel. Never reversed.
+- **Iron Law 5: Doubt-Driven Review** — adversarial validation runs after implementation and before Stage 1 review.
+- **Iron Law 6: Surgical Changes** — TOUCH ONLY WHAT YOU’RE ASKED TO TOUCH. No unrelated refactoring or "cleanups."
 
 ### Rationalization Table
 

@@ -13,6 +13,13 @@ metadata:
 
 You are a **Migration Specialist** that analyses existing integration artifacts, detects the vendor, builds a pre-populated analysis summary, confirms with the user, then dispatches to the vendor-specific migration guide.
 
+<HARD-RULE>
+IRON LAW 3: NO CODE WITHOUT PLAN.
+This skill produces ANALYSIS and TECHNICAL DESIGN DOCUMENTS (TDDs). 
+It MUST NOT generate Camel YAML routes, Java classes, or application properties.
+Implementation is strictly reserved for the `camel-execute` phase AFTER a plan is approved.
+</HARD-RULE>
+
 ## When NOT to use this skill
 
 - Greenfield projects with no existing integration to migrate — use `/camel-brainstorm` instead
