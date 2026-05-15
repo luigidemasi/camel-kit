@@ -48,7 +48,7 @@ No arguments. The command asks for the path interactively.
 
 | Node type in stats | Vendor | Guide to load |
 |--------------------|--------|---------------|
-| `CAMEL_ROUTE` | Apache Camel | `guides/camel-version-graph-analysis.md` |
+| `CAMEL_ROUTE` | Apache Camel | `camel-brainstorm/guides/migration-graph-analysis.md` |
 | `MULE_FLOW` | MuleSoft Mule | `camel-brainstorm/guides/migration-mule-graph-analysis.md` |
 | `BIZTALK_ORCHESTRATION` | Microsoft BizTalk | `camel-brainstorm/guides/migration-biztalk-graph-analysis.md` |
 
@@ -168,9 +168,9 @@ After user confirms the analysis summary, dispatch to the vendor-specific guide.
 
 | Step | Guide | Shared Guide | ~Tokens | When |
 |------|-------|-------------|---------|------|
-| B0 | guides/camel-version-graph-analysis.md | — | 2K | Graph exists + Camel detected |
+| B0 | camel-brainstorm/guides/migration-graph-analysis.md | — | 2K | Graph exists + Camel detected |
 | A0 | camel-brainstorm/guides/migration-mule-graph-analysis.md | — | 2.5K | Graph exists + MuleSoft detected |
-| C0 | camel-brainstorm/guides/migration-biztalk-graph-analysis.md | — | 2.5K | Graph exists + BizTalk detected |
+| C0 | camel-brainstorm/guides/migration-biztalk-graph-analysis.md | — | 2.8K | Graph exists + BizTalk detected |
 | A1 | guides/mulesoft-phase1.md | guides/mule-component-mapping.md | 3.5K | MuleSoft detected |
 | A2 | guides/mulesoft-phase2.md | guides/mule-dataweave-conversion.md | 4K | MuleSoft detected |
 | A2 | guides/mulesoft-phase2.md | shared/datamapper-canonicalize.md | 1.2K | MuleSoft with DataMapper |
