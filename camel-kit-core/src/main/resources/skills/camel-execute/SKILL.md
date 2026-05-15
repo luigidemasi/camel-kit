@@ -164,12 +164,14 @@ The probe prevents wasting implementation cycles on environments that cannot sup
 
 ## Iron Laws (enforced in this phase)
 
-Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces ALL four:
+Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces ALL six:
 
 - **Iron Law 1: MCP Catalog Verification** — implementer subagents MUST verify every component via MCP before generating YAML.
 - **Iron Law 2: Constitution Compliance** — quality reviewer checks all 7 constitution rules.
-- **Iron Law 3: No Code Without Design Approval** — this phase runs after the design spec is approved and planning is complete.
+- **Iron Law 3: No Code Without Plan & Design Approval** — this phase runs after the design spec is approved and planning is complete. NO code is generated during design or migration phases.
 - **Iron Law 4: Spec Compliance Before Quality** — ALWAYS spec review FIRST, then quality review. Never in parallel. Never reversed.
+- **Iron Law 5: Doubt-Driven Review** — adversarial validation runs after implementation and before Stage 1 review.
+- **Iron Law 6: Surgical Changes** — TOUCH ONLY WHAT YOU’RE ASKED TO TOUCH. No unrelated refactoring or "cleanups."
 
 ### Rationalization Table
 
@@ -271,26 +273,31 @@ Dispatch a fresh subagent with:
 | **NEEDS_CONTEXT** | Provide missing context, re-dispatch same subagent |
 | **BLOCKED** | Assess blocker: context problem → provide more context. Task too large → break it up. Plan wrong → note for user. |
 
-#### 2b.5: In-Flight Doubt Cycle (Doubt-Driven Review)
+#### 2b.5: In-Flight Doubt Cycle
 
-After the implementer reports DONE (or DONE_WITH_CONCERNS), run the doubt-driven review cycle before dispatching the full spec review. This adversarial pre-filter assumes the implementer is overconfident and actively looks for what's wrong, what's missing, and what will fail.
+After the implementer reports DONE (or DONE_WITH_CONCERNS), run a lightweight doubt cycle before dispatching the full spec review. This catches obvious errors cheaply — before the more expensive two-stage review.
 
-**Load `guides/doubt-driven-review.md` for the full protocol.** `guides/doubt-driven-review.md` is the single source of truth for all constraints, thresholds, and cycle mechanics. The summary below is a non-authoritative quick reference — if it conflicts with the guide, the guide wins.
+```text
+CLAIM → EXTRACT → DOUBT → accept or correct
+```
 
-**Step 1 — Triviality Gate:** Classify the task's implementation decisions using the triviality gate in `guides/doubt-driven-review.md`. If ALL decisions are trivial (properties, Docker Compose, run scripts, timer with fixed period), skip directly to spec compliance review (Step 2c). If ANY decision is non-trivial (introduces branching logic, crosses a system boundary, asserts something the type system can't verify, depends on invisible context, or is irreversible), proceed to Step 2.
+1. **CLAIM:** The implementer claims the task is complete with specific generated files
+2. **EXTRACT:** The orchestrator extracts testable claims from the output:
+   - Components used (names and key options)
+   - Route structure (number of routes, flow direction)
+   - File list (paths of generated files)
+3. **DOUBT:** Spot-check 2-3 extracted claims:
+   - Verify 1-2 component option names via `camel_catalog_component_doc` (or use the pre-verified catalog summary from Step 1.5)
+   - Confirm generated files exist on disk
+   - Check route count matches TDD
+4. **Decision:**
+   - If all spot-checks pass → proceed to spec compliance review (Step 2c)
+   - If any spot-check fails → send correction back to implementer, re-dispatch
+5. **Hard cap:** 3 doubt cycles. If claims still fail after 3 rounds, proceed to spec review anyway — the spec reviewer will catch the details
 
-**Step 2 — CLAIM → EXTRACT → DOUBT:** Dispatch a fresh-context subagent that receives ONLY the extracted claims, the TDD section, and the generated files — no accumulated session context. The subagent reviews adversarially and reports findings.
+The doubt cycle is NOT a replacement for two-stage review. It's a fast pre-filter that prevents dispatching expensive reviews on obviously broken output.
 
-**Step 3 — Classify findings:** The orchestrator classifies each finding as actionable, trade-off, contract misread, or noise. Only actionable findings require implementer fixes.
-
-**Step 4 — Decide:**
-- Zero actionable findings → proceed to spec compliance review (Step 2c)
-- Actionable findings → return to implementer for fixes, then re-run doubt cycle
-- Trade-off findings → document for user decision, proceed to spec compliance review
-
-**Hard cap:** 3 doubt cycles per task. If actionable findings persist after 3 rounds, or the actionable count is not strictly decreasing between consecutive cycles, escalate to the user.
-
-**Doubt theater detection:** If the doubt reviewer reports findings but the orchestrator classifies all of them as non-actionable (contract misread or noise), log a warning and proceed — the process is validating rather than doubting.
+**Skip the doubt cycle for trivial tasks** (single-file properties generation, Docker Compose, run scripts). Only run it for tasks that generate route YAML or XSLT.
 
 ---
 
@@ -432,7 +439,5 @@ Save the completion summary as `docs/camel-kit/<PIPELINE_ID>/execution-report.md
 - Say "command has completed" or "phases are complete" while tasks remain
 - Skip the catalog research step (Step 1.5) — MCP verification is delegated, not eliminated
 - Let implementers re-verify components already verified by the catalog-researcher — trust the pre-verified summary
-- Skip the doubt cycle for non-trivial tasks — run the triviality gate from `guides/doubt-driven-review.md` and only skip for genuinely trivial decisions
-- Run doubt cycle more than 3 times — escalate to user if actionable findings persist or are not converging
-- Share accumulated session context with the doubt reviewer — it must run in fresh context to prevent confirmation bias
-- Classify doubt findings yourself without checking them against the TDD — classification requires verifying claims against the contract
+- Skip the doubt cycle for non-trivial tasks (route YAML, XSLT) — it's a cheap pre-filter that saves expensive review cycles
+- Run doubt cycle more than 3 times — proceed to spec review and let the reviewer catch remaining issues

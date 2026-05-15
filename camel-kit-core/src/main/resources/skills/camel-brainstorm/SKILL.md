@@ -143,7 +143,8 @@ In **standalone mode** (including amend mode), write the output artifact and STO
 Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
 
 - **Iron Law 1: MCP Catalog Verification** — Every component, EIP, dataformat, and language in the design spec MUST be MCP-verified before inclusion. You do NOT guess component names.
-- **Iron Law 4: No Code Without Spec Approval** — NEVER invoke camel-plan or generate any implementation artifacts before the user has explicitly approved the design spec.
+- **Iron Law 3: No Code Without Plan & Design Approval** — NEVER generate implementation artifacts (YAML, Java) during this phase. Brainstorming produces TDDs and Specs, not code.
+- **Iron Law 5: Doubt-Driven Review** — while no code is generated here, the adversarial mindset applies to the design: assume the design will fail and look for gaps.
 
 ### Rationalization Table
 
@@ -153,7 +154,7 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
 | "This is just a simple REST-to-DB flow" | Simple flows have the most hidden assumptions. Interview anyway. |
 | "I know which components to use" | You know training data. MCP catalog is truth. Verify. |
 | "The user is in a hurry, I'll skip the interview" | Rushed design = rework. The interview saves time. |
-| "I can design and plan in parallel to be efficient" | Iron Law 4: design spec approved BEFORE planning begins. |
+| "I can design and plan in parallel to be efficient" | Iron Law 3: design spec approved BEFORE planning begins. |
 | "The migration source tells me everything I need" | Source artifacts show WHAT exists, not what the user WANTS. Confirm. |
 | "I'll verify components later during implementation" | Wrong design spec → wrong plan → wrong code. Verify NOW. |
 | "I'll ask all clarification questions at once to save time" | Batching questions overwhelms the user and hides dependencies between answers. ONE question at a time. |
@@ -216,7 +217,7 @@ You MUST complete these items in order:
 7. **Design flows** — for each flow, load relevant `camel-design/` guides (component selection, EIPs, data formats, error handling, security, resilience)
 8. **Assemble design spec** — load `guides/design-assembly.md`
 9. **Self-review spec** — scan for placeholders, contradictions, unverified components
-10. **User reviews spec** — present spec, wait for explicit approval (Iron Law 4)
+10. **User reviews spec** — present spec, wait for explicit approval (Iron Law 3)
 11. **Transition** — depends on invocation mode:
     - **Chained mode:** YOU invoke the `camel-plan` skill automatically (do NOT tell the user to run it)
     - **Standalone mode:** write output artifact, print confirmation, STOP

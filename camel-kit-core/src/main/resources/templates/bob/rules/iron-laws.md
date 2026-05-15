@@ -6,10 +6,14 @@ These rules apply across ALL camel-kit pipeline modes. They are non-negotiable.
 
 2. **Constitution Enforcement** — Read and follow `docs/constitution.md` in every pipeline phase. The constitution defines project-specific rules that override general best practices.
 
-3. **No Code Without Spec Approval** — NEVER generate implementation artifacts (YAML routes, Java code, test files) before the user has explicitly approved the design spec. "The user clearly wants X" is not approval. Explicit "yes" or "approved" is approval.
+3. **No Code Without Plan & Spec Approval** — NEVER generate implementation artifacts (YAML routes, Java code, test files) before the user has explicitly approved the design spec AND a task-based implementation plan exists. Skills like `camel-migrate` produce TDDs, NOT final code.
 
-4. **Graph Enhances, Never Gates** — Graph-based analysis is supplementary. If the project graph is unavailable, skip graph-dependent steps silently and continue. No pipeline phase should fail because the graph is missing.
+4. **Doubt-Driven Review (Adversarial Validation)** — Every generated code artifact must pass a doubt-driven adversarial review before proceeding to spec compliance and quality reviews. Assume the implementer is overconfident.
 
-5. **Version Lock** — Always use the Camel version from `.camel-kit/config.properties` (`project.camelVersion`). This is the single source of truth. Never guess a version from training data. Version changes happen only during brainstorm or migration phases when the user explicitly selects a different version.
+5. **Version Lock** — Always use the Camel version from `.camel-kit/config.properties` (`project.camelVersion`). This is the single source of truth. Never guess a version from training data.
 
-6. **Runtime Verification** — After implementation is complete, try running the application to verify it starts correctly. Check `.camel-kit/config.properties` for the runtime, then run: Quarkus → `./mvnw quarkus:dev`, Spring Boot → `./mvnw spring-boot:run`. If the app fails to start, diagnose and fix the issue before considering the implementation done. For structured verification with error classification and fix routing, use `/camel-verify`.
+6. **Surgical Changes** — TOUCH ONLY WHAT YOU’RE ASKED TO TOUCH. Don’t refactor adjacent systems. Don’t remove code you don’t fully understand. Don’t brush against a TODO and decide to rewrite the file.
+
+7. **Runtime Verification** — After implementation is complete, verify it starts correctly. Check `.camel-kit/config.properties` for the runtime, then run: Quarkus → `./mvnw quarkus:dev`, Spring Boot → `./mvnw spring-boot:run`. For structured verification, use `/camel-verify`.
+
+8. **Graph Enhances, Never Gates** — Graph-based analysis is supplementary. If the project graph is unavailable, skip graph-dependent steps silently and continue.
