@@ -27,7 +27,7 @@ Camel-Kit uses a three-layer composition model to separate concerns between user
 | **Direct dispatch** | One persona, one task, structured output | Implementer generates route YAML |
 | **Parallel fan-out with merge** | Multiple independent reviewers, merged reports | Stamp Gate: spec + quality + security in parallel |
 | **Research isolation** | Batch lookups, return summary only | `catalog-researcher` verifies 8 components, returns 100-token summary |
-| **In-flight doubt cycle** | Spot-check subagent claims before expensive review | CLAIM → EXTRACT → DOUBT with 3-cycle cap |
+| **Adversarial Code Review** | Parallel Critic Lanes review implementation against TDD | Moderator + Critic Lanes with 3-cycle cap |
 
 ### Context Savings
 
@@ -97,7 +97,7 @@ Claude has no formal permission system. It relies on skill instructions to const
 - **Context isolation:** each subagent gets a fresh context window -- no cross-contamination between phases
 - **Research isolation:** `catalog-researcher` and `knowledge-researcher` subagents batch MCP lookups and return only summaries
 - **Parallel reviewer fan-out:** Stamp Gate dispatches spec, quality, and security reviewers simultaneously
-- **In-flight doubt cycle:** orchestrator spot-checks implementer claims before expensive two-stage review
+- **Adversarial Code Review:** parallel Critic Lanes (via Moderator subagent) adversarially review implementation before two-stage review
 - **Simplest configuration:** 3 template files total (fewest of any agent)
 
 ---

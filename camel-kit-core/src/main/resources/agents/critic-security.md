@@ -30,7 +30,7 @@ You produce **PASS** or a list of **spec violations**. You never generate altern
 ### 2. Expression Language Injection
 - Simple language expressions do not evaluate unsanitized external input
 - JSONPATH / XPath expressions do not allow injection via message headers or body
-- `recipientList` / `routingSlip` / `dynamicRouter` expressions do not allow destination injection from external input
+- `recipientList` / `routingSlip` / `dynamicRouter` / `toD` expressions do not allow destination injection from external input
 - `bean` method calls do not pass unvalidated input to security-sensitive operations
 
 ### 3. TLS Configuration
