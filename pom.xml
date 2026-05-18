@@ -116,6 +116,7 @@
         <module>camel-kit-core</module>
         <module>camel-kit-graph</module>
         <module>camel-jbang-plugin-kit</module>
+        <module>camel-kit-perf</module>
     </modules>
 
     <dependencyManagement>
