@@ -272,18 +272,21 @@ public class InitCommand extends CamelKitCommand {
         printer().println(meta);
         printer().println();
 
-        // Next steps
+        printNextSteps(projectName, agent.name());
+
+        return 0;
+    }
+
+    void printNextSteps(String projectName, String agentName) {
         String divider = "  " + "\u2500".repeat(34);
         printer().println("  " + bold("Next steps"));
         printer().println(divider);
-        printer().println("  1  Open " + cyan(projectName) + " in " + agent.name());
-        printer()
-                .println("  2  " + cyan("/camel-design") + "   \u2014 design an integration (greenfield or migration)");
-        printer().println("     " + cyan("/camel-migrate") + "  \u2014 migration shortcut");
-        printer().println("  3  " + cyan("/camel-verify") + "   \u2014 build, run, and diagnose");
+        printer().println("  1  Open " + cyan(projectName) + " in " + agentName);
+        printer().println("  2  " + cyan("/camel-start") + "  \u2014 route integration work");
+        printer().println("     " + cyan("/camel-migrate") + " \u2014 migration shortcut");
+        printer().println("  3  " + cyan("/camel-debug") + "  \u2014 troubleshoot broken routes");
+        printer().println("     " + cyan("/camel-knowledge") + " \u2014 ask Camel documentation questions");
         printer().println();
-
-        return 0;
     }
 
     private String detectProjectType(ProjectGraph graph) {

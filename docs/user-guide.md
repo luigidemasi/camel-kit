@@ -157,14 +157,15 @@ All defaults (Camel version, BOM versions, MCP server versions) are read from a 
 
 **Per-invocation overrides** (highest priority):
 ```bash
-camel-kit init my-integration --ai claude -p "camel.version=4.18.0"
+camel-kit init my-integration --ai claude -p "camel.main.version=4.18.2"
 ```
 
 **Persistent user config** (applies to all invocations):
 Create `~/.camel-kit/config.properties` with your overrides:
 ```properties
-camel.version=4.18.0
-quarkus.bom.version=3.30.0
+camel.main.version=4.18.2
+camel.quarkus.version=4.18.2
+quarkus.platform.version=3.33.1
 ```
 
 Or point to a custom config file:
@@ -185,7 +186,7 @@ In terminals without image support, the output falls back to an ASCII art banner
 ```
 order-processing/
   .camel-kit/
-    config.yaml              # Project config (Camel version, runtime)
+    config.properties        # Project config (Camel version, runtime)
   docs/
     constitution.md          # 7 route quality rules
   .mcp.json                  # MCP server config (agent-specific location)
@@ -357,8 +358,8 @@ Suppose you need an order processing integration that reads orders from Kafka, v
 camel-kit init order-processing --ai claude
 cd order-processing
 
-# 2. Start the design (in your AI assistant)
-/camel-brainstorm
+# 2. Start the workflow (in your AI assistant)
+/camel-start
 
 # The AI asks about your business requirements, systems, and data flows.
 # After the interview, it presents a design spec with:
@@ -367,7 +368,7 @@ cd order-processing
 #   - Error handling: dead letter queue on kafka:orders-dlq
 # You review and approve the design.
 
-# 3. The pipeline auto-transitions to /camel-plan
+# 3. /camel-start routes to /camel-brainstorm, then the pipeline auto-transitions to /camel-plan
 # The AI creates an implementation plan with tasks:
 #   Task 1: Project scaffolding (pom.xml, application.properties)
 #   Task 2: Order ingestion route (Kafka source, SQL sink)

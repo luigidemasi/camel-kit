@@ -122,9 +122,9 @@ Bob has the most template files (17+) because it cannot chain skill references -
 ### How It Works
 
 ```
-User: /camel-design
+User: /camel-start
   └── Bob loads gate file (Advanced mode -- can read all files)
-      └── Step 1: Switch to camel-design mode
+      └── Step 1: Route to camel-brainstorm or camel-migrate
           └── Tool restrictions activate (read + .md edit + mcp only)
               └── Follows gate instructions with restricted tools
 ```

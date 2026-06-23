@@ -17,7 +17,7 @@ camel-kit init my-integration --ai opencode   # OpenCode
 You can also override configuration at init time:
 ```bash
 # With custom Camel version
-camel-kit init my-integration --ai claude -p "camel.version=4.18.0"
+camel-kit init my-integration --ai claude -p "camel.main.version=4.18.2"
 
 # With custom config file
 camel-kit init my-integration --ai claude -c team-config.properties
@@ -33,19 +33,19 @@ Customer orders are received on a Kafka topic as JSON messages. Valid orders (am
 
 ### 1. Design the Integration
 
-Start an interactive design session:
+Start the Camel-Kit workflow:
 ```
-/camel-design
+/camel-start
 ```
 
-The assistant asks questions one at a time about:
+For a new integration, `/camel-start` routes to the interactive design session. The assistant asks questions one at a time about:
 - Business purpose (automate order fulfillment)
 - Systems involved (Kafka, PostgreSQL)
 - Data flows (orders from Kafka topic to database)
 - Business rules (only orders >= $50)
 - Error handling (DLQ with retries)
 
-**Result:** BRD and TDD saved to `.camel-kit/`
+**Result:** Design artifacts saved under `docs/camel-kit/<PIPELINE_ID>/`
 
 ### 2. Plan the Implementation
 
@@ -95,20 +95,24 @@ order-processing/
 │   ├── jbang.properties
 │   └── data/
 └── .camel-kit/
-    ├── config.yaml
-    ├── business-requirements.md
-    └── flows/
-        └── order-ingestion/
-            └── order-ingestion.tdd.md
+    └── config.properties
+└── docs/
+    └── camel-kit/
+        └── 001-order-processing/
+            ├── design-spec.md
+            ├── implementation-plan.md
+            ├── execution-report.md
+            └── validation-report.md
 ```
 
 ## Workflow Summary
 
 ```
-/camel-design              # Design the integration (interview + spec)
+/camel-start               # Route to the right Camel-Kit workflow
 /camel-plan                # Create implementation plan (auto after design)
-/camel-execute             # Implement, validate, test, verify (auto after plan)
-/camel-verify              # Build, start, diagnose, fix (standalone or automatic)
+/camel-execute             # Implement, test, and run internal verification
+/camel-validate            # Final quality gate (auto after execution)
+/camel-debug               # Standalone troubleshooting if something breaks later
 ```
 
 ## Documentation

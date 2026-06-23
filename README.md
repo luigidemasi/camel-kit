@@ -20,16 +20,17 @@ Camel-Kit adds structured slash commands to your AI assistant that guide you thr
 ```
 Entry:        /camel-start         (routes to the right skill based on context)
 
-Greenfield:   /camel-brainstorm → /camel-plan → /camel-execute → /camel-verify
+Greenfield:   /camel-brainstorm → /camel-plan → /camel-execute → /camel-validate
                                                       ├── implements (camel-implement)
-                                                      ├── validates (camel-validate)
+                                                      ├── verifies (camel-verify, internal)
                                                       └── tests (camel-test)
 
-Migration:    /camel-migrate    → /camel-plan → /camel-execute → /camel-verify
+Migration:    /camel-migrate    → /camel-plan → /camel-execute → /camel-validate
 
 Utilities:    /camel-validate      (endpoint validation only)
               /camel-ship          (autonomous full pipeline with oversight levels)
               /camel-knowledge     (documentation Q&A)
+              /camel-debug         (standalone troubleshooting)
 ```
 
 | Command | Purpose |
@@ -39,9 +40,9 @@ Utilities:    /camel-validate      (endpoint validation only)
 | `/camel-migrate` | Migration from MuleSoft, Microsoft BizTalk, legacy Camel, or JBoss Fuse to modern Camel |
 | `/camel-plan` | Reviews approved design, creates a detailed implementation plan with wave analysis for parallel execution |
 | `/camel-execute` | Orchestrated execution — environment probe, then implements, validates, tests, and verifies all flows |
-| `/camel-verify` | Runtime verification — 3-phase loop (build, Citrus tests, report) with error classification and fix routing |
 | `/camel-validate` | Standalone endpoint validation — checks component configuration without full implementation |
-| `/camel-ship` | Autonomous pipeline — runs brainstorm, plan, execute, and verify end-to-end with configurable oversight (`always`, `smart`, `never`) |
+| `/camel-debug` | Standalone troubleshooting for broken routes, build failures, startup errors, and runtime exceptions |
+| `/camel-ship` | Autonomous pipeline — runs brainstorm, plan, execute, and validate end-to-end with configurable oversight (`always`, `smart`, `never`) |
 | `/camel-knowledge` | Documentation Q&A — semantic search over Apache Camel docs, CVEs, errata, and component catalog |
 
 [Command Reference →](docs/commands.md)
@@ -134,7 +135,7 @@ camel-kit init my-integration --ai qwen     # Qwen (requires dev build)
 camel-kit init my-integration --ai opencode # OpenCode (requires dev build)
 
 # 2. Override configuration if needed
-camel-kit init my-integration --ai claude -p "camel.version=4.18.0"
+camel-kit init my-integration --ai claude -p "camel.main.version=4.18.2"
 
 # 3. Open in your AI assistant
 cd my-integration
