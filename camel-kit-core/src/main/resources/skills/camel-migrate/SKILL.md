@@ -41,9 +41,9 @@ No arguments. The command asks for the path interactively.
 
 **Before starting Step 1**, check if `.camel-kit/project-graph.json` exists in the project directory.
 
-**If graph exists AND `graph_stats` MCP tool is available:**
+**If graph exists:**
 
-1. Call `graph_stats` to verify the graph is loaded and inspect the `nodesByType` field
+1. Run `{COMMAND_PREFIX} graph stats` to verify the graph is loaded and inspect the `nodesByType` field
 2. Dispatch to the correct vendor-specific graph analysis guide based on node types present:
 
 | Node type in stats | Vendor | Guide to load |
@@ -56,7 +56,7 @@ No arguments. The command asks for the path interactively.
 4. **Skip directly to Step 5** (user confirmation) — Steps 1-4 are replaced by graph analysis
 5. If none of the above node types are found, the graph may be incomplete or from an unsupported vendor — proceed with Steps 1-4 as normal
 
-**If no graph exists or `graph_stats` tool is not available:**
+**If no graph exists or `{COMMAND_PREFIX} graph stats` fails:**
 
 Continue with Steps 1-4 as normal (file scanning, manual analysis). The graph is optional — all migration functionality works without it, just slower.
 
@@ -153,11 +153,10 @@ Present summary. Ask only about ? Unknown and invite corrections on ~ Inferred f
 | `4.4.0` | `4.4.0.redhat-00046` |
 | `4.0.0` | `4.0.0.redhat-00036` |
 
-**Persist to `.camel-kit/config.yaml`** after confirmation:
-```yaml
-project:
-  camelVersion: "{{CAMEL_VERSION_WITH_REDHAT_QUALIFIER}}"
-  runtime: "quarkus"  # or spring-boot, camel-main, jbang
+**Persist to `.camel-kit/config.properties`** after confirmation:
+```properties
+project.camelVersion={{CAMEL_VERSION_WITH_REDHAT_QUALIFIER}}
+project.runtime=quarkus
 ```
 
 ---
@@ -191,7 +190,7 @@ After user confirms the analysis summary, dispatch to the vendor-specific guide.
 Include in each sub-agent prompt:
 - The confirmed analysis summary from Step 5
 - Full list of source artifact paths
-- `CAMEL_VERSION`, `RUNTIME`, `PLATFORM_BOM` from `.camel-kit/config.yaml`
+- `CAMEL_VERSION`, `RUNTIME`, `PLATFORM_BOM` from `.camel-kit/config.properties`
 - Source Camel version and platform type (for Camel migrations)
 
 ### Dispatch Messages
@@ -239,7 +238,7 @@ For each computational step in the Guide Manifest, use the Agent tool to dispatc
 
 Include in each sub-agent prompt:
 - The flow/task name
-- Camel version (from .camel-kit/config.yaml)
+- Camel version (from .camel-kit/config.properties)
 - User answers relevant to this step
 - File paths of prior step outputs (let the sub-agent read them)
 

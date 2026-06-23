@@ -332,6 +332,14 @@ The validation guide (`datamapper-validation.md`) reads the `Transformation Engi
 | Qwen | `templates/qwen/` | `QWEN.md` + sub-agent definitions | `.qwen/mcp.json` | `.qwen/skills/` |
 | OpenCode | `templates/opencode/` | `AGENTS.md` + permission-based agents | `.opencode/mcp.json` | `.opencode/skills/` |
 
+### Resource Consistency Contract
+
+Skills, generated instruction files, MCP config templates, and active docs are runtime contract surfaces. They are tested by `ResourceConsistencyTest` in `camel-kit-core` so stale contract tokens fail the build before they ship.
+
+The active scan covers `camel-kit-core/src/main/resources/skills`, `camel-kit-core/src/main/resources/templates`, `docs/`, `README.md`, and `CONTRIBUTING.md`. These files must reference current command names, current config files, current graph access patterns, current Knowledge MCP tool names, and current Iron Law counts.
+
+Historical release notes, old planning material, and archived ADR-style documents are outside the active contract unless they are copied into generated projects or used as live instructions. Keep historical context in those files as history; do not exclude an active shipped instruction just because it is inconvenient to update.
+
 ### The Equalization Layer
 
 All five agents receive the same skills (markdown instruction files). The template layer adapts the instruction format to each agent's conventions (system prompt vs. custom modes vs. agent files), but the underlying skill content is identical. This means a fix to a skill guide benefits all agents simultaneously.
@@ -371,12 +379,14 @@ Traits are agent-specific instruction fragments that are appended to shared skil
 
 ### Iron Laws
 
-The four Iron Laws from `skills/shared/iron-laws.md` are embedded in each agent's instruction file:
+The six shared Iron Laws from `skills/shared/iron-laws.md` are embedded in or referenced by each agent's instruction file:
 
 1. **MCP Catalog Verification** -- every component, EIP, dataformat, and language must be verified via MCP before being written to any spec, TDD, or YAML file
 2. **Constitution Compliance** -- every generated route must pass all 7 constitution rules (incorporates and enforces the constitution)
-3. **No Code Without Design Approval** -- never generate implementation artifacts before the user has approved the design spec. Planning flows directly into execution (no separate plan approval gate).
+3. **No Code Without Plan & Design Approval** -- never generate implementation artifacts before the user has approved the design spec and a task-based implementation plan exists
 4. **Spec Compliance Before Quality** -- always run spec compliance review before code quality review; wrong order wastes effort
+5. **Adversarial Code Review** -- generated code must pass the adversarial review gate before spec compliance and quality review
+6. **Surgical Changes** -- implementation tasks must touch only what they were asked to touch
 
 ### Subagent-Driven Execution
 
@@ -499,7 +509,11 @@ Separate from the Camel Catalog MCP, the knowledge layer runs from the `camel-ki
 
 | Tool Name | Purpose |
 |-----------|---------|
-| `camel_knowledge_search` | Semantic search across Apache Camel documentation |
+| `camel_docs_search` | General documentation search |
+| `camel_docs_component_info` | Component documentation and CVE lookup |
+| `camel_docs_cve_search` | CVE security advisory search |
+| `camel_docs_release_info` | Release notes for a version |
+| `camel_docs_jira_lookup` | JIRA issue lookup by ID |
 
 ### Tool Usage by Skill
 
@@ -511,7 +525,7 @@ Separate from the Camel Catalog MCP, the knowledge layer runs from the `camel-ki
 | `camel-implement` | `camel_catalog_component_doc`, `camel_catalog_dataformat_doc`, `camel_catalog_eip_doc`, `camel_catalog_language_doc`, `camel_route_context`, `camel_validate_route` | 6 |
 | `camel-validate` | `camel_validate_route`, `camel_route_harden_context` | 2 |
 | `camel-test` | `camel_route_context`, `camel_catalog_component_doc` | 2 |
-| `camel-knowledge` | `camel_knowledge_search` | 1 |
+| `camel-knowledge` | `camel_docs_search`, `camel_docs_component_info`, `camel_docs_cve_search`, `camel_docs_release_info`, `camel_docs_jira_lookup` | 5 |
 
 ### Token Savings
 

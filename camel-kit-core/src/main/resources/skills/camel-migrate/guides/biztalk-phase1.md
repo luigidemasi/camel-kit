@@ -1,8 +1,8 @@
 # Camel Migrate BizTalk - Microsoft BizTalk → Apache Camel Migration (Phase 1)
 
 > **Context variables provided by master SKILL.md:**
-> - `CAMEL_VERSION` — target Camel version from `.camel-kit/config.yaml`
-> - `RUNTIME` — from `.camel-kit/config.yaml` (`project.runtime`, default: `main`)
+> - `CAMEL_VERSION` — target Camel version from `.camel-kit/config.properties`
+> - `RUNTIME` — from `.camel-kit/config.properties` (`project.runtime`, default: `main`)
 > - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via the version mapping table in `skills/shared/mcp-setup.md`
 > - Confirmed analysis summary (with ✓/~/? markers) from `camel-migrate`
 > - Full list of source artifact paths

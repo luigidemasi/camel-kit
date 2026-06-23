@@ -15,7 +15,7 @@
 
 ## Rules
 
-> These 7 rules define what makes a good Camel route. They are enforced by **Iron Law 3 (Constitution Compliance)** across all pipeline phases. See `skills/shared/iron-laws.md` for the full set of four iron laws.
+> These 7 rules define what makes a good Camel route. They are enforced by **Iron Law 2 (Constitution Compliance)** across all pipeline phases. See `skills/shared/iron-laws.md` for the full set of six iron laws.
 
 ### 1. Route Structure
 

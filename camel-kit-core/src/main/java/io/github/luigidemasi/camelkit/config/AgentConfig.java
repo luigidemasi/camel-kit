@@ -8,5 +8,7 @@ public record AgentConfig(
         String folder,
         String fileFormat,
         String argPlaceholder,
+        String mcpConfigPath,
+        String mcpServerContainerKey,
         String description) {
 }

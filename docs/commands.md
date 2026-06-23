@@ -283,7 +283,7 @@ Returns structured JSON with the complete context needed for migration analysis:
 The `/camel-migrate` skill uses this command during migration analysis:
 
 1. Graph expansion identifies all routes, components, services, and artifacts connected to the target route
-2. Component list is passed to `camel_docs_component` MCP tool for documentation lookup
+2. Component list is passed to `camel_docs_component_info` MCP tool for documentation lookup
 3. Migration skill receives both structural context (from graph) and semantic context (from MCP) for accurate migration planning
 
 **Example:**
@@ -449,7 +449,8 @@ These commands are used inside your AI coding assistant after project initializa
 
 **Tier 2 — Standalone utilities:** `/camel-ship`, `/camel-knowledge`, `/camel-debug` — can be invoked at any point without affecting pipeline state.
 
-**Internal:** `/camel-implement`, `/camel-verify`, `/camel-test`, `/camel-design` — subagent-only, dispatched automatically by pipeline skills. Not intended for direct use.
+**Internal skill libraries:** `camel-implement`, `camel-verify`, `camel-test`, `camel-design` — subagent-only,
+dispatched automatically by pipeline skills. Not exposed as direct slash-command stubs.
 
 ---
 
