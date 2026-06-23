@@ -14,6 +14,13 @@ class PrerequisiteCheckerTest {
     }
 
     @Test
+    void missingCamelTestPluginHintDoesNotAdvertiseInternalVerifyCommand() {
+        String hint = PrerequisiteChecker.missingCamelTestPluginHint();
+        assertTrue(hint.contains("runtime verification"));
+        assertFalse(hint.contains("/camel-verify"));
+    }
+
+    @Test
     void parseJavaVersionModernFormat() {
         String output = "openjdk version \"21.0.3\" 2024-04-16 LTS\n"
                         + "OpenJDK Runtime Environment (build 21.0.3+9-LTS)\n"

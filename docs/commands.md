@@ -48,11 +48,10 @@ camel-kit init --here [options]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--ai`, `-a` | `bob` | AI coding assistant to configure (`bob`, `gemini`, `claude`, `qwen`, `opencode`) |
-| `--camel-version`, `-v` | latest version | Apache Camel version to target |
 | `--citrus-version` | `4.9.2` | Citrus Framework version for test schemas |
 | `--here` | `false` | Initialize in current directory |
 | `--no-fetch` | `false` | Skip external catalog fetching |
-| `-p`, `--property` | -- | Override a config property (repeatable). Example: `-p "camel.version=4.18.0"` |
+| `-p`, `--property` | -- | Override a config property (repeatable). Example: `-p "camel.main.version=4.18.2"` |
 | `-c`, `--config` | `~/.camel-kit/config.properties` | Path to a custom config properties file |
 | `--source-platform` | `auto` | Source platform for migration: `mulesoft`, `camel`, `biztalk`, `auto` |
 | `--force` | `false` | Overwrite existing project without prompting (skips overwrite detection) |
@@ -77,17 +76,14 @@ camel-kit init my-integration --ai qwen
 # Create new project for OpenCode
 camel-kit init my-integration --ai opencode
 
-# Use a specific Camel version
-camel-kit init my-integration --camel-version 4.18.0
-
 # Initialize in current directory
 camel-kit init --here --ai bob
 
 # Override config properties via CLI
-camel-kit init my-integration --ai claude -p "camel.version=4.18.0"
+camel-kit init my-integration --ai claude -p "camel.main.version=4.18.2"
 
 # Override multiple properties
-camel-kit init my-integration --ai claude -p "camel.version=4.18.0" -p "quarkus.bom.version=3.30.0"
+camel-kit init my-integration --ai claude -p "camel.quarkus.version=4.18.2" -p "quarkus.platform.version=3.33.1"
 
 # Use a custom config file
 camel-kit init my-integration --ai claude -c /path/to/my-config.properties
@@ -117,7 +113,7 @@ Prerequisites:
   Java 17+          ✓ (21.0.3)
   JBang             ✓ (0.136.0)
   Camel JBang       ✓ (4.18.1)
-  Camel test plugin ✗ (not found — /camel-verify will skip test phase)
+  Camel test plugin ✗ (not found — runtime verification will skip Citrus test phase)
 ```
 
 The check is non-blocking -- it warns but never fails the init. Design and planning work without Camel JBang; only execution and verification need it.
@@ -156,9 +152,11 @@ Any property from `distribution.properties` can be overridden at layers 2 or 3. 
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `camel.version` | `4.20.0` | Apache Camel version for generated projects |
+| `camel.main.version` | `4.20.0` | Apache Camel version for Camel Main / JBang projects |
+| `camel.springboot.version` | `4.20.0` | Apache Camel version for Spring Boot projects |
 | `springboot.bom.version` | `4.20.0` | Spring Boot BOM version |
-| `quarkus.bom.version` | `3.33.0` | Quarkus platform BOM version |
+| `camel.quarkus.version` | `4.18.2` | Apache Camel version for Quarkus projects |
+| `quarkus.platform.version` | `3.33.1` | Quarkus platform BOM version |
 | `camel.mcp.version` | `4.20.0` | Camel MCP server version |
 
 **Output:**
@@ -176,7 +174,7 @@ my-integration/
 ├── docs/
 │   └── flows/                   # Flow definitions
 ├── .camel-kit/
-│   ├── config.yaml              # Project configuration
+│   ├── config.properties        # Project configuration
 │   ├── project-graph.json       # Auto-detected project graph
 │   ├── .cache/                  # Downloaded catalogs and schemas
 │   │   ├── components-{version}.json
@@ -489,7 +487,7 @@ When invoked with a `<PIPELINE_ID>` argument:
 
 1. **Detect invocation mode** -- check for `<PIPELINE_ID>` argument and existing design spec
 2. **Detect project type** -- greenfield or migration (based on keywords like "create", "build" vs "migrate", "convert")
-3. **Load context** -- reads `docs/constitution.md` and `.camel-kit/config.yaml` if they exist
+3. **Load context** -- reads `docs/constitution.md` and `.camel-kit/config.properties` if they exist
 4. **Run interview or discovery** -- Socratic interview (one question at a time) for greenfield; artifact scanning and confirmation for migration
 5. **Select Camel version** -- presents available versions for selection
 6. **Design flows** -- for each flow, verifies components, EIPs, data formats, and languages against the MCP catalog. Asks conditional questions only when relevant:
@@ -802,9 +800,7 @@ When `--resume` is used, camel-ship scans all pipeline artifacts for staleness m
 
 **Example:**
 
-```
-/camel-verify
-```
+No direct user invocation. `/camel-execute` dispatches this skill internally during its verification phase.
 
 **How it works (3-phase loop):**
 

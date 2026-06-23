@@ -1,6 +1,6 @@
 # Camel-Kit Constitution
 
-> Seven non-negotiable rules enforced on every generated route. All other design guidance (error handling strategy, retry policy, throttling, resilience patterns, idempotency, transactions, data format choices, deployment) lives in `/camel-design` and `/camel-migrate`, where it is applied context-specifically during flow design.
+> Seven non-negotiable rules enforced on every generated route. All other design guidance (error handling strategy, retry policy, throttling, resilience patterns, idempotency, transactions, data format choices, deployment) lives in `/camel-brainstorm` and `/camel-migrate`, where it is applied context-specifically during flow design.
 
 ---
 
@@ -94,7 +94,7 @@ Every component used in a route MUST be verified as **available** in the target 
   1. Raise a WARNING to the user explaining the availability status.
   2. Search for an alternative that provides equivalent functionality.
   3. Present the warning and the suggested alternative to the user before proceeding. Let the user decide whether to accept the component or switch to the alternative.
-- **Automated verification:** `/camel-verify` checks component availability at build and startup time, catching missing components that passed design-time validation.
+- **Automated verification:** `/camel-execute` dispatches internal runtime verification to check component availability at build and startup time, catching missing components that passed design-time validation.
 - **Violation:** WARNING — this is not a validation blocker, but users must be clearly informed of the availability implications.
 
 ---
