@@ -20,6 +20,13 @@ import io.github.luigidemasi.camelkit.util.AnsiColors;
 import io.github.luigidemasi.camelkit.util.TemplateUtils;
 
 public class DefaultGenerator implements AgentGenerator {
+    static final List<String> KNOWLEDGE_MCP_TOOLS = List.of(
+            "camel_docs_component_info",
+            "camel_docs_search",
+            "camel_docs_cve_search",
+            "camel_docs_release_info",
+            "camel_docs_jira_lookup");
+
     @Override
     public void generate(InitContext ctx) throws Exception {
         Files.createDirectories(ctx.commandsDir());
@@ -332,15 +339,10 @@ public class DefaultGenerator implements AgentGenerator {
             templateData.put("CAMEL_SPRINGBOOT_SUPPORTED", dist.camelSpringbootSupported());
             templateData.put("CAMEL_QUARKUS_SUPPORTED", dist.camelQuarkusSupported());
 
-            String knowledgeToolPrefix = "camel_docs_";
             String knowledgeToolsJson = String.join(", ",
-                    "\"" + knowledgeToolPrefix + "component_info\"",
-                    "\"" + knowledgeToolPrefix + "search\"",
-                    "\"" + knowledgeToolPrefix + "jira_lookup\"",
-                    "\"" + knowledgeToolPrefix + "cve_search\"",
-                    "\"" + knowledgeToolPrefix + "bugfix_search\"",
-                    "\"" + knowledgeToolPrefix + "release_info\"",
-                    "\"" + knowledgeToolPrefix + "supported_configs\"");
+                    KNOWLEDGE_MCP_TOOLS.stream()
+                            .map(tool -> "\"" + tool + "\"")
+                            .toList());
             templateData.put("KNOWLEDGE_TOOLS_JSON", knowledgeToolsJson);
 
             String knowledgeDescription = "camel-kit Knowledge Server - documentation search for Apache Camel";

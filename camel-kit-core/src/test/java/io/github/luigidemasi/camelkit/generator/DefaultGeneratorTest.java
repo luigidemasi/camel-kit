@@ -3,12 +3,16 @@ package io.github.luigidemasi.camelkit.generator;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.output.Printer;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -71,6 +75,30 @@ class DefaultGeneratorTest {
         new DefaultGenerator().generate(ctx);
 
         assertTrue(Files.exists(tempDir.resolve(".bob/mcp.json")));
+    }
+
+    @Test
+    void knowledgeMcpAllowlistMatchesImplementedServerToolsContract() throws Exception {
+        // camel-kit-knowledge is a sibling repository, so keep its tool contract local and explicit here.
+        List<String> implementedKnowledgeTools = List.of(
+                "camel_docs_component_info",
+                "camel_docs_search",
+                "camel_docs_cve_search",
+                "camel_docs_release_info",
+                "camel_docs_jira_lookup");
+        assertEquals(implementedKnowledgeTools, DefaultGenerator.KNOWLEDGE_MCP_TOOLS);
+
+        ObjectMapper mapper = new ObjectMapper();
+        for (String agentName : List.of("bob", "claude", "gemini", "qwen", "opencode")) {
+            InitContext ctx = createContext(agentName);
+            new DefaultGenerator().generate(ctx);
+
+            JsonNode knowledgeServer = readKnowledgeServerConfig(mapper, agentName);
+            assertEquals(implementedKnowledgeTools, jsonArrayToList(knowledgeServer.path("autoApprove")),
+                    agentName + " autoApprove must only include implemented Knowledge MCP tools");
+            assertEquals(implementedKnowledgeTools, jsonArrayToList(knowledgeServer.path("alwaysAllow")),
+                    agentName + " alwaysAllow must only include implemented Knowledge MCP tools");
+        }
     }
 
     @Test
@@ -236,5 +264,28 @@ class DefaultGeneratorTest {
         String content = Files.readString(geminiCmd);
         assertTrue(content.contains("description ="));
         assertTrue(content.contains("prompt ="));
+    }
+
+    private JsonNode readKnowledgeServerConfig(ObjectMapper mapper, String agentName) throws IOException {
+        Path configPath = switch (agentName) {
+            case "bob" -> tempDir.resolve(".bob/mcp.json");
+            case "claude" -> tempDir.resolve(".mcp.json");
+            case "gemini" -> tempDir.resolve(".gemini/settings.json");
+            case "qwen" -> tempDir.resolve(".qwen/settings.json");
+            case "opencode" -> tempDir.resolve("opencode.json");
+            default -> throw new IllegalArgumentException("Unknown agent: " + agentName);
+        };
+
+        JsonNode config = mapper.readTree(configPath.toFile());
+        if ("opencode".equals(agentName)) {
+            return config.path("mcp").path("camel-knowledge");
+        }
+        return config.path("mcpServers").path("camel-knowledge");
+    }
+
+    private List<String> jsonArrayToList(JsonNode array) {
+        List<String> values = new ArrayList<>();
+        array.forEach(value -> values.add(value.asText()));
+        return values;
     }
 }
