@@ -74,7 +74,7 @@ class DefaultGeneratorTest {
         InitContext ctx = createContext("bob");
         new DefaultGenerator().generate(ctx);
 
-        assertTrue(Files.exists(tempDir.resolve(".bob/mcp.json")));
+        assertTrue(Files.exists(tempDir.resolve(ctx.agent().mcpConfigPath())));
     }
 
     @Test
@@ -267,20 +267,11 @@ class DefaultGeneratorTest {
     }
 
     private JsonNode readKnowledgeServerConfig(ObjectMapper mapper, String agentName) throws IOException {
-        Path configPath = switch (agentName) {
-            case "bob" -> tempDir.resolve(".bob/mcp.json");
-            case "claude" -> tempDir.resolve(".mcp.json");
-            case "gemini" -> tempDir.resolve(".gemini/settings.json");
-            case "qwen" -> tempDir.resolve(".qwen/settings.json");
-            case "opencode" -> tempDir.resolve("opencode.json");
-            default -> throw new IllegalArgumentException("Unknown agent: " + agentName);
-        };
-
+        AgentConfig agent = AgentRegistry.get(agentName);
+        assertNotNull(agent, "Unknown agent: " + agentName);
+        Path configPath = tempDir.resolve(agent.mcpConfigPath());
         JsonNode config = mapper.readTree(configPath.toFile());
-        if ("opencode".equals(agentName)) {
-            return config.path("mcp").path("camel-knowledge");
-        }
-        return config.path("mcpServers").path("camel-knowledge");
+        return config.path(agent.mcpServerContainerKey()).path("camel-knowledge");
     }
 
     private List<String> jsonArrayToList(JsonNode array) {

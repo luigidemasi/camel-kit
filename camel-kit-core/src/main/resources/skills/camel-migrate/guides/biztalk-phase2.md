@@ -1,6 +1,6 @@
 # Microsoft BizTalk Migration — Phase 2: TDD Generation
 
-> **Context variables:** `CAMEL_VERSION`, `RUNTIME`, `PLATFORM_BOM` from `.camel-kit/config.yaml`
+> **Context variables:** `CAMEL_VERSION`, `RUNTIME`, `PLATFORM_BOM` from `.camel-kit/config.properties`
 > **Prerequisite:** Phase 1 (`biztalk-phase1.md`) must be complete — BRD written to `docs/business-requirements.md`
 
 ## Phase 2 — Integration Architect
@@ -13,7 +13,7 @@
 - Load `skills/camel-migrate/guides/biztalk-pipeline-mapping.md` — required for pipeline component mapping
 - Re-read `docs/business-requirements.md`
 - Read `docs/constitution.md` if it exists (for reference)
-- Re-read `.camel-kit/config.yaml` — **REQUIRED**: extract `project.camelVersion` as `CAMEL_VERSION` and `project.runtime` as `RUNTIME`. If the file does not exist, ask the user for the Camel version before proceeding.
+- Re-read `.camel-kit/config.properties` — **REQUIRED**: extract `project.camelVersion` as `CAMEL_VERSION` and `project.runtime` as `RUNTIME`. If the file does not exist, ask the user for the Camel version before proceeding.
 
 **Conditionally load:**
 - `skills/camel-migrate/guides/datamapper-migrate.md` — load once per orchestration that contains a BizTalk map (see Step 2.2)
@@ -51,17 +51,20 @@ For each BizTalk orchestration identified in Phase 1:
    ```
    Record the URI syntax, endpoint options, component-level options, and Maven coordinates from the catalog response. If the component is not found in `CAMEL_VERSION`, call `camel_catalog_components` to search for an alternative and notify the user.
 
-   **Red Hat support check (MANDATORY when camel-knowledge MCP is available):**
-   After verifying a component in the catalog, call `camel_rh_build_component_info` to check Red Hat support:
+   **Documentation context check (MANDATORY when camel-knowledge MCP is available):**
+   After verifying a component in the catalog, call `camel_docs_component_info` to gather documentation,
+   security, and compatibility context:
    ```
-   MCP Tool: camel_rh_build_component_info
+   MCP Tool: camel_docs_component_info
    Params: { "component": "[camel-component-name]", "runtime": "{{RUNTIME}}" }
    ```
-   If the component is NOT supported by Red Hat, raise a WARNING to the user, search for a Red Hat-supported alternative that provides equivalent functionality, and present both options. Let the user decide. If the MCP server is not available, skip this step.
+   If the result reports support, compatibility, or security warnings, raise a WARNING to the user, search for an
+   alternative that provides equivalent functionality, and present both options. Let the user decide. If the MCP
+   server is not available, skip this step.
 
    After mapping a BizTalk adapter to a Camel component, ALWAYS call:
    ```
-   camel_rh_build_search(query: "{mapped_camel_component} migration", max_results: 5)
+   camel_docs_search(query: "{mapped_camel_component} migration", max_results: 5)
    ```
    This provides migration context that may be relevant even for BizTalk migrations —
    the Camel component may have changed between versions.
@@ -156,7 +159,7 @@ Use the **exact same TDD format** as `/camel-flow` output. The file MUST contain
 | Target Module | {relative path from workspace root to the target Camel project, e.g. `order-service/`} |
 | Business Purpose | [from BRD] |
 | Trigger | [how the Camel route is triggered — BizTalk Receive Port adapter + pipeline] |
-| Camel Version | [from config.yaml] |
+| Camel Version | [from config.properties] |
 | Created | [current date] |
 
 ## Section 2: Source System

@@ -64,7 +64,8 @@ When both are omitted, the MCP server uses its built-in catalog (4.20.0). This i
 
 ### Version configuration
 
-Version numbers are stored in `.camel-kit/config.properties`, set during `/camel-design`:
+Version numbers are stored in `.camel-kit/config.properties`, set during initialization and updated by
+`/camel-start`-routed workflow skills when the user confirms target runtime/version choices:
 
 ```properties
 project.runtime=quarkus

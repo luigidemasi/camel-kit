@@ -20,6 +20,11 @@ import io.github.luigidemasi.camelkit.util.AnsiColors;
 import io.github.luigidemasi.camelkit.util.TemplateUtils;
 
 public class DefaultGenerator implements AgentGenerator {
+
+    static final List<String> GENERATED_COMMAND_SKILLS = List.of(
+            "camel-start", "camel-brainstorm", "camel-plan", "camel-execute", "camel-validate",
+            "camel-migrate", "camel-knowledge", "camel-ship", "camel-debug");
+
     static final List<String> KNOWLEDGE_MCP_TOOLS = List.of(
             "camel_docs_component_info",
             "camel_docs_search",
@@ -49,15 +54,11 @@ public class DefaultGenerator implements AgentGenerator {
     }
 
     private void createCommandTemplates(InitContext ctx) throws Exception {
-        List<String> commands
-                = List.of("start", "brainstorm", "plan", "execute", "verify", "validate", "migrate", "knowledge",
-                        "ship", "debug");
-
         // Extract agent base folder (e.g., ".bob" from ".bob/commands")
         String agentBaseFolder = ctx.agent().folder().substring(0, ctx.agent().folder().lastIndexOf("/"));
 
-        for (String cmd : commands) {
-            String skillName = "camel-" + cmd;
+        for (String skillName : GENERATED_COMMAND_SKILLS) {
+            String cmd = shortCommandName(skillName);
 
             // Create reference to skill file
             String content
@@ -72,7 +73,12 @@ public class DefaultGenerator implements AgentGenerator {
             Files.writeString(ctx.commandsDir().resolve(filename), content);
         }
 
-        ctx.printer().println(AnsiColors.green("✓") + " Created " + commands.size() + " skill reference commands");
+        ctx.printer().println(AnsiColors.green("✓") + " Created " + GENERATED_COMMAND_SKILLS.size()
+                              + " skill reference commands");
+    }
+
+    private String shortCommandName(String skillName) {
+        return skillName.startsWith("camel-") ? skillName.substring("camel-".length()) : skillName;
     }
 
     private String wrapInToml(String cmd, String content) {
@@ -278,38 +284,26 @@ public class DefaultGenerator implements AgentGenerator {
 
         try {
             String templatePath;
-            Path configFile;
 
             switch (ctx.agentName().toLowerCase(Locale.ROOT)) {
                 case "claude" -> {
                     templatePath = "templates/mcp-configs/claude-code-mcp.json";
-                    configFile = ctx.projectDir().resolve(".mcp.json");
                     agentName = "Claude Code";
                 }
                 case "bob" -> {
                     templatePath = "templates/mcp-configs/bob-mcp.json";
-                    Path bobDir = ctx.projectDir().resolve(".bob");
-                    Files.createDirectories(bobDir);
-                    configFile = bobDir.resolve("mcp.json");
                     agentName = "IBM Bob";
                 }
                 case "gemini" -> {
                     templatePath = "templates/mcp-configs/gemini-mcp.json";
-                    Path geminiDir = ctx.projectDir().resolve(".gemini");
-                    Files.createDirectories(geminiDir);
-                    configFile = geminiDir.resolve("settings.json");
                     agentName = "Gemini CLI";
                 }
                 case "qwen" -> {
                     templatePath = "templates/mcp-configs/qwen-mcp.json";
-                    Path qwenDir = ctx.projectDir().resolve(".qwen");
-                    Files.createDirectories(qwenDir);
-                    configFile = qwenDir.resolve("settings.json");
                     agentName = "Qwen Code";
                 }
                 case "opencode" -> {
                     templatePath = "templates/mcp-configs/opencode-mcp.json";
-                    configFile = ctx.projectDir().resolve("opencode.json");
                     agentName = "OpenCode";
                 }
                 default -> {
@@ -317,6 +311,11 @@ public class DefaultGenerator implements AgentGenerator {
                             .yellow("  Warning: Unknown agent '" + ctx.agentName() + "', skipping MCP config"));
                     return;
                 }
+            }
+
+            Path configFile = ctx.projectDir().resolve(ctx.agent().mcpConfigPath());
+            if (configFile.getParent() != null) {
+                Files.createDirectories(configFile.getParent());
             }
 
             QuteTemplateEngine qute = new QuteTemplateEngine();
@@ -339,10 +338,9 @@ public class DefaultGenerator implements AgentGenerator {
             templateData.put("CAMEL_SPRINGBOOT_SUPPORTED", dist.camelSpringbootSupported());
             templateData.put("CAMEL_QUARKUS_SUPPORTED", dist.camelQuarkusSupported());
 
-            String knowledgeToolsJson = String.join(", ",
-                    KNOWLEDGE_MCP_TOOLS.stream()
-                            .map(tool -> "\"" + tool + "\"")
-                            .toList());
+            String knowledgeToolsJson = KNOWLEDGE_MCP_TOOLS.stream()
+                    .map(tool -> "\"" + tool + "\"")
+                    .collect(java.util.stream.Collectors.joining(", "));
             templateData.put("KNOWLEDGE_TOOLS_JSON", knowledgeToolsJson);
 
             String knowledgeDescription = "camel-kit Knowledge Server - documentation search for Apache Camel";

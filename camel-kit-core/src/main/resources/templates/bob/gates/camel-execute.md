@@ -294,12 +294,14 @@ NEVER:
 
 ## Iron Laws
 
-Execution enforces ALL four Iron Laws:
+Execution enforces the shared Iron Laws:
 
 - **Iron Law 1**: MCP Catalog Verification — verify every component via MCP before generating YAML
 - **Iron Law 2**: Constitution Compliance — every route passes all 7 rules
 - **Iron Law 3**: No Code Without Design Approval — only runs after design approval
 - **Iron Law 4**: Spec Compliance Before Quality — ALWAYS spec first, quality second
+- **Iron Law 5**: Adversarial Code Review — generated artifacts pass adversarial review before staged review
+- **Iron Law 6**: Surgical Changes — touch only what the approved task requires
 
 ## Guide Reference
 

@@ -171,5 +171,5 @@ When re-running stale stages:
 ## Shared Guides
 
 Load these shared guides at pipeline start:
-- `shared/iron-laws.md` — all 4 laws apply across all stages
+- `shared/iron-laws.md` — all six laws apply across all stages
 - `shared/mcp-setup.md` — MCP tool configuration for verification

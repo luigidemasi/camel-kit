@@ -378,7 +378,7 @@ Read `shared/iron-laws.md` for the full Iron Laws. This skill enforces:
 - `camel_catalog_eip` — verify EIP exists, get configuration
 - `camel_catalog_dataformat` — verify dataformat exists
 - `camel_catalog_language` — verify expression language exists
-- `camel_knowledge_search` — search docs for guidance
+- `camel_docs_search` — search docs for guidance
 
 For MCP setup, version mapping, and fallback policy: see `shared/mcp-setup.md`
 For graph analysis: use `{COMMAND_PREFIX} graph` CLI commands (see `shared/graph-availability.md`)

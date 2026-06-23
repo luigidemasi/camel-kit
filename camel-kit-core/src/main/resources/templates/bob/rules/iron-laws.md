@@ -14,6 +14,6 @@ These rules apply across ALL camel-kit pipeline modes. They are non-negotiable.
 
 6. **Surgical Changes** — TOUCH ONLY WHAT YOU’RE ASKED TO TOUCH. Don’t refactor adjacent systems. Don’t remove code you don’t fully understand. Don’t brush against a TODO and decide to rewrite the file.
 
-7. **Runtime Verification** — After implementation is complete, verify it starts correctly. Check `.camel-kit/config.properties` for the runtime, then run: Quarkus → `./mvnw quarkus:dev`, Spring Boot → `./mvnw spring-boot:run`. For structured verification, use `/camel-verify`.
+7. **Runtime Verification** — After implementation is complete, verify it starts correctly. Check `.camel-kit/config.properties` for the runtime, then run: Quarkus → `./mvnw quarkus:dev`, Spring Boot → `./mvnw spring-boot:run`. For structured verification, use the verification loop inside `/camel-execute`.
 
 8. **Graph Enhances, Never Gates** — Graph-based analysis is supplementary. If the project graph is unavailable, skip graph-dependent steps silently and continue.
