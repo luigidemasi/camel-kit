@@ -94,9 +94,13 @@ public final class PrerequisiteChecker {
     private static CheckResult checkCamelTestPlugin() {
         CheckResult result = runSimpleCheck("Camel test plugin", new String[]{"camel", "test", "--help"}, true);
         if (!result.found) {
-            return new CheckResult(result.name, false, null, "/camel-verify will skip test phase");
+            return new CheckResult(result.name, false, null, missingCamelTestPluginHint());
         }
         return result;
+    }
+
+    static String missingCamelTestPluginHint() {
+        return "runtime verification will skip Citrus test phase";
     }
 
     // ------------------------------------------------------------------
