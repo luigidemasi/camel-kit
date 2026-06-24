@@ -207,7 +207,7 @@ generated:
 - [other guides specific to this task]
 
 **MCP Tools:**
-- `camel_catalog_component(name="X", runtime="Y", platformBom="Z")`
+- `camel_catalog_component_doc(component="X", runtime="Y", platformBom="Z")`
 - [other MCP calls]
 
 **Design Spec Section:** Section 3, Flow: [flow-name]

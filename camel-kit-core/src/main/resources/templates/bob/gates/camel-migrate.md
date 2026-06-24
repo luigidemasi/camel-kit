@@ -111,7 +111,7 @@ For migration-specific mappings, read the appropriate guide:
 - MuleSoft: `.bob/skills/camel-migrate/guides/mule-component-mapping.md`
 - Camel 2.x: `.bob/skills/camel-migrate/guides/camel2-component-mapping.md`, `.bob/skills/camel-migrate/guides/camel2-eip-mapping.md`, `.bob/skills/camel-migrate/guides/camel2-dataformat-mapping.md`, `.bob/skills/camel-migrate/guides/camel2-language-mapping.md`
 
-Verify EVERY component via MCP: `camel_catalog_component`.
+Verify EVERY component via MCP: `camel_catalog_component_doc`.
 </Step>
 
 <Step>

@@ -235,10 +235,10 @@ You MUST complete these items in order:
 
 ## MCP Tools Used in This Phase
 
-- `camel_catalog_component` — verify component exists, get options
-- `camel_catalog_eip` — verify EIP exists, get configuration
-- `camel_catalog_dataformat` — verify dataformat exists
-- `camel_catalog_language` — verify expression language exists
+- `camel_catalog_component_doc` — verify component exists, get options
+- `camel_catalog_eip_doc` — verify EIP exists, get configuration
+- `camel_catalog_dataformat_doc` — verify dataformat exists
+- `camel_catalog_language_doc` — verify expression language exists
 → For MCP setup, version mapping, and fallback policy: see `shared/mcp-setup.md`
 → For graph analysis: use `{COMMAND_PREFIX} graph` CLI commands (see `shared/graph-availability.md`)
 

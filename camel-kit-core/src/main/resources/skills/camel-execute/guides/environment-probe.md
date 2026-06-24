@@ -186,7 +186,7 @@ All probe errors start classified as **MECHANICAL**. Only promote to **ARCHITECT
 
 | Error | Default Class | MCP Check | Promotion to Architectural |
 |---|---|---|---|
-| `Could not find artifact` | Mechanical | `camel_catalog_component(name, runtime, platformBom)` — exists? fix the name. Does not exist? promote. | If MCP says the component does not exist |
+| `Could not find artifact` | Mechanical | `camel_catalog_component_doc(component, runtime, platformBom)` — exists? fix the name. Does not exist? promote. | If MCP says the component does not exist |
 | `Could not resolve dependencies` (transitive conflict) | Mechanical | Check if both dependencies exist individually | If conflict persists after fix attempt |
 | Docker `manifest unknown` | Mechanical | N/A | If the same image fails after 2 attempts |
 | Docker `pull access denied` | Architectural | N/A | Immediately — private or licensed image |
@@ -199,7 +199,7 @@ All probe errors start classified as **MECHANICAL**. Only promote to **ARCHITECT
 For dependency and runtime errors, verify against the MCP catalog before attempting a fix:
 
 ```text
-camel_catalog_component(name="{component}", runtime="{runtime}", platformBom="{bom-gav}")
+camel_catalog_component_doc(component="{component}", runtime="{runtime}", platformBom="{bom-gav}")
 ```
 
 - If the component exists → the error is mechanical (wrong artifact name, wrong groupId, typo)

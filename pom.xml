@@ -40,7 +40,7 @@
         <!-- Also in distribution.properties (runtime source of truth).
              Duplicated here because maven-dependency-plugin resolves
              artifact versions at POM parse time, before any lifecycle phase. -->
-        <camel.mcp.version>${camel.version}</camel.mcp.version>
+        <camel.mcp.version>4.21.0-SNAPSHOT</camel.mcp.version>
 
         <!-- Code quality -->
         <impsort-maven-plugin.version>1.13.0</impsort-maven-plugin.version>

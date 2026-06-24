@@ -88,10 +88,10 @@ Never hardcode connection strings, credentials, or environment-specific values.
 
 Every component used in a route MUST be verified to **exist in the Apache Camel catalog** for the target version.
 
-- **Primary check:** Call `camel_catalog_component` to verify that the component exists in the Apache Camel catalog for the target Camel version.
+- **Primary check:** Call `camel_catalog_component_doc` to verify that the component exists in the Apache Camel catalog for the target Camel version.
 - **If a component does NOT exist in the catalog:**
   1. Raise a WARNING to the user explaining that the component was not found.
-  2. Search for an alternative that provides equivalent functionality (query `camel_catalog_component` for related components).
+  2. Search for an alternative that provides equivalent functionality (query `camel_catalog_component_doc` for related components).
   3. Present the warning and the suggested alternative to the user before proceeding. Let the user decide whether to switch to the alternative.
 - **Violation:** WARNING — this is not a validation blocker, but users must be clearly informed.
 

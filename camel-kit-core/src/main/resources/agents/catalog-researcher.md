@@ -19,10 +19,10 @@ This pattern keeps MCP response traces (often 500+ tokens each) out of the orche
 
 1. Receive a list of artifacts to verify (components, EIPs, dataformats, languages)
 2. For EACH artifact, call the appropriate MCP tool:
-   - `camel_catalog_component_doc(name, runtime, platformBom)` for components
-   - `camel_catalog_eip(name, runtime, platformBom)` for EIPs
-   - `camel_catalog_dataformat(name, runtime, platformBom)` for dataformats
-   - `camel_catalog_language(name, runtime, platformBom)` for languages
+   - `camel_catalog_component_doc(component, runtime, platformBom)` for components
+   - `camel_catalog_eip_doc(eip, runtime, platformBom)` for EIPs
+   - `camel_catalog_dataformat_doc(dataformat, runtime, platformBom)` for dataformats
+   - `camel_catalog_language_doc(language, runtime, platformBom)` for languages
 3. Record verification results: exists (with exact option names) or not found
 4. Return a structured summary
 

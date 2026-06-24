@@ -6,6 +6,7 @@ This document is the reference for all Camel-Kit commands: the `camel-kit` CLI a
 
 - [CLI Commands](#cli-commands)
   - [camel-kit init](#camel-kit-init)
+  - [camel-kit doctor](#camel-kit-doctor)
   - [camel-kit graph](#camel-kit-graph)
   - [camel-kit doc](#camel-kit-doc)
   - [camel-kit nextId](#camel-kit-nextid)
@@ -157,7 +158,7 @@ Any property from `distribution.properties` can be overridden at layers 2 or 3. 
 | `springboot.bom.version` | `4.20.0` | Spring Boot BOM version |
 | `camel.quarkus.version` | `4.18.2` | Apache Camel version for Quarkus projects |
 | `quarkus.platform.version` | `3.33.1` | Quarkus platform BOM version |
-| `camel.mcp.version` | `4.20.0` | Camel MCP server version |
+| `camel.mcp.version` | `4.21.0-SNAPSHOT` | Camel MCP server version |
 
 **Output:**
 
@@ -190,6 +191,42 @@ my-integration/
 ```
 
 The MCP configuration file created depends on the `--ai` option chosen.
+
+### camel-kit doctor
+
+Validate a generated Camel-Kit workspace and report actionable findings.
+
+**Usage:**
+
+```bash
+camel-kit doctor [options]
+```
+
+**Options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--project-dir` | `.` | Workspace directory to validate |
+| `--json` | `false` | Print machine-readable JSON output for automation |
+
+**Examples:**
+
+```bash
+# Check the current workspace
+camel-kit doctor
+
+# Check another workspace
+camel-kit doctor --project-dir /path/to/order-processing
+
+# Produce JSON for automation
+camel-kit doctor --json
+```
+
+**Checks:**
+
+`doctor` validates `.camel-kit/config.properties`, selected agent command stubs, skill directories and `SKILL.md` files, user-invocable command exposure, agent MCP config, MCP tool allowlists, graph availability, command prefix configuration, Java/Maven/JBang prerequisites, and common stale references in active generated files. Internal skills such as `camel-verify` must exist as skills, but must not be exposed as user command stubs.
+
+Findings are printed as `PASS`, `WARN`, or `FAIL`. Missing external prerequisites are warnings so automated checks do not depend on the local machine having every optional tool installed. Broken generated workspace artifacts are failures and produce a non-zero exit code.
 
 ### camel-kit graph
 
@@ -504,10 +541,10 @@ When invoked with a `<PIPELINE_ID>` argument:
 
 **MCP tools used:**
 
-- `camel_catalog_component` -- verify component exists
-- `camel_catalog_eip` -- verify EIP exists
-- `camel_catalog_dataformat` -- verify data format exists
-- `camel_catalog_language` -- verify expression language exists
+- `camel_catalog_component_doc` -- verify component exists
+- `camel_catalog_eip_doc` -- verify EIP exists
+- `camel_catalog_dataformat_doc` -- verify data format exists
+- `camel_catalog_language_doc` -- verify expression language exists
 
 ---
 

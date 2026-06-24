@@ -248,21 +248,39 @@ mcp_servers:
     display_name: "Camel Catalog MCP"
     description: "Apache Camel MCP Server - Component catalog, validation, and security analysis"
     allowed_tools:
-      - camel_catalog_component
       - camel_catalog_components
       - camel_catalog_component_doc
-      - camel_catalog_eip
-      - camel_catalog_eips
-      - camel_catalog_eip_doc
-      - camel_catalog_dataformat
+      - camel_catalog_component_maven
       - camel_catalog_dataformats
       - camel_catalog_dataformat_doc
-      - camel_catalog_language
       - camel_catalog_languages
       - camel_catalog_language_doc
+      - camel_catalog_eips
+      - camel_catalog_eip_doc
+      - camel_catalog_kamelets
+      - camel_catalog_kamelet_doc
+      - camel_catalog_examples
+      - camel_catalog_example_file
       - camel_validate_route
+      - camel_validate_yaml_dsl
+      - camel_transform_route
       - camel_route_context
       - camel_route_harden_context
+      - camel_route_test_scaffold
+      - camel_component_properties
+      - camel_configuration_validate
+      - camel_dependency_check
+      - camel_error_diagnose
+      - camel_properties_translate
+      - camel_version_list
+      - camel_migration_analyze
+      - camel_migration_compatibility
+      - camel_migration_recipes
+      - camel_migration_guide_search
+      - camel_migration_wildfly_karaf
+      - camel_openapi_validate
+      - camel_openapi_scaffold
+      - camel_openapi_mock_guidance
   - id: camel-knowledge
     display_name: "Camel-Kit Knowledge MCP"
     description: "camel-kit Knowledge Server - documentation search for Apache Camel"

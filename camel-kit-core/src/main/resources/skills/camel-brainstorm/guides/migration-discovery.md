@@ -366,7 +366,7 @@ For EACH route to be migrated, design the Camel 4.x equivalent:
    - Load the appropriate mapping guide from `camel-migrate/guides/`:
      - MuleSoft: `mule-component-mapping.md`
      - Camel 2.x: `camel2-component-mapping.md`, `camel2-eip-mapping.md`, `camel2-dataformat-mapping.md`, `camel2-language-mapping.md`
-   - For each mapped component, verify via MCP catalog (`camel_catalog_component`)
+   - For each mapped component, verify via MCP catalog (`camel_catalog_component_doc`)
 
 2. **Handle transformations:**
    - DataWeave → XSLT: load `mule-dataweave-conversion.md`

@@ -29,8 +29,8 @@ Test tasks come after all implementation and validation tasks. Generate one test
 - `camel-test/guides/test-runner.md` — execution and verification
 
 **MCP Tools:**
-- `camel_catalog_component(name="[source-component]")` — understand trigger behavior
-- `camel_catalog_component(name="[sink-component]")` — understand assertion points
+- `camel_catalog_component_doc(component="[source-component]")` — understand trigger behavior
+- `camel_catalog_component_doc(component="[sink-component]")` — understand assertion points
 
 **Design Spec Section:** Section 3, Flow: [flow-name]
 

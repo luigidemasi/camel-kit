@@ -51,7 +51,7 @@ public class DistributionConfig {
         this.camelMainSupported = props.getProperty("camel.main.supported", "4.20.0");
         this.camelSpringbootSupported = props.getProperty("camel.springboot.supported", "4.20.0");
         this.camelQuarkusSupported = props.getProperty("camel.quarkus.supported", "4.18.0");
-        this.camelMcpVersion = props.getProperty("camel.mcp.version", "4.20.0");
+        this.camelMcpVersion = props.getProperty("camel.mcp.version", "4.21.0-SNAPSHOT");
         this.knowledgeMcpVersion = props.getProperty("knowledge.mcp.version", "0.0.1-SNAPSHOT");
         this.camelMcpRepos = props.getProperty("camel.mcp.repos", "maven");
         this.knowledgeMcpRepos = props.getProperty("knowledge.mcp.repos", "maven");
@@ -114,9 +114,19 @@ public class DistributionConfig {
     public static DistributionConfig load(InputStream in) {
         Properties props = new Properties();
         try {
-            props.load(in);
+            if (in != null) {
+                props.load(in);
+            }
         } catch (Exception e) {
             // Fall through with empty properties — defaults will apply
+        }
+        return new DistributionConfig(props, 0);
+    }
+
+    public static DistributionConfig load(Properties properties) {
+        Properties props = new Properties();
+        if (properties != null) {
+            props.putAll(properties);
         }
         return new DistributionConfig(props, 0);
     }

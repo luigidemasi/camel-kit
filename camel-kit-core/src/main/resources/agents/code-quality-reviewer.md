@@ -60,7 +60,7 @@ Check all 7 rules for every route:
 ## MCP Tools You Use
 
 - `camel_catalog_component_doc` — spot-check endpoint URIs and options
-- `camel_catalog_eip` — verify EIP configuration
+- `camel_catalog_eip_doc` — verify EIP configuration
 
 ## Guides You Reference
 

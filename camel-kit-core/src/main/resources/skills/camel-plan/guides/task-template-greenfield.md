@@ -73,10 +73,10 @@ Do NOT generate the POM from scratch. COPY the template file and replace ONLY th
 - `camel-implement/guides/sequential-http-calls.md` (if HTTP→HTTP)
 
 **MCP Tools:**
-- `camel_catalog_component(name="[source-component]", runtime="[runtime]", platformBom="[bom]")`
-- `camel_catalog_component(name="[sink-component]", runtime="[runtime]", platformBom="[bom]")`
-- `camel_catalog_eip(name="[eip]")` for each EIP used
-- `camel_catalog_dataformat(name="[format]")` for each data format
+- `camel_catalog_component_doc(component="[source-component]", runtime="[runtime]", platformBom="[bom]")`
+- `camel_catalog_component_doc(component="[sink-component]", runtime="[runtime]", platformBom="[bom]")`
+- `camel_catalog_eip_doc(eip="[eip]")` for each EIP used
+- `camel_catalog_dataformat_doc(dataformat="[format]")` for each data format
 
 **Design Spec Section:** Section 3, Flow: [flow-name]
 
@@ -165,7 +165,7 @@ Do NOT generate the POM from scratch. COPY the template file and replace ONLY th
 - `camel-validate/guides/anti-patterns.md`
 
 **MCP Tools:**
-- `camel_catalog_component` for each endpoint URI
+- `camel_catalog_component_doc` for each endpoint URI
 
 - [ ] Run schema validation on each route YAML
 - [ ] Verify each endpoint URI via MCP catalog

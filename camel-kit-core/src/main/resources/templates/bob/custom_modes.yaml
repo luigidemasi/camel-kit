@@ -54,7 +54,7 @@ customModes:
       Use this mode when implementing Camel routes from an approved plan.
       Activated during the implementation phase of the camel-kit pipeline.
     customInstructions: >
-      Every component MUST be verified via camel_catalog_component before use.
+      Every component MUST be verified via camel_catalog_component_doc before use.
       Follow the plan step by step. Do not skip steps or add unrequested features.
     groups:
       - read

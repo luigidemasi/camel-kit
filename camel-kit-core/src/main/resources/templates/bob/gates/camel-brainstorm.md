@@ -146,7 +146,7 @@ For each flow, design the integration using relevant guides from `camel-design/`
 - Resilience: `guides/resilience.md`
 
 **CRITICAL:** Verify EVERY component via MCP:
-1. `camel_catalog_component` — verify component exists
+1. `camel_catalog_component_doc` — verify component exists
 
 Do NOT guess component names. MCP catalog is truth.
 </Step>
@@ -374,10 +374,10 @@ Read `shared/iron-laws.md` for the full Iron Laws. This skill enforces:
 
 ## MCP Tools Used
 
-- `camel_catalog_component` — verify component exists, get options
-- `camel_catalog_eip` — verify EIP exists, get configuration
-- `camel_catalog_dataformat` — verify dataformat exists
-- `camel_catalog_language` — verify expression language exists
+- `camel_catalog_component_doc` — verify component exists, get options
+- `camel_catalog_eip_doc` — verify EIP exists, get configuration
+- `camel_catalog_dataformat_doc` — verify dataformat exists
+- `camel_catalog_language_doc` — verify expression language exists
 - `camel_docs_search` — search docs for guidance
 
 For MCP setup, version mapping, and fallback policy: see `shared/mcp-setup.md`

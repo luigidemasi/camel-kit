@@ -10,20 +10,8 @@
         "org.apache.camel:camel-jbang-mcp:{CAMEL_MCP_VERSION}:runner"
       ],
       "description": "Apache Camel MCP Server - Component catalog, validation, and security analysis",
-      "autoApprove": [
-        "camel_catalog_component", "camel_catalog_components", "camel_catalog_component_doc",
-        "camel_catalog_eip", "camel_catalog_eips", "camel_catalog_eip_doc",
-        "camel_catalog_dataformat", "camel_catalog_dataformats", "camel_catalog_dataformat_doc",
-        "camel_catalog_language", "camel_catalog_languages", "camel_catalog_language_doc",
-        "camel_validate_route", "camel_route_context", "camel_route_harden_context"
-      ],
-      "alwaysAllow": [
-        "camel_catalog_component", "camel_catalog_components", "camel_catalog_component_doc",
-        "camel_catalog_eip", "camel_catalog_eips", "camel_catalog_eip_doc",
-        "camel_catalog_dataformat", "camel_catalog_dataformats", "camel_catalog_dataformat_doc",
-        "camel_catalog_language", "camel_catalog_languages", "camel_catalog_language_doc",
-        "camel_validate_route", "camel_route_context", "camel_route_harden_context"
-      ]
+      "autoApprove": {CAMEL_TOOLS_JSON},
+      "alwaysAllow": {CAMEL_TOOLS_JSON}
     },
     "camel-knowledge": {
       "command": "jbang",

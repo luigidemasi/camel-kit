@@ -17,7 +17,7 @@ You do NOT know what components exist. You do NOT know their options. The MCP ca
 
 **Gate function:**
 1. IDENTIFY the component/EIP/dataformat/language name
-2. CALL the appropriate MCP tool (`camel_catalog_component`, `camel_catalog_eip`, `camel_catalog_dataformat`, `camel_catalog_language`)
+2. CALL the appropriate MCP tool (`camel_catalog_component_doc`, `camel_catalog_eip_doc`, `camel_catalog_dataformat_doc`, `camel_catalog_language_doc`)
 3. READ the response — confirm the artifact exists and note exact option names
 4. USE only verified names and options in your output
 5. If the artifact does NOT exist, STOP and find an alternative

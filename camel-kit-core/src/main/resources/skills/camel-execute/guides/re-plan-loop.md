@@ -40,7 +40,7 @@ Triggered when the MCP catalog CONFIRMS the failure is structural. Skip further 
 
 | Failure | MCP Verification | Action |
 |---|---|---|
-| Component does not exist in the catalog for this runtime/version | `camel_catalog_component` returns no result | Enter re-plan |
+| Component does not exist in the catalog for this runtime/version | `camel_catalog_component_doc` returns no result | Enter re-plan |
 | Required EIP pattern not available in this Camel version | `camel_catalog_model` returns no result | Enter re-plan |
 | Component combination is invalid (incompatible transitive dependencies confirmed) | Both components exist individually but dependency analysis shows conflict | Enter re-plan |
 
@@ -82,12 +82,13 @@ Determine which TDD file(s) and which sections within those TDDs need modificati
 
 Query the MCP catalog for alternative components that fulfill the same role.
 
-1. Call `camel_catalog_component` with the target `runtime` and `platformBom` to list available components in the same category
+1. Call `camel_catalog_components` with the target `runtime`, `platformBom`, and a category/name/label filter
+   to list available components in the same category
 2. Identify an alternative component that:
    - Fulfills the same integration role (same protocol family or equivalent)
    - Has required options that can satisfy the TDD requirements
    - Does not conflict with other planned components in the project
-3. Verify the alternative's required and optional options via `camel_catalog_component(name="{alternative}")`
+3. Verify the alternative's required and optional options via `camel_catalog_component_doc(component="{alternative}")`
 4. If no viable alternative exists in the catalog — skip to escalation (do not guess)
 
 ### Step 3: Modify TDD

@@ -1,6 +1,7 @@
 package io.github.luigidemasi.camelkit.config;
 
 import java.io.InputStream;
+import java.util.Properties;
 
 import org.junit.jupiter.api.Test;
 
@@ -59,11 +60,24 @@ class DistributionConfigTest {
         InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
         DistributionConfig config = DistributionConfig.load(in);
 
-        assertEquals("4.20.0", config.camelMcpVersion());
+        assertEquals("4.21.0-SNAPSHOT", config.camelMcpVersion());
         assertEquals("0.0.1-SNAPSHOT", config.knowledgeMcpVersion());
         assertEquals("maven", config.camelMcpRepos());
         assertEquals("maven", config.knowledgeMcpRepos());
         assertEquals("maven", config.camelCatalogRepos());
+    }
+
+    @Test
+    void camelMcpVersionCanBeOverriddenViaProperties() {
+        InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
+        DistributionConfig baselineConfig = DistributionConfig.load(in);
+        assertEquals("4.21.0-SNAPSHOT", baselineConfig.camelMcpVersion());
+
+        Properties properties = new Properties();
+        properties.setProperty("camel.mcp.version", "9.9.9-TEST");
+
+        DistributionConfig overriddenConfig = DistributionConfig.load(properties);
+        assertEquals("9.9.9-TEST", overriddenConfig.camelMcpVersion());
     }
 
     @Test
