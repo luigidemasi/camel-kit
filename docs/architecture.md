@@ -458,77 +458,87 @@ The `DefaultGenerator` provides shared logic (skill file copying, MCP config gen
 
 ## 6. MCP Integration
 
-### Camel Catalog MCP
+### Camel JBang MCP
 
-The Camel MCP server (`camel-jbang-mcp`) provides **15 tools** organized into 6 categories:
+The Camel MCP server (`camel-jbang-mcp`, `4.21.0-SNAPSHOT`) exposes the Camel catalog, route validation,
+diagnostics, migration, and scaffolding tools. Camel-Kit auto-allows the read-only and generation helpers used by
+the skills, and leaves runtime mutation/control tools out of the generated allowlist.
 
-#### 1. Catalog Exploration (8 tools)
+#### 1. Catalog Exploration
 
 | Tool Name | Purpose |
 |-----------|---------|
 | `camel_catalog_components` | List Camel components with filtering by name, label, runtime |
 | `camel_catalog_component_doc` | Get comprehensive component documentation |
+| `camel_catalog_component_maven` | Get Maven coordinates for a component |
 | `camel_catalog_dataformats` | List data formats (JSON, XML, CSV, etc.) |
 | `camel_catalog_dataformat_doc` | Get data format configuration options |
 | `camel_catalog_languages` | List expression languages (Simple, JsonPath, XPath, JQ) |
 | `camel_catalog_language_doc` | Get expression language documentation |
 | `camel_catalog_eips` | List Enterprise Integration Patterns |
 | `camel_catalog_eip_doc` | Get EIP documentation and configuration |
-
-#### 2. Kamelet Catalog (2 tools)
-
-| Tool Name | Purpose |
-|-----------|---------|
 | `camel_catalog_kamelets` | List available Kamelets with filtering |
 | `camel_catalog_kamelet_doc` | Get Kamelet documentation and dependencies |
+| `camel_catalog_examples` | List Camel examples |
+| `camel_catalog_example_file` | Read a file from a Camel example |
 
-#### 3. Route Understanding (1 tool)
-
-| Tool Name | Purpose |
-|-----------|---------|
-| `camel_route_context` | Extract components and EIPs from route (YAML/XML/Java) |
-
-#### 4. Security Analysis (1 tool)
+#### 2. Route Validation, Security, And Tests
 
 | Tool Name | Purpose |
 |-----------|---------|
-| `camel_route_harden_context` | Analyze routes for security concerns (47 checks) |
-
-#### 5. Validation and Transformation (2 tools)
-
-| Tool Name | Purpose |
-|-----------|---------|
-| `camel_validate_route` | Validate endpoint URIs against catalog schema |
+| `camel_validate_route` | Validate endpoint URIs and route definitions against catalog schema |
+| `camel_validate_yaml_dsl` | Validate Camel YAML DSL syntax |
 | `camel_transform_route` | Convert routes between YAML and XML formats |
+| `camel_route_context` | Extract components and EIPs from route (YAML/XML/Java) |
+| `camel_route_harden_context` | Analyze routes for security concerns (47 checks) |
+| `camel_route_test_scaffold` | Generate a JUnit 5 test skeleton for a route |
 
-#### 6. Version Management (1 tool)
+#### 3. Diagnostics And Configuration
 
 | Tool Name | Purpose |
 |-----------|---------|
+| `camel_component_properties` | Inspect component property metadata |
+| `camel_configuration_validate` | Validate Camel configuration properties |
+| `camel_dependency_check` | Check dependencies for common Camel issues |
+| `camel_error_diagnose` | Diagnose Camel errors |
+| `camel_properties_translate` | Translate properties between Camel runtimes |
 | `camel_version_list` | List Camel versions with LTS status and JDK requirements |
+
+#### 4. Migration And OpenAPI
+
+| Tool Name | Purpose |
+|-----------|---------|
+| `camel_migration_analyze` | Analyze a project for migration concerns |
+| `camel_migration_compatibility` | Check migration compatibility |
+| `camel_migration_recipes` | Find migration recipes |
+| `camel_migration_guide_search` | Search Camel migration guidance |
+| `camel_migration_wildfly_karaf` | Analyze WildFly/Karaf migration concerns |
+| `camel_openapi_validate` | Validate OpenAPI input for Camel use |
+| `camel_openapi_scaffold` | Generate Camel OpenAPI route scaffolding |
+| `camel_openapi_mock_guidance` | Provide OpenAPI mock guidance |
 
 ### Knowledge Layer MCP
 
-Separate from the Camel Catalog MCP, the knowledge layer runs from the `camel-kit-knowledge` repository (a separate project with its own version line).
+Separate from Camel JBang MCP, the knowledge layer runs from the `camel-kit-knowledge` repository and exposes
+`camel_docs_*` documentation search tools.
 
 | Tool Name | Purpose |
 |-----------|---------|
-| `camel_docs_search` | General documentation search |
-| `camel_docs_component_info` | Component documentation and CVE lookup |
-| `camel_docs_cve_search` | CVE security advisory search |
-| `camel_docs_release_info` | Release notes for a version |
-| `camel_docs_jira_lookup` | JIRA issue lookup by ID |
+| `camel_docs_search` | General hybrid search across Apache Camel documentation |
+| `camel_docs_component_info` | Component documentation lookup with usage, options, and related CVEs |
+| `camel_docs_cve_search` | CVE search by ID, component, severity, or version |
+| `camel_docs_release_info` | Release notes by version |
+| `camel_docs_jira_lookup` | CAMEL-* JIRA issue details and fix version |
 
 ### Tool Usage by Skill
 
 | Skill | Tools Used | Count |
 |-------|------------|-------|
-| `camel-brainstorm` | `camel_version_list`, `camel_catalog_*` (all 8) | 9 |
-| `camel-brainstorm` | `camel_catalog_components`, `camel_catalog_component_doc`, `camel_catalog_eips`, `camel_catalog_eip_doc`, `camel_catalog_dataformats`, `camel_catalog_dataformat_doc`, `camel_catalog_languages`, `camel_catalog_language_doc` | 8 |
-| `camel-migrate` | Same as `camel-brainstorm` (Phase 2) | 8 |
-| `camel-implement` | `camel_catalog_component_doc`, `camel_catalog_dataformat_doc`, `camel_catalog_eip_doc`, `camel_catalog_language_doc`, `camel_route_context`, `camel_validate_route` | 6 |
-| `camel-validate` | `camel_validate_route`, `camel_route_harden_context` | 2 |
-| `camel-test` | `camel_route_context`, `camel_catalog_component_doc` | 2 |
+| `camel-brainstorm` | Catalog discovery/detail tools, `camel_version_list`, `camel_docs_search` | varies |
+| `camel-migrate` | Catalog, migration, and knowledge tools | varies |
+| `camel-implement` | Catalog detail tools, route context, validation, transformation, test scaffold | varies |
+| `camel-validate` | Route validation, hardening, diagnostics, dependency/config checks | varies |
+| `camel-test` | Route context, catalog details, test scaffold | varies |
 | `camel-knowledge` | `camel_docs_search`, `camel_docs_component_info`, `camel_docs_cve_search`, `camel_docs_release_info`, `camel_docs_jira_lookup` | 5 |
 
 ### Token Savings

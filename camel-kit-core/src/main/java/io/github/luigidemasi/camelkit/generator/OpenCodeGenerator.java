@@ -18,9 +18,7 @@ public class OpenCodeGenerator extends DefaultGenerator {
             "camel-brainstorm",
             "@brainstormer discover integration requirements and design Camel routes for this project",
             "camel-plan", "@planner create an implementation plan with TDD task decomposition for this project",
-            "camel-implement", "@implementer implement the Camel routes in this project",
             "camel-validate", "@validator validate the Camel routes in this project",
-            "camel-test", "@tester write and run tests for the Camel routes in this project",
             "camel-migrate", "@migrator migrate the integrations to Apache Camel",
             "camel-execute", "@executor execute the implementation plan for this project");
 

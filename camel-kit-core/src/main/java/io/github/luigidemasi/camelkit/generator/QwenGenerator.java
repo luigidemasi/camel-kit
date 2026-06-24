@@ -19,11 +19,7 @@ public class QwenGenerator extends DefaultGenerator {
             "Delegate to the camel-brainstormer sub-agent: discover integration requirements and design Camel routes for this project",
             "camel-plan",
             "Delegate to the camel-planner sub-agent: create an implementation plan with TDD task decomposition for this project",
-            "camel-implement",
-            "Delegate to the camel-implementer sub-agent: implement the Camel routes in this project",
             "camel-validate", "Delegate to the camel-validator sub-agent: validate the Camel routes in this project",
-            "camel-test",
-            "Delegate to the camel-tester sub-agent: write and run tests for the Camel routes in this project",
             "camel-migrate", "Delegate to the camel-migrator sub-agent: migrate the integrations to Apache Camel",
             "camel-execute",
             "Delegate to the camel-executor sub-agent: execute the implementation plan for this project");

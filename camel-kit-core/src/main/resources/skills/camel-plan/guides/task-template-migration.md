@@ -59,10 +59,10 @@ These tasks are added to the standard greenfield sequence:
 - `camel-migrate/guides/camel2-dataformat-mapping.md` (Camel 2.x)
 
 **MCP Tools:**
-- `camel_catalog_component(name="[target-component]", runtime="[runtime]", platformBom="[bom]")`
+- `camel_catalog_component_doc(component="[target-component]", runtime="[runtime]", platformBom="[bom]")`
 
 - [ ] For each component in the mapping table:
-  - [ ] Verify target component exists via `camel_catalog_component`
+  - [ ] Verify target component exists via `camel_catalog_component_doc`
   - [ ] Note exact option names from catalog (may differ from source)
 - [ ] If any mapping fails, flag and suggest alternative
 

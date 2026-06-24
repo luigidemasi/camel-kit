@@ -2,7 +2,7 @@
 
 These rules apply across ALL camel-kit pipeline modes. They are non-negotiable.
 
-1. **MCP Catalog Verification** — Every component, EIP, dataformat, and language MUST be verified via the MCP catalog (`camel_catalog_component`, `camel_catalog_eip`, etc.) before inclusion in any design, plan, or implementation. You do NOT guess component names from training data.
+1. **MCP Catalog Verification** — Every component, EIP, dataformat, and language MUST be verified via the MCP catalog (`camel_catalog_component_doc`, `camel_catalog_eip_doc`, etc.) before inclusion in any design, plan, or implementation. You do NOT guess component names from training data.
 
 2. **Constitution Enforcement** — Read and follow `docs/constitution.md` in every pipeline phase. The constitution defines project-specific rules that override general best practices.
 

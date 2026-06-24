@@ -89,7 +89,7 @@ Never hardcode connection strings, credentials, or environment-specific values.
 
 Every component used in a route MUST be verified as **available** in the target Camel version.
 
-- **Primary check:** Call `camel_catalog_component` (via Camel MCP) to check whether the component exists in the Apache Camel catalog for the target version.
+- **Primary check:** Call `camel_catalog_component_doc` (via Camel MCP) to check whether the component exists in the Apache Camel catalog for the target version.
 - **If a component is NOT found:**
   1. Raise a WARNING to the user explaining the availability status.
   2. Search for an alternative that provides equivalent functionality.

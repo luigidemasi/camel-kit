@@ -43,8 +43,8 @@ You are dispatched for migration-specific tasks:
 
 ## MCP Tools You Use
 
-- `camel_catalog_component` — verify target component exists and get exact options
-- `camel_catalog_eip` — verify EIP availability in target version
+- `camel_catalog_component_doc` — verify target component exists and get exact options
+- `camel_catalog_eip_doc` — verify EIP availability in target version
 - `camel_graph_analyze` — analyze project structure for large-scale migrations
 
 ## Guides You Reference

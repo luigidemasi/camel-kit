@@ -35,9 +35,9 @@ You are dispatched during the **Brainstorm phase** to:
 ## MCP Tools You Use
 
 - `camel_catalog_component_doc` — verify component exists, get exact option names
-- `camel_catalog_eip` — verify EIP exists, get configuration options
-- `camel_catalog_dataformat` — verify dataformat exists
-- `camel_catalog_language` — verify expression language exists
+- `camel_catalog_eip_doc` — verify EIP exists, get configuration options
+- `camel_catalog_dataformat_doc` — verify dataformat exists
+- `camel_catalog_language_doc` — verify expression language exists
 
 ## Output Format
 

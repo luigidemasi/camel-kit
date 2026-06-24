@@ -106,7 +106,7 @@ Re-check TDD Section 2/4 for the correct component name. Verify against MCP cata
 **Phase:** Startup
 **Category:** Component/endpoint
 **Fix target:** camel-validate
-**Fix action:** The component endpoint options are invalid for this Camel version. Load `camel-validate` and re-validate the component options against the MCP catalog (`camel_catalog_component`). Common cause: option names changed between Camel versions.
+**Fix action:** The component endpoint options are invalid for this Camel version. Load `camel-validate` and re-validate the component options against the MCP catalog (`camel_catalog_component_doc`). Common cause: option names changed between Camel versions.
 
 ### Missing Bean
 
@@ -254,7 +254,7 @@ After 1 failed fix attempt, query the MCP catalog to check if the failure is str
 - Required EIP pattern not available in this Camel version → `re-plan`
 - Incompatible component combination confirmed → `re-plan`
 
-**Detection:** After the first fix attempt fails, call `camel_catalog_component(name={component}, runtime={runtime}, platformBom={bom})`. If MCP returns no result, the failure is structural. Route to `re-plan` immediately — do not consume additional fix attempts.
+**Detection:** After the first fix attempt fails, call `camel_catalog_component_doc(component={component}, runtime={runtime}, platformBom={bom})`. If MCP returns no result, the failure is structural. Route to `re-plan` immediately — do not consume additional fix attempts.
 
 ### Tier 2: Progressive Promotion
 

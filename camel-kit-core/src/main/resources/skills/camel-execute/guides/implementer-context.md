@@ -73,7 +73,7 @@ For all MCP catalog calls, use these parameters:
 - platformBom: [full GAV]
 
 Example call:
-camel_catalog_component_doc(name="kafka", runtime="spring-boot", platformBom="org.apache.camel.springboot:camel-catalog-provider-springboot:4.14.0")
+camel_catalog_component_doc(component="kafka", runtime="spring-boot", platformBom="org.apache.camel.springboot:camel-catalog-provider-springboot:4.14.0")
 ```
 
 #### 7. Pre-Verified Catalog Summary

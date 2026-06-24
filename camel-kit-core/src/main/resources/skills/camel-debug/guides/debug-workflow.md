@@ -100,7 +100,7 @@ For errors related to components, endpoints, or data formats:
 1. Identify all components referenced in the affected route files
 2. For each component, call the MCP catalog tool:
    ```
-   camel_catalog_component(name="{component}", runtime="{runtime}", platformBom="{bom}")
+   camel_catalog_component_doc(component="{component}", runtime="{runtime}", platformBom="{bom}")
    ```
 3. Check:
    - Does the component exist for this runtime and version?

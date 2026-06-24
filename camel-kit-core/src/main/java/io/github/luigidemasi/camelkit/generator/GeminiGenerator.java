@@ -27,18 +27,10 @@ public class GeminiGenerator extends DefaultGenerator {
             new String[]{
                     "Create implementation plan",
                     "Delegate this task to the camel-planner subagent.\nRead .gemini/skills/camel-plan/SKILL.md and follow those instructions."},
-            "camel-implement",
-            new String[]{
-                    "Implement Camel routes",
-                    "Delegate this task to the camel-implementer subagent.\nRead .gemini/skills/camel-implement/SKILL.md and follow those instructions."},
             "camel-validate",
             new String[]{
                     "Validate Camel routes against quality rules",
                     "Delegate this task to the camel-validator subagent.\nRead .gemini/skills/camel-validate/SKILL.md and follow those instructions."},
-            "camel-test",
-            new String[]{
-                    "Write and run tests for Camel routes",
-                    "Delegate this task to the camel-tester subagent.\nRead .gemini/skills/camel-test/SKILL.md and follow those instructions."},
             "camel-migrate",
             new String[]{
                     "Migrate integrations to Apache Camel",

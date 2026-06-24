@@ -55,7 +55,7 @@ The runtime affects which components are returned (e.g., Quarkus extensions vs S
 
 ### Rule 3: Omitting `platformBom` and `camelVersion`
 
-When both are omitted, the MCP server uses its built-in catalog (4.20.0). This is a superset of all versions — component schemas are backwards-compatible. Use this as a fallback when the exact version doesn't matter.
+When both are omitted, the MCP server uses its built-in catalog (4.21.0-SNAPSHOT). Use this as a fallback when the exact version doesn't matter.
 
 **Examples:**
 - Project has `camelVersion: 4.14.4`, `runtime: quarkus` → `runtime=quarkus`, `platformBom=io.quarkus.platform:quarkus-camel-bom:3.17.7`

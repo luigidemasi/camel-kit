@@ -5,7 +5,7 @@
 For EVERY component, EIP, dataformat, or language used in implementation:
 
 1. Look up in the mapping guide (if migration)
-2. Call `camel_catalog_component` / `camel_catalog_eip` / etc. to verify it exists
+2. Call `camel_catalog_component_doc` / `camel_catalog_eip_doc` / etc. to verify it exists
 3. Only then use it in code
 
 ## YAML DSL

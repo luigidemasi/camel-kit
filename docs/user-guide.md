@@ -30,7 +30,7 @@ Camel-Kit is an AI-powered toolkit that guides you through designing, planning, 
 | **TDD** (Technical Design Document) | Per-flow specification. Describes the source, processing steps, sink, error handling, data transformation, configuration, and dependencies for a single Camel route. |
 | **MCP** (Model Context Protocol) | Real-time catalog queries. The AI assistant queries the Camel MCP server to verify components, EIPs, data formats, and expression languages exist in your exact Camel version -- never relying on training data. |
 | **Constitution** | Seven route quality rules enforced on every generated route: route structure, single responsibility, separation of concerns, naming conventions, observability, external configuration, and component support verification. |
-| **Iron Laws** | Four non-negotiable pipeline rules that govern the entire workflow: (1) MCP catalog verification for every component, (2) constitution compliance on every route, (3) no code without design approval (planning and execution flow continuously after design is approved), (4) spec compliance review before quality review. |
+| **Iron Laws** | Non-negotiable pipeline rules that govern the entire workflow: MCP catalog verification for every component, constitution compliance on every route, no code without design approval, and spec compliance review before quality review. |
 
 ---
 
@@ -195,6 +195,22 @@ order-processing/
 ```
 
 The init command checks prerequisites (Java, JBang, Camel JBang, test plugin), copies skill files, configures MCP, and sets up the Maven wrapper so you can start designing immediately. If the target directory already contains a camel-kit project (`AGENTS.md` or `.camel-kit/`), init warns and exits — use `--force` to overwrite.
+
+### Validating the Workspace
+
+After initialization, run `doctor` from the workspace root:
+
+```bash
+camel-kit doctor
+```
+
+`doctor` checks the generated configuration, command stubs, skill files, MCP config and allowlists, project graph, command prefix, prerequisites, and common stale generated references. It also verifies that internal skills such as `camel-verify` are present as skills but not exposed as user command stubs. It prints `PASS`, `WARN`, and `FAIL` findings with remediation text. External tools such as JBang and Camel JBang are reported as warnings when unavailable; broken generated workspace files are failures.
+
+For automation:
+
+```bash
+camel-kit doctor --json
+```
 
 ---
 
@@ -800,6 +816,14 @@ If the MCP server is unavailable, the AI assistant falls back to bundled compone
 ---
 
 ## 11. Troubleshooting
+
+Start with the workspace diagnostic:
+
+```bash
+camel-kit doctor
+```
+
+Use `camel-kit doctor --json` in scripts or CI to detect broken generated files. A `FAIL` means the generated workspace needs repair; a `WARN` usually means an optional prerequisite or persisted graph file is missing.
 
 ### Catalog Not Found
 

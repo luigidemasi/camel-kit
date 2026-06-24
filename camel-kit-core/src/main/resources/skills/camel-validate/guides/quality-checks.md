@@ -62,7 +62,7 @@ SQL Component:
 
 ### 5.2 Component Catalog Verification (optional, if catalog MCP is available)
 
-For each component, call `camel_catalog_component` to collect catalog availability. If the tool call fails (tool not found, network error), skip this section with a note: `"Skipping catalog verification — MCP not available."`
+For each component, call `camel_catalog_component_doc` to collect catalog availability. If the tool call fails (tool not found, network error), skip this section with a note: `"Skipping catalog verification — MCP not available."`
 
 **This step is data collection only.** Store the results (availability per component) for use in Stage 6 Constitution Rule 7, which evaluates and reports warnings.
 
@@ -108,7 +108,7 @@ Validate against the 7 rules in `docs/constitution.md`. Each gate maps 1:1 to a 
 | 4 | Naming Conventions | Route ID convention | If PROJECT_NORMS.NAMING_PATTERN is available, validate route ID against the project's dominant pattern (examples: PROJECT_NORMS.NAMING_EXAMPLES). Otherwise, route ID matches `{domain}-{action}` lowercase kebab-case. Valid: `order-process`, `user-notify`. Invalid: `route1`, `myRoute`, `OrderProcess`. Regex: `^[a-z][a-z0-9]*(-[a-z][a-z0-9]*)+$` | WARNING |
 | 5 | Observability | routeId + description | Every route declares both a `routeId` and a `description` (≥10 chars describing the flow's business purpose). These are essential for monitoring, logging, and tracing. | FAIL |
 | 6 | External Configuration | No hardcoded values | No hostnames, ports, IPs, database URLs, queue names, credentials, API keys, tokens, or secrets in route YAML. Detect patterns: `password=`, `apiKey=`, `secret=`, `token=`, Base64 strings >20 chars, `jdbc:` URLs with inline credentials. All must use `{{placeholder}}` syntax. | FAIL |
-| 7 | Component Support | Catalog verified | Every component verified to exist in the Apache Camel catalog for the target version. **Primary:** Uses Stage 5.2 collected data (from `camel_catalog_component`). **Fallback (Stage 5.2 was skipped):** Consult the Apache Camel component catalog for the target version. Two warning levels: (1) **Not found** — component not in catalog; (2) **Deprecated** — component is deprecated in the target version. "Available" passes without warning. | WARNING |
+| 7 | Component Support | Catalog verified | Every component verified to exist in the Apache Camel catalog for the target version. **Primary:** Uses Stage 5.2 collected data (from `camel_catalog_component_doc`). **Fallback (Stage 5.2 was skipped):** Consult the Apache Camel component catalog for the target version. Two warning levels: (1) **Not found** — component not in catalog; (2) **Deprecated** — component is deprecated in the target version. "Available" passes without warning. | WARNING |
 
 Show results:
 

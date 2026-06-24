@@ -52,7 +52,7 @@ You produce **PASS** or a list of **spec violations**. You never generate altern
 ## MCP Tools You Use
 
 - `camel_catalog_component_doc` — verify component option names and URI syntax
-- `camel_catalog_eip` — verify EIP configuration options
+- `camel_catalog_eip_doc` — verify EIP configuration options
 
 ## Output Format
 

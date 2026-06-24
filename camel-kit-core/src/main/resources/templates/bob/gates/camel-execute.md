@@ -80,10 +80,10 @@ For EACH task in the queue:
 Follow the task's step-by-step instructions. For implementation tasks:
 
 1. **Verify components via MCP:**
-   - For EVERY component: `camel_catalog_component`
-   - For EVERY EIP: `camel_catalog_eip`
-   - For EVERY dataformat: `camel_catalog_dataformat`
-   - For EVERY language: `camel_catalog_language`
+   - For EVERY component: `camel_catalog_component_doc`
+   - For EVERY EIP: `camel_catalog_eip_doc`
+   - For EVERY dataformat: `camel_catalog_dataformat_doc`
+   - For EVERY language: `camel_catalog_language_doc`
 
 2. **Generate artifacts:**
    - YAML routes: follow `guides/yaml-structure.md` + `guides/yaml-catalog-rules.md`

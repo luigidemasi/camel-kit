@@ -324,6 +324,8 @@ public class DefaultGenerator implements AgentGenerator {
                             "CAMEL_MCP_REPOS", camelMcpRepos,
                             "KNOWLEDGE_MCP_REPOS", knowledgeMcpRepos,
                             "CAMEL_CATALOG_REPOS", CamelKitMain.CAMEL_CATALOG_REPOS));
+            WorkflowManifest.WorkflowMcpServer camelServer = workflow.mcpServer("camel");
+            templateData.put("CAMEL_TOOLS_JSON", toJsonArray(camelServer.allowedTools()));
             templateData.put("CAMEL_VERSION", dist.camelMainVersion());
             templateData.put("CAMEL_MAIN_VERSION", dist.camelMainVersion());
             templateData.put("CAMEL_SPRINGBOOT_VERSION", dist.camelSpringbootVersion());

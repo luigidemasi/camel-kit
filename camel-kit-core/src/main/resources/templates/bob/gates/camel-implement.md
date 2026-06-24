@@ -61,10 +61,10 @@ For EACH route in the plan:
 
 1. **Read the TDD** at `docs/flows/<flow-name>/<flow-name>.tdd.md`
 2. **Verify components via MCP:**
-   - For EVERY component: `camel_catalog_component(name="X", runtime="Y", platformBom="Z")`
-   - For EVERY EIP: `camel_catalog_eip(name="X")`
-   - For EVERY dataformat: `camel_catalog_dataformat(name="X")`
-   - For EVERY language: `camel_catalog_language(name="X")`
+   - For EVERY component: `camel_catalog_component_doc(component="X", runtime="Y", platformBom="Z")`
+   - For EVERY EIP: `camel_catalog_eip_doc(eip="X")`
+   - For EVERY dataformat: `camel_catalog_dataformat_doc(dataformat="X")`
+   - For EVERY language: `camel_catalog_language_doc(language="X")`
 3. **Write the failing test FIRST:**
    - Load `guides/test-generation.md`
    - Write a Citrus test that expects the behavior from the TDD
@@ -168,10 +168,10 @@ All implementation enforces:
 
 ## MCP Tools Used
 
-- `camel_catalog_component` — verify component exists, get options schema
-- `camel_catalog_eip` — verify EIP exists, get configuration schema
-- `camel_catalog_dataformat` — verify dataformat exists
-- `camel_catalog_language` — verify expression language exists
+- `camel_catalog_component_doc` — verify component exists, get options schema
+- `camel_catalog_eip_doc` — verify EIP exists, get configuration schema
+- `camel_catalog_dataformat_doc` — verify dataformat exists
+- `camel_catalog_language_doc` — verify expression language exists
 
 For MCP setup, version mapping, and fallback policy: see `shared/mcp-setup.md`
 

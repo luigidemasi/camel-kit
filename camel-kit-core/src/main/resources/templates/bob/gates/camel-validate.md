@@ -78,7 +78,7 @@ Load `guides/endpoint-validation.md`.
 
 For EVERY endpoint URI:
 1. Extract scheme (component name)
-2. Call `camel_catalog_component(name="<scheme>", runtime="...", platformBom="...")`
+2. Call `camel_catalog_component_doc(component="<scheme>", runtime="...", platformBom="...")`
 3. Parse URI options
 4. Validate each option against catalog schema
 5. Check for typos in option names
@@ -124,7 +124,7 @@ Check all 7 constitution rules:
 - Report insecure endpoints
 
 **Rule 7: Component Verification**
-- Call `camel_catalog_component` for every component
+- Call `camel_catalog_component_doc` for every component
 - Report unrecognized components
 
 Report constitution violations per route.
@@ -296,8 +296,8 @@ Validation enforces:
 
 ## MCP Tools Used
 
-- `camel_catalog_component` — verify component exists, validate options
-- `camel_catalog_eip` — verify EIP schema
+- `camel_catalog_component_doc` — verify component exists, validate options
+- `camel_catalog_eip_doc` — verify EIP schema
 
 For MCP setup: see `shared/mcp-setup.md`
 
