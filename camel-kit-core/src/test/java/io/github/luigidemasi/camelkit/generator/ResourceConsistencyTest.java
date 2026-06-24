@@ -16,6 +16,7 @@ import java.util.stream.Stream;
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
+import io.github.luigidemasi.camelkit.workflow.WorkflowManifestLoader;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -82,7 +83,11 @@ class ResourceConsistencyTest {
                         .collect(Collectors.toCollection(LinkedHashSet::new));
             }
 
-            assertEquals(new LinkedHashSet<>(DefaultGenerator.GENERATED_COMMAND_SKILLS), generatedCommands,
+            Set<String> expectedCommands = WorkflowManifestLoader.loadDefault().generatedCommandStubs().stream()
+                    .map(command -> command.name())
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+
+            assertEquals(expectedCommands, generatedCommands,
                     "Generated command stubs for " + agentName + " must match the public slash-command surface");
             assertFalse(generatedCommands.contains("camel-verify"), "camel-verify is internal to camel-execute");
             assertFalse(generatedCommands.contains("camel-implement"), "camel-implement is an internal guide skill");
@@ -105,13 +110,17 @@ class ResourceConsistencyTest {
         }
     }
 
-    private static void assertKnowledgeTools(String agentName, String field, JsonNode allowlist) {
+    private static void assertKnowledgeTools(String agentName, String field, JsonNode allowlist) throws IOException {
         assertNotNull(allowlist, "Missing " + field + " allowlist for " + agentName);
         assertTrue(allowlist.isArray(), field + " allowlist for " + agentName + " must be an array");
 
         Set<String> actual = new LinkedHashSet<>();
         allowlist.forEach(node -> actual.add(node.asText()));
-        assertEquals(new LinkedHashSet<>(DefaultGenerator.KNOWLEDGE_MCP_TOOLS), actual,
+        assertEquals(new LinkedHashSet<>(
+                WorkflowManifestLoader.loadDefault()
+                        .mcpServer("camel-knowledge")
+                        .allowedTools()),
+                actual,
                 field + " allowlist for " + agentName + " must match KnowledgeMcpServer tools");
     }
 

@@ -10,6 +10,7 @@ import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.output.Printer;
+import io.github.luigidemasi.camelkit.workflow.WorkflowManifestLoader;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -86,7 +87,9 @@ class DefaultGeneratorTest {
                 "camel_docs_cve_search",
                 "camel_docs_release_info",
                 "camel_docs_jira_lookup");
-        assertEquals(implementedKnowledgeTools, DefaultGenerator.KNOWLEDGE_MCP_TOOLS);
+        assertEquals(implementedKnowledgeTools, WorkflowManifestLoader.loadDefault()
+                .mcpServer("camel-knowledge")
+                .allowedTools());
 
         ObjectMapper mapper = new ObjectMapper();
         for (String agentName : List.of("bob", "claude", "gemini", "qwen", "opencode")) {

@@ -33,8 +33,8 @@
         "io.github.luigidemasi:camel-kit-knowledge-mcp:{KNOWLEDGE_VERSION}:runner"
       ],
       "description": "{KNOWLEDGE_DESCRIPTION}",
-      "autoApprove": [{KNOWLEDGE_TOOLS_JSON}],
-      "alwaysAllow": [{KNOWLEDGE_TOOLS_JSON}]
+      "autoApprove": {KNOWLEDGE_TOOLS_JSON},
+      "alwaysAllow": {KNOWLEDGE_TOOLS_JSON}
     }
   }
 }
