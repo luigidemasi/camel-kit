@@ -22,6 +22,8 @@ Provides access to Apache Camel documentation via MCP knowledge tools. Used duri
 
 ## MCP Tools
 
+The generated MCP allowlist is defined in `workflow/camel-kit-workflow.yaml` under the `camel-knowledge` MCP server. Keep this table aligned with that manifest.
+
 | Tool | Purpose | When to Use |
 |------|---------|-------------|
 | `camel_docs_search` | General documentation search | Migration guides, getting started, EIP patterns, general questions |

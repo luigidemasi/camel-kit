@@ -1,0 +1,280 @@
+version: "1.0"
+description: "Authoritative Camel-Kit workflow contract for generated skills, commands, stages, artifacts, and MCP tools."
+
+commands:
+  - name: camel-start
+    aliases: [start]
+    skill: camel-start
+    generated_stub: true
+    user_facing: true
+    tier: entry
+    description: "Route to the right camel-kit skill for integration work."
+    standalone: true
+    chained: false
+  - name: camel-brainstorm
+    aliases: [brainstorm]
+    skill: camel-brainstorm
+    generated_stub: true
+    user_facing: true
+    tier: pipeline
+    description: "Design and plan Camel integrations through collaborative dialogue."
+    standalone: true
+    chained: true
+  - name: camel-migrate
+    aliases: [migrate]
+    skill: camel-migrate
+    generated_stub: true
+    user_facing: true
+    tier: pipeline
+    description: "Migrate an existing integration from another product to Apache Camel."
+    standalone: true
+    chained: true
+  - name: camel-plan
+    aliases: [plan]
+    skill: camel-plan
+    generated_stub: true
+    user_facing: true
+    tier: pipeline
+    description: "Break a design spec into implementation tasks with wave analysis."
+    standalone: true
+    chained: true
+  - name: camel-execute
+    aliases: [execute]
+    skill: camel-execute
+    generated_stub: true
+    user_facing: true
+    tier: pipeline
+    description: "Execute an approved implementation plan with two-stage review."
+    standalone: true
+    chained: true
+  - name: camel-validate
+    aliases: [validate]
+    skill: camel-validate
+    generated_stub: true
+    user_facing: true
+    tier: pipeline
+    description: "Static quality analysis of Camel routes: correctness, security, and anti-patterns."
+    standalone: true
+    chained: true
+  - name: camel-ship
+    aliases: [ship]
+    skill: camel-ship
+    generated_stub: true
+    user_facing: true
+    tier: utility
+    description: "Run the full pipeline autonomously with configurable oversight."
+    standalone: true
+    chained: false
+  - name: camel-knowledge
+    aliases: [knowledge]
+    skill: camel-knowledge
+    generated_stub: true
+    user_facing: true
+    tier: utility
+    description: "Look up Camel documentation, components, CVEs, errata, and versions."
+    standalone: true
+    chained: false
+  - name: camel-debug
+    aliases: [debug]
+    skill: camel-debug
+    generated_stub: true
+    user_facing: true
+    tier: utility
+    description: "Ad-hoc troubleshooting for broken Camel routes outside of a pipeline run."
+    standalone: true
+    chained: false
+  - name: camel-verify
+    aliases: [verify]
+    skill: camel-verify
+    generated_stub: false
+    user_facing: false
+    tier: internal
+    description: "Build, test, diagnose, and fix a Camel application iteratively."
+    standalone: false
+    chained: true
+
+skills:
+  - name: camel-start
+    user_invocable: true
+    status: router
+    generated_command: camel-start
+  - name: camel-brainstorm
+    user_invocable: false
+    status: pipeline
+    generated_command: camel-brainstorm
+  - name: camel-migrate
+    user_invocable: false
+    status: pipeline
+    generated_command: camel-migrate
+  - name: camel-plan
+    user_invocable: false
+    status: pipeline
+    generated_command: camel-plan
+  - name: camel-execute
+    user_invocable: false
+    status: pipeline
+    generated_command: camel-execute
+  - name: camel-validate
+    user_invocable: false
+    status: pipeline
+    generated_command: camel-validate
+  - name: camel-ship
+    user_invocable: false
+    status: standalone
+    generated_command: camel-ship
+  - name: camel-knowledge
+    user_invocable: false
+    status: standalone
+    generated_command: camel-knowledge
+  - name: camel-debug
+    user_invocable: false
+    status: standalone
+    generated_command: camel-debug
+  - name: camel-verify
+    user_invocable: false
+    status: internal
+    generated_command: null
+  - name: camel-design
+    user_invocable: false
+    status: internal
+    generated_command: null
+  - name: camel-implement
+    user_invocable: false
+    status: internal
+    generated_command: null
+  - name: camel-test
+    user_invocable: false
+    status: internal
+    generated_command: null
+
+stages:
+  - id: route
+    skill: camel-start
+    kind: entry
+    standalone: true
+    chained: false
+    inputs: [user-request]
+    outputs: [selected-workflow]
+    transitions: [brainstorm, migrate, plan, execute, validate, debug]
+  - id: brainstorm
+    skill: camel-brainstorm
+    kind: greenfield-design
+    standalone: true
+    chained: true
+    inputs: [user-request, project-context]
+    outputs: [design-spec, brd, tdds]
+    transitions: [plan]
+  - id: migrate
+    skill: camel-migrate
+    kind: migration-design
+    standalone: true
+    chained: true
+    inputs: [source-integration-artifacts, project-context]
+    outputs: [migration-analysis, design-spec, brd, tdds]
+    transitions: [plan]
+  - id: plan
+    skill: camel-plan
+    kind: planning
+    standalone: true
+    chained: true
+    inputs: [approved-design-spec, brd, tdds]
+    outputs: [implementation-plan, wave-analysis]
+    transitions: [execute]
+  - id: execute
+    skill: camel-execute
+    kind: implementation
+    standalone: true
+    chained: true
+    inputs: [approved-implementation-plan, tdds]
+    outputs: [routes, application-properties, pom, tests, execution-report, verification-report]
+    transitions: [validate]
+  - id: validate
+    skill: camel-validate
+    kind: quality-gate
+    standalone: true
+    chained: true
+    inputs: [routes, execution-report, verification-report]
+    outputs: [validation-report]
+    transitions: []
+  - id: ship
+    skill: camel-ship
+    kind: autonomous-orchestration
+    standalone: true
+    chained: false
+    inputs: [user-request, pipeline-state]
+    outputs: [pipeline-artifacts]
+    transitions: [brainstorm, migrate, plan, execute, validate]
+  - id: debug
+    skill: camel-debug
+    kind: troubleshooting
+    standalone: true
+    chained: false
+    inputs: [broken-route, logs, error]
+    outputs: [debug-report, fixes]
+    transitions: []
+  - id: verify
+    skill: camel-verify
+    kind: internal-runtime-verification
+    standalone: false
+    chained: true
+    inputs: [generated-application, tests]
+    outputs: [verification-report]
+    transitions: [execute, validate]
+
+artifacts:
+  - id: design-spec
+    path: docs/camel-kit/<pipeline-id>/design-spec.md
+    produced_by: [camel-brainstorm, camel-migrate]
+    consumed_by: [camel-plan]
+  - id: implementation-plan
+    path: docs/camel-kit/<pipeline-id>/implementation-plan.md
+    produced_by: [camel-plan]
+    consumed_by: [camel-execute]
+  - id: execution-report
+    path: docs/camel-kit/<pipeline-id>/execution-report.md
+    produced_by: [camel-execute]
+    consumed_by: [camel-validate]
+  - id: verification-report
+    path: docs/camel-kit/<pipeline-id>/verification-report.md
+    produced_by: [camel-verify]
+    consumed_by: [camel-execute, camel-validate]
+  - id: validation-report
+    path: docs/camel-kit/<pipeline-id>/validation-report.md
+    produced_by: [camel-validate]
+    consumed_by: [camel-ship]
+
+mcp_servers:
+  - id: camel
+    display_name: "Camel Catalog MCP"
+    description: "Apache Camel MCP Server - Component catalog, validation, and security analysis"
+    allowed_tools:
+      - camel_catalog_component
+      - camel_catalog_components
+      - camel_catalog_component_doc
+      - camel_catalog_eip
+      - camel_catalog_eips
+      - camel_catalog_eip_doc
+      - camel_catalog_dataformat
+      - camel_catalog_dataformats
+      - camel_catalog_dataformat_doc
+      - camel_catalog_language
+      - camel_catalog_languages
+      - camel_catalog_language_doc
+      - camel_validate_route
+      - camel_route_context
+      - camel_route_harden_context
+  - id: camel-knowledge
+    display_name: "Camel-Kit Knowledge MCP"
+    description: "camel-kit Knowledge Server - documentation search for Apache Camel"
+    allowed_tools:
+      - camel_docs_component_info
+      - camel_docs_search
+      - camel_docs_cve_search
+      - camel_docs_release_info
+      - camel_docs_jira_lookup
+
+website_reference:
+  command_reference: docs/commands.md
+  architecture_reference: docs/architecture.md
+  user_guide: docs/user-guide.md
+  readme: README.md

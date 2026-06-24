@@ -18,29 +18,27 @@ import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.util.AnsiColors;
 import io.github.luigidemasi.camelkit.util.TemplateUtils;
+import io.github.luigidemasi.camelkit.workflow.WorkflowManifest;
+import io.github.luigidemasi.camelkit.workflow.WorkflowManifest.WorkflowCommand;
+import io.github.luigidemasi.camelkit.workflow.WorkflowManifestLoader;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class DefaultGenerator implements AgentGenerator {
 
-    static final List<String> GENERATED_COMMAND_SKILLS = List.of(
-            "camel-start", "camel-brainstorm", "camel-plan", "camel-execute", "camel-validate",
-            "camel-migrate", "camel-knowledge", "camel-ship", "camel-debug");
-
-    static final List<String> KNOWLEDGE_MCP_TOOLS = List.of(
-            "camel_docs_component_info",
-            "camel_docs_search",
-            "camel_docs_cve_search",
-            "camel_docs_release_info",
-            "camel_docs_jira_lookup");
+    private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
 
     @Override
     public void generate(InitContext ctx) throws Exception {
+        WorkflowManifest workflow = WorkflowManifestLoader.loadDefault();
+
         Files.createDirectories(ctx.commandsDir());
         Files.createDirectories(ctx.skillsDir());
         generateAgentsMd(ctx);
-        createCommandTemplates(ctx);
+        createCommandTemplates(ctx, workflow);
         copySkills(ctx);
-        applyTraits(ctx);
-        createMcpConfigs(ctx);
+        applyTraits(ctx, workflow);
+        createMcpConfigs(ctx, workflow);
     }
 
     private void generateAgentsMd(InitContext ctx) throws Exception {
@@ -53,12 +51,15 @@ public class DefaultGenerator implements AgentGenerator {
         ctx.printer().println(AnsiColors.green("✓") + " Generated AGENTS.md with skill routing and iron laws");
     }
 
-    private void createCommandTemplates(InitContext ctx) throws Exception {
+    private void createCommandTemplates(InitContext ctx, WorkflowManifest workflow) throws Exception {
+        List<WorkflowCommand> commands = workflow.generatedCommandStubs();
+
         // Extract agent base folder (e.g., ".bob" from ".bob/commands")
         String agentBaseFolder = ctx.agent().folder().substring(0, ctx.agent().folder().lastIndexOf("/"));
 
-        for (String skillName : GENERATED_COMMAND_SKILLS) {
-            String cmd = shortCommandName(skillName);
+        for (WorkflowCommand command : commands) {
+            String cmd = command.shortName();
+            String skillName = command.skill();
 
             // Create reference to skill file
             String content
@@ -69,16 +70,11 @@ public class DefaultGenerator implements AgentGenerator {
                 content = wrapInToml(cmd, content);
             }
 
-            String filename = skillName + "." + ctx.agent().fileFormat();
+            String filename = command.name() + "." + ctx.agent().fileFormat();
             Files.writeString(ctx.commandsDir().resolve(filename), content);
         }
 
-        ctx.printer().println(AnsiColors.green("✓") + " Created " + GENERATED_COMMAND_SKILLS.size()
-                              + " skill reference commands");
-    }
-
-    private String shortCommandName(String skillName) {
-        return skillName.startsWith("camel-") ? skillName.substring("camel-".length()) : skillName;
+        ctx.printer().println(AnsiColors.green("✓") + " Created " + commands.size() + " skill reference commands");
     }
 
     private String wrapInToml(String cmd, String content) {
@@ -275,7 +271,7 @@ public class DefaultGenerator implements AgentGenerator {
         return data;
     }
 
-    private void createMcpConfigs(InitContext ctx) throws Exception {
+    private void createMcpConfigs(InitContext ctx, WorkflowManifest workflow) throws Exception {
         String agentName = "";
 
         // Knowledge server repos (still uses JBang for now)
@@ -338,13 +334,9 @@ public class DefaultGenerator implements AgentGenerator {
             templateData.put("CAMEL_SPRINGBOOT_SUPPORTED", dist.camelSpringbootSupported());
             templateData.put("CAMEL_QUARKUS_SUPPORTED", dist.camelQuarkusSupported());
 
-            String knowledgeToolsJson = KNOWLEDGE_MCP_TOOLS.stream()
-                    .map(tool -> "\"" + tool + "\"")
-                    .collect(java.util.stream.Collectors.joining(", "));
-            templateData.put("KNOWLEDGE_TOOLS_JSON", knowledgeToolsJson);
-
-            String knowledgeDescription = "camel-kit Knowledge Server - documentation search for Apache Camel";
-            templateData.put("KNOWLEDGE_DESCRIPTION", knowledgeDescription);
+            WorkflowManifest.WorkflowMcpServer knowledgeServer = workflow.mcpServer("camel-knowledge");
+            templateData.put("KNOWLEDGE_TOOLS_JSON", toJsonArray(knowledgeServer.allowedTools()));
+            templateData.put("KNOWLEDGE_DESCRIPTION", knowledgeServer.description());
 
             String processed = qute.renderString(template, templateData);
             Files.writeString(configFile, processed);
@@ -355,14 +347,13 @@ public class DefaultGenerator implements AgentGenerator {
         }
     }
 
-    private void applyTraits(InitContext ctx) throws Exception {
+    private void applyTraits(InitContext ctx, WorkflowManifest workflow) throws Exception {
         String traitsBasePath = "templates/traits/" + ctx.agentName() + "/";
         int traitCount = 0;
 
-        List<String> skillNames = List.of(
-                "camel-brainstorm", "camel-execute", "camel-implement", "camel-verify",
-                "camel-validate", "camel-test", "camel-plan", "camel-ship",
-                "camel-migrate", "camel-knowledge", "camel-start", "camel-debug");
+        List<String> skillNames = workflow.skills().stream()
+                .map(WorkflowManifest.WorkflowSkill::name)
+                .toList();
 
         for (String skillName : skillNames) {
             String traitResourcePath = traitsBasePath + skillName + ".append.md";
@@ -381,6 +372,10 @@ public class DefaultGenerator implements AgentGenerator {
             ctx.printer().println(AnsiColors.green("✓") + " Applied " + traitCount
                                   + " agent traits for " + ctx.agentName());
         }
+    }
+
+    private static String toJsonArray(List<String> values) throws IOException {
+        return JSON_MAPPER.writeValueAsString(values);
     }
 
     private int applyGuideTraits(String traitDirPath, Path guidesDir, String agentName) throws Exception {

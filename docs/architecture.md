@@ -13,6 +13,8 @@ Camel-Kit combines two mechanisms to give AI agents accurate, efficient access t
 
 Together they enable AI-powered integration development targeting Apache Camel. Skills carry the process knowledge (how to design a flow, how to generate YAML, how to validate a route), while MCP provides the data knowledge (which components exist, what options they accept, whether an endpoint URI is valid).
 
+The authoritative workflow contract lives in `camel-kit-core/src/main/resources/workflow/camel-kit-workflow.yaml`. It defines command names and aliases, generated command stubs, skill visibility, pipeline stages, artifacts, transitions, MCP servers, allowed tools, and documentation references. Generator code reads this manifest for command stub generation and the Knowledge MCP allowlist, and tests validate skill frontmatter against it. When changing workflow behavior, update the manifest first and then update the Markdown skill bodies and docs to match.
+
 ---
 
 ## 2. Skills Architecture
@@ -22,6 +24,8 @@ Together they enable AI-powered integration development targeting Apache Camel. 
 A skill is a directory containing a manifest file (`SKILL.md`) and an optional `guides/` subdirectory with instruction files loaded on demand. The manifest uses YAML frontmatter to declare metadata and a table listing which guides exist and when to load them.
 
 **Skill location:** `camel-kit-core/src/main/resources/skills/{skill-name}/`
+
+**Workflow manifest:** `camel-kit-core/src/main/resources/workflow/camel-kit-workflow.yaml` is the source of truth for skill visibility and generated slash-command stubs. The `SKILL.md` frontmatter must match the manifest.
 
 ### SKILL.md Format
 
@@ -725,13 +729,17 @@ user_invocable: false
 
 3. **Write guide files** in `guides/`. Each guide is a self-contained markdown instruction file loaded by the agent when the skill is active.
 
-4. **If registering slash commands:** update agent templates to register the command. Each agent needs the slash command added to its instruction file:
+4. **Update the workflow manifest first:** add or modify the entry in `camel-kit-core/src/main/resources/workflow/camel-kit-workflow.yaml`. Set `generated_stub: true` only for commands that should be emitted into each agent's commands directory. Add or update the corresponding skill entry, stage/artifact metadata, transitions, and MCP tool allowlists if the workflow contract changes.
+
+5. **If registering slash commands:** update agent-specific guidance only where the command needs custom behavior beyond the generated stub. The default generator creates command stubs from the manifest. Agent templates still need updates when they contain human-readable command tables, custom modes, policies, or subagent dispatch:
    - Claude Code: update `templates/claude/claude-md.md`
    - IBM Project Bob: update `templates/bob/custom_modes.yaml` and add rules directory
    - Gemini CLI: update `templates/gemini/gemini-md.md`
    - Qwen: update `templates/qwen/qwen-md.md`
    - OpenCode: update `templates/opencode/agents-md.md`
 
-5. **If internal:** update the loading skill's `SKILL.md` to reference the new guides (e.g., add a guide reference to `camel-execute`'s guide manifest).
+6. **If internal:** update the loading skill's `SKILL.md` to reference the new guides (e.g., add a guide reference to `camel-execute`'s guide manifest).
 
-6. **Update `docs/commands.md`** if the skill is user-invocable.
+7. **Update `docs/commands.md`** if the skill is user-facing.
+
+8. **Run manifest consistency tests** in `camel-kit-core` to verify generated stubs, skill metadata, and MCP allowlists still match the manifest.
