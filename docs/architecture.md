@@ -341,7 +341,11 @@ The validation guide (`datamapper-validation.md`) reads the `Transformation Engi
 
 Skills, generated instruction files, MCP config templates, and active docs are runtime contract surfaces. They are tested by `ResourceConsistencyTest` in `camel-kit-core` so stale contract tokens fail the build before they ship.
 
-The active scan covers `camel-kit-core/src/main/resources/skills`, `camel-kit-core/src/main/resources/templates`, `docs/`, `README.md`, and `CONTRIBUTING.md`. These files must reference current command names, current config files, current graph access patterns, current Knowledge MCP tool names, and current Iron Law counts.
+The active scan covers `camel-kit-core/src/main/resources/skills`, `camel-kit-core/src/main/resources/templates`, top-level Markdown files under `docs/`, `README.md`, and `CONTRIBUTING.md`. These files must reference current command names, current config files, current graph access patterns, current Knowledge MCP tool names, and current Iron Law counts.
+
+Docs subdirectories are intentionally out of scope; this keeps ignored archives such as `docs/plans/` and `docs/superpowers/`, image assets, and generated planning material out of the contract check.
+
+`ShippedAssetStructureTest` covers structural coherence for shipped assets. It verifies that workflow manifest skills have `skills/<name>/SKILL.md`, guide tables in `SKILL.md` point to existing bundled files, shared guide references in shipped skills and templates resolve, every supported agent has dispatch and MCP config templates, trait files target existing skills or guides, generated command files match manifest command names, generated command skill references resolve to copied skills, and generated MCP configs parse as JSON with the expected server containers.
 
 Historical release notes, old planning material, and archived ADR-style documents are outside the active contract unless they are copied into generated projects or used as live instructions. Keep historical context in those files as history; do not exclude an active shipped instruction just because it is inconvenient to update.
 

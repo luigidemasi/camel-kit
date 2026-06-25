@@ -17,9 +17,9 @@
 
 **Conditionally load:**
 - `skills/camel-migrate/guides/datamapper-migrate.md` — load once per orchestration that contains a BizTalk map (see Step 2.2)
-- `skills/camel-flow/guides/performance.md` — if SLA requirements are strict
-- `skills/camel-flow/guides/security.md` — if compliance requirements exist
-- `skills/camel-flow/guides/monitoring.md` — if observability requirements exist
+- `skills/camel-design/guides/performance.md` — if SLA requirements are strict
+- `skills/camel-design/guides/security.md` — if compliance requirements exist
+- `skills/camel-design/guides/monitoring.md` — if observability requirements exist
 
 **MCP catalog tools — MANDATORY when MCP is configured (same rules as `/camel-flow`):**
 

@@ -138,12 +138,12 @@ Store selections in `.camel-kit/config.properties`.
 ## Design Flows
 
 For each flow, design the integration using relevant guides from `camel-design/`:
-- Component selection: `guides/component-selection.md`
-- EIP patterns: `guides/eip-patterns.md`
-- Data formats: `guides/data-formats.md`
-- Error handling: `guides/error-handling.md`
-- Security: `guides/security.md`
-- Resilience: `guides/resilience.md`
+- Component selection: `.bob/skills/camel-design/guides/component-selection.md`
+- EIP catalog: `.bob/skills/camel-design/guides/eip-catalog.md`
+- Integration patterns: `.bob/skills/camel-design/guides/integration-patterns.md`
+- Data formats: `.bob/skills/camel-design/guides/data-formats.md`
+- Error handling and resilience: `.bob/skills/camel-design/guides/resilience-interview.md`
+- Security: `.bob/skills/camel-design/guides/security.md`
 
 **CRITICAL:** Verify EVERY component via MCP:
 1. `camel_catalog_component_doc` — verify component exists
