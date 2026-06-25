@@ -574,6 +574,7 @@ When invoked with a `<PIPELINE_ID>` argument:
 2. **Load task template** -- selects the appropriate template (greenfield, migration, or testing)
 3. **Decompose into tasks** -- breaks the spec into bite-sized implementation tasks, each with:
    - Exact file paths to create or modify
+   - Structured `yaml plan-metadata` for wave analysis
    - Guide files to load and MCP tools to call
    - Two-stage review specification (spec compliance, then code quality)
    - Verification commands with expected output
@@ -582,6 +583,33 @@ When invoked with a `<PIPELINE_ID>` argument:
 6. **Automatic transition** -- after approval, invokes `/camel-execute` automatically
 
 The plan is a recipe, not the meal -- it contains instructions on how to generate code, not the generated code itself.
+
+**Structured metadata contract:** implementation plans include a fenced YAML block with the exact info string
+`yaml plan-metadata`. `camel-kit plan analyze` reads this block before falling back to Markdown parsing. Each task entry
+uses:
+
+```yaml plan-metadata
+tasks:
+  - id: 1
+    title: Order ingestion route
+    files:
+      creates:
+        - src/main/resources/camel/order-ingestion.camel.yaml
+    provides:
+      routes:
+        - order-ingestion
+      endpoints:
+        - direct:validate-order
+    consumes:
+      properties:
+        - orders.input.dir
+    dependsOn: []
+```
+
+`id` matches `### Task N`; `files` may group `creates`, `modifies`, `reads`, `deletes`, `tests`, or `references`.
+`provides` and `consumes` support logical dependency keys such as `routes`, `endpoints`, `properties`, `schemas`,
+`testData`, `beans`, `externalServices`, and `routeContracts`. `dependsOn` lists explicit task IDs that must complete
+first. Markdown-only plans remain supported for older artifacts.
 
 ---
 

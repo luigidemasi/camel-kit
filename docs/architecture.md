@@ -224,7 +224,8 @@ Entry points diverge (`camel-brainstorm` for greenfield, `camel-migrate` for mig
 
 ### How camel-execute Dispatches Work
 
-1. Read the approved implementation plan and extract all tasks
+1. Read the approved implementation plan, prefer the `yaml plan-metadata` task graph, and fall back to Markdown task
+   parsing for older plans
 2. **Catalog research** (Step 1.5): dispatch a `catalog-researcher` subagent to batch-verify all MCP catalog artifacts for the wave. Only the structured summary flows back -- MCP response traces stay in the research subagent's context.
 3. For each task:
    - Dispatch an implementer subagent with full task text, design spec section, pre-verified catalog summary, and MCP parameters
@@ -398,7 +399,7 @@ The `/camel-execute` pipeline relies on dispatching discrete units of work to is
 
 Four of the five agents support this natively through **subagent dispatch**:
 
-- **Claude Code** -- uses the `Agent` tool to spawn fresh subagents per task. Each subagent receives the task text, relevant TDD section, guide file paths, and MCP parameters. Before implementation, a `catalog-researcher` subagent batch-verifies all MCP catalog artifacts (research isolation). After implementation, an Adversarial Code Review dispatches parallel Critic Lanes (Route Architecture, Security, Performance, Boundary Compliance, Behavioral Equivalence) via a Moderator subagent, then a spec-compliance reviewer subagent checks the design spec, then a code-quality reviewer subagent checks constitution compliance. At the Stamp Gate, three reviewers run in parallel (spec, quality, security). Claude uniquely supports **parallel dispatch**: the route graph topology (from `camel-kit-graph`) identifies independent routes (no shared `direct:`, `seda:`, or `vm:` endpoints, no shared configuration properties), and independent tasks are dispatched simultaneously to multiple subagents.
+- **Claude Code** -- uses the `Agent` tool to spawn fresh subagents per task. Each subagent receives the task text, relevant TDD section, guide file paths, and MCP parameters. Before implementation, a `catalog-researcher` subagent batch-verifies all MCP catalog artifacts (research isolation). After implementation, an Adversarial Code Review dispatches parallel Critic Lanes (Route Architecture, Security, Performance, Boundary Compliance, Behavioral Equivalence) via a Moderator subagent, then a spec-compliance reviewer subagent checks the design spec, then a code-quality reviewer subagent checks constitution compliance. At the Stamp Gate, three reviewers run in parallel (spec, quality, security). Claude uniquely supports **parallel dispatch**: `camel-kit plan analyze` groups tasks into waves using structured plan metadata (`dependsOn`, file overlap, and logical `provides`/`consumes` resources such as endpoints, routes, properties, schemas, test data, beans, external services, and route contracts), then independent tasks are dispatched simultaneously to multiple subagents.
 
 - **Gemini CLI** -- dispatches via a unified `invoke_subagent` tool to 6 specialized subagents. The scheduler natively supports **parallel tool execution** via `Promise.all()` (default-parallel). However, subagents cannot invoke other subagents (hardcoded `Kind.Agent` filter), so `/camel-execute` runs in the **main agent context** where it can dispatch to all subagents. Within-wave parallelism is achieved through the scheduler batching multiple `invoke_subagent` calls.
 

@@ -9,6 +9,10 @@
 
 Test tasks come after all implementation and validation tasks. Generate one test task per flow.
 
+The plan MUST include testing tasks in the `yaml plan-metadata` block. Test tasks should consume the route, endpoint,
+schema, test data, bean, and external service resources they need, and provide generated `testData` and test files.
+Use `dependsOn` when a test must wait for a validation or smoke-test task even without a shared logical resource.
+
 ### Task Template: Generate Integration Tests (per flow)
 
 ```markdown

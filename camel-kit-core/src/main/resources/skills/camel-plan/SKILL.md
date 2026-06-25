@@ -154,6 +154,22 @@ Load the appropriate task template:
 
 Load decomposition rules: `guides/task-decomposition.md`
 
+Every plan MUST include a structured task metadata block for `camel-kit plan analyze`. Use a fenced YAML block with the
+exact info string `yaml plan-metadata`, placed after the document frontmatter and before the first `### Task N`
+section. The metadata is for tooling; the Markdown tasks remain the human execution recipe.
+
+Required metadata rules:
+- Include one metadata entry for every `### Task N` section.
+- `id` MUST match the numeric task number in `### Task N`.
+- `title` MUST match the task title.
+- `files` lists paths grouped by action: `creates`, `modifies`, `reads`, `deletes`, `tests`, or `references`.
+- `provides` lists logical resources produced by the task.
+- `consumes` lists logical resources required from other tasks.
+- `dependsOn` lists explicit task IDs that must finish before this task, even when no file or logical resource overlaps.
+
+Use these logical resource keys when applicable: `routes`, `endpoints`, `properties`, `schemas`, `testData`, `beans`,
+`externalServices`, and `routeContracts`. Values are plain strings and must be stable enough for exact matching.
+
 ---
 
 ## Plan Document Format
@@ -167,7 +183,7 @@ Before generating the plan, resolve the active pipeline using `shared/pipeline-i
 
 Save to `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`:
 
-```markdown
+````markdown
 ---
 staleness:
   stale: false
@@ -190,6 +206,30 @@ generated:
 **Tech Stack:** Apache Camel [version], [runtime], [key components]
 
 **Design Spec:** `docs/camel-kit/<PIPELINE_ID>/design-spec.md` (approved [date])
+
+---
+
+```yaml plan-metadata
+tasks:
+  - id: 1
+    title: [Component/Flow Name]
+    files:
+      creates:
+        - exact/path/to/file
+      modifies:
+        - exact/path/to/existing
+    provides:
+      routes:
+        - [route-id]
+      endpoints:
+        - direct:[endpoint-name]
+    consumes:
+      properties:
+        - [property.name]
+      schemas:
+        - [schema-name]
+    dependsOn: []
+```
 
 ---
 
@@ -219,7 +259,7 @@ generated:
 **Review:**
 - [ ] Spec compliance: [what to check — components match TDD, structure correct, properties complete]
 - [ ] Code quality: [what to check — constitution rules, security, anti-patterns]
-```
+````
 
 ---
 

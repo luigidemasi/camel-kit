@@ -9,6 +9,13 @@
 
 Migration projects follow the same basic sequence as greenfield, but add migration-specific tasks. Use the migration ordering from the design spec (leaf routes first, entry-point routes last).
 
+The plan still MUST emit the `yaml plan-metadata` block described in `task-template-greenfield.md` and
+`task-decomposition.md`. Migration tasks should use metadata to expose dependencies that are otherwise hidden:
+- Java adaptation tasks provide `beans` or processor class names consumed by route YAML tasks.
+- DataWeave/XSLT conversion tasks provide `schemas` or `routeContracts` consumed by route YAML tasks.
+- Component mapping tasks can provide `routeContracts` consumed by route generation and validation tasks.
+- Platform setup tasks provide `properties`, `externalServices`, and dependency readiness consumed by later tasks.
+
 ### Additional Migration Tasks
 
 These tasks are added to the standard greenfield sequence:

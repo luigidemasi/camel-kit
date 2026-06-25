@@ -167,7 +167,7 @@ All agents use the same skills — camel-kit generates agent-specific instructio
 - **3-phase orchestrated pipeline** — brainstorm the design, plan the implementation, execute with environment probe and automated review. [Learn more →](docs/user-guide.md)
 - **Autonomous mode** — `/camel-ship` runs the full pipeline end-to-end with three oversight levels: `always` (pause at every gate), `smart` (pause on uncertainty), `never` (fully autonomous with re-planning). [Learn more →](docs/commands.md)
 - **Environment probe** — validates the target environment (dependency resolution, Docker services, runtime startup) before implementation begins. Mechanical failures are auto-fixed; architectural failures trigger re-planning. [Learn more →](docs/architecture.md)
-- **Wave analysis** — the plan analyzer identifies independent tasks and groups them into parallel execution waves for faster implementation.
+- **Wave analysis** — the plan analyzer uses structured task metadata, logical dependencies, and file overlap to group independent tasks into parallel execution waves.
 - **Deterministic staleness detection** — `doc check`, `doc stale`, and `doc unstale` CLI commands manage pipeline artifact validity via structured YAML frontmatter, with `--cascade` for automatic downstream propagation. [Learn more →](docs/commands.md)
 
 ### Runtime Verification

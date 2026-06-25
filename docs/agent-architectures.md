@@ -65,7 +65,7 @@ Each agent uses a different architecture designed to **maximize that agent's nat
 
 ### Dispatch Model
 
-Claude's `Agent` tool dispatches subagents with isolated context windows. Each subagent receives the skill content and executes independently. During `/camel-execute`, independent tasks are dispatched to multiple subagents simultaneously, using route graph topology to determine which flows can be implemented in parallel.
+Claude's `Agent` tool dispatches subagents with isolated context windows. Each subagent receives the skill content and executes independently. During `/camel-execute`, independent tasks are dispatched to multiple subagents simultaneously, using `camel-kit plan analyze` waves from structured task metadata, logical dependencies, and file overlap.
 
 ### Template Files
 

@@ -65,12 +65,33 @@ Every implementation task MUST include:
 
 1. **Agent persona** — which agent from `agents/` to dispatch
 2. **Files** — exact paths to create/modify (from orchestrator path table)
-3. **Guides to load** — exact guide paths from reference skill manifests
-4. **MCP tools** — exact tool calls with parameters
-5. **Design spec section** — which section of the spec this task implements
-6. **Steps** — ordered, checkboxed steps with specific instructions
-7. **Verification** — exact command and expected output
-8. **Review specification** — what spec compliance and code quality check
+3. **Structured metadata** — matching entry in the `yaml plan-metadata` block, including file actions, logical
+   `provides`/`consumes`, and explicit `dependsOn`
+4. **Guides to load** — exact guide paths from reference skill manifests
+5. **MCP tools** — exact tool calls with parameters
+6. **Design spec section** — which section of the spec this task implements
+7. **Steps** — ordered, checkboxed steps with specific instructions
+8. **Verification** — exact command and expected output
+9. **Review specification** — what spec compliance and code quality checks to perform
+
+## Structured Metadata Dependency Rules
+
+The plan MUST include a fenced `yaml plan-metadata` block before the first Markdown task. Add one metadata item per
+task, and keep `id` aligned with `### Task N`.
+
+Use `dependsOn` for hard sequencing that cannot be inferred from files or logical resources. Use `provides` and
+`consumes` for non-file relationships:
+- `routes` — route IDs produced or referenced
+- `endpoints` — endpoint URIs such as `direct:validate-order`, `seda:orders`, `kafka:orders`
+- `properties` — property keys such as `orders.input.dir`
+- `schemas` — schema names or schema file identifiers
+- `testData` — named test data files or fixtures
+- `beans` — bean, processor, or service bean names
+- `externalServices` — brokers, databases, HTTP APIs, or other infrastructure services
+- `routeContracts` — named contracts between routes or systems
+
+When Task B consumes a resource Task A provides, the analyzer places Task B in a later wave even if they do not touch
+the same file. Continue listing shared files because file overlap remains part of wave analysis.
 
 ---
 
