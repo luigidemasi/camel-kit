@@ -3,7 +3,6 @@ package io.github.luigidemasi.camelkit.workflow;
 import java.io.IOException;
 import java.io.InputStream;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -16,8 +15,7 @@ public final class WorkflowManifestLoader {
     public static final String DEFAULT_RESOURCE = "workflow/camel-kit-workflow.yaml";
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper(new YAMLFactory())
-            .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
-            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+            .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
 
     private WorkflowManifestLoader() {
         // Utility class
@@ -32,7 +30,16 @@ public final class WorkflowManifestLoader {
             if (input == null) {
                 throw new IOException("Workflow manifest not found on classpath: " + resourcePath);
             }
-            return OBJECT_MAPPER.readValue(input, WorkflowManifest.class);
+            return load(input);
         }
+    }
+
+    public static WorkflowManifest load(InputStream input) throws IOException {
+        if (input == null) {
+            throw new IOException("Workflow manifest input stream must not be null");
+        }
+        WorkflowManifest manifest = OBJECT_MAPPER.readValue(input, WorkflowManifest.class);
+        WorkflowManifestValidator.validateOrThrow(manifest);
+        return manifest;
     }
 }
