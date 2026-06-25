@@ -373,7 +373,7 @@ Traits are agent-specific instruction fragments that are appended to shared skil
 
 **Location:** `camel-kit-core/src/main/resources/templates/traits/{agent}/`
 
-**How it works:** During `camel-kit init --ai {agent}`, `DefaultGenerator.applyTraits()` scans the traits directory for the selected agent and appends each `.append.md` file to the corresponding skill file. Idempotent HTML comment sentinels (`<!-- TRAIT:{agent} -->` / `<!-- /TRAIT:{agent} -->`) prevent duplicate application on re-init.
+**How it works:** During `camel-kit init --ai {agent}`, `TraitApplicator` scans the traits directory for the selected agent and appends each `.append.md` file to the corresponding skill file. Idempotent HTML comment sentinels (`<!-- TRAIT:{agent} -->` / `<!-- /TRAIT:{agent} -->`) prevent duplicate application on re-init.
 
 **Two granularity levels:**
 
@@ -457,7 +457,7 @@ To add support for a new AI coding assistant:
 6. Add MCP configuration for the agent's MCP config format
 7. Write tests following existing patterns (verify structure + key content markers)
 
-The `DefaultGenerator` provides shared logic (skill file copying, MCP config generation). Each agent-specific generator overrides template generation to produce the agent's native format.
+The `DefaultGenerator` orchestrates shared generation services such as `CommandStubGenerator`, `SkillResourceInstaller`, `TraitApplicator`, and `McpConfigGenerator`. Each agent-specific generator adds or overrides template generation to produce the agent's native format.
 
 ---
 
