@@ -1,6 +1,9 @@
 package io.github.luigidemasi.camelkit.workflow;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
@@ -11,6 +14,7 @@ import java.util.stream.Collectors;
 
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
+import io.github.luigidemasi.camelkit.generator.AgentGeneratorFactory;
 import io.github.luigidemasi.camelkit.generator.DefaultGenerator;
 import io.github.luigidemasi.camelkit.generator.InitContext;
 import io.github.luigidemasi.camelkit.output.Printer;
@@ -25,6 +29,49 @@ import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
 
 class WorkflowManifestTest {
+
+    private static final String MINIMAL_VALID_MANIFEST = """
+            version: "1.0"
+            description: "Test manifest"
+            commands:
+              - name: camel-start
+                aliases: []
+                skill: camel-start
+                generated_stub: true
+                user_facing: true
+                tier: entry
+                description: "Start"
+                standalone: true
+                chained: false
+            skills:
+              - name: camel-start
+                user_invocable: true
+                status: router
+                generated_command: camel-start
+            stages:
+              - id: route
+                skill: camel-start
+                kind: entry
+                standalone: true
+                chained: false
+                inputs: []
+                outputs: []
+                transitions: []
+            artifacts:
+              - id: design-spec
+                path: docs/camel-kit/<pipeline-id>/design-spec.md
+                produced_by: [camel-start]
+                consumed_by: [camel-start]
+            mcp_servers:
+              - id: camel
+                display_name: "Camel Catalog MCP"
+                description: "Camel"
+                allowed_tools: []
+              - id: camel-knowledge
+                display_name: "Camel-Kit Knowledge MCP"
+                description: "Knowledge"
+                allowed_tools: []
+            """;
 
     @TempDir
     Path tempDir;
@@ -43,22 +90,84 @@ class WorkflowManifestTest {
     @Test
     void generatedCommandStubsMatchManifest() throws Exception {
         WorkflowManifest manifest = WorkflowManifestLoader.loadDefault();
-        InitContext ctx = createContext("bob");
 
-        new DefaultGenerator().generate(ctx);
+        for (String agentName : AgentRegistry.names()) {
+            InitContext ctx = createContext(agentName);
+            AgentGeneratorFactory.create(agentName).generate(ctx);
 
-        Set<String> expected = manifest.generatedCommandStubs().stream()
-                .map(command -> command.name() + "." + ctx.agent().fileFormat())
-                .collect(Collectors.toCollection(java.util.TreeSet::new));
-        Set<String> actual;
-        try (var stream = Files.list(ctx.commandsDir())) {
-            actual = stream
-                    .filter(Files::isRegularFile)
-                    .map(path -> path.getFileName().toString())
+            Set<String> expected = manifest.generatedCommandStubs().stream()
+                    .map(command -> command.name() + "." + ctx.agent().fileFormat())
                     .collect(Collectors.toCollection(java.util.TreeSet::new));
-        }
+            Set<String> actual;
+            try (var stream = Files.list(ctx.commandsDir())) {
+                actual = stream
+                        .filter(Files::isRegularFile)
+                        .map(path -> path.getFileName().toString())
+                        .collect(Collectors.toCollection(java.util.TreeSet::new));
+            }
 
-        assertEquals(expected, actual);
+            assertEquals(expected, actual, agentName + " generated command stubs must match manifest");
+        }
+    }
+
+    @Test
+    void rejectsUnknownManifestFields() {
+        IOException ex = assertThrows(IOException.class,
+                () -> loadManifest(MINIMAL_VALID_MANIFEST + "unexpected_root: true\n"));
+        assertTrue(ex.getMessage().contains("Unrecognized field \"unexpected_root\""), ex.getMessage());
+    }
+
+    @Test
+    void rejectsCommandsReferencingUnknownSkills() {
+        assertInvalidManifest(
+                MINIMAL_VALID_MANIFEST.replace("skill: camel-start", "skill: missing-skill"),
+                "commands[camel-start].skill references unknown skill 'missing-skill'");
+    }
+
+    @Test
+    void rejectsGeneratedCommandDrift() {
+        assertInvalidManifest(
+                MINIMAL_VALID_MANIFEST.replace("generated_command: camel-start", "generated_command: camel-plan"),
+                "skills[camel-start].generated_command references unknown command 'camel-plan'");
+    }
+
+    @Test
+    void rejectsStagesReferencingUnknownSkills() {
+        assertInvalidManifest(
+                MINIMAL_VALID_MANIFEST.replace("""
+                          - id: route
+                            skill: camel-start
+                        """, """
+                          - id: route
+                            skill: missing-skill
+                        """),
+                "stages[route].skill references unknown skill 'missing-skill'");
+    }
+
+    @Test
+    void rejectsStagesReferencingUnknownTransitions() {
+        assertInvalidManifest(
+                MINIMAL_VALID_MANIFEST.replace("transitions: []", "transitions: [missing-stage]"),
+                "stages[route].transitions references unknown stage 'missing-stage'");
+    }
+
+    @Test
+    void rejectsArtifactsReferencingUnknownSkills() {
+        assertInvalidManifest(
+                MINIMAL_VALID_MANIFEST.replace("produced_by: [camel-start]", "produced_by: [missing-skill]"),
+                "artifacts[design-spec].produced_by references unknown skill 'missing-skill'");
+    }
+
+    @Test
+    void rejectsMissingRequiredMcpServers() {
+        assertInvalidManifest(
+                MINIMAL_VALID_MANIFEST.replace("""
+                          - id: camel-knowledge
+                            display_name: "Camel-Kit Knowledge MCP"
+                            description: "Knowledge"
+                            allowed_tools: []
+                        """, ""),
+                "mcp_servers missing required server 'camel-knowledge'");
     }
 
     @Test
@@ -160,6 +269,15 @@ class WorkflowManifestTest {
     private static Path resourcePath(String resource) throws Exception {
         URI uri = WorkflowManifestTest.class.getClassLoader().getResource(resource).toURI();
         return Path.of(uri);
+    }
+
+    private static void assertInvalidManifest(String yaml, String expectedMessage) {
+        IOException ex = assertThrows(IOException.class, () -> loadManifest(yaml));
+        assertTrue(ex.getMessage().contains(expectedMessage), ex.getMessage());
+    }
+
+    private static WorkflowManifest loadManifest(String yaml) throws IOException {
+        return WorkflowManifestLoader.load(new ByteArrayInputStream(yaml.getBytes(StandardCharsets.UTF_8)));
     }
 
     private static Map<String, Object> readFrontmatter(Path skillFile) throws Exception {
