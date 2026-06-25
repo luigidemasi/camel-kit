@@ -20,6 +20,7 @@ import io.github.luigidemasi.camelkit.generator.InitContext;
 import io.github.luigidemasi.camelkit.output.Printer;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -88,6 +89,39 @@ class WorkflowManifestTest {
     }
 
     @Test
+    void loadsMinimalValidManifest() {
+        WorkflowManifest manifest = assertDoesNotThrow(() -> loadManifest(MINIMAL_VALID_MANIFEST));
+
+        assertNotNull(manifest);
+        assertEquals(List.of("camel-start"), manifest.commands().stream()
+                .map(WorkflowManifest.WorkflowCommand::name)
+                .toList());
+    }
+
+    @Test
+    void loadsManifestWithOmittedOptionalCollections() {
+        String yaml = MINIMAL_VALID_MANIFEST
+                .replace("    aliases: []\n", "")
+                .replace("""
+                            inputs: []
+                            outputs: []
+                            transitions: []
+                        """, "")
+                .replace("""
+                            produced_by: [camel-start]
+                            consumed_by: [camel-start]
+                        """, "")
+                .replace("    allowed_tools: []\n", "");
+
+        WorkflowManifest manifest = assertDoesNotThrow(() -> loadManifest(yaml));
+
+        assertTrue(manifest.commands().get(0).aliases().isEmpty());
+        assertTrue(manifest.stages().get(0).transitions().isEmpty());
+        assertTrue(manifest.artifacts().get(0).producedBy().isEmpty());
+        assertTrue(manifest.mcpServer("camel").allowedTools().isEmpty());
+    }
+
+    @Test
     void generatedCommandStubsMatchManifest() throws Exception {
         WorkflowManifest manifest = WorkflowManifestLoader.loadDefault();
 
@@ -112,9 +146,23 @@ class WorkflowManifestTest {
 
     @Test
     void rejectsUnknownManifestFields() {
-        IOException ex = assertThrows(IOException.class,
+        JsonMappingException ex = assertThrows(JsonMappingException.class,
                 () -> loadManifest(MINIMAL_VALID_MANIFEST + "unexpected_root: true\n"));
-        assertTrue(ex.getMessage().contains("Unrecognized field \"unexpected_root\""), ex.getMessage());
+        assertTrue(ex.getMessage().contains("unexpected_root"), ex.getMessage());
+    }
+
+    @Test
+    void rejectsMissingCollectionSectionsAsValidationErrors() {
+        ManifestValidationException ex = assertThrows(ManifestValidationException.class, () -> loadManifest("""
+                version: "1.0"
+                description: "Missing sections"
+                """));
+
+        assertTrue(ex.errors().contains("commands must not be empty"), ex.getMessage());
+        assertTrue(ex.errors().contains("skills must not be empty"), ex.getMessage());
+        assertTrue(ex.errors().contains("stages must not be empty"), ex.getMessage());
+        assertTrue(ex.errors().contains("artifacts must not be empty"), ex.getMessage());
+        assertTrue(ex.errors().contains("mcp_servers must not be empty"), ex.getMessage());
     }
 
     @Test
@@ -272,7 +320,7 @@ class WorkflowManifestTest {
     }
 
     private static void assertInvalidManifest(String yaml, String expectedMessage) {
-        IOException ex = assertThrows(IOException.class, () -> loadManifest(yaml));
+        ManifestValidationException ex = assertThrows(ManifestValidationException.class, () -> loadManifest(yaml));
         assertTrue(ex.getMessage().contains(expectedMessage), ex.getMessage());
     }
 
