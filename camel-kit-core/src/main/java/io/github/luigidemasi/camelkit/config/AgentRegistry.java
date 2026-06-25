@@ -15,6 +15,7 @@ public final class AgentRegistry {
                     "md",
                     "$ARGUMENTS",
                     ".bob/mcp.json",
+                    "templates/mcp-configs/bob-mcp.json",
                     "mcpServers",
                     "IBM's AI-powered development assistant"),
             "gemini", new AgentConfig(
@@ -23,6 +24,7 @@ public final class AgentRegistry {
                     "toml",
                     "{{args}}",
                     ".gemini/settings.json",
+                    "templates/mcp-configs/gemini-mcp.json",
                     "mcpServers",
                     "Google's Gemini CLI"),
             "claude", new AgentConfig(
@@ -31,6 +33,7 @@ public final class AgentRegistry {
                     "md",
                     "$ARGUMENTS",
                     ".mcp.json",
+                    "templates/mcp-configs/claude-code-mcp.json",
                     "mcpServers",
                     "Anthropic's Claude Code CLI"),
             "qwen", new AgentConfig(
@@ -39,6 +42,7 @@ public final class AgentRegistry {
                     "md",
                     "$ARGUMENTS",
                     ".qwen/settings.json",
+                    "templates/mcp-configs/qwen-mcp.json",
                     "mcpServers",
                     "Alibaba's Qwen Code CLI"),
             "opencode", new AgentConfig(
@@ -47,6 +51,7 @@ public final class AgentRegistry {
                     "md",
                     "$ARGUMENTS",
                     "opencode.json",
+                    "templates/mcp-configs/opencode-mcp.json",
                     "mcp",
                     "AI coding agent for the terminal"));
 

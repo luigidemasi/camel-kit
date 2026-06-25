@@ -272,50 +272,18 @@ public class DefaultGenerator implements AgentGenerator {
     }
 
     private void createMcpConfigs(InitContext ctx, WorkflowManifest workflow) throws Exception {
-        String agentName = "";
-
         // Knowledge server repos (still uses JBang for now)
         String knowledgeMcpRepos = CamelKitMain.KNOWLEDGE_MCP_REPOS;
         String camelMcpRepos = CamelKitMain.CAMEL_MCP_REPOS;
 
         try {
-            String templatePath;
-
-            switch (ctx.agentName().toLowerCase(Locale.ROOT)) {
-                case "claude" -> {
-                    templatePath = "templates/mcp-configs/claude-code-mcp.json";
-                    agentName = "Claude Code";
-                }
-                case "bob" -> {
-                    templatePath = "templates/mcp-configs/bob-mcp.json";
-                    agentName = "IBM Bob";
-                }
-                case "gemini" -> {
-                    templatePath = "templates/mcp-configs/gemini-mcp.json";
-                    agentName = "Gemini CLI";
-                }
-                case "qwen" -> {
-                    templatePath = "templates/mcp-configs/qwen-mcp.json";
-                    agentName = "Qwen Code";
-                }
-                case "opencode" -> {
-                    templatePath = "templates/mcp-configs/opencode-mcp.json";
-                    agentName = "OpenCode";
-                }
-                default -> {
-                    ctx.printer().println(AnsiColors
-                            .yellow("  Warning: Unknown agent '" + ctx.agentName() + "', skipping MCP config"));
-                    return;
-                }
-            }
-
             Path configFile = ctx.projectDir().resolve(ctx.agent().mcpConfigPath());
             if (configFile.getParent() != null) {
                 Files.createDirectories(configFile.getParent());
             }
 
             QuteTemplateEngine qute = new QuteTemplateEngine();
-            String template = TemplateUtils.readTemplate(templatePath);
+            String template = TemplateUtils.readTemplate(ctx.agent().mcpConfigTemplatePath());
             DistributionConfig dist = CamelKitMain.distribution();
             Map<String, Object> templateData = new java.util.HashMap<>(
                     Map.of(
@@ -343,7 +311,7 @@ public class DefaultGenerator implements AgentGenerator {
             String processed = qute.renderString(template, templateData);
             Files.writeString(configFile, processed);
 
-            ctx.printer().println(AnsiColors.green("✓") + " MCP config created for " + agentName);
+            ctx.printer().println(AnsiColors.green("✓") + " MCP config created for " + ctx.agent().name());
         } catch (Exception e) {
             ctx.printer().println(AnsiColors.yellow("  Warning: Could not create MCP config: " + e.getMessage()));
         }
