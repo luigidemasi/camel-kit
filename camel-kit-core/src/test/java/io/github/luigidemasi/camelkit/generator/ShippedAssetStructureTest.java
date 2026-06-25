@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -37,13 +38,6 @@ class ShippedAssetStructureTest {
     private static final Pattern CODE_SPAN = Pattern.compile("`([^`\\n]+\\.md)`");
     private static final Pattern GENERATED_SKILL_REFERENCE
             = Pattern.compile("(?<path>\\.[A-Za-z0-9_-]+/skills/[A-Za-z0-9_./-]+/SKILL\\.md)");
-
-    private static final Map<String, String> MCP_CONFIG_TEMPLATES = Map.of(
-            "bob", "bob-mcp.json",
-            "claude", "claude-code-mcp.json",
-            "gemini", "gemini-mcp.json",
-            "opencode", "opencode-mcp.json",
-            "qwen", "qwen-mcp.json");
 
     @TempDir
     Path tempDir;
@@ -117,18 +111,19 @@ class ShippedAssetStructureTest {
 
     @Test
     void dispatchAndMcpTemplatesExistForEverySupportedAgent() throws Exception {
-        Path templatesDir = resourcePath("templates");
+        Path resourcesDir = resourceRoot();
+        Path templatesDir = resourcesDir.resolve("templates");
 
         List<String> missingAssets = new ArrayList<>();
         for (String agentName : sortedAgentNames()) {
             if (!Files.isRegularFile(templatesDir.resolve("dispatch/" + agentName + ".md"))) {
                 missingAssets.add("templates/dispatch/" + agentName + ".md");
             }
-            String mcpTemplate = MCP_CONFIG_TEMPLATES.get(agentName);
-            if (mcpTemplate == null) {
-                missingAssets.add("MCP template mapping for agent '" + agentName + "'");
-            } else if (!Files.isRegularFile(templatesDir.resolve("mcp-configs/" + mcpTemplate))) {
-                missingAssets.add("templates/mcp-configs/" + mcpTemplate);
+
+            AgentConfig agent = AgentRegistry.get(agentName);
+            assertNotNull(agent, "AgentRegistry listed unknown agent '" + agentName + "'");
+            if (!Files.isRegularFile(resourcesDir.resolve(agent.mcpConfigTemplatePath()))) {
+                missingAssets.add(agent.mcpConfigTemplatePath());
             }
         }
 
@@ -220,47 +215,92 @@ class ShippedAssetStructureTest {
 
     private static Optional<Path> resolveGuideManifestReference(
             Path resourcesDir, Path skillsDir, Path skillFile, String reference) {
-        String normalized = normalizeReference(reference);
-        if (normalized.startsWith("guides/")) {
-            return owningSkill(skillFile, skillsDir).map(skill -> skillsDir.resolve(skill).resolve(normalized));
-        }
-        if (normalized.startsWith("camel-")) {
-            return Optional.of(skillsDir.resolve(normalized));
-        }
-        if (normalized.startsWith("shared/")) {
-            return Optional.of(skillsDir.resolve(normalized));
-        }
-        if (normalized.startsWith("agents/")) {
-            return Optional.of(resourcesDir.resolve(normalized));
-        }
-        return Optional.empty();
+        return ShippedReference.parse(reference)
+                .resolve(EnumSet.allOf(ShippedReferenceKind.class),
+                        new ReferenceContext(resourcesDir, skillsDir, skillFile));
     }
 
     private static Optional<Path> resolveSharedGuideReference(Path resourcesDir, String reference) {
-        String normalized = normalizeReference(reference);
-
         Path skillsDir = resourcesDir.resolve("skills");
-        if (normalized.startsWith("shared/")) {
-            return Optional.of(skillsDir.resolve(normalized));
-        }
-        return Optional.empty();
+        return ShippedReference.parse(reference)
+                .resolve(EnumSet.of(ShippedReferenceKind.SHARED_GUIDE),
+                        new ReferenceContext(resourcesDir, skillsDir, null));
     }
 
-    private static String normalizeReference(String reference) {
-        String normalized = reference.strip()
-                .replace("\\", "/");
-        while (normalized.startsWith("./")) {
-            normalized = normalized.substring(2);
+    private record ReferenceContext(Path resourcesDir, Path skillsDir, Path source) {
+    }
+
+    private record ShippedReference(String path) {
+
+        private static ShippedReference parse(String reference) {
+            String normalized = reference.strip()
+                    .replace("\\", "/");
+            while (normalized.startsWith("./")) {
+                normalized = normalized.substring(2);
+            }
+            int skillsIndex = normalized.indexOf("/skills/");
+            if (skillsIndex >= 0) {
+                normalized = normalized.substring(skillsIndex + "/skills/".length());
+            }
+            return new ShippedReference(normalized);
         }
-        int skillsIndex = normalized.indexOf("/skills/");
-        if (skillsIndex >= 0) {
-            normalized = normalized.substring(skillsIndex + "/skills/".length());
+
+        private Optional<Path> resolve(EnumSet<ShippedReferenceKind> allowedKinds, ReferenceContext context) {
+            for (ShippedReferenceKind kind : allowedKinds) {
+                if (kind.matches(this)) {
+                    return kind.resolve(this, context);
+                }
+            }
+            return Optional.empty();
         }
-        return normalized;
+    }
+
+    /**
+     * Structural references intentionally support only shipped asset paths, not generated project artifacts such as
+     * design-spec.md. Add new reference forms here so their resolution stays explicit.
+     */
+    private enum ShippedReferenceKind {
+        LOCAL_GUIDE("guides/") {
+            @Override
+            Optional<Path> resolve(ShippedReference reference, ReferenceContext context) {
+                return owningSkill(context.source(), context.skillsDir())
+                        .map(skill -> context.skillsDir().resolve(skill).resolve(reference.path()));
+            }
+        },
+        SKILL("camel-") {
+            @Override
+            Optional<Path> resolve(ShippedReference reference, ReferenceContext context) {
+                return Optional.of(context.skillsDir().resolve(reference.path()));
+            }
+        },
+        SHARED_GUIDE("shared/") {
+            @Override
+            Optional<Path> resolve(ShippedReference reference, ReferenceContext context) {
+                return Optional.of(context.skillsDir().resolve(reference.path()));
+            }
+        },
+        AGENT("agents/") {
+            @Override
+            Optional<Path> resolve(ShippedReference reference, ReferenceContext context) {
+                return Optional.of(context.resourcesDir().resolve(reference.path()));
+            }
+        };
+
+        private final String prefix;
+
+        ShippedReferenceKind(String prefix) {
+            this.prefix = prefix;
+        }
+
+        private boolean matches(ShippedReference reference) {
+            return reference.path().startsWith(prefix);
+        }
+
+        abstract Optional<Path> resolve(ShippedReference reference, ReferenceContext context);
     }
 
     private static Optional<String> owningSkill(Path source, Path skillsDir) {
-        if (!source.startsWith(skillsDir)) {
+        if (source == null || !source.startsWith(skillsDir)) {
             return Optional.empty();
         }
         Path relative = skillsDir.relativize(source);
@@ -371,7 +411,9 @@ class ShippedAssetStructureTest {
 
     private static Path resourcePath(String resource) throws Exception {
         String normalized = resource.startsWith("/") ? resource.substring(1) : resource;
-        URI uri = ShippedAssetStructureTest.class.getClassLoader().getResource(normalized).toURI();
+        var resourceUrl = ShippedAssetStructureTest.class.getClassLoader().getResource(normalized);
+        assertNotNull(resourceUrl, "Missing test resource on classpath: " + normalized);
+        URI uri = resourceUrl.toURI();
         return Path.of(uri);
     }
 
