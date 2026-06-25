@@ -1,6 +1,5 @@
 package io.github.luigidemasi.camelkit.workflow;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -20,10 +19,10 @@ final class WorkflowManifestValidator {
     private WorkflowManifestValidator() {
     }
 
-    static void validateOrThrow(WorkflowManifest manifest) throws IOException {
+    static void validateOrThrow(WorkflowManifest manifest) throws ManifestValidationException {
         List<String> errors = validate(manifest);
         if (!errors.isEmpty()) {
-            throw new IOException("Invalid workflow manifest:\n" + String.join("\n", errors));
+            throw new ManifestValidationException(errors);
         }
     }
 
@@ -59,8 +58,12 @@ final class WorkflowManifestValidator {
             Map<String, WorkflowManifest.WorkflowCommand> commandsByName,
             Map<String, WorkflowManifest.WorkflowSkill> skillsByName,
             List<String> errors) {
+        commands = nullToEmpty(commands);
         for (int i = 0; i < commands.size(); i++) {
             WorkflowManifest.WorkflowCommand command = commands.get(i);
+            if (command == null) {
+                continue;
+            }
             String commandName = label(command.name(), i);
             validateRequired("commands[" + commandName + "].skill", command.skill(), errors);
 
@@ -85,8 +88,12 @@ final class WorkflowManifestValidator {
             List<WorkflowManifest.WorkflowSkill> skills,
             Map<String, WorkflowManifest.WorkflowCommand> commandsByName,
             List<String> errors) {
+        skills = nullToEmpty(skills);
         for (int i = 0; i < skills.size(); i++) {
             WorkflowManifest.WorkflowSkill skill = skills.get(i);
+            if (skill == null) {
+                continue;
+            }
             String skillName = label(skill.name(), i);
             if (isBlank(skill.generatedCommand())) {
                 continue;
@@ -114,14 +121,18 @@ final class WorkflowManifestValidator {
             Set<String> stageIds,
             Set<String> skillNames,
             List<String> errors) {
+        stages = nullToEmpty(stages);
         for (int i = 0; i < stages.size(); i++) {
             WorkflowManifest.WorkflowStage stage = stages.get(i);
+            if (stage == null) {
+                continue;
+            }
             String stageId = label(stage.id(), i);
             validateRequired("stages[" + stageId + "].skill", stage.skill(), errors);
             if (!isBlank(stage.skill()) && !skillNames.contains(stage.skill())) {
                 errors.add("stages[" + stageId + "].skill references unknown skill '" + stage.skill() + "'");
             }
-            for (String transition : stage.transitions()) {
+            for (String transition : nullToEmpty(stage.transitions())) {
                 if (isBlank(transition)) {
                     errors.add("stages[" + stageId + "].transitions contains a blank stage id");
                 } else if (!stageIds.contains(transition)) {
@@ -135,8 +146,12 @@ final class WorkflowManifestValidator {
             List<WorkflowManifest.WorkflowArtifact> artifacts,
             Set<String> skillNames,
             List<String> errors) {
+        artifacts = nullToEmpty(artifacts);
         for (int i = 0; i < artifacts.size(); i++) {
             WorkflowManifest.WorkflowArtifact artifact = artifacts.get(i);
+            if (artifact == null) {
+                continue;
+            }
             String artifactId = label(artifact.id(), i);
             validateRequired("artifacts[" + artifactId + "].path", artifact.path(), errors);
             validateSkillReferences(
@@ -156,6 +171,7 @@ final class WorkflowManifestValidator {
 
     private static void validateSkillReferences(
             String path, List<String> referencedSkills, Set<String> skillNames, List<String> errors) {
+        referencedSkills = nullToEmpty(referencedSkills);
         for (String skill : referencedSkills) {
             if (isBlank(skill)) {
                 errors.add(path + " contains a blank skill name");
@@ -171,10 +187,16 @@ final class WorkflowManifestValidator {
             List<T> items,
             Function<T, String> idExtractor,
             List<String> errors) {
+        items = nullToEmpty(items);
         Map<String, T> values = new LinkedHashMap<>();
         Set<String> duplicates = new LinkedHashSet<>();
         for (int i = 0; i < items.size(); i++) {
-            String id = idExtractor.apply(items.get(i));
+            T item = items.get(i);
+            if (item == null) {
+                errors.add(section + "[" + i + "] must not be null");
+                continue;
+            }
+            String id = idExtractor.apply(item);
             String path = section + "[" + i + "]." + idField;
             if (isBlank(id)) {
                 errors.add(path + " must not be blank");
@@ -191,6 +213,10 @@ final class WorkflowManifestValidator {
             errors.add(section + " must not be empty");
         }
         return values;
+    }
+
+    private static <T> List<T> nullToEmpty(List<T> items) {
+        return items == null ? List.of() : items;
     }
 
     private static void validateRequired(String path, String value, List<String> errors) {
