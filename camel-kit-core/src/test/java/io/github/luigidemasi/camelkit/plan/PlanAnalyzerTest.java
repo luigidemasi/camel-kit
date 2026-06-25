@@ -40,6 +40,74 @@ class PlanAnalyzerTest {
             - [ ] Define JSON schemas
             """;
 
+    static final String STRUCTURED_PLAN = """
+            # Implementation Plan
+
+            ```yaml plan-metadata
+            tasks:
+              - id: 1
+                title: Order Ingestion Route
+                files:
+                  creates:
+                    - src/main/resources/camel/order-ingestion.camel.yaml
+                provides:
+                  routes:
+                    - order-ingestion
+                  endpoints:
+                    - direct:validate-order
+                  schemas:
+                    - order-schema
+                  testData:
+                    - order-input.json
+                  beans:
+                    - orderValidator
+                  externalServices:
+                    - kafka-orders
+                consumes:
+                  properties:
+                    - orders.input.dir
+                dependsOn: []
+              - id: 2
+                title: Order Validation Route
+                files:
+                  creates:
+                    - src/main/resources/camel/order-validation.camel.yaml
+                consumes:
+                  endpoints:
+                    - direct:validate-order
+                  schemas:
+                    - order-schema
+                  testData:
+                    - order-input.json
+                  beans:
+                    - orderValidator
+                  externalServices:
+                    - kafka-orders
+                dependsOn: []
+              - id: 3
+                title: Order Properties
+                files:
+                  modifies:
+                    - src/main/resources/application.properties
+                provides:
+                  properties:
+                    - orders.input.dir
+                dependsOn: []
+            ```
+
+            ### Task 1: Order Ingestion Route
+            - Create: `src/main/resources/camel/order-ingestion.camel.yaml`
+            - [ ] Implement
+
+            ### Task 2: Order Validation Route
+            - Create: `src/main/resources/camel/order-validation.camel.yaml`
+            - [ ] Implement
+
+            ### Task 3: Order Properties
+            - Modify: `src/main/resources/application.properties`
+            - [ ] Implement
+            """;
+
     @Test
     void parsesTasksFromPlan() {
         PlanAnalyzer analyzer = new PlanAnalyzer();
@@ -53,6 +121,93 @@ class PlanAnalyzerTest {
         assertEquals("Order Fulfillment Route", tasks.get(2).name());
         assertEquals(4, tasks.get(3).number());
         assertEquals("Schema Definitions", tasks.get(3).name());
+    }
+
+    @Test
+    void prefersStructuredMetadataOverMarkdownTasks() {
+        PlanAnalyzer analyzer = new PlanAnalyzer();
+        List<PlanAnalyzer.TaskInfo> tasks = analyzer.parseTasks(STRUCTURED_PLAN);
+
+        assertEquals(3, tasks.size());
+        assertEquals(1, tasks.get(0).number());
+        assertEquals("Order Ingestion Route", tasks.get(0).name());
+        assertEquals(List.of("src/main/resources/camel/order-ingestion.camel.yaml"), tasks.get(0).files());
+        assertEquals(List.of("order-ingestion"), tasks.get(0).provides().get("routes"));
+        assertEquals(List.of("orders.input.dir"), tasks.get(0).consumes().get("properties"));
+        assertEquals(3, tasks.get(2).number());
+    }
+
+    @Test
+    void rejectsMetadataThatOmitsMarkdownTasks() {
+        String plan = """
+                ```yaml plan-metadata
+                tasks:
+                  - id: 1
+                    title: Generate route
+                    files:
+                      creates:
+                        - src/main/resources/camel/orders.camel.yaml
+                    dependsOn: []
+                ```
+
+                ### Task 1: Generate route
+                - Create: `src/main/resources/camel/orders.camel.yaml`
+                - [ ] Implement
+
+                ### Task 2: Validate route
+                - Create: `target/validation-report.txt`
+                - [ ] Validate
+                """;
+
+        PlanAnalyzer analyzer = new PlanAnalyzer();
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class, () -> analyzer.parseTasks(plan));
+
+        assertTrue(exception.getMessage().contains("missing task id 2"));
+    }
+
+    @Test
+    void rejectsMetadataTitleThatDoesNotMatchMarkdownTask() {
+        String plan = """
+                ```yaml plan-metadata
+                tasks:
+                  - id: 1
+                    title: Generate stale route title
+                    files:
+                      creates:
+                        - src/main/resources/camel/orders.camel.yaml
+                    dependsOn: []
+                ```
+
+                ### Task 1: Generate route
+                - Create: `src/main/resources/camel/orders.camel.yaml`
+                - [ ] Implement
+                """;
+
+        PlanAnalyzer analyzer = new PlanAnalyzer();
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class, () -> analyzer.parseTasks(plan));
+
+        assertTrue(exception.getMessage().contains("title does not match"));
+    }
+
+    @Test
+    void rejectsEmptyStructuredMetadataBlock() {
+        String plan = """
+                ```yaml plan-metadata
+
+                ```
+
+                ### Task 1: Generate route
+                - Create: `src/main/resources/camel/orders.camel.yaml`
+                - [ ] Implement
+                """;
+
+        PlanAnalyzer analyzer = new PlanAnalyzer();
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class, () -> analyzer.parseTasks(plan));
+
+        assertTrue(exception.getMessage().contains("plan metadata must contain a tasks array"));
     }
 
     @Test
@@ -92,6 +247,81 @@ class PlanAnalyzerTest {
     }
 
     @Test
+    void detectsExplicitStructuredDependencies() {
+        String plan = """
+                ```yaml plan-metadata
+                tasks:
+                  - id: 1
+                    title: Generate route
+                    files:
+                      creates:
+                        - src/main/resources/camel/orders.camel.yaml
+                    dependsOn: []
+                  - id: 2
+                    title: Validate route
+                    files:
+                      creates:
+                        - target/validation-report.txt
+                    dependsOn:
+                      - 1
+                ```
+                """;
+
+        PlanAnalyzer analyzer = new PlanAnalyzer();
+        List<PlanAnalyzer.TaskInfo> tasks = analyzer.parseTasks(plan);
+        Map<Integer, List<Integer>> deps = analyzer.findDependencies(tasks);
+        List<PlanAnalyzer.Wave> waves = analyzer.computeWaves(tasks);
+
+        assertEquals(List.of(1), deps.get(2));
+        assertEquals(List.of(1), waves.get(0).taskNumbers());
+        assertEquals(List.of(2), waves.get(1).taskNumbers());
+    }
+
+    @Test
+    void detectsLogicalDependenciesBeyondSharedFiles() {
+        PlanAnalyzer analyzer = new PlanAnalyzer();
+        List<PlanAnalyzer.TaskInfo> tasks = analyzer.parseTasks(STRUCTURED_PLAN);
+        Map<Integer, List<Integer>> deps = analyzer.findDependencies(tasks);
+        List<PlanAnalyzer.Wave> waves = analyzer.computeWaves(tasks);
+
+        assertEquals(List.of(3), deps.get(1));
+        assertEquals(List.of(1), deps.get(2));
+        assertEquals(List.of(3), waves.get(0).taskNumbers());
+        assertEquals(List.of(1), waves.get(1).taskNumbers());
+        assertEquals(List.of(2), waves.get(2).taskNumbers());
+    }
+
+    @Test
+    void rejectsCyclicStructuredDependencies() {
+        String plan = """
+                ```yaml plan-metadata
+                tasks:
+                  - id: 1
+                    title: Generate route
+                    files:
+                      creates:
+                        - src/main/resources/camel/orders.camel.yaml
+                    dependsOn:
+                      - 2
+                  - id: 2
+                    title: Validate route
+                    files:
+                      creates:
+                        - target/validation-report.txt
+                    dependsOn:
+                      - 1
+                ```
+                """;
+
+        PlanAnalyzer analyzer = new PlanAnalyzer();
+        List<PlanAnalyzer.TaskInfo> tasks = analyzer.parseTasks(plan);
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class, () -> analyzer.computeWaves(tasks));
+
+        assertTrue(exception.getMessage().contains("cyclic task dependencies"));
+    }
+
+    @Test
     void computesParallelWaves() {
         PlanAnalyzer analyzer = new PlanAnalyzer();
         List<PlanAnalyzer.TaskInfo> tasks = analyzer.parseTasks(FOUR_TASK_PLAN);
@@ -122,6 +352,18 @@ class PlanAnalyzerTest {
         assertEquals(1, waves.size());
         assertEquals(1, waves.get(0).waveNumber());
         assertEquals(List.of(1), waves.get(0).taskNumbers());
+    }
+
+    @Test
+    void fallsBackToMarkdownParsingWhenMetadataBlockIsAbsent() {
+        PlanAnalyzer analyzer = new PlanAnalyzer();
+        List<PlanAnalyzer.TaskInfo> tasks = analyzer.parseTasks(FOUR_TASK_PLAN);
+
+        assertEquals(4, tasks.size());
+        assertEquals("Inventory Check Route", tasks.get(1).name());
+        assertTrue(tasks.get(1).provides().isEmpty());
+        assertTrue(tasks.get(1).consumes().isEmpty());
+        assertTrue(tasks.get(1).dependsOn().isEmpty());
     }
 
     @Test

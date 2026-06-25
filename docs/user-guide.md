@@ -347,10 +347,16 @@ The plan phase reviews the approved BRD and decomposes it into bite-sized implem
 **What it produces:**
 - Task decomposition with one task per flow or concern
 - For each task: files to create, MCP tools to call, and verification steps
+- Structured `yaml plan-metadata` with file, logical, and explicit task dependencies for wave analysis
 - Two-stage review specification per task (spec compliance, then code quality)
 - Agent persona assignment per task
 
 **Output:** An implementation plan (`docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`).
+
+The structured metadata block mirrors the Markdown tasks. Each task entry includes `id`, `title`, grouped `files`,
+logical `provides` and `consumes` resources, and explicit `dependsOn` task IDs. Logical resources include endpoints,
+routes, properties, schemas, test data, beans, external services, and route contracts. Older Markdown-only plans still
+work, but new plans use the metadata block so `/camel-execute` can avoid parallelizing tasks with hidden dependencies.
 
 After the plan is complete, the pipeline transitions automatically to the execute phase. There is no separate plan approval gate -- the design approval authorizes all downstream work. The environment probe (first step of execute) validates feasibility before code generation begins.
 
@@ -748,7 +754,7 @@ The execution loop for these agents:
 5. If either reviewer finds issues, the implementer fixes them and the reviewer re-checks
 6. Mark task complete and move to the next
 
-**Claude** goes further: it uses route graph topology to identify which tasks are independent (no shared endpoints or configuration), then dispatches those tasks to parallel subagents simultaneously. This is the only agent that can implement multiple flows at the same time.
+**Claude** goes further: it uses `camel-kit plan analyze` waves from structured task metadata, logical dependencies, and file overlap, then dispatches independent tasks to parallel subagents simultaneously. This is the only agent that can implement multiple flows at the same time.
 
 **Bob does not support subagents.** Instead, it uses a **mode-switching** approach: the pipeline loads in Advanced mode (unrestricted, so it can read all skill files and context), then the first instruction switches to a restricted custom mode (`camel-implement`, `camel-validate`, etc.) with scoped tool permissions. Each mode constrains what the AI can do -- during brainstorm, Bob physically cannot edit code files because the mode's tool group excludes file editing. This is enforced at the platform level, not through instructions the AI could ignore.
 

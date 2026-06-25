@@ -64,6 +64,7 @@ Break the design spec into tasks. Each task should:
 
 For each task, specify:
 - Which files to create/modify (exact paths)
+- Matching structured metadata with file actions, logical provides/consumes resources, and explicit dependsOn IDs
 - Which guides to load and in what order
 - Which MCP tools to call and with what parameters
 - Which constitution rules to check
@@ -78,7 +79,7 @@ Save the plan to `docs/implementation-plan.md`.
 
 Use this format:
 
-```markdown
+````markdown
 # [Project Name] Implementation Plan
 
 > **For agentic workers:** Use camel-execute to implement this plan task-by-task.
@@ -91,6 +92,30 @@ Use this format:
 **Tech Stack:** Apache Camel [version], [runtime], [key components]
 
 **Design Spec:** `docs/design-spec.md` (approved [date])
+
+---
+
+```yaml plan-metadata
+tasks:
+  - id: 1
+    title: [Component/Flow Name]
+    files:
+      creates:
+        - exact/path/to/file
+      modifies:
+        - exact/path/to/existing
+    provides:
+      routes:
+        - [route-id]
+      endpoints:
+        - direct:[endpoint-name]
+    consumes:
+      properties:
+        - [property.name]
+      schemas:
+        - [schema-name]
+    dependsOn: []
+```
 
 ---
 
@@ -120,7 +145,7 @@ Use this format:
 **Review:**
 - [ ] Spec compliance: [what to check — components match TDD, structure correct, properties complete]
 - [ ] Code quality: [what to check — constitution rules, security, anti-patterns]
-```
+````
 </Step>
 
 <Step>
@@ -178,6 +203,7 @@ Do NOT pause between tasks. Execute ALL tasks sequentially without interruption.
 ## What Goes IN the Plan
 
 - Which files to create/modify (exact paths)
+- Structured `yaml plan-metadata` for every task, including `files`, logical `provides`/`consumes`, and `dependsOn`
 - Which guides to load and in what order
 - Which MCP tools to call and with what parameters
 - Which constitution rules to check
