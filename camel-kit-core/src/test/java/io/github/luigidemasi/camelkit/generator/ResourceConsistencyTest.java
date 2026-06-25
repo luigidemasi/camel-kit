@@ -68,6 +68,28 @@ class ResourceConsistencyTest {
     }
 
     @Test
+    void activeResourceScanIncludesTopLevelDocsOnly() throws IOException {
+        Path root = repositoryRoot();
+
+        Set<String> activeResources = activeResourceFiles(root).stream()
+                .map(path -> root.relativize(path).toString())
+                .collect(Collectors.toSet());
+        Set<String> topLevelDocs;
+        try (Stream<Path> paths = Files.list(root.resolve("docs"))) {
+            topLevelDocs = paths.filter(Files::isRegularFile)
+                    .filter(ResourceConsistencyTest::isScannedTextFile)
+                    .map(path -> root.relativize(path).toString())
+                    .collect(Collectors.toSet());
+        }
+
+        assertTrue(activeResources.containsAll(topLevelDocs));
+        assertFalse(activeResources.stream().anyMatch(path -> path.startsWith("docs/plans/")));
+        assertFalse(activeResources.stream().anyMatch(path -> path.startsWith("docs/superpowers/")));
+        assertFalse(activeResources.stream().anyMatch(path -> path.startsWith("docs/flows/")));
+        assertFalse(activeResources.stream().anyMatch(path -> path.startsWith("docs/img/")));
+    }
+
+    @Test
     void generatedCommandStubsMatchIntendedExposedSkills() throws Exception {
         for (String agentName : sortedAgentNames()) {
             Path projectDir = tempDir.resolve(agentName);
@@ -140,11 +162,11 @@ class ResourceConsistencyTest {
         List<Path> scanRoots = List.of(
                 root.resolve("camel-kit-core/src/main/resources/skills"),
                 root.resolve("camel-kit-core/src/main/resources/templates"),
-                root.resolve("docs"),
                 root.resolve("README.md"),
                 root.resolve("CONTRIBUTING.md"));
 
         List<Path> files = new ArrayList<>();
+        addTopLevelDocs(root, files);
         for (Path scanRoot : scanRoots) {
             if (Files.isRegularFile(scanRoot)) {
                 if (isScannedTextFile(scanRoot)) {
@@ -160,6 +182,18 @@ class ResourceConsistencyTest {
         }
         files.sort(Comparator.comparing(path -> root.relativize(path).toString()));
         return files;
+    }
+
+    private static void addTopLevelDocs(Path root, List<Path> files) throws IOException {
+        Path docsDir = root.resolve("docs");
+        if (!Files.isDirectory(docsDir)) {
+            return;
+        }
+        try (Stream<Path> paths = Files.list(docsDir)) {
+            paths.filter(Files::isRegularFile)
+                    .filter(ResourceConsistencyTest::isScannedTextFile)
+                    .forEach(files::add);
+        }
     }
 
     private static boolean isScannedTextFile(Path path) {
