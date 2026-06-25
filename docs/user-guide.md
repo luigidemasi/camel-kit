@@ -202,6 +202,8 @@ After initialization, run `doctor` from the workspace root:
 
 ```bash
 camel-kit doctor
+# or, when installed as a Camel JBang plugin:
+camel kit doctor
 ```
 
 `doctor` checks the generated configuration, command stubs, skill files, MCP config and allowlists, project graph, command prefix, prerequisites, and common stale generated references. It also verifies that internal skills such as `camel-verify` are present as skills but not exposed as user command stubs. It prints `PASS`, `WARN`, and `FAIL` findings with remediation text. External tools such as JBang and Camel JBang are reported as warnings when unavailable; broken generated workspace files are failures.
@@ -210,6 +212,7 @@ For automation:
 
 ```bash
 camel-kit doctor --json
+camel kit doctor --json
 ```
 
 ---
@@ -821,9 +824,10 @@ Start with the workspace diagnostic:
 
 ```bash
 camel-kit doctor
+camel kit doctor
 ```
 
-Use `camel-kit doctor --json` in scripts or CI to detect broken generated files. A `FAIL` means the generated workspace needs repair; a `WARN` usually means an optional prerequisite or persisted graph file is missing.
+Use `camel-kit doctor --json` or `camel kit doctor --json` in scripts or CI to detect broken generated files. A `FAIL` means the generated workspace needs repair; a `WARN` usually means an optional prerequisite or persisted graph file is missing.
 
 ### Catalog Not Found
 

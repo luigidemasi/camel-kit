@@ -200,7 +200,10 @@ Validate a generated Camel-Kit workspace and report actionable findings.
 
 ```bash
 camel-kit doctor [options]
+camel kit doctor [options]
 ```
+
+Use `camel-kit doctor` for the standalone CLI. Use `camel kit doctor` when Camel-Kit is installed as a Camel JBang plugin.
 
 **Options:**
 
@@ -214,12 +217,14 @@ camel-kit doctor [options]
 ```bash
 # Check the current workspace
 camel-kit doctor
+camel kit doctor
 
 # Check another workspace
 camel-kit doctor --project-dir /path/to/order-processing
 
 # Produce JSON for automation
 camel-kit doctor --json
+camel kit doctor --json
 ```
 
 **Checks:**
