@@ -28,10 +28,7 @@ public class BobGenerator extends DefaultGenerator {
             "camel-test", "testing.md");
 
     @Override
-    public void generate(InitContext ctx) throws Exception {
-        WorkflowManifest workflow = loadWorkflowManifest();
-        generateBaseAssets(ctx, workflow);
-
+    protected void beforeApplyTraits(InitContext ctx, WorkflowManifest workflow) throws Exception {
         Map<String, Object> templateData = new HashMap<>(
                 Map.of(
                         "COMMAND_PREFIX", ctx.commandPrefix()));
@@ -43,9 +40,6 @@ public class BobGenerator extends DefaultGenerator {
 
         // Bob-specific: replace SKILL.md files with monolithic gate versions
         replaceSkillsWithGates(ctx, templateData);
-
-        applyTraits(ctx, workflow);
-        generateMcpConfig(ctx, workflow);
     }
 
     private void generateCustomModes(InitContext ctx) throws Exception {

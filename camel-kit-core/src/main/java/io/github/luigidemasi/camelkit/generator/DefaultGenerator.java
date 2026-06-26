@@ -45,6 +45,7 @@ public class DefaultGenerator implements AgentGenerator {
     public void generate(InitContext ctx) throws Exception {
         WorkflowManifest workflow = loadWorkflowManifest();
         generateBaseAssets(ctx, workflow);
+        beforeApplyTraits(ctx, workflow);
         applyTraits(ctx, workflow);
         generateMcpConfig(ctx, workflow);
     }
@@ -59,6 +60,10 @@ public class DefaultGenerator implements AgentGenerator {
         agentsMdGenerator.generate(ctx);
         commandStubGenerator.generate(ctx, workflow);
         skillResourceInstaller.install(ctx);
+    }
+
+    protected void beforeApplyTraits(InitContext ctx, WorkflowManifest workflow) throws Exception {
+        // Extension hook for generators that need to prepare generated assets before trait application.
     }
 
     protected void applyTraits(InitContext ctx, WorkflowManifest workflow) throws Exception {
