@@ -1,12 +1,9 @@
 package io.github.luigidemasi.camelkit.util;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,7 +15,7 @@ import io.github.luigidemasi.camelkit.output.Printer;
  */
 public final class PrerequisiteChecker {
 
-    private static final int TIMEOUT_SECONDS = 5;
+    private static final Duration PREREQUISITE_TIMEOUT = Duration.ofSeconds(5);
     private static final int MIN_JAVA_VERSION = 17;
 
     private PrerequisiteChecker() {
@@ -59,28 +56,20 @@ public final class PrerequisiteChecker {
     // ------------------------------------------------------------------
 
     private static CheckResult checkJava() {
-        try {
-            ProcessBuilder pb = new ProcessBuilder("java", "-version");
-            pb.redirectErrorStream(true);
-            Process proc = pb.start();
-
-            String output = drainWithTimeout(proc);
-            if (output == null) {
-                return new CheckResult("Java 17+", false, null, null);
-            }
-
-            String version = parseJavaVersion(output);
-            if (version != null) {
-                int major = parseMajorVersion(version);
-                if (major >= MIN_JAVA_VERSION) {
-                    return new CheckResult("Java 17+", true, version, null);
-                }
-                return new CheckResult("Java 17+", false, null, "found " + version + ", need 17+");
-            }
-            return new CheckResult("Java 17+", false, null, null);
-        } catch (Exception e) {
+        ProcessRunner.Result result = ProcessRunner.run(PREREQUISITE_TIMEOUT, "java", "-version");
+        if (!result.completed()) {
             return new CheckResult("Java 17+", false, null, null);
         }
+
+        String version = parseJavaVersion(result.output());
+        if (version != null) {
+            int major = parseMajorVersion(version);
+            if (major >= MIN_JAVA_VERSION) {
+                return new CheckResult("Java 17+", true, version, null);
+            }
+            return new CheckResult("Java 17+", false, null, "found " + version + ", need 17+");
+        }
+        return new CheckResult("Java 17+", false, null, null);
     }
 
     private static CheckResult checkJBang() {
@@ -108,58 +97,23 @@ public final class PrerequisiteChecker {
     // ------------------------------------------------------------------
 
     private static CheckResult runSimpleCheck(String name, String[] command, boolean ignoreOutput) {
-        try {
-            ProcessBuilder pb = new ProcessBuilder(command);
-            pb.redirectErrorStream(true);
-            Process proc = pb.start();
-
-            String output = drainWithTimeout(proc);
-            if (output == null) {
-                return new CheckResult(name, false, null, null);
-            }
-
-            if (proc.exitValue() == 0) {
-                String version = ignoreOutput ? "installed" : extractFirstLine(output);
-                return new CheckResult(name, true, version, null);
-            }
-            return new CheckResult(name, false, null, null);
-        } catch (Exception e) {
+        ProcessRunner.Result result = ProcessRunner.run(PREREQUISITE_TIMEOUT, command);
+        if (!result.completed()) {
             return new CheckResult(name, false, null, null);
         }
-    }
 
-    /**
-     * Drain process output in a daemon thread while the main thread holds the timed wait. Returns the output string, or
-     * null if the process timed out.
-     */
-    private static String drainWithTimeout(Process proc) throws InterruptedException {
-        StringBuilder sb = new StringBuilder();
-        Thread drainer = new Thread(() -> {
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(proc.getInputStream(), StandardCharsets.UTF_8))) {
-                reader.lines().forEach(line -> sb.append(line).append('\n'));
-            } catch (java.io.IOException ignored) {
-            }
-        });
-        drainer.setDaemon(true);
-        drainer.start();
-
-        if (!proc.waitFor(TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-            proc.destroyForcibly();
-            return null;
+        if (result.succeeded()) {
+            String version = ignoreOutput ? "installed" : extractFirstLine(result.output());
+            return new CheckResult(name, true, version, null);
         }
-        try {
-            drainer.join(500);
-        } catch (InterruptedException ignored) {
-        }
-        return sb.toString().trim();
+        return new CheckResult(name, false, null, null);
     }
 
     /**
      * Parse the Java version from {@code java -version} output. Handles both the old format
      * ({@code java version "1.8.0_xxx"}) and the modern format ({@code openjdk version "17.0.1"}).
      */
-    static String parseJavaVersion(String output) {
+    public static String parseJavaVersion(String output) {
         Pattern pattern = Pattern.compile("version\\s+\"([^\"]+)\"");
         Matcher matcher = pattern.matcher(output);
         if (matcher.find()) {
@@ -171,7 +125,7 @@ public final class PrerequisiteChecker {
     /**
      * Extract the major version number. Handles {@code 1.8.0_xxx} (returns 8) and {@code 17.0.1} (returns 17).
      */
-    static int parseMajorVersion(String version) {
+    public static int parseMajorVersion(String version) {
         if (version.startsWith("1.")) {
             // Old-style: 1.8.0_xxx → 8
             String[] parts = version.split("\\.");
