@@ -1,0 +1,23 @@
+id: claude
+displayName: Claude Code
+commandDirectory: .claude/commands
+commandFileFormat: md
+argumentPlaceholder: $ARGUMENTS
+mcpConfigPath: .mcp.json
+mcpConfigTemplatePath: templates/mcp-configs/claude-code-mcp.json
+mcpServerContainerKey: mcpServers
+description: Anthropic's Claude Code CLI
+generatorStrategy: claude
+dispatchTemplatePath: templates/dispatch/claude.md
+templates:
+  - source: templates/claude/claude-md.md
+    target: CLAUDE.md
+  - source: templates/claude/settings.json
+    target: .claude/settings.json
+supportsSubagents: true
+supportsTraits: true
+capabilities:
+  - parallel-subagent-dispatch
+  - agent-tool
+  - settings
+  - mcp

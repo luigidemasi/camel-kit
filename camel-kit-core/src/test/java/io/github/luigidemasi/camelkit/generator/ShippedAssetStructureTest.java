@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.github.luigidemasi.camelkit.config.AgentConfig;
+import io.github.luigidemasi.camelkit.config.AgentDescriptor;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
 import io.github.luigidemasi.camelkit.workflow.WorkflowManifest;
@@ -112,12 +113,13 @@ class ShippedAssetStructureTest {
     @Test
     void dispatchAndMcpTemplatesExistForEverySupportedAgent() throws Exception {
         Path resourcesDir = resourceRoot();
-        Path templatesDir = resourcesDir.resolve("templates");
 
         List<String> missingAssets = new ArrayList<>();
         for (String agentName : sortedAgentNames()) {
-            if (!Files.isRegularFile(templatesDir.resolve("dispatch/" + agentName + ".md"))) {
-                missingAssets.add("templates/dispatch/" + agentName + ".md");
+            AgentDescriptor descriptor = AgentRegistry.descriptor(agentName);
+            assertNotNull(descriptor, "AgentRegistry listed unknown descriptor '" + agentName + "'");
+            if (!Files.isRegularFile(resourcesDir.resolve(descriptor.dispatchTemplatePath()))) {
+                missingAssets.add(descriptor.dispatchTemplatePath());
             }
 
             AgentConfig agent = AgentRegistry.get(agentName);
@@ -129,6 +131,24 @@ class ShippedAssetStructureTest {
 
         assertTrue(missingAssets.isEmpty(),
                 "Supported agents are missing dispatch or MCP config templates:\n"
+                                            + String.join("\n", missingAssets));
+    }
+
+    @Test
+    void agentDescriptorTemplateSourcesExist() throws Exception {
+        Path resourcesDir = resourceRoot();
+
+        List<String> missingAssets = new ArrayList<>();
+        for (AgentDescriptor descriptor : AgentRegistry.descriptors().values()) {
+            for (AgentDescriptor.TemplateInstall template : descriptor.templates()) {
+                if (!Files.isRegularFile(resourcesDir.resolve(template.source()))) {
+                    missingAssets.add(descriptor.id() + " -> " + template.source());
+                }
+            }
+        }
+
+        assertTrue(missingAssets.isEmpty(),
+                "Agent descriptors reference missing template sources:\n"
                                             + String.join("\n", missingAssets));
     }
 

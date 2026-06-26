@@ -1,0 +1,36 @@
+id: qwen
+displayName: Qwen Code
+commandDirectory: .qwen/commands
+commandFileFormat: md
+argumentPlaceholder: $ARGUMENTS
+mcpConfigPath: .qwen/settings.json
+mcpConfigTemplatePath: templates/mcp-configs/qwen-mcp.json
+mcpServerContainerKey: mcpServers
+description: Alibaba's Qwen Code CLI
+generatorStrategy: qwen
+dispatchTemplatePath: templates/dispatch/qwen.md
+templates:
+  - source: templates/qwen/qwen-md.md
+    target: QWEN.md
+  - source: templates/qwen/qwenignore
+    target: .qwenignore
+  - source: templates/qwen/agents/camel-brainstormer.md
+    target: .qwen/agents/camel-brainstormer.md
+  - source: templates/qwen/agents/camel-executor.md
+    target: .qwen/agents/camel-executor.md
+  - source: templates/qwen/agents/camel-implementer.md
+    target: .qwen/agents/camel-implementer.md
+  - source: templates/qwen/agents/camel-migrator.md
+    target: .qwen/agents/camel-migrator.md
+  - source: templates/qwen/agents/camel-planner.md
+    target: .qwen/agents/camel-planner.md
+  - source: templates/qwen/agents/camel-tester.md
+    target: .qwen/agents/camel-tester.md
+  - source: templates/qwen/agents/camel-validator.md
+    target: .qwen/agents/camel-validator.md
+supportsSubagents: true
+supportsTraits: true
+capabilities:
+  - named-subagents
+  - fork-dispatch
+  - mcp
