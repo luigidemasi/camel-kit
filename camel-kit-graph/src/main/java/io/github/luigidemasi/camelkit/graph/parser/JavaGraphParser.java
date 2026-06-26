@@ -59,6 +59,11 @@ public class JavaGraphParser implements GraphParser {
         }
     }
 
+    @Override
+    public List<String> scannedFiles(Path projectRoot) {
+        return GraphParser.findFiles(projectRoot, file -> file.toString().endsWith(".java"));
+    }
+
     private void parseJavaFile(JavaParser parser, Path file, Path projectRoot, ProjectGraph graph) {
         try {
             var parseResult = parser.parse(file);

@@ -37,6 +37,25 @@ public class XmlRouteParser implements GraphParser {
         }
     }
 
+    @Override
+    public List<String> scannedFiles(Path projectRoot) {
+        return GraphParser.findFiles(projectRoot, this::isCamelXmlCandidate);
+    }
+
+    private boolean isCamelXmlCandidate(Path file) {
+        String fileName = file.getFileName().toString();
+        if (!fileName.endsWith(".xml") || fileName.equals("pom.xml")) {
+            return false;
+        }
+        try {
+            String content = Files.readString(file);
+            String head = content.substring(0, Math.min(1024, content.length()));
+            return !head.contains("mulesoft.org/schema/mule") && !BizTalkParser.isBizTalkXml(head);
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     private void parseXmlFile(Path xmlFile, Path projectRoot, ProjectGraph graph) {
         // Skip MuleSoft XML files (handled by MuleXmlFlowParser)
         // Skip BizTalk XML files (handled by BizTalkParser)

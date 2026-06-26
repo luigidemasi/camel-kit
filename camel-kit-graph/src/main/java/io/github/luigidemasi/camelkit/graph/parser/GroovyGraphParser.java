@@ -41,6 +41,11 @@ public class GroovyGraphParser implements GraphParser {
         }
     }
 
+    @Override
+    public List<String> scannedFiles(Path projectRoot) {
+        return GraphParser.findFiles(projectRoot, file -> file.toString().endsWith(".groovy"));
+    }
+
     private void parseGroovyFile(Path file, Path projectRoot, ProjectGraph graph) {
         CompilerConfiguration config = new CompilerConfiguration();
         config.setTargetBytecode(CompilerConfiguration.JDK17);

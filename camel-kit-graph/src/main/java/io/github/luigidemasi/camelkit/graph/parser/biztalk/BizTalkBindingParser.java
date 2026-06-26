@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.Consumer;
 
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
@@ -26,6 +28,16 @@ import io.github.luigidemasi.camelkit.graph.model.NodeType;
 public class BizTalkBindingParser {
 
     private static final String BIZTALK_NS = "http://schemas.microsoft.com/BizTalk/2003";
+    private final Consumer<String> warningConsumer;
+
+    public BizTalkBindingParser() {
+        this(warning -> {
+        });
+    }
+
+    public BizTalkBindingParser(Consumer<String> warningConsumer) {
+        this.warningConsumer = Objects.requireNonNull(warningConsumer, "warningConsumer");
+    }
 
     /**
      * Parse a single binding XML file and add adapter nodes to the graph.
@@ -41,7 +53,7 @@ public class BizTalkBindingParser {
 
             parseBindingXml(bindingFile, graph);
         } catch (Exception e) {
-            System.err.println("Failed to parse BizTalk binding file: " + bindingFile + " - " + e.getMessage());
+            warningConsumer.accept("Failed to parse BizTalk binding file: " + bindingFile + " - " + e.getMessage());
         }
     }
 

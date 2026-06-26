@@ -1,14 +1,13 @@
 package io.github.luigidemasi.camelkit.graph;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import io.github.luigidemasi.camelkit.graph.model.*;
 
 public class ProjectGraph {
 
-    private final Map<String, GraphNode> nodes = new ConcurrentHashMap<>();
+    private final Map<String, GraphNode> nodes = Collections.synchronizedMap(new LinkedHashMap<>());
     private final List<GraphEdge> edges = Collections.synchronizedList(new ArrayList<>());
 
     public void addNode(GraphNode node) {
@@ -62,7 +61,7 @@ public class ProjectGraph {
     }
 
     public void merge(ProjectGraph other) {
-        other.nodes.values().forEach(this::addNode);
-        other.edges.forEach(this::addEdge);
+        other.getNodes().values().forEach(this::addNode);
+        other.getEdges().forEach(this::addEdge);
     }
 }

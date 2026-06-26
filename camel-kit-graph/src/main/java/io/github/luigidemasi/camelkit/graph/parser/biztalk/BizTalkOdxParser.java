@@ -6,7 +6,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Consumer;
 
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
@@ -28,6 +30,16 @@ import io.github.luigidemasi.camelkit.graph.model.NodeType;
 public class BizTalkOdxParser {
 
     private static final String BIZTALK_NS = "http://schemas.microsoft.com/BizTalk/2003/DesignerData";
+    private final Consumer<String> warningConsumer;
+
+    public BizTalkOdxParser() {
+        this(warning -> {
+        });
+    }
+
+    public BizTalkOdxParser(Consumer<String> warningConsumer) {
+        this.warningConsumer = Objects.requireNonNull(warningConsumer, "warningConsumer");
+    }
 
     /**
      * Parse a single ODX file and add nodes/edges to the graph.
@@ -49,7 +61,7 @@ public class BizTalkOdxParser {
 
             parseOdxXml(xmlContent, graph);
         } catch (Exception e) {
-            System.err.println("Failed to parse BizTalk ODX file: " + odxFile + " - " + e.getMessage());
+            warningConsumer.accept("Failed to parse BizTalk ODX file: " + odxFile + " - " + e.getMessage());
         }
     }
 
