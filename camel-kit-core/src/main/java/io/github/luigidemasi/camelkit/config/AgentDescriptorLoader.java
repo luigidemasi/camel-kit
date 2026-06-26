@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystemAlreadyExistsException;
 import java.nio.file.FileSystems;
@@ -35,19 +36,24 @@ final class AgentDescriptorLoader {
                                             + DEFAULT_REGISTRY_PATH);
         }
 
+        return load(registryUrl);
+    }
+
+    static Map<String, AgentDescriptor> load(URL registryUrl) {
         FileSystem fileSystem = null;
         boolean closeFileSystem = false;
         try {
             URI uri = registryUrl.toURI();
             Path registryPath;
             if ("jar".equals(uri.getScheme())) {
+                URI jarUri = jarFileSystemUri(uri);
                 try {
-                    fileSystem = FileSystems.newFileSystem(uri, Collections.emptyMap());
+                    fileSystem = FileSystems.newFileSystem(jarUri, Collections.emptyMap());
                     closeFileSystem = true;
                 } catch (FileSystemAlreadyExistsException e) {
-                    fileSystem = FileSystems.getFileSystem(uri);
+                    fileSystem = FileSystems.getFileSystem(jarUri);
                 }
-                registryPath = fileSystem.getPath("/" + DEFAULT_REGISTRY_PATH);
+                registryPath = fileSystem.getPath(jarEntryPath(uri));
             } else {
                 registryPath = Path.of(uri);
             }
@@ -66,6 +72,24 @@ final class AgentDescriptorLoader {
                 }
             }
         }
+    }
+
+    private static URI jarFileSystemUri(URI resourceUri) {
+        String value = resourceUri.toString();
+        int separator = value.indexOf("!/");
+        if (separator < 0) {
+            throw new IllegalStateException("Invalid jar resource URI: " + resourceUri);
+        }
+        return URI.create(value.substring(0, separator));
+    }
+
+    private static String jarEntryPath(URI resourceUri) {
+        String value = resourceUri.toString();
+        int separator = value.indexOf("!/");
+        if (separator < 0) {
+            throw new IllegalStateException("Invalid jar resource URI: " + resourceUri);
+        }
+        return "/" + value.substring(separator + 2);
     }
 
     static Map<String, AgentDescriptor> load(Path registryDir) {

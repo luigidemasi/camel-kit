@@ -62,9 +62,9 @@ The frontmatter fields:
 | `camel-start` | Yes | -- | Meta-router and primary entry point: detects intent, loads appropriate pipeline |
 | `camel-brainstorm` | No | `camel-start` (greenfield) | Orchestrate design phase: interview user, produce BRD + TDDs |
 | `camel-plan` | No | `camel-brainstorm` (after design approval) | Produce detailed implementation plan from approved design spec |
-| `camel-execute` | No | `camel-plan` (auto-invoked after planning) | Environment probe, dispatch subagents per task with two-stage review |
+| `camel-execute` | No | `camel-plan` (auto-invoked after planning) | Environment probe, dispatch sub-agents per task with two-stage review |
 | `camel-migrate` | No | `camel-start` (migration) | Migration entry point: shortcut into `camel-brainstorm` with project type pre-set |
-| `camel-verify` | No | `camel-execute` (internal subagent) | 3-phase runtime verification loop (build, Citrus tests, report) — runs inside execute, not as a standalone pipeline stage |
+| `camel-verify` | No | `camel-execute` (internal sub-agent) | 3-phase runtime verification loop (build, Citrus tests, report) — runs inside execute, not as a standalone pipeline stage |
 | `camel-ship` | No | -- (standalone orchestrator) | Autonomous pipeline — chains brainstorm → plan → execute → validate with configurable oversight |
 | `camel-design` | No | `camel-brainstorm` | Guides for component selection, EIP catalog, TDD assembly |
 | `camel-implement` | No | `camel-execute` | Guides for YAML generation, properties, Docker Compose, DataMapper |
@@ -226,27 +226,27 @@ Entry points diverge (`camel-brainstorm` for greenfield, `camel-migrate` for mig
 
 1. Read the approved implementation plan, prefer the `yaml plan-metadata` task graph, and fall back to Markdown task
    parsing for older plans
-2. **Catalog research** (Step 1.5): dispatch a `catalog-researcher` subagent to batch-verify all MCP catalog artifacts for the wave. Only the structured summary flows back -- MCP response traces stay in the research subagent's context.
+2. **Catalog research** (Step 1.5): dispatch a `catalog-researcher` sub-agent to batch-verify all MCP catalog artifacts for the wave. Only the structured summary flows back -- MCP response traces stay in the research sub-agent's context.
 3. For each task:
-   - Dispatch an implementer subagent with full task text, design spec section, pre-verified catalog summary, and MCP parameters
-   - **Adversarial Code Review** (Step 2b.5): dispatch parallel Critic Lanes via a Moderator subagent to adversarially review the implementation against the TDD. Hard cap: 3 cycles.
-   - Dispatch a **spec compliance reviewer** (subagent) -- does the output match the design spec?
-   - If spec review passes, dispatch a **code quality reviewer** (subagent) -- constitution compliance, security, anti-patterns
+   - Dispatch an implementer sub-agent with full task text, design spec section, pre-verified catalog summary, and MCP parameters
+   - **Adversarial Code Review** (Step 2b.5): dispatch parallel Critic Lanes via a Moderator sub-agent to adversarially review the implementation against the TDD. Hard cap: 3 cycles.
+   - Dispatch a **spec compliance reviewer** (sub-agent) -- does the output match the design spec?
+   - If spec review passes, dispatch a **code quality reviewer** (sub-agent) -- constitution compliance, security, anti-patterns
    - If either reviewer finds critical issues, return to the implementer for fixes, then re-review
    - Mark task complete and immediately start the next task (no pause, no user confirmation)
-4. After all tasks: dispatch a **cross-cutting review** as a subagent across all generated routes
-5. Dispatch the **verification phase** (`camel-verify`) as an internal subagent within execute (build, Citrus tests, report)
+4. After all tasks: dispatch a **cross-cutting review** as a sub-agent across all generated routes
+5. Dispatch the **verification phase** (`camel-verify`) as an internal sub-agent within execute (build, Citrus tests, report)
 6. Print the completion summary
 
 After execute completes, the pipeline continues to **validation** (`camel-validate`) as Stage 3 — the final quality gate.
 
-All reviews, verification, and catalog lookups run as subagents with isolated context windows. Only structured reports flow back to the orchestrator -- preventing ~60-70% of pipeline tokens from accumulating in the main conversation.
+All reviews, verification, and catalog lookups run as sub-agents with isolated context windows. Only structured reports flow back to the orchestrator -- preventing ~60-70% of pipeline tokens from accumulating in the main conversation.
 
 ### Agent-Specific Execution
 
 The dispatch model varies by AI agent:
 
-- **Claude Code** -- dispatches fresh subagents per task. Each subagent runs in isolated context with no cross-contamination between tasks.
+- **Claude Code** -- dispatches fresh sub-agents per task. Each sub-agent runs in isolated context with no cross-contamination between tasks.
 - **IBM Project Bob** -- switches between custom modes (`brainstorm`, `plan`, `implement`, `validate`, `test`) with scoped tool permissions per mode.
 - **Gemini CLI, Qwen, OpenCode** -- inline execution within the same session. Skills are loaded as instruction context rather than dispatched as separate agents.
 
@@ -335,7 +335,7 @@ commands and generators.
 
 Each descriptor defines the agent id, display name, command directory, command file format, argument placeholder,
 MCP config path, MCP config template path, MCP server container key, description, generator strategy, dispatch
-template path, templates installed by the agent-specific generator, and whether the agent supports subagents or
+template path, templates installed by the agent-specific generator, and whether the agent supports sub-agents or
 traits. Missing required fields, duplicate ids, unsupported generator strategies, or malformed YAML fail during
 registry loading with a descriptor-specific error.
 
@@ -373,10 +373,10 @@ All five agents receive the same skills (markdown instruction files). The templa
 - Output formats (same YAML routes, properties, test files)
 
 **What equalization does NOT cover:**
-- Dispatch mechanism (subagents vs. modes vs. inline)
+- Dispatch mechanism (sub-agents vs. modes vs. inline)
 - Tool restriction model (each agent's permission system is different)
 - File reading patterns (context isolation varies)
-- Parallelization strategy (only Claude supports parallel subagent dispatch)
+- Parallelization strategy (only Claude supports parallel sub-agent dispatch)
 - Configuration format (YAML modes, TOML policies, markdown frontmatter)
 
 ### Agent Traits
@@ -394,7 +394,7 @@ Traits are agent-specific instruction fragments that are appended to shared skil
 | SKILL.md-level (strategy) | `traits/{agent}/{skill-name}.append.md` | `{skills-dir}/{skill-name}/SKILL.md` |
 | Guide-level (tactics) | `traits/{agent}/{skill-name}/{guide-name}.append.md` | `{skills-dir}/{skill-name}/guides/{guide-name}.md` |
 
-**Example:** `traits/claude/camel-execute.append.md` appends Claude-specific instructions to `camel-execute/SKILL.md` -- parallel subagent dispatch via the `Agent` tool, worktree isolation via `EnterWorktree`, build health monitoring via `CronCreate`. The same skill on Gemini gets different trait content: named agent delegation, TOML policy guidance, batch context loading via `read_many_files`.
+**Example:** `traits/claude/camel-execute.append.md` appends Claude-specific instructions to `camel-execute/SKILL.md` -- parallel sub-agent dispatch via the `Agent` tool, worktree isolation via `EnterWorktree`, build health monitoring via `CronCreate`. The same skill on Gemini gets different trait content: named agent delegation, TOML policy guidance, batch context loading via `read_many_files`.
 
 **What traits contain:** Agent-specific tool usage, dispatch strategies, state persistence mechanisms, and execution optimizations. Each trait is written for the specific agent's capabilities -- Claude traits reference `Agent`, `ScheduleWakeup`, `TaskCreate`; Gemini traits reference `save_memory`, `read_many_files`; Bob traits reference `switch_mode`, `insert_content`.
 
@@ -409,21 +409,21 @@ The six shared Iron Laws from `skills/shared/iron-laws.md` are embedded in or re
 5. **Adversarial Code Review** -- generated code must pass the adversarial review gate before spec compliance and quality review
 6. **Surgical Changes** -- implementation tasks must touch only what they were asked to touch
 
-### Subagent-Driven Execution
+### Sub-agent-Driven Execution
 
 The `/camel-execute` pipeline relies on dispatching discrete units of work to isolated agents. The design principle: the agent that writes the code should never be the same agent that reviews it, and each task should start from a clean context with no residual assumptions from previous tasks.
 
-Four of the five agents support this natively through **subagent dispatch**:
+Four of the five agents support this natively through **sub-agent dispatch**:
 
-- **Claude Code** -- uses the `Agent` tool to spawn fresh subagents per task. Each subagent receives the task text, relevant TDD section, guide file paths, and MCP parameters. Before implementation, a `catalog-researcher` subagent batch-verifies all MCP catalog artifacts (research isolation). After implementation, an Adversarial Code Review dispatches parallel Critic Lanes (Route Architecture, Security, Performance, Boundary Compliance, Behavioral Equivalence) via a Moderator subagent, then a spec-compliance reviewer subagent checks the design spec, then a code-quality reviewer subagent checks constitution compliance. At the Stamp Gate, three reviewers run in parallel (spec, quality, security). Claude uniquely supports **parallel dispatch**: `camel-kit plan analyze` groups tasks into waves using structured plan metadata (`dependsOn`, file overlap, and logical `provides`/`consumes` resources such as endpoints, routes, properties, schemas, test data, beans, external services, and route contracts), then independent tasks are dispatched simultaneously to multiple subagents.
+- **Claude Code** -- uses the `Agent` tool to spawn fresh sub-agents per task. Each sub-agent receives the task text, relevant TDD section, guide file paths, and MCP parameters. Before implementation, a `catalog-researcher` sub-agent batch-verifies all MCP catalog artifacts (research isolation). After implementation, an Adversarial Code Review dispatches parallel Critic Lanes (Route Architecture, Security, Performance, Boundary Compliance, Behavioral Equivalence) via a Moderator sub-agent, then a spec-compliance reviewer sub-agent checks the design spec, then a code-quality reviewer sub-agent checks constitution compliance. At the Stamp Gate, three reviewers run in parallel (spec, quality, security). Claude uniquely supports **parallel dispatch**: `camel-kit plan analyze` groups tasks into waves using structured plan metadata (`dependsOn`, file overlap, and logical `provides`/`consumes` resources such as endpoints, routes, properties, schemas, test data, beans, external services, and route contracts), then independent tasks are dispatched simultaneously to multiple sub-agents.
 
-- **Gemini CLI** -- dispatches via a unified `invoke_subagent` tool to 6 specialized subagents. The scheduler natively supports **parallel tool execution** via `Promise.all()` (default-parallel). However, subagents cannot invoke other subagents (hardcoded `Kind.Agent` filter), so `/camel-execute` runs in the **main agent context** where it can dispatch to all subagents. Within-wave parallelism is achieved through the scheduler batching multiple `invoke_subagent` calls.
+- **Gemini CLI** -- dispatches via a unified `invoke_subagent` tool to 6 specialized sub-agents. The scheduler natively supports **parallel tool execution** via `Promise.all()` (default-parallel). However, sub-agents cannot invoke other sub-agents (hardcoded `Kind.Agent` filter), so `/camel-execute` runs in the **main agent context** where it can dispatch to all sub-agents. Within-wave parallelism is achieved through the scheduler batching multiple `invoke_subagent` calls.
 
-- **Qwen** -- dual dispatch model: **named subagents** (clean context, parent blocks) and **forks** (inherit parent context, run in background). The fork model enables parallel review and research tasks. Read-only tools (Read, Search, Fetch) are concurrent with a configurable cap (max 10). The `"MUST BE USED for..."` phrasing in description fields forces automatic delegation.
+- **Qwen** -- dual dispatch model: **named sub-agents** (clean context, parent blocks) and **forks** (inherit parent context, run in background). The fork model enables parallel review and research tasks. Read-only tools (Read, Search, Fetch) are concurrent with a configurable cap (max 10). The `"MUST BE USED for..."` phrasing in description fields forces automatic delegation.
 
-- **OpenCode** -- 7 agents with granular, per-type glob permissions. The executor agent has `task: {"*": allow}` permission. Subagent-to-subagent delegation is now opt-in (PR #7756) with configurable depth limits and call budgets. LLM-level parallel tool calls are supported. Each agent has a `steps` limit (implementer: 50, executor: 100) that triggers graceful summarization rather than hard failure.
+- **OpenCode** -- 7 agents with granular, per-type glob permissions. The executor agent has `task: {"*": allow}` permission. Sub-agent-to-sub-agent delegation is now opt-in (PR #7756) with configurable depth limits and call budgets. LLM-level parallel tool calls are supported. Each agent has a `steps` limit (implementer: 50, executor: 100) that triggers graceful summarization rather than hard failure.
 
-**IBM Project Bob does not support subagents.** It uses a fundamentally different architecture -- the **B+A (Behavior + Advanced) hybrid with mode switching**:
+**IBM Project Bob does not support sub-agents.** It uses a fundamentally different architecture -- the **B+A (Behavior + Advanced) hybrid with mode switching**:
 
 1. Each pipeline phase starts in **Advanced mode** (unrestricted), allowing the agent to read all skill files and project context
 2. The first instruction in the gate file switches to a **restricted custom mode** (e.g., `camel-brainstorm`, `camel-implement`) with scoped tool permissions
@@ -431,25 +431,25 @@ Four of the five agents support this natively through **subagent dispatch**:
 
 This means Bob cannot isolate tasks into separate context windows or use independent reviewer agents. The compensation is that Bob's tool restrictions are **platform-enforced**, not instruction-based. During design, Bob's `camel-brainstorm` mode grants only `read`, `edit` (`.md` files only via `fileRegex`), `mcp`, and `browser` -- the AI physically cannot edit code files because the mode excludes the edit tool for non-markdown files. This is stricter than any instruction-based constraint, which the AI could rationalize away.
 
-Bob also requires **monolithic gate files** (one per pipeline phase, 6-10 KB each) that inline complete orchestration logic, because it cannot chain skill references across mode switches the way subagent-based agents load skills into fresh contexts.
+Bob also requires **monolithic gate files** (one per pipeline phase, 6-10 KB each) that inline complete orchestration logic, because it cannot chain skill references across mode switches the way sub-agent-based agents load skills into fresh contexts.
 
 The trade-off table:
 
-| Design Dimension | Subagent Dispatch | Mode Switching (Bob) |
+| Design Dimension | Sub-agent Dispatch | Mode Switching (Bob) |
 |-----------------|-------------------|---------------------|
-| Context isolation | Per-task (fresh subagent) | Per-session (accumulated) |
-| Reviewer independence | Separate subagent | Same session self-reviews |
+| Context isolation | Per-task (fresh sub-agent) | Per-session (accumulated) |
+| Reviewer independence | Separate sub-agent | Same session self-reviews |
 | Tool restriction mechanism | Instruction-based / tool whitelists / policies | Platform-enforced mode tool groups |
 | Parallel execution | Claude (graph topology), Gemini (scheduler `Promise.all()`), Qwen (fork), OpenCode (LLM-level) | Not possible |
-| Skill loading | Loaded into subagent context on dispatch | Inlined in monolithic gate files |
+| Skill loading | Loaded into sub-agent context on dispatch | Inlined in monolithic gate files |
 | Template complexity | 3-12 files per agent | 17+ files (gates + rules + modes) |
-| Failure isolation | Subagent failure doesn't affect other tasks | Phase failure affects entire session |
+| Failure isolation | Sub-agent failure doesn't affect other tasks | Phase failure affects entire session |
 
 ### Per-Agent Summary
 
 | Agent | Dispatch Model | Key Differentiator |
 |-------|---------------|-------------------|
-| Claude Code | Parallel subagent dispatch | Route graph topology, research isolation, parallel fan-out, adversarial code review |
+| Claude Code | Parallel sub-agent dispatch | Route graph topology, research isolation, parallel fan-out, adversarial code review |
 | IBM Project Bob | B+A hybrid with 5 custom modes | Monolithic gate files, 3 checkpoint types |
 | Gemini CLI | `invoke_subagent` + parallel scheduler | Default-parallel `Promise.all()`, TOML policy, MCP wildcards, A2A remote agents |
 | Qwen | Dual dispatch (named + fork) | Fork background tasks, DashScope cache sharing, auto-delegation |
@@ -465,7 +465,7 @@ To add support for a new AI coding assistant:
 2. Implement `{Agent}Generator extends DefaultGenerator` in `io.github.luigidemasi.camelkit.generator`
 3. Register in `AgentGeneratorFactory` (`{agent-name}` → `{Agent}Generator`)
 4. Generate the agent's instruction file with embedded iron laws and skill references
-5. Map pipeline phases to the agent's native dispatch mechanism (modes, subagents, permissions, etc.)
+5. Map pipeline phases to the agent's native dispatch mechanism (modes, sub-agents, permissions, etc.)
 6. Add MCP configuration for the agent's MCP config format
 7. Write tests following existing patterns (verify structure + key content markers)
 
@@ -575,7 +575,7 @@ If the MCP server is not available, skills fall back to local component data and
 
 ## 7. Verification Pipeline
 
-The verification pipeline (`camel-verify`) is a 3-phase feedback loop that builds and tests the generated application using Citrus integration tests. It runs as an internal subagent within `camel-execute`, not as a standalone pipeline stage. After verification completes inside execute, `camel-validate` runs as the final pipeline stage.
+The verification pipeline (`camel-verify`) is a 3-phase feedback loop that builds and tests the generated application using Citrus integration tests. It runs as an internal sub-agent within `camel-execute`, not as a standalone pipeline stage. After verification completes inside execute, `camel-validate` runs as the final pipeline stage.
 
 ### Phases
 
@@ -714,7 +714,7 @@ Camel-Kit defaults to the latest Apache Camel version, configured in `distributi
 
 ### Multi-Agent Parity
 
-Skills are markdown instruction files -- the same skill works across all five supported agents. Agent-specific differences (subagent dispatch vs. custom modes vs. inline execution) are handled by the template layer, not the skill layer. A bug fix or improvement to a guide file benefits every agent.
+Skills are markdown instruction files -- the same skill works across all five supported agents. Agent-specific differences (sub-agent dispatch vs. custom modes vs. inline execution) are handled by the template layer, not the skill layer. A bug fix or improvement to a guide file benefits every agent.
 
 ### Constitution vs Iron Laws
 
@@ -758,7 +758,7 @@ user_invocable: false
 
 4. **Update the workflow manifest first:** add or modify the entry in `camel-kit-core/src/main/resources/workflow/camel-kit-workflow.yaml`. Set `generated_stub: true` only for commands that should be emitted into each agent's commands directory. Add or update the corresponding skill entry, stage/artifact metadata, transitions, and MCP tool allowlists if the workflow contract changes.
 
-5. **If registering slash commands:** update agent-specific guidance only where the command needs custom behavior beyond the generated stub. The default generator creates command stubs from the manifest. Agent templates still need updates when they contain human-readable command tables, custom modes, policies, or subagent dispatch:
+5. **If registering slash commands:** update agent-specific guidance only where the command needs custom behavior beyond the generated stub. The default generator creates command stubs from the manifest. Agent templates still need updates when they contain human-readable command tables, custom modes, policies, or sub-agent dispatch:
    - Claude Code: update `templates/claude/claude-md.md`
    - IBM Project Bob: update `templates/bob/custom_modes.yaml` and add rules directory
    - Gemini CLI: update `templates/gemini/gemini-md.md`
@@ -766,7 +766,7 @@ user_invocable: false
    - OpenCode: update `templates/opencode/agents-md.md`
 
 6. **If changing an agent capability:** update `agents/registry/{agent}.yaml` when command directories,
-   file formats, MCP config paths, generator strategy, dispatch templates, installed templates, subagent support,
+   file formats, MCP config paths, generator strategy, dispatch templates, installed templates, sub-agent support,
    trait support, or capability labels change.
 
 7. **If internal:** update the loading skill's `SKILL.md` to reference the new guides (e.g., add a guide reference to `camel-execute`'s guide manifest).

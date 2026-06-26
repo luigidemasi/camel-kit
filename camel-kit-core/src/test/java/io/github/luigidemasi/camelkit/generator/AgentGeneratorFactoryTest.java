@@ -32,13 +32,11 @@ class AgentGeneratorFactoryTest {
     }
 
     @Test
-    void unknownAgentReturnsDefaultGenerator() {
-        AgentGenerator gen = AgentGeneratorFactory.create("unknown-agent");
-        assertInstanceOf(DefaultGenerator.class, gen);
-        assertFalse(gen instanceof BobGenerator);
-        assertFalse(gen instanceof ClaudeGenerator);
-        assertFalse(gen instanceof QwenGenerator);
-        assertFalse(gen instanceof OpenCodeGenerator);
-        assertFalse(gen instanceof GeminiGenerator);
+    void unknownAgentFailsFast() {
+        IllegalArgumentException thrown = assertThrows(
+                IllegalArgumentException.class,
+                () -> AgentGeneratorFactory.create("unknown-agent"));
+
+        assertEquals("Unsupported agent: unknown-agent", thrown.getMessage());
     }
 }
