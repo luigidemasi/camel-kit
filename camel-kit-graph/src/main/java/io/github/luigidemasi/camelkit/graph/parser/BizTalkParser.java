@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,30 +38,13 @@ public class BizTalkParser implements GraphParser {
     @Override
     public void parse(Path projectRoot, ProjectGraph graph) {
         warnings.clear();
-        try {
-            Files.walkFileTree(projectRoot, new SimpleFileVisitor<>() {
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                    String fileName = file.getFileName().toString();
+        parseFiles(projectRoot, scannedFilePaths(projectRoot, GraphParser.projectFiles(projectRoot)), graph);
+    }
 
-                    if (fileName.endsWith(".odx")) {
-                        odxParser.parse(file, graph);
-                    } else if (fileName.endsWith(".btm")) {
-                        btmParser.parse(file, graph);
-                    } else if (fileName.endsWith(".btp")) {
-                        btpParser.parse(file, graph);
-                    } else if (fileName.endsWith(".xml") && !fileName.equals("pom.xml")) {
-                        if (isBizTalkBindingXml(file)) {
-                            bindingParser.parse(file, graph);
-                        }
-                    }
-
-                    return FileVisitResult.CONTINUE;
-                }
-            });
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to walk project for BizTalk files", e);
-        }
+    @Override
+    public void parseFiles(Path projectRoot, List<Path> files, ProjectGraph graph) {
+        warnings.clear();
+        files.forEach(file -> parseArtifact(file, graph));
     }
 
     @Override
@@ -72,13 +54,34 @@ public class BizTalkParser implements GraphParser {
 
     @Override
     public List<String> scannedFiles(Path projectRoot) {
-        return GraphParser.findFiles(projectRoot, file -> {
-            String fileName = file.getFileName().toString();
-            return fileName.endsWith(".odx")
-                    || fileName.endsWith(".btm")
-                    || fileName.endsWith(".btp")
-                    || (fileName.endsWith(".xml") && !fileName.equals("pom.xml") && isBizTalkBindingXml(file));
-        });
+        return GraphParser.findFiles(projectRoot, this::isBizTalkArtifact);
+    }
+
+    @Override
+    public List<Path> scannedFilePaths(Path projectRoot, List<Path> projectFiles) {
+        return GraphParser.findFilePaths(projectRoot, projectFiles, this::isBizTalkArtifact);
+    }
+
+    private void parseArtifact(Path file, ProjectGraph graph) {
+        String fileName = file.getFileName().toString();
+
+        if (fileName.endsWith(".odx")) {
+            odxParser.parse(file, graph);
+        } else if (fileName.endsWith(".btm")) {
+            btmParser.parse(file, graph);
+        } else if (fileName.endsWith(".btp")) {
+            btpParser.parse(file, graph);
+        } else if (fileName.endsWith(".xml") && !fileName.equals("pom.xml")) {
+            bindingParser.parse(file, graph);
+        }
+    }
+
+    private boolean isBizTalkArtifact(Path file) {
+        String fileName = file.getFileName().toString();
+        return fileName.endsWith(".odx")
+                || fileName.endsWith(".btm")
+                || fileName.endsWith(".btp")
+                || (fileName.endsWith(".xml") && !fileName.equals("pom.xml") && isBizTalkBindingXml(file));
     }
 
     /**

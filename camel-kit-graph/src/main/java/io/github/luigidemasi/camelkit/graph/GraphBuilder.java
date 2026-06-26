@@ -5,7 +5,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -59,10 +58,12 @@ public class GraphBuilder {
     public GraphBuildResult buildWithDiagnostics(Path projectRoot) {
         ProjectGraph graph = new ProjectGraph();
         List<ParserDiagnostic> diagnostics = new ArrayList<>();
+        List<Path> projectFiles = projectFiles(projectRoot);
 
         // Run PomParser first so MAVEN_ARTIFACT nodes are available for all other parsers
         ParserRun pomRun
-                = runParser(pomParser, projectRoot, new ProjectGraph(), collectScannedFiles(pomParser, projectRoot));
+                = runParser(pomParser, projectRoot, new ProjectGraph(),
+                        parserTask(pomParser, projectRoot, projectFiles));
         diagnostics.add(pomRun.diagnostic());
         if (pomRun.diagnostic().successful()) {
             mergeDeterministically(graph, pomRun.graph());
@@ -75,7 +76,7 @@ public class GraphBuilder {
             baseGraph.merge(graph);
 
             List<ParserTask> tasks = remainingParsers.stream()
-                    .map(parser -> new ParserTask(parser, collectScannedFiles(parser, projectRoot)))
+                    .map(parser -> parserTask(parser, projectRoot, projectFiles))
                     .toList();
 
             List<ParserFuture> futures = tasks.stream()
@@ -84,7 +85,7 @@ public class GraphBuilder {
                         return new ParserFuture(
                                 task,
                                 executor.submit(
-                                        () -> runParser(task.parser(), projectRoot, baseGraph, task.scannedFiles())),
+                                        () -> runParser(task.parser(), projectRoot, baseGraph, task)),
                                 submittedAt);
                     })
                     .toList();
@@ -145,15 +146,15 @@ public class GraphBuilder {
 
     private ParserRun runParser(
             GraphParser parser, Path projectRoot, ProjectGraph baseGraph,
-            List<String> scannedFiles) {
+            ParserTask task) {
         long startedAt = System.nanoTime();
         ProjectGraph delta = new ProjectGraph();
         try {
-            ProjectGraph fragment = parser.parseFragment(projectRoot, baseGraph);
+            ProjectGraph fragment = parser.parseFragment(projectRoot, baseGraph, task.scannedFilePaths());
             delta = deltaFrom(fragment, baseGraph);
-            ParserDiagnostic diagnostic = new ParserDiagnostic(
-                    parserName(parser),
-                    scannedFiles,
+            ParserDiagnostic diagnostic = diagnostic(
+                    parser,
+                    task.scannedFiles(),
                     List.of(),
                     collectWarnings(parser),
                     List.of(),
@@ -163,16 +164,28 @@ public class GraphBuilder {
                     elapsedMillis(startedAt));
             return new ParserRun(delta, diagnostic);
         } catch (RuntimeException e) {
-            ParserDiagnostic diagnostic = failureDiagnostic(parser, scannedFiles, e, elapsedMillis(startedAt));
+            ParserDiagnostic diagnostic = failureDiagnostic(parser, task.scannedFiles(), e, elapsedMillis(startedAt));
             return new ParserRun(delta, diagnostic);
         }
     }
 
-    private List<String> collectScannedFiles(GraphParser parser, Path projectRoot) {
+    private List<Path> projectFiles(Path projectRoot) {
         try {
-            return parser.scannedFiles(projectRoot);
+            return GraphParser.projectFiles(projectRoot);
         } catch (RuntimeException e) {
             return List.of();
+        }
+    }
+
+    private ParserTask parserTask(GraphParser parser, Path projectRoot, List<Path> projectFiles) {
+        try {
+            List<Path> scannedFilePaths = parser.scannedFilePaths(projectRoot, projectFiles);
+            return new ParserTask(
+                    parser,
+                    scannedFilePaths,
+                    GraphParser.relativeFileNames(projectRoot, scannedFilePaths));
+        } catch (RuntimeException e) {
+            return new ParserTask(parser, List.of(), List.of());
         }
     }
 
@@ -186,7 +199,7 @@ public class GraphBuilder {
 
     private ProjectGraph deltaFrom(ProjectGraph fragment, ProjectGraph baseGraph) {
         ProjectGraph delta = new ProjectGraph();
-        Set<GraphEdge> baseEdges = new HashSet<>(baseGraph.getEdges());
+        Set<GraphEdge> baseEdges = baseGraph.getEdgeSet();
 
         fragment.getNodes().values().stream()
                 .filter(node -> !Objects.equals(baseGraph.getNode(node.id()), node))
@@ -230,8 +243,8 @@ public class GraphBuilder {
         String message = failure == null || failure.getMessage() == null
                 ? "Parser failed"
                 : failure.getMessage();
-        return new ParserDiagnostic(
-                parserName(parser),
+        return diagnostic(
+                parser,
                 scannedFiles,
                 List.of(),
                 collectWarnings(parser),
@@ -243,8 +256,8 @@ public class GraphBuilder {
     }
 
     private ParserDiagnostic interruptedDiagnostic(GraphParser parser, List<String> scannedFiles) {
-        return new ParserDiagnostic(
-                parserName(parser),
+        return diagnostic(
+                parser,
                 scannedFiles,
                 List.of(),
                 List.of(),
@@ -267,8 +280,8 @@ public class GraphBuilder {
     }
 
     private ParserDiagnostic skippedAfterInterruptionDiagnostic(GraphParser parser, List<String> scannedFiles) {
-        return new ParserDiagnostic(
-                parserName(parser),
+        return diagnostic(
+                parser,
                 scannedFiles,
                 scannedFiles,
                 List.of(),
@@ -280,8 +293,8 @@ public class GraphBuilder {
     }
 
     private ParserDiagnostic timeoutDiagnostic(GraphParser parser, List<String> scannedFiles) {
-        return new ParserDiagnostic(
-                parserName(parser),
+        return diagnostic(
+                parser,
                 scannedFiles,
                 List.of(),
                 List.of(),
@@ -290,6 +303,28 @@ public class GraphBuilder {
                 0,
                 0,
                 parserTimeoutUnit.toMillis(parserTimeout));
+    }
+
+    private ParserDiagnostic diagnostic(
+            GraphParser parser,
+            List<String> scannedFiles,
+            List<String> skippedFiles,
+            List<String> warnings,
+            List<String> failures,
+            boolean timedOut,
+            int nodesAdded,
+            int edgesAdded,
+            long durationMillis) {
+        return new ParserDiagnostic(
+                parserName(parser),
+                scannedFiles,
+                skippedFiles,
+                warnings,
+                failures,
+                timedOut,
+                nodesAdded,
+                edgesAdded,
+                durationMillis);
     }
 
     private String parserName(GraphParser parser) {
@@ -304,7 +339,7 @@ public class GraphBuilder {
         return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
     }
 
-    private record ParserTask(GraphParser parser, List<String> scannedFiles) {
+    private record ParserTask(GraphParser parser, List<Path> scannedFilePaths, List<String> scannedFiles) {
     }
 
     private record ParserFuture(ParserTask task, Future<ParserRun> future, long submittedAt) {

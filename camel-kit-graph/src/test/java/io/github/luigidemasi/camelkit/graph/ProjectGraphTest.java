@@ -2,6 +2,7 @@ package io.github.luigidemasi.camelkit.graph;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import io.github.luigidemasi.camelkit.graph.model.*;
 
@@ -108,15 +109,19 @@ class ProjectGraphTest {
 
         Map<String, GraphNode> nodes = graph.getNodes();
         List<GraphEdge> edges = graph.getEdges();
+        Set<GraphEdge> edgeSet = graph.getEdgeSet();
 
         graph.addNode(new GraphNode("class:Later", NodeType.CLASS, Map.of()));
         graph.addEdge(new GraphEdge("class:Later", "class:Original", EdgeType.CALLS, Map.of()));
 
         assertEquals(1, nodes.size());
         assertEquals(1, edges.size());
+        assertEquals(1, edgeSet.size());
         assertThrows(UnsupportedOperationException.class,
                 () -> nodes.put("class:Rejected", new GraphNode("class:Rejected", NodeType.CLASS, Map.of())));
         assertThrows(UnsupportedOperationException.class,
                 () -> edges.add(new GraphEdge("class:Rejected", "class:Original", EdgeType.CALLS, Map.of())));
+        assertThrows(UnsupportedOperationException.class,
+                () -> edgeSet.add(new GraphEdge("class:Rejected", "class:Original", EdgeType.CALLS, Map.of())));
     }
 }

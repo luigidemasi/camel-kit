@@ -2,7 +2,6 @@ package io.github.luigidemasi.camelkit.graph.parser;
 
 import java.io.IOException;
 import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 
 import io.github.luigidemasi.camelkit.graph.ProjectGraph;
@@ -26,24 +25,22 @@ public class GroovyGraphParser implements GraphParser {
 
     @Override
     public void parse(Path projectRoot, ProjectGraph graph) {
-        try {
-            Files.walkFileTree(projectRoot, new SimpleFileVisitor<>() {
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                    if (file.toString().endsWith(".groovy")) {
-                        parseGroovyFile(file, projectRoot, graph);
-                    }
-                    return FileVisitResult.CONTINUE;
-                }
-            });
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to walk project for Groovy files", e);
-        }
+        parseFiles(projectRoot, scannedFilePaths(projectRoot, GraphParser.projectFiles(projectRoot)), graph);
     }
 
     @Override
     public List<String> scannedFiles(Path projectRoot) {
         return GraphParser.findFiles(projectRoot, file -> file.toString().endsWith(".groovy"));
+    }
+
+    @Override
+    public List<Path> scannedFilePaths(Path projectRoot, List<Path> projectFiles) {
+        return GraphParser.findFilePaths(projectRoot, projectFiles, file -> file.toString().endsWith(".groovy"));
+    }
+
+    @Override
+    public void parseFiles(Path projectRoot, List<Path> files, ProjectGraph graph) {
+        files.forEach(file -> parseGroovyFile(file, projectRoot, graph));
     }
 
     private void parseGroovyFile(Path file, Path projectRoot, ProjectGraph graph) {

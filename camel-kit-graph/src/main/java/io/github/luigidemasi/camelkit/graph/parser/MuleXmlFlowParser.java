@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -42,30 +41,27 @@ public class MuleXmlFlowParser implements GraphParser {
 
     @Override
     public void parse(Path projectRoot, ProjectGraph graph) {
-        try {
-            Files.walkFileTree(projectRoot, new SimpleFileVisitor<>() {
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                    String fileName = file.getFileName().toString();
-                    if (fileName.endsWith(".xml") && !fileName.equals("pom.xml")) {
-                        if (isMuleXml(file)) {
-                            parseMuleFile(file, projectRoot, graph);
-                        }
-                    }
-                    return FileVisitResult.CONTINUE;
-                }
-            });
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to walk project for Mule XML files", e);
-        }
+        parseFiles(projectRoot, scannedFilePaths(projectRoot, GraphParser.projectFiles(projectRoot)), graph);
     }
 
     @Override
     public List<String> scannedFiles(Path projectRoot) {
-        return GraphParser.findFiles(projectRoot, file -> {
-            String fileName = file.getFileName().toString();
-            return fileName.endsWith(".xml") && !fileName.equals("pom.xml") && isMuleXml(file);
-        });
+        return GraphParser.findFiles(projectRoot, this::isMuleXmlCandidate);
+    }
+
+    @Override
+    public List<Path> scannedFilePaths(Path projectRoot, List<Path> projectFiles) {
+        return GraphParser.findFilePaths(projectRoot, projectFiles, this::isMuleXmlCandidate);
+    }
+
+    @Override
+    public void parseFiles(Path projectRoot, List<Path> files, ProjectGraph graph) {
+        files.forEach(file -> parseMuleFile(file, projectRoot, graph));
+    }
+
+    private boolean isMuleXmlCandidate(Path file) {
+        String fileName = file.getFileName().toString();
+        return fileName.endsWith(".xml") && !fileName.equals("pom.xml") && isMuleXml(file);
     }
 
     /**

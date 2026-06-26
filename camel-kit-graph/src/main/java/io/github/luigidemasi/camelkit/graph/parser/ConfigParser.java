@@ -3,7 +3,6 @@ package io.github.luigidemasi.camelkit.graph.parser;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 
 import io.github.luigidemasi.camelkit.graph.ProjectGraph;
@@ -13,25 +12,22 @@ public class ConfigParser implements GraphParser {
 
     @Override
     public void parse(Path projectRoot, ProjectGraph graph) {
-        try {
-            Files.walkFileTree(projectRoot, new SimpleFileVisitor<>() {
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                    String name = file.getFileName().toString();
-                    if (name.equals("application.properties") || name.matches("application-.*\\.properties")) {
-                        parseProperties(file, projectRoot, graph);
-                    }
-                    return FileVisitResult.CONTINUE;
-                }
-            });
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to walk project for config files", e);
-        }
+        parseFiles(projectRoot, scannedFilePaths(projectRoot, GraphParser.projectFiles(projectRoot)), graph);
     }
 
     @Override
     public List<String> scannedFiles(Path projectRoot) {
         return GraphParser.findFiles(projectRoot, this::isConfigFile);
+    }
+
+    @Override
+    public List<Path> scannedFilePaths(Path projectRoot, List<Path> projectFiles) {
+        return GraphParser.findFilePaths(projectRoot, projectFiles, this::isConfigFile);
+    }
+
+    @Override
+    public void parseFiles(Path projectRoot, List<Path> files, ProjectGraph graph) {
+        files.forEach(file -> parseProperties(file, projectRoot, graph));
     }
 
     private boolean isConfigFile(Path file) {
