@@ -1,4 +1,4 @@
-package io.github.luigidemasi.camelkit.command;
+package io.github.luigidemasi.camelkit.service;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -11,9 +11,9 @@ import io.github.luigidemasi.camelkit.workflow.WorkflowManifest;
 import io.github.luigidemasi.camelkit.workflow.WorkflowManifestLoader;
 
 /**
- * Expected generated workspace contract used by {@link DoctorCommand}.
+ * Expected generated workspace contract used by {@link DoctorService}.
  */
-final class DoctorExpectations {
+public final class DoctorExpectations {
 
     private final List<String> userCommands;
     private final List<String> requiredSkills;
@@ -31,7 +31,7 @@ final class DoctorExpectations {
         this.knowledgeMcpTools = Collections.unmodifiableSet(new LinkedHashSet<>(knowledgeMcpTools));
     }
 
-    static DoctorExpectations loadDefault() {
+    public static DoctorExpectations loadDefault() {
         try {
             return from(WorkflowManifestLoader.loadDefault());
         } catch (IOException e) {
@@ -39,7 +39,7 @@ final class DoctorExpectations {
         }
     }
 
-    static DoctorExpectations from(WorkflowManifest workflow) {
+    public static DoctorExpectations from(WorkflowManifest workflow) {
         return new DoctorExpectations(
                 workflow.generatedCommandStubs().stream()
                         .map(WorkflowManifest.WorkflowCommand::name)
@@ -51,19 +51,19 @@ final class DoctorExpectations {
                 orderedSet(workflow.mcpServer("camel-knowledge").allowedTools()));
     }
 
-    List<String> userCommands() {
+    public List<String> userCommands() {
         return userCommands;
     }
 
-    List<String> requiredSkills() {
+    public List<String> requiredSkills() {
         return requiredSkills;
     }
 
-    Set<String> camelMcpTools() {
+    public Set<String> camelMcpTools() {
         return camelMcpTools;
     }
 
-    Set<String> knowledgeMcpTools() {
+    public Set<String> knowledgeMcpTools() {
         return knowledgeMcpTools;
     }
 

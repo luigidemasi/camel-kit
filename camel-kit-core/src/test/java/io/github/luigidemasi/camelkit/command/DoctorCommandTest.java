@@ -12,6 +12,7 @@ import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.generator.AgentGeneratorFactory;
 import io.github.luigidemasi.camelkit.generator.InitContext;
 import io.github.luigidemasi.camelkit.output.Printer;
+import io.github.luigidemasi.camelkit.service.DoctorExpectations;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
