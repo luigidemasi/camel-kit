@@ -14,14 +14,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.graph.GraphBuilder;
+import io.github.luigidemasi.camelkit.util.PrerequisiteChecker;
+import io.github.luigidemasi.camelkit.util.ProcessRunner;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -450,44 +449,13 @@ public class DoctorService {
     }
 
     private ToolResult runTool(Path directory, String... command) {
-        try {
-            ProcessBuilder pb = new ProcessBuilder(command);
-            if (directory != null) {
-                pb.directory(directory.toFile());
-            }
-            pb.redirectErrorStream(true);
-            Process process = pb.start();
-            boolean finished = process.waitFor(PREREQUISITE_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-            if (!finished) {
-                process.destroyForcibly();
-                return new ToolResult(false, "");
-            }
-            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            return new ToolResult(process.exitValue() == 0, output);
-        } catch (Exception e) {
-            return new ToolResult(false, "");
-        }
+        ProcessRunner.Result result = ProcessRunner.run(directory, PREREQUISITE_TIMEOUT, command);
+        return new ToolResult(result.succeeded(), result.output());
     }
 
     private int javaMajorVersion(String output) {
-        Matcher matcher = Pattern.compile("version\\s+\"([^\"]+)\"").matcher(output);
-        if (!matcher.find()) {
-            return 0;
-        }
-        String version = matcher.group(1);
-        if (version.startsWith("1.")) {
-            String[] parts = version.split("\\.");
-            return parts.length > 1 ? parseInt(parts[1]) : 0;
-        }
-        return parseInt(version.split("[.+\\-]")[0]);
-    }
-
-    private int parseInt(String value) {
-        try {
-            return Integer.parseInt(value);
-        } catch (NumberFormatException e) {
-            return 0;
-        }
+        String version = PrerequisiteChecker.parseJavaVersion(output);
+        return version == null ? 0 : PrerequisiteChecker.parseMajorVersion(version);
     }
 
     private Path mcpConfigPath(Path root, String agentName) {
