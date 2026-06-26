@@ -389,7 +389,9 @@ templates/traits/{agent}/{skill-name}/{guide-name}.append.md  # Guide-level trai
 
 Traits are appended to the corresponding skill files during `camel-kit init` with idempotent sentinels. Each trait should contain instructions specific to that agent's tools and capabilities — not generic content that belongs in the shared skill.
 
-To register a new SKILL.md-level trait, add the skill name to the `skillNames` list in `DefaultGenerator.applyTraits()`. For guide-level traits, add the guide name to the `guideNames` list in `DefaultGenerator.applyGuideTraits()`.
+No code registration is required for a new trait file. `TraitApplicator` applies SKILL.md-level traits for workflow skills and discovers guide-level traits from the shipped `.append.md` files under each `templates/traits/{agent}/{skill-name}/` directory. Bob is the exception in ordering only: it installs its monolithic gate templates first, then appends Bob traits to the final generated files.
+
+`ShippedAssetStructureTest` verifies both sides of the contract: trait files must target existing shipped skills or guides, and every shipped trait must appear in generated output for the production generator of its agent.
 
 See [Architecture Guide](docs/architecture.md#agent-traits) for details on the trait system.
 

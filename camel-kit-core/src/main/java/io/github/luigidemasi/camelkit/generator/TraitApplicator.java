@@ -11,10 +11,7 @@ import io.github.luigidemasi.camelkit.workflow.WorkflowManifest;
 
 class TraitApplicator {
 
-    private static final List<String> GUIDE_TRAIT_NAMES = List.of(
-            "implementer-context", "spec-reviewer-criteria",
-            "quality-reviewer-criteria", "verify-loop",
-            "test-generation", "test-runner");
+    private static final String APPEND_TRAIT_SUFFIX = ".append.md";
 
     void apply(InitContext ctx, WorkflowManifest workflow) throws Exception {
         String traitsBasePath = "templates/traits/" + ctx.agentName() + "/";
@@ -45,8 +42,9 @@ class TraitApplicator {
 
     private int applyGuideTraits(String traitDirPath, Path guidesDir, String agentName) throws Exception {
         int count = 0;
-        for (String guideName : GUIDE_TRAIT_NAMES) {
-            String traitResourcePath = traitDirPath + guideName + ".append.md";
+        for (String traitFileName : TemplateUtils.listTemplateFiles(traitDirPath, APPEND_TRAIT_SUFFIX)) {
+            String guideName = stripAppendSuffix(traitFileName);
+            String traitResourcePath = traitDirPath + guideName + APPEND_TRAIT_SUFFIX;
             Path targetGuide = guidesDir.resolve(guideName + ".md");
             if (appendTraitIfExists(traitResourcePath, targetGuide, agentName)) {
                 count++;
@@ -76,5 +74,9 @@ class TraitApplicator {
         Files.writeString(targetFile,
                 existing + "\n---\n\n" + sentinel + "\n" + traitContent + "\n" + closeSentinel + "\n");
         return true;
+    }
+
+    private static String stripAppendSuffix(String fileName) {
+        return fileName.substring(0, fileName.length() - APPEND_TRAIT_SUFFIX.length());
     }
 }

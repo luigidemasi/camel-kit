@@ -171,6 +171,34 @@ class ShippedAssetStructureTest {
     }
 
     @Test
+    void generatedAgentAssetsIncludeShippedTraits() throws Exception {
+        Path resourcesDir = resourceRoot();
+        Path traitsDir = resourcesDir.resolve("templates/traits");
+
+        List<String> missingTraits = new ArrayList<>();
+        for (String agentName : sortedAgentNames()) {
+            InitContext ctx = createContext(agentName, tempDir.resolve("traits-" + agentName));
+            AgentGeneratorFactory.create(agentName).generate(ctx);
+
+            Path agentTraitsDir = traitsDir.resolve(agentName);
+            if (!Files.isDirectory(agentTraitsDir)) {
+                continue;
+            }
+
+            try (Stream<Path> paths = Files.walk(agentTraitsDir)) {
+                paths.filter(Files::isRegularFile)
+                        .filter(path -> path.getFileName().toString().endsWith(".append.md"))
+                        .sorted()
+                        .forEach(path -> validateGeneratedTrait(resourcesDir, traitsDir, ctx, path, missingTraits));
+            }
+        }
+
+        assertTrue(missingTraits.isEmpty(),
+                "Generated agent assets are missing shipped trait content:\n"
+                                            + String.join("\n", missingTraits));
+    }
+
+    @Test
     void generatedAgentAssetsAreStructurallyCoherent() throws Exception {
         WorkflowManifest manifest = WorkflowManifestLoader.loadDefault();
         Map<String, WorkflowManifest.WorkflowCommand> generatedCommands = manifest.generatedCommandStubs().stream()
@@ -359,6 +387,44 @@ class ShippedAssetStructureTest {
             invalidTraits.add(resourcesDir.relativize(traitFile) + " targets missing "
                               + resourcesDir.relativize(target));
         }
+    }
+
+    private static void validateGeneratedTrait(
+            Path resourcesDir, Path traitsDir, InitContext ctx, Path traitFile, List<String> missingTraits) {
+        Path target = generatedTraitTarget(traitsDir, ctx, traitFile);
+        String source = resourcesDir.relativize(traitFile).toString();
+        String targetDisplay = ctx.projectDir().relativize(target).toString();
+        try {
+            if (!Files.isRegularFile(target)) {
+                missingTraits.add(source + " target was not generated at " + targetDisplay);
+                return;
+            }
+
+            String generatedContent = Files.readString(target);
+            String sentinel = "<!-- TRAIT:" + ctx.agentName() + " -->";
+            if (!generatedContent.contains(sentinel)) {
+                missingTraits.add(source + " did not add sentinel to generated " + targetDisplay);
+            }
+
+            String traitContent = Files.readString(traitFile).strip();
+            if (!traitContent.isEmpty() && !generatedContent.contains(traitContent)) {
+                missingTraits.add(source + " content was not appended to generated " + targetDisplay);
+            }
+        } catch (IOException e) {
+            missingTraits.add(source + " could not be verified against generated " + targetDisplay
+                              + ": " + e.getMessage());
+        }
+    }
+
+    private static Path generatedTraitTarget(Path traitsDir, InitContext ctx, Path traitFile) {
+        Path relative = traitsDir.relativize(traitFile);
+        String skillName = stripAppendSuffix(relative.getName(1).toString());
+        if (relative.getNameCount() == 2) {
+            return ctx.skillsDir().resolve(skillName).resolve("SKILL.md");
+        }
+
+        String guideName = stripAppendSuffix(relative.getFileName().toString());
+        return ctx.skillsDir().resolve(skillName).resolve("guides").resolve(guideName + ".md");
     }
 
     private static String stripAppendSuffix(String fileName) {

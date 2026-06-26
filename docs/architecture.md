@@ -359,7 +359,7 @@ The active scan covers `camel-kit-core/src/main/resources/skills`, `camel-kit-co
 
 Docs subdirectories are intentionally out of scope; this keeps ignored archives such as `docs/plans/` and `docs/superpowers/`, image assets, and generated planning material out of the contract check.
 
-`ShippedAssetStructureTest` covers structural coherence for shipped assets. It verifies that workflow manifest skills have `skills/<name>/SKILL.md`, guide tables in `SKILL.md` point to existing bundled files, shared guide references in shipped skills and templates resolve, every supported agent descriptor has dispatch and MCP config templates, descriptor template sources exist, trait files target existing skills or guides, generated command files match manifest command names, generated command skill references resolve to copied skills, and generated MCP configs parse as JSON with the expected server containers.
+`ShippedAssetStructureTest` covers structural coherence for shipped assets. It verifies that workflow manifest skills have `skills/<name>/SKILL.md`, guide tables in `SKILL.md` point to existing bundled files, shared guide references in shipped skills and templates resolve, every supported agent descriptor has dispatch and MCP config templates, descriptor template sources exist, trait files target existing skills or guides, every shipped trait appears in generated output for its production agent generator, generated command files match manifest command names, generated command skill references resolve to copied skills, and generated MCP configs parse as JSON with the expected server containers.
 
 Historical release notes, old planning material, and archived ADR-style documents are outside the active contract unless they are copied into generated projects or used as live instructions. Keep historical context in those files as history; do not exclude an active shipped instruction just because it is inconvenient to update.
 
@@ -387,7 +387,7 @@ Traits are agent-specific instruction fragments that are appended to shared skil
 
 **Location:** `camel-kit-core/src/main/resources/templates/traits/{agent}/`
 
-**How it works:** During `camel-kit init --ai {agent}`, `TraitApplicator` scans the traits directory for the selected agent and appends each `.append.md` file to the corresponding skill file. Idempotent HTML comment sentinels (`<!-- TRAIT:{agent} -->` / `<!-- /TRAIT:{agent} -->`) prevent duplicate application on re-init.
+**How it works:** During `camel-kit init --ai {agent}`, `TraitApplicator` applies trait files for the selected agent to the corresponding generated skill files. SKILL.md-level traits are applied for skills in the workflow manifest. Guide-level traits are discovered from the actual `.append.md` files under `traits/{agent}/{skill-name}/`, so adding a new guide trait does not require registering the guide name in Java code. Idempotent HTML comment sentinels (`<!-- TRAIT:{agent} -->` / `<!-- /TRAIT:{agent} -->`) prevent duplicate application on re-init.
 
 **Two granularity levels:**
 
@@ -399,6 +399,8 @@ Traits are agent-specific instruction fragments that are appended to shared skil
 **Example:** `traits/claude/camel-execute.append.md` appends Claude-specific instructions to `camel-execute/SKILL.md` -- parallel sub-agent dispatch via the `Agent` tool, worktree isolation via `EnterWorktree`, build health monitoring via `CronCreate`. The same skill on Gemini gets different trait content: named agent delegation, TOML policy guidance, batch context loading via `read_many_files`.
 
 **What traits contain:** Agent-specific tool usage, dispatch strategies, state persistence mechanisms, and execution optimizations. Each trait is written for the specific agent's capabilities -- Claude traits reference `Agent`, `ScheduleWakeup`, `TaskCreate`; Gemini traits reference `save_memory`, `read_many_files`; Bob traits reference `switch_mode`, `insert_content`.
+
+**Bob ordering:** IBM Project Bob replaces several generated `SKILL.md` files with monolithic gate templates. Bob traits are applied after that replacement, so Bob-specific trait content is appended to the final gate-backed skill files rather than being overwritten. Bob guide-level traits still apply to the copied guide files.
 
 ### Iron Laws
 

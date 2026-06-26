@@ -1,14 +1,25 @@
 package io.github.luigidemasi.camelkit.util;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.JarURLConnection;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 /**
  * Utility for reading template files from resources or filesystem.
@@ -63,6 +74,25 @@ public final class TemplateUtils {
     }
 
     /**
+     * List immediate files under a bundled template directory.
+     *
+     * @param  templateDirPath directory path, e.g. {@code templates/traits/claude/camel-execute}
+     * @param  suffix          optional filename suffix filter, e.g. {@code .append.md}
+     * @return                 sorted matching file names, without the directory prefix
+     * @throws IOException     if a matching directory exists but cannot be read
+     */
+    public static List<String> listTemplateFiles(String templateDirPath, String suffix) throws IOException {
+        String normalizedDir = normalizeDirectory(templateDirPath);
+        Set<String> names = new TreeSet<>();
+
+        collectFromFilesystem(Path.of(normalizedDir), suffix, names);
+        collectFromClassLoader(normalizedDir, suffix, names);
+        collectFromClassPath(normalizedDir, suffix, names);
+
+        return List.copyOf(names);
+    }
+
+    /**
      * Read a resource file as an array of lines.
      *
      * @param  resourcePath the path to the resource (e.g., "art/camelLines.txt")
@@ -90,5 +120,95 @@ public final class TemplateUtils {
         }
 
         throw new IOException("Resource not found: " + resourcePath);
+    }
+
+    private static String normalizeDirectory(String templateDirPath) {
+        String normalized = templateDirPath.replace("\\", "/");
+        while (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
+    }
+
+    private static void collectFromFilesystem(Path directory, String suffix, Set<String> names) throws IOException {
+        if (!Files.isDirectory(directory)) {
+            return;
+        }
+
+        try (Stream<Path> paths = Files.list(directory)) {
+            paths.filter(Files::isRegularFile)
+                    .map(path -> path.getFileName().toString())
+                    .filter(name -> suffix == null || name.endsWith(suffix))
+                    .forEach(names::add);
+        }
+    }
+
+    private static void collectFromClassLoader(String directory, String suffix, Set<String> names) throws IOException {
+        ClassLoader loader = TemplateUtils.class.getClassLoader();
+        Enumeration<URL> urls = loader.getResources(directory);
+        while (urls.hasMoreElements()) {
+            URL url = urls.nextElement();
+            if ("file".equals(url.getProtocol())) {
+                collectFromFilesystem(toPath(url), suffix, names);
+            } else if ("jar".equals(url.getProtocol())) {
+                collectFromJarUrl(url, directory, suffix, names);
+            }
+        }
+    }
+
+    private static void collectFromClassPath(String directory, String suffix, Set<String> names) throws IOException {
+        String classPath = System.getProperty("java.class.path", "");
+        if (classPath.isBlank()) {
+            return;
+        }
+
+        for (String entry : classPath.split(Pattern.quote(File.pathSeparator))) {
+            if (entry.isBlank()) {
+                continue;
+            }
+            Path classPathEntry = Path.of(entry);
+            if (Files.isDirectory(classPathEntry)) {
+                collectFromFilesystem(classPathEntry.resolve(directory), suffix, names);
+            } else if (Files.isRegularFile(classPathEntry) && entry.endsWith(".jar")) {
+                try (JarFile jarFile = new JarFile(classPathEntry.toFile())) {
+                    collectFromJar(jarFile, directory, suffix, names);
+                }
+            }
+        }
+    }
+
+    private static Path toPath(URL url) throws IOException {
+        try {
+            return Path.of(url.toURI());
+        } catch (URISyntaxException e) {
+            throw new IOException("Invalid template resource URL: " + url, e);
+        }
+    }
+
+    private static void collectFromJarUrl(URL url, String directory, String suffix, Set<String> names)
+            throws IOException {
+        JarURLConnection connection = (JarURLConnection) url.openConnection();
+        collectFromJar(connection.getJarFile(), directory, suffix, names);
+    }
+
+    private static void collectFromJar(JarFile jarFile, String directory, String suffix, Set<String> names) {
+        String prefix = directory + "/";
+        Enumeration<JarEntry> entries = jarFile.entries();
+        while (entries.hasMoreElements()) {
+            JarEntry entry = entries.nextElement();
+            String entryName = entry.getName();
+            if (entry.isDirectory() || !entryName.startsWith(prefix)) {
+                continue;
+            }
+
+            String relative = entryName.substring(prefix.length());
+            if (relative.contains("/") || suffix != null && !relative.endsWith(suffix)) {
+                continue;
+            }
+            names.add(relative);
+        }
     }
 }
