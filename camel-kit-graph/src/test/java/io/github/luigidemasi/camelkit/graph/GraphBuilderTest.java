@@ -119,6 +119,45 @@ class GraphBuilderTest {
     }
 
     @Test
+    void unexpectedParserErrorsKeepElapsedDuration(@TempDir Path tempDir) {
+        GraphBuilder builder = new GraphBuilder(
+                new EmptyParser(),
+                List.of(new ErrorParser()),
+                1,
+                TimeUnit.SECONDS);
+
+        GraphBuildResult result = builder.buildWithDiagnostics(tempDir);
+
+        ParserDiagnostic diagnostic = findDiagnostic(result, "ErrorParser");
+        assertFalse(diagnostic.failures().isEmpty());
+        assertTrue(diagnostic.durationMillis() > 0);
+    }
+
+    @Test
+    void interruptionReportsRemainingParsersAsSkipped(@TempDir Path tempDir) {
+        GraphBuilder builder = new GraphBuilder(
+                new EmptyParser(),
+                List.of(new SleepingParser(), new SkippedParser()),
+                1,
+                TimeUnit.SECONDS);
+
+        GraphBuildResult result;
+        Thread.currentThread().interrupt();
+        try {
+            result = builder.buildWithDiagnostics(tempDir);
+        } finally {
+            Thread.interrupted();
+        }
+
+        ParserDiagnostic interrupted = findDiagnostic(result, "SleepingParser");
+        ParserDiagnostic skipped = findDiagnostic(result, "SkippedParser");
+        assertFalse(interrupted.failures().isEmpty());
+        assertFalse(skipped.failures().isEmpty());
+        assertEquals(List.of("skipped.file"), skipped.scannedFiles());
+        assertEquals(List.of("skipped.file"), skipped.skippedFiles());
+    }
+
+    @Test
     void parserFragmentsMergeInConfiguredOrder(@TempDir Path tempDir) {
         GraphBuilder builder = new GraphBuilder(
                 new EmptyParser(),
@@ -172,6 +211,31 @@ class GraphBuilderTest {
         @Override
         public List<String> scannedFiles(Path projectRoot) {
             return List.of("slow.file");
+        }
+    }
+
+    private static final class ErrorParser implements GraphParser {
+
+        @Override
+        public void parse(Path projectRoot, ProjectGraph graph) {
+            try {
+                Thread.sleep(25);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            throw new AssertionError("intentional parser error");
+        }
+    }
+
+    private static final class SkippedParser implements GraphParser {
+
+        @Override
+        public void parse(Path projectRoot, ProjectGraph graph) {
+        }
+
+        @Override
+        public List<String> scannedFiles(Path projectRoot) {
+            return List.of("skipped.file");
         }
     }
 

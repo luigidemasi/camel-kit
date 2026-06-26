@@ -1,6 +1,8 @@
 package io.github.luigidemasi.camelkit.graph.parser;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
@@ -14,6 +16,8 @@ import io.github.luigidemasi.camelkit.graph.ProjectGraph;
 import io.github.luigidemasi.camelkit.graph.model.*;
 
 public class XmlRouteParser implements GraphParser {
+
+    private static final int SNIFF_BYTES = 1024;
 
     private static final Set<String> EIP_ELEMENTS = Set.of(
             "filter", "split", "aggregate", "marshal", "unmarshal",
@@ -48,8 +52,7 @@ public class XmlRouteParser implements GraphParser {
             return false;
         }
         try {
-            String content = Files.readString(file);
-            String head = content.substring(0, Math.min(1024, content.length()));
+            String head = readHead(file);
             return !head.contains("mulesoft.org/schema/mule") && !BizTalkParser.isBizTalkXml(head);
         } catch (IOException e) {
             return false;
@@ -60,8 +63,7 @@ public class XmlRouteParser implements GraphParser {
         // Skip MuleSoft XML files (handled by MuleXmlFlowParser)
         // Skip BizTalk XML files (handled by BizTalkParser)
         try {
-            String content = Files.readString(xmlFile);
-            String head = content.substring(0, Math.min(1024, content.length()));
+            String head = readHead(xmlFile);
             if (head.contains("mulesoft.org/schema/mule")) {
                 return;
             }
@@ -86,6 +88,17 @@ public class XmlRouteParser implements GraphParser {
             }
         } catch (Exception e) {
             // Skip unparseable XML silently
+        }
+    }
+
+    private String readHead(Path file) throws IOException {
+        try (InputStream input = Files.newInputStream(file)) {
+            byte[] buffer = new byte[SNIFF_BYTES];
+            int read = input.read(buffer);
+            if (read <= 0) {
+                return "";
+            }
+            return new String(buffer, 0, read, StandardCharsets.UTF_8);
         }
     }
 

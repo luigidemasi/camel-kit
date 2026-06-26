@@ -7,56 +7,56 @@ import io.github.luigidemasi.camelkit.graph.model.*;
 
 public class ProjectGraph {
 
-    private final Map<String, GraphNode> nodes = Collections.synchronizedMap(new LinkedHashMap<>());
-    private final List<GraphEdge> edges = Collections.synchronizedList(new ArrayList<>());
+    private final Map<String, GraphNode> nodes = new LinkedHashMap<>();
+    private final List<GraphEdge> edges = new ArrayList<>();
 
-    public void addNode(GraphNode node) {
+    public synchronized void addNode(GraphNode node) {
         nodes.put(node.id(), node);
     }
 
-    public boolean hasNode(String id) {
+    public synchronized boolean hasNode(String id) {
         return nodes.containsKey(id);
     }
 
-    public GraphNode getNode(String id) {
+    public synchronized GraphNode getNode(String id) {
         return nodes.get(id);
     }
 
-    public Map<String, GraphNode> getNodes() {
-        return Collections.unmodifiableMap(nodes);
+    public synchronized Map<String, GraphNode> getNodes() {
+        return Collections.unmodifiableMap(new LinkedHashMap<>(nodes));
     }
 
-    public List<GraphEdge> getEdges() {
-        return Collections.unmodifiableList(edges);
+    public synchronized List<GraphEdge> getEdges() {
+        return List.copyOf(edges);
     }
 
-    public void addEdge(GraphEdge edge) {
+    public synchronized void addEdge(GraphEdge edge) {
         edges.add(edge);
     }
 
-    public List<GraphNode> findByType(NodeType type) {
+    public synchronized List<GraphNode> findByType(NodeType type) {
         return nodes.values().stream()
                 .filter(n -> n.type() == type)
                 .collect(Collectors.toList());
     }
 
-    public List<GraphEdge> getOutgoingEdges(String nodeId) {
+    public synchronized List<GraphEdge> getOutgoingEdges(String nodeId) {
         return edges.stream()
                 .filter(e -> e.from().equals(nodeId))
                 .collect(Collectors.toList());
     }
 
-    public List<GraphEdge> getIncomingEdges(String nodeId) {
+    public synchronized List<GraphEdge> getIncomingEdges(String nodeId) {
         return edges.stream()
                 .filter(e -> e.to().equals(nodeId))
                 .collect(Collectors.toList());
     }
 
-    public int nodeCount() {
+    public synchronized int nodeCount() {
         return nodes.size();
     }
 
-    public int edgeCount() {
+    public synchronized int edgeCount() {
         return edges.size();
     }
 
