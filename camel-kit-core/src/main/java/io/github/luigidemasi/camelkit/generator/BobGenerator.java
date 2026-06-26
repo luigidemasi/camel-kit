@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import io.github.luigidemasi.camelkit.util.TemplateUtils;
-import io.github.luigidemasi.camelkit.workflow.WorkflowManifest;
 
 public class BobGenerator extends DefaultGenerator {
 
@@ -28,7 +27,7 @@ public class BobGenerator extends DefaultGenerator {
             "camel-test", "testing.md");
 
     @Override
-    protected void beforeApplyTraits(InitContext ctx, WorkflowManifest workflow) throws Exception {
+    protected void beforeApplyTraits(InitContext ctx) throws Exception {
         Map<String, Object> templateData = new HashMap<>(
                 Map.of(
                         "COMMAND_PREFIX", ctx.commandPrefix()));
