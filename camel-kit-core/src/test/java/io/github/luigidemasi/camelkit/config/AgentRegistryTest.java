@@ -1,10 +1,15 @@
 package io.github.luigidemasi.camelkit.config;
 
 import java.io.IOException;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -35,6 +40,7 @@ class AgentRegistryTest {
         assertNotNull(descriptor);
         assertEquals("claude", descriptor.id());
         assertEquals("claude", descriptor.generatorStrategy());
+        assertEquals(AgentGeneratorStrategy.CLAUDE, descriptor.generatorStrategyType());
         assertEquals("templates/dispatch/claude.md", descriptor.dispatchTemplatePath());
         assertTrue(descriptor.supportsSubagents());
         assertTrue(descriptor.supportsTraits());
@@ -104,6 +110,24 @@ class AgentRegistryTest {
                 () -> AgentDescriptorLoader.load(tempDir));
 
         assertTrue(thrown.getMessage().contains("unsupported generatorStrategy 'custom'"));
+    }
+
+    @Test
+    void jarBackedRegistryLoadsDescriptors() throws Exception {
+        Path jarFile = tempDir.resolve("agents.jar");
+        try (JarOutputStream jar = new JarOutputStream(Files.newOutputStream(jarFile))) {
+            jar.putNextEntry(new JarEntry("agents/registry/"));
+            jar.closeEntry();
+            jar.putNextEntry(new JarEntry("agents/registry/broken.yaml"));
+            jar.write(validDescriptor("broken").getBytes(StandardCharsets.UTF_8));
+            jar.closeEntry();
+        }
+
+        URI jarResourceUri = URI.create("jar:" + jarFile.toUri() + "!/agents/registry");
+        Map<String, AgentDescriptor> descriptors = AgentDescriptorLoader.load(jarResourceUri.toURL());
+
+        assertEquals(Set.of("broken"), descriptors.keySet());
+        assertEquals("Test Agent", descriptors.get("broken").displayName());
     }
 
     @Test

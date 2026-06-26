@@ -24,9 +24,6 @@ public record AgentDescriptor(
         Boolean supportsTraits,
         List<String> capabilities) {
 
-    private static final List<String> SUPPORTED_GENERATOR_STRATEGIES = List.of(
-            "default", "bob", "claude", "gemini", "opencode", "qwen");
-
     public AgentDescriptor {
         templates = immutableList(templates);
         capabilities = immutableList(capabilities);
@@ -50,12 +47,7 @@ public record AgentDescriptor(
         if (!id.matches("[a-z][a-z0-9-]*")) {
             throw new IllegalStateException(source + " has invalid agent id '" + id + "'");
         }
-        if (!SUPPORTED_GENERATOR_STRATEGIES.contains(generatorStrategy)) {
-            throw new IllegalStateException(
-                    source + " has unsupported generatorStrategy '" + generatorStrategy
-                                            + "'. Supported values: "
-                                            + String.join(", ", SUPPORTED_GENERATOR_STRATEGIES));
-        }
+        generatorStrategyType(source);
         for (int i = 0; i < templates.size(); i++) {
             TemplateInstall template = templates.get(i);
             if (template == null) {
@@ -67,6 +59,14 @@ public record AgentDescriptor(
             requireText(capabilities.get(i), "capabilities[" + i + "]", source);
         }
         return this;
+    }
+
+    public AgentGeneratorStrategy generatorStrategyType() {
+        return generatorStrategyType("agent descriptor '" + id + "'");
+    }
+
+    private AgentGeneratorStrategy generatorStrategyType(String source) {
+        return AgentGeneratorStrategy.fromDescriptorValue(generatorStrategy, source);
     }
 
     AgentConfig toAgentConfig() {
