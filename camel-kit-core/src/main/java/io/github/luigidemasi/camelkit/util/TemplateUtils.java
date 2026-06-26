@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
@@ -84,10 +85,11 @@ public final class TemplateUtils {
     public static List<String> listTemplateFiles(String templateDirPath, String suffix) throws IOException {
         String normalizedDir = normalizeDirectory(templateDirPath);
         Set<String> names = new TreeSet<>();
+        Set<String> scannedJarUrls = new HashSet<>();
 
         collectFromFilesystem(Path.of(normalizedDir), suffix, names);
-        collectFromClassLoader(normalizedDir, suffix, names);
-        collectFromClassPath(normalizedDir, suffix, names);
+        collectFromClassLoader(normalizedDir, suffix, names, scannedJarUrls);
+        collectFromClassPath(normalizedDir, suffix, names, scannedJarUrls);
 
         return List.copyOf(names);
     }
@@ -146,7 +148,9 @@ public final class TemplateUtils {
         }
     }
 
-    private static void collectFromClassLoader(String directory, String suffix, Set<String> names) throws IOException {
+    private static void collectFromClassLoader(
+            String directory, String suffix, Set<String> names, Set<String> scannedJarUrls)
+            throws IOException {
         ClassLoader loader = TemplateUtils.class.getClassLoader();
         Enumeration<URL> urls = loader.getResources(directory);
         while (urls.hasMoreElements()) {
@@ -154,12 +158,14 @@ public final class TemplateUtils {
             if ("file".equals(url.getProtocol())) {
                 collectFromFilesystem(toPath(url), suffix, names);
             } else if ("jar".equals(url.getProtocol())) {
-                collectFromJarUrl(url, directory, suffix, names);
+                collectFromJarUrl(url, directory, suffix, names, scannedJarUrls);
             }
         }
     }
 
-    private static void collectFromClassPath(String directory, String suffix, Set<String> names) throws IOException {
+    private static void collectFromClassPath(
+            String directory, String suffix, Set<String> names, Set<String> scannedJarUrls)
+            throws IOException {
         String classPath = System.getProperty("java.class.path", "");
         if (classPath.isBlank()) {
             return;
@@ -173,6 +179,10 @@ public final class TemplateUtils {
             if (Files.isDirectory(classPathEntry)) {
                 collectFromFilesystem(classPathEntry.resolve(directory), suffix, names);
             } else if (Files.isRegularFile(classPathEntry) && entry.endsWith(".jar")) {
+                String jarUrl = classPathEntry.toAbsolutePath().normalize().toUri().toString();
+                if (!scannedJarUrls.add(jarUrl)) {
+                    continue;
+                }
                 try (JarFile jarFile = new JarFile(classPathEntry.toFile())) {
                     collectFromJar(jarFile, directory, suffix, names);
                 }
@@ -188,10 +198,23 @@ public final class TemplateUtils {
         }
     }
 
-    private static void collectFromJarUrl(URL url, String directory, String suffix, Set<String> names)
+    private static void collectFromJarUrl(
+            URL url, String directory, String suffix, Set<String> names, Set<String> scannedJarUrls)
             throws IOException {
         JarURLConnection connection = (JarURLConnection) url.openConnection();
-        collectFromJar(connection.getJarFile(), directory, suffix, names);
+        if (!scannedJarUrls.add(connection.getJarFileURL().toExternalForm())) {
+            return;
+        }
+
+        boolean useCaches = connection.getUseCaches();
+        JarFile jarFile = connection.getJarFile();
+        try {
+            collectFromJar(jarFile, directory, suffix, names);
+        } finally {
+            if (!useCaches) {
+                jarFile.close();
+            }
+        }
     }
 
     private static void collectFromJar(JarFile jarFile, String directory, String suffix, Set<String> names) {
@@ -205,7 +228,7 @@ public final class TemplateUtils {
             }
 
             String relative = entryName.substring(prefix.length());
-            if (relative.contains("/") || suffix != null && !relative.endsWith(suffix)) {
+            if (relative.contains("/") || (suffix != null && !relative.endsWith(suffix))) {
                 continue;
             }
             names.add(relative);
