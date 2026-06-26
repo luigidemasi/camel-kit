@@ -6,6 +6,8 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
+import java.util.List;
 
 import io.github.luigidemasi.camelkit.graph.ProjectGraph;
 import io.github.luigidemasi.camelkit.graph.parser.biztalk.*;
@@ -28,13 +30,15 @@ public class BizTalkParser implements GraphParser {
     private static final String BIZTALK_BINDING_MARKER = "schemas.microsoft.com/BizTalk";
     private static final String BINDING_INFO_MARKER = "BindingInfo";
 
-    private final BizTalkOdxParser odxParser = new BizTalkOdxParser();
-    private final BizTalkBtmParser btmParser = new BizTalkBtmParser();
-    private final BizTalkBtpParser btpParser = new BizTalkBtpParser();
-    private final BizTalkBindingParser bindingParser = new BizTalkBindingParser();
+    private final List<String> warnings = new ArrayList<>();
+    private final BizTalkOdxParser odxParser = new BizTalkOdxParser(warnings::add);
+    private final BizTalkBtmParser btmParser = new BizTalkBtmParser(warnings::add);
+    private final BizTalkBtpParser btpParser = new BizTalkBtpParser(warnings::add);
+    private final BizTalkBindingParser bindingParser = new BizTalkBindingParser(warnings::add);
 
     @Override
     public void parse(Path projectRoot, ProjectGraph graph) {
+        warnings.clear();
         try {
             Files.walkFileTree(projectRoot, new SimpleFileVisitor<>() {
                 @Override
@@ -59,6 +63,22 @@ public class BizTalkParser implements GraphParser {
         } catch (IOException e) {
             throw new RuntimeException("Failed to walk project for BizTalk files", e);
         }
+    }
+
+    @Override
+    public List<String> warnings() {
+        return List.copyOf(warnings);
+    }
+
+    @Override
+    public List<String> scannedFiles(Path projectRoot) {
+        return GraphParser.findFiles(projectRoot, file -> {
+            String fileName = file.getFileName().toString();
+            return fileName.endsWith(".odx")
+                    || fileName.endsWith(".btm")
+                    || fileName.endsWith(".btp")
+                    || (fileName.endsWith(".xml") && !fileName.equals("pom.xml") && isBizTalkBindingXml(file));
+        });
     }
 
     /**

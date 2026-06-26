@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.Consumer;
 
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
@@ -26,6 +28,17 @@ import io.github.luigidemasi.camelkit.graph.model.NodeType;
  * </p>
  */
 public class BizTalkBtpParser {
+
+    private final Consumer<String> warningConsumer;
+
+    public BizTalkBtpParser() {
+        this(warning -> {
+        });
+    }
+
+    public BizTalkBtpParser(Consumer<String> warningConsumer) {
+        this.warningConsumer = Objects.requireNonNull(warningConsumer, "warningConsumer");
+    }
 
     /**
      * GUID identifying receive pipelines.
@@ -58,7 +71,7 @@ public class BizTalkBtpParser {
 
             parseBtpXml(btpFile, graph);
         } catch (Exception e) {
-            System.err.println("Failed to parse BizTalk BTP file: " + btpFile + " - " + e.getMessage());
+            warningConsumer.accept("Failed to parse BizTalk BTP file: " + btpFile + " - " + e.getMessage());
         }
     }
 

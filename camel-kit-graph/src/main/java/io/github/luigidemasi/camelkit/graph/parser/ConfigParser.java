@@ -29,6 +29,16 @@ public class ConfigParser implements GraphParser {
         }
     }
 
+    @Override
+    public List<String> scannedFiles(Path projectRoot) {
+        return GraphParser.findFiles(projectRoot, this::isConfigFile);
+    }
+
+    private boolean isConfigFile(Path file) {
+        String name = file.getFileName().toString();
+        return name.equals("application.properties") || name.matches("application-.*\\.properties");
+    }
+
     private void parseProperties(Path file, Path projectRoot, ProjectGraph graph) {
         Properties props = new Properties();
         try (InputStream in = Files.newInputStream(file)) {

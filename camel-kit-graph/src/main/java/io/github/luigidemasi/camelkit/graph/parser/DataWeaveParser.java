@@ -37,6 +37,11 @@ public class DataWeaveParser implements GraphParser {
         }
     }
 
+    @Override
+    public List<String> scannedFiles(Path projectRoot) {
+        return GraphParser.findFiles(projectRoot, file -> file.toString().endsWith(".dwl"));
+    }
+
     private void parseDwlFile(Path file, Path projectRoot, ProjectGraph graph) {
         String content;
         try {

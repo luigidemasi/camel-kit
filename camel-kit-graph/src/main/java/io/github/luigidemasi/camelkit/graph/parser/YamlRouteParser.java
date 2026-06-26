@@ -39,6 +39,17 @@ public class YamlRouteParser implements GraphParser {
         }
     }
 
+    @Override
+    public List<String> scannedFiles(Path projectRoot) {
+        return GraphParser.findFiles(projectRoot, this::isRouteYaml);
+    }
+
+    private boolean isRouteYaml(Path file) {
+        String fileName = file.getFileName().toString();
+        return (fileName.endsWith(".yaml") || fileName.endsWith(".yml"))
+                && !fileName.startsWith("application");
+    }
+
     private void parseYamlFile(Path yamlFile, Path projectRoot, ProjectGraph graph) {
         try {
             JsonNode root = yamlMapper.readTree(yamlFile.toFile());

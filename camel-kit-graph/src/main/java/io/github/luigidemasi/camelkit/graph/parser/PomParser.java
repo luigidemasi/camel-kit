@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.List;
 import java.util.Map;
 
 import io.github.luigidemasi.camelkit.graph.ProjectGraph;
@@ -30,6 +31,11 @@ public class PomParser implements GraphParser {
         } catch (IOException e) {
             throw new RuntimeException("Failed to walk project for POM files", e);
         }
+    }
+
+    @Override
+    public List<String> scannedFiles(Path projectRoot) {
+        return GraphParser.findFiles(projectRoot, file -> file.getFileName().toString().equals("pom.xml"));
     }
 
     private void parsePom(Path pomFile, Path projectRoot, ProjectGraph graph) {

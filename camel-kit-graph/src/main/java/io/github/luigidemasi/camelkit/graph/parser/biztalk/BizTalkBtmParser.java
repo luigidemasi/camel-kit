@@ -7,6 +7,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.function.Consumer;
 
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
@@ -26,6 +28,17 @@ import io.github.luigidemasi.camelkit.graph.model.NodeType;
  * </p>
  */
 public class BizTalkBtmParser {
+
+    private final Consumer<String> warningConsumer;
+
+    public BizTalkBtmParser() {
+        this(warning -> {
+        });
+    }
+
+    public BizTalkBtmParser(Consumer<String> warningConsumer) {
+        this.warningConsumer = Objects.requireNonNull(warningConsumer, "warningConsumer");
+    }
 
     /**
      * Mapping from Functoid FID to functoid type name. This provides a fallback when FunctoidType attribute is not
@@ -99,7 +112,7 @@ public class BizTalkBtmParser {
 
             parseBtmXml(btmFile, graph);
         } catch (Exception e) {
-            System.err.println("Failed to parse BizTalk BTM file: " + btmFile + " - " + e.getMessage());
+            warningConsumer.accept("Failed to parse BizTalk BTM file: " + btmFile + " - " + e.getMessage());
         }
     }
 

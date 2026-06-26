@@ -97,7 +97,9 @@ Shared guides live at `camel-kit-core/src/main/resources/skills/shared/` and are
 
 ### Project Graph Parsers
 
-The `camel-kit-graph` module builds a property graph of the project structure by running a set of parsers over the project's source files. Each parser produces typed nodes and edges that the graph consumers (validation, implementation, testing, migration) can query.
+The `camel-kit-graph` module builds a property graph of the project structure by running a set of parsers over the project's source files. Each parser produces typed nodes and edges that the graph consumers (validation, implementation, testing, migration) can query. `GraphBuilder.build(Path)` preserves the original graph-only API, while `GraphBuilder.buildWithDiagnostics(Path)` returns a `GraphBuildResult` containing the graph plus parser diagnostics.
+
+`PomParser` runs first to produce the Maven/runtime context needed by other parsers. The remaining parsers run in parallel against parser-local graph fragments initialized from that base context. `GraphBuilder` then merges successful fragments in the configured parser order, so final graph construction is not coupled to future completion timing. Parser diagnostics include the parser name, scanned files, warnings, failures, timeout state, produced node count, and produced edge count.
 
 **9 content parsers and 2 post-processors** are registered in `GraphBuilder`:
 

@@ -60,6 +60,14 @@ public class MuleXmlFlowParser implements GraphParser {
         }
     }
 
+    @Override
+    public List<String> scannedFiles(Path projectRoot) {
+        return GraphParser.findFiles(projectRoot, file -> {
+            String fileName = file.getFileName().toString();
+            return fileName.endsWith(".xml") && !fileName.equals("pom.xml") && isMuleXml(file);
+        });
+    }
+
     /**
      * Namespace sniff: read first 1KB and check for the MuleSoft namespace marker.
      */

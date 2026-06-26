@@ -2,8 +2,12 @@ package io.github.luigidemasi.camelkit.graph;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import io.github.luigidemasi.camelkit.graph.model.*;
+import io.github.luigidemasi.camelkit.graph.parser.GraphParser;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -22,6 +26,20 @@ class GraphBuilderTest {
         assertFalse(graph.findByType(NodeType.CAMEL_ENDPOINT).isEmpty());
         assertFalse(graph.findByType(NodeType.MAVEN_ARTIFACT).isEmpty());
         assertFalse(graph.findByType(NodeType.CONFIG_PROPERTY).isEmpty());
+    }
+
+    @Test
+    void buildWithDiagnosticsReportsParserScans() {
+        GraphBuildResult result = new GraphBuilder().buildWithDiagnostics(TEST_PROJECT);
+
+        assertFalse(result.graph().findByType(NodeType.CLASS).isEmpty());
+        ParserDiagnostic pomDiagnostic = findDiagnostic(result, "PomParser");
+        assertEquals(List.of("di/pom.xml", "pom.xml"), pomDiagnostic.scannedFiles());
+        assertTrue(pomDiagnostic.successful());
+
+        ParserDiagnostic bizTalkDiagnostic = findDiagnostic(result, "BizTalkParser");
+        assertTrue(bizTalkDiagnostic.warnings().stream()
+                .anyMatch(warning -> warning.contains("malformed.odx")));
     }
 
     @Test
@@ -66,5 +84,118 @@ class GraphBuilderTest {
                 .toList();
         assertFalse(edges.isEmpty(),
                 "GraphBuilder should run CrossLinker.expandInterfaces to create DEPENDS_ON_VIA_INTERFACE edges");
+    }
+
+    @Test
+    void parserFailuresAreCapturedAsDiagnostics(@TempDir Path tempDir) {
+        GraphBuilder builder = new GraphBuilder(
+                new EmptyParser(),
+                List.of(new FailingParser()),
+                1,
+                TimeUnit.SECONDS);
+
+        GraphBuildResult result = builder.buildWithDiagnostics(tempDir);
+
+        ParserDiagnostic diagnostic = findDiagnostic(result, "FailingParser");
+        assertFalse(diagnostic.failures().isEmpty());
+        assertTrue(diagnostic.failures().get(0).contains("intentional parser failure"));
+        assertFalse(result.graph().hasNode("class:partial"),
+                "Failed parser fragments should not be merged into the final graph");
+    }
+
+    @Test
+    void parserTimeoutsAreCapturedAsDiagnostics(@TempDir Path tempDir) {
+        GraphBuilder builder = new GraphBuilder(
+                new EmptyParser(),
+                List.of(new SleepingParser()),
+                20,
+                TimeUnit.MILLISECONDS);
+
+        GraphBuildResult result = builder.buildWithDiagnostics(tempDir);
+
+        ParserDiagnostic diagnostic = findDiagnostic(result, "SleepingParser");
+        assertTrue(diagnostic.timedOut());
+        assertEquals(List.of("slow.file"), diagnostic.scannedFiles());
+    }
+
+    @Test
+    void parserFragmentsMergeInConfiguredOrder(@TempDir Path tempDir) {
+        GraphBuilder builder = new GraphBuilder(
+                new EmptyParser(),
+                List.of(new OrderedEdgeParser("first", 50), new OrderedEdgeParser("second", 0)),
+                1,
+                TimeUnit.SECONDS);
+
+        GraphBuildResult result = builder.buildWithDiagnostics(tempDir);
+
+        List<String> edgeSources = result.graph().getEdges().stream()
+                .filter(edge -> edge.type() == EdgeType.CALLS)
+                .map(GraphEdge::from)
+                .toList();
+        assertEquals(List.of("class:first", "class:second"), edgeSources);
+    }
+
+    private ParserDiagnostic findDiagnostic(GraphBuildResult result, String parserName) {
+        return result.diagnostics().stream()
+                .filter(diagnostic -> parserName.equals(diagnostic.parserName()))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private static final class EmptyParser implements GraphParser {
+
+        @Override
+        public void parse(Path projectRoot, ProjectGraph graph) {
+        }
+    }
+
+    private static final class FailingParser implements GraphParser {
+
+        @Override
+        public void parse(Path projectRoot, ProjectGraph graph) {
+            graph.addNode(new GraphNode("class:partial", NodeType.CLASS, Map.of()));
+            throw new IllegalStateException("intentional parser failure");
+        }
+    }
+
+    private static final class SleepingParser implements GraphParser {
+
+        @Override
+        public void parse(Path projectRoot, ProjectGraph graph) {
+            try {
+                Thread.sleep(TimeUnit.SECONDS.toMillis(5));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
+        @Override
+        public List<String> scannedFiles(Path projectRoot) {
+            return List.of("slow.file");
+        }
+    }
+
+    private static final class OrderedEdgeParser implements GraphParser {
+
+        private final String name;
+        private final long delayMillis;
+
+        private OrderedEdgeParser(String name, long delayMillis) {
+            this.name = name;
+            this.delayMillis = delayMillis;
+        }
+
+        @Override
+        public void parse(Path projectRoot, ProjectGraph graph) {
+            try {
+                Thread.sleep(delayMillis);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            String classNodeId = "class:" + name;
+            graph.addNode(new GraphNode(classNodeId, NodeType.CLASS, Map.of("name", name)));
+            graph.addNode(new GraphNode("class:target", NodeType.CLASS, Map.of()));
+            graph.addEdge(new GraphEdge(classNodeId, "class:target", EdgeType.CALLS, Map.of()));
+        }
     }
 }
