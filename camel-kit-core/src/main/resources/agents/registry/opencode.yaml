@@ -1,0 +1,32 @@
+id: opencode
+displayName: OpenCode
+commandDirectory: .opencode/commands
+commandFileFormat: md
+argumentPlaceholder: $ARGUMENTS
+mcpConfigPath: opencode.json
+mcpConfigTemplatePath: templates/mcp-configs/opencode-mcp.json
+mcpServerContainerKey: mcp
+description: AI coding agent for the terminal
+generatorStrategy: opencode
+dispatchTemplatePath: templates/dispatch/opencode.md
+templates:
+  - source: templates/opencode/agents/brainstormer.md
+    target: .opencode/agents/brainstormer.md
+  - source: templates/opencode/agents/executor.md
+    target: .opencode/agents/executor.md
+  - source: templates/opencode/agents/implementer.md
+    target: .opencode/agents/implementer.md
+  - source: templates/opencode/agents/migrator.md
+    target: .opencode/agents/migrator.md
+  - source: templates/opencode/agents/planner.md
+    target: .opencode/agents/planner.md
+  - source: templates/opencode/agents/tester.md
+    target: .opencode/agents/tester.md
+  - source: templates/opencode/agents/validator.md
+    target: .opencode/agents/validator.md
+supportsSubagents: true
+supportsTraits: true
+capabilities:
+  - task-tool-agents
+  - permissions
+  - mcp

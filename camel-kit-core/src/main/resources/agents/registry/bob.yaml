@@ -1,0 +1,47 @@
+id: bob
+displayName: IBM Project Bob
+commandDirectory: .bob/commands
+commandFileFormat: md
+argumentPlaceholder: $ARGUMENTS
+mcpConfigPath: .bob/mcp.json
+mcpConfigTemplatePath: templates/mcp-configs/bob-mcp.json
+mcpServerContainerKey: mcpServers
+description: IBM's AI-powered development assistant
+generatorStrategy: bob
+dispatchTemplatePath: templates/dispatch/bob.md
+templates:
+  - source: templates/bob/custom_modes.yaml
+    target: .bob/custom_modes.yaml
+  - source: templates/bob/rules/iron-laws.md
+    target: .bob/rules/iron-laws.md
+  - source: templates/bob/rules-camel-brainstorm/interview-gates.md
+    target: .bob/rules-camel-brainstorm/interview-gates.md
+  - source: templates/bob/rules-camel-plan/plan-structure.md
+    target: .bob/rules-camel-plan/plan-structure.md
+  - source: templates/bob/rules-camel-implement/implementation.md
+    target: .bob/rules-camel-implement/implementation.md
+  - source: templates/bob/rules-camel-validate/validation.md
+    target: .bob/rules-camel-validate/validation.md
+  - source: templates/bob/rules-camel-test/testing.md
+    target: .bob/rules-camel-test/testing.md
+  - source: templates/bob/gates/camel-brainstorm.md
+    target: .bob/skills/camel-brainstorm/SKILL.md
+  - source: templates/bob/gates/camel-execute.md
+    target: .bob/skills/camel-execute/SKILL.md
+  - source: templates/bob/gates/camel-implement.md
+    target: .bob/skills/camel-implement/SKILL.md
+  - source: templates/bob/gates/camel-migrate.md
+    target: .bob/skills/camel-migrate/SKILL.md
+  - source: templates/bob/gates/camel-plan.md
+    target: .bob/skills/camel-plan/SKILL.md
+  - source: templates/bob/gates/camel-test.md
+    target: .bob/skills/camel-test/SKILL.md
+  - source: templates/bob/gates/camel-validate.md
+    target: .bob/skills/camel-validate/SKILL.md
+supportsSubagents: false
+supportsTraits: true
+capabilities:
+  - custom-modes
+  - mode-rules
+  - monolithic-gates
+  - mcp

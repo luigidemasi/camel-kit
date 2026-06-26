@@ -1,5 +1,7 @@
 package io.github.luigidemasi.camelkit.config;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -8,52 +10,8 @@ import java.util.Set;
  */
 public final class AgentRegistry {
 
-    private static final Map<String, AgentConfig> AGENTS = Map.of(
-            "bob", new AgentConfig(
-                    "IBM Project Bob",
-                    ".bob/commands",
-                    "md",
-                    "$ARGUMENTS",
-                    ".bob/mcp.json",
-                    "templates/mcp-configs/bob-mcp.json",
-                    "mcpServers",
-                    "IBM's AI-powered development assistant"),
-            "gemini", new AgentConfig(
-                    "Gemini CLI",
-                    ".gemini/commands",
-                    "toml",
-                    "{{args}}",
-                    ".gemini/settings.json",
-                    "templates/mcp-configs/gemini-mcp.json",
-                    "mcpServers",
-                    "Google's Gemini CLI"),
-            "claude", new AgentConfig(
-                    "Claude Code",
-                    ".claude/commands",
-                    "md",
-                    "$ARGUMENTS",
-                    ".mcp.json",
-                    "templates/mcp-configs/claude-code-mcp.json",
-                    "mcpServers",
-                    "Anthropic's Claude Code CLI"),
-            "qwen", new AgentConfig(
-                    "Qwen Code",
-                    ".qwen/commands",
-                    "md",
-                    "$ARGUMENTS",
-                    ".qwen/settings.json",
-                    "templates/mcp-configs/qwen-mcp.json",
-                    "mcpServers",
-                    "Alibaba's Qwen Code CLI"),
-            "opencode", new AgentConfig(
-                    "OpenCode",
-                    ".opencode/commands",
-                    "md",
-                    "$ARGUMENTS",
-                    "opencode.json",
-                    "templates/mcp-configs/opencode-mcp.json",
-                    "mcp",
-                    "AI coding agent for the terminal"));
+    private static final Map<String, AgentDescriptor> DESCRIPTORS = AgentDescriptorLoader.loadDefault();
+    private static final Map<String, AgentConfig> AGENTS = configsFrom(DESCRIPTORS);
 
     private AgentRegistry() {
         // Utility class
@@ -73,5 +31,19 @@ public final class AgentRegistry {
 
     public static Map<String, AgentConfig> all() {
         return AGENTS;
+    }
+
+    public static AgentDescriptor descriptor(String name) {
+        return DESCRIPTORS.get(name);
+    }
+
+    public static Map<String, AgentDescriptor> descriptors() {
+        return DESCRIPTORS;
+    }
+
+    private static Map<String, AgentConfig> configsFrom(Map<String, AgentDescriptor> descriptors) {
+        Map<String, AgentConfig> configs = new LinkedHashMap<>();
+        descriptors.forEach((name, descriptor) -> configs.put(name, descriptor.toAgentConfig()));
+        return Collections.unmodifiableMap(configs);
     }
 }

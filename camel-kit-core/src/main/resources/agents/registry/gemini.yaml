@@ -1,0 +1,43 @@
+id: gemini
+displayName: Gemini CLI
+commandDirectory: .gemini/commands
+commandFileFormat: toml
+argumentPlaceholder: "{{args}}"
+mcpConfigPath: .gemini/settings.json
+mcpConfigTemplatePath: templates/mcp-configs/gemini-mcp.json
+mcpServerContainerKey: mcpServers
+description: Google's Gemini CLI
+generatorStrategy: gemini
+dispatchTemplatePath: templates/dispatch/gemini.md
+templates:
+  - source: templates/gemini/gemini-md.md
+    target: GEMINI.md
+  - source: templates/gemini/geminiignore
+    target: .geminiignore
+  - source: templates/gemini/instructions/iron-laws.md
+    target: .gemini/instructions/iron-laws.md
+  - source: templates/gemini/instructions/mcp-usage.md
+    target: .gemini/instructions/mcp-usage.md
+  - source: templates/gemini/instructions/pipeline-overview.md
+    target: .gemini/instructions/pipeline-overview.md
+  - source: templates/gemini/policies/camel-kit.toml
+    target: .gemini/policies/camel-kit.toml
+  - source: templates/gemini/agents/camel-brainstormer.md
+    target: .gemini/agents/camel-brainstormer.md
+  - source: templates/gemini/agents/camel-implementer.md
+    target: .gemini/agents/camel-implementer.md
+  - source: templates/gemini/agents/camel-migrator.md
+    target: .gemini/agents/camel-migrator.md
+  - source: templates/gemini/agents/camel-planner.md
+    target: .gemini/agents/camel-planner.md
+  - source: templates/gemini/agents/camel-tester.md
+    target: .gemini/agents/camel-tester.md
+  - source: templates/gemini/agents/camel-validator.md
+    target: .gemini/agents/camel-validator.md
+supportsSubagents: true
+supportsTraits: true
+capabilities:
+  - named-subagents
+  - toml-commands
+  - policy
+  - mcp

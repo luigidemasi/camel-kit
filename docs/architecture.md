@@ -327,15 +327,27 @@ The validation guide (`datamapper-validation.md`) reads the `Transformation Engi
 
 `camel-kit-core/src/main/resources/templates/{agent}/`
 
+### Agent Capability Registry
+
+Built-in agent metadata lives in `camel-kit-core/src/main/resources/agents/registry/{agent}.yaml`.
+`AgentRegistry` loads these descriptors at startup and maps them into the public `AgentConfig` model used by
+commands and generators.
+
+Each descriptor defines the agent id, display name, command directory, command file format, argument placeholder,
+MCP config path, MCP config template path, MCP server container key, description, generator strategy, dispatch
+template path, templates installed by the agent-specific generator, and whether the agent supports subagents or
+traits. Missing required fields, duplicate ids, unsupported generator strategies, or malformed YAML fail during
+registry loading with a descriptor-specific error.
+
 ### What `camel-kit init` Generates
 
 | Agent | Template Dir | Instruction File | MCP Config | Skills Location |
 |-------|-------------|-----------------|------------|-----------------|
 | Claude Code | `templates/claude/` | `CLAUDE.md` | `.mcp.json` | `.claude/skills/` |
 | IBM Project Bob | `templates/bob/` | `custom_modes.yaml` + rules + gates | `.bob/mcp.json` | `.bob/skills/` |
-| Gemini CLI | `templates/gemini/` | `GEMINI.md` + `@file.md` imports + policies | `.gemini/mcp.json` | `.gemini/skills/` |
-| Qwen | `templates/qwen/` | `QWEN.md` + sub-agent definitions | `.qwen/mcp.json` | `.qwen/skills/` |
-| OpenCode | `templates/opencode/` | `AGENTS.md` + permission-based agents | `.opencode/mcp.json` | `.opencode/skills/` |
+| Gemini CLI | `templates/gemini/` | `GEMINI.md` + `@file.md` imports + policies | `.gemini/settings.json` | `.gemini/skills/` |
+| Qwen | `templates/qwen/` | `QWEN.md` + sub-agent definitions | `.qwen/settings.json` | `.qwen/skills/` |
+| OpenCode | `templates/opencode/` | `AGENTS.md` + permission-based agents | `opencode.json` | `.opencode/skills/` |
 
 ### Resource Consistency Contract
 
@@ -345,7 +357,7 @@ The active scan covers `camel-kit-core/src/main/resources/skills`, `camel-kit-co
 
 Docs subdirectories are intentionally out of scope; this keeps ignored archives such as `docs/plans/` and `docs/superpowers/`, image assets, and generated planning material out of the contract check.
 
-`ShippedAssetStructureTest` covers structural coherence for shipped assets. It verifies that workflow manifest skills have `skills/<name>/SKILL.md`, guide tables in `SKILL.md` point to existing bundled files, shared guide references in shipped skills and templates resolve, every supported agent has dispatch and MCP config templates, trait files target existing skills or guides, generated command files match manifest command names, generated command skill references resolve to copied skills, and generated MCP configs parse as JSON with the expected server containers.
+`ShippedAssetStructureTest` covers structural coherence for shipped assets. It verifies that workflow manifest skills have `skills/<name>/SKILL.md`, guide tables in `SKILL.md` point to existing bundled files, shared guide references in shipped skills and templates resolve, every supported agent descriptor has dispatch and MCP config templates, descriptor template sources exist, trait files target existing skills or guides, generated command files match manifest command names, generated command skill references resolve to copied skills, and generated MCP configs parse as JSON with the expected server containers.
 
 Historical release notes, old planning material, and archived ADR-style documents are outside the active contract unless they are copied into generated projects or used as live instructions. Keep historical context in those files as history; do not exclude an active shipped instruction just because it is inconvenient to update.
 
@@ -753,8 +765,12 @@ user_invocable: false
    - Qwen: update `templates/qwen/qwen-md.md`
    - OpenCode: update `templates/opencode/agents-md.md`
 
-6. **If internal:** update the loading skill's `SKILL.md` to reference the new guides (e.g., add a guide reference to `camel-execute`'s guide manifest).
+6. **If changing an agent capability:** update `agents/registry/{agent}.yaml` when command directories,
+   file formats, MCP config paths, generator strategy, dispatch templates, installed templates, subagent support,
+   trait support, or capability labels change.
 
-7. **Update `docs/commands.md`** if the skill is user-facing.
+7. **If internal:** update the loading skill's `SKILL.md` to reference the new guides (e.g., add a guide reference to `camel-execute`'s guide manifest).
 
-8. **Run manifest consistency tests** in `camel-kit-core` to verify generated stubs, skill metadata, and MCP allowlists still match the manifest.
+8. **Update `docs/commands.md`** if the skill is user-facing.
+
+9. **Run manifest consistency tests** in `camel-kit-core` to verify generated stubs, skill metadata, and MCP allowlists still match the manifest.
