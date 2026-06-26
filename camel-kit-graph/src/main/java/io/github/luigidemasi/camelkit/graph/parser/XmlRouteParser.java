@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
-import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -25,25 +24,22 @@ public class XmlRouteParser implements GraphParser {
 
     @Override
     public void parse(Path projectRoot, ProjectGraph graph) {
-        try {
-            Files.walkFileTree(projectRoot, new SimpleFileVisitor<>() {
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
-                    if (file.getFileName().toString().endsWith(".xml")
-                            && !file.getFileName().toString().equals("pom.xml")) {
-                        parseXmlFile(file, projectRoot, graph);
-                    }
-                    return FileVisitResult.CONTINUE;
-                }
-            });
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to walk project for XML files", e);
-        }
+        parseFiles(projectRoot, scannedFilePaths(projectRoot, GraphParser.projectFiles(projectRoot)), graph);
     }
 
     @Override
     public List<String> scannedFiles(Path projectRoot) {
         return GraphParser.findFiles(projectRoot, this::isCamelXmlCandidate);
+    }
+
+    @Override
+    public List<Path> scannedFilePaths(Path projectRoot, List<Path> projectFiles) {
+        return GraphParser.findFilePaths(projectRoot, projectFiles, this::isCamelXmlCandidate);
+    }
+
+    @Override
+    public void parseFiles(Path projectRoot, List<Path> files, ProjectGraph graph) {
+        files.forEach(file -> parseXmlFile(file, projectRoot, graph));
     }
 
     private boolean isCamelXmlCandidate(Path file) {
@@ -60,20 +56,6 @@ public class XmlRouteParser implements GraphParser {
     }
 
     private void parseXmlFile(Path xmlFile, Path projectRoot, ProjectGraph graph) {
-        // Skip MuleSoft XML files (handled by MuleXmlFlowParser)
-        // Skip BizTalk XML files (handled by BizTalkParser)
-        try {
-            String head = readHead(xmlFile);
-            if (head.contains("mulesoft.org/schema/mule")) {
-                return;
-            }
-            if (BizTalkParser.isBizTalkXml(head)) {
-                return;
-            }
-        } catch (IOException e) {
-            return;
-        }
-
         try {
             DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
             factory.setNamespaceAware(true);

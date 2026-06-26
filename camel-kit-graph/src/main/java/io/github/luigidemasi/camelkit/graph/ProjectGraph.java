@@ -30,6 +30,10 @@ public class ProjectGraph {
         return List.copyOf(edges);
     }
 
+    public synchronized Set<GraphEdge> getEdgeSet() {
+        return Collections.unmodifiableSet(new HashSet<>(edges));
+    }
+
     public synchronized void addEdge(GraphEdge edge) {
         edges.add(edge);
     }
