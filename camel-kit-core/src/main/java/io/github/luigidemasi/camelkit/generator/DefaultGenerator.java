@@ -43,14 +43,29 @@ public class DefaultGenerator implements AgentGenerator {
 
     @Override
     public void generate(InitContext ctx) throws Exception {
-        WorkflowManifest workflow = WorkflowManifestLoader.loadDefault();
+        WorkflowManifest workflow = loadWorkflowManifest();
+        generateBaseAssets(ctx, workflow);
+        applyTraits(ctx, workflow);
+        generateMcpConfig(ctx, workflow);
+    }
 
+    protected WorkflowManifest loadWorkflowManifest() throws IOException {
+        return WorkflowManifestLoader.loadDefault();
+    }
+
+    protected void generateBaseAssets(InitContext ctx, WorkflowManifest workflow) throws Exception {
         Files.createDirectories(ctx.commandsDir());
         Files.createDirectories(ctx.skillsDir());
         agentsMdGenerator.generate(ctx);
         commandStubGenerator.generate(ctx, workflow);
         skillResourceInstaller.install(ctx);
+    }
+
+    protected void applyTraits(InitContext ctx, WorkflowManifest workflow) throws Exception {
         traitApplicator.apply(ctx, workflow);
+    }
+
+    protected void generateMcpConfig(InitContext ctx, WorkflowManifest workflow) throws Exception {
         mcpConfigGenerator.generate(ctx, workflow);
     }
 

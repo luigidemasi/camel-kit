@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import io.github.luigidemasi.camelkit.util.TemplateUtils;
+import io.github.luigidemasi.camelkit.workflow.WorkflowManifest;
 
 public class BobGenerator extends DefaultGenerator {
 
@@ -28,8 +29,8 @@ public class BobGenerator extends DefaultGenerator {
 
     @Override
     public void generate(InitContext ctx) throws Exception {
-        // Run default generation (commands, skills, MCP config)
-        super.generate(ctx);
+        WorkflowManifest workflow = loadWorkflowManifest();
+        generateBaseAssets(ctx, workflow);
 
         Map<String, Object> templateData = new HashMap<>(
                 Map.of(
@@ -42,6 +43,9 @@ public class BobGenerator extends DefaultGenerator {
 
         // Bob-specific: replace SKILL.md files with monolithic gate versions
         replaceSkillsWithGates(ctx, templateData);
+
+        applyTraits(ctx, workflow);
+        generateMcpConfig(ctx, workflow);
     }
 
     private void generateCustomModes(InitContext ctx) throws Exception {
