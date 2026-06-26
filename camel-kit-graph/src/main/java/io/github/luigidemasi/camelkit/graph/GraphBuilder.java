@@ -79,13 +79,18 @@ public class GraphBuilder {
                     .toList();
 
             List<ParserFuture> futures = tasks.stream()
-                    .map(task -> new ParserFuture(
-                            task,
-                            executor.submit(
-                                    () -> runParser(task.parser(), projectRoot, baseGraph, task.scannedFiles()))))
+                    .map(task -> {
+                        long submittedAt = System.nanoTime();
+                        return new ParserFuture(
+                                task,
+                                executor.submit(
+                                        () -> runParser(task.parser(), projectRoot, baseGraph, task.scannedFiles())),
+                                submittedAt);
+                    })
                     .toList();
 
-            for (ParserFuture parserFuture : futures) {
+            for (int i = 0; i < futures.size(); i++) {
+                ParserFuture parserFuture = futures.get(i);
                 try {
                     ParserRun parserRun = parserFuture.future().get(parserTimeout, parserTimeoutUnit);
                     diagnostics.add(parserRun.diagnostic());
@@ -97,13 +102,14 @@ public class GraphBuilder {
                             parserFuture.task().parser(),
                             parserFuture.task().scannedFiles(),
                             e.getCause(),
-                            0);
+                            elapsedMillis(parserFuture.submittedAt()));
                     diagnostics.add(diagnostic);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     parserFuture.future().cancel(true);
                     diagnostics.add(
                             interruptedDiagnostic(parserFuture.task().parser(), parserFuture.task().scannedFiles()));
+                    addSkippedAfterInterruptionDiagnostics(futures, i + 1, diagnostics);
                     break;
                 } catch (TimeoutException e) {
                     parserFuture.future().cancel(true);
@@ -184,12 +190,10 @@ public class GraphBuilder {
 
         fragment.getNodes().values().stream()
                 .filter(node -> !Objects.equals(baseGraph.getNode(node.id()), node))
-                .sorted(Comparator.comparing(GraphNode::id))
                 .forEach(delta::addNode);
 
         fragment.getEdges().stream()
                 .filter(edge -> !baseEdges.contains(edge))
-                .sorted(GraphBuilder::compareEdges)
                 .forEach(delta::addEdge);
 
         return delta;
@@ -223,10 +227,9 @@ public class GraphBuilder {
     private ParserDiagnostic failureDiagnostic(
             GraphParser parser, List<String> scannedFiles, Throwable failure,
             long durationMillis) {
-        Throwable cause = failure == null ? null : failure;
-        String message = cause == null || cause.getMessage() == null
+        String message = failure == null || failure.getMessage() == null
                 ? "Parser failed"
-                : cause.getMessage();
+                : failure.getMessage();
         return new ParserDiagnostic(
                 parserName(parser),
                 scannedFiles,
@@ -246,6 +249,30 @@ public class GraphBuilder {
                 List.of(),
                 List.of(),
                 List.of("Parser execution was interrupted"),
+                false,
+                0,
+                0,
+                0);
+    }
+
+    private void addSkippedAfterInterruptionDiagnostics(
+            List<ParserFuture> futures, int startIndex, List<ParserDiagnostic> diagnostics) {
+        for (int i = startIndex; i < futures.size(); i++) {
+            ParserFuture parserFuture = futures.get(i);
+            parserFuture.future().cancel(true);
+            diagnostics.add(skippedAfterInterruptionDiagnostic(
+                    parserFuture.task().parser(),
+                    parserFuture.task().scannedFiles()));
+        }
+    }
+
+    private ParserDiagnostic skippedAfterInterruptionDiagnostic(GraphParser parser, List<String> scannedFiles) {
+        return new ParserDiagnostic(
+                parserName(parser),
+                scannedFiles,
+                scannedFiles,
+                List.of(),
+                List.of("Parser execution skipped after graph build interruption"),
                 false,
                 0,
                 0,
@@ -280,7 +307,7 @@ public class GraphBuilder {
     private record ParserTask(GraphParser parser, List<String> scannedFiles) {
     }
 
-    private record ParserFuture(ParserTask task, Future<ParserRun> future) {
+    private record ParserFuture(ParserTask task, Future<ParserRun> future, long submittedAt) {
     }
 
     private record ParserRun(ProjectGraph graph, ParserDiagnostic diagnostic) {
