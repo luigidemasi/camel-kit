@@ -10,6 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Default AI target changed to IBM Bob 2** — `camel-kit init` and `camel kit init` now default to `--ai bob2` when no `--ai` option is supplied.
+  - CLI help and documentation now mark Bob 2 as the default target
+  - `--ai bob` remains supported for IBM Bob 1 legacy workspaces
+  - Selecting `--ai bob` emits a non-blocking legacy warning recommending `--ai bob2` for new IBM Bob projects
+
+- **Bob documentation split by generation** — README, user guide, command reference, and architecture docs now describe `--ai bob` as IBM Bob 1 legacy support and `--ai bob2` as IBM Bob 2 support.
+  - Bob 1 mode/gate architecture remains documented as legacy behavior
+  - Bob 2 documentation describes native subagents and no longer inherits broad "Bob does not support subagents" language
+  - The "Adding a New Agent" architecture guide now includes registry descriptor and `camel-kit doctor` validation steps
+
 - **Progressive skill loading via meta-router** — introduced `/camel-start` as the single auto-discovered skill that routes users into two pipelines (greenfield: brainstorm → plan → execute → verify, migration: migrate → plan → execute → verify). All other skills set to `user_invocable: false` — slash commands still work as on-demand loaders. Context baseline reduced from ~1,260 to ~110 tokens (91% reduction).
   - New `camel-start/SKILL.md` with decision tree, "When NOT to use" table, pipeline overview, and Tier 2 utility references
   - AGENTS.md rewritten to ultra-minimal bootstrap (~80 tokens): compressed iron laws + entry point directive
@@ -21,10 +31,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`camel-kit doctor` Bob 2 MCP validation** — doctor now resolves MCP config paths through the agent registry descriptor instead of a duplicated hard-coded switch, so Bob 2 projects validate `.bob/mcp.json` correctly.
 - **Incorrect relative path in Bob test template** — `camel-test.md` used `../main/resources/` instead of `../../main/resources/` for route YAML references in test examples
 - **Stale body text in `camel-validate` and `camel-knowledge`** — both had "NOT user-invocable" text contradicting their actual invocability via slash commands
 
 ### Added
+
+- **IBM Bob 2 AI target (`--ai bob2`)** — added a new Bob 2 target while preserving `--ai bob` as the IBM Bob 1 legacy path.
+  - New `bob2` agent registry descriptor, generator strategy, and `Bob2Generator`
+  - Bob 2 workspaces still generate under `.bob/` with `.bob/commands`, `.bob/skills`, `.bob/custom_modes.yaml`, and `.bob/mcp.json`
+  - Bob 2 custom modes use the current Bob 2 tool groups (`read`, `edit`, `execute`, `mcp`, `skill`, `todo`, `artifact`, `subagent`, `mode`) with `allowedSubagents`
+  - New Bob 2 rules, dispatch template, and traits for native `spawn_subagent` orchestration with `explore`, `general`, and `fork_context`
+  - Bob 2 command stubs include markdown frontmatter from workflow metadata, including `description` and argument hints
+  - Bob 2 generated skills keep the shared `SKILL.md` content and append Bob 2 traits instead of replacing skills with Bob 1 monolithic gates
+  - Bob 2 skill metadata includes Bob-readable `user-invocable` aliases while preserving existing metadata for other agents
+
+- **Bob 2 coverage and regression tests** — added registry, factory, generator, command-frontmatter, skill-metadata, custom-mode, doctor, and CLI default tests for Bob 2, plus explicit guards that legacy Bob 1 output remains unchanged.
 
 - **Project graph analysis (`camel-kit-graph` module)** — new module that builds an in-memory graph of an entire Camel project and exposes it through CLI commands
   - 9 parsers: `YamlRouteParser`, `XmlRouteParser`, `JavaGraphParser`, `GroovyGraphParser`, `ConfigParser`, `PomParser`, `MuleXmlFlowParser`, `DataWeaveParser`, `CrossLinker` (for direct/seda, component, and config cross-references)

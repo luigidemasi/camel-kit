@@ -23,7 +23,7 @@ class AgentRegistryTest {
 
     @Test
     void builtInAgentsAreLoadedFromResourceDescriptors() {
-        assertEquals(Set.of("bob", "claude", "gemini", "opencode", "qwen"), AgentRegistry.names());
+        assertEquals(Set.of("bob", "bob2", "claude", "gemini", "opencode", "qwen"), AgentRegistry.names());
 
         AgentConfig claude = AgentRegistry.get("claude");
         assertNotNull(claude);
@@ -45,6 +45,30 @@ class AgentRegistryTest {
         assertTrue(descriptor.supportsSubagents());
         assertTrue(descriptor.supportsTraits());
         assertTrue(descriptor.capabilities().contains("parallel-subagent-dispatch"));
+    }
+
+    @Test
+    void bob2DescriptorKeepsBobWorkspacePathsAndEnablesNativeSubagents() {
+        AgentConfig bob2 = AgentRegistry.get("bob2");
+        assertNotNull(bob2);
+        assertEquals("IBM Bob 2", bob2.name());
+        assertEquals(".bob/commands", bob2.folder());
+        assertEquals("md", bob2.fileFormat());
+        assertEquals(".bob/mcp.json", bob2.mcpConfigPath());
+        assertEquals("templates/mcp-configs/bob-mcp.json", bob2.mcpConfigTemplatePath());
+
+        AgentDescriptor descriptor = AgentRegistry.descriptor("bob2");
+        assertNotNull(descriptor);
+        assertEquals("bob2", descriptor.generatorStrategy());
+        assertEquals(AgentGeneratorStrategy.BOB2, descriptor.generatorStrategyType());
+        assertEquals("templates/dispatch/bob2.md", descriptor.dispatchTemplatePath());
+        assertTrue(descriptor.supportsSubagents());
+        assertTrue(descriptor.supportsTraits());
+        assertTrue(descriptor.capabilities().contains("subagent-dispatch"));
+        assertTrue(descriptor.capabilities().contains("parallel-subagent-dispatch"));
+        assertTrue(descriptor.capabilities().contains("parallel-tool-calls"));
+        assertTrue(descriptor.capabilities().contains("skills"));
+        assertFalse(descriptor.capabilities().contains("monolithic-gates"));
     }
 
     @Test

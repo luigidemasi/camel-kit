@@ -82,7 +82,7 @@ Skills tell the AI:
 - How to handle data transformation (choose the right engine for the mapping complexity)
 - How to diagnose errors (14 error patterns, each with a fix strategy)
 
-Because skills are plain markdown files shared across all five agents, the pipeline behavior is consistent regardless of which AI assistant you choose. You get the same quality gates, the same MCP verification, and the same output formats -- the skills are the guarantee.
+Because skills are plain markdown files shared across all supported agents, the pipeline behavior is consistent regardless of which AI assistant you choose. You get the same quality gates, the same MCP verification, and the same output formats -- the skills are the guarantee.
 
 ### Role Separation
 
@@ -129,7 +129,7 @@ The verification loop treats code, dependencies, and the execution environment a
 - **JDK 17+** -- required for building and running Camel applications
 - **JBang** -- runtime for camel-kit itself
 - **Docker** (optional) -- for running external services (databases, message brokers) during verification
-- **AI coding assistant** -- one of the five supported agents (see [Multi-Agent Support](#8-multi-agent-support))
+- **AI coding assistant** -- one of the supported agents (see [Multi-Agent Support](#8-multi-agent-support))
 
 ### Initializing a Project
 
@@ -138,8 +138,10 @@ The verification loop treats code, dependencies, and the execution environment a
 curl -Ls https://sh.jbang.dev | bash -s - app setup
 
 # Create a new project (choose your AI assistant)
+camel-kit init order-processing             # IBM Bob 2 (default)
 camel-kit init order-processing --ai claude
-camel-kit init order-processing --ai bob
+camel-kit init order-processing --ai bob      # IBM Bob 1 legacy
+camel-kit init order-processing --ai bob2     # IBM Bob 2
 camel-kit init order-processing --ai gemini
 camel-kit init order-processing --ai qwen
 camel-kit init order-processing --ai opencode
@@ -705,14 +707,15 @@ For BizTalk projects, `graph generate` automatically detects BizTalk artifacts (
 
 ## 9. Multi-Agent Support
 
-The same skills work across all five supported AI coding assistants. Camel-Kit uses markdown instruction files that are loaded by whichever agent you choose -- the workflow, rules, and output quality are identical regardless of agent.
+The same skills work across all supported AI coding assistants. Camel-Kit uses markdown instruction files that are loaded by whichever agent you choose -- the workflow, rules, and output quality are identical regardless of agent.
 
 ### Supported Agents
 
 | Agent | Init Flag | How `/camel-execute` Dispatches Work |
 |-------|-----------|--------------------------------------|
 | **Claude** (Anthropic Claude Code) | `--ai claude` | Dispatches subagents in parallel per independent task |
-| **Bob** (IBM Project Bob) | `--ai bob` | Switches between 5 custom modes with scoped tool permissions |
+| **Bob 1 legacy** (IBM Bob) | `--ai bob` | Switches between custom modes and monolithic gate files |
+| **Bob 2** (IBM Bob, default) | `--ai bob2` | Uses native `spawn_subagent` plus Bob custom modes and shared skills |
 | **Gemini** (Google Gemini CLI) | `--ai gemini` | Dispatches to 6 subagents; execute phase runs in main agent |
 | **Qwen** (Alibaba Qwen CLI) | `--ai qwen` | Auto-delegates to 7 sub-agents based on intent matching |
 | **OpenCode** | `--ai opencode` | Dispatches to 7 agents with granular permission control |
@@ -723,8 +726,8 @@ All agents produce the same output (YAML routes, properties files, tests). The d
 
 | If you value... | Consider |
 |-----------------|----------|
-| **Speed** (parallel implementation of independent flows) | Claude |
-| **Safety** (strictest tool restrictions per phase) | Bob or OpenCode |
+| **Speed** (parallel implementation of independent flows) | Claude or Bob 2 |
+| **Safety** (strictest tool restrictions per phase) | Bob 1 legacy, Bob 2, or OpenCode |
 | **Automatic routing** (say what you want, agent picks the right phase) | Qwen |
 | **Customizability** (override policies, compose instructions) | Gemini |
 | **Fine-grained file permissions** (auto-allow test dirs, ask for source) | OpenCode |
@@ -733,9 +736,9 @@ All agents produce the same output (YAML routes, properties files, tests). The d
 
 | Aspect | What You'll Notice |
 |--------|-------------------|
-| **Dispatch transparency** | Claude shows subagent dispatch; Bob shows mode switching; Gemini/Qwen/OpenCode delegate to specialized agents |
-| **Tool restrictions** | During brainstorm, Bob physically cannot edit code files (mode restriction). Claude and Qwen rely on skill instructions. OpenCode uses glob-pattern permissions. |
-| **Parallel execution** | Only Claude can implement multiple independent flows simultaneously |
+| **Dispatch transparency** | Claude and Bob 2 show subagent dispatch; Bob 1 legacy shows mode switching; Gemini/Qwen/OpenCode delegate to specialized agents |
+| **Tool restrictions** | During brainstorm, Bob modes can physically prevent code edits. Claude and Qwen rely on skill instructions. OpenCode uses glob-pattern permissions. |
+| **Parallel execution** | Claude and Bob 2 can dispatch independent tasks in the same wave; other agents have more limited parallelism |
 | **MCP approval prompts** | Gemini auto-approves MCP tool calls via its policy engine. Other agents may prompt you for each MCP call. |
 | **Execution limits** | OpenCode and Gemini enforce step/turn limits per phase. Other agents have no hard limits. |
 
@@ -743,7 +746,7 @@ All agents produce the same output (YAML routes, properties files, tests). The d
 
 During `/camel-execute`, the AI must implement multiple tasks, review each one, and fix issues -- all autonomously. How it manages this work internally depends on the agent's native capabilities.
 
-**Agents with subagent support (Claude, Gemini, Qwen, OpenCode)** dispatch each pipeline task to a fresh, isolated subagent. The subagent receives only the information it needs -- the task description, the relevant design spec section, and the skill guides -- and works in its own context window. When it finishes, a separate reviewer subagent checks the output. This isolation prevents cross-contamination: a mistake in one task cannot leak into the next, and the reviewer has no bias from having written the code.
+**Agents with subagent support (Claude, Bob 2, Gemini, Qwen, OpenCode)** dispatch each pipeline task to a fresh, isolated subagent. The subagent receives only the information it needs -- the task description, the relevant design spec section, and the skill guides -- and works in its own context window. When it finishes, a separate reviewer subagent checks the output. This isolation prevents cross-contamination: a mistake in one task cannot leak into the next, and the reviewer has no bias from having written the code.
 
 The execution loop for these agents:
 
@@ -754,19 +757,19 @@ The execution loop for these agents:
 5. If either reviewer finds issues, the implementer fixes them and the reviewer re-checks
 6. Mark task complete and move to the next
 
-**Claude** goes further: it uses `camel-kit plan analyze` waves from structured task metadata, logical dependencies, and file overlap, then dispatches independent tasks to parallel subagents simultaneously. This is the only agent that can implement multiple flows at the same time.
+**Claude and Bob 2** use `camel-kit plan analyze` waves from structured task metadata, logical dependencies, and file overlap, then dispatch independent tasks to subagents in the same wave. For Bob 2, the parent Bob task calls `spawn_subagent`; multiple spawn calls in one turn run in parallel. Bob 2 uses `explore` for read-only research/review and `general` for implementation/test/fix work.
 
-**Bob does not support subagents.** Instead, it uses a **mode-switching** approach: the pipeline loads in Advanced mode (unrestricted, so it can read all skill files and context), then the first instruction switches to a restricted custom mode (`camel-implement`, `camel-validate`, etc.) with scoped tool permissions. Each mode constrains what the AI can do -- during brainstorm, Bob physically cannot edit code files because the mode's tool group excludes file editing. This is enforced at the platform level, not through instructions the AI could ignore.
+**Bob 1 legacy (`--ai bob`)** uses a **mode-switching** approach instead of native subagents. The pipeline loads in Advanced mode (unrestricted, so it can read all skill files and context), then switches to a restricted custom mode (`camel-implement`, `camel-validate`, etc.) with scoped tool permissions. Each mode constrains what the AI can do -- during brainstorm, Bob physically cannot edit code files because the mode's tool group excludes file editing. This is enforced at the platform level, not through instructions the AI could ignore.
 
-The trade-off: Bob cannot isolate tasks into separate context windows (all work happens in a single session), and it cannot run reviewer checks in a separate agent (the same session reviews its own work). The compensation is that Bob's mode restrictions are the strictest of any agent -- the platform prevents the AI from using tools outside the current phase, which provides a different kind of safety guarantee.
+The Bob 1 trade-off is that work stays in a single session and reviewer checks are not isolated. The compensation is strict platform-enforced mode restrictions. Bob 2 keeps those mode restrictions where useful and adds native isolated subagents.
 
-| Capability | Subagent Agents (Claude, Gemini, Qwen, OpenCode) | Mode-Switching Agent (Bob) |
-|-----------|--------------------------------------------------|---------------------------|
+| Capability | Subagent Agents (Claude, Bob 2, Gemini, Qwen, OpenCode) | Bob 1 Legacy Mode Switching |
+|-----------|----------------------------------------------------------|-----------------------------|
 | Context isolation per task | Fresh subagent with clean context | Same session, accumulated context |
 | Reviewer independence | Separate subagent reviews the work | Same session reviews its own work |
-| Parallel execution | Claude only (graph-based independence detection) | Not possible |
-| Tool restriction enforcement | Varies: instruction-based (Claude), tool whitelists (Qwen), glob permissions (OpenCode), TOML policies (Gemini) | Platform-enforced mode restrictions (strictest) |
-| Phase transition | Dispatch new subagent | Switch custom mode |
+| Parallel execution | Claude and Bob 2 for implementation waves; other agents vary | Not possible |
+| Tool restriction enforcement | Varies by agent; Bob 2 combines modes with subagent restrictions | Platform-enforced mode restrictions |
+| Phase transition | Dispatch subagent or switch mode depending on agent | Switch custom mode |
 
 Despite these architectural differences, the output is identical -- same YAML routes, same quality rules enforced, same MCP verification. The equalization layer ensures that the *what* is consistent; only the *how* differs.
 

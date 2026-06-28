@@ -459,14 +459,12 @@ public class DoctorService {
     }
 
     private Path mcpConfigPath(Path root, String agentName) {
-        return switch (agentName.toLowerCase(Locale.ROOT)) {
-            case "claude" -> root.resolve(".mcp.json");
-            case "bob" -> root.resolve(".bob/mcp.json");
-            case "gemini" -> root.resolve(".gemini/settings.json");
-            case "qwen" -> root.resolve(".qwen/settings.json");
-            case "opencode" -> root.resolve("opencode.json");
-            default -> null;
-        };
+        String key = agentName == null ? "" : agentName.toLowerCase(Locale.ROOT);
+        AgentConfig agent = AgentRegistry.get(key);
+        if (agent == null) {
+            return null;
+        }
+        return root.resolve(agent.mcpConfigPath());
     }
 
     private String commandName(String filename) {

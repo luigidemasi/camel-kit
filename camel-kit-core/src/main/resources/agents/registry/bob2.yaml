@@ -1,0 +1,42 @@
+id: bob2
+displayName: IBM Bob 2
+commandDirectory: .bob/commands
+commandFileFormat: md
+argumentPlaceholder: $ARGUMENTS
+mcpConfigPath: .bob/mcp.json
+mcpConfigTemplatePath: templates/mcp-configs/bob-mcp.json
+mcpServerContainerKey: mcpServers
+description: IBM Bob 2 with native skills and subagents
+generatorStrategy: bob2
+dispatchTemplatePath: templates/dispatch/bob2.md
+templates:
+  - source: templates/bob2/custom_modes.yaml
+    target: .bob/custom_modes.yaml
+  - source: templates/bob2/rules/iron-laws.md
+    target: .bob/rules/iron-laws.md
+  - source: templates/bob2/rules-camel-brainstorm/brainstorm.md
+    target: .bob/rules-camel-brainstorm/brainstorm.md
+  - source: templates/bob2/rules-camel-plan/plan.md
+    target: .bob/rules-camel-plan/plan.md
+  - source: templates/bob2/rules-camel-implement/implement.md
+    target: .bob/rules-camel-implement/implement.md
+  - source: templates/bob2/rules-camel-execute/execute.md
+    target: .bob/rules-camel-execute/execute.md
+  - source: templates/bob2/rules-camel-validate/validate.md
+    target: .bob/rules-camel-validate/validate.md
+  - source: templates/bob2/rules-camel-test/test.md
+    target: .bob/rules-camel-test/test.md
+  - source: templates/bob2/rules-camel-debug/debug.md
+    target: .bob/rules-camel-debug/debug.md
+  - source: templates/bob2/rules-camel-ship/ship.md
+    target: .bob/rules-camel-ship/ship.md
+supportsSubagents: true
+supportsTraits: true
+capabilities:
+  - subagent-dispatch
+  - parallel-subagent-dispatch
+  - parallel-tool-calls
+  - custom-modes
+  - mode-rules
+  - mcp
+  - skills

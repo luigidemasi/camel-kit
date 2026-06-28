@@ -29,7 +29,20 @@ class CommandStubGenerator {
         if ("toml".equals(ctx.agent().fileFormat())) {
             return wrapInToml(command.shortName(), content);
         }
+        if ("bob2".equals(ctx.agentName())) {
+            return wrapInBobMarkdown(command, content);
+        }
         return content;
+    }
+
+    private String wrapInBobMarkdown(WorkflowCommand command, String content) {
+        return String.format(Locale.ROOT, """
+                ---
+                description: "%s"
+                argument-hint: "%s"
+                ---
+                %s
+                """, yamlDoubleQuoted(command.description()), yamlDoubleQuoted(commandArgumentHint(command)), content);
     }
 
     private String wrapInToml(String cmd, String content) {
@@ -41,5 +54,24 @@ class CommandStubGenerator {
                 %s
                 \"\"\"
                 """, cmd, escaped);
+    }
+
+    private String commandArgumentHint(WorkflowCommand command) {
+        return switch (command.name()) {
+            case "camel-start" -> "<request>";
+            case "camel-brainstorm" -> "<integration-request>";
+            case "camel-migrate" -> "<source-platform-or-artifacts>";
+            case "camel-plan" -> "<design-spec-or-pipeline-id>";
+            case "camel-execute" -> "<pipeline-id-or-plan>";
+            case "camel-validate" -> "<pipeline-id-or-route-path>";
+            case "camel-ship" -> "<integration-request>";
+            case "camel-knowledge" -> "<camel-question>";
+            case "camel-debug" -> "<error-or-route-path>";
+            default -> "<arguments>";
+        };
+    }
+
+    private String yamlDoubleQuoted(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }

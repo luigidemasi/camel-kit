@@ -54,10 +54,10 @@ Each agent uses a different architecture designed to **maximize that agent's nat
 - Dispatch mechanism (subagents vs. modes vs. inline)
 - Tool restriction model (each agent's permission system is different)
 - File reading patterns (context isolation varies)
-- Parallelization strategy (only Claude supports parallel subagent dispatch)
+- Parallelization strategy (Claude and Bob 2 support parallel implementation-wave dispatch; other agents vary)
 - Configuration format (YAML modes, TOML policies, markdown frontmatter)
 
-**Agent traits** bridge the gap: they append agent-specific instructions to shared skill files during `camel-kit init`. For example, all agents share the same `camel-execute/SKILL.md`, but Claude's trait adds `Agent` tool parallel dispatch, Gemini's adds named agent delegation, Bob's adds `switch_mode` orchestration, and OpenCode's adds step-limited subagents. See [Architecture Guide](architecture.md#agent-traits) for details.
+**Agent traits** bridge the gap: they append agent-specific instructions to shared skill files during `camel-kit init`. For example, all agents share the same `camel-execute/SKILL.md`, but Claude's trait adds `Agent` tool parallel dispatch, Bob 1 legacy adds `switch_mode` orchestration, Bob 2 adds `spawn_subagent` orchestration, Gemini adds named agent delegation, and OpenCode adds step-limited subagents. See [Architecture Guide](architecture.md#agent-traits) for details.
 
 ---
 
@@ -102,11 +102,11 @@ Claude has no formal permission system. It relies on skill instructions to const
 
 ---
 
-## IBM Project Bob -- B+A Hybrid with Custom Modes
+## IBM Bob 1 Legacy -- B+A Hybrid with Custom Modes
 
 ### Dispatch Model
 
-Bob uses a "Behavior + Advanced" hybrid. Skills load in **Advanced mode** (unrestricted), then the first step in each gate file switches to a **restricted custom mode**. This two-phase approach gives initial access to load all skill files, then constrains behavior for the actual work.
+The `--ai bob` target is the Bob 1 legacy path. It uses a "Behavior + Advanced" hybrid. Skills load in **Advanced mode** (unrestricted), then the first step in each gate file switches to a **restricted custom mode**. This two-phase approach gives initial access to load all skill files, then constrains behavior for the actual work.
 
 ### Template Files
 
@@ -117,7 +117,7 @@ Bob uses a "Behavior + Advanced" hybrid. Skills load in **Advanced mode** (unres
 | `templates/bob/rules/iron-laws.md` | Shared iron laws loaded across all modes |
 | `templates/bob/rules-camel-{phase}/*.md` | Per-mode custom rules |
 
-Bob has the most template files (17+) because it cannot chain skill references -- each gate file must be self-contained, inlining the complete orchestration logic for its phase (6-10 KB each).
+Bob 1 has the most template files (17+) because it cannot chain skill references -- each gate file must be self-contained, inlining the complete orchestration logic for its phase (6-10 KB each).
 
 ### How It Works
 
@@ -155,6 +155,45 @@ Bob supports three checkpoint types used in gate files:
 - **Custom rules per mode:** each mode loads additional rules files (e.g., `interview-gates.md` enforces one-question-at-a-time during brainstorm)
 - **Monolithic gate files:** complete phase logic in a single file -- most self-contained of any agent
 - **File-type-scoped edits:** brainstorm and plan modes can only edit `.md` files (via `fileRegex` in tool groups)
+
+---
+
+## IBM Bob 2 -- Native Subagents with Bob Modes
+
+### Dispatch Model
+
+The `--ai bob2` target uses Bob 2 native `spawn_subagent` while still generating files under `.bob/`. The target name is only the Camel-Kit selector; Bob reads `.bob/commands`, `.bob/skills`, `.bob/custom_modes.yaml`, and `.bob/mcp.json`.
+
+Bob 2 keeps the shared Camel-Kit skills and appends Bob 2 traits. It does not replace `SKILL.md` files with monolithic gates.
+
+### Template Files
+
+| File | Purpose |
+|------|---------|
+| `templates/bob2/custom_modes.yaml` | Bob 2 custom modes using `read`, `edit`, `execute`, `mcp`, `skill`, `todo`, `artifact`, `subagent`, and `mode` groups |
+| `templates/bob2/rules*/` | Lightweight project and mode rules |
+| `templates/traits/bob2/*.append.md` | Native `spawn_subagent` orchestration guidance |
+| `templates/dispatch/bob2.md` | Shared dispatch block naming `spawn_subagent`, `explore`, `general`, and `fork_context` |
+
+### How It Works
+
+```
+User: /camel-execute
+  └── Parent Bob task loads shared camel-execute skill
+      ├── camel-kit plan analyze groups independent waves
+      ├── spawn_subagent name="general" for implementation/test/fix tasks
+      ├── spawn_subagent name="explore" for research and reviews
+      └── Parent merges summaries and keeps orchestration state
+```
+
+Multiple `spawn_subagent` calls in one parent turn run in parallel. Subagents return summaries and must not spawn subagents; the parent Bob task owns orchestration and follow-up dispatch.
+
+### Unique Capabilities
+
+- **Native isolated subagents:** `explore` for read-only work and `general` for edit/execute work
+- **Parallel same-turn dispatch:** independent tasks in the current wave can be spawned together
+- **Mode restrictions plus shared skills:** Bob 2 modes constrain tools while shared Camel-Kit skills define behavior
+- **Bob-readable metadata:** command stubs use markdown frontmatter and skills include `user-invocable`
 
 ---
 
@@ -456,15 +495,14 @@ Each agent has a `steps` limit. When reached, OpenCode instructs the agent to su
 
 ## Agent Comparison
 
-| Aspect | Claude | Bob | Gemini | Qwen | OpenCode |
-|--------|--------|-----|--------|------|----------|
-| Dispatch model | Parallel subagents | Mode switching | `invoke_subagent` unified tool (local/remote/browser) | Dual: named subagent + fork (context-sharing background task) | `task` tool creating child sessions with `parentID` |
-| Template files | 3 | 17+ | 12 | 9 | 8 |
-| Tool restriction | Instruction-based | Mode tool groups | Allowlist + TOML policy + server-scoped wildcards | Allowlist + blocklist (`disallowedTools`) | 3-state (`allow`/`ask`/`deny`) + bash glob patterns |
-| Path-scoped edits | No | `.md` only (via fileRegex) | Yes (Policy Engine `argsPattern` regex + `subagent` field) | No | Yes (glob patterns) |
-| MCP auto-approval | No (manual) | No (manual) | Yes (TOML policy) | No (manual) | No (manual) |
-| Parallel execution | Yes (graph-based) | No | Yes (scheduler `Promise.all()`, default-parallel) | Partial (read-only tools concurrent, max 10; fork runs in background) | Partial (LLM-level parallel tool calls; true async requested) |
-| Subagent recursion | Yes (no limit) | N/A | No (hardcoded `Kind.Agent` filter) | No (fork-of-fork blocked via `AsyncLocalStorage`) | Opt-in (PR #7756, configurable depth limits) |
-| Execute phase | Subagent with parallel dispatch | Gate file with mode switch | Main agent (recursion prevention) | Sub-agent with `task` tool | Agent with `task` permission |
-| Agent-specific ignore | No | No | `.geminiignore` | `.qwenignore` | No (uses `.gitignore`) |
-| Instruction composition | Single `CLAUDE.md` | Modes + gates + rules | `@file.md` modular imports | Single `QWEN.md` | Ultra-minimal `AGENTS.md` (~80 tokens) |
+| Aspect | Claude | Bob 1 legacy | Bob 2 | Gemini | Qwen | OpenCode |
+|--------|--------|--------------|-------|--------|------|----------|
+| Dispatch model | Parallel subagents | Mode switching | `spawn_subagent` (`explore`, `general`) | `invoke_subagent` unified tool (local/remote/browser) | Dual: named subagent + fork | `task` tool creating child sessions |
+| Template files | 3 | 17+ | Bob 2 modes + traits + rules | 12 | 9 | 8 |
+| Tool restriction | Instruction-based | Mode tool groups | Mode tool groups + `allowedSubagents` | Allowlist + TOML policy + server-scoped wildcards | Allowlist + blocklist | 3-state permissions + bash glob patterns |
+| Path-scoped edits | No | `.md` only (via fileRegex) | Mode-dependent `fileRegex` | Yes (Policy Engine) | No | Yes (glob patterns) |
+| MCP auto-approval | No (manual) | No (manual) | No (manual) | Yes (TOML policy) | No (manual) | No (manual) |
+| Parallel execution | Yes (graph-based) | No | Yes (same-turn `spawn_subagent`) | Yes (scheduler `Promise.all()`) | Partial (read-only tools concurrent; fork background) | Partial (LLM-level parallel tool calls) |
+| Subagent recursion | Yes (no limit) | N/A | No (subagents must not spawn subagents) | No (hardcoded `Kind.Agent` filter) | No (fork-of-fork blocked) | Opt-in configurable depth |
+| Execute phase | Subagent with parallel dispatch | Gate file with mode switch | Parent task orchestrates subagents | Main agent (recursion prevention) | Sub-agent with `task` tool | Agent with `task` permission |
+| Instruction composition | Single `CLAUDE.md` | Modes + gates + rules | Shared skills + Bob 2 traits + modes | `@file.md` modular imports | Single `QWEN.md` | Ultra-minimal `AGENTS.md` |

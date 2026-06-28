@@ -29,6 +29,9 @@ import io.github.luigidemasi.camelkit.util.TemplateUtils;
 public class InitService {
 
     private static final String MAVEN_WRAPPER_VERSION = "3.9.9";
+    private static final String BOB_LEGACY_WARNING = "IBM Bob 1 legacy selected; use --ai bob2 for new IBM Bob "
+                                                     + "projects. Bob 1 generation remains supported for existing "
+                                                     + "projects.";
 
     public InitResult initialize(InitRequest request) throws Exception {
         AgentConfig agent = AgentRegistry.get(request.agentName());
@@ -46,6 +49,9 @@ public class InitService {
         List<Path> createdPaths = new ArrayList<>();
         List<InitWarning> warnings = new ArrayList<>();
         InitProgress progress = request.progress();
+        if ("bob".equals(request.agentName())) {
+            reportWarning(request, warnings, BOB_LEGACY_WARNING);
+        }
 
         progress.startTask("\uD83D\uDCC1", "Creating project structure");
         createProjectStructure(targetDir, commandsDir, camelKitDir, docsDir, createdPaths);

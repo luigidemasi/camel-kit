@@ -242,15 +242,16 @@ Entry points diverge (`camel-brainstorm` for greenfield, `camel-migrate` for mig
 
 After execute completes, the pipeline continues to **validation** (`camel-validate`) as Stage 3 — the final quality gate.
 
-All reviews, verification, and catalog lookups run as sub-agents with isolated context windows. Only structured reports flow back to the orchestrator -- preventing ~60-70% of pipeline tokens from accumulating in the main conversation.
+For subagent-capable targets, reviews, verification, and catalog lookups run in isolated contexts and only structured reports flow back to the orchestrator. Bob 1 legacy keeps this work in one session and relies on mode gates instead.
 
 ### Agent-Specific Execution
 
 The dispatch model varies by AI agent:
 
 - **Claude Code** -- dispatches fresh sub-agents per task. Each sub-agent runs in isolated context with no cross-contamination between tasks.
-- **IBM Project Bob** -- switches between custom modes (`brainstorm`, `plan`, `implement`, `validate`, `test`) with scoped tool permissions per mode.
-- **Gemini CLI, Qwen, OpenCode** -- inline execution within the same session. Skills are loaded as instruction context rather than dispatched as separate agents.
+- **IBM Bob 1 legacy** -- switches between custom modes and monolithic gate files with scoped tool permissions per mode.
+- **IBM Bob 2** -- uses native `spawn_subagent` (`explore` and `general`) while retaining Bob custom modes for tool restrictions.
+- **Gemini CLI, Qwen, OpenCode** -- use their native agent/delegation models with shared Camel-Kit skills and traits.
 
 ### The BRD+TDD Contract
 
@@ -346,7 +347,8 @@ registry loading with a descriptor-specific error.
 | Agent | Template Dir | Instruction File | MCP Config | Skills Location |
 |-------|-------------|-----------------|------------|-----------------|
 | Claude Code | `templates/claude/` | `CLAUDE.md` | `.mcp.json` | `.claude/skills/` |
-| IBM Project Bob | `templates/bob/` | `custom_modes.yaml` + rules + gates | `.bob/mcp.json` | `.bob/skills/` |
+| IBM Bob 1 legacy | `templates/bob/` | `custom_modes.yaml` + rules + gates | `.bob/mcp.json` | `.bob/skills/` |
+| IBM Bob 2 | `templates/bob2/` | `custom_modes.yaml` + rules + shared skills | `.bob/mcp.json` | `.bob/skills/` |
 | Gemini CLI | `templates/gemini/` | `GEMINI.md` + `@file.md` imports + policies | `.gemini/settings.json` | `.gemini/skills/` |
 | Qwen | `templates/qwen/` | `QWEN.md` + sub-agent definitions | `.qwen/settings.json` | `.qwen/skills/` |
 | OpenCode | `templates/opencode/` | `AGENTS.md` + permission-based agents | `opencode.json` | `.opencode/skills/` |
@@ -427,24 +429,32 @@ Four of the five agents support this natively through **sub-agent dispatch**:
 
 - **OpenCode** -- 7 agents with granular, per-type glob permissions. The executor agent has `task: {"*": allow}` permission. Sub-agent-to-sub-agent delegation is now opt-in (PR #7756) with configurable depth limits and call budgets. LLM-level parallel tool calls are supported. Each agent has a `steps` limit (implementer: 50, executor: 100) that triggers graceful summarization rather than hard failure.
 
-**IBM Project Bob does not support sub-agents.** It uses a fundamentally different architecture -- the **B+A (Behavior + Advanced) hybrid with mode switching**:
+**IBM Bob 2** uses Bob's native `spawn_subagent` tool. Camel-Kit exposes this as `--ai bob2`, but generated project files still live under `.bob/` because Bob reads `.bob/commands`, `.bob/skills`, `.bob/custom_modes.yaml`, and `.bob/mcp.json`.
+
+- `explore` is used for read-only research, route inspection, spec review, quality review, and MCP verification summaries.
+- `general` is used for implementation, test generation, and fix tasks that need edit or execute access.
+- Multiple `spawn_subagent` calls in one parent turn run in parallel, so `/camel-execute` dispatches all independent tasks in the current `camel-kit plan analyze` wave together.
+- The parent Bob task remains the orchestrator. Subagents return summaries and must not spawn subagents.
+- Bob 2 skills are the shared Camel-Kit `SKILL.md` files with Bob 2 traits appended; Bob 2 does not replace them with monolithic gates.
+
+**IBM Bob 1 legacy (`--ai bob`)** uses a fundamentally different architecture -- the **B+A (Behavior + Advanced) hybrid with mode switching**:
 
 1. Each pipeline phase starts in **Advanced mode** (unrestricted), allowing the agent to read all skill files and project context
 2. The first instruction in the gate file switches to a **restricted custom mode** (e.g., `camel-brainstorm`, `camel-implement`) with scoped tool permissions
 3. The mode's tool group constrains what the AI can do for the remainder of that phase
 
-This means Bob cannot isolate tasks into separate context windows or use independent reviewer agents. The compensation is that Bob's tool restrictions are **platform-enforced**, not instruction-based. During design, Bob's `camel-brainstorm` mode grants only `read`, `edit` (`.md` files only via `fileRegex`), `mcp`, and `browser` -- the AI physically cannot edit code files because the mode excludes the edit tool for non-markdown files. This is stricter than any instruction-based constraint, which the AI could rationalize away.
+This means Bob 1 cannot isolate tasks into separate context windows or use independent reviewer agents. The compensation is that Bob's tool restrictions are **platform-enforced**, not instruction-based. During design, Bob's `camel-brainstorm` mode grants only `read`, `edit` (`.md` files only via `fileRegex`), `mcp`, and `browser` -- the AI physically cannot edit code files because the mode excludes the edit tool for non-markdown files. This is stricter than any instruction-based constraint, which the AI could rationalize away.
 
-Bob also requires **monolithic gate files** (one per pipeline phase, 6-10 KB each) that inline complete orchestration logic, because it cannot chain skill references across mode switches the way sub-agent-based agents load skills into fresh contexts.
+Bob 1 also requires **monolithic gate files** (one per pipeline phase, 6-10 KB each) that inline complete orchestration logic, because it cannot chain skill references across mode switches the way sub-agent-based agents load skills into fresh contexts.
 
 The trade-off table:
 
-| Design Dimension | Sub-agent Dispatch | Mode Switching (Bob) |
-|-----------------|-------------------|---------------------|
+| Design Dimension | Sub-agent Dispatch | Mode Switching (Bob 1 Legacy) |
+|-----------------|-------------------|------------------------------|
 | Context isolation | Per-task (fresh sub-agent) | Per-session (accumulated) |
 | Reviewer independence | Separate sub-agent | Same session self-reviews |
 | Tool restriction mechanism | Instruction-based / tool whitelists / policies | Platform-enforced mode tool groups |
-| Parallel execution | Claude (graph topology), Gemini (scheduler `Promise.all()`), Qwen (fork), OpenCode (LLM-level) | Not possible |
+| Parallel execution | Claude (graph topology), Bob 2 (`spawn_subagent` in one turn), Gemini (scheduler `Promise.all()`), Qwen (fork), OpenCode (LLM-level) | Not possible |
 | Skill loading | Loaded into sub-agent context on dispatch | Inlined in monolithic gate files |
 | Template complexity | 3-12 files per agent | 17+ files (gates + rules + modes) |
 | Failure isolation | Sub-agent failure doesn't affect other tasks | Phase failure affects entire session |
@@ -454,7 +464,8 @@ The trade-off table:
 | Agent | Dispatch Model | Key Differentiator |
 |-------|---------------|-------------------|
 | Claude Code | Parallel sub-agent dispatch | Route graph topology, research isolation, parallel fan-out, adversarial code review |
-| IBM Project Bob | B+A hybrid with 5 custom modes | Monolithic gate files, 3 checkpoint types |
+| IBM Bob 1 legacy | B+A hybrid with custom modes | Monolithic gate files, 3 checkpoint types |
+| IBM Bob 2 | Native `spawn_subagent` plus custom modes | `explore`/`general` subagents, parallel same-turn dispatch, shared skills |
 | Gemini CLI | `invoke_subagent` + parallel scheduler | Default-parallel `Promise.all()`, TOML policy, MCP wildcards, A2A remote agents |
 | Qwen | Dual dispatch (named + fork) | Fork background tasks, DashScope cache sharing, auto-delegation |
 | OpenCode | `task` child sessions + opt-in delegation | 14 permission types, glob patterns, configurable depth limits |
@@ -465,13 +476,16 @@ For full per-agent deep dives (template files, tool restriction models, configur
 
 To add support for a new AI coding assistant:
 
-1. Create a template directory: `templates/{agent-name}/`
-2. Implement `{Agent}Generator extends DefaultGenerator` in `io.github.luigidemasi.camelkit.generator`
-3. Register in `AgentGeneratorFactory` (`{agent-name}` → `{Agent}Generator`)
-4. Generate the agent's instruction file with embedded iron laws and skill references
-5. Map pipeline phases to the agent's native dispatch mechanism (modes, sub-agents, permissions, etc.)
-6. Add MCP configuration for the agent's MCP config format
-7. Write tests following existing patterns (verify structure + key content markers)
+1. Add `agents/registry/{agent-name}.yaml` with command paths, MCP config path, generator strategy,
+   dispatch template, and capabilities.
+2. Create a template directory: `templates/{agent-name}/`
+3. Implement `{Agent}Generator extends DefaultGenerator` in `io.github.luigidemasi.camelkit.generator`
+4. Register the generator strategy in `AgentGeneratorStrategy` and `AgentGeneratorFactory`
+5. Generate the agent's instruction file with embedded iron laws and skill references
+6. Map pipeline phases to the agent's native dispatch mechanism (modes, sub-agents, permissions, etc.)
+7. Add MCP configuration for the agent's MCP config format
+8. Verify `camel-kit doctor` can validate a generated workspace using the descriptor MCP path.
+9. Write tests following existing patterns (registry, factory, generated structure, doctor, and key content markers)
 
 The `DefaultGenerator` orchestrates shared generation services such as `CommandStubGenerator`, `SkillResourceInstaller`, `TraitApplicator`, and `McpConfigGenerator`. Each agent-specific generator adds or overrides template generation to produce the agent's native format.
 
@@ -718,7 +732,7 @@ Camel-Kit defaults to the latest Apache Camel version, configured in `distributi
 
 ### Multi-Agent Parity
 
-Skills are markdown instruction files -- the same skill works across all five supported agents. Agent-specific differences (sub-agent dispatch vs. custom modes vs. inline execution) are handled by the template layer, not the skill layer. A bug fix or improvement to a guide file benefits every agent.
+Skills are markdown instruction files -- the same skill works across all supported agents. Agent-specific differences (sub-agent dispatch vs. custom modes vs. inline execution) are handled by the template layer, not the skill layer. A bug fix or improvement to a guide file benefits every agent.
 
 ### Constitution vs Iron Laws
 
@@ -764,7 +778,8 @@ user_invocable: false
 
 5. **If registering slash commands:** update agent-specific guidance only where the command needs custom behavior beyond the generated stub. The default generator creates command stubs from the manifest. Agent templates still need updates when they contain human-readable command tables, custom modes, policies, or sub-agent dispatch:
    - Claude Code: update `templates/claude/claude-md.md`
-   - IBM Project Bob: update `templates/bob/custom_modes.yaml` and add rules directory
+   - IBM Bob 1 legacy: update `templates/bob/custom_modes.yaml`, gate files, and rules directories
+   - IBM Bob 2: update `templates/bob2/custom_modes.yaml`, `templates/traits/bob2/`, and rules directories
    - Gemini CLI: update `templates/gemini/gemini-md.md`
    - Qwen: update `templates/qwen/qwen-md.md`
    - OpenCode: update `templates/opencode/agents-md.md`

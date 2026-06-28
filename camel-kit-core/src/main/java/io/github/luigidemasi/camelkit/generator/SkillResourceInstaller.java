@@ -110,6 +110,9 @@ class SkillResourceInstaller {
             Files.copy(in, destination, StandardCopyOption.REPLACE_EXISTING);
         }
         if (destination.getFileName().toString().equals("SKILL.md")) {
+            if ("bob2".equals(ctx.agentName())) {
+                addBobReadableUserInvocableMetadata(destination);
+            }
             dispatchBlockAppender.append(destination, ctx.agentName());
         }
         if (destination.getFileName().toString().endsWith(".md")) {
@@ -119,6 +122,34 @@ class SkillResourceInstaller {
                 ctx.printer().println(AnsiColors.yellow("  Warning: Failed to substitute version placeholders in "
                                                         + destination + ": " + e.getMessage()));
             }
+        }
+    }
+
+    private void addBobReadableUserInvocableMetadata(Path skillFile) throws Exception {
+        String content = Files.readString(skillFile);
+        if (!content.startsWith("---\n") || content.contains("\nuser-invocable:")) {
+            return;
+        }
+
+        String[] lines = content.split("\n", -1);
+        StringBuilder updated = new StringBuilder(content.length() + 24);
+        boolean inserted = false;
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            updated.append(line);
+            if (!inserted && line.startsWith("user_invocable:")) {
+                updated.append('\n');
+                updated.append("user-invocable:").append(line.substring("user_invocable:".length()));
+                if (i < lines.length - 1) {
+                    updated.append('\n');
+                }
+                inserted = true;
+            } else if (i < lines.length - 1) {
+                updated.append('\n');
+            }
+        }
+        if (inserted) {
+            Files.writeString(skillFile, updated.toString());
         }
     }
 }

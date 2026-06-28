@@ -94,7 +94,7 @@ camel plugin add kit \
   --description "Design Apache Camel Integrations with AI"
 
 # Then use via the camel CLI
-camel kit init my-integration --ai bob
+camel kit init my-integration
 ```
 
 ### Build from Source (development version)
@@ -128,8 +128,10 @@ cd camel-kit-knowledge
 
 ```bash
 # 1. Create a new project (choose your AI assistant)
+camel-kit init my-integration             # IBM Bob 2 (default)
 camel-kit init my-integration --ai claude   # Anthropic Claude Code
-camel-kit init my-integration --ai bob      # IBM Project Bob
+camel-kit init my-integration --ai bob      # IBM Bob 1 legacy
+camel-kit init my-integration --ai bob2     # IBM Bob 2
 camel-kit init my-integration --ai gemini   # Google Gemini CLI
 camel-kit init my-integration --ai qwen     # Qwen (requires dev build)
 camel-kit init my-integration --ai opencode # OpenCode (requires dev build)
@@ -151,7 +153,8 @@ cd my-integration
 | Agent | Init Flag | Instruction File | MCP Config |
 |-------|-----------|-----------------|------------|
 | Anthropic Claude Code | `--ai claude` | `CLAUDE.md` | `.mcp.json` |
-| IBM Project Bob | `--ai bob` | `custom_modes.yaml` + rules | `.bob/mcp.json` |
+| IBM Bob 1 legacy | `--ai bob` | `custom_modes.yaml` + rules + gates | `.bob/mcp.json` |
+| IBM Bob 2 (default) | `--ai bob2` | `custom_modes.yaml` + rules + skills | `.bob/mcp.json` |
 | Google Gemini CLI | `--ai gemini` | `GEMINI.md` | `.gemini/mcp.json` |
 | Qwen | `--ai qwen` | `QWEN.md` | `.qwen/mcp.json` |
 | OpenCode | `--ai opencode` | `AGENTS.md` | `.opencode/mcp.json` |
@@ -193,7 +196,7 @@ All agents use the same skills — camel-kit generates agent-specific instructio
 
 ### Multi-Agent
 
-- **5 AI agents** — same skills work across Claude Code, IBM Bob, Gemini CLI, Qwen, and OpenCode. Agent-specific traits customize behavior (pacing, approval modes, tool usage) without changing the shared skills. [Learn more →](docs/architecture.md)
+- **6 AI targets** — same skills work across Claude Code, IBM Bob 1 legacy, IBM Bob 2, Gemini CLI, Qwen, and OpenCode. Agent-specific traits customize behavior (pacing, approval modes, tool usage) without changing the shared skills. [Learn more →](docs/architecture.md)
 
 ---
 
