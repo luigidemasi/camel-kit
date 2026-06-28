@@ -48,7 +48,7 @@ camel-kit init --here [options]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--ai`, `-a` | `bob` | AI coding assistant to configure (`bob`, `gemini`, `claude`, `qwen`, `opencode`) |
+| `--ai`, `-a` | `bob2` | AI coding assistant to configure (`bob2` for IBM Bob 2, `bob` for IBM Bob 1 legacy, `gemini`, `claude`, `qwen`, `opencode`) |
 | `--citrus-version` | `4.9.2` | Citrus Framework version for test schemas |
 | `--here` | `false` | Initialize in current directory |
 | `--no-fetch` | `false` | Skip external catalog fetching |
@@ -62,8 +62,14 @@ camel-kit init --here [options]
 **Examples:**
 
 ```bash
-# Create new project for IBM Project Bob
+# Create new project for IBM Bob 2 (default)
+camel-kit init my-integration
+
+# Create new project for IBM Bob 1 legacy
 camel-kit init my-integration --ai bob
+
+# Create new project for IBM Bob 2
+camel-kit init my-integration --ai bob2
 
 # Create new project for Gemini CLI
 camel-kit init my-integration --ai gemini
@@ -77,8 +83,8 @@ camel-kit init my-integration --ai qwen
 # Create new project for OpenCode
 camel-kit init my-integration --ai opencode
 
-# Initialize in current directory
-camel-kit init --here --ai bob
+# Initialize in current directory with the default IBM Bob 2 target
+camel-kit init --here
 
 # Override config properties via CLI
 camel-kit init my-integration --ai claude -p "camel.main.version=4.18.2"
@@ -96,7 +102,7 @@ camel-kit init my-integration --ai claude --source-platform mulesoft
 camel-kit init my-integration --ai claude --source-platform biztalk
 
 # Skip catalog fetch (faster)
-camel-kit init my-integration --ai bob --no-fetch
+camel-kit init my-integration --no-fetch
 
 # Overwrite an existing project
 camel-kit init my-integration --ai claude --force
@@ -653,8 +659,9 @@ After `/camel-execute` completes, the pipeline continues to `/camel-validate` as
 | Agent | Execution Model |
 |-------|----------------|
 | Claude Code | Dispatches fresh subagents per task (isolated context) |
-| IBM Project Bob | Switches between custom modes (brainstorm, plan, implement, validate, test) |
-| Gemini CLI, Qwen, OpenCode | Inline execution within the same session |
+| IBM Bob 1 legacy | Switches between custom modes and monolithic gate files |
+| IBM Bob 2 | Uses native `spawn_subagent` plus Bob custom modes and shared skills |
+| Gemini CLI, Qwen, OpenCode | Use their native agent/delegation models with shared Camel-Kit skills |
 
 **Orchestrated internal skills:**
 

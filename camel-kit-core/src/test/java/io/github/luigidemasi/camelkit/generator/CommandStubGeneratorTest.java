@@ -55,6 +55,24 @@ class CommandStubGeneratorTest {
     }
 
     @Test
+    void writesBob2MarkdownCommandsWithFrontmatter() throws Exception {
+        InitContext ctx = createContext("bob2");
+        Files.createDirectories(ctx.commandsDir());
+
+        WorkflowManifest workflow = WorkflowManifestLoader.loadDefault();
+        new CommandStubGenerator().generate(ctx, workflow);
+
+        Path executeCommand = ctx.commandsDir().resolve("camel-execute.md");
+        assertTrue(Files.isRegularFile(executeCommand));
+
+        String content = Files.readString(executeCommand);
+        assertTrue(content.startsWith("---\n"));
+        assertTrue(content.contains("description: \"Execute an approved implementation plan with two-stage review.\""));
+        assertTrue(content.contains("argument-hint: \"<pipeline-id-or-plan>\""));
+        assertTrue(content.contains("Read .bob/skills/camel-execute/SKILL.md and follow those instructions"));
+    }
+
+    @Test
     void escapesTripleQuotesInTomlWrappedContent() throws Exception {
         InitContext ctx = createContext("gemini");
         Files.createDirectories(ctx.commandsDir());

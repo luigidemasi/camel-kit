@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 public enum AgentGeneratorStrategy {
     DEFAULT("default"),
     BOB("bob"),
+    BOB2("bob2"),
     CLAUDE("claude"),
     GEMINI("gemini"),
     OPENCODE("opencode"),

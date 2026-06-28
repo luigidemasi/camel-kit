@@ -4,10 +4,20 @@ import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.output.Printer;
 
 import org.junit.jupiter.api.Test;
+import picocli.CommandLine;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class InitCommandTest {
+
+    @Test
+    void defaultsToBob2WhenAgentOptionIsOmitted() {
+        InitCommand command = new InitCommand(new CamelKitMain());
+
+        new CommandLine(command).parseArgs("orders");
+
+        assertEquals("bob2", command.ai);
+    }
 
     @Test
     void nextStepsUseCurrentSkillRouterCommands() {

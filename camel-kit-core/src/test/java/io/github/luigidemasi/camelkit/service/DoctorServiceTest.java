@@ -6,6 +6,9 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 
+import io.github.luigidemasi.camelkit.config.AgentConfig;
+import io.github.luigidemasi.camelkit.config.AgentRegistry;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -20,7 +23,7 @@ class DoctorServiceTest {
 
     @Test
     void healthyWorkspaceReturnsStructuredFindings() throws Exception {
-        createHealthyWorkspace(tempDir);
+        createHealthyWorkspace(tempDir, "bob");
 
         DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
 
@@ -33,6 +36,34 @@ class DoctorServiceTest {
     }
 
     @Test
+    void healthyBob2WorkspaceUsesRegisteredMcpPath() throws Exception {
+        createHealthyWorkspace(tempDir, "bob2");
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "MCP config exists and tool allowlists match Camel-Kit expectations",
+                "No action required."));
+    }
+
+    @Test
+    void mixedCaseAgentNameStillResolvesRegisteredMcpPathForMcpChecks() throws Exception {
+        createHealthyWorkspace(tempDir, "bob");
+        Path configFile = tempDir.resolve(".camel-kit/config.properties");
+        Files.writeString(configFile, Files.readString(configFile).replace("agent.name=bob", "agent.name=Bob"));
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "config", "Unknown agent.name 'Bob'", null));
+        assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "MCP config exists and tool allowlists match Camel-Kit expectations",
+                "No action required."));
+        assertFalse(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "Cannot determine MCP config path for agent 'Bob'", null));
+    }
+
+    @Test
     void missingConfigReturnsActionableFailure() {
         DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
 
@@ -42,34 +73,37 @@ class DoctorServiceTest {
                 "Run camel-kit init --here --ai <agent>"));
     }
 
-    private void createHealthyWorkspace(Path root) throws Exception {
+    private void createHealthyWorkspace(Path root, String agentName) throws Exception {
+        AgentConfig agent = AgentRegistry.get(agentName);
         Files.createDirectories(root.resolve(".camel-kit"));
-        Files.writeString(root.resolve(".camel-kit/config.properties"), """
+        Files.writeString(root.resolve(".camel-kit/config.properties"), String.format(Locale.ROOT, """
                 project.name=orders
                 project.command-prefix=camel-kit
-                agent.name=bob
-                agent.folder=.bob/commands
-                """);
+                agent.name=%s
+                agent.folder=%s
+                """, agentName, agent.folder()));
         Files.writeString(root.resolve(".camel-kit/project-graph.json"), "{}");
         Files.writeString(root.resolve("AGENTS.md"), "Integration work -> /camel-start\n");
         Files.writeString(root.resolve("mvnw"), "#!/bin/sh\n");
 
-        Path commands = root.resolve(".bob/commands");
+        Path commands = root.resolve(agent.folder());
+        String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf('/'));
         Files.createDirectories(commands);
         for (String command : EXPECTATIONS.userCommands()) {
             Files.writeString(commands.resolve(command + ".md"),
-                    "Read .bob/skills/" + command + "/SKILL.md and follow those instructions\n");
+                    "Read " + agentBaseFolder + "/skills/" + command + "/SKILL.md and follow those instructions\n");
         }
 
-        Path skills = root.resolve(".bob/skills");
+        Path skills = commands.getParent().resolve("skills");
         for (String skill : EXPECTATIONS.requiredSkills()) {
             Path skillDir = skills.resolve(skill);
             Files.createDirectories(skillDir);
             Files.writeString(skillDir.resolve("SKILL.md"), "# " + skill + "\n");
         }
 
-        Files.createDirectories(root.resolve(".bob"));
-        Files.writeString(root.resolve(".bob/mcp.json"),
+        Path mcpFile = root.resolve(agent.mcpConfigPath());
+        Files.createDirectories(mcpFile.getParent());
+        Files.writeString(mcpFile,
                 mcpJson(EXPECTATIONS.camelMcpTools(), EXPECTATIONS.knowledgeMcpTools()));
     }
 

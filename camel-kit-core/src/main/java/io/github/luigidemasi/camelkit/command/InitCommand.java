@@ -31,8 +31,10 @@ public class InitCommand extends CamelKitCommand {
     @Parameters(index = "0", description = "Project name", arity = "0..1")
     public String projectName;
 
-    @Option(names = {"-a", "--ai"}, description = "AI agent: bob, gemini, claude, qwen, opencode",
-            defaultValue = "bob")
+    @Option(names = {"-a", "--ai"},
+            description = "AI agent: bob2 (IBM Bob 2, default), bob (IBM Bob 1 legacy), "
+                          + "gemini, claude, qwen, opencode",
+            defaultValue = "bob2")
     public String ai;
 
     @Option(names = {"--here"}, description = "Initialize in current directory")

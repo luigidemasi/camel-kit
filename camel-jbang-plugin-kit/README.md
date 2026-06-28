@@ -39,13 +39,13 @@ Once installed, you can use camel-kit commands through the `camel` CLI:
 ### Initialize a New Project
 
 ```bash
-# Initialize in a new directory
+# Initialize in a new directory (IBM Bob 2 by default)
 camel kit init my-integration
 
 # Initialize in current directory
 camel kit init --here
 
-# Specify AI agent (bob, gemini, or claude)
+# Specify AI agent (bob2, bob, gemini, claude, qwen, or opencode)
 camel kit init my-integration --ai claude
 
 # Specify Camel version

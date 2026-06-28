@@ -10,6 +10,15 @@ import static org.junit.jupiter.api.Assertions.*;
 class CamelKitPluginTest {
 
     @Test
+    void kitInitDefaultsToBob2WhenAgentOptionIsOmitted() {
+        KitInitCommand command = new KitInitCommand(new CamelJBangMain());
+
+        new CommandLine(command).parseArgs("orders");
+
+        assertEquals("bob2", command.ai);
+    }
+
+    @Test
     void registersDoctorUnderKitCommand() {
         CamelJBangMain main = new CamelJBangMain();
         CommandLine root = new CommandLine(main);

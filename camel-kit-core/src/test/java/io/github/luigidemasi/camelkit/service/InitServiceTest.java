@@ -48,7 +48,24 @@ class InitServiceTest {
         assertTrue(progress.events().contains("start:Creating project structure"));
         assertTrue(progress.events().contains("start:Generating IBM Project Bob workspace"));
         assertEquals("3.9.9", reporter.mavenVersion());
+        assertTrue(result.warnings().stream()
+                .anyMatch(warning -> warning.message().contains("IBM Bob 1 legacy selected")));
+        assertTrue(reporter.hasWarningContaining("use --ai bob2 for new IBM Bob projects"));
         assertTrue(reporter.wasGraphSkipped() || reporter.graph() != null || !reporter.warnings().isEmpty());
+    }
+
+    @Test
+    void bob2InitializationDoesNotReportBob1LegacyWarning() throws Exception {
+        RecordingReporter reporter = new RecordingReporter();
+        Path targetDir = tempDir.resolve("orders");
+
+        InitResult result = new InitService().initialize(
+                request(targetDir, "bob2", InitProgress.noop(), reporter));
+
+        assertEquals("bob2", result.agentName());
+        assertFalse(result.warnings().stream()
+                .anyMatch(warning -> warning.message().contains("IBM Bob 1 legacy selected")));
+        assertFalse(reporter.hasWarningContaining("IBM Bob 1 legacy selected"));
     }
 
     @Test
@@ -141,6 +158,10 @@ class InitServiceTest {
 
         List<InitWarning> warnings() {
             return warnings;
+        }
+
+        boolean hasWarningContaining(String text) {
+            return warnings.stream().anyMatch(warning -> warning.message().contains(text));
         }
     }
 }

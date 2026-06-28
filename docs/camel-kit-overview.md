@@ -2,7 +2,7 @@
 
 ## What Is Camel-Kit?
 
-Camel-Kit is an open-source toolkit that brings structured AI assistance to Apache Camel integration development. It works as a layer on top of AI coding assistants (Claude, IBM Project Bob, Gemini, Qwen, OpenCode), giving them domain-specific knowledge and a disciplined workflow for designing, implementing, and verifying integration routes.
+Camel-Kit is an open-source toolkit that brings structured AI assistance to Apache Camel integration development. It works as a layer on top of AI coding assistants (Claude, IBM Bob 1 legacy, IBM Bob 2, Gemini, Qwen, OpenCode), giving them domain-specific knowledge and a disciplined workflow for designing, implementing, and verifying integration routes.
 
 Instead of an engineer writing boilerplate code by hand -- or an AI assistant generating plausible-looking but unverified code from its training data -- Camel-Kit guides the process through a structured pipeline that enforces quality at every step.
 
@@ -94,7 +94,7 @@ Camel-Kit addresses this with **skills** -- markdown instruction files that teac
 
 Skills compose together: the brainstorm skill loads design guides for component selection and EIP patterns; the execute skill loads implementation, validation, testing, and verification guides. Each guide is a self-contained document that the AI reads and follows step by step.
 
-Because skills are plain markdown, they are easy to read, review, audit, and extend. Adding a new capability to Camel-Kit means writing a new skill guide -- not modifying code. And because all five supported AI agents read the same skill files, a fix or improvement to a guide benefits every agent simultaneously.
+Because skills are plain markdown, they are easy to read, review, audit, and extend. Adding a new capability to Camel-Kit means writing a new skill guide -- not modifying code. And because all supported AI agents read the same skill files, a fix or improvement to a guide benefits every agent simultaneously.
 
 ### Context Isolation and Role Separation
 
@@ -103,8 +103,8 @@ When an AI generates code and then reviews its own work, it tends to confirm its
 Camel-Kit enforces role separation at multiple levels:
 
 - **Implementer and reviewer are separate.** After each task, a spec compliance reviewer checks whether the output matches the design -- this is not the same agent that wrote the code. Then a code quality reviewer checks against the constitution rules. Two independent reviews, each with a different focus.
-- **Fresh context per task.** When using Claude, each task is dispatched to a fresh subagent with an isolated context window. The subagent has no memory of previous tasks, no accumulated assumptions, and no temptation to reuse a pattern that worked before but doesn't fit now.
-- **Tool restrictions per phase.** When using Bob, the brainstorm phase physically cannot edit code files -- the custom mode restricts available tools to read-only access plus MCP queries. The AI cannot jump ahead to implementation because the tools required for implementation are not available. This is not a rule the AI follows; it is a platform constraint the AI cannot override.
+- **Fresh context per task.** When using Claude or Bob 2, each task can be dispatched to a fresh subagent with an isolated context window. The subagent has no memory of previous tasks, no accumulated assumptions, and no temptation to reuse a pattern that worked before but doesn't fit now.
+- **Tool restrictions per phase.** When using Bob 1 legacy or Bob 2, the brainstorm phase physically cannot edit code files -- the custom mode restricts available tools to read-only access plus MCP queries. The AI cannot jump ahead to implementation because the tools required for implementation are not available. This is not a rule the AI follows; it is a platform constraint the AI cannot override.
 
 ### Why Not Just Generate Code?
 
@@ -210,7 +210,7 @@ This gives the AI structural intelligence that goes beyond reading individual fi
 | **DI-aware dependency tracking** | Discovers dependency injection relationships through annotation analysis (@Inject, @Autowired, @Value, @ConfigProperty) and property-based bean wiring (#class:, #bean:, #autowired) | "Show all routes and beans that depend on the `CustomerRepository` interface, including classes injected via property configuration" |
 | **Interface expansion** | Traces interface-to-implementation relationships, connecting consumers to all concrete implementations of injected interfaces | "This route uses `PaymentProcessor` interface -- which concrete implementations are wired at runtime, and what other routes depend on them?" |
 | **Dead code detection** | Identifies unused Maven dependencies, orphaned routes (not referenced by any other route), and stale configuration properties | "This project has 12 Maven dependencies but only 8 are actually used in routes" |
-| **Route topology mapping** | Maps route-to-route connections to determine which routes are independent | Used by Claude to dispatch independent routes to parallel subagents for simultaneous implementation |
+| **Route topology mapping** | Maps route-to-route connections to determine which routes are independent | Used by Claude and Bob 2 to dispatch independent routes to parallel subagents for simultaneous implementation |
 | **Project norm extraction** | Computes statistical norms from the existing codebase -- naming patterns, error handling coverage, route complexity percentiles | Validation thresholds adapt to the project's actual conventions rather than using hardcoded defaults |
 | **Migration context analysis** | Produces structured JSON output capturing all dependencies, bean wiring, external service requirements, and call chains for a specific route | Used during migration to understand the complete context a route depends on before translating it to Camel |
 | **MuleSoft flow analysis** | Parses MuleSoft XML configs into graph nodes (flows, sub-flows, connectors, endpoints, transforms, error handlers) and analyzes DataWeave scripts for complexity | Understanding MuleSoft project structure before migration -- graph-accelerated analysis replaces manual XML deep-dives |
@@ -327,7 +327,7 @@ These rules are enforced automatically during the validation step. Violations ar
 
 ## Multi-Agent Support
 
-Camel-Kit works across five AI coding assistants. The same design-plan-execute pipeline runs identically regardless of which agent is chosen. This is possible because the pipeline logic lives in shared markdown instruction files ("skills") that all agents read and follow.
+Camel-Kit works across multiple AI coding assistants. The same design-plan-execute pipeline runs identically regardless of which agent is chosen. This is possible because the pipeline logic lives in shared markdown instruction files ("skills") that all agents read and follow.
 
 | Agent | Provider |
 |-------|----------|
@@ -342,7 +342,7 @@ Camel-Kit works across five AI coding assistants. The same design-plan-execute p
 - **Consistent output.** Regardless of which agent generates the routes, the same quality rules are enforced and the same catalog verification runs. The output artifacts are identical.
 - **Future-proof.** Adding support for a new agent requires writing template files for that agent's instruction format, not rewriting the pipeline logic.
 
-Each agent uses a different internal architecture optimized for its native capabilities (parallel subagent dispatch for Claude, custom modes with tool restrictions for Bob, policy engines for Gemini, etc.), but these differences are transparent to the user. The commands, workflow, and output are the same.
+Each agent uses a different internal architecture optimized for its native capabilities (parallel subagent dispatch for Claude and Bob 2, custom modes with tool restrictions for Bob 1 legacy, policy engines for Gemini, etc.), but these differences are transparent to the user. The commands, workflow, and output are the same.
 
 ---
 
@@ -354,7 +354,7 @@ flowchart TB
 
     subgraph templates ["Agent Templates"]
         claude["CLAUDE.md\n(Claude)"]
-        bob["custom_modes.yaml\n(Bob)"]
+        bob["custom_modes.yaml\n(Bob 1/Bob 2)"]
         gemini["GEMINI.md\n(Gemini)"]
         qwen["QWEN.md\n(Qwen)"]
         opencode["AGENTS.md\n(OpenCode)"]
@@ -395,7 +395,7 @@ flowchart TB
 
 **Knowledge MCP** provides documentation intelligence -- component availability, official documentation, and version-specific guidance.
 
-**Templates** adapt the skill delivery format to each AI agent's native instruction mechanism. A single set of skills serves all five agents.
+**Templates** adapt the skill delivery format to each AI agent's native instruction mechanism. A single set of skills serves all supported agents.
 
 ---
 
@@ -407,7 +407,7 @@ flowchart TB
 | **Higher quality output** | 7 quality rules enforced automatically. Every component verified against the live catalog. No hardcoded credentials, unnamed routes, or unsupported components. |
 | **Reduced runtime failures** | Real-time catalog verification catches configuration errors at design time. Runtime verification catches remaining issues before deployment. |
 | **Migration de-risking** | Automated analysis of MuleSoft, legacy Camel, Fuse, and BizTalk projects. DI-aware graph analysis discovers bean dependencies through annotation scanning and property-based wiring, traces interface implementations, and produces structured migration context for accurate route translation. Graph-accelerated MuleSoft analysis parses flows, sub-flows, connectors, and DataWeave scripts automatically. Graph-accelerated BizTalk analysis parses orchestrations, maps, pipelines, and bindings automatically. Component-by-component mapping against verified Camel equivalents, with gap identification before implementation begins. |
-| **No AI vendor lock-in** | Works with 5 AI agents. Same pipeline, same output, same quality -- regardless of provider. |
+| **No AI vendor lock-in** | Works with multiple AI agents. Same pipeline, same output, same quality -- regardless of provider. |
 | **Maintainable and extensible** | Skills are plain markdown. Adding new capabilities means writing a new skill guide, not modifying code. |
 
 ---
@@ -424,7 +424,7 @@ flowchart TB
 | Documentation | Knowledge MCP server (Apache Camel docs -- hybrid semantic search) |
 | Testing | Citrus + Testcontainers |
 | IDE support | Kaoto (visual route and DataMapper editing) |
-| AI agents | Claude Code, IBM Project Bob, Gemini CLI, Qwen, OpenCode |
+| AI agents | Claude Code, IBM Bob 1 legacy, IBM Bob 2, Gemini CLI, Qwen, OpenCode |
 
 ---
 
