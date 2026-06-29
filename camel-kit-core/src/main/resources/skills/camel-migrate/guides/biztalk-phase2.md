@@ -150,7 +150,7 @@ Use the same flow-design structure as `camel-brainstorm/guides/design-assembly.m
 of the following details:
 
 ```markdown
-# Technical Design Document: {orchestration-name}
+# Flow Design: {orchestration-name}
 
 ## Section 1: Overview
 
@@ -160,7 +160,7 @@ of the following details:
 | Migrated From | Microsoft BizTalk Server [version] — [original-orchestration-name] |
 | Source Module | {relative path from workspace root to the source BizTalk project} |
 | Target Module | {relative path from workspace root to the target Camel project, e.g. `order-service/`} |
-| Business Purpose | [from BRD] |
+| Business Purpose | [from business requirements] |
 | Trigger | [how the Camel route is triggered — BizTalk Receive Port adapter + pipeline] |
 | Camel Version | [from config.properties] |
 | Created | [current date] |
@@ -322,7 +322,7 @@ Constitution v2.0 — six enforced rules:
 
 ### Migration Validation
 - [ ] Output payload matches BizTalk output (same field names, types, and values)
-- [ ] Performance meets SLA requirements from BRD
+- [ ] Performance meets SLA requirements from business requirements
 
 ## Section 11: Implementation Checklist
 
@@ -332,7 +332,7 @@ Constitution v2.0 — six enforced rules:
 - [ ] Verify against original BizTalk behaviour
 ```
 
-**Note:** If the BRD specifies performance/throughput requirements, add a **Section 5e: Throttling & Scaling** covering throttle EIP configuration and messaging component `consumersCount`. If security or compliance requirements exist, add a **Section 5f: Security**. If observability requirements exist, add a **Section 5g: Monitoring**. Renumber sections as needed.
+**Note:** If the business requirements specify performance/throughput requirements, add a **Section 5e: Throttling & Scaling** covering throttle EIP configuration and messaging component `consumersCount`. If security or compliance requirements exist, add a **Section 5f: Security**. If observability requirements exist, add a **Section 5g: Monitoring**. Renumber sections as needed.
 
 ---
 

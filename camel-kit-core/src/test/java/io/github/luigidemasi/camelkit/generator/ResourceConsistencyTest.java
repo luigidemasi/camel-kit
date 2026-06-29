@@ -54,7 +54,14 @@ class ResourceConsistencyTest {
                     "legacy TDD artifact terminology",
                     Pattern.compile("(?i)(\\bTDD\\b\\s*(Section|file|files|path|content|field|mapping|format|"
                                     + "output|artifact|specification|decomposition|creation|assembly)"
-                                    + "|\\b(TDDs|per-flow\\s+TDD|BRD\\+TDD)\\b)")),
+                                    + "|\\b(TDDs|per-flow\\s+TDD|BRD\\+TDD|TDD-level)\\b"
+                                    + "|Technical\\s+Design\\s+Document)")),
+            new StalePattern(
+                    "legacy BRD artifact terminology",
+                    Pattern.compile("\\bBRD\\b|Blueprint\\s+Reference\\s+Document")),
+            new StalePattern(
+                    "uppercase flow-name token in pipeline test-data path",
+                    Pattern.compile("docs/camel-kit/<PIPELINE_ID>/test-data/\\{FLOW_NAME\\}")),
             new StalePattern(
                     "retired internal command exposed as slash command",
                     Pattern.compile("(?<![\\w-])/camel-(implement|test|flow)\\b")),
@@ -187,6 +194,7 @@ class ResourceConsistencyTest {
     private static List<Path> activeResourceFiles(Path root) throws IOException {
         List<Path> scanRoots = List.of(
                 root.resolve("camel-kit-core/src/main/resources/skills"),
+                root.resolve("camel-kit-core/src/main/resources/agents"),
                 root.resolve("camel-kit-core/src/main/resources/templates"),
                 root.resolve("README.md"),
                 root.resolve("CONTRIBUTING.md"));

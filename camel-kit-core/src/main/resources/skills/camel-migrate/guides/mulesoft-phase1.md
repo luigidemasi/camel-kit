@@ -19,10 +19,10 @@ This guide is loaded by `camel-migrate` after it has already:
 **Do not re-ask questions already answered in the summary. Do not load this guide directly.**
 
 You will work in two phases:
-- **Phase 1 (Business Analyst):** Deep-dive into Mule XML flows, resolve proprietary connectors, fill any remaining gaps, produce BRD.
+- **Phase 1 (Business Analyst):** Deep-dive into Mule XML flows, resolve proprietary connectors, fill any remaining gaps, produce business requirements.
 - **Phase 2 (Integration Architect):** Design catalog-verified Camel route architecture and produce design spec updates.
 
-**Phase 1 of 2.** After completing this phase (BRD generation), the orchestrator dispatches Phase 2 (design spec generation) automatically.
+**Phase 1 of 2.** After completing this phase (business requirements generation), the orchestrator dispatches Phase 2 (design spec generation) automatically.
 
 The outputs use the active Camel Kit pipeline package, making them compatible with `camel-plan` and `camel-execute`.
 
@@ -88,7 +88,7 @@ Check the confirmed summary from `camel-migrate`. For every field still marked *
 
 **Do not ask about fields already marked ✓ Confirmed in the summary.**
 
-API compatibility is assumed by default — Camel routes will preserve the same HTTP paths, queue/topic names, and data contracts as the original Mule flows. If the user explicitly stated otherwise during the Step 5 confirmation in `camel-migrate`, note the deviation in the BRD.
+API compatibility is assumed by default — Camel routes will preserve the same HTTP paths, queue/topic names, and data contracts as the original Mule flows. If the user explicitly stated otherwise during the Step 5 confirmation in `camel-migrate`, note the deviation in the business requirements.
 
 If the summary has no remaining gaps, skip this step entirely.
 

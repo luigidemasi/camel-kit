@@ -143,7 +143,7 @@ If the command exits with code != 0, skip this step.
 
 ### Step 2.1 — Process Each Route
 
-For each route in the BRD:
+For each route in the business requirements:
 
 1. **Parse the original route** using `camel_route_context` MCP tool if the route is in XML. For Java DSL routes, parse the `.java` source directly.
 
@@ -207,7 +207,7 @@ For each route, update the relevant `### Flow: {flow-name}` section in
 | Source Product | {product name from summary — e.g. "JBoss Fuse 6.3.0" or "Community Apache Camel"} |
 | Source Module | {relative path from workspace root to the source project, e.g. `fuse6-apps/http/Https_jetty_Consumer`} |
 | Target Module | {relative path from workspace root to the target project, e.g. `https-jetty-consumer/`} |
-| Business Purpose | [from BRD] |
+| Business Purpose | [from business requirements] |
 | Trigger | [from source URI, mapped to 4.x] |
 | Camel Version | {CAMEL_VERSION} |
 | Created | {current date} |

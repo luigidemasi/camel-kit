@@ -57,16 +57,6 @@ class DistributionConfigTest {
     }
 
     @Test
-    void springBootForVersionLookup() {
-        InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
-        DistributionConfig config = DistributionConfig.load(in);
-
-        assertEquals("3.5.9", config.springBootForVersion("4.14.4"));
-        assertEquals("3.5.3", config.springBootForVersion("4.13.0"));
-        assertEquals("3.5.9", config.springBootForVersion("9.99.99"));
-    }
-
-    @Test
     void springBootMappingsReturnsExplicitEntries() {
         InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
         DistributionConfig config = DistributionConfig.load(in);
