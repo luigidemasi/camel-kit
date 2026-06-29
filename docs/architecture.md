@@ -531,7 +531,7 @@ the skills, and leaves runtime mutation/control tools out of the generated allow
 | `camel_transform_route` | Convert routes between YAML and XML formats |
 | `camel_route_context` | Extract components and EIPs from route (YAML/XML/Java) |
 | `camel_route_harden_context` | Analyze routes for security concerns (47 checks) |
-| `camel_route_test_scaffold` | Generate a route test scaffold for Citrus YAML test authoring |
+| `camel_route_test_scaffold` | Generate a JUnit 5 Camel route test scaffold |
 
 #### 3. Diagnostics And Configuration
 
@@ -578,7 +578,7 @@ Separate from Camel JBang MCP, the knowledge layer runs from the `camel-kit-know
 | `camel-migrate` | Catalog, migration, and knowledge tools | varies |
 | `camel-implement` | Catalog detail tools, route context, validation, transformation, test scaffold | varies |
 | `camel-validate` | Route validation, hardening, diagnostics, dependency/config checks | varies |
-| `camel-test` | Route context, catalog details, test scaffold | varies |
+| `camel-test` | Route validation, route context, hardening analysis, component metadata, Citrus catalog/schema/docs | varies |
 | `camel-knowledge` | `camel_docs_search`, `camel_docs_component_info`, `camel_docs_cve_search`, `camel_docs_release_info`, `camel_docs_jira_lookup` | 5 |
 
 ### Token Savings

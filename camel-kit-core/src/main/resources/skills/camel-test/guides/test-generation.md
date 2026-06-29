@@ -4,6 +4,9 @@
 > - `FLOW_NAME` — the flow being tested
 > - `TEST_DIR` — resolved test file directory
 > - `TARGET_MODULE` — from the design spec flow overview (empty for single-project)
+> - `CITRUS_VERSION` — from `.camel-kit/config.properties`
+> - `CITRUS_MCP_VERSION` — from `.camel-kit/config.properties` or generated MCP server coordinate
+> - `ROUTE_ANALYSIS` — raw Camel MCP/manual route context plus derived scenarios from `route-analysis.md`
 
 ---
 
@@ -11,13 +14,14 @@
 
 ### 2.1 Extract Test Scenarios from the Design Spec
 
-From the design spec Testing Strategy section, identify:
+Start from the design spec Testing Strategy section, then add concrete scenarios from route analysis:
 
 1. **Happy Path** - Normal successful flow
 2. **Invalid Input** - Malformed or invalid data
 3. **Target Unavailable** - External system failures
 4. **Business Rule Violations** - Data that fails filters/validation
 5. **Error Recovery** - DLQ and retry behavior
+6. **Hardening Findings** - Negative tests derived from `camel_route_harden_context` findings
 
 Show test plan:
 
@@ -38,7 +42,7 @@ Components to Test:
   - Error: DLQ on [component]
 ```
 
-**Graph-enhanced scenarios (when ROUTE_CONTEXT available):**
+**Graph and hardening enhanced scenarios (when available):**
 
 If `ROUTE_CONTEXT` was populated by Step 0.5 (graph-project-context):
 - For each route in `UPSTREAM_ROUTES`, add: "End-to-end: message from [upstream] flows through [this route]"
@@ -46,9 +50,14 @@ If `ROUTE_CONTEXT` was populated by Step 0.5 (graph-project-context):
 - For each error boundary in `ERROR_FLOW`, add an error scenario test
 - These supplement the design-spec-derived scenarios above, not replace them
 
+If `camel_route_harden_context` returned findings, add one negative test per actionable finding when the route has a
+testable input or downstream boundary. Keep the test grounded in the concrete route issue, such as malformed payload,
+oversized payload, injection-like expression value, missing auth, downstream timeout, or unavailable target.
+
 ### 2.2 Identify Required Testcontainers
 
-Based on components in the flow, identify testcontainers needed:
+Based on the route endpoint classification, real endpoint URI options, and `camel_component_properties` metadata,
+identify testcontainers needed:
 
 ```
 Testcontainers Required:
@@ -62,6 +71,9 @@ Testcontainers Required:
     - CITRUS_TESTCONTAINERS_POSTGRESQL_USERNAME
     - CITRUS_TESTCONTAINERS_POSTGRESQL_PASSWORD
 ```
+
+The variable names below are fallback reference patterns. Prefer Citrus MCP or the same-version quick reference as the
+source of record for the selected `CITRUS_VERSION`.
 
 **Graph-enhanced endpoint classification (when ROUTE_CONTEXT available):**
 
@@ -80,7 +92,14 @@ This prevents over-provisioning testcontainers for internal endpoints that Camel
 
 Create file: `{TEST_DIR}{flow-name}.camel.it.yaml`
 
-Before writing YAML, verify each selected Citrus action and endpoint against Citrus MCP for `CITRUS_VERSION`:
+Before writing YAML, build the actual action and endpoint sets the generated test will use:
+
+```
+ACTIONS_USED = [testcontainers, camel, echo, send, receive, sql, ...]
+ENDPOINTS_USED = [kafka, http, sql, ...]
+```
+
+When `CITRUS_MCP_VERSION == CITRUS_VERSION`, verify every selected Citrus action and endpoint against Citrus MCP:
 
 ```
 MCP Tool: citrus_catalog_action
@@ -90,8 +109,8 @@ MCP Tool: citrus_catalog_endpoint
 Params: { "name": "kafka", "version": "{{CITRUS_VERSION}}" }
 ```
 
-If Citrus MCP is unavailable, use only `.camel-kit/.cache/citrus/{CITRUS_VERSION}/citrus-quick-reference.md`.
-If Citrus MCP returns metadata for a different Citrus version, treat it as unavailable for that item.
+If Citrus MCP is unavailable or `CITRUS_MCP_VERSION != CITRUS_VERSION`, use only
+`.camel-kit/.cache/citrus/{CITRUS_VERSION}/citrus-quick-reference.md`.
 Do not use a cache from a different Citrus version.
 
 ### 3.1 Test File Structure
@@ -135,10 +154,6 @@ actions:
           env:
             POSTGRES_DB: "testdb"
 
-  # Wait for containers to be ready
-  - sleep:
-      milliseconds: 5000
-
   # Start the Camel integration under test
   - camel:
       jbang:
@@ -171,9 +186,9 @@ actions:
             "status": "NEW"
           }
 
-  # Wait for processing
+  # Allow asynchronous database sink to flush when no receive endpoint is available
   - sleep:
-      milliseconds: 2000
+      milliseconds: 1000
 
   # Verify data in PostgreSQL
   - sql:
@@ -201,11 +216,7 @@ actions:
         body: |
           { "invalid": "json", "missing": "required fields" }
 
-  # Wait for error handling
-  - sleep:
-      milliseconds: 2000
-
-  # Verify message in DLQ
+  # Verify message in DLQ using an event-driven receive timeout
   - receive:
       endpoint:
         kafka:
@@ -235,9 +246,9 @@ actions:
             "status": "NEW"
           }
 
-  # Wait for processing
+  # Allow asynchronous database sink to flush when no receive endpoint is available
   - sleep:
-      milliseconds: 2000
+      milliseconds: 1000
 
   # Verify NOT in database (filtered out)
   - sql:
@@ -264,19 +275,21 @@ actions:
 
 ### 3.2 Timing and Cleanup Guidelines
 
-**Sleep calibration:**
-- Use `2000ms` as default wait between send and verify
-- For Kafka consumer startup, use `3000ms` on first message
-- For database writes, `1000ms` is usually sufficient
-- If tests are flaky, increase sleep incrementally (not beyond `10000ms`)
-- Prefer `receive` with `timeout` over `sleep` when the framework supports it
+**Synchronization:**
+- Prefer event-driven `receive` actions with explicit `timeout` values over fixed sleeps.
+- For asynchronous sinks that cannot be received from directly, use the shortest bounded sleep needed before the
+  assertion, typically `1000ms` for database writes.
+- Do not put a fixed sleep before a `receive` that already has a timeout.
+- If tests are flaky, first increase receive timeouts or improve readiness checks. Increase sleeps only when there is no
+  event-driven signal, and keep the value below `10000ms`.
 
 **Testcontainer cleanup:**
 Testcontainers stop must ALWAYS execute, regardless of test outcome. Place the `testcontainers: stop` action as the **last action** in the test YAML — Citrus executes all actions sequentially and will reach the stop even after assertion failures.
 
 ### 3.3 Citrus YAML Schema Rules
 
-**CRITICAL: Follow these rules exactly:**
+**CRITICAL: Verify these rules against Citrus MCP or the same-version quick reference. The examples below are fallback
+patterns, not the source of record for every Citrus version.**
 
 #### Variables - Use list format with name/value
 
@@ -311,6 +324,8 @@ variables:
 ```
 
 #### Testcontainer Variables
+
+Use Citrus MCP or the same-version quick reference to confirm variable names. The table below is a fallback reference:
 
 Citrus automatically exposes these variables:
 
@@ -425,26 +440,42 @@ Citrus automatically exposes these variables:
 
 ### 4.1 Validate Against Citrus Schema
 
-Before saving, validate with Citrus MCP when available:
+Before saving, validate the actual generated YAML. Extract the real action names and endpoint types from the file:
+
+```
+ACTIONS_USED = unique top-level action keys under actions:
+ENDPOINTS_USED = unique endpoint type keys under endpoint:
+```
+
+When `CITRUS_MCP_VERSION == CITRUS_VERSION`, validate each actual item:
 
 ```
 MCP Resource: citrus://schema/dsl/yaml
-MCP Tool: citrus_catalog_action_schema
-Params: { "name": "<action-name>", "version": "{{CITRUS_VERSION}}" }
-MCP Tool: citrus_catalog_endpoint_schema
-Params: { "name": "<endpoint-name>", "version": "{{CITRUS_VERSION}}" }
+
+For each ACTION in ACTIONS_USED:
+  MCP Tool: citrus_catalog_action_schema
+  Params: { "name": ACTION, "version": "{{CITRUS_VERSION}}" }
+
+For each ENDPOINT in ENDPOINTS_USED:
+  MCP Tool: citrus_catalog_endpoint_schema
+  Params: { "name": ENDPOINT, "version": "{{CITRUS_VERSION}}" }
 ```
 
-Then verify:
+When Citrus MCP is unavailable or the versions differ, perform the same checks against
+`.camel-kit/.cache/citrus/{CITRUS_VERSION}/citrus-quick-reference.md`. If neither source is available, keep the file but
+mark it unverified in the generation summary.
+
+Then verify the actual YAML:
 
 ```
 Validating test against Citrus schema...
 
-✓ All actions exist in schema
-✓ All properties valid for each action
-✓ Endpoint configurations match schema
-✓ Testcontainer variables correct
-✓ Variable format correct (name/value list)
+✓ Every action in ACTIONS_USED exists in schema/cache
+✓ Every property under each action is valid for that action
+✓ Every endpoint in ENDPOINTS_USED exists in schema/cache
+✓ Endpoint configurations match schema/cache
+✓ Testcontainer variables match the selected Citrus version
+✓ Variable format uses the name/value list form
 ```
 
 ### 4.2 Common Test Errors to Avoid
@@ -482,7 +513,7 @@ Add component-specific test dependencies as needed:
 ### Kafka Source → Database Sink
 
 ```yaml
-# Send to Kafka, verify in database
+# Send to Kafka, then verify in database. Use a bounded sleep only because there is no receive endpoint.
 - send:
     endpoint:
       kafka:
@@ -493,7 +524,7 @@ Add component-specific test dependencies as needed:
         { "id": "123", "data": "test" }
 
 - sleep:
-    milliseconds: 2000
+    milliseconds: 1000
 
 - sql:
     datasource:
@@ -509,7 +540,7 @@ Add component-specific test dependencies as needed:
 ### REST API → Kafka
 
 ```yaml
-# POST to REST, verify in Kafka
+# POST to REST, verify in Kafka with receive timeout
 - send:
     endpoint:
       http:
@@ -520,9 +551,6 @@ Add component-specific test dependencies as needed:
         Content-Type: "application/json"
       body: |
         { "orderId": "ORD-123" }
-
-- sleep:
-    milliseconds: 2000
 
 - receive:
     endpoint:
@@ -540,7 +568,7 @@ Add component-specific test dependencies as needed:
 ### Error Handling Test
 
 ```yaml
-# Send invalid data, verify in DLQ
+# Send invalid data, verify in DLQ with receive timeout
 - send:
     endpoint:
       kafka:
@@ -549,9 +577,6 @@ Add component-specific test dependencies as needed:
     message:
       body: |
         { "invalid": "data" }
-
-- sleep:
-    milliseconds: 2000
 
 - receive:
     endpoint:
@@ -585,9 +610,6 @@ When a flow uses Kaoto DataMapper (XSLT transformation), add a test scenario tha
     message:
       body: |
         { "order": { "id": "ORD-001", "customer": "Acme Corp", "amount": 150.00 } }
-
-- sleep:
-    milliseconds: 3000
 
 - receive:
     endpoint:

@@ -169,6 +169,52 @@ class ResourceConsistencyTest {
         }
     }
 
+    @Test
+    void architectureDocumentsActualCamelRouteTestScaffoldOutput() throws IOException {
+        String architecture = Files.readString(repositoryRoot().resolve("docs/architecture.md"));
+
+        assertTrue(architecture.contains("`camel_route_test_scaffold` | Generate a JUnit 5 Camel route test scaffold"),
+                "camel_route_test_scaffold currently emits JUnit 5 scaffolds in Camel MCP");
+        assertFalse(
+                architecture.contains("camel_route_test_scaffold` | Generate a route test scaffold for Citrus YAML"),
+                "Architecture docs must not claim camel_route_test_scaffold emits Citrus YAML");
+    }
+
+    @Test
+    void camelTestGuidesUseConcreteMcpValidationContract() throws IOException {
+        Path root = repositoryRoot();
+        String mcpSetup = Files.readString(root.resolve(
+                "camel-kit-core/src/main/resources/skills/shared/mcp-setup.md"));
+        String routeAnalysis = Files.readString(root.resolve(
+                "camel-kit-core/src/main/resources/skills/camel-test/guides/route-analysis.md"));
+        String testGeneration = Files.readString(root.resolve(
+                "camel-kit-core/src/main/resources/skills/camel-test/guides/test-generation.md"));
+
+        assertTrue(mcpSetup.contains("CITRUS_MCP_VERSION == CITRUS_VERSION"),
+                "Citrus MCP catalog usage must be gated on matching server and framework versions");
+        assertTrue(routeAnalysis.contains("camel_validate_route"),
+                "camel-test route analysis must validate routes before generating tests");
+        assertTrue(routeAnalysis.contains("camel_validate_yaml_dsl"),
+                "camel-test route analysis must validate YAML DSL syntax when applicable");
+        assertTrue(routeAnalysis.contains("camel_route_harden_context"),
+                "camel-test route analysis must use hardening findings for negative scenarios");
+        assertTrue(routeAnalysis.contains("camel_component_properties"),
+                "camel-test route analysis must inspect component metadata before writing endpoint config");
+        assertTrue(routeAnalysis.contains("citrus_docs_index"),
+                "camel-test should discover Citrus docs pages before reading them");
+        assertFalse(routeAnalysis.contains("Suggested Test Scenarios (from MCP analysis)"),
+                "camel_route_context output must not be presented as ready-made test scenarios");
+
+        assertFalse(testGeneration.contains("\"<action-name>\""),
+                "Citrus action schema validation must use actual generated action names");
+        assertFalse(testGeneration.contains("\"<endpoint-name>\""),
+                "Citrus endpoint schema validation must use actual generated endpoint names");
+        assertTrue(testGeneration.contains("For each ACTION in ACTIONS_USED"),
+                "test-generation must iterate over actual generated actions");
+        assertTrue(testGeneration.contains("For each ENDPOINT in ENDPOINTS_USED"),
+                "test-generation must iterate over actual generated endpoints");
+    }
+
     private static void assertKnowledgeTools(String agentName, String field, JsonNode allowlist) throws IOException {
         assertNotNull(allowlist, "Missing " + field + " allowlist for " + agentName);
         assertTrue(allowlist.isArray(), field + " allowlist for " + agentName + " must be an array");
