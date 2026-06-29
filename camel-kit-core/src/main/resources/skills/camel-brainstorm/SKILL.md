@@ -152,7 +152,7 @@ In **standalone mode** (including amend mode), write the output artifact and STO
 Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
 
 - **Iron Law 1: MCP Catalog Verification** — Every component, EIP, dataformat, and language in the design spec MUST be MCP-verified before inclusion. You do NOT guess component names.
-- **Iron Law 3: No Code Without Plan & Design Approval** — NEVER generate implementation artifacts (YAML, Java) during this phase. Brainstorming produces TDDs and Specs, not code.
+- **Iron Law 3: No Code Without Plan & Design Approval** — NEVER generate implementation artifacts (YAML, Java) during this phase. Brainstorming produces business requirements and a design spec, not code.
 - **Iron Law 5: Adversarial Code Review** — while no code is generated here, the adversarial mindset applies to the design: assume the design will fail and look for gaps.
 
 ### Rationalization Table
@@ -249,7 +249,7 @@ You MUST complete these items in order:
 **Read at start (if they exist):**
 1. `docs/constitution.md` — constitution rules. If missing, copy from `templates/constitution.md`.
 2. `.camel-kit/config.properties` — project config (Camel version, runtime). May not exist yet.
-3. `docs/business-requirements.md` — existing BRD (if resuming a project).
+3. `docs/camel-kit/<PIPELINE_ID>/business-requirements.md` — existing business requirements (if resuming a project).
 
 ---
 

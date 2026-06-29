@@ -85,7 +85,9 @@ These errors appear during `./mvnw quarkus:dev` or `./mvnw spring-boot:run` or `
 **Phase:** Startup
 **Category:** Route creation
 **Fix target:** camel-implement
-**Fix action:** The route YAML is structurally broken. Identify the affected flow from the route ID in the exception message (e.g., `Failed to create route order-processing-route`). Load the `camel-implement` skill and re-generate only the affected flow's route YAML from its TDD. Do NOT re-generate the entire project — only the broken route.
+**Fix action:** The route YAML is structurally broken. Identify the affected flow from the route ID in the exception
+message (e.g., `Failed to create route order-processing-route`). Load the `camel-implement` skill and re-generate only
+the affected flow's route YAML from the design spec. Do NOT re-generate the entire project — only the broken route.
 
 ### Unknown Component
 
@@ -98,7 +100,8 @@ These errors appear during `./mvnw quarkus:dev` or `./mvnw spring-boot:run` or `
 2. Component dependency is missing from pom.xml (check Phase 2 first)
 3. Component does not exist in this Camel version
 
-Re-check TDD Section 2/4 for the correct component name. Verify against MCP catalog via `camel-validate`. Re-generate the route if the component name is wrong.
+Re-check the design spec Source/Sink sections for the correct component name. Verify against MCP catalog via
+`camel-validate`. Re-generate the route if the component name is wrong.
 
 ### Wrong Endpoint Options
 
@@ -165,9 +168,10 @@ These errors appear after the application starts but during the log capture wind
 **Fix target:** camel-implement
 **Fix action:** An inline expression (Groovy, Simple, XPath) failed during message processing. This is common with DataMapper Groovy scripts.
 
-For Groovy DataMapper errors: re-run `datamapper-validation.md` to verify the Groovy script against the TDD field mappings, then re-generate if validation fails.
+For Groovy DataMapper errors: re-run `datamapper-validation.md` to verify the Groovy script against the design spec
+field mappings, then re-generate if validation fails.
 
-For Simple or XPath expressions: check the expression syntax in the route YAML against the TDD processing steps.
+For Simple or XPath expressions: check the expression syntax in the route YAML against the design spec processing steps.
 
 ### Type Conversion Error
 
@@ -175,7 +179,9 @@ For Simple or XPath expressions: check the expression syntax in the route YAML a
 **Phase:** Startup (runtime)
 **Category:** Type conversion
 **Fix target:** camel-implement
-**Fix action:** Data type mismatch between components in the route. Check TDD Section 2/4 for source/target formats and ensure the route has appropriate marshal/unmarshal steps. Common issue: JSON body arriving as `InputStream` when the next processor expects `String` — add a `convertBodyTo: String` step.
+**Fix action:** Data type mismatch between components in the route. Check the design spec Source/Sink sections for
+source/target formats and ensure the route has appropriate marshal/unmarshal steps. Common issue: JSON body arriving as
+`InputStream` when the next processor expects `String` — add a `convertBodyTo: String` step.
 
 ### XSLT Transformation Error
 
@@ -183,7 +189,9 @@ For Simple or XPath expressions: check the expression syntax in the route YAML a
 **Phase:** Startup (runtime)
 **Category:** Transformation
 **Fix target:** camel-implement
-**Fix action:** The XSLT stylesheet has an error. Re-run `datamapper-validation.md` to verify the XSLT against TDD field mappings. If validation finds issues, re-generate the XSLT using the appropriate approach guide (`datamapper-approach-a.md` or `datamapper-approach-b.md`).
+**Fix action:** The XSLT stylesheet has an error. Re-run `datamapper-validation.md` to verify the XSLT against design
+spec field mappings. If validation finds issues, re-generate the XSLT using the appropriate approach guide
+(`datamapper-approach-a.md` or `datamapper-approach-b.md`).
 
 ---
 
@@ -197,7 +205,9 @@ These errors appear during `camel test run *.it.yaml`.
 **Phase:** Test
 **Category:** Assertion mismatch
 **Fix target:** camel-implement
-**Fix action:** The route produces incorrect output for the test input. Read the TDD field mappings and compare against the actual route transformation. Fix the route logic (Groovy script, XSLT, Simple expression), not the test. Re-check with `datamapper-validation.md` if the flow uses DataMapper.
+**Fix action:** The route produces incorrect output for the test input. Read the design spec field mappings and compare
+against the actual route transformation. Fix the route logic (Groovy script, XSLT, Simple expression), not the test.
+Re-check with `datamapper-validation.md` if the flow uses DataMapper.
 
 ### Citrus Test Timeout
 
@@ -239,13 +249,16 @@ Check Docker status first. If Docker is running, inspect the container name and 
 **Phase:** Test
 **Category:** Test logic
 **Fix target:** camel-test
-**Fix action:** The test expectations are wrong, not the route. This happens when the TDD was modified after the test was generated, or when the test-data expectations in `docs/flows/{flow-name}/test-data/` are incorrect. Re-read the TDD field mappings, regenerate the synthetic I/O pairs via `shared/flow-test-data.md`, then regenerate the test from the updated TDD.
+**Fix action:** The test expectations are wrong, not the route. This happens when the design spec was modified after
+the test was generated, or when the test-data expectations in
+`docs/camel-kit/<PIPELINE_ID>/test-data/{flow-name}/` are incorrect. Re-read the design spec field mappings,
+regenerate the synthetic I/O pairs via `shared/flow-test-data.md`, then regenerate the test from the updated design.
 
 ---
 
 ## Re-Plan Promotion Rules
 
-When fix attempts fail to resolve an error, it may indicate an architectural problem requiring TDD changes rather than code fixes.
+When fix attempts fail to resolve an error, it may indicate an architectural problem requiring design spec changes rather than code fixes.
 
 ### Tier 1: Immediate Promotion
 
@@ -274,7 +287,9 @@ If the error after a fix attempt is the exact same pattern and message as before
 ### Fix Target: re-plan
 
 **Fix target:** re-plan
-**Fix action:** Load `camel-execute/guides/re-plan-loop.md`. Pass the failure details, affected TDD file(s), error output, and MCP catalog response (if applicable). The re-plan loop modifies the affected TDD sections and re-executes. Maximum 3 re-plan rounds.
+**Fix action:** Load `camel-execute/guides/re-plan-loop.md`. Pass the failure details, affected design spec sections,
+error output, and MCP catalog response (if applicable). The re-plan loop modifies the affected flow design sections and
+re-executes. Maximum 3 re-plan rounds.
 
 ---
 

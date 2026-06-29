@@ -8,14 +8,14 @@ This guide generates `docker-compose.yaml`.
 
 Generate a `docker-compose.yaml` based on the target runtime. The purpose differs by runtime:
 
-- **JBang:** docker-compose runs the Camel application AND external services
+- **Main:** docker-compose runs the Camel application through the Camel JBang image AND external services
 - **Spring Boot / Quarkus:** docker-compose runs external services ONLY (the app runs via Maven)
 
 ---
 
-## JBang Template
+## Main Runtime Template
 
-Use this template when `RUNTIME == jbang`.
+Use this template when `RUNTIME == main`.
 
 ### Mandatory Rules for the Camel Service
 
@@ -27,11 +27,11 @@ Use this template when `RUNTIME == jbang`.
 | XSL files | Mount **every** `kaoto-datamapper-*.xsl` file individually (one `volumes:` entry per file) and list each in `command:` — Docker volumes do not support glob patterns. Omitting any XSL file causes `FileNotFoundException` at startup |
 | Properties | Mount `application.properties` and pass it via `--properties=` |
 | Port | Use the port from `camel.server.port` in `application.properties` |
-| External services | Add service definitions for TDD "Dependencies" section dependencies and use `depends_on:` from the Camel service |
+| External services | Add service definitions for design spec Dependencies section dependencies and use `depends_on:` from the Camel service |
 
 ```yaml
 # ============================================
-# Docker Compose for {FLOW_NAME} (JBang)
+# Docker Compose for {FLOW_NAME} (Main runtime)
 # ============================================
 
 services:
@@ -55,7 +55,7 @@ services:
       - {external-service}
     restart: unless-stopped
 
-  # External services from TDD "Dependencies" section
+  # External services from design spec Dependencies section
   {external-service}:
     image: {image}
     ports:
@@ -67,11 +67,11 @@ services:
 
 ## Spring Boot / Quarkus Template
 
-Use this template when `RUNTIME == springboot` or `RUNTIME == quarkus`.
+Use this template when `RUNTIME == spring-boot` or `RUNTIME == quarkus`.
 
 The Camel application is NOT included in docker-compose — it runs via `./mvnw spring-boot:run` or `./mvnw quarkus:dev`. Docker Compose only manages the external services the application depends on (databases, message brokers, mail servers, etc.).
 
-**If the TDD has no external service dependencies:** skip docker-compose generation entirely.
+**If the design spec has no external service dependencies:** skip docker-compose generation entirely.
 
 ```yaml
 # ============================================
@@ -79,7 +79,7 @@ The Camel application is NOT included in docker-compose — it runs via `./mvnw 
 # ============================================
 
 services:
-  # External services from TDD "Dependencies" section
+  # External services from design spec Dependencies section
   {external-service}:
     image: {image}
     container_name: {FLOW_NAME}-{service-name}
@@ -96,10 +96,13 @@ services:
 
 ## Service Catalog
 
-Use this catalog to select the correct Docker image, ports, and configuration for each external service type. Match the Camel component from the TDD to the corresponding service entry.
+Use this catalog to select the correct Docker image, ports, and configuration for each external service type. Match the
+Camel component from the design spec to the corresponding service entry.
 
 <HARD-RULE>
-When a TDD requires an external service (SMTP, database, message broker, etc.), you MUST spin up the corresponding Docker container from this catalog. NEVER skip verification because "a real server is not available" — that is exactly what these test containers are for.
+When the design spec requires an external service (SMTP, database, message broker, etc.), you MUST spin up the
+corresponding Docker container from this catalog. NEVER skip verification because "a real server is not available" —
+that is exactly what these test containers are for.
 </HARD-RULE>
 
 ### Mail (SMTP/IMAP/POP3)

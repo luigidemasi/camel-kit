@@ -12,7 +12,7 @@ Use `switch_mode` to transition to "camel-implement" custom mode before dispatch
 
 The gate file (`gates/camel-execute.md`) enforces two-stage review per task:
 
-- Per-task spec compliance review (does the output match the TDD?)
+- Per-task spec compliance review (does the output match the design spec?)
 - Per-task code quality review (constitution compliance, security, anti-patterns)
 - Final cross-cutting review across all routes (naming consistency, duplicate route IDs, orphaned properties)
 
@@ -38,6 +38,6 @@ Before implementing tasks, the environment probe runs. In Bob's mode system:
 
 When architectural failures trigger re-planning:
 
-- The re-plan modifies TDD files, which are markdown — editable in "camel-implement" mode
+- The re-plan modifies design spec sections, which are markdown — editable in "camel-implement" mode
 - Gate validation after re-plan should re-check the probe results
 - Max 3 re-plan rounds — if all fail, the gate reports a blocker regardless of oversight level

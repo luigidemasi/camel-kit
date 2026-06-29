@@ -6,7 +6,7 @@ See `AGENTS.md` for skill routing, iron laws, and project rules.
 
 Tasks are automatically delegated to specialized sub-agents based on the type of work:
 - **camel-brainstormer** — discovery and requirements gathering
-- **camel-planner** — implementation planning with TDD decomposition
+- **camel-planner** — implementation planning with design-spec decomposition
 - **camel-implementer** — route implementation and code generation
 - **camel-validator** — quality validation and analysis
 - **camel-tester** — test creation and execution

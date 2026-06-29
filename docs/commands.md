@@ -511,8 +511,8 @@ dispatched automatically by pipeline skills. Not exposed as direct slash-command
 **When to use:** Starting any new integration project. For migrations, use `/camel-migrate` instead.
 
 **Produces:**
-- `.camel-kit/business-requirements.md` (BRD)
-- `.camel-kit/flows/{flow-name}/{flow-name}.tdd.md` (one TDD per flow)
+- `docs/camel-kit/<PIPELINE_ID>/business-requirements.md`
+- `docs/camel-kit/<PIPELINE_ID>/design-spec.md`
 - `docs/constitution.md`
 
 **Examples:**
@@ -545,7 +545,7 @@ When invoked with a `<PIPELINE_ID>` argument:
    - Circuit breaker configuration (if HTTP components detected)
    - Idempotent consumer (if message broker components detected)
    - Transaction boundaries (if multiple sinks detected)
-7. **Assemble design spec** -- compiles the full BRD and TDD files
+7. **Assemble design spec** -- compiles the full business requirements and flow designs into the active design spec
 8. **Self-review** -- scans for placeholders, contradictions, unverified components
 9. **User approval** -- presents the spec and waits for explicit approval
 10. **Transition** -- in chained mode, invokes `/camel-plan` automatically after approval. In standalone/amend mode, writes output and stops.
@@ -669,9 +669,9 @@ During execution, `/camel-execute` dispatches these internal skills as needed. T
 
 | Internal Skill | Role |
 |---|---|
-| `/camel-implement` | Generate Camel YAML DSL routes from TDD specifications |
+| `camel-implement` | Generate Camel YAML DSL routes from the approved design spec and implementation plan |
 | `/camel-verify` | Runtime verification loop: build, start, diagnose errors, apply fixes |
-| `/camel-test` | Generate Citrus integration tests |
+| `camel-test` | Generate Citrus integration tests |
 | `/camel-knowledge` | Query documentation for component support and guidance |
 
 ---
@@ -682,7 +682,7 @@ During execution, `/camel-execute` dispatches these internal skills as needed. T
 
 **When to use:** When you have an existing MuleSoft, Camel 2.x/3.x, JBoss Fuse, or BizTalk project to migrate.
 
-**Produces:** Same as `/camel-brainstorm` -- BRD and TDD files, plus a design spec tailored to the migration.
+**Produces:** Same as `/camel-brainstorm` -- business requirements and an active design spec tailored to the migration.
 
 **Example:**
 
@@ -718,9 +718,9 @@ This is a shortcut into `/camel-brainstorm` with the project type pre-set to **m
 **Phase 2 -- Design:**
 
 1. Maps each source component to its catalog-verified Camel equivalent
-2. Converts DataWeave transformations into TDD field mapping tables
+2. Converts DataWeave transformations into design spec field mapping tables
 3. Asks only what the source artifacts cannot answer
-4. Produces BRD and one TDD per flow
+4. Produces business requirements and one active design spec covering all flows
 
 After both phases, the pipeline continues the same as greenfield: version selection, design assembly, user approval, then automatic transition to `/camel-plan`.
 
@@ -884,8 +884,8 @@ No direct user invocation. `/camel-execute` dispatches this skill internally dur
 
 **How it works (3-phase loop):**
 
-1. **Build Verification** -- compiles the project with `./mvnw` (skipped for JBang runtime). Classifies build errors and auto-fixes (missing dependencies, version conflicts) or routes to `camel-implement`/`camel-validate`. Up to 15 iterations.
-2. **Test Verification** -- runs Citrus integration tests via `camel test run`. Citrus tests are self-contained: Testcontainers start external services, `camel:jbang:run` starts the Camel integration, send/receive actions validate behavior. Classifies test failures and routes to `camel-implement` (route fix), `camel-test` (test re-generation), or self-repair. Up to 15 iterations.
+1. **Build Verification** -- compiles the project with `./mvnw` (skipped for JBang runtime). Classifies build errors and auto-fixes (missing dependencies, version conflicts) or routes to internal implementation/validation handling. Up to 15 iterations.
+2. **Test Verification** -- runs Citrus integration tests via `camel test run`. Citrus tests are self-contained: Testcontainers start external services, `camel:jbang:run` starts the Camel integration, send/receive actions validate behavior. Classifies test failures and routes to internal implementation handling, internal test regeneration, or self-repair. Up to 15 iterations.
 3. **Report** -- structured summary with phase outcomes, fixes applied, and issues found.
 
 **Error classification (14 patterns):**
@@ -896,20 +896,21 @@ No direct user invocation. `/camel-execute` dispatches this skill internally dur
 | Third-party dependency | `cannot find symbol` for non-Camel class | Self-repair |
 | Version incompatibility | `NoSuchMethodError`, `AbstractMethodError` | Self-repair (align BOM) |
 | Build tool | Unknown lifecycle phase, missing plugin | Escalate to user |
-| Route creation | `FailedToCreateRouteException` | `/camel-implement` (re-generate route) |
-| Unknown component | `NoSuchEndpointException` | `/camel-implement` |
+| Route creation | `FailedToCreateRouteException` | Internal implementation handling (re-generate route) |
+| Unknown component | `NoSuchEndpointException` | Internal implementation handling |
 | Wrong endpoint options | `ResolveEndpointFailedException` | `/camel-validate` |
-| Missing bean | `NoSuchBeanException` | `/camel-implement` |
-| Injection failure | `UnsatisfiedDependencyException` | `/camel-implement` |
+| Missing bean | `NoSuchBeanException` | Internal implementation handling |
+| Injection failure | `UnsatisfiedDependencyException` | Internal implementation handling |
 | External service | `Connection refused` | Self-repair (restart Docker service) |
 | Quarkus augmentation | `io.quarkus.builder.BuildException` | Escalate to user |
-| Expression failure | `ExpressionEvaluationException` | `/camel-implement` |
-| Type conversion | `TypeConversionException` | `/camel-implement` |
-| XSLT transformation | `XPathException`, `TransformerException` | `/camel-implement` |
+| Expression failure | `ExpressionEvaluationException` | Internal implementation handling |
+| Type conversion | `TypeConversionException` | Internal implementation handling |
+| XSLT transformation | `XPathException`, `TransformerException` | Internal implementation handling |
 
 Each phase has an independent iteration budget of 15 attempts. If the same error recurs after a fix attempt, the loop short-circuits and escalates to the user. Unclassified errors are also escalated with the raw log output.
 
-During **Test Verification** (Phase 2), test failures may also route to `/camel-test` for test re-generation. For persistent **architectural** failures, the loop triggers the **re-plan** flow per `camel-execute/guides/re-plan-loop.md`.
+During **Test Verification** (Phase 2), test failures may also route to internal test regeneration. For persistent
+**architectural** failures, the loop triggers the **re-plan** flow per `camel-execute/guides/re-plan-loop.md`.
 
 ---
 

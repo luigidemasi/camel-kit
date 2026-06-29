@@ -4,7 +4,7 @@ For each computational step in the Guide Manifest, delegate to the corresponding
 
 Example:
 - "Have the camel-component-selector sub-agent select components. Input: {step-input-description}. Write output to {output-path}."
-- "Have the camel-tdd-assembler sub-agent assemble the TDD. Input: all .steps/ outputs. Write output to {final-tdd-path}."
+- "Have the camel-design-assembler sub-agent assemble the design spec. Input: all .steps/ outputs. Write output to {final-design-spec-path}."
 
 Include in each delegation:
 - The flow/task name

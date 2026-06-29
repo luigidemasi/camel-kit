@@ -44,7 +44,7 @@ OpenCode provides two primary agents (`Build` for code generation, `Plan` for an
 
 The environment probe runs before task dispatch. Budget `steps: 30` for the probe phase within Stage 2 (Execute). The probe is lightweight (skeleton generation, dependency check, Docker health poll) and should not consume the main implementation budget.
 
-If the probe triggers a re-plan loop, increase the effective Step 2 budget by `steps: 50` per re-plan round (max 3 rounds = +150 steps). Use the `General` agent type for re-planning since it involves both code reads and TDD edits.
+If the probe triggers a re-plan loop, increase the effective Step 2 budget by `steps: 50` per re-plan round (max 3 rounds = +150 steps). Use the `General` agent type for re-planning since it involves both code reads and design spec edits.
 
 ### Test Execution Agent
 

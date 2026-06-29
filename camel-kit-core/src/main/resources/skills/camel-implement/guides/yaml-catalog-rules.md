@@ -13,7 +13,9 @@ Every component scheme, endpoint option name, component-level option name, and M
 
 ## Rule 0b: Data format names and options must be catalog-verified
 
-If the TDD requires `unmarshal` or `marshal`, call `camel_catalog_dataformat_doc` for the data format (e.g. `jackson`, `jaxb`, `csv`, `avro`) with the project Camel version before generating the YAML block. Never assume the data format name, its configuration options, or its Maven coordinates from training data. Example:
+If the design spec requires `unmarshal` or `marshal`, call `camel_catalog_dataformat_doc` for the data format (e.g.
+`jackson`, `jaxb`, `csv`, `avro`) with the project Camel version before generating the YAML block. Never assume the
+data format name, its configuration options, or its Maven coordinates from training data. Example:
 ```
 MCP Tool: camel_catalog_dataformat_doc
 Params: { "dataformat": "jackson", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }

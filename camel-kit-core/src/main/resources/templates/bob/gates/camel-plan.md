@@ -75,7 +75,7 @@ For each task, specify:
 <Step>
 ## Generate Plan Document
 
-Save the plan to `docs/implementation-plan.md`.
+Save the plan to `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`.
 
 Use this format:
 
@@ -143,7 +143,7 @@ tasks:
 - [ ] **Step N:** Verify: [exact command to run and expected output]
 
 **Review:**
-- [ ] Spec compliance: [what to check — components match TDD, structure correct, properties complete]
+- [ ] Spec compliance: [what to check — components match design spec, structure correct, properties complete]
 - [ ] Code quality: [what to check — constitution rules, security, anti-patterns]
 ````
 </Step>
@@ -186,7 +186,7 @@ All implementation tasks are locked. Create a checkpoint now.
 Switch to **camel-execute** mode.
 
 Execute the approved implementation plan task-by-task with two-stage review:
-1. Spec compliance review (does it match the TDD?)
+1. Spec compliance review (does it match the design spec?)
 2. Code quality review (does it follow constitution rules?)
 
 For each task:
@@ -224,5 +224,5 @@ The plan is a RECIPE, not the MEAL.
 
 Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
 
-- **Iron Law 4: No Code Without Spec Approval** — The plan is based on an APPROVED design spec.
+- **Iron Law 3: No Code Without Spec Approval** — The plan is based on an APPROVED design spec.
 - **Iron Law 4: Spec Compliance Before Quality** — The plan MUST specify two-stage review for every implementation task: spec compliance first, then quality.

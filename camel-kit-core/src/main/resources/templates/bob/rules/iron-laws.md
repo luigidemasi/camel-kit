@@ -6,7 +6,7 @@ These rules apply across ALL camel-kit pipeline modes. They are non-negotiable.
 
 2. **Constitution Enforcement** — Read and follow `docs/constitution.md` in every pipeline phase. The constitution defines project-specific rules that override general best practices.
 
-3. **No Code Without Plan & Spec Approval** — NEVER generate implementation artifacts (YAML routes, Java code, test files) before the user has explicitly approved the design spec AND a task-based implementation plan exists. Skills like `camel-migrate` produce TDDs, NOT final code.
+3. **No Code Without Plan & Spec Approval** — NEVER generate implementation artifacts (YAML routes, Java code, test files) before the user has explicitly approved the design spec AND a task-based implementation plan exists. Skills like `camel-migrate` produce design specs, NOT final code.
 
 4. **Adversarial Code Review** — Every generated code artifact must pass an adversarial code review before proceeding to spec compliance and quality reviews. Parallel Critic Lanes run in fresh contexts with no accumulated session state.
 

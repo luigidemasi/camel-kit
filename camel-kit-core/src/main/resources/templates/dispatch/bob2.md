@@ -11,7 +11,7 @@ For each computational step in the Guide Manifest, use Bob 2 native subagents wh
 Include in each subagent description:
 - The flow/task name and task ID
 - Camel version from `.camel-kit/config.properties`
-- Relevant user decisions and design/TDD paths
+- Relevant user decisions and design spec paths
 - Required skill and guide paths
 - Exact output paths and verification commands
 

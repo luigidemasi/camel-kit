@@ -35,9 +35,9 @@ This eliminates permission prompts during implementation, which would break auto
 
 ### Batch Context Loading for Environment Probe
 
-Before the environment probe runs, use `read_many_files` to load all TDD files in a single call:
+Before the environment probe runs, use `read_many_files` to load the active design spec in a single call:
 
-- Load all `docs/flows/{flow-name}/{flow-name}.tdd.md` files
+- Load `docs/camel-kit/<PIPELINE_ID>/design-spec.md`
 - Load `.camel-kit/config.properties`
 - This gives the probe full context for skeleton generation without multiple sequential reads
 

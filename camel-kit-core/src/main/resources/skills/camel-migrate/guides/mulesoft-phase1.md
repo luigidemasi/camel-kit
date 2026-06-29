@@ -20,11 +20,11 @@ This guide is loaded by `camel-migrate` after it has already:
 
 You will work in two phases:
 - **Phase 1 (Business Analyst):** Deep-dive into Mule XML flows, resolve proprietary connectors, fill any remaining gaps, produce BRD.
-- **Phase 2 (Integration Architect):** Design catalog-verified Camel route architecture and produce TDD files.
+- **Phase 2 (Integration Architect):** Design catalog-verified Camel route architecture and produce design spec updates.
 
-**Phase 1 of 2.** After completing this phase (BRD generation), the orchestrator dispatches Phase 2 (TDD generation) automatically.
+**Phase 1 of 2.** After completing this phase (BRD generation), the orchestrator dispatches Phase 2 (design spec generation) automatically.
 
-The outputs are identical in format to `/camel-project` + `/camel-flow`, making them fully compatible with `/camel-implement`.
+The outputs use the active Camel Kit pipeline package, making them compatible with `camel-plan` and `camel-execute`.
 
 ---
 
@@ -72,8 +72,8 @@ I found the following connector with no direct Apache Camel equivalent:
   Suggested alternatives based on your project dependencies:
   a) [best match from pom.xml analysis] — [brief description]
   b) [alternative]
-  c) Remove this step
-  d) Keep as a TODO placeholder
+  c) Provide another MCP-verified replacement
+  d) Remove this step
 
 Your choice?
 ```
@@ -96,7 +96,7 @@ If the summary has no remaining gaps, skip this step entirely.
 
 ### Step 1.4 — Produce Business Requirements Document
 
-Create `docs/business-requirements.md` using the following format:
+Create `docs/camel-kit/<PIPELINE_ID>/business-requirements.md` using the following format:
 
 ```markdown
 # Business Requirements Document
@@ -154,7 +154,7 @@ The following rules from `docs/constitution.md` apply to every generated route:
 
 ## Next Steps
 
-Run `/camel-implement <flow-name>` for each flow once TDD files are created.
+Continue to `camel-plan` and `camel-execute` once the design spec is approved.
 
 ## Appendices
 
@@ -180,13 +180,13 @@ Report:
 Phase 1 complete.
 
 Created:
-- docs/business-requirements.md
+- docs/camel-kit/<PIPELINE_ID>/business-requirements.md
 
 Flows to migrate: [list flow names]
 
 Starting Phase 2 — Integration Architect...
 ```
 
-**Phase 1 complete.** The orchestrator will now dispatch Phase 2 (`mulesoft-phase2.md`) to generate TDD files.
+**Phase 1 complete.** The orchestrator will now dispatch Phase 2 (`mulesoft-phase2.md`) to generate design spec updates.
 
 ---

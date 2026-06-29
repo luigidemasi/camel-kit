@@ -3,7 +3,7 @@
 > **Context variables provided by master SKILL.md:**
 > - `FLOW_NAME` — the flow being tested
 > - `TEST_DIR` — resolved test file directory
-> - `RUNTIME` — project runtime (`jbang`, `springboot`, or `quarkus`)
+> - `RUNTIME` — project runtime (`main`, `spring-boot`, or `quarkus`)
 
 ---
 
@@ -23,7 +23,7 @@ Create file: `{TEST_DIR}application-test.properties`
 # Camel configuration for testing
 # Spring Boot only: camel.springboot.name={flow-name}-test
 # Quarkus only:     quarkus.camel.routes-discovery.enabled=true
-# JBang: no framework-specific config needed
+# Main runtime: no framework-specific config needed
 
 # Override with test-specific values
 kafka.topic.input=test-orders

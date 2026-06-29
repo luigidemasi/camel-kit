@@ -8,9 +8,9 @@ This guide generates inline Groovy transformation scripts embedded directly in t
 
 ## Step 3: Generate Inline Groovy Script
 
-Read the TDD `### DataMapper:` section. The `**Transformation Engine:**` header says `Groovy (inline)` and the `**Format Pair:**` header indicates which pattern to use.
+Read the design spec `### DataMapper:` section. The `**Transformation Engine:**` header says `Groovy (inline)` and the `**Format Pair:**` header indicates which pattern to use.
 
-**IMPORTANT — use semantic field paths from the TDD:** For each field mapping row, translate the **Source Field** column to Groovy dot-notation navigation and the **Target Field** column to the output key/element name. Do not compute XPaths — Groovy uses native object access.
+**IMPORTANT — use semantic field paths from the design spec:** For each field mapping row, translate the **Source Field** column to Groovy dot-notation navigation and the **Target Field** column to the output key/element name. Do not compute XPaths — Groovy uses native object access.
 
 ---
 
@@ -35,9 +35,9 @@ The most common case for Groovy-based DataMapper. Parse input JSON, build a Groo
           JsonOutput.toJson(result)
 ```
 
-**Concrete example — from TDD rows:**
+**Concrete example — from design spec rows:**
 
-Given TDD rows:
+Given design spec rows:
 
 | Source Field | Src Type | Target Field | Tgt Type | Transformation | How |
 |---|---|---|---|---|---|
@@ -90,7 +90,7 @@ Produces:
 
 **Transformation mapping:**
 
-| TDD Transformation | Groovy equivalent |
+| Design Spec Transformation | Groovy equivalent |
 |---|---|
 | Direct copy | `src.field` (no transformation) |
 | `format('##.##')` | `String.format('%.2f', src.field as Double)` |
@@ -101,9 +101,9 @@ Produces:
 | Arithmetic (`price * qty`) | `src.price * src.quantity` |
 | Type cast | `src.field as Double`, `src.field as Integer`, `src.field as String` |
 
-**Conditional mapping (from TDD Conditional Mappings table):**
+**Conditional mapping (from design spec Conditional Mappings table):**
 
-| TDD pattern | Groovy equivalent |
+| Design Spec pattern | Groovy equivalent |
 |---|---|
 | `if condition → trueVal else falseVal` | `src.amount > 1000 ? 'HIGH' : 'NORMAL'` |
 | `when A → X, when B → Y, otherwise → Z` | `['PENDING': 'REVIEW', 'APPROVED': 'PROCESS'].getOrDefault(src.status, 'HOLD')` or nested ternary for simple cases |
@@ -234,7 +234,7 @@ When target-type is `Primitive`:
 
 ## Source Parameters (Camel Headers/Variables)
 
-When the TDD lists source parameters, access them via the Exchange:
+When the design spec lists source parameters, access them via the Exchange:
 
 ```groovy
 def userId = exchange.getMessage().getHeader('userId')
@@ -285,7 +285,7 @@ def result = [
 - No `useJsonBody: true` parameter (Groovy handles JSON parsing internally)
 - No `setHeader`/`setBody` pre-steps (Groovy reads the body directly via `request.body`)
 
-The `id` field uses the same `kaoto-datamapper-{8hexchars}` mapping ID from the TDD for traceability.
+The `id` field uses the same `kaoto-datamapper-{8hexchars}` mapping ID from the design spec for traceability.
 
 ---
 

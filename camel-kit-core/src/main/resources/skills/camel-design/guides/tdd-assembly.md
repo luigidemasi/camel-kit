@@ -1,42 +1,44 @@
-# TDD Assembly Guide
+# Flow Design Assembly Guide
 
-You are assembling a Technical Design Document (TDD) from step outputs.
+You are assembling flow-level technical design details into the active Camel Kit design spec.
 
 ## Inputs
 
-Read all files from `docs/flows/{flow-name}/.steps/`:
-- `01-context.json` — project context (camelVersion, runtime)
-- `02-components.md` — selected source and sink components
-- `03-transforms.md` — transformation design (if present)
-- `04-patterns.md` — EIP pattern decisions (if present)
-- Additional step outputs as present
+Read the active pipeline ID from `.camel-kit/pipeline.json`, then load:
 
-Also read:
+- `docs/camel-kit/<PIPELINE_ID>/design-spec.md` — the canonical design spec
 - `docs/constitution.md` — for gate checks
+- Any collected step outputs already referenced by the design spec
+
+Do not create standalone per-flow design documents. The active design spec is the single source of truth for planning,
+execution, validation, and verification.
 
 ## Constitution Gate Check
 
-Before creating the TDD, verify the design against the constitution:
+Before updating the design spec, verify each flow design against the constitution:
 
-- Route Structure: Single responsibility
-- Configuration: Externalized to properties
-- Error Handling: Dead Letter Channel configured
-- Security: No hardcoded credentials
+- Route Structure: single responsibility
+- Configuration: externalized to properties
+- Error Handling: dead letter channel or documented equivalent configured
+- Security: no hardcoded credentials
 
-Report any violations.
+Report any violations and fix the design spec before planning continues.
 
-## TDD Sections
+## Flow Design Sections
 
-Generate `docs/flows/{flow-name}/{flow-name}.tdd.md` with these sections:
+Update the relevant `## 3. Flow Designs` section in `docs/camel-kit/<PIPELINE_ID>/design-spec.md` with these
+flow-level details:
 
-**Core Sections (always include):**
+**Core sections for every flow:**
+
 1. Overview (business context, technical summary)
 2. Source System (component, URI, config)
 3. Processing Steps (EIPs, transformations)
 4. Sink System (component, URI, config)
 5. Error Handling (strategy, DLQ, retries)
 
-**Conditional Sections (include only if corresponding step output exists):**
+**Conditional sections when applicable:**
+
 6. Resilience / Circuit Breaker
 7. Idempotent Consumer
 8. Transactions
@@ -45,6 +47,7 @@ Generate `docs/flows/{flow-name}/{flow-name}.tdd.md` with these sections:
 11. Monitoring & Observability
 
 **Always include:**
+
 12. Sequence Diagram
 13. Configuration Properties
 14. Dependencies
@@ -54,6 +57,7 @@ Generate `docs/flows/{flow-name}/{flow-name}.tdd.md` with these sections:
 
 ## Output
 
-Write the assembled TDD to: `docs/flows/{flow-name}/{flow-name}.tdd.md`
+Write the updated flow design back to `docs/camel-kit/<PIPELINE_ID>/design-spec.md`.
 
-Delete draft file if it exists: `docs/flows/{flow-name}/{flow-name}.tdd.draft.md`
+If draft flow notes exist, move their finalized content into the design spec and remove only those draft notes after the
+design spec is complete.

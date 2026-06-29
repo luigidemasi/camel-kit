@@ -26,8 +26,8 @@ Camel-Kit is an AI-powered toolkit that guides you through designing, planning, 
 
 | Concept | What It Is |
 |---------|------------|
-| **BRD** (Blueprint Reference Document) | The design output from the brainstorm phase. Captures business purpose, systems landscape, flow summaries, and integration requirements. |
-| **TDD** (Technical Design Document) | Per-flow specification. Describes the source, processing steps, sink, error handling, data transformation, configuration, and dependencies for a single Camel route. |
+| **Business Requirements** | The requirements output from the brainstorm phase. Captures business purpose, systems landscape, flow summaries, and integration requirements. |
+| **Design Spec** | The pipeline design contract. Describes each flow's source, processing steps, sink, error handling, data transformation, configuration, dependencies, and test criteria. |
 | **MCP** (Model Context Protocol) | Real-time catalog queries. The AI assistant queries the Camel MCP server to verify components, EIPs, data formats, and expression languages exist in your exact Camel version -- never relying on training data. |
 | **Constitution** | Seven route quality rules enforced on every generated route: route structure, single responsibility, separation of concerns, naming conventions, observability, external configuration, and component support verification. |
 | **Iron Laws** | Non-negotiable pipeline rules that govern the entire workflow: MCP catalog verification for every component, constitution compliance on every route, no code without design approval, and spec compliance review before quality review. |
@@ -237,8 +237,8 @@ flowchart TB
     subgraph "Phase 3: Execute"
         D["/camel-execute"]
         subgraph "Internal Skills"
-            I["/camel-implement"]
-            T["/camel-test"]
+            I["camel-implement"]
+            T["camel-test"]
             R["/camel-verify (internal)"]
         end
     end
@@ -338,7 +338,7 @@ The design phase is an interactive interview that produces the design spec. The 
 - Data transformation requirements
 - Camel version selection
 
-**Output:** A BRD (`.camel-kit/business-requirements.md`) with TDDs (`.camel-kit/flows/{flow-name}/{flow-name}.tdd.md`) for each flow.
+**Output:** Business requirements and a design spec under `docs/camel-kit/<PIPELINE_ID>/`.
 
 After the user reviews and approves the design spec, the pipeline transitions automatically to the plan phase.
 
@@ -364,10 +364,11 @@ After the plan is complete, the pipeline transitions automatically to the execut
 
 ### Phase 3: Execute (`/camel-execute`)
 
-The execute phase runs all tasks from the approved plan autonomously, without pausing between tasks. For each task, it orchestrates four internal skills:
+The execute phase runs all tasks from the approved plan autonomously, without pausing between tasks. For each task, it
+orchestrates internal skills:
 
-1. **`/camel-implement`** -- generates Camel YAML routes, properties, pom.xml dependencies, and DataMapper transformations from the TDD
-2. **`/camel-test`** -- generates Citrus integration tests
+1. **`camel-implement`** -- generates Camel YAML routes, properties, pom.xml dependencies, and DataMapper transformations from the approved design spec and implementation plan
+2. **`camel-test`** -- generates Citrus integration tests
 3. **`/camel-verify`** (internal) -- runs the 3-phase verification loop (build, Citrus tests, report)
 
 After all execute tasks complete, `/camel-validate` runs as a separate Tier 1 pipeline step -- the final user-facing quality gate.
@@ -390,8 +391,8 @@ cd order-processing
 
 # The AI asks about your business requirements, systems, and data flows.
 # After the interview, it presents a design spec with:
-#   - BRD covering the order processing domain
-#   - TDD for the order-ingestion flow (Kafka -> validate -> enrich -> PostgreSQL)
+#   - Business requirements covering the order processing domain
+#   - Flow design for order-ingestion (Kafka -> validate -> enrich -> PostgreSQL)
 #   - Error handling: dead letter queue on kafka:orders-dlq
 # You review and approve the design.
 
@@ -484,7 +485,7 @@ The command scans all project artifacts, detects the source platform automatical
 
 ### Output
 
-The migration produces a BRD and TDDs in the same format as `/camel-brainstorm`. This means the rest of the pipeline is identical:
+The migration produces business requirements and a design spec in the same format as `/camel-brainstorm`. This means the rest of the pipeline is identical:
 
 ```
 /camel-migrate  -->  /camel-plan  -->  /camel-execute  -->  /camel-validate
@@ -519,8 +520,8 @@ Each phase uses an error taxonomy of 14 patterns organized by phase (build error
 | Fix Target | Examples |
 |-----------|----------|
 | **Self-repair** | Missing dependency in pom.xml, missing property in `application.properties`, Docker service restart |
-| **Route to internal skill** | Wrong component options (to `/camel-validate`), broken route YAML (to `/camel-implement`), test syntax error (to `/camel-test`) |
-| **Re-plan** | Persistent architectural failures trigger automatic TDD modification via the re-plan loop (max 3 rounds) |
+| **Route to internal handling** | Wrong component options (to `/camel-validate`), broken route YAML, test syntax error |
+| **Re-plan** | Persistent architectural failures trigger automatic design-spec modification via the re-plan loop (max 3 rounds) |
 | **Escalate to user** | Unclassified errors, same error after fix attempt, iteration limit (15) reached, re-plan limit (3) reached |
 
 ### Graceful Degradation
@@ -531,7 +532,9 @@ Verification adapts to available tools. If Maven is missing, build verification 
 
 ## 7. Data Transformation (DataMapper)
 
-Camel-Kit automatically handles data transformation during the design phase. The AI determines the transformation engine, gathers field mappings, and writes the canonical mapping specification to the TDD. Implementation is handled by `/camel-execute`.
+Camel-Kit automatically handles data transformation during the design phase. The AI determines the transformation
+engine, gathers field mappings, and writes the canonical mapping specification to the design spec. Implementation is
+handled by `/camel-execute`.
 
 ### Two Engines
 
@@ -605,8 +608,8 @@ When working with existing projects -- whether migrating from another platform, 
 The graph is consumed transparently by multiple skills:
 
 - **`/camel-validate`** -- Validation thresholds adapt to the project's actual patterns. A route with 15 steps is acceptable in a project where existing routes average 12 steps, but flagged in a project where they average 5. Dead code detection finds unused dependencies and orphaned routes.
-- **`/camel-implement`** -- The AI matches the project's existing conventions (naming patterns, bean reuse, dependency versions) rather than inventing new ones.
-- **`/camel-test`** -- Route topology awareness lets the AI understand upstream and downstream dependencies, generating tests that cover integration points rather than just individual routes.
+- **`camel-implement`** -- The AI matches the project's existing conventions (naming patterns, bean reuse, dependency versions) rather than inventing new ones.
+- **`camel-test`** -- Route topology awareness lets the AI understand upstream and downstream dependencies, generating tests that cover integration points rather than just individual routes.
 - **`/camel-migrate`** -- A full-project graph analysis in Phase 0 detects structural concerns (circular dependencies, deeply nested route chains, unused components) before any code is translated. Per-route impact analysis in Phase 2 identifies cross-cutting concerns for each route being migrated. For MuleSoft projects, the graph automatically parses all Mule XML flows, sub-flows, connectors, and DataWeave scripts -- giving the migration skill instant flow topology without manual XML deep-dives. For BizTalk projects, the graph parses orchestrations, maps, pipelines, and bindings -- detecting adapters, functoid types, shape patterns, and pipeline components automatically.
 
 ### Graph Commands

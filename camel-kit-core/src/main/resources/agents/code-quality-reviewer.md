@@ -15,7 +15,7 @@ You are the **second stage** of the two-stage review process (Iron Law 4). You r
 
 ## What You Check
 
-### 1. Constitution Compliance (Iron Law 3)
+### 1. Constitution Compliance (Iron Law 2)
 
 Check all 7 rules for every route:
 

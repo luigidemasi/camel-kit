@@ -107,7 +107,8 @@ Record: `flows[]` with name, description, source_system, target_system
 
 ## Per-Flow Deep Dive
 
-For EACH flow identified, ask the following questions in sequence. This replaces the old `/camel-flow` interview — all flows are designed in a single brainstorm session.
+For EACH flow identified, ask the following questions in sequence. This replaces the old separate flow interview — all
+flows are designed in a single brainstorm session.
 
 ### Question 5: Flow Intent and Data (per flow)
 

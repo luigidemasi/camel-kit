@@ -43,6 +43,7 @@ class VersionPlaceholderResolver {
         data.put("CAMEL_SPRINGBOOT_VERSION", dist.camelSpringbootVersion());
         data.put("CAMEL_QUARKUS_VERSION", dist.camelQuarkusVersion());
         data.put("SPRINGBOOT_BOM_VERSION", dist.springbootBomVersion());
+        data.put("SPRING_BOOT_VERSION", dist.springBootVersion());
         data.put("QUARKUS_PLATFORM_VERSION", dist.quarkusPlatformVersion());
         data.put("CAMEL_MAIN_SUPPORTED", dist.camelMainSupported());
         data.put("CAMEL_SPRINGBOOT_SUPPORTED", dist.camelSpringbootSupported());
@@ -55,6 +56,14 @@ class VersionPlaceholderResolver {
                     .append(" |\n");
         }
         data.put("QUARKUS_PLATFORM_TABLE", table.toString().stripTrailing());
+
+        table = new StringBuilder();
+        for (var entry : dist.springBootMappings().entrySet()) {
+            table.append("| ").append(entry.getKey())
+                    .append(" | ").append(entry.getValue())
+                    .append(" |\n");
+        }
+        data.put("SPRING_BOOT_VERSION_TABLE", table.toString().stripTrailing());
         return data;
     }
 }

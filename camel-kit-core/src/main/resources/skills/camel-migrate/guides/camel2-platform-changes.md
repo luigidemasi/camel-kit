@@ -68,7 +68,7 @@ Camel 4.x requires Jakarta EE 10 (from Java EE / javax). All Java source files i
 | `javax.annotation.*` | `jakarta.annotation.*` |
 | `javax.persistence.*` | `jakarta.persistence.*` |
 
-**Note:** This is a Java source change, not a route DSL change. Flag these in the TDD as "manual migration required: update imports javax→jakarta" but do NOT attempt to modify Java source files during route migration.
+**Note:** This is a Java source change, not a route DSL change. Flag these in the design spec as "manual migration required: update imports javax→jakarta" but do NOT attempt to modify Java source files during route migration.
 
 ## Maven Dependency Changes
 
@@ -121,4 +121,6 @@ These affect Java `RouteBuilder` classes:
 | `context.getTypeConverterRegistry()` | `context.getTypeConverterRegistry()` | Unchanged |
 | `context.getEndpoint("uri")` | `context.getEndpoint("uri")` | Unchanged |
 
-**Note:** Flag Java DSL API changes in the TDD "Processing Steps" section but do NOT attempt to auto-migrate Java source code. The TDD output is YAML DSL — Java changes are documented as manual follow-up tasks.
+**Note:** Record Java DSL API changes in the design spec Processing Steps section but do NOT attempt to auto-migrate
+Java source code. The design spec output targets YAML DSL, and Java changes are documented as implementation actions
+for `camel-execute`.

@@ -4,9 +4,9 @@
 > - `FLOW_NAME` — the flow being implemented
 > - `CAMEL_VERSION` — from `.camel-kit/config.properties`
 
-This guide implements advanced EIP patterns referenced in the TDD. Each pattern maps to a specific TDD section:
+This guide implements advanced EIP patterns referenced in the design spec. Each pattern maps to a specific design spec section:
 
-| Pattern | TDD Section |
+| Pattern | Design Spec Section |
 |---------|-------------|
 | Idempotent Consumer | "Resilience / Circuit Breaker" or "Idempotent Consumer" |
 | Transactions | "Transactions" |
@@ -19,13 +19,13 @@ This guide implements advanced EIP patterns referenced in the TDD. Each pattern 
 | Dead Letter Channel | "Error Handling" |
 | Schema Validation | "Processing Steps" |
 
-**Only implement patterns that appear in the TDD.** Skip patterns whose corresponding TDD section does not exist.
+**Only implement patterns that appear in the design spec.** Skip patterns whose corresponding design spec section does not exist.
 
 ---
 
 ### 8.1 Idempotent Consumer Pattern
 
-If TDD specifies exactly-once or at-least-once delivery:
+If the design spec specifies exactly-once or at-least-once delivery:
 
 ```yaml
 # Add to route after source (from:)
@@ -53,7 +53,7 @@ idempotent.repository.cacheRemovalPeriod=3600000
 
 ### 8.2 Transaction Support
 
-If TDD requires transactional processing:
+If the design spec requires transactional processing:
 
 ```yaml
 # Add transaction policy to route
@@ -89,7 +89,7 @@ camel.beans.transactionManager.dataSource=#dataSource
 
 ### 8.3 Circuit Breaker Pattern
 
-If TDD identifies external dependencies:
+If the design spec identifies external dependencies:
 
 ```yaml
 # Wrap external calls with circuit breaker
@@ -147,7 +147,7 @@ errorHandler:
 
 ### 8.5 Correlation ID Propagation
 
-If TDD "Monitoring & Observability" section requires correlation IDs:
+If the design spec Monitoring & Observability section requires correlation IDs:
 
 ```yaml
 # Add at route entry point
@@ -168,7 +168,7 @@ If TDD "Monitoring & Observability" section requires correlation IDs:
 
 ### 8.6 Content Enricher with Caching
 
-If TDD has enrichment steps and high volume:
+If the design spec has enrichment steps and high volume:
 
 ```yaml
 # Enrich with caching
@@ -187,7 +187,7 @@ camel.beans.customerEnricher=#class:com.example.CustomerEnricherStrategy
 
 ### 8.7 Throttling / Rate Limiting
 
-If TDD "Performance & Reliability" section specifies throttling:
+If the design spec Performance & Reliability section specifies throttling:
 
 ```yaml
 # Throttle message processing
@@ -250,7 +250,7 @@ errorHandler:
 
 ### 8.10 Schema Validation
 
-If TDD requires input validation:
+If the design spec requires input validation:
 
 ```yaml
 # Validate against JSON schema
@@ -279,12 +279,12 @@ validation.schema.location=schemas/{flow-name}-input.json
 
 ### 8.11 Implementation Checklist
 
-Verify implementation of patterns from TDD:
+Verify implementation of patterns from the design spec:
 
 ```
 Advanced Patterns Implementation:
 
-From TDD "Performance & Reliability" section:
+From design spec Performance & Reliability section:
   [✓] Idempotent consumer: [Implemented/Not needed]
   [✓] Transactions: [Implemented/Not needed]
   [✓] Circuit breaker: [Implemented/Not needed]
@@ -292,15 +292,14 @@ From TDD "Performance & Reliability" section:
   [✓] Throttling: [Implemented/Not needed]
   [✓] Batching: [Implemented/Not needed]
 
-From TDD "Security" section:
+From design spec Security section:
   [✓] Input validation: [Implemented/Not needed]
   [✓] Schema validation: [Implemented/Not needed]
 
-From TDD "Monitoring & Observability" section:
+From design spec Monitoring & Observability section:
   [✓] Correlation ID: [Implemented]
   [✓] Structured logging: [Implemented]
   [✓] Metrics: [Implemented/Not needed]
 ```
 
 ---
-

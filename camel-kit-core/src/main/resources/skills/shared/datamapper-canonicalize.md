@@ -1,8 +1,12 @@
 # DataMapper Canonicalize Guide
 
-This shared guide is loaded by `datamapper-interview.md` (from `/camel-flow`) or `datamapper-migrate.md` (from `/camel-migrate`) after they have gathered and confirmed the semantic field mappings.
+This shared guide is loaded by DataMapper interview or migration guides after they have gathered and confirmed the
+semantic field mappings.
 
-It first decides which transformation engine to use (Groovy or XSLT), then enriches the semantic mappings accordingly — XSLT-ready structural information (exact XPaths, target elements, pattern/approach) for XSLT, or a simplified semantic-only table for Groovy — confirms the enriched table with the user, and writes the canonical `### DataMapper:` section to the TDD.
+It first decides which transformation engine to use (Groovy or XSLT), then enriches the semantic mappings accordingly:
+XSLT-ready structural information (exact XPaths, target elements, pattern/approach) for XSLT, or a simplified
+semantic-only table for Groovy. It then confirms the enriched table with the user and writes the canonical
+`### DataMapper:` section to the active pipeline design spec.
 
 **Context provided by the calling guide:**
 - Semantic field mappings table (source field, src type, target field, tgt type, transformation, how)
@@ -225,7 +229,7 @@ If the user wants to modify: ask which row to change, update the semantic AND st
 
 ---
 
-## Step 5: Write Enriched TDD Section
+## Step 5: Write Enriched Design Spec Section
 
 **CRITICAL — do not save an empty Field Mappings table.** If the Field Mappings table has no data rows, do NOT append the DataMapper section. Instead, report:
 
@@ -237,15 +241,16 @@ would be functionally useless and cannot be fixed by Kaoto IDE alone.
 
 Action required:
 1. If this is a migration: run the DataWeave conversion analysis to extract field mappings.
-2. If this is a greenfield flow: run /camel-flow and complete the data transformation interview.
+2. If this is a greenfield flow: return to `camel-brainstorm` and complete the data transformation interview.
 3. Then re-run the current command.
 ```
 
-**Stop here — do not write the TDD section.**
+**Stop here — do not write the design spec section.**
 
 ---
 
-**If Field Mappings table has at least one data row**, append the following section to `docs/flows/{flow-name}/{flow-name}.tdd.md`:
+**If Field Mappings table has at least one data row**, append the following section to the relevant
+`### Flow: {flow-name}` entry in `docs/camel-kit/<PIPELINE_ID>/design-spec.md`:
 
 ```markdown
 ### DataMapper: kaoto-datamapper-{8hexchars}
@@ -369,7 +374,7 @@ If the user wants to modify: ask which row to change, update accordingly, and re
 
 ---
 
-## Step 3G: Write Groovy TDD Section
+## Step 3G: Write Groovy Design Spec Section
 
 **CRITICAL — do not save an empty Field Mappings table.** If the Field Mappings table has no data rows, do NOT append the DataMapper section. Instead, report:
 
@@ -380,15 +385,16 @@ The Groovy script cannot be generated from an empty mapping table.
 
 Action required:
 1. If this is a migration: run the DataWeave conversion analysis to extract field mappings.
-2. If this is a greenfield flow: run /camel-flow and complete the data transformation interview.
+2. If this is a greenfield flow: return to `camel-brainstorm` and complete the data transformation interview.
 3. Then re-run the current command.
 ```
 
-**Stop here — do not write the TDD section.**
+**Stop here — do not write the design spec section.**
 
 ---
 
-**If Field Mappings table has at least one data row**, append the following section to `docs/flows/{flow-name}/{flow-name}.tdd.md`:
+**If Field Mappings table has at least one data row**, append the following section to the relevant
+`### Flow: {flow-name}` entry in `docs/camel-kit/<PIPELINE_ID>/design-spec.md`:
 
 ```markdown
 ### DataMapper: kaoto-datamapper-{8hexchars}
@@ -428,7 +434,7 @@ Omit the Source Parameters section if there are no parameters.
 Omit the Conditional Mappings section if there are no conditional mappings.
 Omit the Collection Mappings section if there are no collection mappings.
 
-**Key differences from the XSLT TDD section:**
+**Key differences from the XSLT design spec section:**
 - `**Transformation Engine:** Groovy (inline)` header (absent in XSLT = assumes XSLT)
 - `**Format Pair:**` replaces `**XSLT Pattern:**` and `**XSLT Approach:**`
 - Field Mappings table has 6 columns (no Source XPath, no Target Element)

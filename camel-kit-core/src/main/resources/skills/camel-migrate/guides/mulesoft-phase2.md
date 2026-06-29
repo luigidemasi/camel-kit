@@ -1,7 +1,8 @@
-# MuleSoft Migration — Phase 2: TDD Generation
+# MuleSoft Migration — Phase 2: Design Spec Generation
 
 > **Context variables:** `CAMEL_VERSION`, `RUNTIME`, `PLATFORM_BOM` from `.camel-kit/config.properties`
-> **Prerequisite:** Phase 1 (`mulesoft-phase1.md`) must be complete — BRD written to `docs/business-requirements.md`
+> **Prerequisite:** Phase 1 (`mulesoft-phase1.md`) must be complete — business requirements written to
+> `docs/camel-kit/<PIPELINE_ID>/business-requirements.md`
 
 ## Phase 2 — Integration Architect
 
@@ -9,7 +10,7 @@
 
 **ALWAYS load at the start of Phase 2:**
 - Load `skills/camel-migrate/guides/mule-dataweave-conversion.md` — required for DataWeave analysis
-- Re-read `docs/business-requirements.md`
+- Re-read `docs/camel-kit/<PIPELINE_ID>/business-requirements.md`
 - Read `docs/constitution.md` if it exists (for reference)
 - Re-read `.camel-kit/config.properties` — **REQUIRED**: extract `project.camelVersion` as `CAMEL_VERSION` and `project.runtime` as `RUNTIME`. If the file does not exist, ask the user for the Camel version before proceeding.
 
@@ -19,7 +20,7 @@
 - `skills/camel-design/guides/security.md` — if compliance requirements exist
 - `skills/camel-design/guides/monitoring.md` — if observability requirements exist
 
-**MCP catalog tools — MANDATORY when MCP is configured (same rules as `/camel-flow`):**
+**MCP catalog tools — MANDATORY when MCP is configured (same rules as the design assembly guide):**
 
 Before every MCP catalog call, translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` parameter using the version mapping table in `skills/shared/mcp-setup.md`. Never pass the raw `CAMEL_VERSION` or a stripped minor version (e.g., `4.14`) directly — always use the translated artifact version from the table. Never use a Camel component name, EIP name, data format name, or expression language name from training data or the mapping guide without first verifying it in the catalog.
 
@@ -32,7 +33,7 @@ Before every MCP catalog call, translate `CAMEL_VERSION` + `RUNTIME` to the corr
 | Data format for unmarshal/marshal | `camel_catalog_dataformats` | `camel_catalog_dataformat_doc` |
 | Expression language for conditions/predicates | `camel_catalog_languages` | `camel_catalog_language_doc` |
 
-The static `mule-component-mapping.md` guide provides a **starting point** (the suggested Camel component name). It does NOT replace catalog verification — always confirm availability and option names in `CAMEL_VERSION` before writing the TDD.
+The static `mule-component-mapping.md` guide provides a **starting point** (the suggested Camel component name). It does NOT replace catalog verification — always confirm availability and option names in `CAMEL_VERSION` before writing the design spec.
 
 ---
 
@@ -41,7 +42,7 @@ The static `mule-component-mapping.md` guide provides a **starting point** (the 
 For each Mule flow identified in Phase 1:
 
 1. **Map Mule components → Camel components (catalog-verified).**
-   Use `mule-component-mapping.md` to find the suggested Camel component name, then — **before writing anything to the TDD** — MUST verify it in the catalog that the component exist for the camel version in use:
+   Use `mule-component-mapping.md` to find the suggested Camel component name, then — **before writing anything to the design spec** — MUST verify it in the catalog that the component exist for the camel version in use:
    ```
    MCP Tool: camel_catalog_component_doc
    Params: { "component": "[suggested-camel-component]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
@@ -50,14 +51,14 @@ For each Mule flow identified in Phase 1:
 
    **CRITICAL — use the exact component scheme from the route URI.** The component name MUST be the exact URI scheme (e.g., `smtp`, not `mail`; `aws2-sqs`, not `aws`). Many Camel components share a parent artifact but are distinct components with distinct schemes, options, and property prefixes.
 
-   **CRITICAL — the TDD "Configuration Properties" section must only list properties that actually exist.** For each `camel.component.<name>.<property>` entry, verify that `<property>` appears in the component options returned by `camel_catalog_component_doc`. Do NOT carry over Mule configuration parameters (host, port, etc.) as Camel component properties if the catalog does not list them.
+   **CRITICAL — the design spec "Configuration Properties" section must only list properties that actually exist.** For each `camel.component.<name>.<property>` entry, verify that `<property>` appears in the component options returned by `camel_catalog_component_doc`. Do NOT carry over Mule configuration parameters (host, port, etc.) as Camel component properties if the catalog does not list them.
 
    **Platform-HTTP special case:** The `platform-http` component has NO `host` or `port` component options. Mule's HTTP Listener host/port do NOT map to `camel.component.platform-http.*` properties. If the Mule flow uses a non-default port, document it in the "Configuration Properties" section as `camel.server.enabled=true` and `camel.server.port=XXXX`.
 
 2. **Apply proprietary connector decisions from Step 1.2** using the same catalog verification above.
 
 3. **Translate DataWeave transformations** using `mule-dataweave-conversion.md`.
-   When the translation requires `unmarshal`/`marshal` (e.g. no DataMapper XSLT coverage), verify the data format in the catalog before documenting it in the TDD:
+   When the translation requires `unmarshal`/`marshal` (e.g. no DataMapper XSLT coverage), verify the data format in the catalog before documenting it in the design spec:
    ```
    MCP Tool: camel_catalog_dataformat_doc
    Params: { "dataformat": "[format-name]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
@@ -88,20 +89,22 @@ Ask ONLY questions that cannot be answered from the Mule XML. Group questions pe
 
 **For each flow, ask if not determinable from config:**
 
-- **DataWeave transformations:** For each flow containing a DataWeave script, load `skills/camel-migrate/guides/datamapper-migrate.md` and follow its steps. The guide will infer field mappings from the DataWeave code, collect schema paths, confirm with the user, canonicalize with XSLT-ready XPaths and Target Elements (via `skills/shared/datamapper-canonicalize.md`), and append a canonical `### DataMapper: kaoto-datamapper-{id}` section to the TDD. Do not ask ad-hoc mapping questions here — the guide handles it fully.
+- **DataWeave transformations:** For each flow containing a DataWeave script, load `skills/camel-migrate/guides/datamapper-migrate.md` and follow its steps. The guide will infer field mappings from the DataWeave code, collect schema paths, confirm with the user, canonicalize with XSLT-ready XPaths and Target Elements (via `skills/shared/datamapper-canonicalize.md`), and append a canonical `### DataMapper: kaoto-datamapper-{id}` section to the design spec. Do not ask ad-hoc mapping questions here — the guide handles it fully.
 - **Proprietary connectors:** Confirm the replacement approach decided in Phase 1 and any additional configuration needed (credentials format, endpoint URLs, etc.).
 - **Target infrastructure endpoints:** If endpoint URLs, queue names, or topic names are parameterised or missing from the config, ask for the target environment values or confirm they will be externalised to properties.
 - **Authentication:** For HTTP endpoints, confirm authentication mechanism (Basic, OAuth2, mTLS, API Key) and where credentials will be stored.
 
-**Do NOT ask about error handling.** Error handlers (`on-error-continue`/`on-error-propagate`), retry policies, DLQ endpoints, and alert mechanisms are extracted from Mule XML in Step 1.1 and recorded in the analysis summary. Use them directly when populating the TDD "Error Handling" section.
+**Do NOT ask about error handling.** Error handlers (`on-error-continue`/`on-error-propagate`), retry policies, DLQ endpoints, and alert mechanisms are extracted from Mule XML in Step 1.1 and recorded in the analysis summary. Use them directly when populating the design spec "Error Handling" section.
 
 ---
 
-### Step 2.3 — Produce TDD Files
+### Step 2.3 — Update the Pipeline Design Spec
 
-For each Mule flow, create `docs/flows/{flow-name}/{flow-name}.tdd.md`.
+For each Mule flow, update the relevant `### Flow: {flow-name}` section in
+`docs/camel-kit/<PIPELINE_ID>/design-spec.md`.
 
-Use the **exact same TDD format** as `/camel-flow` output. The file MUST contain all of the following sections:
+Use the same flow-design structure as `camel-brainstorm/guides/design-assembly.md`. The flow section MUST contain all
+of the following details:
 
 ```markdown
 # Technical Design Document: {flow-name}
@@ -278,9 +281,9 @@ Constitution v2.0 — six enforced rules:
 
 ## Section 11: Implementation Checklist
 
-- [ ] Run `/camel-implement {flow-name}` to generate Camel YAML
-- [ ] Run `/camel-validate {flow-name}` to validate the route
-- [ ] Run `/camel-test {flow-name}` to generate integration tests
+- [ ] Ensure `camel-plan` includes an implementation task for this flow
+- [ ] Run `camel-execute` to generate Camel YAML and integration tests
+- [ ] Verify against original Mule behaviour
 - [ ] Verify against original Mule behaviour
 ```
 
@@ -290,18 +293,16 @@ Constitution v2.0 — six enforced rules:
 
 ### Step 2.4 — Complete
 
-After all TDD files are created, report:
+After all design spec updates are created, report:
 
 ```
 Migration analysis complete.
 
 Created files:
-- docs/business-requirements.md
-- docs/flows/{flow-name-1}/{flow-name-1}.tdd.md
-[... one line per flow ...]
+- docs/camel-kit/<PIPELINE_ID>/business-requirements.md
+- docs/camel-kit/<PIPELINE_ID>/design-spec.md
 
 Next steps:
-  /camel-implement --all    # Implement all flows
-  /camel-validate --all     # Validate all flows
-  /camel-test --all         # Generate tests for all flows
+  camel-plan       # Create the implementation plan
+  camel-execute    # Implement, review, verify, and validate all planned work
 ```

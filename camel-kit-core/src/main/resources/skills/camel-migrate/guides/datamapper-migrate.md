@@ -2,7 +2,8 @@
 
 This guide is loaded by `camel-migrate-mule` when a DataWeave transformation is detected in a Mule flow.
 
-It converts DataWeave transformation logic into the standard `### DataMapper: kaoto-datamapper-{id}` TDD section that `camel-implement` uses to generate Kaoto-compatible XSLT 3.0.
+It converts DataWeave transformation logic into the standard `### DataMapper: kaoto-datamapper-{id}` design spec
+section that `camel-execute` uses to generate Kaoto-compatible transformations.
 
 **Context provided by `camel-migrate-mule`:**
 - The DataWeave script(s) for the current flow (already analyzed by `mule-dataweave-conversion.md`)
@@ -18,7 +19,8 @@ Determine source and target formats from the DataWeave script.
 **Target format** — read the `output` directive at the top of the script:
 - `output application/json` → `JSON_SCHEMA`
 - `output application/xml` → `XML_SCHEMA`
-- Anything else (CSV, multipart, etc.) → not supported by DataMapper — flag as TODO, skip this guide
+- Anything else (CSV, multipart, etc.) → not supported by DataMapper — record an explicit migration design issue and
+  skip this guide
 
 **Source format** — infer in this order:
 1. DataWeave `input payload` declaration (if present)
@@ -199,7 +201,7 @@ If the DataWeave script contains constructs that cannot be mapped to the pattern
 
    Options:
    a) Describe the intended mapping — I'll record it as a manual expression
-   b) Mark as TODO — generate a placeholder comment in the XSLT
+   b) Record as a required custom mapping action in the design spec
    c) Skip this field — handle it separately in a Camel processor bean
 ```
 
@@ -222,6 +224,6 @@ The shared guide will:
 1. Choose the transformation engine (Groovy for < 20 fields or no schemas, XSLT otherwise)
 2. If XSLT: compute Source XPaths and Target Elements for each field; if Groovy: prepare simplified semantic table
 3. Present the enriched mapping table for user confirmation
-4. Write the canonical `### DataMapper:` section to the TDD (with empty mapping guard)
+4. Write the canonical `### DataMapper:` section to the design spec (with empty mapping guard)
 
-**When done:** return control to `camel-migrate-mule` Step 2.3 to continue producing the TDD for this flow.
+**When done:** return control to `camel-migrate-mule` Step 2.3 to continue updating the design spec for this flow.

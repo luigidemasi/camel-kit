@@ -2,7 +2,7 @@
 
 This guide generates `application.properties`.
 
-**Context variables:** `FLOW_NAME`, `PROPS_DIR`, `CAMEL_VERSION`, `RUNTIME` (jbang | springboot | quarkus).
+**Context variables:** `FLOW_NAME`, `PROPS_DIR`, `CAMEL_VERSION`, `RUNTIME` (main | spring-boot | quarkus).
 
 ## Graph Context (when available)
 
@@ -36,7 +36,7 @@ Based on components used and their catalog documentation, generate component con
 ```properties
 # ============================================
 # Application Properties for {FLOW_NAME}
-# Generated from TDD
+# Generated from design spec
 # ============================================
 
 # --------------------------------------------
@@ -46,10 +46,10 @@ Based on components used and their catalog documentation, generate component con
 # --------------------------------------------
 
 # [Source Component] Configuration (scheme: [exact-scheme-from-route])
-camel.component.[exact-scheme-from-route].[property]=[value from TDD]
+camel.component.[exact-scheme-from-route].[property]=[value from design spec]
 
 # [Sink Component] Configuration (scheme: [exact-scheme-from-route])
-camel.component.[exact-scheme-from-route].[property]=[value from TDD]
+camel.component.[exact-scheme-from-route].[property]=[value from design spec]
 
 # --------------------------------------------
 # BEAN DEFINITIONS
@@ -58,8 +58,8 @@ camel.component.[exact-scheme-from-route].[property]=[value from TDD]
 
 # DataSource Bean (if SQL component used)
 camel.beans.dataSource=#class:org.apache.commons.dbcp2.BasicDataSource
-camel.beans.dataSource.driverClassName=[driver from TDD]
-camel.beans.dataSource.url=[jdbc url from TDD]
+camel.beans.dataSource.driverClassName=[driver from design spec]
+camel.beans.dataSource.url=[jdbc url from design spec]
 camel.beans.dataSource.username=[username]
 camel.beans.dataSource.password=[password]
 
@@ -68,32 +68,33 @@ camel.beans.dataSource.password=[password]
 # Used in route URIs as {{property.name}}
 # --------------------------------------------
 
-# Endpoints from TDD
-source.endpoint=[value from TDD]
-sink.endpoint=[value from TDD]
-dlq.endpoint=[value from TDD]
+# Endpoints from design spec
+source.endpoint=[value from design spec]
+sink.endpoint=[value from design spec]
+dlq.endpoint=[value from design spec]
 
-# Error handling configuration from TDD "Error Handling" section
-error.max.retries=[value from TDD]
-error.retry.delay=[value from TDD]
-error.backoff.multiplier=[value from TDD]
+# Error handling configuration from design spec Error Handling section
+error.max.retries=[value from design spec]
+error.retry.delay=[value from design spec]
+error.backoff.multiplier=[value from design spec]
 
 # Other placeholders from route
 [other {{placeholders}} from generated YAML]
 
 # --------------------------------------------
-# JBANG DEPENDENCIES
+# MAIN RUNTIME DEPENDENCIES
 # External libraries (NOT Camel components)
 # --------------------------------------------
 
-camel.jbang.dependencies=[dependencies from TDD "Dependencies" section]
+camel.jbang.dependencies=[dependencies from design spec Dependencies section]
 ```
 
-**Runtime-specific note:** If `RUNTIME` is `jbang`, include the `camel.jbang.dependencies` section. If `RUNTIME` is `springboot` or `quarkus`, omit it (dependencies are managed in `pom.xml`).
+**Runtime-specific note:** If `RUNTIME` is `main`, include the `camel.jbang.dependencies` section. If `RUNTIME` is
+`spring-boot` or `quarkus`, omit it (dependencies are managed in `pom.xml`).
 
 ## 5.2 Environment-Specific Properties
 
-If the TDD "Configuration Properties" section defines environment-specific configuration, create templates:
+If the design spec Configuration Properties section defines environment-specific configuration, create templates:
 
 ```properties
 # Create:

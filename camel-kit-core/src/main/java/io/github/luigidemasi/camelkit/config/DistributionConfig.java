@@ -30,6 +30,7 @@ public class DistributionConfig {
     private final String camelSpringbootVersion;
     private final String camelQuarkusVersion;
     private final String springbootBomVersion;
+    private final String springBootVersion;
     private final String quarkusPlatformVersion;
     private final String camelMainSupported;
     private final String camelSpringbootSupported;
@@ -47,6 +48,7 @@ public class DistributionConfig {
         this.camelSpringbootVersion = props.getProperty("camel.springboot.version", "4.20.0");
         this.camelQuarkusVersion = props.getProperty("camel.quarkus.version", "4.18.0");
         this.springbootBomVersion = props.getProperty("springboot.bom.version", "4.20.0");
+        this.springBootVersion = props.getProperty("spring.boot.version", "4.0.5");
         this.quarkusPlatformVersion = props.getProperty("quarkus.platform.version", "3.33.1");
         this.camelMainSupported = props.getProperty("camel.main.supported", "4.20.0");
         this.camelSpringbootSupported = props.getProperty("camel.springboot.supported", "4.20.0");
@@ -166,6 +168,29 @@ public class DistributionConfig {
         return mappings;
     }
 
+    /**
+     * Looks up the Spring Boot framework version for a given Camel Spring Boot version. Falls back to the default
+     * {@link #springBootVersion()} if no mapping is found.
+     */
+    public String springBootForVersion(String camelVersion) {
+        return rawProps.getProperty("spring.boot." + camelVersion, springBootVersion);
+    }
+
+    /**
+     * Returns all explicit Camel Spring Boot → Spring Boot framework version mappings from the {@code spring.boot.*}
+     * properties (excluding the default {@code spring.boot.version}).
+     */
+    public Map<String, String> springBootMappings() {
+        Map<String, String> mappings = new LinkedHashMap<>();
+        for (String key : rawProps.stringPropertyNames()) {
+            if (key.startsWith("spring.boot.") && !key.equals("spring.boot.version")) {
+                String camelVersion = key.substring("spring.boot.".length());
+                mappings.put(camelVersion, rawProps.getProperty(key));
+            }
+        }
+        return mappings;
+    }
+
     public String camelMainVersion() {
         return camelMainVersion;
     }
@@ -180,6 +205,10 @@ public class DistributionConfig {
 
     public String springbootBomVersion() {
         return springbootBomVersion;
+    }
+
+    public String springBootVersion() {
+        return springBootVersion;
     }
 
     public String quarkusPlatformVersion() {

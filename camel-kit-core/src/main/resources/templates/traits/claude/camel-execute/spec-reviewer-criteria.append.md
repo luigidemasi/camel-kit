@@ -13,6 +13,6 @@ Agent({
 })
 ```
 
-The spec-compliance reviewer uses `general-purpose` because it needs to read full files for field-by-field comparison against the TDD. The `Explore` type reads excerpts and explicitly warns against code review, making it unsuitable.
+The spec-compliance reviewer uses `general-purpose` because it needs to read full files for field-by-field comparison against the design spec. The `Explore` type reads excerpts and explicitly warns against code review, making it unsuitable.
 
 Do NOT use `run_in_background` for review subagents — the orchestrator must wait for the review result before proceeding (spec review gates quality review per Iron Law 4).

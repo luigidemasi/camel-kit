@@ -18,6 +18,7 @@ class DistributionConfigTest {
         assertEquals("4.14.4", config.camelSpringbootVersion());
         assertEquals("4.14.4", config.camelQuarkusVersion());
         assertEquals("4.14.4", config.springbootBomVersion());
+        assertEquals("3.5.9", config.springBootVersion());
         assertEquals("3.27.2", config.quarkusPlatformVersion());
     }
 
@@ -53,6 +54,27 @@ class DistributionConfigTest {
         assertEquals("3.27.2", mappings.get("4.14.4"));
         assertEquals("3.20.0", mappings.get("4.13.0"));
         assertFalse(mappings.containsKey("version"), "Default quarkus.platform.version must be excluded");
+    }
+
+    @Test
+    void springBootForVersionLookup() {
+        InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
+        DistributionConfig config = DistributionConfig.load(in);
+
+        assertEquals("3.5.9", config.springBootForVersion("4.14.4"));
+        assertEquals("3.5.3", config.springBootForVersion("4.13.0"));
+        assertEquals("3.5.9", config.springBootForVersion("9.99.99"));
+    }
+
+    @Test
+    void springBootMappingsReturnsExplicitEntries() {
+        InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
+        DistributionConfig config = DistributionConfig.load(in);
+
+        var mappings = config.springBootMappings();
+        assertEquals("3.5.9", mappings.get("4.14.4"));
+        assertEquals("3.5.3", mappings.get("4.13.0"));
+        assertFalse(mappings.containsKey("version"), "Default spring.boot.version must be excluded");
     }
 
     @Test
