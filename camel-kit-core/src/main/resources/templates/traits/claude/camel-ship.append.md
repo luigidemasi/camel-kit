@@ -23,7 +23,7 @@ When the pipeline needs to pause for user input (based on --ask level), use `Ask
 
 - For design spec approval: present summary with "Approve" / "Request changes" / "Abort pipeline" options
 - For execution failures: present the error with "Auto-fix" / "Manual fix" / "Skip task" / "Abort" options
-- For re-plan escalation: present the Escalation Report from `re-plan-loop.md` (round summaries, failure details, affected TDDs) with "Resume after manual fix" / "Abort pipeline" options
+- For re-plan escalation: present the Escalation Report from `re-plan-loop.md` (round summaries, failure details, affected design spec sections) with "Resume after manual fix" / "Abort pipeline" options
 - Always include an "Abort pipeline" option — the user should be able to stop at any point
 
 ### Smart Pacing with ScheduleWakeup

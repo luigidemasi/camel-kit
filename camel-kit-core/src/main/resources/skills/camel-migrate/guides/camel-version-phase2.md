@@ -1,14 +1,15 @@
-# Camel Version Migration — Phase 2: TDD Generation
+# Camel Version Migration — Phase 2: Design Spec Generation
 
 > **Context variables:** `CAMEL_VERSION`, `RUNTIME`, `PLATFORM_BOM` from `.camel-kit/config.properties`
-> **Prerequisite:** Phase 1 (`camel-version-phase1.md`) must be complete — BRD written to `docs/business-requirements.md`
+> **Prerequisite:** Phase 1 (`camel-version-phase1.md`) must be complete — business requirements written to
+> `docs/camel-kit/<PIPELINE_ID>/business-requirements.md`
 
 ## Phase 2 — Integration Architect
 
 ### Context Loading (MANDATORY at start)
 
 Re-read:
-- `docs/business-requirements.md`
+- `docs/camel-kit/<PIPELINE_ID>/business-requirements.md`
 - `docs/constitution.md` (reference)
 - `.camel-kit/config.properties` — **extract `project.camelVersion` as `CAMEL_VERSION`** and `project.runtime` as `RUNTIME` (written by `camel-migrate` orchestrator in Step 5). If the file does not exist or `project.camelVersion` is not set, **STOP** and ask the user for the target Camel version before proceeding. Before every MCP catalog call, translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` parameter using the version mapping table in `skills/shared/mcp-setup.md`.
 - All guide files loaded in Phase 1 (keep in context)
@@ -67,14 +68,15 @@ For every migration decision, follow the **Verification Chain**:
 │      "Component [X] not found in catalog or knowledge base.         │
 │       Options:                                                      │
 │       a) Provide the correct Camel 4.x component name               │
-│       b) Skip this component (mark as [TODO] in TDD)                │
+│       b) Provide an MCP-verified replacement component or pattern    │
 │       c) Remove this processing step from the migration"            │
-│    If user chooses (b), write TDD with [TODO] marker.               │
+│    If user chooses replacement or removal, update the design spec    │
+│    accordingly.                                                     │
 │                                                                     │
-│ 5. Write verified result to TDD                                     │
-│    • Only MCP-verified names and options go into the TDD            │
-│    • [TODO]-marked components are acceptable — /camel-implement      │
-│      will flag them for resolution before generating code            │
+│ 5. Write verified result to the design spec                         │
+│    • Only MCP-verified names and options go into the design spec     │
+│    • Unverified components MUST NOT be written as implementation     │
+│      placeholders                                                    │
 │    • "Configuration Properties" must only list properties from catalog│
 │    • "Dependencies" section uses Maven coordinates from catalog      │
 └─────────────────────────────────────────────────────────────────────┘
@@ -86,7 +88,7 @@ For every migration decision, follow the **Verification Chain**:
 
 Read `.camel-kit/config.properties` to get the `command-prefix` field (default: `camel-kit`).
 
-**Migration ordering:** If `.camel-kit/project-snapshot.md` exists, process routes in the order specified in its "Migration Ordering" section (leaf routes first, then dependents). This prevents generating TDDs that reference routes not yet migrated.
+**Migration ordering:** If `.camel-kit/project-snapshot.md` exists, process routes in the order specified in its "Migration Ordering" section (leaf routes first, then dependents). This prevents generating design specs that reference routes not yet migrated.
 
 **For each route, before the verification chain:**
 
@@ -116,9 +118,9 @@ Run the commands:
 These show what other routes, classes, and config are affected if this route changes, and what feeds into this route.
 
 Use this information to populate:
-- **TDD Section 5 (Error Handling):** Error propagation paths — if an upstream route has `onException`, note it
-- **TDD Section 10 (Testing Strategy):** List upstream and downstream routes that should be included in integration tests
-- **TDD Section 11 (Implementation Checklist):** Note dependent routes that may need corresponding updates
+- **Design spec Error Handling section:** Error propagation paths — if an upstream route has `onException`, note it
+- **Design spec Testing Strategy section:** List upstream and downstream routes that should be included in integration tests
+- **Design spec Implementation Checklist section:** Note dependent routes that may need corresponding updates
 
 If either command exits with code != 0, skip this step.
 
@@ -154,7 +156,7 @@ For each route in the BRD:
 3. **Apply EIP mapping** (verification chain):
    - For each EIP used in the route, check `camel2-eip-mapping.md`
    - Verify via MCP
-   - For attribute renames (e.g., `headerName` → `name`): note in TDD processing steps
+   - For attribute renames (e.g., `headerName` → `name`): note in design spec processing steps
 
 4. **Apply data format mapping** (verification chain):
    - For each data format in marshal/unmarshal, check `camel2-dataformat-mapping.md`
@@ -169,13 +171,13 @@ For each route in the BRD:
 6. **Apply platform transforms** from `camel2-platform-changes.md`:
    - OSGi service references → Spring bean lookups or `@Autowired`
    - Blueprint property placeholders → `{{property.key}}` (Camel property syntax) backed by `application.properties`
-   - `javax.*` in Java DSL → note in TDD as manual Java file change
+   - `javax.*` in Java DSL → note in the design spec as a Java source migration action
    - Spring XML `<camelContext>` → YAML DSL route definition
 
 7. **Handle custom transformations**:
    - If route uses `dozer` component → replace with DataMapper/XSLT, load `datamapper-canonicalize.md`
    - If route has custom XSLT → carry over to 4.x project (XSLT files are compatible)
-   - If route has custom Java processors → note in the TDD "Processing Steps" section as "manual migration: update imports javax→jakarta"
+   - If route has custom Java processors → note in the design spec Processing Steps section as "manual migration: update imports javax→jakarta"
 
 ### Step 2.2 — Technical Interview (per route, only for unknowns)
 
@@ -189,12 +191,13 @@ Do NOT ask about:
 - Components (already mapped via decision tables + MCP)
 - Route structure (preserved from source)
 
-### Step 2.3 — Produce TDD Files
+### Step 2.3 — Update Design Spec
 
-For each route, create `docs/flows/{flow-name}/{flow-name}.tdd.md` with the **exact same 11-section format** used by `/camel-flow` and `camel-migrate-mule`:
+For each route, update the relevant `### Flow: {flow-name}` section in
+`docs/camel-kit/<PIPELINE_ID>/design-spec.md` with the migration design details:
 
 ```markdown
-# Technical Design Document: {flow-name}
+### Flow: {flow-name}
 
 ## Section 1: Overview
 | Field | Value |
@@ -283,9 +286,9 @@ For each route, create `docs/flows/{flow-name}/{flow-name}.tdd.md` with the **ex
 - [ ] All components verified against Camel {CAMEL_VERSION} catalog
 
 ## Section 11: Implementation Checklist
-- [ ] Run `/camel-implement {flow-name}` to generate Camel YAML
-- [ ] Run `/camel-validate {flow-name}` to validate the route
-- [ ] Run `/camel-test {flow-name}` to generate integration tests
+- [ ] Ensure `camel-plan` includes an implementation task for this flow
+- [ ] Run `camel-execute` to generate Camel YAML and integration tests
+- [ ] Verify against original Camel behaviour
 - [ ] Verify against original Camel 2.x/3.x route behaviour
 ```
 
@@ -295,14 +298,14 @@ For each route, create `docs/flows/{flow-name}/{flow-name}.tdd.md` with the **ex
 Migration complete.
 
 Created:
-  docs/business-requirements.md
+  docs/camel-kit/<PIPELINE_ID>/business-requirements.md
+  docs/camel-kit/<PIPELINE_ID>/design-spec.md
   docs/constitution.md
-  [list all TDD files]
 
 Next steps:
-  1. Review each TDD file
-  2. Run /camel-implement --all to generate Camel YAML for all flows
-  3. Run /camel-validate --all to validate all flows
-  4. Run /camel-test --all to generate integration tests
+  1. Review the design spec
+  2. Run camel-plan to create implementation tasks
+  3. Run camel-validate to validate all flows
+  4. Run camel-execute to generate, review, verify, and validate all planned work
   5. Test against original behaviour
 ```

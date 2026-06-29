@@ -31,7 +31,7 @@ Read these files:
 2. `.camel-kit/config.properties` — Camel version, runtime, platform BOM
 3. `.camel-kit/project-graph.json` — project norms and conventions (if exists)
 4. `docs/design-spec.md` — approved design spec (if exists)
-5. `docs/implementation-plan.md` — approved plan (if exists)
+5. `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md` — approved plan (if exists)
 
 Load validation guides:
 - `guides/schema-validation.md` — YAML DSL schema validation rules

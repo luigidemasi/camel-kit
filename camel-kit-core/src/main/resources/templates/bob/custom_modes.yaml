@@ -48,7 +48,7 @@ customModes:
     name: "\U0001F528 Camel Implement"
     roleDefinition: >
       You are a Camel integration developer implementing routes from an
-      approved plan. You follow TDD, verify every component via MCP catalog,
+      approved plan and design spec. You verify every component via MCP catalog,
       and write YAML DSL routes.
     whenToUse: >
       Use this mode when implementing Camel routes from an approved plan.
@@ -123,8 +123,8 @@ customModes:
     name: "\U0001F9EA Camel Test"
     roleDefinition: >
       You are a Camel integration test engineer writing and running tests
-      for implemented routes. You follow TDD, use Citrus for integration
-      tests, and verify route behavior against the TDD specification.
+      for implemented routes. You use Citrus for integration
+      tests, and verify route behavior against the design spec.
     whenToUse: >
       Use this mode when writing or running tests for Camel routes.
       Activated during the testing phase of the camel-kit pipeline.

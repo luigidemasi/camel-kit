@@ -8,7 +8,7 @@ This guide generates JSON schemas. Only loaded when schemas were missing and use
 
 ## Input Schema
 
-From the TDD "Source System" section (Data Contract - Input):
+From the design spec Source System section (Data Contract - Input):
 
 ```json
 {
@@ -17,7 +17,7 @@ From the TDD "Source System" section (Data Contract - Input):
   "type": "object",
   "properties": {
     "field1": {
-      "type": "[type from TDD example]",
+      "type": "[type from design spec example]",
       "description": ""
     }
   },
@@ -29,7 +29,7 @@ From the TDD "Source System" section (Data Contract - Input):
 
 ## Output Schema
 
-From the TDD "Processing Steps" or "Sink System" section (Data Contract - Output):
+From the design spec Processing Steps or Sink System section (Data Contract - Output):
 
 ```json
 {
@@ -38,7 +38,7 @@ From the TDD "Processing Steps" or "Sink System" section (Data Contract - Output
   "type": "object",
   "properties": {
     "field1": {
-      "type": "[type from TDD]",
+      "type": "[type from design spec]",
       "description": ""
     }
   },

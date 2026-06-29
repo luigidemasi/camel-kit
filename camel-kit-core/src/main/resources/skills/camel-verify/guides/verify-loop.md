@@ -12,7 +12,7 @@ Before entering the phase loop, check which tools are available. Report explicit
 
 ### Steps
 
-1. Read `.camel-kit/config.properties` → extract `project.runtime` (one of: `quarkus`, `springboot`, `jbang`)
+1. Read `.camel-kit/config.properties` → extract `project.runtime` (one of: `main`, `spring-boot`, `quarkus`)
 2. Check for Maven wrapper: does `./mvnw` exist in the project root?
    - If yes → use `./mvnw` for all Maven commands
    - If no → check for system `mvn` (`mvn --version`)
@@ -22,7 +22,7 @@ Before entering the phase loop, check which tools are available. Report explicit
    - If available → Testcontainers can manage external services in Phase 2
    - If unavailable → test verification will be skipped
 4. Check JDK: `java --version`
-5. If runtime is JBang → also check `jbang --version`
+5. If runtime is `main` → also check `jbang --version`
 6. Check Camel test CLI: `camel test --help` — needed for Phase 2 test verification
 
 ### Report
@@ -59,7 +59,8 @@ If a tool is missing, skip the phases that depend on it. Never fail silently —
 
 Compile the project and verify it builds successfully.
 
-**Skip this phase entirely for JBang runtime** — JBang compiles at runtime, there is no separate build step. Proceed directly to Phase 2.
+**Skip this phase entirely for the main runtime** — Camel JBang compiles at runtime, so there is no separate build step.
+Proceed directly to Phase 2.
 
 ### Steps
 
@@ -149,7 +150,7 @@ while iteration_count < 15:
     
     7. Read the Fix target from the classification:
        - camel-implement → fix the route/transformation logic
-       - camel-test → re-generate the test from TDD
+       - camel-test → re-generate the test from the design spec
        - Self-repair → fix Docker/service config
        - Escalate → report to user and stop Phase 2
     
@@ -273,15 +274,15 @@ Quick reference for the verify loop. For full details on each error pattern, see
 | Wrong component options | camel-validate | Re-validate against MCP catalog |
 | Constitution violation at runtime | camel-validate | Re-run constitution compliance checks |
 | YAML schema error | camel-validate | Re-run YAML schema validation |
-| Route YAML structurally broken | camel-implement | Re-generate route from TDD (affected flow only) |
-| Wrong component URI | camel-implement | Re-check TDD, re-generate |
+| Route YAML structurally broken | camel-implement | Re-generate route from the design spec (affected flow only) |
+| Wrong component URI | camel-implement | Re-check design spec, re-generate |
 | Missing bean | camel-implement | Re-generate with correct annotations |
 | XSLT/Groovy transformation error | camel-implement | Re-run DataMapper validation + re-generate |
-| Expression evaluation failure | camel-implement | Re-generate expression from TDD |
+| Expression evaluation failure | camel-implement | Re-generate expression from design spec |
 | Citrus assertion mismatch | camel-implement | Fix the route/transformation logic to match expected output |
 | Citrus test timeout | camel-implement or Self-repair | Fix slow route logic, or increase timeout in test config |
 | Testcontainer launch failure | Self-repair | Fix Docker/service configuration |
-| Test YAML parse/compilation error | camel-test | Re-generate the test from TDD |
+| Test YAML parse/compilation error | camel-test | Re-generate the test from design spec |
 | Wrong test assertion | camel-test | Re-generate the test with correct expected values |
 | Same error after fix | Tier 1/Tier 2 promotion | Check MCP catalog, then trigger `camel-execute/guides/re-plan-loop.md` |
 | 15 iterations reached | Escalate | "Iteration limit reached" |

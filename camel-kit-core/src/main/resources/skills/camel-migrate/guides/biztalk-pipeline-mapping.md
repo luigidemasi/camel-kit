@@ -168,7 +168,7 @@ BizTalk includes default pipelines for common scenarios. Map these to Camel patt
       classType: "com.example.Order"
 ```
 
-**Note:** Flat file schemas must be converted from BizTalk XSD to Flatpack/Bindy format. Document in TDD and flag for manual schema conversion.
+**Note:** Flat file schemas must be converted from BizTalk XSD to Flatpack/Bindy format. Document in design spec and flag for manual schema conversion.
 
 ---
 
@@ -272,23 +272,23 @@ class PartyResolver {
 - Configured via pipeline designer
 
 **Camel Equivalent:**
-1. **Document the component's purpose** in the TDD.
-2. **Flag for manual review** with a TODO comment.
+1. **Document the component's purpose** in the design spec.
+2. **Record a required custom implementation action** in the design spec.
 3. **Suggest a Camel equivalent**:
    - `process()` with custom Processor
    - Groovy script
    - Existing Camel component (if functionality matches)
 
-**Example TDD Entry:**
+**Example Design Spec Entry:**
 ```markdown
-> **TODO — Manual Review Required:** The BizTalk pipeline contains a custom component `CustomDecompressor`. This logic must be re-implemented in Camel. Original component: `MyCompany.BizTalk.CustomDecompressor` (Assembly: `CustomComponents.dll`).
+> **Manual Review Required:** The BizTalk pipeline contains a custom component `CustomDecompressor`. This logic must be re-implemented in Camel. Original component: `MyCompany.BizTalk.CustomDecompressor` (Assembly: `CustomComponents.dll`).
 >
 > **Suggested Approach:** Implement as a custom Camel Processor or Groovy script. Document decompression algorithm and any external dependencies.
 ```
 
 ---
 
-## How to Map a BizTalk Pipeline in TDD
+## How to Map a BizTalk Pipeline in design spec
 
 When you encounter a BizTalk pipeline (`.btp` file) during migration analysis, follow this process:
 
@@ -296,9 +296,9 @@ When you encounter a BizTalk pipeline (`.btp` file) during migration analysis, f
 2. **Extract pipeline type** — Receive or Send.
 3. **Parse stages and components** — listed in `<Stage>` and `<Component>` elements.
 4. **Classify each component using the table above**.
-5. **Document in TDD Section 3.1 (Processing Overview)** with the BizTalk pipeline noted in a separate sub-section:
+5. **Document in design spec section 3.1 (Processing Overview)** with the BizTalk pipeline noted in a separate sub-section:
 
-**Example TDD Section 3.1 Entry:**
+**Example design spec section 3.1 Entry:**
 
 ```markdown
 ### 3.1 Processing Overview
@@ -322,18 +322,19 @@ When you encounter a BizTalk pipeline (`.btp` file) during migration analysis, f
 | BizTalk Feature | Complexity | Recommended Approach |
 |---|---|---|
 | **Custom .NET component** | High | Re-implement in Groovy or custom Processor. Flag for manual review. |
-| **Flat file schema** | Medium | Convert BizTalk XSD to Flatpack/Bindy format. Document conversion in TDD. |
+| **Flat file schema** | Medium | Convert BizTalk XSD to Flatpack/Bindy format. Document conversion in the design spec. |
 | **S/MIME encryption with certificate** | Medium | Use `camel-crypto` or `camel-mail` with Java KeyStore. Document certificate location. |
 | **BizTalk Framework** (deprecated) | High | Must be re-implemented; discuss with development team. |
 | **EDI Disassembler/Assembler** | High | Use `camel-edifact` or `camel-x12` (if supported). Otherwise, third-party EDI library. |
 
-When these patterns are found, add a TODO note in the relevant TDD section and flag for development team attention.
+When these patterns are found, record a required custom implementation action in the relevant design spec section and
+flag it for development team attention.
 
 ---
 
 ## Notes
 
-- Always verify component names in the MCP catalog before writing TDD entries (using `camel_catalog_component_doc` or `camel_catalog_dataformat_doc`).
+- Always verify component names in the MCP catalog before writing design spec entries (using `camel_catalog_component_doc` or `camel_catalog_dataformat_doc`).
 - BizTalk pipelines execute in a fixed order — preserve this order in the Camel route.
 - Custom pipeline components MUST be flagged for manual review and documented with the original assembly name and purpose.
 - Flat file schemas require manual conversion from BizTalk XSD to Flatpack/Bindy format.

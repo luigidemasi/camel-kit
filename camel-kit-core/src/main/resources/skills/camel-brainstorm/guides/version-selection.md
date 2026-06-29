@@ -2,7 +2,8 @@
 
 > **Context:** Loaded by `camel-brainstorm` after the interview/discovery phase.
 > **Purpose:** Select the runtime platform and Apache Camel version.
-> **Output:** `project.runtime`, `project.camelVersion`, `project.platformBomVersion` written to `.camel-kit/config.properties`.
+> **Output:** `project.runtime`, `project.camelVersion`, `project.platformBomVersion`, and runtime-specific
+> companion versions written to `.camel-kit/config.properties`.
 
 ---
 
@@ -40,15 +41,22 @@ Default: `{CAMEL_MAIN_VERSION}`
 
 ### If runtime is `spring-boot`
 
-| Camel Version | Spring Boot BOM | Status |
-|--------------|----------------|--------|
-| {CAMEL_SPRINGBOOT_VERSION} | {SPRINGBOOT_BOM_VERSION} | **recommended** (latest LTS) |
+| Camel Version | Camel Spring Boot BOM | Spring Boot Version | Status |
+|--------------|-------------------------|---------------------|--------|
+| {CAMEL_SPRINGBOOT_VERSION} | {SPRINGBOOT_BOM_VERSION} | {SPRING_BOOT_VERSION} | **recommended** (latest LTS) |
 
 Other supported versions: {CAMEL_SPRINGBOOT_SUPPORTED}
 
 All listed versions are LTS (Long-Term Support) and receive patch updates.
 
-For Spring Boot, the BOM version equals the Camel version.
+For Spring Boot, the Camel Spring Boot BOM version equals the Camel version. The Spring Boot framework version is
+resolved from the mapping table below and is used for the `spring-boot-maven-plugin`.
+
+**Spring Boot framework mapping:**
+
+| Camel Version | Spring Boot Version |
+|--------------|---------------------|
+{SPRING_BOOT_VERSION_TABLE}
 
 Default: `{CAMEL_SPRINGBOOT_VERSION}`
 
@@ -72,16 +80,21 @@ Default: `{CAMEL_QUARKUS_VERSION}`
 
 ---
 
-## Step 3: Resolve Platform BOM Version
+## Step 3: Resolve Platform and Companion Versions
 
 <HARD-RULE>
 The Quarkus platform BOM version MUST come from the mapping table in Step 2 above. Do NOT use your own knowledge of Quarkus versions. Do NOT look up versions on the internet. Do NOT guess. The table above is the ONLY source of truth for the Camel-to-Quarkus version mapping.
 
 If the selected Camel version does not appear in the mapping table, it is NOT supported on Quarkus. Do NOT invent a platform version.
+
+The Spring Boot framework version MUST come from the mapping table in Step 2 above. Do NOT inspect Maven Central
+during generation. Do NOT guess. If the selected Camel Spring Boot version does not appear in the mapping table, it is
+not supported by this distribution.
 </HARD-RULE>
 
 - **If runtime is `main`:** no platform BOM needed — JBang uses the Camel version directly
-- **If runtime is `spring-boot`:** platform BOM version = Camel version (same release train)
+- **If runtime is `spring-boot`:** platform BOM version = Camel version (same release train); Spring Boot version =
+  mapping-table value for the selected Camel version
 - **If runtime is `quarkus`:** look up the Quarkus platform BOM from the mapping table in Step 2. Use EXACTLY the version from the table — no other source.
 
 ---
@@ -94,6 +107,8 @@ Append the selected values to `.camel-kit/config.properties`:
 project.runtime=quarkus
 project.camelVersion={CAMEL_QUARKUS_VERSION}
 project.platformBomVersion={QUARKUS_PLATFORM_VERSION}
+# Spring Boot only:
+# project.springBootVersion={SPRING_BOOT_VERSION}
 ```
 
 These values are the single source of truth for all subsequent skills.

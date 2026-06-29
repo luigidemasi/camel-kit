@@ -63,12 +63,12 @@ Same handling as Step 2. If (c), ask format and set type to `JSON_SCHEMA` or `XM
 
 ## Step 3b: Source Parameters (Conditional)
 
-**Ask ONLY if** the TDD "Processing Steps" section (subsection 3.3) lists Camel Variables or Headers used in this transformation.
+**Ask ONLY if** the design spec Processing Steps section lists Camel Variables or Headers used in this transformation.
 
 ```
-The flow TDD mentions these Camel Variables/Headers used in the mapping:
+The flow design mentions these Camel Variables/Headers used in the mapping:
 
-{list from TDD "Processing Steps" section}
+{list from design spec Processing Steps section}
 
 For each one, do you have a schema?
 
@@ -215,7 +215,7 @@ The shared guide will:
 1. Choose the transformation engine (Groovy for < 20 fields or no schemas, XSLT otherwise)
 2. If XSLT: compute Source XPaths and Target Elements for each field; if Groovy: prepare simplified semantic table
 3. Present the enriched mapping table for user confirmation
-4. Write the canonical `### DataMapper:` section to the TDD
+4. Write the canonical `### DataMapper:` section to the design spec
 
 **Schema-less path:** If source or target has no schema file (Step 2c or 3c selected), the type is still `JSON_SCHEMA` or `XML_SCHEMA` (based on the data format) — the schema path is `"none"`. Pass the manually described field names and types. The shared guide will compute XPaths from the field paths without needing schema files. Only use `Primitive` if the data is a truly scalar value (single string, number, or boolean).
 

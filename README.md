@@ -36,7 +36,7 @@ Utilities:    /camel-validate      (endpoint validation only)
 | Command | Purpose |
 |---------|---------|
 | `/camel-start` | Entry point — routes to brainstorm (greenfield) or migrate based on context |
-| `/camel-brainstorm` | Interactive design session — produces a Blueprint Reference Document (BRD) with Technical Design Documents (TDDs) |
+| `/camel-brainstorm` | Interactive design session — produces business requirements and a design spec |
 | `/camel-migrate` | Migration from MuleSoft, Microsoft BizTalk, legacy Camel, or JBoss Fuse to modern Camel |
 | `/camel-plan` | Reviews approved design, creates a detailed implementation plan with wave analysis for parallel execution |
 | `/camel-execute` | Orchestrated execution — environment probe, then implements, validates, tests, and verifies all flows |

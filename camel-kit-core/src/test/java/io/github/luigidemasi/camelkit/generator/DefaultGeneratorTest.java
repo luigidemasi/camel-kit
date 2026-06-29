@@ -214,17 +214,29 @@ class DefaultGeneratorTest {
         String content = Files.readString(versionSelection);
 
         DistributionConfig dist = DistributionConfig.loadFromClasspathOrDefaults();
-        var mappings = dist.quarkusPlatformMappings();
-        assertFalse(mappings.isEmpty(), "Expected explicit Quarkus platform mappings");
+        var quarkusMappings = dist.quarkusPlatformMappings();
+        var springBootMappings = dist.springBootMappings();
+        assertFalse(quarkusMappings.isEmpty(), "Expected explicit Quarkus platform mappings");
+        assertFalse(springBootMappings.isEmpty(), "Expected explicit Spring Boot mappings");
         assertFalse(content.contains("{QUARKUS_PLATFORM_VERSION}"),
                 "Placeholder should be substituted");
         assertTrue(content.contains(dist.quarkusPlatformVersion()),
                 "Resolved value should appear");
         assertFalse(content.contains("{QUARKUS_PLATFORM_TABLE}"),
                 "Table placeholder should be substituted");
-        for (var entry : mappings.entrySet()) {
+        for (var entry : quarkusMappings.entrySet()) {
             assertTrue(content.contains(entry.getValue()),
                     "Mapping for " + entry.getKey() + " should appear in table");
+        }
+        assertFalse(content.contains("{SPRING_BOOT_VERSION}"),
+                "Spring Boot version placeholder should be substituted");
+        assertTrue(content.contains(dist.springBootVersion()),
+                "Resolved Spring Boot value should appear");
+        assertFalse(content.contains("{SPRING_BOOT_VERSION_TABLE}"),
+                "Spring Boot table placeholder should be substituted");
+        for (var entry : springBootMappings.entrySet()) {
+            assertTrue(content.contains(entry.getValue()),
+                    "Spring Boot mapping for " + entry.getKey() + " should appear in table");
         }
     }
 

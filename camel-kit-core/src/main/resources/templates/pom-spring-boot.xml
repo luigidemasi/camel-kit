@@ -27,7 +27,7 @@
         <!-- BOM version: look up from design spec platformBomVersion -->
         <!-- This is the Camel Spring Boot BOM version -->
         <camel-spring-boot-version>[PLATFORM_BOM_VERSION]</camel-spring-boot-version>
-        <!-- Spring Boot version: look up from design spec or discover from BOM -->
+        <!-- Spring Boot plugin version: look up from config property project.springBootVersion -->
         <spring-boot-version>[SPRING_BOOT_VERSION]</spring-boot-version>
 
         <!-- DO NOT CHANGE these property names -->

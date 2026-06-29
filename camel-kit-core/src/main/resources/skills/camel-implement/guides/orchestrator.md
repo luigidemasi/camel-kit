@@ -1,6 +1,6 @@
 # Orchestrator Guide
 
-This guide defines file paths and execution order for the implementation pipeline. It adapts to the target runtime and works with both greenfield and migration TDDs.
+This guide defines file paths and execution order for the implementation pipeline. It adapts to the target runtime and works with both greenfield and migration design specs.
 
 > **YOUR JOB IS TO GENERATE FILES, NOT TO DISCUSS WHAT FILES YOU WOULD GENERATE.**
 > After reading this guide, immediately start executing Step 1 (or Step 2 if no DataMapper). Do NOT summarize what you read, do NOT discuss the complexity of the task, do NOT present alternatives, do NOT say "this would involve..." — just start writing code. Every step below produces concrete files on disk. If you reach the end of this guide without having written files, you have failed.
@@ -8,11 +8,15 @@ This guide defines file paths and execution order for the implementation pipelin
 > **"Load" means READ and FOLLOW.** Every time this guide says "Load `guides/xyz.md`", you MUST read that file from the skill directory where this guide lives and execute its instructions. Do NOT skip a step because you haven't read the guide yet — read it, then do what it says. The guide files ARE present in the same directory as this file.
 
 > **Context variables from master SKILL.md:**
-> - `RUNTIME` — `jbang` (default), `springboot`, or `quarkus`
+> - `RUNTIME` — `main` (default Camel Main packaging), `spring-boot`, or `quarkus`
 > - `FLOW_NAME`, `CAMEL_VERSION`, `TARGET_MODULE`
 > - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via `skills/shared/mcp-setup.md`
 
-**Migration TDDs:** If the TDD contains a "Migrated From" field, Java source files, WSDL/XSD files, or Maven plugin configuration, handle them as additional artifacts alongside the standard pipeline steps. Copy referenced files to `TARGET_MODULE`, create Java classes, and configure pom.xml as specified in the TDD. Do NOT skip the standard pipeline — migration TDDs still need route YAML, properties, docker-compose, and all other standard artifacts.
+**Migration design specs:** If the active flow design contains a "Migrated From" field, Java source files, WSDL/XSD
+files, or Maven plugin configuration, handle them as additional artifacts alongside the standard pipeline steps. Copy
+referenced files to `TARGET_MODULE`, create Java classes, and configure pom.xml as specified in the design spec. Do NOT
+skip the standard pipeline — migration flows still need route YAML, properties, docker-compose, and all other standard
+artifacts.
 
 ---
 
@@ -20,17 +24,17 @@ This guide defines file paths and execution order for the implementation pipelin
 
 Resolve paths based on runtime:
 
-| File Type | JBang | Spring Boot / Quarkus |
-|-----------|-------|-----------------------|
+| File Type | Main (JBang CLI) | Spring Boot / Quarkus |
+|-----------|------------------|-----------------------|
 | `{flow-name}.camel.yaml` | `{module}/` | `{module}/src/main/resources/camel/` |
 | `kaoto-datamapper-*.xsl` | `{module}/` | `{module}/src/main/resources/camel/` |
 | `application.properties` | `{module}/` | `{module}/src/main/resources/` |
 | `schemas/{flow-name}-*.json` | `{module}/schemas/` | `{module}/src/main/resources/schemas/` |
 | `docker-compose.yaml` | `{module}/` | `{module}/` |
 | `.kaoto` | `{module}/` | `{module}/` |
-| `run.sh` (JBang only) | `{module}/` | N/A |
+| `run.sh` (main runtime only) | `{module}/` | N/A |
 
-Where `{module}` is the `Target Module` from the TDD "Overview" section. For single-project setups, `{module}` is empty (files go in project root).
+Where `{module}` is the `Target Module` from the design spec flow overview. For single-project setups, `{module}` is empty (files go in project root).
 
 Assign these as context variables for all subsequent steps:
 - `ROUTE_DIR` — route/datamapper location from table above
@@ -52,14 +56,14 @@ Assign these as context variables for all subsequent steps:
 
 ### Step 1: DataMapper (CONDITIONAL)
 
-**IF** the TDD contains `### DataMapper: kaoto-datamapper-{id}` sections:
+**IF** the active flow design contains `### DataMapper: kaoto-datamapper-{id}` sections:
 - Load `guides/datamapper-validation.md` (shared — Steps 1, 1.5, 2, 3.5, 5-7)
-- Based on XSLT Approach in TDD:
+- Based on XSLT Approach in the design spec:
   - Approach A or N/A → also load `guides/datamapper-approach-a.md` (Steps 3, 4)
   - Approach B → also load `guides/datamapper-approach-b.md` (Steps 3, 4)
 - Pass: `FLOW_NAME`, file locations from the table above
 
-**SKIP** if no DataMapper sections exist in the TDD.
+**SKIP** if no DataMapper sections exist in the design spec.
 
 ### Step 2: Route Generation (ALWAYS)
 
@@ -83,7 +87,7 @@ Assign these as context variables for all subsequent steps:
   - `CAMEL_VERSION`
   - `RUNTIME`
 
-**JBang only:** INCLUDE `camel.jbang.dependencies` section listing all required Camel dependencies.
+**Main runtime only:** INCLUDE `camel.jbang.dependencies` section listing all required Camel dependencies.
 **Spring Boot / Quarkus:** Do NOT include `camel.jbang.dependencies` — dependencies are managed via Maven.
 
 ### Step 4: Docker Compose (ALWAYS)
@@ -95,12 +99,12 @@ Assign these as context variables for all subsequent steps:
   - `CAMEL_VERSION`
   - `RUNTIME`
   - `DOCKER_IMAGE`:
-    - JBang: `apache/camel-jbang:{CAMEL_VERSION}`
+    - Main: `apache/camel-jbang:{CAMEL_VERSION}`
     - Spring Boot / Quarkus: application-specific (built from project, not a generic Camel image)
 
 ### Step 5: Runtime-Specific Artifacts (ALWAYS)
 
-**JBang:**
+**Main runtime:**
 - Load `guides/run-script.md`
 - Pass: `FLOW_NAME`, `MODULE_DIR`
 
@@ -110,21 +114,21 @@ Assign these as context variables for all subsequent steps:
 
 ### Step 5.5: Migration Artifacts (CONDITIONAL)
 
-**IF** the TDD contains a "Migrated From" field (migration scenario):
+**IF** the active flow design contains a "Migrated From" field (migration scenario):
 
-1. **Java source files:** If the TDD references Java processors, beans, or configuration classes, create them in `{module}/src/main/java/` using the package structure from the TDD. For migration, copy the logic from the source and adapt it to Camel 4.x (jakarta imports, updated API calls).
+1. **Java source files:** If the design spec references Java processors, beans, or configuration classes, create them in `{module}/src/main/java/` using the package structure from the design spec. For migration, copy the logic from the source and adapt it to Camel 4.x (jakarta imports, updated API calls).
 
-2. **Non-route files:** If the TDD references WSDL, XSD, or other resource files, copy them to `{module}/src/main/resources/` preserving the directory structure specified in the TDD.
+2. **Non-route files:** If the design spec references WSDL, XSD, or other resource files, copy them to `{module}/src/main/resources/` preserving the directory structure specified in the design spec.
 
-3. **Maven plugins:** If the TDD specifies build plugins (e.g., CXF codegen, JAXB), add them to the `<build><plugins>` section of `{module}/pom.xml`.
+3. **Maven plugins:** If the design spec specifies build plugins (e.g., CXF codegen, JAXB), add them to the `<build><plugins>` section of `{module}/pom.xml`.
 
-4. **CDI/Spring configuration:** If the TDD specifies configuration classes or bean definitions beyond `application.properties`, create them.
+4. **CDI/Spring configuration:** If the design spec specifies configuration classes or bean definitions beyond `application.properties`, create them.
 
-**SKIP** if the TDD does not contain a "Migrated From" field.
+**SKIP** if the design spec does not contain a "Migrated From" field.
 
 ### Step 5.6: Sequential HTTP Calls (CONDITIONAL)
 
-**IF** the TDD contains both an HTTP consumer (`platform-http`, `servlet`, `jetty`, `netty-http`) **AND** one or more outbound HTTP producer calls (`http`, `https`, `undertow`, `vertx-http`):
+**IF** the design spec contains both an HTTP consumer (`platform-http`, `servlet`, `jetty`, `netty-http`) **AND** one or more outbound HTTP producer calls (`http`, `https`, `undertow`, `vertx-http`):
 - Load `guides/sequential-http-calls.md` for detailed implementation guidance
 - Apply header sanitization rules between HTTP endpoints
 
@@ -134,10 +138,10 @@ Assign these as context variables for all subsequent steps:
 
 ### Step 6: Advanced Patterns (CONDITIONAL)
 
-**IF** the TDD contains a "Performance & Reliability" section **OR** a "Security" section:
+**IF** the design spec contains a "Performance & Reliability" section **OR** a "Security" section:
 - Load `guides/advanced-patterns.md`
 
-**SKIP** if neither section exists in the TDD.
+**SKIP** if neither section exists in the design spec.
 
 ### Step 7: Schemas (CONDITIONAL)
 
@@ -161,22 +165,22 @@ Verify these files exist and are non-empty:
 |-------|------|-----------|
 | Route YAML | `{ROUTE_DIR}/{flow-name}.camel.yaml` | MUST exist, MUST be non-empty |
 | Properties | `{PROPS_DIR}/application.properties` | MUST exist |
-| Docker Compose | `{MODULE_DIR}/docker-compose.yaml` | MUST exist and be non-empty if TDD lists external services |
+| Docker Compose | `{MODULE_DIR}/docker-compose.yaml` | MUST exist and be non-empty if the design spec lists external services |
 | Maven POM | `{MODULE_DIR}/pom.xml` | MUST exist and be non-empty (Spring Boot / Quarkus only) |
-| Run script | `{MODULE_DIR}/run.sh` | MUST exist (JBang only) |
+| Run script | `{MODULE_DIR}/run.sh` | MUST exist (main runtime only) |
 
 **If the route YAML does not exist or is empty, STOP.** Do not show the Implementation Summary. Go back to Step 2 (Route Generation) and actually generate the file. This check exists because the most common failure mode is the AI reading guides without executing them.
 
-### 9.2 TDD Conformance Check
+### 9.2 Design Spec Conformance Check
 
-Open the generated `{flow-name}.camel.yaml` and verify it against the TDD:
+Open the generated `{flow-name}.camel.yaml` and verify it against the design spec:
 
 | Check | What to verify | How |
 |-------|---------------|-----|
-| Source component | Route `from:` uses the component specified in TDD "Source System" | Read route YAML, check `from.uri` |
-| Sink component | Route contains a `to:` step using the component specified in TDD "Sink System" | Read route YAML, check `to.uri` |
+| Source component | Route `from:` uses the component specified in the design spec Source System section | Read route YAML, check `from.uri` |
+| Sink component | Route contains a `to:` step using the component specified in the design spec Sink System section | Read route YAML, check `to.uri` |
 | Route ID | Route declares `id: {flow-name}` | Read route YAML, check `id` field |
-| Error handling | Route includes error handling matching TDD strategy (DLC, retry, etc.) | Read route YAML, check for `onException` or `errorHandler` |
+| Error handling | Route includes error handling matching the design spec strategy (DLC, retry, etc.) | Read route YAML, check for `onException` or `errorHandler` |
 | Placeholders | No hardcoded hostnames, ports, or credentials in route YAML — all use `{{placeholder}}` syntax | Scan route YAML for literal URLs or credentials |
 
 Report each check as PASS or FAIL. Failing checks are **warnings** (do not block the summary), but they must be visible in the output so the user knows what to review.
@@ -190,11 +194,11 @@ Completion Gate:
     ✓ application.properties exists
     ✓ docker-compose.yaml exists
     ✓ pom.xml exists [Spring Boot/Quarkus]
-  TDD Conformance:
-    ✓ Source: [component] matches TDD
-    ✓ Sink: [component] matches TDD
+  Design Spec Conformance:
+    ✓ Source: [component] matches design spec
+    ✓ Sink: [component] matches design spec
     ✓ Route ID: {flow-name}
-    ✓ Error handling: [strategy] matches TDD
+    ✓ Error handling: [strategy] matches design spec
     ⚠ Hardcoded value found: [detail]  ← example warning
 ```
 
@@ -212,11 +216,12 @@ If no graph exists: skip silently. No suggestion.
 
 ---
 
-## Implementation Summary
+## Standalone Implementation Summary
 
 **PREREQUISITE:** You can only show this summary if you have completed Step 8 (Completion Gate). If the route YAML does not exist on disk, go back and generate it.
 
-After all steps complete, display:
+Display this summary only when `camel-implement` is run standalone. When this guide is invoked by `camel-execute`,
+return only the status token requested by `camel-execute`; do not print a summary or next steps between tasks.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -248,7 +253,7 @@ Generated Files:
     Location: {MODULE_DIR}
     Services: [list services]
 
-  ✓ run.sh [JBang only — IF Step 5 ran]
+  ✓ run.sh [main runtime only — IF Step 5 ran]
     Location: {MODULE_DIR}
     Executable script to start integration
 
@@ -263,7 +268,7 @@ Generated Files:
     Location: {SCHEMA_DIR}
     Output data schema
 
-Dependencies (from TDD):
+Dependencies (from design spec):
   - camel-[component1]
   - camel-[component2]
   - [external dependencies]
@@ -275,7 +280,9 @@ Completion Gate: ✅ ALL CHECKS PASSED / ⚠️ [N] warnings
 
 ---
 
-## Next Steps
+## Standalone Next Steps
+
+Display this block only when `camel-implement` is run standalone.
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

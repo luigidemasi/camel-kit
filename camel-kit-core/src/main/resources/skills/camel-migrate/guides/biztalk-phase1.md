@@ -20,11 +20,11 @@ This guide is loaded by `camel-migrate` after it has already:
 
 You will work in two phases:
 - **Phase 1 (Business Analyst):** Deep-dive into BizTalk orchestrations, maps, pipelines, bindings; resolve proprietary adapters; fill any remaining gaps; produce BRD.
-- **Phase 2 (Integration Architect):** Design catalog-verified Camel route architecture and produce TDD files.
+- **Phase 2 (Integration Architect):** Design catalog-verified Camel route architecture and produce design spec updates.
 
-**Phase 1 of 2.** After completing this phase (BRD generation), the orchestrator dispatches Phase 2 (TDD generation) automatically.
+**Phase 1 of 2.** After completing this phase (BRD generation), the orchestrator dispatches Phase 2 (design spec generation) automatically.
 
-The outputs are identical in format to `/camel-project` + `/camel-flow`, making them fully compatible with `/camel-implement`.
+The outputs use the active Camel Kit pipeline package, making them compatible with `camel-plan` and `camel-execute`.
 
 ---
 
@@ -107,7 +107,7 @@ I found the following adapter with no direct Apache Camel equivalent:
   Suggested alternatives based on your project configuration:
   a) [best match from component-mapping.md] — [brief description]
   b) [alternative]
-  c) Keep as a TODO placeholder
+  c) Provide another MCP-verified replacement
   d) Remove this step
 
 Your choice?
@@ -123,7 +123,7 @@ MSMQ has no direct Apache Camel equivalent. Please choose a replacement:
 a) ActiveMQ Artemis (`camel-jms`) — drop-in JMS replacement, supports durable queues
 b) RabbitMQ (`camel-rabbitmq`) — AMQP-based messaging
 c) Azure Service Bus (`camel-azure-servicebus`) — cloud-native alternative (if migrating to Azure)
-d) Keep as TODO placeholder — decide later
+d) Remove this processing step from the migration design
 
 Your choice?
 ```
@@ -146,7 +146,7 @@ If the summary has no remaining gaps, skip this step entirely.
 
 ### Step 1.4 — Produce Business Requirements Document
 
-Create `docs/business-requirements.md` using the following format:
+Create `docs/camel-kit/<PIPELINE_ID>/business-requirements.md` using the following format:
 
 ```markdown
 # Business Requirements Document
@@ -207,7 +207,7 @@ If `.camel-kit/constitution.md` exists, the following rules from it apply to eve
 
 ## Next Steps
 
-Run `/camel-implement <orchestration-name>` for each orchestration once TDD files are created.
+Continue to `camel-plan` and `camel-execute` once the design spec is approved.
 
 ## Appendices
 
@@ -239,13 +239,13 @@ Report:
 Phase 1 complete.
 
 Created:
-- docs/business-requirements.md
+- docs/camel-kit/<PIPELINE_ID>/business-requirements.md
 
 Orchestrations to migrate: [list orchestration names]
 
 Starting Phase 2 — Integration Architect...
 ```
 
-**Phase 1 complete.** The orchestrator will now dispatch Phase 2 (`biztalk-phase2.md`) to generate TDD files.
+**Phase 1 complete.** The orchestrator will now dispatch Phase 2 (`biztalk-phase2.md`) to generate design spec updates.
 
 ---

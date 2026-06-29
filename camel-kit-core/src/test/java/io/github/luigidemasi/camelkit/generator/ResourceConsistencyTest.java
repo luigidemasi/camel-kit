@@ -43,7 +43,33 @@ class ResourceConsistencyTest {
                     "outdated Iron Law count",
                     Pattern.compile("(?i)\\b(all\\s+4\\s+laws|all\\s+four\\s+iron\\s+laws|"
                                     + "all\\s+four\\s+laws|the\\s+four\\s+iron\\s+laws|"
-                                    + "four\\s+iron\\s+laws|full\\s+set\\s+of\\s+four\\s+iron\\s+laws)\\b")));
+                                    + "four\\s+iron\\s+laws|full\\s+set\\s+of\\s+four\\s+iron\\s+laws)\\b")),
+            new StalePattern(
+                    "legacy per-flow TDD path",
+                    Pattern.compile("\\bdocs/flows\\b|\\.camel-kit/flows\\b|\\.tdd\\.md\\b")),
+            new StalePattern(
+                    "legacy root pipeline artifact path",
+                    Pattern.compile("\\bdocs/(business-requirements|implementation-plan)\\.md\\b")),
+            new StalePattern(
+                    "legacy TDD artifact terminology",
+                    Pattern.compile("(?i)(\\bTDD\\b\\s*(Section|file|files|path|content|field|mapping|format|"
+                                    + "output|artifact|specification|decomposition|creation|assembly)"
+                                    + "|\\b(TDDs|per-flow\\s+TDD|BRD\\+TDD)\\b)")),
+            new StalePattern(
+                    "retired internal command exposed as slash command",
+                    Pattern.compile("(?<![\\w-])/camel-(implement|test|flow)\\b")),
+            new StalePattern("legacy camel.version property", Pattern.compile("\\bcamel\\.version\\b")),
+            new StalePattern("legacy versions.properties source", Pattern.compile("\\bversions\\.properties\\b")),
+            new StalePattern(
+                    "legacy runtime enum in config or RUNTIME context",
+                    Pattern.compile("(?i)(`?project\\.runtime`?|`RUNTIME`)[^\\n]*\\([^\\n)]*\\b(jbang|springboot)\\b"
+                                    + "[^\\n)]*\\)|\\bRUNTIME\\s*==\\s*(jbang|springboot)\\b")),
+            new StalePattern(
+                    "Iron Law numbering mismatch",
+                    Pattern.compile("(?i)(Iron\\s+Law\\s+3[^\\n]*(constitution|all\\s+7)"
+                                    + "|constitution[^\\n]*Iron\\s+Law\\s+3"
+                                    + "|Iron\\s+Law\\s+4[^\\n]*(No\\s+Code|approval|approved|"
+                                    + "generate\\s+ONLY|Produce\\s+the\\s+design\\s+spec))")));
 
     @TempDir
     Path tempDir;

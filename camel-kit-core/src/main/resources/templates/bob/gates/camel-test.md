@@ -17,7 +17,7 @@ All testing guides are in `.bob/skills/camel-test/guides/`. When this file says 
 <Step>
 ## Switch to Test Mode
 
-Switch to **camel-test** mode using the mode selector or `/camel-test` command.
+Switch to **camel-test** mode using the mode selector.
 This enables test generation and execution capabilities.
 </Step>
 
@@ -38,8 +38,8 @@ List all discovered routes. If none found, report and stop.
 Read these files:
 1. `docs/constitution.md` — constitution rules
 2. `.camel-kit/config.properties` — Camel version, runtime, platform BOM
-3. `docs/design-spec.md` — approved design spec (if exists)
-4. `docs/flows/<flow-name>/<flow-name>.tdd.md` — Technical Design Document for each route
+3. `docs/camel-kit/<PIPELINE_ID>/design-spec.md` — approved design spec
+4. `docs/camel-kit/<PIPELINE_ID>/test-data/<flow-name>/` — synthetic I/O pairs when present
 
 Load testing guides:
 - `guides/route-analysis.md` — analyze routes to identify testable behaviors
@@ -209,7 +209,7 @@ Load `guides/test-generation.md`.
          timeout: 30000
    ```
 
-Follow TDD's test criteria from the route's TDD file.
+Follow the test criteria from the route's design spec section.
 </Step>
 
 <Step>
@@ -229,7 +229,7 @@ camel test run src/test/resources/<flow-name>.camel.it.yaml
 
 If tests FAIL:
 1. Read the failure message
-2. Check if route implementation is correct (compare with TDD)
+2. Check if route implementation is correct (compare with the design spec)
 3. Check if test expectations are correct
 4. Fix the issue (route OR test)
 5. Re-run tests

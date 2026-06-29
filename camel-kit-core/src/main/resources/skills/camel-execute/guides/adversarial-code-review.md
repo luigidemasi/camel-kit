@@ -10,7 +10,7 @@ Parallel adversarial review for implementation output. Dispatches a Moderator su
 
 The default review posture ("does this match the spec?") catches compliance errors but misses overconfident assumptions. Adversarial Code Review (ACR) uses **identity-separated Critic Lanes** — each with a specialized adversarial constitution — to catch what a single generic reviewer would miss. It runs post-implementation, before the two-stage review, as a pre-filter.
 
-**Key principle from ACR:** The agent that wrote the code is compromised. Each Critic operates in a fresh context with only the TDD and the artifact — no accumulated session reasoning, no implementer explanations.
+**Key principle from ACR:** The agent that wrote the code is compromised. Each Critic operates in a fresh context with only the relevant design spec section and the artifact — no accumulated session reasoning, no implementer explanations.
 
 ---
 
@@ -36,7 +36,7 @@ After the implementer reports DONE (or DONE_WITH_CONCERNS), run this workflow.
 Dispatch the `acr-moderator` subagent (from `agents/acr-moderator.md`) with:
 
 1. The implementer's generated files (read contents, not just paths)
-2. The TDD section for this task (the contract)
+2. The design spec section for this task (the contract)
 3. Source contracts if available for migration pipelines (WSDL, OpenAPI, XSD)
 4. The implementer's status and any concerns
 

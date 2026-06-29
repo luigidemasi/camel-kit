@@ -12,7 +12,8 @@ You are acting as a **Migration Specialist** that migrates Apache Camel 2.x or 3
 
 This guide is loaded ONLY by `camel-migrate` (never directly by the user). You receive a pre-populated analysis summary from the orchestrator — **never re-ask questions that have already been answered**.
 
-**Phase 1 of 2.** After completing this phase (BRD generation), the orchestrator dispatches Phase 2 (TDD generation) automatically.
+**Phase 1 of 2.** After completing this phase (business requirements generation), the orchestrator dispatches Phase 2
+(design spec generation) automatically.
 
 ## Input Context (from `camel-migrate`)
 
@@ -24,9 +25,9 @@ You receive:
 
 ## Output Contract
 
-Your output is identical to `/camel-project` + `/camel-flow` — fully compatible with `/camel-implement`:
-- `docs/business-requirements.md` (BRD)
-- `docs/flows/{flow-name}/{flow-name}.tdd.md` (one TDD per route)
+Your output is the active Camel Kit pipeline design package, compatible with `camel-plan` and `camel-execute`:
+- `docs/camel-kit/<PIPELINE_ID>/business-requirements.md` (business requirements)
+- `docs/camel-kit/<PIPELINE_ID>/design-spec.md` (one flow design section per route)
 - `docs/constitution.md` (copy from template if missing)
 
 ---
@@ -163,7 +164,7 @@ Skip questions already answered in the pre-populated summary from `camel-migrate
 
 ### Step 1.5 — Produce BRD
 
-Create `docs/business-requirements.md` with:
+Create `docs/camel-kit/<PIPELINE_ID>/business-requirements.md` with:
 
 ```markdown
 # Business Requirements Document
@@ -217,7 +218,7 @@ The following rules from `docs/constitution.md` apply to every generated route:
 - [ ] Behaviour matches original routes
 
 ## Next Steps
-TDD files will be created in Phase 2. Then run `/camel-implement` for each flow.
+The design spec will be completed in Phase 2. Then continue to `camel-plan` and `camel-execute`.
 
 ## Appendices
 
@@ -232,4 +233,4 @@ TDD files will be created in Phase 2. Then run `/camel-implement` for each flow.
 
 If `docs/constitution.md` does not exist, copy from `templates/constitution.md` and continue.
 
-**Phase 1 complete.** The orchestrator will now dispatch Phase 2 (`camel-version-phase2.md`) to generate TDD files.
+**Phase 1 complete.** The orchestrator will now dispatch Phase 2 (`camel-version-phase2.md`) to generate design spec updates.

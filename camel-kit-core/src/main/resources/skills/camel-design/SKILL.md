@@ -1,6 +1,6 @@
 ---
 name: camel-design
-description: Internal reference skill — loaded by camel-brainstorm during flow design. Contains guides for component selection, EIP catalog, data formats, integration patterns, and TDD assembly. NOT user-invocable.
+description: Internal reference skill — loaded by camel-brainstorm during flow design. Contains guides for component selection, EIP catalog, data formats, integration patterns, and design spec assembly. NOT user-invocable.
 user_invocable: false
 ---
 
@@ -26,7 +26,7 @@ Provides the domain knowledge guides needed to design Apache Camel integration f
 | `guides/performance.md` | When performance requirements specified | Throttling, concurrency, batch processing design |
 | `guides/security.md` | When security requirements specified | TLS, auth, credential management design |
 | `guides/monitoring.md` | When monitoring/observability required | Metrics, health checks, tracing design |
-| `guides/tdd-assembly.md` | Always (final step of design) | Assembles design decisions into TDD format |
+| `guides/tdd-assembly.md` | Always (final step of design) | Assembles design decisions into the active design spec format |
 
 ## Iron Laws
 

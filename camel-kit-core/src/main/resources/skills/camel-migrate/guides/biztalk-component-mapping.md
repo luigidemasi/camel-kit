@@ -61,7 +61,7 @@ MSMQ has no direct Apache Camel equivalent. Please choose a replacement:
 a) ActiveMQ Artemis (`camel-jms`) — drop-in JMS replacement, supports durable queues
 b) RabbitMQ (`camel-rabbitmq`) — AMQP-based messaging
 c) Azure Service Bus (`camel-azure-servicebus`) — cloud-native alternative (if migrating to Azure)
-d) Keep as TODO placeholder — decide later
+d) Remove this processing step from the migration design
 
 Your choice?
 ```
@@ -164,7 +164,7 @@ I found the following adapter with no direct Apache Camel equivalent:
   Suggested alternatives based on adapter type:
   a) [best match from table above] — [brief description]
   b) [alternative]
-  c) Keep as a TODO placeholder
+  c) Provide another MCP-verified replacement
   d) Remove this step
 
 Your choice?
@@ -205,7 +205,7 @@ See `biztalk-expression-mapping.md` for XLANG/s expression conversion.
 
 ## Notes
 
-- Always verify component names in the MCP catalog before writing TDD entries (using `camel_catalog_component_doc`).
+- Always verify component names in the MCP catalog before writing design spec entries (using `camel_catalog_component_doc`).
 - CRITICAL: use the exact component scheme from the route URI (e.g., `smtp`, not `mail`).
 - For MSMQ, WCF-Custom, and third-party adapters, always **ASK USER** before selecting a replacement.
 - BizTalk orchestration variables map to Camel exchange headers (`${header.*}`).

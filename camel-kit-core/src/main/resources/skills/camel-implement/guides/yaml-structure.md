@@ -11,35 +11,35 @@
 
 Create file: `{FLOW_NAME}.camel.yaml`
 
-### 3.1 Follow TDD Specification
+### 3.1 Follow the Design Spec
 
-Generate the route by translating the TDD to Camel YAML DSL:
+Generate the route by translating the active design spec flow section to Camel YAML DSL:
 
-1. **Route Structure** (from TDD "Overview"):
+1. **Route Structure** (from the flow overview):
    - Route ID: `{FLOW_NAME}`
-   - Description: from TDD overview
+   - Description: from the flow overview
 
-2. **Source Configuration** (from TDD "Source System"):
-   - Component: from TDD
+2. **Source Configuration** (from the flow's Source System section):
+   - Component: from the design spec
    - URI: Use property placeholders for endpoints
    - Parameters: Only endpoint-specific (NOT connection details)
 
-3. **Processing Steps** (from TDD "Processing Steps"):
-   - For each EIP in the TDD, call `camel_catalog_eip_doc` (with `CAMEL_VERSION`) to get the authoritative option names and YAML DSL structure before writing the step — see Rule 0d
-   - Translate each step from TDD to Camel EIP using only catalog-verified option names
+3. **Processing Steps** (from the flow's Processing Steps section):
+   - For each EIP in the design spec, call `camel_catalog_eip_doc` (with `CAMEL_VERSION`) to get the authoritative option names and YAML DSL structure before writing the step — see Rule 0d
+   - Translate each step from the design spec to Camel EIP using only catalog-verified option names
    - **If DataMapper artifacts were generated (by a prior guide)**, the DataMapper step block is already injected into the YAML — do not duplicate it
-   - Preserve order from TDD
+   - Preserve order from the design spec
    - Use `steps:` array format for Kaoto compatibility
 
-4. **Sink Configuration** (from TDD "Sink System"):
-   - Component: from TDD
+4. **Sink Configuration** (from the flow's Sink System section):
+   - Component: from the design spec
    - URI: Use property placeholders
    - Parameters: Only endpoint-specific
 
-5. **Error Handling** (from TDD "Error Handling"):
-   - Strategy: from TDD (Dead Letter Channel, onException, etc.)
+5. **Error Handling** (from the flow's Error Handling section):
+   - Strategy: from the design spec (Dead Letter Channel, onException, etc.)
    - DLQ: Use property placeholder
-   - Retry policy: from TDD configuration
+   - Retry policy: from design spec configuration
 
 ### 3.2 Structural Rules
 
@@ -86,13 +86,13 @@ Generate the route by translating the TDD to Camel YAML DSL:
    ```
 
    **When to include:**
-   - ONLY if DataMapper artifacts were generated (TDD had a `### DataMapper:` section)
+   - ONLY if DataMapper artifacts were generated (the design spec flow had a `### DataMapper:` section)
    - The step block is already injected by the DataMapper guide — do not duplicate it
    - Logical placement: AFTER unmarshal (when data is in structured format), BEFORE validation
 
    **Component required:** `camel-xslt-saxon` (verified by the DataMapper guide)
 
-3b. **DataMapper Parameters** - Pass Camel Variables/Headers to XSLT (if TDD "Processing Steps" section defines parameters):
+3b. **DataMapper Parameters** - Pass Camel Variables/Headers to XSLT (if the flow's Processing Steps section defines parameters):
    ```yaml
    steps:
      - step:
@@ -102,7 +102,7 @@ Generate the route by translating the TDD to Camel YAML DSL:
                id: order-datamapper-xslt
                uri: "xslt-saxon:order-datamapper-a1b2c3d4.xsl"
                parameters:
-                 # Map from TDD "Processing Steps" section table
+                 # Map from the flow's Processing Steps section table
                  userId: "${header.userId}"           # From Header
                  customerProfile: "${variable.customerProfile}"  # From Variable
                  tenantId: "${header.tenantId}"       # From Header
@@ -230,15 +230,15 @@ Create `{FLOW_NAME}.camel.yaml` in `ROUTE_DIR`:
 ```yaml
 # ============================================
 # Camel Route: {FLOW_NAME}
-# Generated from TDD: docs/flows/{FLOW_NAME}/{FLOW_NAME}.tdd.md
+# Generated from design spec: docs/camel-kit/<PIPELINE_ID>/design-spec.md
 # ============================================
 
 # Global onException MUST be declared before any route (Rule 6).
-# Include ONLY if TDD "Error Handling" section defines global (cross-route) onException handling.
+# Include ONLY if the design spec Error Handling section defines global (cross-route) onException handling.
 # Route-scoped error handling (errorHandler:, doTry/doCatch) stays inside the route.
 - onException:
     exception:
-      - [exception class from TDD]
+      - [exception class from design spec]
     handled:
       constant:
         expression: "true"
@@ -248,9 +248,9 @@ Create `{FLOW_NAME}.camel.yaml` in `ROUTE_DIR`:
 
 - route:
     id: {FLOW_NAME}
-    description: [from TDD overview]
+    description: [from design spec overview]
 
-    # Error handling strategy from TDD "Error Handling" section
+    # Error handling strategy from design spec Error Handling section
     errorHandler:
       deadLetterChannel:
         deadLetterUri: "[component]:{{dlq.endpoint}}"
@@ -259,12 +259,12 @@ Create `{FLOW_NAME}.camel.yaml` in `ROUTE_DIR`:
           redeliveryDelay: {{error.retry.delay}}
           backOffMultiplier: {{error.backoff.multiplier}}
 
-    # Source from TDD "Source System" section
+    # Source from design spec Source System section
     from:
       uri: "[component]:{{source.endpoint}}"
 
       steps:
-        # Processing steps from TDD "Processing Steps" section
+        # Processing steps from design spec Processing Steps section
         # (unmarshal only if explicitly required — see Rule in Step 3.2)
 
         # DataMapper transformation (injected by DataMapper guide if applicable)
@@ -274,21 +274,21 @@ Create `{FLOW_NAME}.camel.yaml` in `ROUTE_DIR`:
               - to:
                   id: kaoto-datamapper-xslt-{4hexchars}
                   uri: xslt-saxon:kaoto-datamapper-{id}.xsl
-                  # Pass parameters to XSLT if TDD "Processing Steps" section defines parameters
+                  # Pass parameters to XSLT if the design spec Processing Steps section defines parameters
                   parameters:
                     userId: "${header.userId}"
                     customerProfile: "${variable.customerProfile}"
                     tenantId: "${header.tenantId}"
 
         - validate:
-            simple: "[validation expression from TDD]"
+            simple: "[validation expression from design spec]"
 
         - filter:
-            simple: "[filter condition from TDD]"
+            simple: "[filter condition from design spec]"
 
-        # Additional steps from TDD...
+        # Additional steps from design spec...
 
-        # Sink from TDD "Sink System" section
+        # Sink from design spec Sink System section
         - to:
             uri: "[component]:{{sink.endpoint}}"
 ```

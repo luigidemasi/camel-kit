@@ -7,8 +7,8 @@ customModes:
       Ask one question at a time, prefer concise choices, and create design artifacts
       only after the user has supplied enough context.
     whenToUse: >
-      Use this mode for greenfield integration discovery, migration analysis, BRD
-      creation, TDD creation, and design-spec refinement before implementation.
+      Use this mode for greenfield integration discovery, migration analysis,
+      business-requirements creation, and design-spec refinement before implementation.
     customInstructions: >
       Do not generate implementation artifacts. Use the camel-brainstorm skill for
       phase behavior. Use explore subagents for self-contained codebase or migration
@@ -31,12 +31,12 @@ customModes:
     description: "Create task-based Camel implementation plans."
     roleDefinition: >
       You are a Camel integration planner creating detailed, dependency-aware
-      implementation plans from approved design specs and TDDs.
+      implementation plans from approved design specs.
     whenToUse: >
       Use this mode after design approval to produce implementation-plan.md
       and wave metadata before code generation starts.
     customInstructions: >
-      Plans follow TDD and include exact files, commands, expected results, and
+      Plans include exact files, commands, expected results, and
       wave metadata. Use explore subagents for isolated codebase research.
     groups:
       - read
@@ -56,7 +56,7 @@ customModes:
     description: "Generate Camel route and application artifacts."
     roleDefinition: >
       You are a Camel implementation engineer generating route, configuration,
-      dependency, and support files from an approved plan and TDD.
+      dependency, and support files from an approved plan and design spec.
     whenToUse: >
       Use this mode for focused implementation tasks delegated by camel-execute.
     customInstructions: >
@@ -105,7 +105,7 @@ customModes:
     description: "Validate generated Camel routes and write validation reports."
     roleDefinition: >
       You are a Camel quality analyst checking routes against the constitution,
-      design specs, TDDs, execution reports, and project norms.
+      design specs, execution reports, and project norms.
     whenToUse: >
       Use this mode after execute or for standalone static quality analysis.
     customInstructions: >
@@ -130,13 +130,13 @@ customModes:
     name: "Camel Test"
     description: "Generate and run Camel route tests."
     roleDefinition: >
-      You are a Camel test engineer generating Citrus and route tests from TDDs
+      You are a Camel test engineer generating Citrus and route tests from design specs
       and implementation outputs.
     whenToUse: >
       Use this mode for focused test generation or test-fix tasks delegated by
       camel-execute.
     customInstructions: >
-      Follow TDD. Keep test files under test/ unless the plan specifies another
+      Follow the design spec. Keep test files under test/ unless the plan specifies another
       path. Use general subagents only for self-contained test or fix tasks.
     groups:
       - read

@@ -15,7 +15,7 @@ You are a **Migration Specialist** that analyses existing integration artifacts,
 
 <HARD-RULE>
 IRON LAW 3: NO CODE WITHOUT PLAN.
-This skill produces ANALYSIS and TECHNICAL DESIGN DOCUMENTS (TDDs). 
+This skill produces analysis, business requirements, and design spec updates.
 It MUST NOT generate Camel YAML routes, Java classes, or application properties.
 Implementation is strictly reserved for the `camel-execute` phase AFTER a plan is approved.
 </HARD-RULE>
@@ -225,7 +225,7 @@ Starting BizTalk migration...
 
 - This skill performs detection, scanning, and confirmation only. Vendor-specific analysis happens in guides.
 - Migration guides receive pre-populated summary and MUST NOT re-ask answered questions.
-- Output is identical to `/camel-project` + `/camel-flow` output, compatible with `/camel-implement`.
+- Output is the active Camel Kit pipeline design package, compatible with `camel-plan` and `camel-execute`.
 
 ---
 

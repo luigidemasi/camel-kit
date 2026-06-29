@@ -21,7 +21,7 @@ This returns all data formats available in Camel {{CAMEL_VERSION}}. Use this lis
 MCP Tool: camel_catalog_dataformat_doc
 Params: { "dataformat": "[format-name]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
 ```
-This returns: configuration options, Maven coordinates, model class information, and example usage. Record the Maven coordinates and any required configuration in the TDD.
+This returns: configuration options, Maven coordinates, model class information, and example usage. Record the Maven coordinates and any required configuration in the design spec.
 
 **If user uncertain about format choice:**
 → Show the list from `camel_catalog_dataformats`, optionally load `guides/data-formats.md` for comparison guidance, then ask the user to choose.
@@ -45,7 +45,7 @@ This returns all EIPs available in Camel {{CAMEL_VERSION}} for the given categor
 MCP Tool: camel_catalog_eip_doc
 Params: { "eip": "[eip-name]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
 ```
-This returns: all configuration options, output type, required fields, and YAML DSL usage. Record any non-obvious options in the TDD.
+This returns: all configuration options, output type, required fields, and YAML DSL usage. Record any non-obvious options in the design spec.
 
 Repeat Step B for every EIP proposed — do not describe EIP options from training data.
 
@@ -84,9 +84,9 @@ This returns all expression languages available in Camel {{CAMEL_VERSION}} (Simp
 MCP Tool: camel_catalog_language_doc
 Params: { "language": "[language-name]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
 ```
-This returns: syntax rules, configuration options, Maven coordinates (if the language is in a separate artifact), and example usage. Record any non-default Maven dependency in the TDD.
+This returns: syntax rules, configuration options, Maven coordinates (if the language is in a separate artifact), and example usage. Record any non-default Maven dependency in the design spec.
 
 **Choosing the right language:**
 - Use the catalog list to match the data format and use case (e.g. JSON body → JsonPath or JQ; XML body → XPath; simple header/body checks → Simple)
 - Never default to `simple` without first confirming it is the best fit for the data format
-- If the chosen language requires an additional Maven dependency (e.g. `camel-jsonpath`, `camel-jq`), document it in the TDD "Dependencies" section
+- If the chosen language requires an additional Maven dependency (e.g. `camel-jsonpath`, `camel-jq`), document it in the design spec Dependencies section

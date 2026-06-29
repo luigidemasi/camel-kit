@@ -19,12 +19,13 @@ Generate the skeleton in a **temporary directory**. Never write probe files into
 ### Steps
 
 1. Create a temp directory: `mktemp -d /tmp/camel-kit-probe-XXXXXX`
-2. Read ALL TDD files (`docs/flows/{flow-name}/{flow-name}.tdd.md`) and extract:
-   - **Section 2 (Source System):** component, protocol, connection properties
-   - **Section 4 (Sink System):** component, protocol, connection properties
-   - **Section 7 (Configuration Properties):** all connection strings and credentials
-   - **Section 8 (Dependencies):** all Maven coordinates
-3. Read `.camel-kit/config.properties` to determine the runtime (`quarkus`, `springboot`, `jbang`)
+2. Read `.camel-kit/pipeline.json`, then read the active design spec
+   (`docs/camel-kit/<PIPELINE_ID>/design-spec.md`) and extract for every flow:
+   - **Source System:** component, protocol, connection properties
+   - **Sink System:** component, protocol, connection properties
+   - **Configuration Properties:** all connection strings and credentials
+   - **Dependencies:** all Maven coordinates
+3. Read `.camel-kit/config.properties` to determine the runtime (`main`, `spring-boot`, `quarkus`)
 4. Generate the following files in the temp directory:
 
 #### pom.xml
@@ -45,15 +46,16 @@ Include the runtime-specific BOM and ALL planned dependencies aggregated across 
 </dependencyManagement>
 
 <dependencies>
-    <!-- All dependencies from TDD Section 8, de-duplicated -->
+    <!-- All dependencies from the active design spec, de-duplicated -->
 </dependencies>
 ```
 
-Skip `pom.xml` generation for JBang runtime.
+Skip `pom.xml` generation for the main runtime.
 
 #### docker-compose.yaml
 
-Include services for every external system found in TDD Section 2 and Section 4 (databases, message brokers, mail servers, etc.). Use the same image tags and port mappings that the real implementation would use.
+Include services for every external system found in the active design spec (databases, message brokers, mail servers,
+etc.). Use the same image tags and port mappings that the real implementation would use.
 
 Skip if no external services are needed.
 
@@ -73,13 +75,13 @@ A single empty route — just enough to verify the runtime boots:
 
 #### application.properties
 
-Include connection strings from TDD Section 7. Add runtime-specific entries:
+Include connection strings from the active design spec. Add runtime-specific entries:
 
 | Runtime | Additional Properties |
 |---|---|
 | Quarkus | `quarkus.analytics.disabled=true` |
 | Spring Boot | (none) |
-| JBang | `camel.jbang.dependencies=` with all planned dependencies |
+| Main | `camel.jbang.dependencies=` with all planned dependencies |
 
 #### Maven Wrapper
 
@@ -97,9 +99,9 @@ Verify that all planned dependencies can be resolved from configured repositorie
    - Run: `./mvnw dependency:resolve -q` (in the temp directory)
    - Check the command exit code (0 = success, non-zero = failure). On failure, capture stderr for Step 5 classification.
 
-2. **For JBang:**
-   - Skip this check — JBang resolves dependencies at runtime
-   - Record: `SKIPPED (JBang)`
+2. **For main runtime:**
+   - Skip this check — Camel JBang resolves dependencies at runtime
+   - Record: `SKIPPED (main runtime)`
 
 3. If dependency resolution fails → extract the error message and proceed to Step 5 (Error Classification)
 
@@ -141,7 +143,7 @@ Verify that the runtime can boot with the planned dependencies and configuration
    |---|---|
    | Quarkus | `./mvnw quarkus:dev -Dquarkus.analytics.disabled=true -Dquarkus.console.enabled=false` |
    | Spring Boot | `./mvnw spring-boot:run` |
-   | JBang | `camel run probe-route.camel.yaml application.properties` |
+   | Main | `camel run probe-route.camel.yaml application.properties` |
 
 2. Start the skeleton application in the temp directory
 3. Capture logs for up to 60 seconds, watching for:
@@ -203,7 +205,7 @@ camel_catalog_component_doc(component="{component}", runtime="{runtime}", platfo
 ```
 
 - If the component exists → the error is mechanical (wrong artifact name, wrong groupId, typo)
-- If the component does not exist → promote to architectural (the TDD references a component that is not available for this runtime/version)
+- If the component does not exist → promote to architectural (the design spec references a component that is not available for this runtime/version)
 
 ---
 
@@ -216,7 +218,7 @@ Apply a targeted fix for the classified error, then re-run ONLY the check that f
 | Error | Fix |
 |---|---|
 | Wrong artifact name | Look up the correct artifact via MCP catalog, update `pom.xml` |
-| Missing dependency | Add the dependency to `pom.xml` (or `camel.jbang.dependencies` for JBang) |
+| Missing dependency | Add the dependency to `pom.xml` (or `camel.jbang.dependencies` for main runtime) |
 | Port conflict | Add 10000 offset to the host port in `docker-compose.yaml` (e.g., 5432 becomes 15432, update `application.properties` accordingly) |
 | Docker env var mismatch | Fix environment variables in `docker-compose.yaml` to match `application.properties` |
 | Wrong BOM version | Align the BOM version with the Camel version from `.camel-kit/config.properties` |
@@ -239,18 +241,19 @@ Allow at most **1 mechanical fix attempt per error**. If the fix does not resolv
 
 ## Step 7: Architectural Failure — Trigger Re-Plan
 
-When an error is classified as architectural (either immediately or after a failed mechanical fix), the probe cannot resolve it. The TDD must be revised.
+When an error is classified as architectural (either immediately or after a failed mechanical fix), the probe cannot
+resolve it. The affected flow design section must be revised.
 
 ### Steps
 
 1. Load `camel-execute/guides/re-plan-loop.md`
 2. Pass the following context to the re-plan loop:
    - **Failure details:** error message, classification, MCP catalog response
-   - **Affected TDD file(s):** which TDD(s) reference the failing component or service
+   - **Affected flow design(s):** which design spec flow sections reference the failing component or service
    - **Probe error output:** raw log output from the failed check
    - **MCP catalog response:** the full response from the catalog verification call
 
-The re-plan loop will revise the affected TDD sections and re-run the probe.
+The re-plan loop will revise the affected flow design sections and re-run the probe.
 
 ---
 
@@ -262,7 +265,7 @@ Generate a structured report summarizing all checks.
 
 ```text
 ENVIRONMENT PROBE
-Dependency Resolution: {PASS | FAIL (N fixes) | SKIPPED (JBang)}
+Dependency Resolution: {PASS | FAIL (N fixes) | SKIPPED (main runtime)}
 Docker Services:       {PASS (N services) | FAIL (service) | SKIPPED (no Docker / no services)}
 Runtime Startup:       {PASS (Ns) | FAIL (error) | SKIPPED}
 
@@ -277,7 +280,7 @@ Result: {PROCEED | RE-PLAN (architectural: reason) | ESCALATE (reason)}
 | Result | Meaning | Next Action |
 |---|---|---|
 | PROCEED | All checks passed (with or without mechanical fixes) | Continue to implementer dispatch |
-| RE-PLAN | Architectural failure detected | Re-plan loop revises TDD, re-run probe |
+| RE-PLAN | Architectural failure detected | Re-plan loop revises the design spec, re-run probe |
 | ESCALATE | Unresolvable failure (no Docker, no Maven, no JDK) | Report to user, cannot proceed automatically |
 
 ---

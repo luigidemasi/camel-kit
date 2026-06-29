@@ -8,7 +8,7 @@
 > - `CAMEL_VERSION` — Camel version from `.camel-kit/config.properties`
 > - `RUNTIME` — from `.camel-kit/config.properties` (`project.runtime`, default: `main`)
 > - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via the version mapping table in `skills/shared/mcp-setup.md`
-> - `TARGET_MODULE` — module prefix from TDD "Overview" section (empty for single-project)
+> - `TARGET_MODULE` — module prefix from the design spec flow overview (empty for single-project)
 
 ---
 
@@ -30,13 +30,20 @@ All catalog calls MUST translate `CAMEL_VERSION` + `RUNTIME` to the correct `cam
 
 ## Step 2: Load Component Documentation
 
-**MANDATORY — do not skip, do not proceed to Step 3 without completing this step for every component.**
+**MANDATORY — do not skip, do not proceed to Step 3 without verified catalog data for every component.**
 
-Extract every component used in the TDD (source, sink, DLQ, any `to()` targets) and retrieve its full documentation. This is the single source of truth for URI syntax, endpoint options, component-level options, and Maven coordinates. **Never use training-data knowledge as a substitute** — component option names, default values, and URI syntax change between Camel versions and must be verified against the catalog for the project's exact version.
+Extract every component used in the design spec (source, sink, DLQ, any `to()` targets) and retrieve or consume its full
+documentation. This is the single source of truth for URI syntax, endpoint options, component-level options, and Maven
+coordinates. **Never use training-data knowledge as a substitute** — component option names, default values, and URI
+syntax change between Camel versions and must be verified against the catalog for the project's exact version.
+
+If `camel-execute` provided a pre-verified catalog summary for this wave, use that summary as the verified catalog data
+and do not repeat the MCP calls. If no summary is provided, call MCP directly as described below.
 
 ### 2.1 With MCP (Required)
 
-**Call `camel_catalog_component_doc` directly for EVERY component — no exceptions. Do not check for MCP availability upfront.**
+**When no pre-verified catalog summary is provided, call `camel_catalog_component_doc` directly for EVERY component —
+no exceptions. Do not check for MCP availability upfront.**
 
 **CRITICAL — use the exact component scheme from the route URI.** The component name passed to `camel_catalog_component_doc` MUST be the exact URI scheme used in the route's `from:` or `to:` (e.g., `smtp`, not `mail`; `aws2-sqs`, not `aws`; `kafka`, not `messaging`). Many Camel components share a parent artifact but are distinct components with distinct schemes, options, and property prefixes. Always use the specific scheme — never a parent, alias, or abstract name.
 
@@ -74,7 +81,7 @@ Repeat for every component before writing any YAML.
 Options:
 1. Search for the correct component name with camel_catalog_components
 2. Confirm the component exists in this Camel version
-3. Update the TDD with the correct component before proceeding
+3. Update the design spec with the correct component before proceeding
 ```
 
 Do NOT guess a component name or proceed with an unverified component.

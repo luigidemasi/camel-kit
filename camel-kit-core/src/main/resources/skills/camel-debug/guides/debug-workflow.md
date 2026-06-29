@@ -13,8 +13,8 @@ Structured troubleshooting guide for ad-hoc Camel route debugging. Follows a str
 ### Gather Context
 
 1. Read `.camel-kit/config.properties` → extract:
-   - `project.runtime` (quarkus | springboot | jbang)
-   - `camel.version`
+   - `project.runtime` (`main` | `spring-boot` | `quarkus`)
+   - `project.camelVersion`
 2. Ask the user (if not already provided):
    - What is the symptom? (build failure, startup error, runtime exception, unexpected behavior, no error but wrong output)
    - When did it start? (after a change, after upgrade, intermittent, always)
@@ -156,7 +156,7 @@ Apply the fix target from the error classification:
 |---|---|
 | Self-repair | Edit the file directly (pom.xml, application.properties, route YAML) |
 | camel-validate | Load `camel-validate` to re-validate the affected route against MCP catalog |
-| camel-implement | Load `camel-implement` to re-generate the affected route from its TDD |
+| camel-implement | Load `camel-implement` to re-generate the affected route from its design spec section |
 | Escalate | Present the raw error and diagnosis to the user — do NOT attempt a fix |
 | Unclassified | Present the raw error and diagnosis to the user — do NOT attempt a fix |
 

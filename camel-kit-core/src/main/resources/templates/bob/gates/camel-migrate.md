@@ -145,21 +145,21 @@ All design decisions are locked. Create a checkpoint now.
 
 Switch to **camel-plan** mode. Read `.bob/skills/camel-migrate/guides/camel-version-phase1.md` for BRD generation.
 
-Generate the Business Requirements Document (BRD) at `docs/business-requirements.md`.
+Generate the business requirements at `docs/camel-kit/<PIPELINE_ID>/business-requirements.md`.
 </Step>
 
 <Step>
 ## Generate Technical Design
 
-Read `.bob/skills/camel-migrate/guides/camel-version-phase2.md` for TDD generation.
+Read `.bob/skills/camel-migrate/guides/camel-version-phase2.md` for design spec generation.
 
-Generate Technical Design Documents (TDDs) at `docs/flows/<flow-name>/<flow-name>.tdd.md`.
+Update the active migration design spec at `docs/camel-kit/<PIPELINE_ID>/design-spec.md`.
 </Step>
 
 <Step>
 ## Plan Approval
 
-Present the BRD and TDDs to the user.
+Present the BRD and design spec to the user.
 
 **APPROVAL GATE:**
 "The migration plan is ready. Do you approve? (yes / changes needed)"
@@ -174,9 +174,9 @@ Switch to **camel-implement** mode.
 
 **CHECKPOINT** — Create a checkpoint before starting implementation.
 
-Implement each route following the TDDs. For each route:
+Implement each route following the active design spec. For each route:
 1. **CHECKPOINT** before starting this route
-2. Read the route's TDD
+2. Read the route's design spec section
 3. Write the failing test
 4. Implement the YAML route
 5. Run tests
@@ -262,7 +262,7 @@ Constitution Compliance: PASS/FAIL (all 7 rules)
 | `.bob/skills/camel-migrate/guides/mule-dataweave-conversion.md` | DataWeave → XSLT strategies |
 | `.bob/skills/camel-migrate/guides/datamapper-migrate.md` | DataMapper XSLT migration |
 | `.bob/skills/camel-migrate/guides/camel-version-phase1.md` | Camel version analysis |
-| `.bob/skills/camel-migrate/guides/camel-version-phase2.md` | Camel version TDD generation |
+| `.bob/skills/camel-migrate/guides/camel-version-phase2.md` | Camel version design spec generation |
 | `.bob/skills/camel-migrate/guides/camel2-component-mapping.md` | Camel 2.x → 4.x components |
 | `.bob/skills/camel-migrate/guides/camel2-dataformat-mapping.md` | Camel 2.x → 4.x dataformats |
 | `.bob/skills/camel-migrate/guides/camel2-eip-mapping.md` | Camel 2.x → 4.x EIPs |

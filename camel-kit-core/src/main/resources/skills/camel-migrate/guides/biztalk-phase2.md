@@ -1,7 +1,8 @@
-# Microsoft BizTalk Migration — Phase 2: TDD Generation
+# Microsoft BizTalk Migration — Phase 2: Design Spec Generation
 
 > **Context variables:** `CAMEL_VERSION`, `RUNTIME`, `PLATFORM_BOM` from `.camel-kit/config.properties`
-> **Prerequisite:** Phase 1 (`biztalk-phase1.md`) must be complete — BRD written to `docs/business-requirements.md`
+> **Prerequisite:** Phase 1 (`biztalk-phase1.md`) must be complete — business requirements written to
+> `docs/camel-kit/<PIPELINE_ID>/business-requirements.md`
 
 ## Phase 2 — Integration Architect
 
@@ -11,7 +12,7 @@
 - Load `skills/camel-migrate/guides/biztalk-map-conversion.md` — required for BizTalk map analysis
 - Load `skills/camel-migrate/guides/biztalk-expression-mapping.md` — required for XLANG/s expression conversion
 - Load `skills/camel-migrate/guides/biztalk-pipeline-mapping.md` — required for pipeline component mapping
-- Re-read `docs/business-requirements.md`
+- Re-read `docs/camel-kit/<PIPELINE_ID>/business-requirements.md`
 - Read `docs/constitution.md` if it exists (for reference)
 - Re-read `.camel-kit/config.properties` — **REQUIRED**: extract `project.camelVersion` as `CAMEL_VERSION` and `project.runtime` as `RUNTIME`. If the file does not exist, ask the user for the Camel version before proceeding.
 
@@ -21,7 +22,7 @@
 - `skills/camel-design/guides/security.md` — if compliance requirements exist
 - `skills/camel-design/guides/monitoring.md` — if observability requirements exist
 
-**MCP catalog tools — MANDATORY when MCP is configured (same rules as `/camel-flow`):**
+**MCP catalog tools — MANDATORY when MCP is configured (same rules as the design assembly guide):**
 
 Before every MCP catalog call, translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` parameter using the version mapping table in `skills/shared/mcp-setup.md`. Never pass the raw `CAMEL_VERSION` or a stripped minor version (e.g., `4.14`) directly — always use the translated Red Hat artifact version from the table. Never use a Camel component name, EIP name, data format name, or expression language name from training data or the mapping guide without first verifying it in the catalog.
 
@@ -35,7 +36,7 @@ Before every MCP catalog call, translate `CAMEL_VERSION` + `RUNTIME` to the corr
 | Expression language for conditions/predicates | `camel_catalog_languages` | `camel_catalog_language_doc` |
 | Migration context for mapped Camel component | `camel_rh_build_search` | — |
 
-The static `biztalk-component-mapping.md` guide provides a **starting point** (the suggested Camel component name). It does NOT replace catalog verification — always confirm availability and option names in `CAMEL_VERSION` before writing the TDD.
+The static `biztalk-component-mapping.md` guide provides a **starting point** (the suggested Camel component name). It does NOT replace catalog verification — always confirm availability and option names in `CAMEL_VERSION` before writing the design spec.
 
 ---
 
@@ -44,7 +45,7 @@ The static `biztalk-component-mapping.md` guide provides a **starting point** (t
 For each BizTalk orchestration identified in Phase 1:
 
 1. **Map BizTalk adapters → Camel components (catalog-verified).**
-   Use `biztalk-component-mapping.md` to find the suggested Camel component name, then — **before writing anything to the TDD** — MUST verify it in the catalog that the component exist for the camel version in use:
+   Use `biztalk-component-mapping.md` to find the suggested Camel component name, then — **before writing anything to the design spec** — MUST verify it in the catalog that the component exist for the camel version in use:
    ```
    MCP Tool: camel_catalog_component_doc
    Params: { "component": "[suggested-camel-component]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
@@ -72,14 +73,14 @@ For each BizTalk orchestration identified in Phase 1:
 
    **CRITICAL — use the exact component scheme from the route URI.** The component name MUST be the exact URI scheme (e.g., `smtp`, not `mail`; `azure-servicebus`, not `azure`). Many Camel components share a parent artifact but are distinct components with distinct schemes, options, and property prefixes.
 
-   **CRITICAL — the TDD "Configuration Properties" section must only list properties that actually exist.** For each `camel.component.<name>.<property>` entry, verify that `<property>` appears in the component options returned by `camel_catalog_component_doc`. Do NOT carry over BizTalk adapter configuration parameters (host, port, etc.) as Camel component properties if the catalog does not list them.
+   **CRITICAL — the design spec "Configuration Properties" section must only list properties that actually exist.** For each `camel.component.<name>.<property>` entry, verify that `<property>` appears in the component options returned by `camel_catalog_component_doc`. Do NOT carry over BizTalk adapter configuration parameters (host, port, etc.) as Camel component properties if the catalog does not list them.
 
    **Platform-HTTP special case:** The `platform-http` component has NO `host` or `port` component options. BizTalk WCF-BasicHttp/WCF-WSHttp host/port do NOT map to `camel.component.platform-http.*` properties. If the BizTalk receive location uses a non-default port, document it in the "Configuration Properties" section as `camel.server.enabled=true` and `camel.server.port=XXXX`.
 
 2. **Apply proprietary adapter decisions from Step 1.2** using the same catalog verification above.
 
 3. **Translate BizTalk maps** using `biztalk-map-conversion.md`.
-   When the translation requires `unmarshal`/`marshal` (e.g. for pipeline components), verify the data format in the catalog before documenting it in the TDD:
+   When the translation requires `unmarshal`/`marshal` (e.g. for pipeline components), verify the data format in the catalog before documenting it in the design spec:
    ```
    MCP Tool: camel_catalog_dataformat_doc
    Params: { "dataformat": "[format-name]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
@@ -130,21 +131,23 @@ Ask ONLY questions that cannot be answered from the BizTalk artifacts. Group que
 
 **For each orchestration, ask if not determinable from artifacts:**
 
-- **BizTalk maps:** For each orchestration containing a Transform shape that uses a BizTalk map (`.btm` file), load `skills/camel-migrate/guides/datamapper-migrate.md` and follow its steps. The guide will infer field mappings from the BizTalk map XML, collect schema paths, confirm with the user, canonicalize with XSLT-ready XPaths and Target Elements (via `skills/shared/datamapper-canonicalize.md`), and append a canonical `### DataMapper: kaoto-datamapper-{id}` section to the TDD. Do not ask ad-hoc mapping questions here — the guide handles it fully.
+- **BizTalk maps:** For each orchestration containing a Transform shape that uses a BizTalk map (`.btm` file), load `skills/camel-migrate/guides/datamapper-migrate.md` and follow its steps. The guide will infer field mappings from the BizTalk map XML, collect schema paths, confirm with the user, canonicalize with XSLT-ready XPaths and Target Elements (via `skills/shared/datamapper-canonicalize.md`), and append a canonical `### DataMapper: kaoto-datamapper-{id}` section to the design spec. Do not ask ad-hoc mapping questions here — the guide handles it fully.
 - **Proprietary adapters:** Confirm the replacement approach decided in Phase 1 and any additional configuration needed (credentials format, endpoint URLs, etc.).
 - **Target infrastructure endpoints:** If endpoint URLs, queue names, or topic names are parameterised or missing from the binding configuration, ask for the target environment values or confirm they will be externalised to properties.
 - **Authentication:** For HTTP/WCF endpoints, confirm authentication mechanism (Basic, OAuth2, mTLS, API Key, Windows Authentication) and where credentials will be stored.
 - **Scripting functoids and Expression shapes:** For maps with Scripting functoids or orchestrations with Expression shapes, extract the original C#/VB code from the BizTalk artifacts, flag for manual review, and suggest Groovy as a replacement. Ask the user to confirm the intended logic and any external dependencies.
 
-**Do NOT ask about error handling.** Error handlers (Scope shapes with exception handlers, Suspend shapes, Send to Failed Message Routing) are extracted from BizTalk orchestrations in Step 1.1 and recorded in the analysis summary. Use them directly when populating the TDD "Error Handling" section.
+**Do NOT ask about error handling.** Error handlers (Scope shapes with exception handlers, Suspend shapes, Send to Failed Message Routing) are extracted from BizTalk orchestrations in Step 1.1 and recorded in the analysis summary. Use them directly when populating the design spec "Error Handling" section.
 
 ---
 
-### Step 2.3 — Produce TDD Files
+### Step 2.3 — Update the Pipeline Design Spec
 
-For each BizTalk orchestration, create `docs/flows/{orchestration-name}/{orchestration-name}.tdd.md`.
+For each BizTalk orchestration, update the relevant `### Flow: {orchestration-name}` section in
+`docs/camel-kit/<PIPELINE_ID>/design-spec.md`.
 
-Use the **exact same TDD format** as `/camel-flow` output. The file MUST contain all of the following sections:
+Use the same flow-design structure as `camel-brainstorm/guides/design-assembly.md`. The flow section MUST contain all
+of the following details:
 
 ```markdown
 # Technical Design Document: {orchestration-name}
@@ -323,9 +326,9 @@ Constitution v2.0 — six enforced rules:
 
 ## Section 11: Implementation Checklist
 
-- [ ] Run `/camel-implement {orchestration-name}` to generate Camel YAML
-- [ ] Run `/camel-validate {orchestration-name}` to validate the route
-- [ ] Run `/camel-test {orchestration-name}` to generate integration tests
+- [ ] Ensure `camel-plan` includes an implementation task for this orchestration
+- [ ] Run `camel-execute` to generate Camel YAML and integration tests
+- [ ] Verify against original BizTalk behaviour
 - [ ] Verify against original BizTalk behaviour
 ```
 
@@ -335,18 +338,16 @@ Constitution v2.0 — six enforced rules:
 
 ### Step 2.4 — Complete
 
-After all TDD files are created, report:
+After all design spec updates are created, report:
 
 ```
 Migration analysis complete.
 
 Created files:
-- docs/business-requirements.md
-- docs/flows/{orchestration-name-1}/{orchestration-name-1}.tdd.md
-[... one line per orchestration ...]
+- docs/camel-kit/<PIPELINE_ID>/business-requirements.md
+- docs/camel-kit/<PIPELINE_ID>/design-spec.md
 
 Next steps:
-  /camel-implement --all    # Implement all orchestrations
-  /camel-validate --all     # Validate all routes
-  /camel-test --all         # Generate tests for all routes
+  camel-plan       # Create the implementation plan
+  camel-execute    # Implement, review, verify, and validate all planned work
 ```

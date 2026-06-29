@@ -33,7 +33,7 @@ This enables autonomous task execution with review gates.
 <Step>
 ## Verify Approved Plan Exists
 
-Read `docs/implementation-plan.md` (or the specified plan path).
+Read `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md` (or the specified plan path).
 
 If the plan hasn't been approved, STOP and return to camel-plan.
 Execution only happens after plan approval.
@@ -66,7 +66,6 @@ For EACH task in the queue:
 **Step 1: Read Task Context**
 - Read the full task text from the plan
 - Read the relevant design spec section (if specified)
-- Read the relevant TDD (if specified)
 - Load project context (config.properties, constitution.md)
 
 **Step 2: Load Guides**
@@ -102,12 +101,12 @@ Follow the task's step-by-step instructions. For implementation tasks:
 Load `guides/spec-reviewer-criteria.md` (if exists) or use these criteria:
 
 Check:
-- Does the generated artifact match the TDD specification?
+- Does the generated artifact match the design spec?
 - Are all required components present?
 - Are all component options configured correctly per MCP catalog?
 - Is the data flow correct (source → transformations → sink)?
 - Are all properties defined?
-- Are all error handlers specified in the TDD present?
+- Are all error handlers specified in the design spec present?
 
 If spec review FAILS:
 1. Identify the gap
@@ -219,7 +218,7 @@ Print the completion summary:
 IMPLEMENTATION COMPLETE
 ===============================================================
 
-Plan: docs/implementation-plan.md
+Plan: docs/camel-kit/<PIPELINE_ID>/implementation-plan.md
 Design Spec: docs/design-spec.md
 
 Tasks Completed: [N/N]
@@ -283,7 +282,7 @@ The ONLY time you print a summary is Step 8 (final completion summary) after ALL
 ## Two-Stage Review
 
 For EVERY task:
-1. **Spec Compliance Review FIRST** — Does it match the TDD?
+1. **Spec Compliance Review FIRST** — Does it match the design spec?
 2. **Code Quality Review SECOND** — Does it follow constitution rules?
 
 NEVER:

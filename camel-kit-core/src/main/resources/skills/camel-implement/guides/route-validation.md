@@ -87,14 +87,14 @@ Remaining errors:
 
 These errors require manual intervention. Possible causes:
 - Component option not available in Camel {{CAMEL_VERSION}}
-- TDD specifies a component configuration that is incompatible
+- The design spec specifies a component configuration that is incompatible
 - YAML DSL syntax issue not covered by catalog validation
 
 Action required:
 1. Review the errors above
 2. Check component docs: camel_catalog_component_doc { "component": "...", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
-3. Update the TDD if the component choice needs to change
-4. Re-run /camel-implement once the TDD is corrected
+3. Update the design spec if the component choice needs to change
+4. Re-run the affected `camel-execute` task once the design spec is corrected
 ```
 
 Stop and report the errors — do not generate supporting files for a route that fails validation.
@@ -138,13 +138,13 @@ Last errors from MCP camel_validate_route:
 This may require manual intervention. Possible causes:
 - Component typos not auto-fixed
 - Invalid endpoint options or parameters
-- TDD contains ambiguous or conflicting requirements
+- The design spec contains ambiguous or conflicting requirements
 - Component-specific configuration issues
 
 Recommended actions:
 1. Review the MCP validation errors carefully
 2. Check component documentation via camel_catalog_component_doc
 3. Verify endpoint URIs match catalog requirements
-4. Review the TDD for clarity and completeness
+4. Review the design spec for clarity and completeness
 5. Manually review and fix the generated YAML
 ```

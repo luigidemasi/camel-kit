@@ -72,9 +72,10 @@ Do not proceed with an unverified component.
 
 I can proceed using general knowledge of [component], but:
 - Component options will NOT be verified against Camel {{CAMEL_VERSION}}
-- The component will be marked as [UNVERIFIED] in the TDD
+- The component will not be written to the design spec until it is verified
 
 Proceed with unverified component? (yes/no)
 ```
 
-If the user agrees, document the component in the TDD with a clear `[UNVERIFIED]` marker in the section header. `/camel-validate` will catch any errors later.
+If the user agrees to proceed without MCP availability, record an open design question and stop before writing the
+component choice. Do not put unverified component names into the design spec.

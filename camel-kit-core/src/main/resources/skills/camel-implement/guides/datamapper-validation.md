@@ -2,7 +2,9 @@
 
 You are acting as a **DataMapper Code Generator**. This guide handles pre-generation validation, post-generation verification, metadata creation, and confirmation. It is the shared guide loaded alongside the engine-specific guide — either an XSLT approach guide (`datamapper-approach-a.md` or `datamapper-approach-b.md`) or the Groovy guide (`datamapper-groovy.md`).
 
-The transformation engine is determined by the TDD `**Transformation Engine:**` header (set during canonicalization). If the header says `Groovy (inline)` → load `datamapper-groovy.md`. If the header is absent or says `XSLT` → load the XSLT approach guide.
+The transformation engine is determined by the flow design's `**Transformation Engine:**` header (set during
+canonicalization). If the header says `Groovy (inline)` → load `datamapper-groovy.md`. If the header is absent or says
+`XSLT` → load the XSLT approach guide.
 
 **For XSLT engine**, you **MUST** complete ALL steps and generate ALL 3 artifacts:
 
@@ -20,9 +22,11 @@ The transformation engine is determined by the TDD `**Transformation Engine:**` 
 
 ---
 
-## Step 1: Read Mapping Data from TDD
+## Step 1: Read Mapping Data from the Design Spec
 
-Read `docs/flows/{flow-name}/{flow-name}.tdd.md` and extract from the `### DataMapper: kaoto-datamapper-{id}` section:
+Read `.camel-kit/pipeline.json` to resolve `<PIPELINE_ID>`, then read
+`docs/camel-kit/<PIPELINE_ID>/design-spec.md`. Extract the `### DataMapper: kaoto-datamapper-{id}` section from the
+relevant `### Flow: {flow-name}` design:
 
 | Field | Description |
 |-------|-------------|
@@ -53,9 +57,10 @@ The **Source XPath** and **Target Element** columns are pre-computed by `skills/
 
 ## Step 1.5: Validate Mapping Data — MANDATORY before proceeding
 
-After reading the TDD DataMapper section, perform the applicable checks below. Fix any issues **before** proceeding to Step 2.
+After reading the DataMapper section, perform the applicable checks below. Fix any issues **before** proceeding to
+Step 2.
 
-**For Groovy engine:** perform only checks 1.5a and 1.5b. Skip 1.5c, 1.5d, and 1.5e (these validate XSLT-specific columns that don't exist in the Groovy TDD format).
+**For Groovy engine:** perform only checks 1.5a and 1.5b. Skip 1.5c, 1.5d, and 1.5e (these validate XSLT-specific columns that don't exist in the Groovy mapping format).
 
 ### 1.5a — Field Mappings table must not be empty
 
@@ -70,10 +75,10 @@ The transformation cannot be generated from an empty mapping table.
 
 Action required:
 1. If this is a migration: run the DataWeave conversion analysis to extract
-   field mappings from the source DataWeave script, then update the TDD.
-2. If this is a greenfield flow: run /camel-flow {flow-name} and complete
+   field mappings from the source DataWeave script, then update the flow design.
+2. If this is a greenfield flow: return to `camel-brainstorm` and complete
    the data transformation interview to define the field mappings.
-3. Then re-run /camel-implement {flow-name}.
+3. Then re-run the affected `camel-execute` task.
 ```
 
 **Stop here — do not generate the transformation.**
@@ -131,15 +136,18 @@ Check the **Target Element** column:
 
 ## Step 2: Route to Engine-Specific Guide
 
-Read the **Transformation Engine** from the TDD header (set during canonicalization in `datamapper-canonicalize.md`).
+Read the **Transformation Engine** from the flow design header (set during canonicalization in
+`datamapper-canonicalize.md`).
 
 ### If Transformation Engine = Groovy (inline)
 
-Read the **Format Pair** from the TDD header (e.g., `JSON → JSON`). Load `datamapper-groovy.md` (Steps 3, 4). Return here after completing Steps 3 and 4.
+Read the **Format Pair** from the flow design header (e.g., `JSON → JSON`). Load `datamapper-groovy.md` (Steps 3, 4).
+Return here after completing Steps 3 and 4.
 
 ### If Transformation Engine = XSLT (or absent — default)
 
-Read the **XSLT Pattern** and **XSLT Approach** from the TDD header — these were pre-determined by `datamapper-canonicalize.md`. Do not re-compute them.
+Read the **XSLT Pattern** and **XSLT Approach** from the flow design header — these were pre-determined by
+`datamapper-canonicalize.md`. Do not re-compute them.
 
 | Pattern | Format pair | `xsl:output method` |
 |---------|-------------|---------------------|
@@ -154,7 +162,8 @@ Read the **XSLT Pattern** and **XSLT Approach** from the TDD header — these we
 | B | Manual header param — JSON string in Exchange header, body set to `<root/>` |
 | N/A | Source is XML — no JSON handling needed |
 
-**IMPORTANT — `N/A` is only valid when source-type is `XML_SCHEMA`.** If the TDD says `XSLT Approach: N/A` but source-type or target-type is `JSON_SCHEMA`, override accordingly.
+**IMPORTANT — `N/A` is only valid when source-type is `XML_SCHEMA`.** If the flow design says `XSLT Approach: N/A`
+but source-type or target-type is `JSON_SCHEMA`, override accordingly.
 
 **CRITICAL:** Patterns B and D use `method="text"` (NOT `method="xml"`). If source or target is `JSON_SCHEMA`, the template body must use `xml-to-json($mapped-xml)` — never produce an empty `<xsl:template match="/">`.
 
@@ -166,9 +175,10 @@ Read the **XSLT Pattern** and **XSLT Approach** from the TDD header — these we
 
 ---
 
-## Step 3.5: Verify Generated Code Against TDD — MANDATORY
+## Step 3.5: Verify Generated Code Against the Design Spec — MANDATORY
 
-After generating the transformation code (Step 3 in engine-specific guide), walk through **every row** in the TDD Field Mappings table and verify the generated code contains a matching element.
+After generating the transformation code (Step 3 in engine-specific guide), walk through **every row** in the design
+spec Field Mappings table and verify the generated code contains a matching element.
 
 ### XSLT Verification
 
@@ -176,9 +186,9 @@ After generating the transformation code (Step 3 in engine-specific guide), walk
 
 | Check | What to verify |
 |-------|----------------|
-| Completeness | The TDD row has a corresponding element in the XSLT |
-| Source XPath | The `select="..."` attribute matches the TDD **Source XPath** column |
-| Target Element | The XSLT element tag/key matches the TDD **Target Element** column |
+| Completeness | The design spec row has a corresponding element in the XSLT |
+| Source XPath | The `select="..."` attribute matches the design spec **Source XPath** column |
+| Target Element | The XSLT element tag/key matches the design spec **Target Element** column |
 | Type consistency | `fn:string`/`fn:number`/`fn:boolean` matches the source field type |
 | Approach purity | No `xsl:param` when Approach is A; no `useJsonBody` when Approach is B |
 | No `json-to-xml()` in Approach A | When Approach = A, the XSLT MUST NOT contain any call to `json-to-xml()` |
@@ -187,9 +197,9 @@ After generating the transformation code (Step 3 in engine-specific guide), walk
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-XSLT VERIFICATION AGAINST TDD
+XSLT VERIFICATION AGAINST DESIGN SPEC
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-| TDD Row | Source XPath Match | Target Element Match | Status |
+| Design Spec Row | Source XPath Match | Target Element Match | Status |
 |---|---|---|---|
 | orderId → orderId | ✅ | ✅ | OK |
 | main.temp → temperature | ✅ | ✅ | OK |
@@ -204,21 +214,21 @@ XSLT VERIFICATION AGAINST TDD
 
 | Check | What to verify |
 |-------|----------------|
-| Completeness | The TDD row has a corresponding line in the Groovy script |
-| Source navigation | The Groovy dot-notation path matches the TDD **Source Field** (e.g., `src.main?.temp` for `payload.main.temp`) |
-| Target key/element | The Groovy map key or XML element name matches the TDD **Target Field** |
+| Completeness | The design spec row has a corresponding line in the Groovy script |
+| Source navigation | The Groovy dot-notation path matches the design spec **Source Field** (e.g., `src.main?.temp` for `payload.main.temp`) |
+| Target key/element | The Groovy map key or XML element name matches the design spec **Target Field** |
 | Parser | JSON source → `JsonSlurper`, XML source → `XmlSlurper` |
 | Serializer | JSON target → `JsonOutput.toJson(result)`, XML target → `writer.toString()` |
-| Collections | Each TDD collection mapping uses `collect` (JSON) or iteration (XML) |
-| Conditionals | Each TDD conditional mapping uses ternary or switch |
+| Collections | Each design spec collection mapping uses `collect` (JSON) or iteration (XML) |
+| Conditionals | Each design spec conditional mapping uses ternary or switch |
 
 **Present the verification result:**
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-GROOVY VERIFICATION AGAINST TDD
+GROOVY VERIFICATION AGAINST DESIGN SPEC
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-| TDD Row | Source Navigation | Target Key/Element | Status |
+| Design Spec Row | Source Navigation | Target Key/Element | Status |
 |---|---|---|---|
 | orderId → orderId | ✅ src.orderId | ✅ orderId | OK |
 | main.temp → temperature | ✅ src.main?.temp | ✅ temperature | OK |
@@ -248,7 +258,7 @@ After injecting the Camel YAML step (Step 4), verify the route YAML matches the 
 | Step type | Uses `transform:` with `groovy:` expression — NOT `to: xslt-saxon:` |
 | No pre-steps | No `setHeader`/`setBody` before the transform (Groovy reads body directly) |
 | Block scalar | Groovy script uses `\|` (literal block) for multi-line YAML |
-| ID | `id: kaoto-datamapper-{id}` matches the TDD mapping ID |
+| ID | `id: kaoto-datamapper-{id}` matches the design spec mapping ID |
 
 ---
 
@@ -271,7 +281,7 @@ After injecting the Camel YAML step (Step 4), verify the route YAML matches the 
 
 **CRITICAL — Kaoto `type` values are display strings, NOT enum keys:**
 
-| TDD type | `.kaoto` type value |
+| Design spec type | `.kaoto` type value |
 |----------|---------------------|
 | `XML_SCHEMA` | `"XML Schema"` |
 | `JSON_SCHEMA` | `"JSON Schema"` |
@@ -317,9 +327,9 @@ After injecting the Camel YAML step (Step 4), verify the route YAML matches the 
 
 **Rules:**
 - `filePath` is `[]` when no schema file exists
-- `sourceParameters` is `{}` if no parameters defined in TDD
+- `sourceParameters` is `{}` if no parameters are defined in the design spec
 - Always include the three base namespace entries: `xs`, `fn`, `xsl`
-- Add `ns0` (and further prefixes) for each XML namespace from the TDD namespace map
+- Add `ns0` (and further prefixes) for each XML namespace from the design spec namespace map
 - All file paths are relative to the project root
 - Write with tab indentation (matching Kaoto's format)
 - **Never overwrite existing keys** — only append the new key
@@ -386,7 +396,7 @@ DATAMAPPER ARTIFACTS GENERATED
 ✅ kaoto-datamapper-{id}.xsl    ({output-dir})
 ✅ {flow-name}.camel.yaml       (step injected)
 ✅ .kaoto                       (key added: kaoto-datamapper-{id})
-✅ XSLT verified against TDD    ({N}/{N} fields matched)
+✅ XSLT verified against design spec    ({N}/{N} fields matched)
 
 Engine:         XSLT (camel-xslt-saxon)
 Pattern:        {A | B | C | D} ({source-format} → {target-format})
@@ -402,7 +412,7 @@ Fields mapped:  {N}
 DATAMAPPER ARTIFACTS GENERATED
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ✅ {flow-name}.camel.yaml       (inline Groovy transform injected)
-✅ Groovy verified against TDD  ({N}/{N} fields matched)
+✅ Groovy verified against design spec  ({N}/{N} fields matched)
 
 Engine:         Groovy (inline)
 Format Pair:    {source-format} → {target-format}
@@ -416,11 +426,11 @@ Fields mapped:  {N}
 
 ## Error Handling
 
-**Missing DataMapper section in TDD:**
+**Missing DataMapper section in design spec:**
 ```
-❌ ERROR: No DataMapper section found in TDD for flow '{flow-name}'.
+❌ ERROR: No DataMapper section found in the design spec for flow '{flow-name}'.
 
-Run /camel-flow {flow-name} to complete the mapping interview first.
+Return to `camel-brainstorm` and complete the mapping interview for this flow first.
 ```
 
 **Schema file not found at declared path:**
@@ -429,7 +439,7 @@ Run /camel-flow {flow-name} to complete the mapping interview first.
 
 The .kaoto metadata will reference the expected path.
 Place the schema file at the project root before opening in Kaoto IDE.
-Generating XSLT with best-effort field paths based on field names from TDD.
+Generating XSLT with best-effort field paths based on field names from the design spec.
 ```
 
 **Existing key conflict in `.kaoto`:**

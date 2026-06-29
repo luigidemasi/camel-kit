@@ -74,7 +74,9 @@ flowchart TB
     G6 --> G7
 ```
 
-- **Iron Laws = hard gates.** "Every component MUST be verified via MCP before being written to any spec, TDD, or YAML file" is not a suggestion -- the pipeline blocks if a component cannot be verified. The AI cannot rationalize its way past this check.
+- **Iron Laws = hard gates.** "Every component MUST be verified via MCP before being written to any design spec or
+  YAML file" is not a suggestion -- the pipeline blocks if a component cannot be verified. The AI cannot rationalize
+  its way past this check.
 - **Human approval between phases = progression gates.** The AI cannot start planning until the user approves the design. It cannot start implementing until the user approves the plan. This prevents the AI from building momentum on a wrong assumption.
 - **Constitution rules = automated quality gates.** Seven rules are checked during validation. A route without a `routeId` is not flagged as a warning -- it fails validation. A route with hardcoded credentials fails validation. These are pass/fail checks, not advisory notes.
 - **Two-stage review = sequential gates.** Spec compliance is checked before code quality. This order matters -- there is no point reviewing code quality on a route that doesn't match the design. The gate enforces the correct sequence.

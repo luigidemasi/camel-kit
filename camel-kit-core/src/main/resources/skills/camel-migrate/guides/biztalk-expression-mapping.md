@@ -221,7 +221,7 @@ if (orderTotal > 1000) {
 }
 ```
 
-**Note:** Multi-line C# code blocks should be flagged for manual review and documented in the TDD with the original XLANG/s code and suggested Groovy replacement.
+**Note:** Multi-line C# code blocks should be flagged for manual review and documented in the design spec with the original XLANG/s code and suggested Groovy replacement.
 
 ---
 
@@ -286,15 +286,15 @@ finalAmount = subtotal - discount;
 
 ---
 
-## How to Map XLANG/s Expressions in TDD
+## How to Map XLANG/s Expressions in design spec
 
 When you encounter an XLANG/s expression in a BizTalk orchestration, follow this process:
 
 1. **Identify the expression context** — Message Assignment shape, Decide shape condition, Expression shape, etc.
 2. **Classify the expression type** using the table above.
 3. **Map to the appropriate Camel language** (Simple, XPath, JsonPath, Groovy).
-4. **Document in the TDD Section 3.2 or 3.3** with the BizTalk origin noted in the "BizTalk Origin" column.
-5. **For multi-line C# code blocks:** Flag for manual review, document the original XLANG/s code in a TODO comment, and suggest a Groovy replacement.
+4. **Document in the design spec processing steps** with the BizTalk origin noted in the "BizTalk Origin" column.
+5. **For multi-line C# code blocks:** Flag for manual review, document the original XLANG/s code as a required custom implementation action, and suggest a Groovy replacement.
 
 ---
 
@@ -308,13 +308,14 @@ When you encounter an XLANG/s expression in a BizTalk orchestration, follow this
 | **Custom functions** | High | Re-implement in Groovy or custom Processor. |
 | **Correlation set manipulation** | Medium | Map to Camel correlation ID patterns (use `exchangeProperty`). |
 
-When these patterns are found, add a TODO note in the relevant TDD section and flag for development team attention.
+When these patterns are found, record a required custom implementation action in the relevant design spec section and
+flag it for development team attention.
 
 ---
 
 ## Notes
 
-- Always verify expression language names in the MCP catalog before writing TDD entries (using `camel_catalog_language_doc`).
+- Always verify expression language names in the MCP catalog before writing design spec entries (using `camel_catalog_language_doc`).
 - BizTalk orchestration variables map to Camel exchange headers (`${header.*}`).
 - BizTalk message context properties map to Camel exchange properties (`${exchangeProperty.*}`).
 - Multi-line C# code blocks MUST be flagged for manual review and suggested Groovy replacements.

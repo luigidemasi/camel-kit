@@ -1,13 +1,15 @@
 ---
 name: camel-implement
-description: Use when there is an approved implementation plan or TDD ready for execution — generates YAML routes, properties, Docker Compose, and all implementation artifacts
+description: Use when there is an approved implementation plan ready for execution — generates YAML routes, properties, Docker Compose, and all implementation artifacts
 ---
 
 # Camel Implement — Implementation Pipeline (Bob)
 
-Generate Apache Camel implementation artifacts from approved TDDs. Follow every step in order. Do NOT skip steps.
+Generate Apache Camel implementation artifacts from the approved implementation plan and design spec. Follow every step
+in order. Do NOT skip steps.
 
-**Core principle:** Fresh implementation per route + TDD enforcement + MCP verification = high quality, correct code.
+**Core principle:** Fresh implementation per route + design-spec enforcement + MCP verification = high quality,
+correct code.
 
 ## Guide Locations
 
@@ -17,18 +19,16 @@ All implementation guides are in `.bob/skills/camel-implement/guides/`. When thi
 <Step>
 ## Switch to Implement Mode
 
-Switch to **camel-implement** mode using the mode selector or `/camel-implement` command.
+Switch to **camel-implement** mode using the mode selector.
 This enables full code generation capabilities.
 </Step>
 
 <Step>
-## Verify Approved Plan or TDD Exists
+## Verify Approved Plan Exists
 
-Read one of:
-- `docs/implementation-plan.md` (for planned execution)
-- `docs/flows/<flow-name>/<flow-name>.tdd.md` (for direct TDD implementation)
+Read `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`.
 
-If neither exists or hasn't been approved, STOP and return to camel-plan.
+If it does not exist or has not been approved, STOP and return to camel-plan.
 Implementation only happens after approval.
 </Step>
 
@@ -39,7 +39,7 @@ Read these files:
 1. `docs/constitution.md` — constitution rules (all 7 rules)
 2. `.camel-kit/config.properties` — Camel version, runtime, platform BOM
 3. `.camel-kit/project-graph.json` — project conventions (if exists)
-4. `docs/design-spec.md` — approved design spec
+4. `docs/camel-kit/<PIPELINE_ID>/design-spec.md` — approved design spec
 
 Load core guides:
 - `guides/orchestrator.md` — file path table, execution order
@@ -59,7 +59,7 @@ For EACH route in the plan:
 
 ### Route Implementation Process
 
-1. **Read the TDD** at `docs/flows/<flow-name>/<flow-name>.tdd.md`
+1. **Read the relevant flow design** from `docs/camel-kit/<PIPELINE_ID>/design-spec.md`
 2. **Verify components via MCP:**
    - For EVERY component: `camel_catalog_component_doc(component="X", runtime="Y", platformBom="Z")`
    - For EVERY EIP: `camel_catalog_eip_doc(eip="X")`
@@ -67,7 +67,7 @@ For EACH route in the plan:
    - For EVERY language: `camel_catalog_language_doc(language="X")`
 3. **Write the failing test FIRST:**
    - Load `guides/test-generation.md`
-   - Write a Citrus test that expects the behavior from the TDD
+   - Write a Citrus test that expects the behavior from the design spec
    - Run the test — it MUST fail (route doesn't exist yet)
 4. **Generate the YAML route:**
    - Load `guides/yaml-structure.md`
@@ -96,10 +96,10 @@ For EACH route in the plan:
 ## Special Cases
 
 **When DataMapper is needed:**
-- Read the TDD's DataMapper section for approach (A or B)
+- Read the design spec DataMapper section for approach (A or B)
 - Load `guides/datamapper-approach-a.md` (useJsonBody) or `guides/datamapper-approach-b.md` (header param)
 - Generate XSLT at `src/main/resources/xslt/<transform-name>.xsl`
-- Load `guides/datamapper-validation.md` and self-validate XSLT against TDD field mappings
+- Load `guides/datamapper-validation.md` and self-validate XSLT against design spec field mappings
 
 **When Docker Compose services are needed:**
 - Load `guides/docker-compose.md`

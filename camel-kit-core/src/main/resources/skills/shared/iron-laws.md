@@ -10,7 +10,7 @@
 
 ```
 EVERY COMPONENT, EIP, DATAFORMAT, AND LANGUAGE MUST BE VERIFIED VIA MCP CATALOG
-BEFORE BEING WRITTEN TO ANY SPEC, TDD, OR YAML FILE.
+BEFORE BEING WRITTEN TO ANY DESIGN SPEC OR YAML FILE.
 ```
 
 You do NOT know what components exist. You do NOT know their options. The MCP catalog is the single source of truth.
@@ -59,12 +59,14 @@ The pipeline is: Brainstorm (Design) → Plan → Execute.
 3. **Implement:** Only during the execution phase are implementation artifacts (YAML, Java, etc.) generated.
 
 **Gate function:**
-1. BRAINSTORM produces design spec (BRD + TDDs).
+1. BRAINSTORM produces business requirements and a design spec.
 2. USER reviews and explicitly approves ("approved", "looks good", "go ahead", etc.).
 3. ONLY THEN invoke camel-plan to produce an implementation plan.
 4. EXECUTE phase (camel-execute) runs the actual code generation per task.
 
-**NO "HELPFUL" CODE GEN:** Skills like `camel-migrate` or `camel-brainstorm` MUST NOT generate final routes or application code. They generate TDDs and Specs. Implementation is reserved for the execution phase.
+**NO "HELPFUL" CODE GEN:** Skills like `camel-migrate` or `camel-brainstorm` MUST NOT generate final routes or
+application code. They generate business requirements and design specs. Implementation is reserved for the execution
+phase.
 
 ---
 
@@ -95,8 +97,8 @@ Adversarial Code Review (ACR) is the "Adversarial Gate" that runs after implemen
 
 **Gate function:**
 1. Implementer completes code generation.
-2. Dispatch the **ACR Moderator** subagent with the code and the TDD.
-3. Moderator selects Critic Lanes based on TDD content.
+2. Dispatch the **ACR Moderator** subagent with the code and the relevant design spec section.
+3. Moderator selects Critic Lanes based on design spec content.
 4. Each Critic runs adversarially in its own fresh context — no accumulated session state.
 5. Moderator synthesizes findings: deduplicate, prioritize, produce verdict.
 6. If FAIL (actionable findings) → return to implementer for fix. Max 3 cycles.
@@ -113,7 +115,9 @@ DON’T REMOVE CODE YOU DON’T FULLY UNDERSTAND.
 DON’T BRUSH AGAINST A TODO AND DECIDE TO REWRITE THE FILE.
 ```
 
-Every implementation task must be surgical. Your goal is to fulfill the TDD with the minimum required change to the existing codebase. Refactoring, cleanup, or "fixing" unrelated code creates hidden regressions and wastes review time.
+Every implementation task must be surgical. Your goal is to fulfill the approved design spec and implementation plan
+with the minimum required change to the existing codebase. Refactoring, cleanup, or "fixing" unrelated code creates
+hidden regressions and wastes review time.
 
 ---
 

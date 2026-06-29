@@ -14,7 +14,7 @@ Do NOT generate the POM from scratch. Read the literal template file `templates/
 - `[PROJECT_VERSION]` — from design spec
 - `[PROJECT_NAME]` — from design spec
 - `[PLATFORM_BOM_VERSION]` — from design spec header `platformBomVersion` field
-- `[SPRING_BOOT_VERSION]` — from design spec or discover from BOM (see Rule 2)
+- `[SPRING_BOOT_VERSION]` — from `.camel-kit/config.properties` key `project.springBootVersion`
 
 Do NOT modify any other values. The template already contains the correct groupId (`org.apache.camel.springboot`), artifactId, and plugin configuration. Then add project-specific dependencies in the DEPENDENCIES section.
 </HARD-RULE>
@@ -52,13 +52,13 @@ Define exactly two version properties:
 ```xml
 <properties>
     <camel-spring-boot-version>{CAMEL_SPRINGBOOT_VERSION}</camel-spring-boot-version>
-    <spring-boot-version>[matching-spring-boot-version]</spring-boot-version>
+    <spring-boot-version>{SPRING_BOOT_VERSION}</spring-boot-version>
 </properties>
 ```
 
 | Property | Purpose | Naming |
 |----------|---------|--------|
-| `camel-spring-boot-version` | BOM version | Hyphenated, NOT `camel.version` |
+| `camel-spring-boot-version` | BOM version | Hyphenated, not a generic Camel property name |
 | `spring-boot-version` | Spring Boot Maven plugin version | Hyphenated |
 
 ### Version Discovery
@@ -70,12 +70,13 @@ Read the Spring Boot BOM version from `.camel-kit/config.properties`:
 project.runtime=spring-boot
 project.camelVersion={CAMEL_SPRINGBOOT_VERSION}
 project.platformBomVersion={SPRINGBOOT_BOM_VERSION}  # <- use THIS value
+project.springBootVersion={SPRING_BOOT_VERSION}      # <- plugin version
 ```
 
 **Do NOT guess or derive** the Spring Boot BOM version from the Camel version. The correct value is pre-computed by `camel-kit init`.
+Use `project.springBootVersion` for the `spring-boot-maven-plugin` version. Do NOT inspect Maven Central during code
+generation.
 </HARD-RULE>
-
-**Spring Boot version:** the BOM pins the Spring Boot version. To find the matching version, check the BOM's `<spring-boot.version>` property at Maven Central.
 
 ---
 

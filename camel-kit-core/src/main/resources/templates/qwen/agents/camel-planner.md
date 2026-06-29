@@ -1,6 +1,6 @@
 ---
 name: camel-planner
-description: "MUST BE USED for creating implementation plans with TDD task decomposition for Camel integrations"
+description: "MUST BE USED for creating implementation plans with design-spec task decomposition for Camel integrations"
 tools:
   - read_file
   - read_many_files

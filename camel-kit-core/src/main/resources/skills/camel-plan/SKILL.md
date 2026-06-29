@@ -257,7 +257,7 @@ tasks:
 - [ ] **Step N:** Verify: [exact command to run and expected output]
 
 **Review:**
-- [ ] Spec compliance: [what to check — components match TDD, structure correct, properties complete]
+- [ ] Spec compliance: [what to check — components match design spec, structure correct, properties complete]
 - [ ] Code quality: [what to check — constitution rules, security, anti-patterns]
 ````
 

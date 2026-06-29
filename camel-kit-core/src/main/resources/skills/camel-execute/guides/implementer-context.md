@@ -32,7 +32,7 @@ Read the relevant design spec section and include it directly:
 ```
 ## Design Spec — Flow: [flow-name]
 
-[full text of the flow design from docs/design-spec.md Section 3]
+[full text of the flow design from docs/camel-kit/<PIPELINE_ID>/design-spec.md Section 3]
 ```
 
 #### 4. Project Configuration
@@ -42,7 +42,7 @@ Read the relevant design spec section and include it directly:
 
 - Camel Version: [full version]
 - Runtime: [main / spring-boot / quarkus]
-- Platform BOM: [from versions.properties]
+- Platform BOM: [from .camel-kit/config.properties]
 - Module Path: [path]
 - Route Directory: [ROUTE_DIR from orchestrator path table]
 - Properties Directory: [PROPS_DIR]

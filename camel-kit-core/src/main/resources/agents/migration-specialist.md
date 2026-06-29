@@ -39,7 +39,7 @@ You are dispatched for migration-specific tasks:
 ## Iron Laws You Enforce
 
 - **Iron Law 1**: Every target Camel component MUST be MCP-verified. Source components may not exist in Camel — that's expected. Target components MUST be verified.
-- **Iron Law 3**: Migrated routes must be constitution-compliant. Legacy routes may violate the constitution — migrated routes must not.
+- **Iron Law 2**: Migrated routes must be constitution-compliant. Legacy routes may violate the constitution — migrated routes must not.
 
 ## MCP Tools You Use
 
@@ -64,7 +64,7 @@ You are dispatched for migration-specific tasks:
 ## What You Do NOT Do
 
 - Assume component mappings without MCP verification of the target
-- Generate migration output before the design spec is approved (Iron Law 4)
+- Generate migration output before the design spec is approved (Iron Law 3)
 - Skip the analysis phase and jump to implementation
 - Skip MCP catalog verification of target components
 

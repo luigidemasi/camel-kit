@@ -84,7 +84,7 @@ If ambiguous, ask: "Are you building a new integration from scratch, or migratin
 Read these files if they exist:
 1. `docs/constitution.md` — constitution rules. If missing, copy from `templates/constitution.md`.
 2. `.camel-kit/config.properties` — project config (Camel version, runtime). May not exist yet.
-3. `docs/business-requirements.md` — existing BRD (if resuming a project).
+3. `docs/camel-kit/<PIPELINE_ID>/business-requirements.md` — existing business requirements (if resuming a project).
 </Step>
 
 <Step>
@@ -203,17 +203,17 @@ Switch to **camel-plan** mode.
 
 Read `.bob/skills/camel-migrate/guides/camel-version-phase1.md` for BRD generation (greenfield) or migration-specific BRD guides.
 
-Generate the Business Requirements Document (BRD) at `docs/business-requirements.md`.
+Generate the business requirements at `docs/camel-kit/<PIPELINE_ID>/business-requirements.md`.
 </Step>
 
 <Step>
 ## Generate Technical Design
 
-Read `.bob/skills/camel-migrate/guides/camel-version-phase2.md` for TDD generation.
+Read `.bob/skills/camel-migrate/guides/camel-version-phase2.md` for design spec generation.
 
-Generate Technical Design Documents (TDDs) at `docs/flows/<flow-name>/<flow-name>.tdd.md`.
+Update the active design spec at `docs/camel-kit/<PIPELINE_ID>/design-spec.md`.
 
-For each flow, the TDD specifies:
+For each flow, the design spec specifies:
 - Source and sink endpoints
 - Data transformations
 - Error handling
@@ -224,7 +224,7 @@ For each flow, the TDD specifies:
 <Step>
 ## Design Approval
 
-Present the BRD and TDDs to the user.
+Present the business requirements and design spec to the user.
 
 **APPROVAL GATE:**
 "The design is ready. Do you approve? (yes / changes needed)"
@@ -239,9 +239,9 @@ Switch to **camel-plan** mode.
 
 Read `.bob/skills/camel-plan/SKILL.md` for the full planning rules.
 
-Generate a step-by-step implementation plan at `docs/implementation-plan.md`. The plan is a RECIPE, not the MEAL — it describes what to generate and how, NOT the generated code itself.
+Generate a step-by-step implementation plan at `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`. The plan is a RECIPE, not the MEAL — it describes what to generate and how, NOT the generated code itself.
 
-For each flow in the TDD, create a task with:
+For each flow in the design spec, create a task with:
 - Exact files to create/modify
 - Which guides to load and in what order
 - Which MCP tools to call with what parameters
@@ -277,7 +277,7 @@ Read `.bob/skills/camel-execute/SKILL.md` for execution rules.
 
 Before executing tasks, analyze the plan for parallel waves:
 ```bash
-{COMMAND_PREFIX} plan analyze docs/implementation-plan.md
+{COMMAND_PREFIX} plan analyze docs/camel-kit/<PIPELINE_ID>/implementation-plan.md
 ```
 
 Execute tasks wave by wave. Within each wave, execute tasks sequentially (Bob executes in a single conversation). Between waves, all tasks from the previous wave must be complete before starting the next wave. This ensures correct dependency order.
@@ -361,7 +361,7 @@ Constitution Compliance: PASS/FAIL (all 7 rules)
 - Skip validation or testing
 - Generate a README mid-pipeline instead of continuing to the next step
 - Say "implementation has been completed" while steps remain uncompleted
-- Reference `/camel-implement` or `/camel-test` — these commands do not exist
+- Reference retired implementation or test commands — these commands do not exist
 - Generate Citrus tests in Java or XML — YAML DSL only
 - Create a plan without Citrus test tasks for every route
 

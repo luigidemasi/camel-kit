@@ -1,6 +1,7 @@
 # Mule DataWeave Conversion Guide
 
-This guide helps convert MuleSoft DataWeave transformation scripts into the TDD Section 3 field mapping tables understood by `/camel-implement`. The guide is used by the `camel-migrate-mule` sub-skill during Phase 2 (Integration Architect).
+This guide helps convert MuleSoft DataWeave transformation scripts into flow-design field mapping tables consumed by
+`camel-execute`. The guide is used by `camel-migrate` during Phase 2 (Integration Architect).
 
 ---
 
@@ -40,21 +41,22 @@ When replacing a DataWeave transformation, choose the approach based on complexi
 
 | Transformation Complexity | Recommended Approach | Camel Component | Notes |
 |--------------------------|---------------------|-----------------|-------|
-| Simple field rename / direct copy | `setBody` + Simple language | built-in | No external file needed. Express in TDD Section 3.2 as Direct Copy rows. |
+| Simple field rename / direct copy | `setBody` + Simple language | built-in | No external file needed. Express in design spec section 3.2 as Direct Copy rows. |
 | Single-field type coercion | Simple language expression | built-in | `${body.field}` with type conversion. |
 | Set a fixed value | `setHeader` or `setBody(constant(...))` | built-in | |
-| Complex JSON→JSON transformation | XSLT via Kaoto DataMapper | `camel-xslt-saxon` | Describe field mappings in TDD Section 3.2 table; `/camel-implement` generates XSLT. |
+| Complex JSON→JSON transformation | XSLT via Kaoto DataMapper | `camel-xslt-saxon` | Describe field mappings in the flow design; `camel-execute` generates XSLT. |
 | Complex XML→JSON or JSON→XML | XSLT | `camel-xslt-saxon` | |
 | Conditional field selection | `choice` EIP + `setBody` | built-in | Express as routing in Section 3.3. |
 | Array/collection iteration | `split` EIP + per-item processing | built-in | Express in Section 3.5. |
 | Lookup / enrichment | `enrich` or `pollEnrich` EIP | built-in | |
 | Multi-step complex script | XSLT or Groovy script | `camel-xslt-saxon` / `camel-groovy` | Use Groovy only for logic that cannot be expressed in XSLT. Document in Section 3.2. |
 
-**Rule of thumb:** If you can express it as rows in the TDD Section 3.2–3.6 tables, do so. `/camel-implement` will generate the XSLT automatically from the tables.
+**Rule of thumb:** If you can express it as rows in the flow-design mapping tables, do so. `camel-execute` will
+generate the XSLT automatically from those tables.
 
 ---
 
-## Common DataWeave Patterns → TDD Table Equivalents
+## Common DataWeave Patterns → design spec table Equivalents
 
 ### Pattern 1: Direct Field Copy
 
@@ -80,7 +82,7 @@ output application/json
 }
 ```
 
-**TDD Section 3.2 Row:**
+**design spec section 3.2 Row:**
 
 | Source Field | Target Field | Transformation | Type | Mule Origin |
 |---|---|---|---|---|
@@ -97,7 +99,7 @@ amount: payload.amount as Number,
 createdAt: payload.created_ts as String {format: "yyyy-MM-dd"}
 ```
 
-**TDD Section 3.2 Row:**
+**design spec section 3.2 Row:**
 
 | Source Field | Target Field | Transformation | Type | Mule Origin |
 |---|---|---|---|---|
@@ -118,7 +120,7 @@ status: payload.status when payload.status != null otherwise "PENDING"
 status: if (payload.status != null) payload.status else "PENDING"
 ```
 
-**TDD Section 3.4 Row:**
+**design spec section 3.4 Row:**
 
 | Condition | Source Field | Target Field | True Value | False Value | Mule Origin |
 |---|---|---|---|---|---|
@@ -138,7 +140,7 @@ lineItems: payload.items map (item, index) -> {
 }
 ```
 
-**TDD Section 3.5 Row:**
+**design spec section 3.5 Row:**
 
 | Collection Field | Item Field | Target Field | Transformation | Mule Origin |
 |---|---|---|---|---|
@@ -158,7 +160,7 @@ email: lower(trim(payload.email)),
 fullName: payload.firstName ++ " " ++ payload.lastName
 ```
 
-**TDD Section 3.6 Row:**
+**design spec section 3.6 Row:**
 
 | Operation | Source | Function | Result | Mule Origin |
 |---|---|---|---|---|
@@ -176,7 +178,7 @@ description: payload.description default "N/A",
 quantity: payload.qty default 1
 ```
 
-**TDD Section 3.2 Row:**
+**design spec section 3.2 Row:**
 
 | Source Field | Target Field | Transformation | Type | Mule Origin |
 |---|---|---|---|---|
@@ -196,7 +198,7 @@ address: {
 }
 ```
 
-**TDD Section 3.2 Rows (nested expressed with dot notation):**
+**design spec section 3.2 Rows (nested expressed with dot notation):**
 
 | Source Field | Target Field | Transformation | Type | Mule Origin |
 |---|---|---|---|---|
@@ -218,13 +220,13 @@ correlationId: flowVars.correlationId
 correlationId: vars.correlationId
 ```
 
-**TDD Section 3.2 Row:**
+**design spec section 3.2 Row:**
 
 | Source Field | Target Field | Transformation | Type | Mule Origin |
 |---|---|---|---|---|
 | `header.correlationId` | `correlationId` | Direct Copy (from Camel Header) | String | `vars.correlationId` → maps to Camel `${header.correlationId}` |
 
-**Note:** Mule flow variables (`vars.*`) map to Camel exchange headers (`${header.*}`). When documenting in TDD Section 3.2, use the Camel header notation in the Source Field column.
+**Note:** Mule flow variables (`vars.*`) map to Camel exchange headers (`${header.*}`). When documenting in design spec section 3.2, use the Camel header notation in the Source Field column.
 
 ---
 
@@ -236,7 +238,7 @@ contentType: attributes.headers.'Content-Type',
 queryParam: attributes.queryParams.filter
 ```
 
-**TDD Section 3.2 Row:**
+**design spec section 3.2 Row:**
 
 | Source Field | Target Field | Transformation | Type | Mule Origin |
 |---|---|---|---|---|
@@ -264,18 +266,18 @@ When you encounter a DataWeave script during migration analysis, follow this pro
    - Array `map` → Section 3.5
    - Type coercion (`as String`, `as Number`) → Section 3.2 Transformation column
    - Direct copy → Section 3.2 with "Direct Copy"
-4. **For scripts too complex to decompose:** Flag them with a comment in the TDD and recommend generating a Groovy or XSLT script manually. Document the intended transformation in plain English so the developer can implement it.
+4. **For scripts too complex to decompose:** Flag them with a comment in the design spec and recommend generating a Groovy or XSLT script manually. Document the intended transformation in plain English so the developer can implement it.
 
 ---
 
 ## XSLT Generation Note
 
-When the TDD Section 3.2–3.6 tables are complete, `/camel-implement` will read them and generate:
+When the flow-design mapping tables are complete, `camel-execute` will read them and generate:
 - An XSLT stylesheet (for XML→XML transformations)
 - Or a Groovy script skeleton (for JSON transformations not expressible in XSLT)
 - Or simple Camel DSL `setBody`/`setHeader` calls (for simple mappings)
 
-The richer and more complete the TDD mapping tables, the more accurate the generated implementation will be.
+The richer and more complete the design spec mapping tables, the more accurate the generated implementation will be.
 
 ---
 
@@ -292,4 +294,5 @@ The richer and more complete the TDD mapping tables, the more accurate the gener
 | `read` / `write` (inline format conversion) | High | Camel `marshal`/`unmarshal` + intermediate route |
 | Custom DataWeave modules | High | Must be re-implemented; discuss with development team |
 
-When these patterns are found, add a TODO note in the relevant TDD section and flag for development team attention.
+When these patterns are found, record a required custom mapping action in the relevant design spec section and flag it
+for development team attention.

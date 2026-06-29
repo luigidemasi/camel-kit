@@ -154,7 +154,7 @@ Before dispatching any implementers, validate the target environment.
 3. If probe passes → proceed to task dispatch
 4. If probe finds mechanical failures → auto-fix and re-probe
 5. If probe finds architectural failures → load `guides/re-plan-loop.md`
-   - Re-plan modifies affected TDD(s), max 3 rounds
+   - Re-plan modifies affected flow design sections in the active design spec, max 3 rounds
    - After successful re-plan → re-probe, then proceed
 6. If probe still fails after re-plan → escalate to user
 
@@ -166,7 +166,9 @@ The probe prevents wasting implementation cycles on environments that cannot sup
 
 Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces ALL six:
 
-- **Iron Law 1: MCP Catalog Verification** — implementer subagents MUST verify every component via MCP before generating YAML.
+- **Iron Law 1: MCP Catalog Verification** — every component must be verified before YAML generation. A
+  `catalog-researcher` pre-verification summary satisfies this rule for the wave; otherwise implementer subagents must
+  verify directly via MCP.
 - **Iron Law 2: Constitution Compliance** — quality reviewer checks all 7 constitution rules.
 - **Iron Law 3: No Code Without Plan & Design Approval** — this phase runs after the design spec is approved and planning is complete. NO code is generated during design or migration phases.
 - **Iron Law 4: Spec Compliance Before Quality** — ALWAYS spec review FIRST, then quality review. Never in parallel. Never reversed.
@@ -229,7 +231,7 @@ Extract ALL tasks with:
 
 Before dispatching implementers for a wave, batch-verify all MCP catalog artifacts referenced in the wave's tasks. This keeps MCP response traces (~500 tokens each) out of the orchestrator and implementer contexts.
 
-1. Scan each task's TDD section for components, EIPs, dataformats, and languages
+1. Scan each task's referenced design spec section for components, EIPs, dataformats, and languages
 2. Deduplicate across tasks in the wave
 3. Dispatch a `catalog-researcher` subagent (from `agents/catalog-researcher.md`) with:
    - The deduplicated artifact list
@@ -279,10 +281,10 @@ After the implementer reports DONE (or DONE_WITH_CONCERNS), run the Adversarial 
 
 1. **Dispatch ACR Moderator** subagent (from `agents/acr-moderator.md`) with:
    - The generated files (read contents, not just paths)
-   - The TDD section for this task
+   - The design spec section for this task
    - Source contracts if available for migration pipelines
    - The implementer's status and concerns
-2. **Moderator selects Critic Lanes** based on TDD content:
+2. **Moderator selects Critic Lanes** based on design spec content:
    - Route Architecture — always active
    - Security — if external boundaries
    - Performance — if throughput/aggregation/batch
@@ -379,7 +381,7 @@ After the cross-cutting review, dispatch the full verification loop as a subagen
 - Verification failure does **NOT** block finishing. The user might want to merge/PR even with verification issues (e.g., external services unavailable in dev environment). The report is informational.
 - The verification report is included in Step 4's completion summary.
 
-**Re-plan trigger:** If verification failures persist after fix attempts within the verify loop, the verify loop may trigger `guides/re-plan-loop.md` to modify affected TDDs and re-execute. See `camel-verify/guides/verify-loop.md` Phase 2 for trigger conditions.
+**Re-plan trigger:** If verification failures persist after fix attempts within the verify loop, the verify loop may trigger `guides/re-plan-loop.md` to modify affected flow design sections and re-execute. See `camel-verify/guides/verify-loop.md` Phase 2 for trigger conditions.
 
 ### Step 4: Completion Summary
 
@@ -439,5 +441,5 @@ Save the completion summary as `docs/camel-kit/<PIPELINE_ID>/execution-report.md
 - Say "command has completed" or "phases are complete" while tasks remain
 - Skip the catalog research step (Step 1.5) — MCP verification is delegated, not eliminated
 - Let implementers re-verify components already verified by the catalog-researcher — trust the pre-verified summary
-- Skip ACR — Route Architecture critic always runs. Other lanes activate dynamically based on TDD content
+- Skip ACR — Route Architecture critic always runs. Other lanes activate dynamically based on design spec content
 - Run ACR more than 3 times — escalate to user after 3 cycles without convergence

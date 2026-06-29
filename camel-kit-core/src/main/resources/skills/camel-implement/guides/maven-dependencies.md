@@ -85,11 +85,11 @@ Do NOT guess or derive the version — it is pre-computed by `camel-kit init`.
 
 ## Step 2: Add Dependencies
 
-Add dependencies from the TDD "Dependencies" section using the correct groupId and artifactId pattern for the runtime.
+Add dependencies from the design spec Dependencies section using the correct groupId and artifactId pattern for the runtime.
 
 **Graph version alignment:** If `PROJECT_CONTEXT.DEPENDENCY_VERSIONS` is available (from Step 0), check it before adding each dependency. If the artifact is already in the project with a specific version (e.g., `camel-kafka:4.14.4`), use that version for consistency. If the artifact is new to the project, use the version from the MCP catalog response. Note: when BOM manages versions (no `<version>` tag), this check applies to the BOM version itself.
 
-**IMPORTANT:** The TDD "Dependencies" section lists generic Camel artifact names (e.g., `camel-kafka`). Transform them to the runtime-specific pattern:
+**IMPORTANT:** The design spec Dependencies section lists generic Camel artifact names (e.g., `camel-kafka`). Transform them to the runtime-specific pattern:
 
 ### Spring Boot
 
@@ -113,7 +113,7 @@ Add dependencies from the TDD "Dependencies" section using the correct groupId a
 
 ### Artifact Name Transformation Examples
 
-| TDD Lists | Spring Boot Artifact | Quarkus Artifact |
+| Design Spec Lists | Spring Boot Artifact | Quarkus Artifact |
 |-----------|---------------------|-----------------|
 | `camel-kafka` | `camel-kafka-starter` | `camel-quarkus-kafka` |
 | `camel-sql` | `camel-sql-starter` | `camel-quarkus-sql` |

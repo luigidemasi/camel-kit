@@ -7,7 +7,7 @@ Use Bob 2 native subagents for execution while the parent Bob task remains the o
 3. For implementation, test generation, and fix tasks, call `spawn_subagent` with `name: "general"`.
 4. Spawn every independent task in the current wave in the same parent turn so Bob runs them in parallel.
 5. Use `fork_context: true` only when a subagent needs prior parent-conversation decisions; otherwise keep the subagent context clean.
-6. Pass concise task context: task text, TDD path, design spec path, Camel version source, output paths, required guide paths, and verification commands.
+6. Pass concise task context: task text, design spec section, Camel version source, output paths, required guide paths, and verification commands.
 7. Subagents must not spawn subagents. If a subagent reports that more isolated work is needed, the parent Bob task decides whether to spawn another subagent.
 8. After each implementation subagent returns, the parent dispatches spec compliance and quality reviews as separate `explore` subagents before accepting the task.
 

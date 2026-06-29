@@ -27,7 +27,7 @@ Camel-Kit uses a three-layer composition model to separate concerns between user
 | **Direct dispatch** | One persona, one task, structured output | Implementer generates route YAML |
 | **Parallel fan-out with merge** | Multiple independent reviewers, merged reports | Stamp Gate: spec + quality + security in parallel |
 | **Research isolation** | Batch lookups, return summary only | `catalog-researcher` verifies 8 components, returns 100-token summary |
-| **Adversarial Code Review** | Parallel Critic Lanes review implementation against TDD | Moderator + Critic Lanes with 3-cycle cap |
+| **Adversarial Code Review** | Parallel Critic Lanes review implementation against the design spec | Moderator + Critic Lanes with 3-cycle cap |
 
 ### Context Savings
 

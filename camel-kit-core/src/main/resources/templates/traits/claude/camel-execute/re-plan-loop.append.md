@@ -4,7 +4,7 @@
 
 When the re-plan loop triggers, dispatch the re-planning work to a fresh subagent:
 
-- Use the `Agent` tool with a prompt that includes: the failure details, the affected TDD content, the MCP catalog response, and the alternative component requirements
+- Use the `Agent` tool with a prompt that includes: the failure details, the affected design spec content, the MCP catalog response, and the alternative component requirements
 - The fresh subagent gets clean context — no residual assumptions from the failed implementation attempt
 - Wait for the subagent to complete before re-running the probe or verify
 

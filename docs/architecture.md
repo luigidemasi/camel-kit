@@ -60,13 +60,13 @@ The frontmatter fields:
 | Skill | User-Invocable | Loaded By | Purpose |
 |-------|---------------|-----------|---------|
 | `camel-start` | Yes | -- | Meta-router and primary entry point: detects intent, loads appropriate pipeline |
-| `camel-brainstorm` | No | `camel-start` (greenfield) | Orchestrate design phase: interview user, produce BRD + TDDs |
+| `camel-brainstorm` | No | `camel-start` (greenfield) | Orchestrate design phase: interview user, produce the pipeline design spec |
 | `camel-plan` | No | `camel-brainstorm` (after design approval) | Produce detailed implementation plan from approved design spec |
 | `camel-execute` | No | `camel-plan` (auto-invoked after planning) | Environment probe, dispatch sub-agents per task with two-stage review |
 | `camel-migrate` | No | `camel-start` (migration) | Migration entry point: shortcut into `camel-brainstorm` with project type pre-set |
 | `camel-verify` | No | `camel-execute` (internal sub-agent) | 3-phase runtime verification loop (build, Citrus tests, report) — runs inside execute, not as a standalone pipeline stage |
 | `camel-ship` | No | -- (standalone orchestrator) | Autonomous pipeline — chains brainstorm → plan → execute → validate with configurable oversight |
-| `camel-design` | No | `camel-brainstorm` | Guides for component selection, EIP catalog, TDD assembly |
+| `camel-design` | No | `camel-brainstorm` | Guides for component selection, EIP catalog, and flow design assembly |
 | `camel-implement` | No | `camel-execute` | Guides for YAML generation, properties, Docker Compose, DataMapper |
 | `camel-validate` | No | `camel-ship` (Stage 3) | Tier 1 quality gate: schema validation, endpoint verification, security analysis |
 | `camel-test` | No | `camel-execute` | Guides for route analysis and test generation with Citrus + Testcontainers |
@@ -205,7 +205,7 @@ The end-to-end pipeline follows a strict phase progression:
 brainstorm / migrate
        |
        v
-   BRD + TDDs  (design spec)
+   business requirements + design spec
        |
        v
      plan
@@ -220,9 +220,11 @@ brainstorm / migrate
    artifacts + verification report
 ```
 
-The execute phase starts with an **environment probe** that validates the target environment before dispatching implementers. If architectural failures are found, a **re-plan loop** modifies affected TDDs and re-executes (max 3 rounds).
+The execute phase starts with an **environment probe** that validates the target environment before dispatching implementers. If architectural failures are found, a **re-plan loop** modifies affected flow design sections and re-executes (max 3 rounds).
 
-Entry points diverge (`camel-brainstorm` for greenfield, `camel-migrate` for migration) but both produce the same artifact format -- a BRD (Business Requirements Document) with TDDs (Technical Design Documents). This means `camel-plan` and `camel-execute` work identically regardless of whether the project is greenfield or migrated.
+Entry points diverge (`camel-brainstorm` for greenfield, `camel-migrate` for migration) but both produce the same
+artifact format -- business requirements plus an active design spec under `docs/camel-kit/<PIPELINE_ID>/`. This means
+`camel-plan` and `camel-execute` work identically regardless of whether the project is greenfield or migrated.
 
 ### How camel-execute Dispatches Work
 
@@ -231,7 +233,7 @@ Entry points diverge (`camel-brainstorm` for greenfield, `camel-migrate` for mig
 2. **Catalog research** (Step 1.5): dispatch a `catalog-researcher` sub-agent to batch-verify all MCP catalog artifacts for the wave. Only the structured summary flows back -- MCP response traces stay in the research sub-agent's context.
 3. For each task:
    - Dispatch an implementer sub-agent with full task text, design spec section, pre-verified catalog summary, and MCP parameters
-   - **Adversarial Code Review** (Step 2b.5): dispatch parallel Critic Lanes via a Moderator sub-agent to adversarially review the implementation against the TDD. Hard cap: 3 cycles.
+   - **Adversarial Code Review** (Step 2b.5): dispatch parallel Critic Lanes via a Moderator sub-agent to adversarially review the implementation against the design spec. Hard cap: 3 cycles.
    - Dispatch a **spec compliance reviewer** (sub-agent) -- does the output match the design spec?
    - If spec review passes, dispatch a **code quality reviewer** (sub-agent) -- constitution compliance, security, anti-patterns
    - If either reviewer finds critical issues, return to the implementer for fixes, then re-review
@@ -253,9 +255,12 @@ The dispatch model varies by AI agent:
 - **IBM Bob 2** -- uses native `spawn_subagent` (`explore` and `general`) while retaining Bob custom modes for tool restrictions.
 - **Gemini CLI, Qwen, OpenCode** -- use their native agent/delegation models with shared Camel-Kit skills and traits.
 
-### The BRD+TDD Contract
+### The Design Spec Contract
 
-Both `camel-brainstorm` (greenfield) and `camel-migrate` (migration) produce the same output format: a BRD with per-flow TDDs. This is the contract between design and implementation -- `camel-plan` consumes this format, and `camel-execute` implements from it. The design phase diverges (interview vs. source analysis), but the output converges.
+Both `camel-brainstorm` (greenfield) and `camel-migrate` (migration) produce the same output format: the active
+pipeline design spec under `docs/camel-kit/<PIPELINE_ID>/design-spec.md`. This is the contract between design and
+implementation -- `camel-plan` consumes this format, and `camel-execute` implements from it. The design phase diverges
+(interview vs. source analysis), but the output converges.
 
 ---
 
@@ -300,7 +305,7 @@ Each pattern has 2 approaches:
 - **Approach A** (`useJsonBody`) -- JSON body passed via Camel's JSON-to-XML auto-conversion
 - **Approach B** (header param) -- JSON body passed as an XSLT parameter via message header
 
-Pre-computed Source XPaths and Target Elements are stored in the TDD and used verbatim during implementation. The XSLT file is generated externally as `kaoto-datamapper-{id}.xsl` with a companion `.kaoto` metadata file for Kaoto IDE visual editing.
+Pre-computed Source XPaths and Target Elements are stored in the design spec and used verbatim during implementation. The XSLT file is generated externally as `kaoto-datamapper-{id}.xsl` with a companion `.kaoto` metadata file for Kaoto IDE visual editing.
 
 ### Groovy Path
 
@@ -308,7 +313,7 @@ Inline scripts in YAML `transform:` steps. 4 format pairs (JSON to JSON, XML to 
 
 ### Validation Routing
 
-The validation guide (`datamapper-validation.md`) reads the `Transformation Engine` field from the TDD and routes to the appropriate validation guide: `datamapper-groovy.md` for Groovy, or `datamapper-approach-a.md` / `datamapper-approach-b.md` for XSLT.
+The validation guide (`datamapper-validation.md`) reads the `Transformation Engine` field from the design spec and routes to the appropriate validation guide: `datamapper-groovy.md` for Groovy, or `datamapper-approach-a.md` / `datamapper-approach-b.md` for XSLT.
 
 ### Artifacts Comparison
 
@@ -319,7 +324,7 @@ The validation guide (`datamapper-validation.md`) reads the `Transformation Engi
 | `.kaoto` metadata | Required (Kaoto IDE visual editor) | Skipped (no IDE support) |
 | Maven dep (Spring Boot) | `camel-xslt-saxon-starter` | `camel-groovy-starter` |
 | Maven dep (Quarkus) | `camel-quarkus-xslt-saxon` | `camel-quarkus-groovy` |
-| TDD columns | 8 (incl. Source XPath, Target Element) | 6 (semantic only) |
+| Mapping columns | 8 (incl. Source XPath, Target Element) | 6 (semantic only) |
 | Kaoto IDE editing | Visual DataMapper editor | Edit YAML directly |
 
 ---
@@ -408,7 +413,7 @@ Traits are agent-specific instruction fragments that are appended to shared skil
 
 The six shared Iron Laws from `skills/shared/iron-laws.md` are embedded in or referenced by each agent's instruction file:
 
-1. **MCP Catalog Verification** -- every component, EIP, dataformat, and language must be verified via MCP before being written to any spec, TDD, or YAML file
+1. **MCP Catalog Verification** -- every component, EIP, dataformat, and language must be verified via MCP before being written to any design spec or YAML file
 2. **Constitution Compliance** -- every generated route must pass all 7 constitution rules (incorporates and enforces the constitution)
 3. **No Code Without Plan & Design Approval** -- never generate implementation artifacts before the user has approved the design spec and a task-based implementation plan exists
 4. **Spec Compliance Before Quality** -- always run spec compliance review before code quality review; wrong order wastes effort
@@ -421,7 +426,7 @@ The `/camel-execute` pipeline relies on dispatching discrete units of work to is
 
 Four of the five agents support this natively through **sub-agent dispatch**:
 
-- **Claude Code** -- uses the `Agent` tool to spawn fresh sub-agents per task. Each sub-agent receives the task text, relevant TDD section, guide file paths, and MCP parameters. Before implementation, a `catalog-researcher` sub-agent batch-verifies all MCP catalog artifacts (research isolation). After implementation, an Adversarial Code Review dispatches parallel Critic Lanes (Route Architecture, Security, Performance, Boundary Compliance, Behavioral Equivalence) via a Moderator sub-agent, then a spec-compliance reviewer sub-agent checks the design spec, then a code-quality reviewer sub-agent checks constitution compliance. At the Stamp Gate, three reviewers run in parallel (spec, quality, security). Claude uniquely supports **parallel dispatch**: `camel-kit plan analyze` groups tasks into waves using structured plan metadata (`dependsOn`, file overlap, and logical `provides`/`consumes` resources such as endpoints, routes, properties, schemas, test data, beans, external services, and route contracts), then independent tasks are dispatched simultaneously to multiple sub-agents.
+- **Claude Code** -- uses the `Agent` tool to spawn fresh sub-agents per task. Each sub-agent receives the task text, relevant design spec section, guide file paths, and MCP parameters. Before implementation, a `catalog-researcher` sub-agent batch-verifies all MCP catalog artifacts (research isolation). After implementation, an Adversarial Code Review dispatches parallel Critic Lanes (Route Architecture, Security, Performance, Boundary Compliance, Behavioral Equivalence) via a Moderator sub-agent, then a spec-compliance reviewer sub-agent checks the design spec, then a code-quality reviewer sub-agent checks constitution compliance. At the Stamp Gate, three reviewers run in parallel (spec, quality, security). Claude uniquely supports **parallel dispatch**: `camel-kit plan analyze` groups tasks into waves using structured plan metadata (`dependsOn`, file overlap, and logical `provides`/`consumes` resources such as endpoints, routes, properties, schemas, test data, beans, external services, and route contracts), then independent tasks are dispatched simultaneously to multiple sub-agents.
 
 - **Gemini CLI** -- dispatches via a unified `invoke_subagent` tool to 6 specialized sub-agents. The scheduler natively supports **parallel tool execution** via `Promise.all()` (default-parallel). However, sub-agents cannot invoke other sub-agents (hardcoded `Kind.Agent` filter), so `/camel-execute` runs in the **main agent context** where it can dispatch to all sub-agents. Within-wave parallelism is achieved through the scheduler batching multiple `invoke_subagent` calls.
 
@@ -605,7 +610,12 @@ Each phase has an independent iteration budget of **max 15 attempts**. On each i
 
 ### Environment Probe
 
-Before the verify loop runs, `camel-execute` performs an **environment probe** as its first step. The probe generates a throwaway skeleton (pom.xml, docker-compose, empty route) and checks dependency resolution, Docker service availability, and runtime startup. Failures are classified as **mechanical** (auto-fix and re-probe) or **architectural** (trigger re-plan loop). Mechanical failures route to the automated self-repair path (fix and re-probe without entering the re-plan loop). Architectural failures trigger the re-plan loop, which modifies affected TDDs and re-executes.
+Before the verify loop runs, `camel-execute` performs an **environment probe** as its first step. The probe generates a
+throwaway skeleton (pom.xml, docker-compose, empty route) and checks dependency resolution, Docker service availability,
+and runtime startup. Failures are classified as **mechanical** (auto-fix and re-probe) or **architectural** (trigger
+re-plan loop). Mechanical failures route to the automated self-repair path (fix and re-probe without entering the
+re-plan loop). Architectural failures trigger the re-plan loop, which modifies affected flow design sections and
+re-executes.
 
 ### Error Taxonomy
 
@@ -641,7 +651,7 @@ Errors route to one of six destinations:
 2. **camel-validate** -- route to validation skill for endpoint URI fixes
 3. **camel-implement** -- route to implementation skill for route logic fixes
 4. **camel-test** -- route to test skill for test re-generation (when the test is wrong, not the code)
-5. **re-plan** -- trigger the re-plan loop for architectural failures (modifies affected TDDs, max 3 rounds)
+5. **re-plan** -- trigger the re-plan loop for architectural failures (modifies affected flow design sections, max 3 rounds)
 6. **Escalate to user** -- when the error is outside the pipeline's control
 
 `re-plan` is not a separate error category -- it is a promotion destination. When the same error class persists after failed fix attempts, the error promotes to re-plan via the two-tier promotion model (Tier 1: MCP confirms structural after 1 attempt; Tier 2: 3 failed attempts on same error class).
@@ -653,7 +663,7 @@ When fix attempts fail persistently, errors promote to re-planning via a two-tie
 - **Tier 1 (immediate):** After 1 failed fix, MCP catalog confirms the failure is structural (component doesn't exist for this runtime). Triggers re-plan immediately.
 - **Tier 2 (progressive):** After 3 failed fix attempts on the same error class. Triggers re-plan.
 
-The re-plan loop modifies affected TDD(s) only (never the BRD), max 3 rounds, with short-circuit on same failure class.
+The re-plan loop modifies affected flow design sections only (never the business requirements), max 3 rounds, with short-circuit on same failure class.
 
 ---
 
@@ -724,7 +734,11 @@ When `camel-ship --resume` detects stale artifacts, it automatically re-runs fro
 
 ### DataMapper Consistency Fix (Feb 2026)
 
-Before this fix, XSLT generation varied between runs because the LLM would re-derive XPaths differently each time from the same schema. The solution: pre-compute Source XPaths and Target Elements once during the canonicalize stage (design time), store them in the TDD, and use them verbatim during implementation. The key insight is that for LLM code generation, providing the exact template per case produces consistent output -- never a single template with conditional rules.
+Before this fix, XSLT generation varied between runs because the LLM would re-derive XPaths differently each time from
+the same schema. The solution: pre-compute Source XPaths and Target Elements once during the canonicalize stage (design
+time), store them in the design spec, and use them verbatim during implementation. The key insight is that for LLM code
+generation, providing the exact template per case produces consistent output -- never a single template with conditional
+rules.
 
 ### Version Alignment
 
@@ -740,7 +754,7 @@ The **Constitution** defines 7 route quality rules (what makes a good route): ro
 
 The **Iron Laws** define pipeline process enforcement rules (how the pipeline operates): MCP verification, constitution compliance, no code without design approval, spec compliance before quality.
 
-Iron Law 3 explicitly incorporates and enforces the 7 constitution rules. They are complementary, not overlapping -- the constitution says what to check, the iron laws say when and how to enforce it.
+Iron Law 2 explicitly incorporates and enforces the 7 constitution rules. They are complementary, not overlapping -- the constitution says what to check, the iron laws say when and how to enforce it.
 
 ---
 

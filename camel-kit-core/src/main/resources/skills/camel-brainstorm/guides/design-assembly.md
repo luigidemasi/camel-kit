@@ -16,7 +16,7 @@ The design spec is the single source of truth for what gets built. It contains:
 - Configuration properties
 - MCP verification evidence
 
-**Iron Law 4 reminder:** The user MUST explicitly approve this spec before `camel-plan` is invoked.
+**Iron Law 3 reminder:** The user MUST explicitly approve this spec before `camel-plan` is invoked.
 
 ---
 
@@ -240,6 +240,8 @@ Fix any issues inline.
    project.runtime=[main/spring-boot/quarkus]
    project.camelVersion=[full version]
    project.platformBomVersion=[resolved platform BOM version]
+   # Spring Boot only:
+   project.springBootVersion=[resolved Spring Boot framework version]
    ```
 3. Copy `templates/constitution.md` to `docs/constitution.md` if it doesn't exist
 
