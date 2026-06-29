@@ -8,6 +8,7 @@ tools:
   - grep_search
   - run_shell_command
   - mcp_camel_*
+  - mcp_citrus_*
 max_turns: 30
 timeout_mins: 15
 ---

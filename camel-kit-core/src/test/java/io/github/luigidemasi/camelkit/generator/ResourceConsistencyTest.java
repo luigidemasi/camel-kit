@@ -159,9 +159,13 @@ class ResourceConsistencyTest {
 
             new DefaultGenerator().generate(ctx);
 
-            JsonNode knowledgeServer = knowledgeServerConfig(agentName, projectDir);
+            JsonNode knowledgeServer = serverConfig(agentName, projectDir, "camel-knowledge");
             assertKnowledgeTools(agentName, "autoApprove", knowledgeServer.get("autoApprove"));
             assertKnowledgeTools(agentName, "alwaysAllow", knowledgeServer.get("alwaysAllow"));
+
+            JsonNode citrusServer = serverConfig(agentName, projectDir, "citrus");
+            assertCitrusTools(agentName, "autoApprove", citrusServer.get("autoApprove"));
+            assertCitrusTools(agentName, "alwaysAllow", citrusServer.get("alwaysAllow"));
         }
     }
 
@@ -179,16 +183,30 @@ class ResourceConsistencyTest {
                 field + " allowlist for " + agentName + " must match KnowledgeMcpServer tools");
     }
 
-    private JsonNode knowledgeServerConfig(String agentName, Path projectDir) throws IOException {
+    private static void assertCitrusTools(String agentName, String field, JsonNode allowlist) throws IOException {
+        assertNotNull(allowlist, "Missing " + field + " allowlist for " + agentName);
+        assertTrue(allowlist.isArray(), field + " allowlist for " + agentName + " must be an array");
+
+        Set<String> actual = new LinkedHashSet<>();
+        allowlist.forEach(node -> actual.add(node.asText()));
+        assertEquals(new LinkedHashSet<>(
+                WorkflowManifestLoader.loadDefault()
+                        .mcpServer("citrus")
+                        .allowedTools()),
+                actual,
+                field + " allowlist for " + agentName + " must match Citrus MCP tools");
+    }
+
+    private JsonNode serverConfig(String agentName, Path projectDir, String serverId) throws IOException {
         AgentConfig agent = AgentRegistry.get(agentName);
         assertNotNull(agent, "Unexpected agent: " + agentName);
         Path configFile = projectDir.resolve(agent.mcpConfigPath());
         JsonNode root = MAPPER.readTree(configFile.toFile());
         JsonNode servers = root.get(agent.mcpServerContainerKey());
         assertNotNull(servers, "Missing MCP server config for " + agentName);
-        JsonNode knowledge = servers.get("camel-knowledge");
-        assertNotNull(knowledge, "Missing camel-knowledge MCP server config for " + agentName);
-        return knowledge;
+        JsonNode server = servers.get(serverId);
+        assertNotNull(server, "Missing " + serverId + " MCP server config for " + agentName);
+        return server;
     }
 
     private static List<Path> activeResourceFiles(Path root) throws IOException {

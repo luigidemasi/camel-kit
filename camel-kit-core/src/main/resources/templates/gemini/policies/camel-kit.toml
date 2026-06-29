@@ -11,6 +11,12 @@ decision = "allow"
 priority = 3
 
 [[rules]]
+name = "Allow Citrus MCP tools"
+toolName = "mcp_citrus_*"
+decision = "allow"
+priority = 3
+
+[[rules]]
 name = "Allow Maven commands"
 toolName = "run_shell_command"
 commandRegex = "^(\\./mvnw|mvn)\\s+"

@@ -29,6 +29,30 @@ The Camel MCP server is a Quarkus uber-jar started with `java -jar`. It is extra
 
 ---
 
+## Citrus MCP Server
+
+Camel-Kit also configures the Citrus MCP server for Citrus YAML integration test generation.
+
+Use Citrus MCP during `camel-test` work to validate the test vocabulary itself:
+
+- `citrus_catalog_actions` / `citrus_catalog_action`
+- `citrus_catalog_action_schema`
+- `citrus_catalog_endpoints` / `citrus_catalog_endpoint`
+- `citrus_catalog_endpoint_schema`
+- `citrus_docs_index` / `citrus_docs_page`
+- resources such as `citrus://schema/dsl/yaml` and `citrus://docs/best-practices`
+
+The Citrus version is stored in `.camel-kit/config.properties` as `citrus.version`.
+Generated MCP config, downloaded schema cache, and generated test dependencies must use that same version unless the user explicitly configured a separate `citrus.mcp.version` distribution override.
+
+Fallback policy:
+
+1. Prefer Citrus MCP for actions, endpoints, schemas, documentation, and best practices.
+2. If Citrus MCP is unavailable, use `.camel-kit/.cache/citrus/{citrus.version}/citrus-quick-reference.md`.
+3. Do not silently fall back to a different Citrus version. If the same-version cache is missing, proceed with static examples only after marking the generated test as unverified.
+
+---
+
 ## MCP Tool Call Rules (MANDATORY)
 
 ### Rule 1: Use `platformBom` for versioned catalog queries

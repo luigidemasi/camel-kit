@@ -35,10 +35,13 @@ public class DistributionConfig {
     private final String camelMainSupported;
     private final String camelSpringbootSupported;
     private final String camelQuarkusSupported;
+    private final String citrusVersion;
     private final String camelMcpVersion;
     private final String knowledgeMcpVersion;
+    private final String citrusMcpVersion;
     private final String camelMcpRepos;
     private final String knowledgeMcpRepos;
+    private final String citrusMcpRepos;
     private final String camelCatalogRepos;
     private final int overrideCount;
 
@@ -53,10 +56,13 @@ public class DistributionConfig {
         this.camelMainSupported = props.getProperty("camel.main.supported", "4.20.0");
         this.camelSpringbootSupported = props.getProperty("camel.springboot.supported", "4.20.0");
         this.camelQuarkusSupported = props.getProperty("camel.quarkus.supported", "4.18.0");
+        this.citrusVersion = props.getProperty("citrus.version", "5.0.0-M2");
         this.camelMcpVersion = props.getProperty("camel.mcp.version", "4.21.0-SNAPSHOT");
         this.knowledgeMcpVersion = props.getProperty("knowledge.mcp.version", "0.0.1-SNAPSHOT");
+        this.citrusMcpVersion = props.getProperty("citrus.mcp.version", citrusVersion);
         this.camelMcpRepos = props.getProperty("camel.mcp.repos", "maven");
         this.knowledgeMcpRepos = props.getProperty("knowledge.mcp.repos", "maven");
+        this.citrusMcpRepos = props.getProperty("citrus.mcp.repos", "maven");
         this.camelCatalogRepos = props.getProperty("camel.catalog.repos", "maven");
         this.overrideCount = overrideCount;
     }
@@ -219,6 +225,10 @@ public class DistributionConfig {
         return camelQuarkusSupported;
     }
 
+    public String citrusVersion() {
+        return citrusVersion;
+    }
+
     public String camelMcpVersion() {
         return camelMcpVersion;
     }
@@ -227,12 +237,20 @@ public class DistributionConfig {
         return knowledgeMcpVersion;
     }
 
+    public String citrusMcpVersion() {
+        return citrusMcpVersion;
+    }
+
     public String camelMcpRepos() {
         return camelMcpRepos;
     }
 
     public String knowledgeMcpRepos() {
         return knowledgeMcpRepos;
+    }
+
+    public String citrusMcpRepos() {
+        return citrusMcpRepos;
     }
 
     public String camelCatalogRepos() {

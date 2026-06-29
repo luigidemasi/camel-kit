@@ -23,6 +23,18 @@
       "description": "{KNOWLEDGE_DESCRIPTION}",
       "autoApprove": {KNOWLEDGE_TOOLS_JSON},
       "alwaysAllow": {KNOWLEDGE_TOOLS_JSON}
+    },
+    "citrus": {
+      "command": "jbang",
+      "args": [
+        "--repos", "{CITRUS_MCP_REPOS}",
+        "-Dquarkus.log.level=WARN",
+        "-Dquarkus.http.port=-1",
+        "org.citrusframework:citrus-mcp-server:{CITRUS_MCP_VERSION}:runner"
+      ],
+      "description": "{CITRUS_DESCRIPTION}",
+      "autoApprove": {CITRUS_TOOLS_JSON},
+      "alwaysAllow": {CITRUS_TOOLS_JSON}
     }
   }
 }

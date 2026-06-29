@@ -5,6 +5,7 @@
 > - `CAMEL_VERSION` — from `.camel-kit/config.properties`
 > - `RUNTIME` — from `.camel-kit/config.properties` (`project.runtime`, default: `main`)
 > - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via the version mapping table in `skills/shared/mcp-setup.md`
+> - `CITRUS_VERSION` — from `.camel-kit/config.properties` (`citrus.version`)
 >
 > **Version mapping:** When calling MCP catalog tools (`camel_route_context`, `camel_catalog_component_doc`), translate `CAMEL_VERSION` to the correct catalog version using the version mapping table in `skills/shared/mcp-setup.md`.
 
@@ -18,14 +19,51 @@ The Camel MCP server provides route analysis capabilities for this skill:
 - **Route Context** (`camel_route_context`) - Extract components and EIPs from routes automatically
 - **Component Documentation** (`camel_catalog_component_doc`) - Get component test patterns
 
+The Citrus MCP server provides Citrus test-generation capabilities:
+- **Action catalog** (`citrus_catalog_actions`, `citrus_catalog_action`) - Verify action names and properties
+- **Endpoint catalog** (`citrus_catalog_endpoints`, `citrus_catalog_endpoint`) - Verify endpoint syntax and properties
+- **Schemas** (`citrus_catalog_action_schema`, `citrus_catalog_endpoint_schema`, `citrus://schema/dsl/yaml`) - Validate YAML DSL shape
+- **Docs and practices** (`citrus_docs_page`, `citrus://docs/best-practices`) - Get current Citrus guidance
+
 ---
 
-## Step 0: Load Citrus Quick Reference (MANDATORY when available)
+## Step 0: Load Citrus Catalog Context
 
-**Before generating any test, read:**
+### 0.1 Resolve Citrus Version
+
+Read `.camel-kit/config.properties` and set `CITRUS_VERSION` from `citrus.version`.
+
+If `citrus.version` is missing, use the version embedded in the generated MCP configuration. Do not assume an older
+fallback version.
+
+### 0.2 Prefer Citrus MCP
+
+Before generating any test, use Citrus MCP when available:
 
 ```
-.camel-kit/.cache/citrus/{version}/citrus-quick-reference.md
+MCP Tool: citrus_catalog_actions
+Params: { "version": "{{CITRUS_VERSION}}" }
+
+MCP Tool: citrus_catalog_endpoints
+Params: { "version": "{{CITRUS_VERSION}}" }
+
+MCP Resource: citrus://schema/dsl/yaml
+MCP Resource: citrus://docs/best-practices
+```
+
+Use these results to validate:
+- All action names exist in the Citrus catalog
+- All action properties are valid for the selected Citrus version
+- All endpoint names and endpoint properties are valid
+- Testcontainer actions and variables match the selected Citrus version
+- YAML structure conforms to the Citrus YAML DSL schema
+
+### 0.3 Same-Version Cache Fallback
+
+If Citrus MCP is unavailable, read:
+
+```
+.camel-kit/.cache/citrus/{CITRUS_VERSION}/citrus-quick-reference.md
 ```
 
 This file contains:
@@ -34,19 +72,21 @@ This file contains:
 - Testcontainer definitions with exposed variables
 - Valid YAML structure and syntax
 
-**If file exists — validate all generated YAML against it:**
+**If same-version cache exists — validate all generated YAML against it:**
 - All action names exist in quick reference
 - All properties are valid for each action
 - All endpoint configurations match schema
 - All testcontainer variable names are correct
 
-**If file is missing:**
+**If same-version cache is missing:**
 ```
-⚠️ WARNING: Citrus quick reference not found.
-Proceeding with standard Citrus patterns.
-Generated tests may require manual validation.
+⚠️ WARNING: Citrus MCP and same-version quick reference are unavailable for {CITRUS_VERSION}.
+Proceeding with static Citrus patterns.
+Generated tests are unverified and require manual validation.
 ```
 Proceed to Step 1 — do NOT hard-stop.
+
+Do not use a quick reference from a different Citrus version.
 
 ---
 

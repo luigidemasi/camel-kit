@@ -1,6 +1,6 @@
 ---
 name: camel-tester
-description: "MUST BE USED for writing and running tests for Camel routes using JUnit, Citrus, and Testcontainers"
+description: "MUST BE USED for writing and running Citrus YAML tests for Camel routes with Testcontainers"
 tools:
   - read_file
   - write_file

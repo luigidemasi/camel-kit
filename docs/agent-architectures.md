@@ -256,6 +256,12 @@ decision = "allow"
 priority = 3
 
 [[rules]]
+name = "Allow Citrus MCP tools"
+toolName = "mcp_citrus_*"
+decision = "allow"
+priority = 3
+
+[[rules]]
 name = "Allow Maven commands"
 toolName = "run_shell_command"
 commandRegex = "^(\\./mvnw|mvn)\\s+"
@@ -284,11 +290,12 @@ tools:
   - grep_search
   - run_shell_command
   - mcp_camel_*           # all tools from Camel catalog MCP server
+  - mcp_citrus_*          # all tools from Citrus MCP server
 max_turns: 20
 timeout_mins: 20
 ```
 
-`mcp_camel_*` automatically includes new tools when the MCP server adds them -- future-proof. Different subagents can have different MCP server access (e.g., validator gets catalog but not knowledge).
+Server-scoped wildcards automatically include new tools when a configured MCP server adds them. Different subagents can have different MCP server access (e.g., validator gets catalog while tester gets catalog plus Citrus).
 
 ### Path-Scoped Edits via Policy Engine
 

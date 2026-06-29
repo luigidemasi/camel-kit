@@ -80,6 +80,19 @@ This prevents over-provisioning testcontainers for internal endpoints that Camel
 
 Create file: `{TEST_DIR}{flow-name}.camel.it.yaml`
 
+Before writing YAML, verify each selected Citrus action and endpoint against Citrus MCP for `CITRUS_VERSION`:
+
+```
+MCP Tool: citrus_catalog_action
+Params: { "name": "send", "version": "{{CITRUS_VERSION}}" }
+
+MCP Tool: citrus_catalog_endpoint
+Params: { "name": "kafka", "version": "{{CITRUS_VERSION}}" }
+```
+
+If Citrus MCP is unavailable, use only `.camel-kit/.cache/citrus/{CITRUS_VERSION}/citrus-quick-reference.md`.
+Do not use a cache from a different Citrus version.
+
 ### 3.1 Test File Structure
 
 ```yaml
@@ -411,7 +424,17 @@ Citrus automatically exposes these variables:
 
 ### 4.1 Validate Against Citrus Schema
 
-Before saving, verify:
+Before saving, validate with Citrus MCP when available:
+
+```
+MCP Resource: citrus://schema/dsl/yaml
+MCP Tool: citrus_catalog_action_schema
+Params: { "name": "<action-name>", "version": "{{CITRUS_VERSION}}" }
+MCP Tool: citrus_catalog_endpoint_schema
+Params: { "name": "<endpoint-name>", "version": "{{CITRUS_VERSION}}" }
+```
+
+Then verify:
 
 ```
 Validating test against Citrus schema...
@@ -438,18 +461,18 @@ Validating test against Citrus schema...
 For test execution via `camel test run`, create or update `test/jbang.properties` alongside the test YAML files:
 
 ```properties
-run.deps=org.citrusframework:citrus-camel:RELEASE,\
-org.citrusframework:citrus-testcontainers:RELEASE,\
-org.citrusframework:citrus-yaml:RELEASE
+run.deps=org.citrusframework:citrus-camel:{CITRUS_VERSION},\
+org.citrusframework:citrus-testcontainers:{CITRUS_VERSION},\
+org.citrusframework:citrus-yaml:{CITRUS_VERSION}
 ```
 
 Add component-specific test dependencies as needed:
 
 | Service | Additional Dependency |
 |---|---|
-| Kafka | `org.citrusframework:citrus-kafka:RELEASE` |
-| PostgreSQL | `org.testcontainers:postgresql:RELEASE` |
-| MongoDB | `org.testcontainers:mongodb:RELEASE` |
+| Kafka | `org.citrusframework:citrus-kafka:{CITRUS_VERSION}` |
+| PostgreSQL | `org.testcontainers:postgresql:<pinned-compatible-version>` |
+| MongoDB | `org.testcontainers:mongodb:<pinned-compatible-version>` |
 
 ---
 

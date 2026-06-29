@@ -130,8 +130,8 @@ customModes:
       Activated during the testing phase of the camel-kit pipeline.
     customInstructions: >
       Write tests before verifying they pass. Use Citrus test framework
-      for integration tests. Test files go in test/ directory. Follow
-      naming convention: {route-id}.test.yaml or {route-id}Test.java.
+      for integration tests. Generate Citrus YAML files named
+      {route-id}.camel.it.yaml in the test directory specified by the plan.
     groups:
       - read
       - - edit

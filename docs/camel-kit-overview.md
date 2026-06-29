@@ -380,6 +380,7 @@ flowchart TB
     subgraph mcp ["MCP Servers"]
         catalog["Camel Catalog MCP\nComponent verification\nOption validation\nSecurity analysis"]
         knowledge["Knowledge MCP\nDocumentation\nComponent verification"]
+        citrus["Citrus MCP\nTest actions\nEndpoint schemas\nYAML DSL schema"]
     end
 
     init --> templates
@@ -389,6 +390,7 @@ flowchart TB
     execute --> internal
     implement & validate --> catalog
     implement & validate --> knowledge
+    test --> citrus
 ```
 
 **Skills** carry the process knowledge -- how to conduct a design interview, how to generate a YAML route, how to validate against the constitution. They are plain markdown files, easy to read, review, and extend.
@@ -396,6 +398,8 @@ flowchart TB
 **Camel Catalog MCP** provides the data knowledge -- which components exist, what options they accept, whether an endpoint URI is valid. It queries the live catalog for the project's exact Camel version rather than relying on potentially outdated training data.
 
 **Knowledge MCP** provides documentation intelligence -- component availability, official documentation, and version-specific guidance.
+
+**Citrus MCP** provides test-generation intelligence -- which Citrus actions, endpoints, schemas, and best practices are valid for the configured Citrus version.
 
 **Templates** adapt the skill delivery format to each AI agent's native instruction mechanism. A single set of skills serves all supported agents.
 
@@ -424,7 +428,7 @@ flowchart TB
 | Target runtime | Spring Boot, Quarkus, or JBang |
 | Catalog access | Camel MCP server (live catalog queries via Model Context Protocol) |
 | Documentation | Knowledge MCP server (Apache Camel docs -- hybrid semantic search) |
-| Testing | Citrus + Testcontainers |
+| Testing | Citrus MCP + Citrus YAML + Testcontainers |
 | IDE support | Kaoto (visual route and DataMapper editing) |
 | AI agents | Claude Code, IBM Bob 1 legacy, IBM Bob 2, Gemini CLI, Qwen, OpenCode |
 

@@ -14,7 +14,7 @@ import java.util.function.Function;
  */
 final class WorkflowManifestValidator {
 
-    private static final Set<String> REQUIRED_MCP_SERVERS = Set.of("camel", "camel-knowledge");
+    private static final Set<String> REQUIRED_MCP_SERVERS = Set.of("camel", "camel-knowledge", "citrus");
 
     private WorkflowManifestValidator() {
     }
