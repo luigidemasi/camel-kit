@@ -143,7 +143,7 @@ All design decisions are locked. Create a checkpoint now.
 <Step>
 ## Switch to Plan Mode
 
-Switch to **camel-plan** mode. Read `.bob/skills/camel-migrate/guides/camel-version-phase1.md` for BRD generation.
+Switch to **camel-plan** mode. Read `.bob/skills/camel-migrate/guides/camel-version-phase1.md` for business requirements generation.
 
 Generate the business requirements at `docs/camel-kit/<PIPELINE_ID>/business-requirements.md`.
 </Step>
@@ -159,7 +159,7 @@ Update the active migration design spec at `docs/camel-kit/<PIPELINE_ID>/design-
 <Step>
 ## Plan Approval
 
-Present the BRD and design spec to the user.
+Present the business requirements and design spec to the user.
 
 **APPROVAL GATE:**
 "The migration plan is ready. Do you approve? (yes / changes needed)"

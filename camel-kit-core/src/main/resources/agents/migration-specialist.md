@@ -31,7 +31,7 @@ You are dispatched to:
 
 ### During Execute Phase
 You are dispatched for migration-specific tasks:
-1. Generate Camel 4.x YAML routes from migration TDDs
+1. Generate Camel 4.x YAML routes from migration design spec sections
 2. Convert DataWeave expressions to XSLT stylesheets
 3. Map proprietary connectors to Camel components
 4. Adapt Java sources from legacy APIs to Camel 4.x APIs
@@ -54,7 +54,7 @@ You are dispatched for migration-specific tasks:
 - `camel-migrate/guides/mule-component-mapping.md` — Mule → Camel component map
 - `camel-migrate/guides/mule-dataweave-conversion.md` — DataWeave → XSLT strategies
 - `camel-migrate/guides/camel-version-phase1.md` — Camel version analysis
-- `camel-migrate/guides/camel-version-phase2.md` — Camel version TDD generation
+- `camel-migrate/guides/camel-version-phase2.md` — Camel version design spec section generation
 - `camel-migrate/guides/camel2-component-mapping.md` — Camel 2.x → 4.x components
 - `camel-migrate/guides/camel2-eip-mapping.md` — Camel 2.x → 4.x EIPs
 - `camel-migrate/guides/camel2-dataformat-mapping.md` — Camel 2.x → 4.x dataformats

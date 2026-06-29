@@ -107,7 +107,7 @@ Use the same flow-design structure as `camel-brainstorm/guides/design-assembly.m
 of the following details:
 
 ```markdown
-# Technical Design Document: {flow-name}
+# Flow Design: {flow-name}
 
 ## Section 1: Overview
 
@@ -117,7 +117,7 @@ of the following details:
 | Migrated From | MuleSoft Mule [version] — [original-mule-flow-name] |
 | Source Module | {relative path from workspace root to the source Mule project} |
 | Target Module | {relative path from workspace root to the target Camel project, e.g. `order-service/`} |
-| Business Purpose | [from BRD] |
+| Business Purpose | [from business requirements] |
 | Trigger | [how the Camel route is triggered] |
 | Camel Version | [from config.properties] |
 | Created | [current date] |
@@ -277,7 +277,7 @@ Constitution v2.0 — six enforced rules:
 
 ### Migration Validation
 - [ ] Output payload matches Mule output (same field names, types, and values)
-- [ ] Performance meets SLA requirements from BRD
+- [ ] Performance meets SLA requirements from business requirements
 
 ## Section 11: Implementation Checklist
 
@@ -287,7 +287,7 @@ Constitution v2.0 — six enforced rules:
 - [ ] Verify against original Mule behaviour
 ```
 
-**Note:** If the BRD specifies performance/throughput requirements, add a **Section 5e: Throttling & Scaling** covering throttle EIP configuration and Kafka `consumersCount`. If security or compliance requirements exist, add a **Section 5f: Security**. If observability requirements exist, add a **Section 5g: Monitoring**. Renumber sections as needed.
+**Note:** If the business requirements specify performance/throughput requirements, add a **Section 5e: Throttling & Scaling** covering throttle EIP configuration and Kafka `consumersCount`. If security or compliance requirements exist, add a **Section 5f: Security**. If observability requirements exist, add a **Section 5g: Monitoring**. Renumber sections as needed.
 
 ---
 

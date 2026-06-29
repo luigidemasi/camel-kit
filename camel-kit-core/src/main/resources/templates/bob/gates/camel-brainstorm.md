@@ -201,7 +201,7 @@ All design decisions are locked. Create a checkpoint now.
 
 Switch to **camel-plan** mode.
 
-Read `.bob/skills/camel-migrate/guides/camel-version-phase1.md` for BRD generation (greenfield) or migration-specific BRD guides.
+Read `.bob/skills/camel-migrate/guides/camel-version-phase1.md` for business requirements generation (greenfield) or migration-specific business requirements guides.
 
 Generate the business requirements at `docs/camel-kit/<PIPELINE_ID>/business-requirements.md`.
 </Step>

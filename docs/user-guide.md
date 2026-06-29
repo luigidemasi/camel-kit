@@ -250,7 +250,7 @@ flowchart TB
     end
 
     A --> B
-    B -->|"user approves BRD"| C
+    B -->|"user approves design spec"| C
     C -->|"auto-proceeds"| D
     D --> I --> T --> R
     D -->|"after all tasks"| VF
@@ -344,7 +344,7 @@ After the user reviews and approves the design spec, the pipeline transitions au
 
 ### Phase 2: Plan (`/camel-plan`)
 
-The plan phase reviews the approved BRD and decomposes it into bite-sized implementation tasks. The plan is a recipe, not the meal -- it describes exactly what to generate and how, without containing any generated code.
+The plan phase reviews the approved design spec and decomposes it into bite-sized implementation tasks. The plan is a recipe, not the meal -- it describes exactly what to generate and how, without containing any generated code.
 
 **What it produces:**
 - Task decomposition with one task per flow or concern

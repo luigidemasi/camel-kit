@@ -108,7 +108,7 @@ project.runtime=quarkus
 project.camelVersion={CAMEL_QUARKUS_VERSION}
 project.platformBomVersion={QUARKUS_PLATFORM_VERSION}
 # Spring Boot only:
-# project.springBootVersion={SPRING_BOOT_VERSION}
+# project.springBootVersion=<Spring Boot framework version from the Step 2 mapping for the selected Camel version>
 ```
 
 These values are the single source of truth for all subsequent skills.

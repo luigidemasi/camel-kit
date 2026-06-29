@@ -169,14 +169,6 @@ public class DistributionConfig {
     }
 
     /**
-     * Looks up the Spring Boot framework version for a given Camel Spring Boot version. Falls back to the default
-     * {@link #springBootVersion()} if no mapping is found.
-     */
-    public String springBootForVersion(String camelVersion) {
-        return rawProps.getProperty("spring.boot." + camelVersion, springBootVersion);
-    }
-
-    /**
      * Returns all explicit Camel Spring Boot → Spring Boot framework version mappings from the {@code spring.boot.*}
      * properties (excluding the default {@code spring.boot.version}).
      */

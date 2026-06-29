@@ -4,7 +4,7 @@ Automatically resolves architectural failures by modifying the implementation pl
 sections in the active design spec, without user intervention, up to 3 rounds. Triggered when a failure cannot be fixed
 mechanically — the component, pattern, or dependency is structurally wrong and the design must change.
 
-**Modifies affected flow design sections ONLY — NEVER the BRD (`docs/camel-kit/<PIPELINE_ID>/business-requirements.md`).**
+**Modifies affected flow design sections ONLY — NEVER the business requirements (`docs/camel-kit/<PIPELINE_ID>/business-requirements.md`).**
 
 ---
 
@@ -14,7 +14,7 @@ mechanically — the component, pattern, or dependency is structurally wrong and
 |---|---|
 | Maximum rounds | 3 |
 | Modifiable artifacts | Affected flow sections in `docs/camel-kit/<PIPELINE_ID>/design-spec.md` only |
-| BRD (`docs/camel-kit/<PIPELINE_ID>/business-requirements.md`) | NEVER modified |
+| business requirements (`docs/camel-kit/<PIPELINE_ID>/business-requirements.md`) | NEVER modified |
 | Design scope | ONLY sections affected by the failure |
 | Short-circuit | Same failure class in consecutive rounds stops immediately |
 | Escalation | After 3 rounds OR short-circuit — escalate to user regardless of `--ask` level |

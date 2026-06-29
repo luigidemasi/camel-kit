@@ -146,7 +146,7 @@ flowchart LR
     E --- R["Verify"]
 ```
 
-**Phase 1 -- Design.** The AI conducts an interactive interview, asking about the business purpose, the systems that need to connect, data flows, error handling requirements, and transformation needs. It produces a design specification (Blueprint Reference Document with Technical Design Documents per flow). The user reviews and approves before moving forward.
+**Phase 1 -- Design.** The AI conducts an interactive interview, asking about the business purpose, the systems that need to connect, data flows, error handling requirements, and transformation needs. It produces business requirements and flow designs in a single design spec. The user reviews and approves before moving forward.
 
 **Phase 2 -- Plan.** The AI reviews the approved design and decomposes it into bite-sized implementation tasks. Each task specifies exactly what files to create, what components to use, and how to verify the result. The user reviews and approves the plan.
 

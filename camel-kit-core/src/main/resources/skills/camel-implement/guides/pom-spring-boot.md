@@ -70,7 +70,7 @@ Read the Spring Boot BOM version from `.camel-kit/config.properties`:
 project.runtime=spring-boot
 project.camelVersion={CAMEL_SPRINGBOOT_VERSION}
 project.platformBomVersion={SPRINGBOOT_BOM_VERSION}  # <- use THIS value
-project.springBootVersion={SPRING_BOOT_VERSION}      # <- plugin version
+project.springBootVersion=<selected mapping value>   # <- plugin version
 ```
 
 **Do NOT guess or derive** the Spring Boot BOM version from the Camel version. The correct value is pre-computed by `camel-kit init`.
