@@ -22,6 +22,9 @@ import java.util.Properties;
  */
 public class DistributionConfig {
 
+    private static final String DEFAULT_CITRUS_VERSION = "5.0.0-M2";
+    private static final String DEFAULT_CITRUS_MCP_VERSION = "5.0.0-M2";
+
     private static final Path DEFAULT_USER_CONFIG = Path.of(
             System.getProperty("user.home"), ".camel-kit", "config.properties");
 
@@ -56,10 +59,10 @@ public class DistributionConfig {
         this.camelMainSupported = props.getProperty("camel.main.supported", "4.20.0");
         this.camelSpringbootSupported = props.getProperty("camel.springboot.supported", "4.20.0");
         this.camelQuarkusSupported = props.getProperty("camel.quarkus.supported", "4.18.0");
-        this.citrusVersion = props.getProperty("citrus.version", "5.0.0-M2");
+        this.citrusVersion = props.getProperty("citrus.version", DEFAULT_CITRUS_VERSION);
         this.camelMcpVersion = props.getProperty("camel.mcp.version", "4.21.0-SNAPSHOT");
         this.knowledgeMcpVersion = props.getProperty("knowledge.mcp.version", "0.0.1-SNAPSHOT");
-        this.citrusMcpVersion = props.getProperty("citrus.mcp.version", citrusVersion);
+        this.citrusMcpVersion = props.getProperty("citrus.mcp.version", DEFAULT_CITRUS_MCP_VERSION);
         this.camelMcpRepos = props.getProperty("camel.mcp.repos", "maven");
         this.knowledgeMcpRepos = props.getProperty("knowledge.mcp.repos", "maven");
         this.citrusMcpRepos = props.getProperty("citrus.mcp.repos", "maven");

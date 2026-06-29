@@ -58,6 +58,9 @@ Use these results to validate:
 - Testcontainer actions and variables match the selected Citrus version
 - YAML structure conforms to the Citrus YAML DSL schema
 
+If a Citrus MCP response reports a version that differs from `CITRUS_VERSION`, treat Citrus MCP as unavailable for
+that query and use the same-version cache fallback below.
+
 ### 0.3 Same-Version Cache Fallback
 
 If Citrus MCP is unavailable, read:

@@ -24,7 +24,7 @@ class ClaudeGeneratorTest {
         Path skillsDir = tempDir.resolve(agentBaseFolder + "/skills");
         return new InitContext(
                 agent, "claude", commandsDir, skillsDir, tempDir,
-                "camel-kit", Printer.noop());
+                "camel-kit", "5.0.0-M2", Printer.noop());
     }
 
     @Test

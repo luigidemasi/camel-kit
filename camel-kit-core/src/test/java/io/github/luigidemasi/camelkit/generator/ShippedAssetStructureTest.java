@@ -486,7 +486,7 @@ class ShippedAssetStructureTest {
         Path skillsDir = projectDir.resolve(agentBaseFolder + "/skills");
         return new InitContext(
                 agent, agentName, commandsDir, skillsDir, projectDir,
-                "camel-kit", Printer.noop());
+                "camel-kit", "5.0.0-M2", Printer.noop());
     }
 
     private static List<String> sortedAgentNames() {

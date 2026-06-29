@@ -24,7 +24,7 @@ class Bob2GeneratorTest {
         Path skillsDir = tempDir.resolve(agentBaseFolder + "/skills");
         return new InitContext(
                 agent, "bob2", commandsDir, skillsDir, tempDir,
-                "camel-kit", Printer.noop());
+                "camel-kit", "5.0.0-M2", Printer.noop());
     }
 
     @Test
@@ -111,7 +111,7 @@ class Bob2GeneratorTest {
         InitContext bobCtx = new InitContext(
                 bob, "bob", tempDir.resolve("legacy").resolve(bob.folder()),
                 tempDir.resolve("legacy").resolve(agentBaseFolder + "/skills"),
-                tempDir.resolve("legacy"), "camel-kit", Printer.noop());
+                tempDir.resolve("legacy"), "camel-kit", "5.0.0-M2", Printer.noop());
 
         new BobGenerator().generate(bobCtx);
 

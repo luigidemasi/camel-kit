@@ -39,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Citrus MCP integration for test generation** — generated agent MCP configs now include the published Citrus MCP server (`org.citrusframework:citrus-mcp-server:5.0.0-M2`) so `camel-test` can verify Citrus YAML actions, endpoints, and schemas during test generation.
-  - Added synchronized Citrus distribution properties (`citrus.version`, `citrus.mcp.version`, `citrus.mcp.repos`)
+  - Added Citrus distribution properties (`citrus.version`, `citrus.mcp.version`, `citrus.mcp.repos`)
   - `--citrus-version default` now resolves to `5.0.0-M2`
   - Generated project config records `citrus.version`
   - Citrus MCP is preferred over cached quick references, with same-version cache fallback only

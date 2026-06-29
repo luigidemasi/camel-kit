@@ -74,8 +74,11 @@ class DistributionConfigTest {
 
         assertEquals("4.21.0-SNAPSHOT", config.camelMcpVersion());
         assertEquals("0.0.1-SNAPSHOT", config.knowledgeMcpVersion());
+        assertEquals("5.0.0-M2", config.citrusVersion());
+        assertEquals("5.0.0-M2", config.citrusMcpVersion());
         assertEquals("maven", config.camelMcpRepos());
         assertEquals("maven", config.knowledgeMcpRepos());
+        assertEquals("maven", config.citrusMcpRepos());
         assertEquals("maven", config.camelCatalogRepos());
     }
 
@@ -90,6 +93,17 @@ class DistributionConfigTest {
 
         DistributionConfig overriddenConfig = DistributionConfig.load(properties);
         assertEquals("9.9.9-TEST", overriddenConfig.camelMcpVersion());
+    }
+
+    @Test
+    void citrusMcpVersionDefaultsIndependentlyFromCitrusVersion() {
+        Properties properties = new Properties();
+        properties.setProperty("citrus.version", "4.9.2");
+
+        DistributionConfig config = DistributionConfig.load(properties);
+
+        assertEquals("4.9.2", config.citrusVersion());
+        assertEquals("5.0.0-M2", config.citrusMcpVersion());
     }
 
     @Test

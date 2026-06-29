@@ -27,7 +27,7 @@ class McpConfigGenerator {
 
             QuteTemplateEngine qute = new QuteTemplateEngine();
             String template = TemplateUtils.readTemplate(ctx.agent().mcpConfigTemplatePath());
-            String processed = qute.renderString(template, templateData(ctx, workflow));
+            String processed = qute.renderString(template, templateData(workflow));
             Files.writeString(configFile, processed);
 
             ctx.printer().println(AnsiColors.green("✓") + " MCP config created for " + ctx.agent().name());
@@ -36,13 +36,13 @@ class McpConfigGenerator {
         }
     }
 
-    private Map<String, Object> templateData(InitContext ctx, WorkflowManifest workflow) throws IOException {
+    private Map<String, Object> templateData(WorkflowManifest workflow) throws IOException {
         DistributionConfig dist = CamelKitMain.distribution();
         Map<String, Object> data = new java.util.HashMap<>(
                 Map.of(
                         "CAMEL_MCP_VERSION", CamelKitMain.CAMEL_MCP_VERSION,
                         "KNOWLEDGE_VERSION", CamelKitMain.KNOWLEDGE_MCP_VERSION,
-                        "CITRUS_MCP_VERSION", resolvedCitrusMcpVersion(ctx, dist),
+                        "CITRUS_MCP_VERSION", CamelKitMain.CITRUS_MCP_VERSION,
                         "CAMEL_MCP_REPOS", CamelKitMain.CAMEL_MCP_REPOS,
                         "KNOWLEDGE_MCP_REPOS", CamelKitMain.KNOWLEDGE_MCP_REPOS,
                         "CITRUS_MCP_REPOS", CamelKitMain.CITRUS_MCP_REPOS,
@@ -66,17 +66,9 @@ class McpConfigGenerator {
         data.put("KNOWLEDGE_DESCRIPTION", knowledgeServer.description());
 
         WorkflowManifest.WorkflowMcpServer citrusServer = workflow.mcpServer("citrus");
-        data.put("CITRUS_VERSION", ctx.citrusVersion());
         data.put("CITRUS_TOOLS_JSON", toJsonArray(citrusServer.allowedTools()));
         data.put("CITRUS_DESCRIPTION", citrusServer.description());
         return data;
-    }
-
-    private static String resolvedCitrusMcpVersion(InitContext ctx, DistributionConfig dist) {
-        if (dist.citrusMcpVersion().equals(dist.citrusVersion())) {
-            return ctx.citrusVersion();
-        }
-        return dist.citrusMcpVersion();
     }
 
     private static String toJsonArray(List<String> values) throws IOException {

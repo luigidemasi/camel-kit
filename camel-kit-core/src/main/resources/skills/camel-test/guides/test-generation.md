@@ -91,6 +91,7 @@ Params: { "name": "kafka", "version": "{{CITRUS_VERSION}}" }
 ```
 
 If Citrus MCP is unavailable, use only `.camel-kit/.cache/citrus/{CITRUS_VERSION}/citrus-quick-reference.md`.
+If Citrus MCP returns metadata for a different Citrus version, treat it as unavailable for that item.
 Do not use a cache from a different Citrus version.
 
 ### 3.1 Test File Structure

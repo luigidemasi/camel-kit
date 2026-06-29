@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.output.Printer;
 
@@ -82,17 +83,38 @@ class InitServiceTest {
     }
 
     @Test
-    void customCitrusVersionIsUsedForConfigAndMcpServer() throws Exception {
+    void customCitrusVersionDoesNotChangeMcpServerArtifactVersion() throws Exception {
         Path targetDir = tempDir.resolve("orders");
 
         InitResult result = new InitService().initialize(
-                request(targetDir, "bob2", "4.10.1", InitProgress.noop(), InitReporter.noop()));
+                request(targetDir, "bob2", "4.9.2", InitProgress.noop(), InitReporter.noop()));
 
-        assertEquals("4.10.1", result.citrusVersion());
+        assertEquals("4.9.2", result.citrusVersion());
         String config = Files.readString(targetDir.resolve(".camel-kit/config.properties"));
-        assertTrue(config.contains("citrus.version=4.10.1"));
+        assertTrue(config.contains("citrus.version=4.9.2"));
         String mcp = Files.readString(targetDir.resolve(".bob/mcp.json"));
-        assertTrue(mcp.contains("org.citrusframework:citrus-mcp-server:4.10.1:runner"));
+        assertTrue(mcp.contains("org.citrusframework:citrus-mcp-server:5.0.0-M2:runner"));
+        assertFalse(mcp.contains("org.citrusframework:citrus-mcp-server:4.9.2:runner"));
+    }
+
+    @Test
+    void explicitCitrusMcpVersionOverrideIsUsedWithCustomCitrusVersion() throws Exception {
+        Path targetDir = tempDir.resolve("orders");
+        Path configFile = tempDir.resolve("empty-distribution.properties");
+        Files.writeString(configFile, "");
+
+        CamelKitMain.reloadDistribution(configFile, List.of("citrus.mcp.version=4.10.1"));
+        try {
+            InitResult result = new InitService().initialize(
+                    request(targetDir, "bob2", "4.9.2", InitProgress.noop(), InitReporter.noop()));
+
+            assertEquals("4.9.2", result.citrusVersion());
+            String mcp = Files.readString(targetDir.resolve(".bob/mcp.json"));
+            assertTrue(mcp.contains("org.citrusframework:citrus-mcp-server:4.10.1:runner"));
+            assertFalse(mcp.contains("org.citrusframework:citrus-mcp-server:4.9.2:runner"));
+        } finally {
+            CamelKitMain.reloadDistribution(configFile, List.of());
+        }
     }
 
     private InitRequest request(
