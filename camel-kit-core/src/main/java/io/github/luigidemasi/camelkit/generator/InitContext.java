@@ -12,6 +12,5 @@ public record InitContext(
         Path skillsDir,
         Path projectDir,
         String commandPrefix,
-        String citrusVersion,
         Printer printer) {
 }

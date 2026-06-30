@@ -342,7 +342,7 @@ class WorkflowManifestTest {
         Path skillsDir = tempDir.resolve(agentBaseFolder + "/skills");
         return new InitContext(
                 agent, agentName, commandsDir, skillsDir, tempDir,
-                "camel-kit", "5.0.0-M2", Printer.noop());
+                "camel-kit", Printer.noop());
     }
 
     private static Path resourcePath(String resource) throws Exception {

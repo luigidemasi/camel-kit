@@ -381,7 +381,7 @@ User: "I want to design an order processing integration"
 | Profile | Phases | Tools Included | Tools Excluded |
 |---------|--------|----------------|----------------|
 | **Read-only** | brainstorm, validate, plan | `read_file`, `read_many_files`, `glob`, `grep_search`, `run_shell_command` | `write_file`, `edit`, `task` |
-| **Write + run** | test | All read tools + `write_file`, `edit` | `task` |
+| **Write + run** | test | All read tools + `write_file`, `edit`, exact Camel/Citrus MCP test tools | `task` |
 | **Full access** | implement, migrate, executor | All tools including `task` (executor only) | None |
 
 Qwen's whitelists are binary -- a tool is either available or not. No glob patterns or path-level restrictions (contrast with OpenCode).

@@ -24,7 +24,7 @@ class OpenCodeGeneratorTest {
         Path skillsDir = tempDir.resolve(agentBaseFolder + "/skills");
         return new InitContext(
                 agent, "opencode", commandsDir, skillsDir, tempDir,
-                "camel-kit", "5.0.0-M2", Printer.noop());
+                "camel-kit", Printer.noop());
     }
 
     @Test

@@ -213,6 +213,12 @@ class ResourceConsistencyTest {
                 "test-generation must iterate over actual generated actions");
         assertTrue(testGeneration.contains("For each ENDPOINT in ENDPOINTS_USED"),
                 "test-generation must iterate over actual generated endpoints");
+        assertFalse(testGeneration.contains("<pinned-compatible-version>"),
+                "test-generation must not emit unresolved dependency version placeholders");
+        assertTrue(testGeneration.contains("org.testcontainers:postgresql:RELEASE"),
+                "test-generation must provide a resolvable PostgreSQL Testcontainers dependency");
+        assertTrue(testGeneration.contains("org.testcontainers:mongodb:RELEASE"),
+                "test-generation must provide a resolvable MongoDB Testcontainers dependency");
     }
 
     private static void assertKnowledgeTools(String agentName, String field, JsonNode allowlist) throws IOException {
@@ -312,7 +318,7 @@ class ResourceConsistencyTest {
         Path skillsDir = projectDir.resolve(agentBaseFolder + "/skills");
         return new InitContext(
                 agent, agentName, commandsDir, skillsDir, projectDir,
-                "camel-kit", "5.0.0-M2", Printer.noop());
+                "camel-kit", Printer.noop());
     }
 
     private static List<String> sortedAgentNames() {

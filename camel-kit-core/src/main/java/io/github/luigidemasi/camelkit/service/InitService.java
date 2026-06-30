@@ -68,7 +68,7 @@ public class InitService {
         InitContext genCtx = new InitContext(
                 agent, request.agentName(), commandsDir,
                 agentBaseDir.resolve("skills"), targetDir,
-                request.commandPrefix(), citrusVersion, request.printer());
+                request.commandPrefix(), request.printer());
         AgentGeneratorFactory.create(request.agentName()).generate(genCtx);
         progress.finishTask();
 
@@ -125,6 +125,7 @@ public class InitService {
         config.setProperty("agent.name", agentName);
         config.setProperty("agent.folder", agent.folder());
         config.setProperty("citrus.version", request.resolvedCitrusVersion());
+        config.setProperty("citrus.mcp.version", request.distribution().citrusMcpVersion());
         if (request.sourcePlatform() != null && !"auto".equals(request.sourcePlatform())) {
             config.setProperty("project.sourcePlatform", request.sourcePlatform());
         }

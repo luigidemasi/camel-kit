@@ -246,7 +246,7 @@ class DoctorCommandTest {
         Path commandsDir = root.resolve(agent.folder());
         Path skillsDir = commandsDir.getParent().resolve("skills");
         InitContext ctx = new InitContext(
-                agent, agentName, commandsDir, skillsDir, root, "camel-kit", "5.0.0-M2", Printer.noop());
+                agent, agentName, commandsDir, skillsDir, root, "camel-kit", Printer.noop());
         AgentGeneratorFactory.create(agentName).generate(ctx);
     }
 

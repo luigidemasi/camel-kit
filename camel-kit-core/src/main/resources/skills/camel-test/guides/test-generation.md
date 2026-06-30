@@ -503,8 +503,11 @@ Add component-specific test dependencies as needed:
 | Service | Additional Dependency |
 |---|---|
 | Kafka | `org.citrusframework:citrus-kafka:{CITRUS_VERSION}` |
-| PostgreSQL | `org.testcontainers:postgresql:<pinned-compatible-version>` |
-| MongoDB | `org.testcontainers:mongodb:<pinned-compatible-version>` |
+| PostgreSQL | `org.testcontainers:postgresql:RELEASE` |
+| MongoDB | `org.testcontainers:mongodb:RELEASE` |
+
+Use `:RELEASE` for Testcontainers modules unless the project already pins a Testcontainers version in its build. Do not
+emit placeholder tokens in `jbang.properties`.
 
 ---
 
