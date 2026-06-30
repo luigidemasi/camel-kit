@@ -68,7 +68,7 @@ public class InitService {
         InitContext genCtx = new InitContext(
                 agent, request.agentName(), commandsDir,
                 agentBaseDir.resolve("skills"), targetDir,
-                request.commandPrefix(), request.printer());
+                request.commandPrefix(), request.distribution(), request.printer());
         AgentGeneratorFactory.create(request.agentName()).generate(genCtx);
         progress.finishTask();
 
