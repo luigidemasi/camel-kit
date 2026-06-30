@@ -72,6 +72,10 @@ class WorkflowManifestTest {
                 display_name: "Camel-Kit Knowledge MCP"
                 description: "Knowledge"
                 allowed_tools: []
+              - id: citrus
+                display_name: "Citrus MCP"
+                description: "Citrus"
+                allowed_tools: []
             """;
 
     @TempDir
@@ -216,6 +220,14 @@ class WorkflowManifestTest {
                             allowed_tools: []
                         """, ""),
                 "mcp_servers missing required server 'camel-knowledge'");
+        assertInvalidManifest(
+                MINIMAL_VALID_MANIFEST.replace("""
+                          - id: citrus
+                            display_name: "Citrus MCP"
+                            description: "Citrus"
+                            allowed_tools: []
+                        """, ""),
+                "mcp_servers missing required server 'citrus'");
     }
 
     @Test
@@ -273,7 +285,7 @@ class WorkflowManifestTest {
     }
 
     @Test
-    void generatedKnowledgeMcpAllowlistMatchesManifest() throws Exception {
+    void generatedMcpAllowlistsMatchManifest() throws Exception {
         WorkflowManifest manifest = WorkflowManifestLoader.loadDefault();
         InitContext ctx = createContext("bob");
 
@@ -286,9 +298,12 @@ class WorkflowManifestTest {
                 });
         Map<String, Object> servers = map(config.get("mcpServers"));
         Map<String, Object> knowledge = map(servers.get("camel-knowledge"));
+        Map<String, Object> citrus = map(servers.get("citrus"));
 
         assertEquals(manifest.mcpServer("camel-knowledge").allowedTools(), knowledge.get("autoApprove"));
         assertEquals(manifest.mcpServer("camel-knowledge").allowedTools(), knowledge.get("alwaysAllow"));
+        assertEquals(manifest.mcpServer("citrus").allowedTools(), citrus.get("autoApprove"));
+        assertEquals(manifest.mcpServer("citrus").allowedTools(), citrus.get("alwaysAllow"));
     }
 
     @Test
@@ -302,6 +317,22 @@ class WorkflowManifestTest {
                 "camel_docs_release_info",
                 "camel_docs_jira_lookup"),
                 manifest.mcpServer("camel-knowledge").allowedTools());
+    }
+
+    @Test
+    void citrusMcpAllowlistOnlyContainsImplementedTools() throws Exception {
+        WorkflowManifest manifest = WorkflowManifestLoader.loadDefault();
+
+        assertEquals(List.of(
+                "citrus_catalog_actions",
+                "citrus_catalog_action",
+                "citrus_catalog_action_schema",
+                "citrus_catalog_endpoints",
+                "citrus_catalog_endpoint",
+                "citrus_catalog_endpoint_schema",
+                "citrus_docs_index",
+                "citrus_docs_page"),
+                manifest.mcpServer("citrus").allowedTools());
     }
 
     private InitContext createContext(String agentName) {

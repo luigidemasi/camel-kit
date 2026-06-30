@@ -117,7 +117,7 @@ class SkillResourceInstaller {
         }
         if (destination.getFileName().toString().endsWith(".md")) {
             try {
-                versionPlaceholderResolver.substitute(destination);
+                versionPlaceholderResolver.substitute(destination, ctx.distribution());
             } catch (Exception e) {
                 ctx.printer().println(AnsiColors.yellow("  Warning: Failed to substitute version placeholders in "
                                                         + destination + ": " + e.getMessage()));

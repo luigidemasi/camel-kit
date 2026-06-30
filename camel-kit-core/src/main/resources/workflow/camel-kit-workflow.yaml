@@ -290,6 +290,18 @@ mcp_servers:
       - camel_docs_cve_search
       - camel_docs_release_info
       - camel_docs_jira_lookup
+  - id: citrus
+    display_name: "Citrus MCP"
+    description: "Citrus MCP Server - test action catalog, endpoint schemas, YAML DSL schema, and test authoring guidance"
+    allowed_tools:
+      - citrus_catalog_actions
+      - citrus_catalog_action
+      - citrus_catalog_action_schema
+      - citrus_catalog_endpoints
+      - citrus_catalog_endpoint
+      - citrus_catalog_endpoint_schema
+      - citrus_docs_index
+      - citrus_docs_page
 
 website_reference:
   command_reference: docs/commands.md

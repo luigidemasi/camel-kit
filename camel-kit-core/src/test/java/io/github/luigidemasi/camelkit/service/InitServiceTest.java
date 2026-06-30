@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.output.Printer;
 
@@ -30,7 +31,7 @@ class InitServiceTest {
         assertEquals("orders", result.projectName());
         assertEquals("bob", result.agentName());
         assertEquals(targetDir, result.targetDir());
-        assertEquals("4.9.2", result.citrusVersion());
+        assertEquals("5.0.0-M2", result.citrusVersion());
         assertEquals(0, result.citrusSchemaCount());
         assertEquals("3.9.9", result.mavenWrapperVersion());
         assertFalse(result.createdPaths().isEmpty());
@@ -44,6 +45,8 @@ class InitServiceTest {
         assertTrue(config.contains("project.name=orders"));
         assertTrue(config.contains("agent.name=bob"));
         assertTrue(config.contains("project.sourcePlatform=mulesoft"));
+        assertTrue(config.contains("citrus.version=5.0.0-M2"));
+        assertTrue(config.contains("citrus.mcp.version=5.0.0-M2"));
 
         assertTrue(progress.events().contains("start:Creating project structure"));
         assertTrue(progress.events().contains("start:Generating IBM Project Bob workspace"));
@@ -80,6 +83,41 @@ class InitServiceTest {
         assertFalse(Files.exists(targetDir));
     }
 
+    @Test
+    void customCitrusVersionDoesNotChangeMcpServerArtifactVersion() throws Exception {
+        Path targetDir = tempDir.resolve("orders");
+
+        InitResult result = new InitService().initialize(
+                request(targetDir, "bob2", "4.9.2", InitProgress.noop(), InitReporter.noop()));
+
+        assertEquals("4.9.2", result.citrusVersion());
+        String config = Files.readString(targetDir.resolve(".camel-kit/config.properties"));
+        assertTrue(config.contains("citrus.version=4.9.2"));
+        assertTrue(config.contains("citrus.mcp.version=5.0.0-M2"));
+        String mcp = Files.readString(targetDir.resolve(".bob/mcp.json"));
+        assertTrue(mcp.contains("org.citrusframework:citrus-mcp-server:5.0.0-M2:runner"));
+        assertFalse(mcp.contains("org.citrusframework:citrus-mcp-server:4.9.2:runner"));
+    }
+
+    @Test
+    void explicitCitrusMcpVersionOverrideIsUsedWithCustomCitrusVersion() throws Exception {
+        Path targetDir = tempDir.resolve("orders");
+        Properties properties = new Properties();
+        properties.setProperty("citrus.mcp.version", "4.10.1");
+        DistributionConfig distribution = DistributionConfig.load(properties);
+
+        InitResult result = new InitService().initialize(
+                request(targetDir, "bob2", "4.9.2", distribution, InitProgress.noop(), InitReporter.noop()));
+
+        assertEquals("4.9.2", result.citrusVersion());
+        String config = Files.readString(targetDir.resolve(".camel-kit/config.properties"));
+        assertTrue(config.contains("citrus.version=4.9.2"));
+        assertTrue(config.contains("citrus.mcp.version=4.10.1"));
+        String mcp = Files.readString(targetDir.resolve(".bob/mcp.json"));
+        assertTrue(mcp.contains("org.citrusframework:citrus-mcp-server:4.10.1:runner"));
+        assertFalse(mcp.contains("org.citrusframework:citrus-mcp-server:4.9.2:runner"));
+    }
+
     private InitRequest request(
             Path targetDir,
             String agentName,
@@ -93,8 +131,39 @@ class InitServiceTest {
                 true,
                 "mulesoft",
                 "camel-kit",
-                "4.9.2",
-                DistributionConfig.load(new Properties()),
+                "5.0.0-M2",
+                CamelKitMain.distribution(),
+                Printer.noop(),
+                progress,
+                reporter);
+    }
+
+    private InitRequest request(
+            Path targetDir,
+            String agentName,
+            String citrusVersion,
+            InitProgress progress,
+            InitReporter reporter) {
+        return request(targetDir, agentName, citrusVersion, CamelKitMain.distribution(), progress, reporter);
+    }
+
+    private InitRequest request(
+            Path targetDir,
+            String agentName,
+            String citrusVersion,
+            DistributionConfig distribution,
+            InitProgress progress,
+            InitReporter reporter) {
+        return new InitRequest(
+                "orders",
+                agentName,
+                targetDir,
+                citrusVersion,
+                true,
+                "mulesoft",
+                "camel-kit",
+                "5.0.0-M2",
+                distribution,
                 Printer.noop(),
                 progress,
                 reporter);

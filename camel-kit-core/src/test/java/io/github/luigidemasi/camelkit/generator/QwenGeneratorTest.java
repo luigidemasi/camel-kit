@@ -98,6 +98,25 @@ class QwenGeneratorTest {
     }
 
     @Test
+    void testerSubAgentAllowsCamelAndCitrusMcpTools() throws Exception {
+        InitContext ctx = createContext();
+        new QwenGenerator().generate(ctx);
+
+        String content = Files.readString(
+                tempDir.resolve(".qwen/agents/camel-tester.md"));
+        assertTrue(content.contains("mcp_camel_camel_validate_route"));
+        assertTrue(content.contains("mcp_camel_camel_route_harden_context"));
+        assertTrue(content.contains("mcp_camel_camel_component_properties"));
+        assertTrue(content.contains("mcp_camel_camel_error_diagnose"));
+        assertTrue(content.contains("mcp_citrus_citrus_catalog_actions"));
+        assertTrue(content.contains("mcp_citrus_citrus_catalog_action_schema"));
+        assertTrue(content.contains("mcp_citrus_citrus_catalog_endpoint_schema"));
+        assertTrue(content.contains("mcp_citrus_citrus_docs_index"));
+        assertFalse(content.contains("mcp_camel_*"));
+        assertFalse(content.contains("mcp_citrus_*"));
+    }
+
+    @Test
     void fullAccessSubAgentOmitsToolList() throws Exception {
         InitContext ctx = createContext();
         new QwenGenerator().generate(ctx);

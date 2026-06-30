@@ -74,41 +74,28 @@ Identify testable behaviors:
 
 Load `guides/test-configuration.md`.
 
-Create or update test infrastructure:
+Create or update Citrus YAML test infrastructure:
 
-**1. Testcontainers setup** (if external services are used):
-```java
-@Testcontainers
-class RouteIntegrationTest {
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15");
-    
-    @Container
-    static GenericContainer<?> mockApi = new GenericContainer<>("wiremock/wiremock:3.0.0")
-        .withExposedPorts(8080);
-}
+**1. Testcontainers actions** (if external services are used):
+```yaml
+actions:
+  - testcontainers:
+      start:
+        postgresql: {}
 ```
 
-**2. Citrus test configuration:**
-```java
-@CitrusSpringSupport
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class RouteIntegrationTest {
-    @CitrusEndpoint
-    @JmsEndpoint(destinationName = "input.queue")
-    private Endpoint inputQueue;
-    
-    @CitrusEndpoint
-    @JmsEndpoint(destinationName = "output.queue")
-    private Endpoint outputQueue;
-}
-```
-
-**3. Test properties** (`src/test/resources/application-test.properties`):
+**2. Test properties** (`src/test/resources/application-test.properties`):
 ```properties
 # Override with Testcontainer URLs
-camel.component.jdbc.url=$\{postgres.jdbcUrl\}
-external.api.url=$\{mockApi.url\}
+camel.component.jdbc.url=$\{CITRUS_TESTCONTAINERS_POSTGRESQL_URL\}
+external.api.url=http://localhost:8080
+```
+
+**3. JBang test dependencies** (`src/test/resources/jbang.properties` or the plan-specified test directory):
+```properties
+run.deps=org.citrusframework:citrus-camel:<CITRUS_VERSION>,\
+org.citrusframework:citrus-testcontainers:<CITRUS_VERSION>,\
+org.citrusframework:citrus-yaml:<CITRUS_VERSION>
 ```
 </Step>
 
@@ -240,7 +227,7 @@ Do NOT proceed until all tests pass.
 <Step>
 ## Verify Test Coverage
 
-For each route, verify test coverage:
+For each route, verify behavioral scenario coverage:
 
 **Minimum coverage:**
 - 1 happy path test
@@ -248,18 +235,7 @@ For each route, verify test coverage:
 - 1+ edge case tests
 - 1+ external service failure tests (if route calls external systems)
 
-**Coverage report:**
-```bash
-mvn verify
-```
-
-Check `target/site/jacoco/index.html` for coverage metrics.
-
-**Thresholds:**
-- Line coverage: > 80%
-- Branch coverage: > 70%
-
-If coverage is below threshold, add more tests.
+If scenario coverage is below threshold, add more Citrus YAML scenarios.
 </Step>
 
 <Step>
@@ -375,8 +351,7 @@ Create a test report at `docs/test-report.md`:
 | Total Tests | N |
 | Passing Tests | N |
 | Failing Tests | 0 |
-| Line Coverage | X% |
-| Branch Coverage | Y% |
+| Scenario Coverage | happy path, error paths, edge cases |
 
 ---
 
@@ -393,16 +368,17 @@ Create a test report at `docs/test-report.md`:
 - ✓ Edge case: empty input → validation error
 - ✓ Failure case: external API timeout → retry
 
-**Coverage:**
-- Line: 85%
-- Branch: 78%
+**Scenario Coverage:**
+- Happy path: yes
+- Error paths: yes
+- Edge cases: yes
 
 ---
 
 ## Recommendations
 
 1. Add more edge case tests for <route-name>
-2. Increase branch coverage in <route-name> (currently 78%, target 80%)
+2. Add a failure scenario for <route-name> external service timeout
 ```
 
 Present the report to the user.
@@ -429,8 +405,7 @@ Testing enforces:
 
 - **Citrus:** Integration testing framework for Camel routes
 - **Testcontainers:** Lightweight Docker containers for external services
-- **JUnit 5:** Test runner
-- **AssertJ:** Fluent assertions
+- **Camel JBang test plugin:** Runs Citrus YAML tests with `camel test run`
 
 ## Guide Reference
 

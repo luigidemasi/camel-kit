@@ -26,6 +26,19 @@
       "enabled": true,
       "autoApprove": {KNOWLEDGE_TOOLS_JSON},
       "alwaysAllow": {KNOWLEDGE_TOOLS_JSON}
+    },
+    "citrus": {
+      "type": "local",
+      "command": [
+        "jbang",
+        "--repos", "{CITRUS_MCP_REPOS}",
+        "-Dquarkus.log.level=WARN",
+        "-Dquarkus.http.port=-1",
+        "org.citrusframework:citrus-mcp-server:{CITRUS_MCP_VERSION}:runner"
+      ],
+      "enabled": true,
+      "autoApprove": {CITRUS_TOOLS_JSON},
+      "alwaysAllow": {CITRUS_TOOLS_JSON}
     }
   }
 }

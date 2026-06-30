@@ -9,11 +9,11 @@ This document describes Camel-Kit's internal architecture for contributors and e
 Camel-Kit combines two mechanisms to give AI agents accurate, efficient access to the Apache Camel ecosystem:
 
 - **Skills** -- markdown instruction files that guide LLM agents through structured workflows (design, implementation, validation, testing, verification)
-- **MCP Server** -- real-time queries against the live Camel catalog for component verification, validation, and security analysis
+- **MCP Servers** -- real-time queries against live Camel, documentation, and Citrus catalogs for component verification, validation, security analysis, and test generation
 
-Together they enable AI-powered integration development targeting Apache Camel. Skills carry the process knowledge (how to design a flow, how to generate YAML, how to validate a route), while MCP provides the data knowledge (which components exist, what options they accept, whether an endpoint URI is valid).
+Together they enable AI-powered integration development targeting Apache Camel. Skills carry the process knowledge (how to design a flow, how to generate YAML, how to validate a route), while MCP provides the data knowledge (which components exist, what options they accept, whether an endpoint URI or Citrus test action is valid).
 
-The authoritative workflow contract lives in `camel-kit-core/src/main/resources/workflow/camel-kit-workflow.yaml`. It defines command names and aliases, generated command stubs, skill visibility, pipeline stages, artifacts, transitions, MCP servers, allowed tools, and documentation references. Generator code reads this manifest for command stub generation and the Knowledge MCP allowlist, and tests validate skill frontmatter against it. When changing workflow behavior, update the manifest first and then update the Markdown skill bodies and docs to match.
+The authoritative workflow contract lives in `camel-kit-core/src/main/resources/workflow/camel-kit-workflow.yaml`. It defines command names and aliases, generated command stubs, skill visibility, pipeline stages, artifacts, transitions, MCP servers, allowed tools, and documentation references. Generator code reads this manifest for command stub generation and MCP allowlists, and tests validate skill frontmatter against it. When changing workflow behavior, update the manifest first and then update the Markdown skill bodies and docs to match.
 
 ---
 
@@ -531,7 +531,7 @@ the skills, and leaves runtime mutation/control tools out of the generated allow
 | `camel_transform_route` | Convert routes between YAML and XML formats |
 | `camel_route_context` | Extract components and EIPs from route (YAML/XML/Java) |
 | `camel_route_harden_context` | Analyze routes for security concerns (47 checks) |
-| `camel_route_test_scaffold` | Generate a JUnit 5 test skeleton for a route |
+| `camel_route_test_scaffold` | Generate a JUnit 5 Camel route test scaffold |
 
 #### 3. Diagnostics And Configuration
 
@@ -578,7 +578,7 @@ Separate from Camel JBang MCP, the knowledge layer runs from the `camel-kit-know
 | `camel-migrate` | Catalog, migration, and knowledge tools | varies |
 | `camel-implement` | Catalog detail tools, route context, validation, transformation, test scaffold | varies |
 | `camel-validate` | Route validation, hardening, diagnostics, dependency/config checks | varies |
-| `camel-test` | Route context, catalog details, test scaffold | varies |
+| `camel-test` | Route validation, route context, hardening analysis, component metadata, Citrus catalog/schema/docs | varies |
 | `camel-knowledge` | `camel_docs_search`, `camel_docs_component_info`, `camel_docs_cve_search`, `camel_docs_release_info`, `camel_docs_jira_lookup` | 5 |
 
 ### Token Savings

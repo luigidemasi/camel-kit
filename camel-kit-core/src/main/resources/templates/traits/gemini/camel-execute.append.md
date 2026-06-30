@@ -29,6 +29,12 @@ name = "Allow Camel MCP tools"
 toolName = "mcp_camel_*"
 decision = "allow"
 priority = 3
+
+[[rules]]
+name = "Allow Citrus MCP tools"
+toolName = "mcp_citrus_*"
+decision = "allow"
+priority = 3
 ```
 
 This eliminates permission prompts during implementation, which would break autonomous execution.

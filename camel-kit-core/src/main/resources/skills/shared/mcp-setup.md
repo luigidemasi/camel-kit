@@ -29,6 +29,39 @@ The Camel MCP server is a Quarkus uber-jar started with `java -jar`. It is extra
 
 ---
 
+## Citrus MCP Server
+
+Camel-Kit also configures the Citrus MCP server for Citrus YAML integration test generation.
+
+Use Citrus MCP during `camel-test` work to validate the test vocabulary itself:
+
+- `citrus_catalog_actions` / `citrus_catalog_action`
+- `citrus_catalog_action_schema`
+- `citrus_catalog_endpoints` / `citrus_catalog_endpoint`
+- `citrus_catalog_endpoint_schema`
+- `citrus_docs_index` / `citrus_docs_page`
+- resources such as `citrus://schema/dsl/yaml` and `citrus://docs/best-practices`
+
+The Citrus test version is stored in `.camel-kit/config.properties` as `citrus.version`.
+Generated schema cache and generated test dependencies must use that same version.
+The Citrus MCP server artifact version comes from `citrus.mcp.version`; keep it on a published MCP server artifact.
+Resolve `CITRUS_MCP_VERSION` from `.camel-kit/config.properties` or from the generated MCP server coordinate before
+using versioned Citrus MCP data.
+
+The Citrus MCP catalog and documentation are authoritative only when `CITRUS_MCP_VERSION == CITRUS_VERSION`. When the
+versions differ, use the same-version cache instead of trusting versioned Citrus MCP catalog, schema, or docs responses.
+Do not rely only on a returned `version` field: some Citrus MCP list/docs responses may echo the requested version while
+serving data from the server artifact.
+
+Fallback policy:
+
+1. Prefer Citrus MCP for actions, endpoints, schemas, documentation, and best practices only when `CITRUS_MCP_VERSION == CITRUS_VERSION`.
+2. When using Citrus MCP docs, call `citrus_docs_index` first to discover the relevant page, then call `citrus_docs_page` or read the matching resource.
+3. If Citrus MCP is unavailable or its artifact version differs from `citrus.version`, use `.camel-kit/.cache/citrus/{citrus.version}/citrus-quick-reference.md`.
+4. Do not silently fall back to a different Citrus version. If the same-version cache is missing, proceed with static examples only after marking the generated test as unverified.
+
+---
+
 ## MCP Tool Call Rules (MANDATORY)
 
 ### Rule 1: Use `platformBom` for versioned catalog queries

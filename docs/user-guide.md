@@ -817,12 +817,12 @@ MCP is auto-configured during `camel-kit init`. The init command creates agent-s
 
 No additional configuration is needed. The AI assistant automatically uses MCP tools when available.
 
-### Knowledge MCP
+### Knowledge and Citrus MCP
 
-In addition to the catalog MCP, Camel-Kit can connect to a Knowledge MCP server that provides:
+In addition to the catalog MCP, Camel-Kit configures:
 
-- Apache Camel documentation via semantic search
-- Component availability verification
+- **Knowledge MCP** for Apache Camel documentation search and component availability guidance
+- **Citrus MCP** for Citrus test action catalogs, endpoint schemas, YAML DSL schemas, and test-generation best practices for the configured `citrus.version`
 
 ### Graceful Degradation
 

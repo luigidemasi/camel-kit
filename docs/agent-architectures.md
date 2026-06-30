@@ -256,6 +256,12 @@ decision = "allow"
 priority = 3
 
 [[rules]]
+name = "Allow Citrus MCP tools"
+toolName = "mcp_citrus_*"
+decision = "allow"
+priority = 3
+
+[[rules]]
 name = "Allow Maven commands"
 toolName = "run_shell_command"
 commandRegex = "^(\\./mvnw|mvn)\\s+"
@@ -284,11 +290,12 @@ tools:
   - grep_search
   - run_shell_command
   - mcp_camel_*           # all tools from Camel catalog MCP server
+  - mcp_citrus_*          # all tools from Citrus MCP server
 max_turns: 20
 timeout_mins: 20
 ```
 
-`mcp_camel_*` automatically includes new tools when the MCP server adds them -- future-proof. Different subagents can have different MCP server access (e.g., validator gets catalog but not knowledge).
+Server-scoped wildcards automatically include new tools when a configured MCP server adds them. Different subagents can have different MCP server access (e.g., validator gets catalog while tester gets catalog plus Citrus).
 
 ### Path-Scoped Edits via Policy Engine
 
@@ -374,7 +381,7 @@ User: "I want to design an order processing integration"
 | Profile | Phases | Tools Included | Tools Excluded |
 |---------|--------|----------------|----------------|
 | **Read-only** | brainstorm, validate, plan | `read_file`, `read_many_files`, `glob`, `grep_search`, `run_shell_command` | `write_file`, `edit`, `task` |
-| **Write + run** | test | All read tools + `write_file`, `edit` | `task` |
+| **Write + run** | test | All read tools + `write_file`, `edit`, exact Camel/Citrus MCP test tools | `task` |
 | **Full access** | implement, migrate, executor | All tools including `task` (executor only) | None |
 
 Qwen's whitelists are binary -- a tool is either available or not. No glob patterns or path-level restrictions (contrast with OpenCode).

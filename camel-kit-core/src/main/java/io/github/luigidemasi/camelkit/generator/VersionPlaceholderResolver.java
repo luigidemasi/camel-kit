@@ -5,14 +5,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
-import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.config.DistributionConfig;
 
 class VersionPlaceholderResolver {
 
     void substitute(Path mdFile) throws IOException {
+        substitute(mdFile, DistributionConfig.loadFromClasspathOrDefaults());
+    }
+
+    void substitute(Path mdFile, DistributionConfig dist) throws IOException {
         String content = Files.readString(mdFile);
-        Map<String, String> versionData = buildVersionTemplateData(CamelKitMain.distribution());
+        Map<String, String> versionData = buildVersionTemplateData(dist);
 
         boolean hasPlaceholder = false;
         for (String key : versionData.keySet()) {

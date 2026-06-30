@@ -12,6 +12,11 @@ user_invocable: false
 
 Provides the domain knowledge guides needed to generate integration tests for Apache Camel routes using Citrus framework and Testcontainers. These guides are referenced by the `test-engineer` agent persona.
 
+Use the configured Citrus MCP server as the primary source for Citrus test actions, endpoints, schemas, documentation,
+and best practices only when the Citrus MCP server artifact version matches the project `citrus.version`. If Citrus MCP
+is unavailable or its artifact version differs, fall back only to the cached quick reference for the same `citrus.version`
+configured in `.camel-kit/config.properties`.
+
 ## Guide Manifest
 
 | Guide | When to Load | Purpose |

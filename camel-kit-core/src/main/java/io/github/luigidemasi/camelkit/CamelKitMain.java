@@ -40,10 +40,12 @@ public class CamelKitMain implements Callable<Integer> {
 
     public static String LATEST_CAMEL_LTS_VERSION = DISTRIBUTION.camelMainVersion();
     public static String CAMEL_MCP_VERSION = DISTRIBUTION.camelMcpVersion();
-    public static final String DEFAULT_CITRUS_VERSION = "4.9.2";
+    public static String DEFAULT_CITRUS_VERSION = DISTRIBUTION.citrusVersion();
     public static String KNOWLEDGE_MCP_VERSION = DISTRIBUTION.knowledgeMcpVersion();
+    public static String CITRUS_MCP_VERSION = DISTRIBUTION.citrusMcpVersion();
     public static String CAMEL_MCP_REPOS = DISTRIBUTION.camelMcpRepos();
     public static String KNOWLEDGE_MCP_REPOS = DISTRIBUTION.knowledgeMcpRepos();
+    public static String CITRUS_MCP_REPOS = DISTRIBUTION.citrusMcpRepos();
     public static String CAMEL_CATALOG_REPOS = DISTRIBUTION.camelCatalogRepos();
     private Terminal terminal;
     private Printer printer;
@@ -126,9 +128,12 @@ public class CamelKitMain implements Callable<Integer> {
         DISTRIBUTION = DistributionConfig.loadWithOverrides(configFile, cliProperties);
         LATEST_CAMEL_LTS_VERSION = DISTRIBUTION.camelMainVersion();
         CAMEL_MCP_VERSION = DISTRIBUTION.camelMcpVersion();
+        DEFAULT_CITRUS_VERSION = DISTRIBUTION.citrusVersion();
         KNOWLEDGE_MCP_VERSION = DISTRIBUTION.knowledgeMcpVersion();
+        CITRUS_MCP_VERSION = DISTRIBUTION.citrusMcpVersion();
         CAMEL_MCP_REPOS = DISTRIBUTION.camelMcpRepos();
         KNOWLEDGE_MCP_REPOS = DISTRIBUTION.knowledgeMcpRepos();
+        CITRUS_MCP_REPOS = DISTRIBUTION.citrusMcpRepos();
         CAMEL_CATALOG_REPOS = DISTRIBUTION.camelCatalogRepos();
     }
 

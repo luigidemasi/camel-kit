@@ -190,7 +190,7 @@ All agents use the same skills — camel-kit generates agent-specific instructio
 
 ### Knowledge & MCP
 
-- **MCP integration** — real-time catalog queries, route validation, and security analysis via the Apache Camel MCP server. [Learn more →](docs/architecture.md)
+- **MCP integration** — real-time catalog queries, route validation, security analysis, documentation lookup, and Citrus test-generation metadata via MCP servers. [Learn more →](docs/architecture.md)
 - **Knowledge layer** — hybrid BM25 + vector search over Apache Camel documentation, component catalogs, release notes, and CVE/errata advisories. The generated MCP allowlist is defined in the workflow manifest. [Learn more →](docs/architecture.md)
 - **DataMapper** — automatic data transformation with two engines: XSLT for complex schema-driven mappings, Groovy for simple field-level transformations. [Learn more →](docs/architecture.md)
 

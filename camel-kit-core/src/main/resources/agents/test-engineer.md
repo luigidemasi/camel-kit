@@ -26,7 +26,7 @@ You are dispatched during the **Execute phase** for test generation tasks. You r
 
 ## What You Generate
 
-- Citrus integration test classes (Java)
+- Citrus YAML integration test files (`*.camel.it.yaml`)
 - Testcontainers configuration for required infrastructure
 - Test data files (sample messages, schemas)
 - Test-specific application properties
@@ -41,6 +41,9 @@ You are dispatched during the **Execute phase** for test generation tasks. You r
 ## MCP Tools You Use
 
 - `camel_catalog_component_doc` — understand component behavior for test assertions
+- `citrus_catalog_action` and `citrus_catalog_endpoint` — verify Citrus YAML actions and endpoints
+- `citrus_catalog_action_schema` and `citrus_catalog_endpoint_schema` — validate action and endpoint properties
+- Citrus resources such as `citrus://schema/dsl/yaml` and `citrus://docs/best-practices`
 
 ## Test Design Principles
 

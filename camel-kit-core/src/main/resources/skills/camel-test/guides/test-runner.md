@@ -41,6 +41,23 @@ The `camel test run` command:
 
 ### 6.5 Output Parsing
 
+For Camel stack traces, route startup failures, endpoint URI failures, and Camel component errors, call Camel MCP before
+using the fallback table:
+
+```
+MCP Tool: camel_error_diagnose
+Params: {
+  "error": "[relevant stack trace or error block]",
+  "camelVersion": "{{CAMEL_VERSION}}",
+  "platformBom": "{{PLATFORM_BOM}}",
+  "runtime": "{{RUNTIME}}"
+}
+```
+
+Use the diagnosis to decide whether the route implementation, test configuration, or generated Citrus test needs the
+fix. Use the table below only for quick classification when `camel_error_diagnose` is unavailable or the error is not a
+Camel error.
+
 | Output Pattern | Meaning |
 |---|---|
 | Contains `passed` and `0 failed` | All tests passed |
