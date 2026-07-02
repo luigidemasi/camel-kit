@@ -51,17 +51,17 @@ public class DistributionConfig {
 
     private DistributionConfig(Properties props, int overrideCount) {
         this.rawProps = props;
-        this.camelMainVersion = props.getProperty("camel.main.version", "4.20.0");
-        this.camelSpringbootVersion = props.getProperty("camel.springboot.version", "4.20.0");
+        this.camelMainVersion = props.getProperty("camel.main.version", "4.21.0");
+        this.camelSpringbootVersion = props.getProperty("camel.springboot.version", "4.21.0");
         this.camelQuarkusVersion = props.getProperty("camel.quarkus.version", "4.18.2");
-        this.springbootBomVersion = props.getProperty("springboot.bom.version", "4.20.0");
-        this.springBootVersion = props.getProperty("spring.boot.version", "4.0.5");
+        this.springbootBomVersion = props.getProperty("springboot.bom.version", "4.21.0");
+        this.springBootVersion = props.getProperty("spring.boot.version", "4.1.0");
         this.quarkusPlatformVersion = props.getProperty("quarkus.platform.version", "3.33.1");
-        this.camelMainSupported = props.getProperty("camel.main.supported", "4.20.0,4.18.2,4.14.7");
-        this.camelSpringbootSupported = props.getProperty("camel.springboot.supported", "4.20.0,4.18.2,4.14.7");
+        this.camelMainSupported = props.getProperty("camel.main.supported", "4.21.0,4.18.2,4.14.7");
+        this.camelSpringbootSupported = props.getProperty("camel.springboot.supported", "4.21.0,4.18.2,4.14.7");
         this.camelQuarkusSupported = props.getProperty("camel.quarkus.supported", "4.18.2,4.14.7");
         this.citrusVersion = props.getProperty("citrus.version", DEFAULT_CITRUS_VERSION);
-        this.camelMcpVersion = props.getProperty("camel.mcp.version", "4.21.0-SNAPSHOT");
+        this.camelMcpVersion = props.getProperty("camel.mcp.version", "4.21.0");
         this.knowledgeMcpVersion = props.getProperty("knowledge.mcp.version", "0.0.1-SNAPSHOT");
         this.citrusMcpVersion = props.getProperty("citrus.mcp.version", DEFAULT_CITRUS_MCP_VERSION);
         this.camelMcpRepos = props.getProperty("camel.mcp.repos",

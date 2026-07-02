@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class CatalogDownloaderTest {
 
-    private static final Set<String> LTS_VERSIONS = Set.of("4.14", "4.18", "4.20");
+    private static final Set<String> LTS_VERSIONS = Set.of("4.14", "4.18", "4.21");
 
     @TempDir
     Path tempDir;
@@ -38,7 +38,7 @@ class CatalogDownloaderTest {
 
     @Test
     void rejectsNullLtsVersions() {
-        assertThrows(NullPointerException.class, () -> new CatalogDownloader(tempDir, "4.20.0", null));
+        assertThrows(NullPointerException.class, () -> new CatalogDownloader(tempDir, "4.21.0", null));
     }
 
     @Test
