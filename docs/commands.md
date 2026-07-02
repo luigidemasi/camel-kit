@@ -159,9 +159,9 @@ Any property from `distribution.properties` can be overridden at layers 2 or 3. 
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `camel.main.version` | `4.20.0` | Apache Camel version for Camel Main / JBang projects |
-| `camel.springboot.version` | `4.20.0` | Apache Camel version for Spring Boot projects |
-| `springboot.bom.version` | `4.20.0` | Spring Boot BOM version |
+| `camel.main.version` | `4.21.0` | Apache Camel version for Camel Main / JBang projects |
+| `camel.springboot.version` | `4.21.0` | Apache Camel version for Spring Boot projects |
+| `springboot.bom.version` | `4.21.0` | Spring Boot BOM version |
 | `camel.quarkus.version` | `4.18.2` | Apache Camel version for Quarkus projects |
 | `quarkus.platform.version` | `3.33.1` | Quarkus platform BOM version |
 | `camel.mcp.version` | See `distribution.properties` | Camel MCP server version |

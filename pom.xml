@@ -36,7 +36,7 @@
         <tamboui.version>0.1.0</tamboui.version>
         <quarkus.version>3.20.2.2</quarkus.version>
         <quarkus-mcp.version>1.6.1</quarkus-mcp.version>
-        <camel.version>4.20.0</camel.version>
+        <camel.version>4.21.0</camel.version>
         <!-- Also in distribution.properties (runtime source of truth).
              Duplicated here because maven-dependency-plugin resolves
              artifact versions at POM parse time, before any lifecycle phase. -->
