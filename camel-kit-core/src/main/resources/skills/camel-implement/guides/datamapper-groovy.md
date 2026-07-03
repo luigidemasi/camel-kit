@@ -118,13 +118,13 @@ Parse XML source with `XmlSlurper`, build a Groovy map, serialize to JSON.
 
 ```yaml
 - transform:
-	    expression:
-	      groovy:
-	        expression: |
-	          import groovy.json.JsonOutput
-	          import groovy.xml.XmlSlurper
-	          def src = new XmlSlurper().parseText(request.body)
-	          def result = [
+    expression:
+      groovy:
+        expression: |
+          import groovy.json.JsonOutput
+          import groovy.xml.XmlSlurper
+          def src = new XmlSlurper().parseText(request.body)
+          def result = [
             {targetField}: src.{xmlElement}.text(),
             ...
           ]
@@ -195,12 +195,12 @@ Parse XML source with `XmlSlurper`, build new XML with `MarkupBuilder`.
 
 ```yaml
 - transform:
-	    expression:
-	      groovy:
-	        expression: |
-	          import groovy.xml.XmlSlurper
-	          import groovy.xml.MarkupBuilder
-	          def src = new XmlSlurper().parseText(request.body)
+    expression:
+      groovy:
+        expression: |
+          import groovy.xml.XmlSlurper
+          import groovy.xml.MarkupBuilder
+          def src = new XmlSlurper().parseText(request.body)
           def writer = new StringWriter()
           def xml = new MarkupBuilder(writer)
           xml.{TargetRootElement} {

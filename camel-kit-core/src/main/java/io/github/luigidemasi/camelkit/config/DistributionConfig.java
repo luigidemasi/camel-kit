@@ -65,11 +65,11 @@ public class DistributionConfig {
         this.knowledgeMcpVersion = props.getProperty("knowledge.mcp.version", "0.0.1-SNAPSHOT");
         this.citrusMcpVersion = props.getProperty("citrus.mcp.version", DEFAULT_CITRUS_MCP_VERSION);
         this.camelMcpRepos = props.getProperty("camel.mcp.repos",
-                "central=https://repo1.maven.org/maven2/,apache_snap=https://repository.apache.org/snapshots,"
-                                                                  + "apache=https://repository.apache.org/");
+                "central=https://repo1.maven.org/maven2/,apache_snap=https://repository.apache.org/snapshots");
         this.knowledgeMcpRepos = props.getProperty("knowledge.mcp.repos", "central=https://repo1.maven.org/maven2/");
         this.citrusMcpRepos = props.getProperty("citrus.mcp.repos", "central=https://repo1.maven.org/maven2/");
-        this.camelCatalogRepos = props.getProperty("camel.catalog.repos", "https://repository.apache.org/");
+        this.camelCatalogRepos = props.getProperty("camel.catalog.repos",
+                "https://repo1.maven.org/maven2/,https://repository.apache.org/snapshots");
         this.overrideCount = overrideCount;
     }
 

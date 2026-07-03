@@ -13,6 +13,13 @@ import io.github.luigidemasi.camelkit.graph.model.NodeType;
 
 public class DataWeaveParser implements GraphParser {
 
+    /**
+     * Resource roots stripped from node IDs so a script's ID matches the classpath path Mule flows use to reference it
+     * ({@code classpath:dwl/x.dwl} and {@code src/main/resources/dwl/x.dwl} must yield the same node).
+     */
+    private static final List<String> RESOURCE_ROOTS = List.of(
+            "src/main/resources/", "src/test/resources/", "src/main/mule/resources/");
+
     private static final Pattern DW_VERSION = Pattern.compile("^%dw\\s+(.+)$", Pattern.MULTILINE);
     private static final Pattern INPUT_TYPE = Pattern.compile("^%input\\s+\\S+\\s+(.+)$", Pattern.MULTILINE);
     private static final Pattern OUTPUT_TYPE = Pattern.compile("^%output\\s+(.+)$", Pattern.MULTILINE);
@@ -48,7 +55,7 @@ public class DataWeaveParser implements GraphParser {
         }
 
         String relativePath = projectRoot.relativize(file).toString().replace('\\', '/');
-        String nodeId = "dataweave:" + relativePath;
+        String nodeId = "dataweave:" + classpathRelativePath(relativePath);
 
         Map<String, String> properties = new HashMap<>();
         properties.put("file", relativePath);
@@ -75,6 +82,15 @@ public class DataWeaveParser implements GraphParser {
 
     private static boolean isDataWeaveFile(Path file) {
         return file.toString().toLowerCase(Locale.ROOT).endsWith(".dwl");
+    }
+
+    private static String classpathRelativePath(String relativePath) {
+        for (String root : RESOURCE_ROOTS) {
+            if (relativePath.startsWith(root)) {
+                return relativePath.substring(root.length());
+            }
+        }
+        return relativePath;
     }
 
     private Optional<String> extractFirst(Pattern pattern, String content) {

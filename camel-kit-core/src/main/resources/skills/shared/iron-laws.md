@@ -1,6 +1,6 @@
 # Camel-Kit Iron Laws
 
-> Seven non-negotiable laws enforced across ALL pipeline phases. No exceptions. No workarounds. No "just this once."
+> Six non-negotiable laws enforced across ALL pipeline phases. No exceptions. No workarounds. No "just this once."
 
 **Violating the letter of these rules is violating the spirit of these rules.**
 

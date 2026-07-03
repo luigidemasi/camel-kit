@@ -10,6 +10,10 @@ import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Tests run against the real repo-root {@code distribution.properties} (copied to the classpath by the build), so the
+ * assertions below stay in lockstep with the shipped defaults and cannot silently diverge.
+ */
 class DistributionConfigTest {
 
     @Test
@@ -17,12 +21,12 @@ class DistributionConfigTest {
         InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
         DistributionConfig config = DistributionConfig.load(in);
 
-        assertEquals("4.14.4", config.camelMainVersion());
-        assertEquals("4.14.4", config.camelSpringbootVersion());
-        assertEquals("4.14.4", config.camelQuarkusVersion());
-        assertEquals("4.14.4", config.springbootBomVersion());
-        assertEquals("3.5.9", config.springBootVersion());
-        assertEquals("3.27.2", config.quarkusPlatformVersion());
+        assertEquals("4.20.0", config.camelMainVersion());
+        assertEquals("4.20.0", config.camelSpringbootVersion());
+        assertEquals("4.18.2", config.camelQuarkusVersion());
+        assertEquals("4.20.0", config.springbootBomVersion());
+        assertEquals("4.0.5", config.springBootVersion());
+        assertEquals("3.33.1", config.quarkusPlatformVersion());
     }
 
     @Test
@@ -30,9 +34,9 @@ class DistributionConfigTest {
         InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
         DistributionConfig config = DistributionConfig.load(in);
 
-        assertEquals("4.14.4,4.13.0", config.camelMainSupported());
-        assertEquals("4.14.4,4.13.0", config.camelSpringbootSupported());
-        assertEquals("4.14.4,4.13.0", config.camelQuarkusSupported());
+        assertEquals("4.20.0,4.18.2,4.14.7", config.camelMainSupported());
+        assertEquals("4.20.0,4.18.2,4.14.7", config.camelSpringbootSupported());
+        assertEquals("4.18.2,4.14.7", config.camelQuarkusSupported());
     }
 
     @Test
@@ -41,11 +45,11 @@ class DistributionConfigTest {
         DistributionConfig config = DistributionConfig.load(in);
 
         // Known mapping
-        assertEquals("3.27.2", config.quarkusPlatformForVersion("4.14.4"));
-        assertEquals("3.20.0", config.quarkusPlatformForVersion("4.13.0"));
+        assertEquals("3.33.1", config.quarkusPlatformForVersion("4.18.2"));
+        assertEquals("3.27.3", config.quarkusPlatformForVersion("4.14.7"));
 
         // Unknown version falls back to default quarkus.platform.version
-        assertEquals("3.27.2", config.quarkusPlatformForVersion("9.99.99"));
+        assertEquals("3.33.1", config.quarkusPlatformForVersion("9.99.99"));
     }
 
     @Test
@@ -54,8 +58,8 @@ class DistributionConfigTest {
         DistributionConfig config = DistributionConfig.load(in);
 
         var mappings = config.quarkusPlatformMappings();
-        assertEquals("3.27.2", mappings.get("4.14.4"));
-        assertEquals("3.20.0", mappings.get("4.13.0"));
+        assertEquals("3.33.1", mappings.get("4.18.2"));
+        assertEquals("3.27.3", mappings.get("4.14.7"));
         assertFalse(mappings.containsKey("version"), "Default quarkus.platform.version must be excluded");
     }
 
@@ -65,8 +69,9 @@ class DistributionConfigTest {
         DistributionConfig config = DistributionConfig.load(in);
 
         var mappings = config.springBootMappings();
-        assertEquals("3.5.9", mappings.get("4.14.4"));
-        assertEquals("3.5.3", mappings.get("4.13.0"));
+        assertEquals("4.0.5", mappings.get("4.20.0"));
+        assertEquals("3.5.13", mappings.get("4.18.2"));
+        assertEquals("3.5.12", mappings.get("4.14.7"));
         assertFalse(mappings.containsKey("version"), "Default spring.boot.version must be excluded");
     }
 
@@ -79,10 +84,12 @@ class DistributionConfigTest {
         assertEquals("0.0.1-SNAPSHOT", config.knowledgeMcpVersion());
         assertEquals("5.0.0-M2", config.citrusVersion());
         assertEquals("5.0.0-M2", config.citrusMcpVersion());
-        assertEquals("maven", config.camelMcpRepos());
-        assertEquals("maven", config.knowledgeMcpRepos());
-        assertEquals("maven", config.citrusMcpRepos());
-        assertEquals("maven", config.camelCatalogRepos());
+        assertEquals("central=https://repo1.maven.org/maven2/,apache_snap=https://repository.apache.org/snapshots",
+                config.camelMcpRepos());
+        assertEquals("central=https://repo1.maven.org/maven2/", config.knowledgeMcpRepos());
+        assertEquals("central=https://repo1.maven.org/maven2/", config.citrusMcpRepos());
+        assertEquals("https://repo1.maven.org/maven2/,https://repository.apache.org/snapshots",
+                config.camelCatalogRepos());
     }
 
     @Test
@@ -106,7 +113,7 @@ class DistributionConfigTest {
         DistributionConfig config = DistributionConfig.loadFromFileWithClasspathBaseline(overrideFile);
 
         assertEquals("9.9.9", config.camelMainVersion());
-        assertEquals("4.14.4", config.camelSpringbootVersion());
+        assertEquals("4.20.0", config.camelSpringbootVersion());
         assertEquals("4.21.0-SNAPSHOT", config.camelMcpVersion());
     }
 

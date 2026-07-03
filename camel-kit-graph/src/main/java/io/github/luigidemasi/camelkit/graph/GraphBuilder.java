@@ -257,7 +257,19 @@ public class GraphBuilder {
     private ParserDiagnostic failureDiagnostic(
             GraphParser parser, List<String> scannedFiles, Throwable failure,
             long durationMillis) {
-        return failureDiagnostic(parserName(parser), scannedFiles, failure, durationMillis);
+        String message = failure == null || failure.getMessage() == null
+                ? "Parser failed"
+                : failure.getMessage();
+        return diagnostic(
+                parserName(parser),
+                scannedFiles,
+                List.of(),
+                collectWarnings(parser),
+                List.of(message),
+                false,
+                0,
+                0,
+                durationMillis);
     }
 
     private ParserDiagnostic failureDiagnostic(

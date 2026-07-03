@@ -57,7 +57,18 @@ public class MuleXmlFlowParser implements GraphParser {
 
     @Override
     public void parseFiles(Path projectRoot, List<Path> files, ProjectGraph graph) {
-        files.forEach(file -> parseMuleFile(file, projectRoot, graph));
+        // Two passes across ALL files: first declare every flow/sub-flow node, then parse flow bodies, so
+        // flow-ref targets resolve regardless of file processing order.
+        List<ParsedMuleDocument> documents = new ArrayList<>();
+        for (Path file : files) {
+            parseDocument(file, projectRoot).ifPresent(documents::add);
+        }
+        for (ParsedMuleDocument document : documents) {
+            declareTopLevelNodes(document, graph);
+        }
+        for (ParsedMuleDocument document : documents) {
+            parseFlowBodies(document, graph);
+        }
     }
 
     @Override
@@ -92,44 +103,49 @@ public class MuleXmlFlowParser implements GraphParser {
         }
     }
 
-    private void parseMuleFile(Path xmlFile, Path projectRoot, ProjectGraph graph) {
+    private Optional<ParsedMuleDocument> parseDocument(Path xmlFile, Path projectRoot) {
         try {
             var factory = SecureXml.documentBuilderFactory();
             DocumentBuilder builder = factory.newDocumentBuilder();
             Document doc = builder.parse(xmlFile.toFile());
-
             String relPath = projectRoot.relativize(xmlFile).toString();
-
-            Element root = doc.getDocumentElement();
-            List<Element> children = elementChildren(root);
-
-            for (Element el : children) {
-                String localName = el.getLocalName();
-                if ("flow".equals(localName)) {
-                    addFlowNode(el, relPath, graph, NodeType.MULE_FLOW, "mule-flow:");
-                } else if ("sub-flow".equals(localName)) {
-                    addFlowNode(el, relPath, graph, NodeType.MULE_SUB_FLOW, "mule-subflow:");
-                } else if (isConnectorElement(el)) {
-                    parseConnector(el, relPath, graph);
-                }
-            }
-
-            for (Element el : children) {
-                String localName = el.getLocalName();
-                String name = el.getAttribute("name");
-                if (name == null || name.isEmpty()) {
-                    continue;
-                }
-                if ("flow".equals(localName)) {
-                    parseFlowChildren(el, "mule-flow:" + name, graph, relPath, 0);
-                } else if ("sub-flow".equals(localName)) {
-                    parseFlowChildren(el, "mule-subflow:" + name, graph, relPath, 0);
-                }
-            }
+            return Optional.of(new ParsedMuleDocument(relPath, elementChildren(doc.getDocumentElement())));
         } catch (Exception e) {
             warnings.add("Could not parse Mule XML file " + GraphParser.relativeFileName(projectRoot, xmlFile)
                          + ": " + e.getMessage());
+            return Optional.empty();
         }
+    }
+
+    private void declareTopLevelNodes(ParsedMuleDocument document, ProjectGraph graph) {
+        for (Element el : document.topLevelElements()) {
+            String localName = el.getLocalName();
+            if ("flow".equals(localName)) {
+                addFlowNode(el, document.relPath(), graph, NodeType.MULE_FLOW, "mule-flow:");
+            } else if ("sub-flow".equals(localName)) {
+                addFlowNode(el, document.relPath(), graph, NodeType.MULE_SUB_FLOW, "mule-subflow:");
+            } else if (isConnectorElement(el)) {
+                parseConnector(el, document.relPath(), graph);
+            }
+        }
+    }
+
+    private void parseFlowBodies(ParsedMuleDocument document, ProjectGraph graph) {
+        for (Element el : document.topLevelElements()) {
+            String localName = el.getLocalName();
+            String name = el.getAttribute("name");
+            if (name == null || name.isEmpty()) {
+                continue;
+            }
+            if ("flow".equals(localName)) {
+                parseFlowChildren(el, "mule-flow:" + name, graph, document.relPath(), 0);
+            } else if ("sub-flow".equals(localName)) {
+                parseFlowChildren(el, "mule-subflow:" + name, graph, document.relPath(), 0);
+            }
+        }
+    }
+
+    private record ParsedMuleDocument(String relPath, List<Element> topLevelElements) {
     }
 
     private List<Element> elementChildren(Element parent) {

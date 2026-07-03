@@ -115,6 +115,34 @@ class MuleXmlFlowParserTest {
     }
 
     @Test
+    void resolvesFlowRefsAcrossFilesRegardlessOfOrder(@TempDir Path tempDir) throws Exception {
+        Path caller = tempDir.resolve("a-caller.xml");
+        Files.writeString(caller, """
+                <mule xmlns="http://www.mulesoft.org/schema/mule/core">
+                  <flow name="caller-flow">
+                    <flow-ref name="target-flow"/>
+                  </flow>
+                </mule>
+                """);
+        Path callee = tempDir.resolve("b-callee.xml");
+        Files.writeString(callee, """
+                <mule xmlns="http://www.mulesoft.org/schema/mule/core">
+                  <flow name="target-flow"/>
+                </mule>
+                """);
+        MuleXmlFlowParser parser = new MuleXmlFlowParser();
+        ProjectGraph graph = new ProjectGraph();
+
+        // caller file is parsed first; the target flow lives in a later file
+        parser.parseFiles(tempDir, List.of(caller, callee), graph);
+
+        assertTrue(graph.getOutgoingEdges("mule-flow:caller-flow").stream()
+                .anyMatch(edge -> edge.type() == EdgeType.MULE_CALLS_SUBFLOW
+                        && edge.to().equals("mule-flow:target-flow")),
+                "flow-ref to a flow defined in a later file must resolve to the flow node, not a subflow guess");
+    }
+
+    @Test
     void parsesMule4Connectors() {
         assertTrue(graph.hasNode("mule-connector:http-listener-config"),
                 "http connector config should exist");

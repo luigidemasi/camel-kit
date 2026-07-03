@@ -296,19 +296,18 @@ public class InitService {
                 String camelVersion = distribution.camelQuarkusVersion();
                 config.setProperty("project.camelVersion", camelVersion);
                 config.setProperty("project.platformBomVersion", distribution.quarkusPlatformForVersion(camelVersion));
-                config.setProperty("project.springBootVersion", distribution.springBootVersion());
             }
             case "spring-boot" -> {
                 String camelVersion = distribution.camelSpringbootVersion();
                 config.setProperty("project.camelVersion", camelVersion);
                 config.setProperty("project.platformBomVersion", distribution.springbootBomVersion());
+                // Only spring-boot projects need the framework version (spring-boot-maven-plugin lookup).
                 config.setProperty("project.springBootVersion",
                         distribution.springBootMappings().getOrDefault(camelVersion, distribution.springBootVersion()));
             }
             default -> {
                 config.setProperty("project.camelVersion", distribution.camelMainVersion());
                 config.setProperty("project.platformBomVersion", distribution.camelMainVersion());
-                config.setProperty("project.springBootVersion", distribution.springBootVersion());
             }
         }
     }
