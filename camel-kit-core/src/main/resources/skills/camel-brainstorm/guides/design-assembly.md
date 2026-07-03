@@ -59,6 +59,10 @@ The design spec is the single source of truth for what gets built. It contains:
 
 ### Flow: [flow-name]
 
+| Field | Value |
+|---|---|
+| Target Module | [relative path from workspace root to the target Camel project; empty for single-project setups] |
+
 **Purpose:** [one sentence]
 
 **Source:**

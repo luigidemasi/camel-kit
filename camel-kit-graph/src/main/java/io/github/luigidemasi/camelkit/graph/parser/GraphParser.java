@@ -41,6 +41,9 @@ public interface GraphParser {
         return List.of();
     }
 
+    default void resetWarnings() {
+    }
+
     static List<Path> projectFiles(Path projectRoot) {
         if (!Files.exists(projectRoot)) {
             return List.of();

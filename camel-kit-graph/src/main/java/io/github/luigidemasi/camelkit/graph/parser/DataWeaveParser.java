@@ -13,6 +13,13 @@ import io.github.luigidemasi.camelkit.graph.model.NodeType;
 
 public class DataWeaveParser implements GraphParser {
 
+    /**
+     * Resource roots stripped from node IDs so a script's ID matches the classpath path Mule flows use to reference it
+     * ({@code classpath:dwl/x.dwl} and {@code src/main/resources/dwl/x.dwl} must yield the same node).
+     */
+    private static final List<String> RESOURCE_ROOTS = List.of(
+            "src/main/resources/", "src/test/resources/", "src/main/mule/resources/");
+
     private static final Pattern DW_VERSION = Pattern.compile("^%dw\\s+(.+)$", Pattern.MULTILINE);
     private static final Pattern INPUT_TYPE = Pattern.compile("^%input\\s+\\S+\\s+(.+)$", Pattern.MULTILINE);
     private static final Pattern OUTPUT_TYPE = Pattern.compile("^%output\\s+(.+)$", Pattern.MULTILINE);
@@ -26,12 +33,12 @@ public class DataWeaveParser implements GraphParser {
 
     @Override
     public List<String> scannedFiles(Path projectRoot) {
-        return GraphParser.findFiles(projectRoot, file -> file.toString().endsWith(".dwl"));
+        return GraphParser.findFiles(projectRoot, DataWeaveParser::isDataWeaveFile);
     }
 
     @Override
     public List<Path> scannedFilePaths(Path projectRoot, List<Path> projectFiles) {
-        return GraphParser.findFilePaths(projectRoot, projectFiles, file -> file.toString().endsWith(".dwl"));
+        return GraphParser.findFilePaths(projectRoot, projectFiles, DataWeaveParser::isDataWeaveFile);
     }
 
     @Override
@@ -47,9 +54,8 @@ public class DataWeaveParser implements GraphParser {
             throw new RuntimeException("Failed to read DataWeave file: " + file, e);
         }
 
-        String fileName = file.getFileName().toString();
         String relativePath = projectRoot.relativize(file).toString().replace('\\', '/');
-        String nodeId = "dataweave:" + fileName;
+        String nodeId = "dataweave:" + classpathRelativePath(relativePath);
 
         Map<String, String> properties = new HashMap<>();
         properties.put("file", relativePath);
@@ -72,6 +78,19 @@ public class DataWeaveParser implements GraphParser {
         }
 
         graph.addNode(new GraphNode(nodeId, NodeType.DATAWEAVE_SCRIPT, properties));
+    }
+
+    private static boolean isDataWeaveFile(Path file) {
+        return file.toString().toLowerCase(Locale.ROOT).endsWith(".dwl");
+    }
+
+    private static String classpathRelativePath(String relativePath) {
+        for (String root : RESOURCE_ROOTS) {
+            if (relativePath.startsWith(root)) {
+                return relativePath.substring(root.length());
+            }
+        }
+        return relativePath;
     }
 
     private Optional<String> extractFirst(Pattern pattern, String content) {

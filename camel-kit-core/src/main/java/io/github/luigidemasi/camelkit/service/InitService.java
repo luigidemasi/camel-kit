@@ -13,11 +13,14 @@ import java.util.Properties;
 import io.github.luigidemasi.camelkit.catalog.CitrusSchemaDownloader;
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
+import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.generator.AgentGeneratorFactory;
 import io.github.luigidemasi.camelkit.generator.InitContext;
 import io.github.luigidemasi.camelkit.generator.QuteTemplateEngine;
+import io.github.luigidemasi.camelkit.graph.GraphBuildResult;
 import io.github.luigidemasi.camelkit.graph.GraphBuilder;
 import io.github.luigidemasi.camelkit.graph.GraphSerializer;
+import io.github.luigidemasi.camelkit.graph.ParserDiagnostic;
 import io.github.luigidemasi.camelkit.graph.ProjectGraph;
 import io.github.luigidemasi.camelkit.graph.RuntimeDetector;
 import io.github.luigidemasi.camelkit.graph.model.NodeType;
@@ -126,6 +129,7 @@ public class InitService {
         config.setProperty("agent.folder", agent.folder());
         config.setProperty("citrus.version", request.resolvedCitrusVersion());
         config.setProperty("citrus.mcp.version", request.distribution().citrusMcpVersion());
+        writeVersionConfig(config, request.distribution(), "main");
         if (request.sourcePlatform() != null && !"auto".equals(request.sourcePlatform())) {
             config.setProperty("project.sourcePlatform", request.sourcePlatform());
         }
@@ -160,7 +164,9 @@ public class InitService {
                 "validation-completeness.md",
                 "validation-constitution.md",
                 "validation-testing.md",
-                "flow.md"
+                "flow.md",
+                "pom-quarkus.xml",
+                "pom-spring-boot.xml"
         };
         for (String template : additionalTemplates) {
             String content = TemplateUtils.readTemplate("templates/" + template);
@@ -206,12 +212,19 @@ public class InitService {
             throws Exception {
         Path graphFile = camelKitDir.resolve("project-graph.json");
         try {
-            ProjectGraph projectGraph = new GraphBuilder().build(targetDir);
+            GraphBuildResult result = new GraphBuilder().buildWithDiagnostics(targetDir);
+            for (ParserDiagnostic diagnostic : result.warningDiagnostics()) {
+                reportWarning(request, warnings, "Project graph warning: " + diagnostic.summary());
+            }
+            if (!result.successful()) {
+                throw new IllegalStateException(result.failureSummary());
+            }
+            ProjectGraph projectGraph = result.graph();
             if (projectGraph.nodeCount() > 0) {
                 GraphSerializer.write(projectGraph, graphFile, targetDir.toAbsolutePath().toString());
                 createdPaths.add(graphFile);
                 String detectedProjectType = detectProjectType(projectGraph);
-                String detectedRuntime = updateConfigWithRuntime(camelKitDir, projectGraph);
+                String detectedRuntime = updateConfigWithRuntime(camelKitDir, projectGraph, request.distribution());
                 InitGraphSummary graph = new InitGraphSummary(
                         graphFile,
                         projectGraph.nodeCount(),
@@ -255,7 +268,8 @@ public class InitService {
         request.reporter().warning(warning);
     }
 
-    private String updateConfigWithRuntime(Path dir, ProjectGraph graph) throws Exception {
+    private String updateConfigWithRuntime(Path dir, ProjectGraph graph, DistributionConfig distribution)
+            throws Exception {
         Path configFile = dir.resolve("config.properties");
         Properties config = new Properties();
 
@@ -266,10 +280,41 @@ public class InitService {
         }
 
         String runtime = RuntimeDetector.detect(graph);
-        config.setProperty("project.runtime", runtime);
+        writeVersionConfig(config, distribution, runtime);
 
         try (var out = Files.newOutputStream(configFile)) {
             config.store(out, "Camel-Kit Project Configuration");
+        }
+        return runtime;
+    }
+
+    private void writeVersionConfig(Properties config, DistributionConfig distribution, String runtime) {
+        String normalizedRuntime = normalizeRuntime(runtime);
+        config.setProperty("project.runtime", normalizedRuntime);
+        switch (normalizedRuntime) {
+            case "quarkus" -> {
+                String camelVersion = distribution.camelQuarkusVersion();
+                config.setProperty("project.camelVersion", camelVersion);
+                config.setProperty("project.platformBomVersion", distribution.quarkusPlatformForVersion(camelVersion));
+            }
+            case "spring-boot" -> {
+                String camelVersion = distribution.camelSpringbootVersion();
+                config.setProperty("project.camelVersion", camelVersion);
+                config.setProperty("project.platformBomVersion", distribution.springbootBomVersion());
+                // Only spring-boot projects need the framework version (spring-boot-maven-plugin lookup).
+                config.setProperty("project.springBootVersion",
+                        distribution.springBootMappings().getOrDefault(camelVersion, distribution.springBootVersion()));
+            }
+            default -> {
+                config.setProperty("project.camelVersion", distribution.camelMainVersion());
+                config.setProperty("project.platformBomVersion", distribution.camelMainVersion());
+            }
+        }
+    }
+
+    private String normalizeRuntime(String runtime) {
+        if (runtime == null || runtime.isBlank() || "camel-main".equals(runtime) || "jbang".equals(runtime)) {
+            return "main";
         }
         return runtime;
     }

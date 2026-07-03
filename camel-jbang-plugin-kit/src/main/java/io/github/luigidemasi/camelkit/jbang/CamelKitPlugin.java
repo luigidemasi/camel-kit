@@ -23,7 +23,7 @@ public class CamelKitPlugin implements Plugin {
         CamelKitMain camelKitMain = new CamelKitMain();
         camelKitMain.disableTui();
         CommandLine kitCommand = new CommandLine(new KitCommand(main))
-                .addSubcommand("init", new CommandLine(new KitInitCommand(main)))
+                .addSubcommand("init", new CommandLine(new KitInitCommand(main, camelKitMain)))
                 .addSubcommand("doctor", new CommandLine(new DoctorCommand(camelKitMain)))
                 .addSubcommand("graph", new CommandLine(new GraphCommand()))
                 .addSubcommand("plan", new CommandLine(new PlanCommand()));

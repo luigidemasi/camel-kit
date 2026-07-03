@@ -80,7 +80,7 @@ For each stage:
 After validation completes, run the final quality gate using parallel reviewer subagents. This keeps review traces out of the main ship context — only structured reports flow back.
 
 **Step 1: Build verification** (inline — not subagent)
-- Run `{COMMAND_PREFIX} verify` (or `mvn verify` directly)
+- Run `/camel-verify` (or `mvn verify` directly for Maven projects)
 - If build fails → PAUSE regardless of --ask level
 
 **Step 2: Parallel reviewer fan-out** (3 subagents dispatched simultaneously)

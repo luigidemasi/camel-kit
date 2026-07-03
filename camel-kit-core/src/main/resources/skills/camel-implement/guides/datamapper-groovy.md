@@ -122,6 +122,7 @@ Parse XML source with `XmlSlurper`, build a Groovy map, serialize to JSON.
       groovy:
         expression: |
           import groovy.json.JsonOutput
+          import groovy.xml.XmlSlurper
           def src = new XmlSlurper().parseText(request.body)
           def result = [
             {targetField}: src.{xmlElement}.text(),
@@ -145,7 +146,7 @@ Parse XML source with `XmlSlurper`, build a Groovy map, serialize to JSON.
 - For namespaced XML elements: use `src.'ns:elementName'.text()` (single-quoted GString with colon)
 - If the namespace is default (no prefix in source): access elements directly by local name
 - Array iteration: XML repeated elements are accessed as `parent.child.collect { ... }` where `child` is the repeating element name
-- `XmlSlurper` is in `groovy.xml` and auto-imported — no explicit import needed
+- Import `groovy.xml.XmlSlurper` explicitly before using it
 
 ---
 
@@ -197,6 +198,7 @@ Parse XML source with `XmlSlurper`, build new XML with `MarkupBuilder`.
     expression:
       groovy:
         expression: |
+          import groovy.xml.XmlSlurper
           import groovy.xml.MarkupBuilder
           def src = new XmlSlurper().parseText(request.body)
           def writer = new StringWriter()
@@ -260,7 +262,7 @@ def result = [
 - **String interpolation:** `"${src.firstName} ${src.lastName}"` for concat operations
 - **No external `.groovy` files** — everything is inline in the Camel YAML
 - **Indent the Groovy script** using the YAML block scalar `|` (literal block style)
-- **No `import` needed** for `XmlSlurper`, `XmlParser`, `MarkupBuilder` — they're in `groovy.xml` (auto-imported in Groovy). **DO import** `groovy.json.JsonSlurper` and `groovy.json.JsonOutput`.
+- **Import every helper used by the script explicitly.** Use `groovy.json.JsonSlurper` and `groovy.json.JsonOutput` for JSON, and `groovy.xml.XmlSlurper`, `groovy.xml.XmlParser`, `groovy.xml.MarkupBuilder`, or `groovy.xml.StreamingMarkupBuilder` for XML as needed.
 - **Result must be a String** — `JsonOutput.toJson(result)` for JSON output, `writer.toString()` for XML output. Groovy expressions in Camel must return a value; the last expression in the script is the return value.
 - **No `unmarshal: json:` before the transform** — same constraint as XSLT Approach A. If the body is unmarshalled to a `java.util.LinkedHashMap`, `JsonSlurper.parseText()` will fail because it expects a JSON string.
 

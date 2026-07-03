@@ -72,6 +72,24 @@ class InitServiceTest {
     }
 
     @Test
+    void initPersistsRuntimeAndVersionConfig() throws Exception {
+        Path targetDir = tempDir.resolve("orders");
+
+        new InitService().initialize(request(targetDir, "bob2", InitProgress.noop(), InitReporter.noop()));
+
+        Properties config = new Properties();
+        try (var in = Files.newInputStream(targetDir.resolve(".camel-kit/config.properties"))) {
+            config.load(in);
+        }
+        DistributionConfig distribution = CamelKitMain.distribution();
+        assertEquals("main", config.getProperty("project.runtime"));
+        assertEquals(distribution.camelMainVersion(), config.getProperty("project.camelVersion"));
+        assertEquals(distribution.camelMainVersion(), config.getProperty("project.platformBomVersion"));
+        assertNull(config.getProperty("project.springBootVersion"),
+                "spring-boot framework version must only be written for the spring-boot runtime");
+    }
+
+    @Test
     void unknownAgentFailsBeforeWritingWorkspace() {
         Path targetDir = tempDir.resolve("orders");
 

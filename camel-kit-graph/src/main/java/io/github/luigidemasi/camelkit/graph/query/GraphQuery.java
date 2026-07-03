@@ -56,7 +56,7 @@ public class GraphQuery {
      */
     public NeighborResult neighbors(String nodeId, String direction, EdgeType edgeType, int depth) {
         Set<String> visited = new LinkedHashSet<>();
-        List<GraphEdge> collectedEdges = new ArrayList<>();
+        Set<GraphEdge> collectedEdges = new LinkedHashSet<>();
         Queue<String> frontier = new ArrayDeque<>();
         Map<String, Integer> depthMap = new HashMap<>();
 
@@ -92,7 +92,7 @@ public class GraphQuery {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
-        return new NeighborResult(nodes, collectedEdges);
+        return new NeighborResult(nodes, List.copyOf(collectedEdges));
     }
 
     /**

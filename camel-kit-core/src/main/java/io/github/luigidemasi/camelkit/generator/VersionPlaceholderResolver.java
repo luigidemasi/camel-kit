@@ -4,10 +4,14 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import io.github.luigidemasi.camelkit.config.DistributionConfig;
 
 class VersionPlaceholderResolver {
+
+    private static final Pattern INSTALL_TIME_PLACEHOLDER = Pattern.compile("(?<!\\{)\\{([A-Z0-9_]+)\\}(?!\\})");
 
     void substitute(Path mdFile) throws IOException {
         substitute(mdFile, DistributionConfig.loadFromClasspathOrDefaults());
@@ -17,26 +21,24 @@ class VersionPlaceholderResolver {
         String content = Files.readString(mdFile);
         Map<String, String> versionData = buildVersionTemplateData(dist);
 
-        boolean hasPlaceholder = false;
-        for (String key : versionData.keySet()) {
-            if (content.contains("{" + key + "}")) {
-                hasPlaceholder = true;
-                break;
+        Matcher matcher = INSTALL_TIME_PLACEHOLDER.matcher(content);
+        StringBuffer rendered = new StringBuffer(content.length());
+        boolean changed = false;
+        while (matcher.find()) {
+            String key = matcher.group(1);
+            String value = versionData.get(key);
+            if (value == null) {
+                matcher.appendReplacement(rendered, Matcher.quoteReplacement(matcher.group()));
+            } else {
+                matcher.appendReplacement(rendered, Matcher.quoteReplacement(value));
+                changed = true;
             }
         }
-        if (!hasPlaceholder) {
+        if (!changed) {
             return;
         }
-
-        String escaped = content.replace("{", "\\{");
-        for (String key : versionData.keySet()) {
-            escaped = escaped.replace("\\{" + key + "}", "{" + key + "}");
-        }
-
-        QuteTemplateEngine qute = new QuteTemplateEngine();
-        Map<String, Object> data = new java.util.HashMap<>(versionData);
-        String rendered = qute.renderString(escaped, data);
-        Files.writeString(mdFile, rendered);
+        matcher.appendTail(rendered);
+        Files.writeString(mdFile, rendered.toString());
     }
 
     private static Map<String, String> buildVersionTemplateData(DistributionConfig dist) {

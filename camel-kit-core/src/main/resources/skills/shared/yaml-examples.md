@@ -17,7 +17,7 @@ Advanced nested EIP patterns, expression languages, and complete route examples.
           name: itemId
           simple: "${body.productId}"
       - enrich:
-          uri: direct:get-inventory
+          simple: "direct:get-inventory"
           aggregationStrategy: "#inventoryEnricher"
       - transform:
           simple: "${body}"
@@ -195,10 +195,10 @@ Source: Kafka → Unmarshal JSON → Filter → Split → Enrich (circuit breake
                     - circuitBreaker:
                         resilience4jConfiguration:
                           failureRateThreshold: 50
-                          waitDurationInOpenState: 10000
+                          waitDurationInOpenState: 10  # seconds
                         steps:
                           - enrich:
-                              uri: direct:inventory-lookup
+                              simple: "direct:inventory-lookup"
                               aggregationStrategy: "#inventoryEnricher"
                         onFallback:
                           steps:
@@ -219,7 +219,7 @@ Source: Kafka → Unmarshal JSON → Filter → Split → Enrich (circuit breake
         - setHeader:
             name: productId
             simple: "${body.productId}"
-        - to:
+        - toD:
             uri: http:inventory-service/api/products/${header.productId}
         - unmarshal:
             json:

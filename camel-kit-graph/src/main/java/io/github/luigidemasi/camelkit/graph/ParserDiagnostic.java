@@ -34,4 +34,17 @@ public record ParserDiagnostic(
     public boolean successful() {
         return !timedOut && failures.isEmpty();
     }
+
+    public String summary() {
+        if (timedOut) {
+            return parserName + " timed out after " + durationMillis + " ms";
+        }
+        if (!failures.isEmpty()) {
+            return parserName + " failed: " + String.join("; ", failures);
+        }
+        if (!warnings.isEmpty()) {
+            return parserName + " warned: " + String.join("; ", warnings);
+        }
+        return parserName + " scanned " + scannedFiles.size() + " files";
+    }
 }

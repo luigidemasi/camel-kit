@@ -72,4 +72,19 @@ class GraphSerializerTest {
         GraphEdge edge = loaded.getEdges().get(0);
         assertEquals("0", edge.properties().get("order"));
     }
+
+    @Test
+    void rejectsUnsupportedVersion() throws IOException {
+        Path file = tempDir.resolve("bad-graph.json");
+        Files.writeString(file, """
+                {
+                  "version": "9.9",
+                  "nodes": [],
+                  "edges": []
+                }
+                """);
+
+        IOException error = assertThrows(IOException.class, () -> GraphSerializer.read(file));
+        assertTrue(error.getMessage().contains("Unsupported graph format version"));
+    }
 }

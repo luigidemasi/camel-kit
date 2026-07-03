@@ -123,6 +123,13 @@ class FrontmatterHandlerTest {
     }
 
     @Test
+    void parseMalformedStalenessFailsClosed() {
+        StalenessInfo info = FrontmatterHandler.parseStaleness("staleness: invalid");
+        assertTrue(info.isStale());
+        assertTrue(info.getReason().contains("Malformed staleness"));
+    }
+
+    @Test
     void parseStalenessOnlyBlock() {
         String yaml = FrontmatterHandler.extractFrontmatterYaml(STALENESS_ONLY);
         StalenessInfo info = FrontmatterHandler.parseStaleness(yaml);
@@ -185,6 +192,24 @@ class FrontmatterHandlerTest {
     }
 
     @Test
+    void markStalePreservesUnknownFrontmatterKeys() {
+        String document = """
+                ---
+                owner: integrations
+                generated:
+                  by: camel-plan
+                ---
+                # Body
+                """;
+
+        String result = FrontmatterHandler.markStale(document, "changed", "2026-05-13T11:00:00Z");
+        String yaml = FrontmatterHandler.extractFrontmatterYaml(result);
+
+        assertTrue(yaml.contains("owner: \"integrations\"") || yaml.contains("owner: integrations"));
+        assertTrue(yaml.contains("generated:"));
+    }
+
+    @Test
     void clearStaleResetsFields() {
         String result = FrontmatterHandler.clearStale(FULL_FRONTMATTER);
         assertTrue(FrontmatterHandler.hasFrontmatter(result));
@@ -205,6 +230,26 @@ class FrontmatterHandlerTest {
         String result = FrontmatterHandler.clearStale(FULL_FRONTMATTER);
         String body = FrontmatterHandler.extractBody(result);
         assertTrue(body.contains("This is the body content."));
+    }
+
+    @Test
+    void clearStalePreservesUnknownFrontmatterKeys() {
+        String document = """
+                ---
+                owner: integrations
+                staleness:
+                  stale: true
+                  since: "2026-05-13T10:00:00Z"
+                  reason: "changed"
+                ---
+                # Body
+                """;
+
+        String result = FrontmatterHandler.clearStale(document);
+        String yaml = FrontmatterHandler.extractFrontmatterYaml(result);
+
+        assertTrue(yaml.contains("owner: \"integrations\"") || yaml.contains("owner: integrations"));
+        assertFalse(FrontmatterHandler.parseStaleness(yaml).isStale());
     }
 
     @Test

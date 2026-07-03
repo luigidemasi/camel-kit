@@ -10,7 +10,7 @@ Use Claude Code's task tracking for real-time visibility during validation:
 
 ### Build Verification Pacing
 
-When validation includes a build verification step (`mvn verify` or `{COMMAND_PREFIX} verify`):
+When validation includes a build verification step (`mvn verify` or `/camel-verify`):
 
 - Run the build in the foreground — builds typically complete within the 300s cache TTL
 - If the build takes longer (large projects), use `ScheduleWakeup` with `delaySeconds: 270` as a fallback heartbeat

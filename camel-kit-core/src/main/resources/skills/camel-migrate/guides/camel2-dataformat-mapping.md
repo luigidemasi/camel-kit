@@ -32,7 +32,7 @@ In Camel 3.x and 4.x, many data format names were normalized to camelCase and th
 | `bindy-kvp` | `bindyKvp` | Hyphen → camelCase |
 | `boon` | *(removed)* | Use `jackson` |
 | `jibx` | *(removed)* | Use `jaxb` or `jacksonXml` |
-| `xstream` | `xstream` | Unchanged — verify via MCP |
+| `xstream` | *(removed)* | Stop and choose a safe replacement such as `jaxb`, `jacksonXml`, or JSON Jackson |
 | `jacksonxml` | `jacksonXml` | camelCase normalization |
 | `protobuf` | `protobuf` | Unchanged — verify via MCP |
 | `avro` | `avro` | Unchanged — verify via MCP |
@@ -52,10 +52,11 @@ In Camel 4.x YAML DSL, they are:
 
 ```yaml
 - marshal:
-    jackson: {}
+    json:
+      library: Jackson
 ```
 
-The `library` attribute on `<json>` is gone — use the specific data format name directly.
+The catalog data format name `jackson` maps to the YAML model key `json` with `library: Jackson`.
 
 ## Removed Data Formats
 
@@ -65,4 +66,5 @@ The `library` attribute on `<json>` is gone — use the specific data format nam
 | `jibx` | 3.0 | Use `jaxb` or `jacksonXml` |
 | `json-fastjson` | 4.0 | Use `jackson` |
 | `json-xstream` | 4.0 | Use `jackson` |
+| `xstream` | 4.0 | Use `jaxb`, `jacksonXml`, or JSON Jackson after confirming the target format |
 | `json-johnzon` | Still available — verify via MCP | May be removed in future |

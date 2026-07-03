@@ -111,7 +111,7 @@ public class CamelKitMain implements Callable<Integer> {
     private static DistributionConfig loadDistribution() {
         Path distFile = Path.of("distribution.properties");
         if (Files.exists(distFile)) {
-            return DistributionConfig.loadFromFile(distFile);
+            return DistributionConfig.loadFromFileWithClasspathBaseline(distFile);
         }
         return DistributionConfig.loadFromClasspathOrDefaults();
     }

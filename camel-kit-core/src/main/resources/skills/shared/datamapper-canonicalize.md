@@ -305,7 +305,7 @@ Omit the Collection Mappings section if there are no collection mappings.
 
 **When done:** return control to the calling guide.
 
-- If called from `datamapper-interview.md`: return to `camel-flow` at Question 4 (Sink System).
+- If called from `datamapper-interview.md`: return to `camel-brainstorm` at Question 8 (Sink System).
 - If called from `datamapper-migrate.md`: return to `camel-migrate-mule` Step 2.3.
 
 ---
@@ -446,5 +446,5 @@ Omit the Collection Mappings section if there are no collection mappings.
 
 **When done:** return control to the calling guide.
 
-- If called from `datamapper-interview.md`: return to `camel-flow` at Question 4 (Sink System).
+- If called from `datamapper-interview.md`: return to `camel-brainstorm` at Question 8 (Sink System).
 - If called from `datamapper-migrate.md`: return to `camel-migrate-mule` Step 2.3.

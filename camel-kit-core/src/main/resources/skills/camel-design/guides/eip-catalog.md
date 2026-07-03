@@ -182,7 +182,7 @@ Q: "Is the reference data static or dynamic?"
 - idempotentConsumer:
     expression:
       simple: "${header.MessageId}"
-    messageIdRepository:
+    idempotentRepository:
       type: memory  # or database, redis, kafka
     skipDuplicate: true
 ```
@@ -218,7 +218,7 @@ Q: "Could the same message arrive multiple times?"
 - resequence:
     expression:
       simple: "${header.SequenceNumber}"
-    resequencerConfig:
+    batchConfig:
       capacity: 1000
       timeout: 5000
 ```
@@ -309,12 +309,13 @@ errorHandler:
 - circuitBreaker:
     resilience4jConfiguration:
       failureRateThreshold: 50
-      waitDurationInOpenState: 30000
+      waitDurationInOpenState: 30  # seconds
     steps:
       - to: "http:{{external.api}}"
     onFallback:
-      - setBody:
-          constant: "Service temporarily unavailable"
+      steps:
+        - setBody:
+            constant: "Service temporarily unavailable"
 ```
 
 **Example:** Stop calling failed payment service, use fallback

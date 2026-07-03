@@ -3,8 +3,8 @@
 For each computational step in the Guide Manifest, delegate to the corresponding pre-registered sub-agent by name.
 
 Example:
-- "Have the camel-component-selector sub-agent select components. Input: {step-input-description}. Write output to {output-path}."
-- "Have the camel-design-assembler sub-agent assemble the design spec. Input: all .steps/ outputs. Write output to {final-design-spec-path}."
+- "Have the camel-brainstormer sub-agent select components. Input: {step-input-description}. Write output to {output-path}."
+- "Have the camel-brainstormer sub-agent assemble the design spec. Input: all .steps/ outputs. Write output to {final-design-spec-path}."
 
 Include in each delegation:
 - The flow/task name

@@ -77,6 +77,23 @@ class GraphQueryTest {
     }
 
     @Test
+    void neighborsDeduplicatesEdgesReachedThroughMultiplePaths() {
+        ProjectGraph graph = new ProjectGraph();
+        graph.addNode(new GraphNode("a", NodeType.CLASS, Map.of("name", "A")));
+        graph.addNode(new GraphNode("b", NodeType.CLASS, Map.of("name", "B")));
+        graph.addNode(new GraphNode("c", NodeType.CLASS, Map.of("name", "C")));
+        graph.addNode(new GraphNode("d", NodeType.CLASS, Map.of("name", "D")));
+        graph.addEdge(new GraphEdge("a", "b", EdgeType.USES_TYPE, Map.of()));
+        graph.addEdge(new GraphEdge("a", "c", EdgeType.USES_TYPE, Map.of()));
+        graph.addEdge(new GraphEdge("b", "d", EdgeType.USES_TYPE, Map.of()));
+        graph.addEdge(new GraphEdge("c", "d", EdgeType.USES_TYPE, Map.of()));
+
+        var result = new GraphQuery(graph).neighbors("a", "both", null, 2);
+
+        assertEquals(4, result.edges().size());
+    }
+
+    @Test
     void shortestPath() {
         var path = query.path("class:com.example.Foo", "method:com.example.Bar.handle", 5);
         assertFalse(path.isEmpty());

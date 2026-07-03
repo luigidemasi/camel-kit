@@ -185,7 +185,7 @@ Do NOT generate the POM from scratch. COPY the template file and replace ONLY th
 ```markdown
 ### Task N: Validate All Routes
 
-**Agent:** quality-engineer
+**Agent:** code-quality-reviewer
 
 **Files:**
 - Read: all generated `*.camel.yaml` files

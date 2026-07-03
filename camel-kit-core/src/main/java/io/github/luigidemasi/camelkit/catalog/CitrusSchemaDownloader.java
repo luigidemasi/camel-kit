@@ -75,6 +75,7 @@ public class CitrusSchemaDownloader {
                 HttpResponse.BodyHandlers.ofInputStream());
 
         if (response.statusCode() != 200) {
+            response.body().close();
             throw new RuntimeException("Failed to download Citrus schemas: HTTP " + response.statusCode());
         }
 
@@ -89,7 +90,12 @@ public class CitrusSchemaDownloader {
                 // Extract files from org/citrusframework/schema/citrus/{version}/
                 if (name.startsWith(schemaPrefix) && !entry.isDirectory()) {
                     String fileName = name.substring(schemaPrefix.length());
-                    Path targetFile = citrusDir.resolve(fileName);
+                    Path targetFile = citrusDir.resolve(fileName).normalize();
+                    if (!targetFile.startsWith(citrusDir.normalize())) {
+                        throw new RuntimeException(
+                                "Refusing to extract Citrus schema outside cache directory: "
+                                                   + name);
+                    }
 
                     // Create parent directories if needed
                     Files.createDirectories(targetFile.getParent());

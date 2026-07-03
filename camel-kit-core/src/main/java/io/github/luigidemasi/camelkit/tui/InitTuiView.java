@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -123,8 +124,9 @@ public final class InitTuiView {
      * code from {@code work} when the user dismisses the view.
      *
      * <p>
-     * {@link dev.tamboui.terminal.BackendException} propagates before any work starts so the caller can fall back to
-     * normal mode safely.
+     * Exceptions propagate only from the setup phase, before any work starts, so the caller can fall back to normal
+     * mode safely. Once {@code work} has been submitted, render-loop failures are handled internally: the view waits
+     * for {@code work} to finish without a display and returns its exit code.
      */
     public int run(Callable<Integer> work) throws Exception {
         ImageData imageData = loadImage();
@@ -134,7 +136,7 @@ public final class InitTuiView {
                 .build();
 
         AtomicBoolean workDone = new AtomicBoolean(false);
-        AtomicInteger exitCode = new AtomicInteger(0);
+        AtomicInteger exitCode = new AtomicInteger(130);
         AtomicReference<java.util.concurrent.Future<Integer>> futureRef = new AtomicReference<>();
 
         ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
@@ -169,94 +171,134 @@ public final class InitTuiView {
             futureRef.set(executor.submit(work));
 
             try {
-                System.out.write("\033[2J\033[H".getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                System.out.flush();
-
-                // Own event loop using pollEvent + draw so we can break out directly
-                // when work is done — no dependency on runner.quit() unblocking read().
-                int[] lastHeight = {24};
-                int ticksAfterDone = 0;
-                while (true) {
-                    // Poll for up to 50ms; returns null on timeout (acts as our tick)
-                    Event event = runner.pollEvent(java.time.Duration.ofMillis(50));
-                    if (event instanceof KeyEvent k && k.isCtrlC())
-                        break;
-                    if (event instanceof ResizeEvent) {
-                        try {
-                            System.out.write("\033[2J\033[H".getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                            System.out.flush();
-                        } catch (Exception ignored) {
-                        }
-                    }
-
-                    tick.incrementAndGet();
-
-                    // Capture future result
-                    java.util.concurrent.Future<Integer> f = futureRef.get();
-                    if (f != null && !workDone.get() && f.isDone()) {
-                        workDone.set(true);
-                        try {
-                            exitCode.set(f.get());
-                        } catch (Exception e) {
-                            exitCode.set(1);
-                        }
-                    }
-
-                    // Render current state
-                    runner.draw(frame -> {
-                        lastHeight[0] = frame.height();
-                        frame.buffer().clear();
-                        int w = frame.width();
-                        int h = frame.height();
-
-                        // Panels are 37.5% of terminal width, 85% of terminal height,
-                        // centred both horizontally and vertically.
-                        // Minimums ensure content stays inside the borders even on small terminals.
-                        int panelWidth = Math.max(30, w * 3 / 8);
-                        int panelHeight = Math.max(15, h * 17 / 20);
-                        int topOffset = (h - panelHeight) / 2;
-                        int gap = 1;
-                        int leftStart = (w - panelWidth * 2 - gap) / 2;
-                        int rightStart = leftStart + panelWidth + gap;
-
-                        // Left panel: border + correctly-proportioned image
-                        Rect leftOuter = new Rect(leftStart, topOffset, panelWidth, panelHeight);
-                        frame.renderWidget(leftBorder, leftOuter);
-                        Rect inner = leftBorder.inner(leftOuter);
-                        int maxCols = inner.width();
-                        // Reserve 2 extra rows at the top as padding inside the left panel
-                        int topPad = 2;
-                        int maxRows = Math.max(1, inner.height() - topPad);
-                        int imgCols = Math.min(maxCols,
-                                (int) Math.round(maxRows / (HEIGHT_OVER_WIDTH * CELL_ASPECT_CORRECTION)));
-                        int imgRows = (int) Math.round(imgCols * HEIGHT_OVER_WIDTH * CELL_ASPECT_CORRECTION);
-                        imgCols = Math.min(imgCols, maxCols);
-                        imgRows = Math.min(imgRows, maxRows);
-                        int imgX = inner.x() + (maxCols - imgCols) / 2;
-                        int imgY = inner.y() + topPad + (maxRows - imgRows) / 2;
-                        frame.renderWidget(imageWidget, new Rect(imgX, imgY, imgCols, imgRows));
-
-                        // Right panel: border + task/log content
-                        Rect rightOuter = new Rect(rightStart, topOffset, panelWidth, panelHeight);
-                        frame.renderWidget(rightBorder, rightOuter);
-                        renderRight(frame.buffer(), rightBorder.inner(rightOuter), workDone.get());
-                    });
-
-                    // Exit after work done + 2 extra frames so the user sees all ticks
-                    if (workDone.get() && ++ticksAfterDone > 2)
-                        break;
-                }
-                // Move cursor below the panels so the shell prompt appears cleanly.
-                System.out.write(("\033[" + (lastHeight[0] + 1) + ";1H")
-                        .getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                System.out.flush();
-
+                runEventLoop(runner, imageWidget, leftBorder, rightBorder, workDone, exitCode, futureRef);
+            } catch (Throwable renderFailure) {
+                // Work is already running — never lose it to a display failure.
+                return finishWithoutTui(renderFailure, futureRef.get());
             } finally {
                 executor.shutdownNow();
             }
         }
 
         return exitCode.get();
+    }
+
+    private void runEventLoop(
+            TuiRunner runner, Image imageWidget, Block leftBorder, Block rightBorder,
+            AtomicBoolean workDone, AtomicInteger exitCode,
+            AtomicReference<java.util.concurrent.Future<Integer>> futureRef)
+            throws Exception {
+        System.out.write("\033[2J\033[H".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        System.out.flush();
+
+        // Own event loop using pollEvent + draw so we can break out directly
+        // when work is done — no dependency on runner.quit() unblocking read().
+        int[] lastHeight = {24};
+        int ticksAfterDone = 0;
+        while (true) {
+            // Poll for up to 50ms; returns null on timeout (acts as our tick)
+            Event event = runner.pollEvent(java.time.Duration.ofMillis(50));
+            if (event instanceof KeyEvent k && k.isCtrlC()) {
+                lines.add("Interrupted by user");
+                java.util.concurrent.Future<Integer> f = futureRef.get();
+                if (f != null) {
+                    f.cancel(true);
+                }
+                break;
+            }
+            if (event instanceof ResizeEvent) {
+                try {
+                    System.out.write("\033[2J\033[H".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    System.out.flush();
+                } catch (Exception ignored) {
+                }
+            }
+
+            tick.incrementAndGet();
+
+            // Capture future result
+            java.util.concurrent.Future<Integer> f = futureRef.get();
+            if (f != null && !workDone.get() && f.isDone()) {
+                workDone.set(true);
+                try {
+                    exitCode.set(f.get());
+                } catch (ExecutionException e) {
+                    Throwable cause = e.getCause();
+                    lines.add("Init failed: " + (cause == null ? e.getMessage() : cause.getMessage()));
+                    exitCode.set(1);
+                } catch (Exception e) {
+                    lines.add("Init failed: " + e.getMessage());
+                    exitCode.set(1);
+                }
+            }
+
+            // Render current state
+            runner.draw(frame -> {
+                lastHeight[0] = frame.height();
+                frame.buffer().clear();
+                int w = frame.width();
+                int h = frame.height();
+
+                // Panels are 37.5% of terminal width, 85% of terminal height,
+                // centred both horizontally and vertically.
+                // Minimums ensure content stays inside the borders even on small terminals.
+                int panelWidth = Math.max(30, w * 3 / 8);
+                int panelHeight = Math.max(15, h * 17 / 20);
+                int topOffset = (h - panelHeight) / 2;
+                int gap = 1;
+                int leftStart = (w - panelWidth * 2 - gap) / 2;
+                int rightStart = leftStart + panelWidth + gap;
+
+                // Left panel: border + correctly-proportioned image
+                Rect leftOuter = new Rect(leftStart, topOffset, panelWidth, panelHeight);
+                frame.renderWidget(leftBorder, leftOuter);
+                Rect inner = leftBorder.inner(leftOuter);
+                int maxCols = inner.width();
+                // Reserve 2 extra rows at the top as padding inside the left panel
+                int topPad = 2;
+                int maxRows = Math.max(1, inner.height() - topPad);
+                int imgCols = Math.min(maxCols,
+                        (int) Math.round(maxRows / (HEIGHT_OVER_WIDTH * CELL_ASPECT_CORRECTION)));
+                int imgRows = (int) Math.round(imgCols * HEIGHT_OVER_WIDTH * CELL_ASPECT_CORRECTION);
+                imgCols = Math.min(imgCols, maxCols);
+                imgRows = Math.min(imgRows, maxRows);
+                int imgX = inner.x() + (maxCols - imgCols) / 2;
+                int imgY = inner.y() + topPad + (maxRows - imgRows) / 2;
+                frame.renderWidget(imageWidget, new Rect(imgX, imgY, imgCols, imgRows));
+
+                // Right panel: border + task/log content
+                Rect rightOuter = new Rect(rightStart, topOffset, panelWidth, panelHeight);
+                frame.renderWidget(rightBorder, rightOuter);
+                renderRight(frame.buffer(), rightBorder.inner(rightOuter), workDone.get());
+            });
+
+            // Exit after work done + 2 extra frames so the user sees all ticks
+            if (workDone.get() && ++ticksAfterDone > 2)
+                break;
+        }
+        // Move cursor below the panels so the shell prompt appears cleanly.
+        System.out.write(("\033[" + (lastHeight[0] + 1) + ";1H")
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        System.out.flush();
+    }
+
+    private int finishWithoutTui(Throwable renderFailure, java.util.concurrent.Future<Integer> workFuture) {
+        System.err.println("TUI rendering failed (" + renderFailure.getMessage()
+                           + "); waiting for init to finish without display.");
+        if (workFuture == null) {
+            return 1;
+        }
+        try {
+            return workFuture.get();
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            System.err.println("Init failed: " + (cause == null ? e.getMessage() : cause.getMessage()));
+            return 1;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            workFuture.cancel(true);
+            return 130;
+        }
     }
 
     // ── rendering ────────────────────────────────────────────────────────────

@@ -72,7 +72,6 @@ Claude's `Agent` tool dispatches subagents with isolated context windows. Each s
 | File | Purpose |
 |------|---------|
 | `templates/claude/claude-md.md` | `CLAUDE.md` -- project rules (iron laws, Camel version, command prefix, MCP setup) |
-| `templates/claude/dispatch-parallel.md` | Instructions for parallel subagent dispatch during `/camel-execute` |
 | `templates/claude/settings.json` | Claude Code project settings |
 
 ### How It Works

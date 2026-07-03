@@ -17,6 +17,7 @@ public class YamlRouteParser implements GraphParser {
             "transform", "bean", "process", "enrich", "log", "groovy", "script");
 
     private final ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
+    private final List<String> warnings = new ArrayList<>();
 
     @Override
     public void parse(Path projectRoot, ProjectGraph graph) {
@@ -38,8 +39,18 @@ public class YamlRouteParser implements GraphParser {
         files.forEach(file -> parseYamlFile(file, projectRoot, graph));
     }
 
+    @Override
+    public List<String> warnings() {
+        return List.copyOf(warnings);
+    }
+
+    @Override
+    public void resetWarnings() {
+        warnings.clear();
+    }
+
     private boolean isRouteYaml(Path file) {
-        String fileName = file.getFileName().toString();
+        String fileName = file.getFileName().toString().toLowerCase(Locale.ROOT);
         return (fileName.endsWith(".yaml") || fileName.endsWith(".yml"))
                 && !fileName.startsWith("application");
     }
@@ -50,28 +61,33 @@ public class YamlRouteParser implements GraphParser {
 
             // Handle array of routes or single route
             if (root.isArray()) {
+                int routeIndex = 0;
                 for (JsonNode element : root) {
                     if (element.has("route")) {
-                        parseRoute(element.get("route"), projectRoot, yamlFile, graph);
+                        parseRoute(element.get("route"), projectRoot, yamlFile, graph, routeIndex++);
+                    } else if (element.has("from")) {
+                        parseRoute(element, projectRoot, yamlFile, graph, routeIndex++);
                     }
                 }
             } else if (root.has("route")) {
-                parseRoute(root.get("route"), projectRoot, yamlFile, graph);
+                parseRoute(root.get("route"), projectRoot, yamlFile, graph, 0);
+            } else if (root.has("from")) {
+                parseRoute(root, projectRoot, yamlFile, graph, 0);
             }
         } catch (Exception e) {
-            // Skip unparseable YAML silently
+            warnings.add("Could not parse YAML route file " + GraphParser.relativeFileName(projectRoot, yamlFile)
+                         + ": " + e.getMessage());
         }
     }
 
-    private void parseRoute(JsonNode routeNode, Path projectRoot, Path yamlFile, ProjectGraph graph) {
-        if (!routeNode.has("id")) {
-            return; // Skip routes without id
-        }
-
-        String routeId = routeNode.get("id").asText();
+    private void parseRoute(JsonNode routeNode, Path projectRoot, Path yamlFile, ProjectGraph graph, int routeIndex) {
+        String routeId = routeNode.has("id")
+                ? routeNode.get("id").asText()
+                : syntheticRouteId(projectRoot, yamlFile, routeIndex);
         String routeNodeId = "route:" + routeId;
         Map<String, String> routeProps = new HashMap<>();
         routeProps.put("file", projectRoot.relativize(yamlFile).toString());
+        routeProps.put("routeId", routeId);
 
         // Parse from endpoint
         if (routeNode.has("from")) {
@@ -85,7 +101,7 @@ public class YamlRouteParser implements GraphParser {
                 String endpointId = "endpoint:" + fromUri;
                 graph.addNode(new GraphNode(
                         endpointId, NodeType.CAMEL_ENDPOINT,
-                        Map.of("uri", fromUri)));
+                        endpointProperties(fromUri)));
                 graph.addEdge(new GraphEdge(
                         routeNodeId, endpointId,
                         EdgeType.ROUTES_FROM, Map.of()));
@@ -105,6 +121,8 @@ public class YamlRouteParser implements GraphParser {
 
         // Parse steps at route level (alternative structure)
         if (routeNode.has("steps")) {
+            warnings.add("Route " + routeId + " in " + GraphParser.relativeFileName(projectRoot, yamlFile)
+                         + " uses route-level steps; Camel YAML expects steps under from.");
             parseSteps(routeNode.get("steps"), routeNodeId, graph, 0);
         }
     }
@@ -139,7 +157,7 @@ public class YamlRouteParser implements GraphParser {
             String stepType = field.getKey();
             JsonNode stepValue = field.getValue();
 
-            if ("to".equals(stepType)) {
+            if ("to".equals(stepType) || "toD".equals(stepType)) {
                 // Handle to endpoint
                 String uri = extractUri(stepValue);
                 if (uri != null && !uri.isEmpty()) {
@@ -147,7 +165,7 @@ public class YamlRouteParser implements GraphParser {
                     String endpointId = "endpoint:" + uri;
                     graph.addNode(new GraphNode(
                             endpointId, NodeType.CAMEL_ENDPOINT,
-                            Map.of("uri", uri)));
+                            endpointProperties(uri)));
                     graph.addEdge(new GraphEdge(
                             routeNodeId, endpointId,
                             EdgeType.ROUTES_TO, Map.of()));
@@ -171,5 +189,18 @@ public class YamlRouteParser implements GraphParser {
         }
 
         return order;
+    }
+
+    private String syntheticRouteId(Path projectRoot, Path yamlFile, int routeIndex) {
+        String relative = GraphParser.relativeFileName(projectRoot, yamlFile);
+        return relative.replaceAll("[^A-Za-z0-9_.-]", "_") + "#route-" + (routeIndex + 1);
+    }
+
+    private Map<String, String> endpointProperties(String uri) {
+        int colon = uri.indexOf(':');
+        if (colon > 0) {
+            return Map.of("uri", uri, "scheme", uri.substring(0, colon));
+        }
+        return Map.of("uri", uri);
     }
 }

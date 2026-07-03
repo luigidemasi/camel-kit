@@ -88,7 +88,7 @@ public class DeadCodeAnalyzer {
                         if (endpoint == null)
                             continue;
 
-                        String scheme = endpoint.properties().get("scheme");
+                        String scheme = endpointScheme(endpoint);
                         if (scheme == null)
                             continue;
 
@@ -132,5 +132,15 @@ public class DeadCodeAnalyzer {
                     return !configuredPropertyIds.contains(node.id());
                 })
                 .collect(Collectors.toList());
+    }
+
+    private String endpointScheme(GraphNode endpoint) {
+        String scheme = endpoint.properties().get("scheme");
+        if (scheme != null && !scheme.isBlank()) {
+            return scheme;
+        }
+        String uri = endpoint.properties().get("uri");
+        int colon = uri == null ? -1 : uri.indexOf(':');
+        return colon > 0 ? uri.substring(0, colon) : null;
     }
 }

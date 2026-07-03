@@ -18,7 +18,9 @@ import java.util.stream.Stream;
 
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
+import io.github.luigidemasi.camelkit.graph.GraphBuildResult;
 import io.github.luigidemasi.camelkit.graph.GraphBuilder;
+import io.github.luigidemasi.camelkit.graph.ParserDiagnostic;
 import io.github.luigidemasi.camelkit.util.PrerequisiteChecker;
 import io.github.luigidemasi.camelkit.util.ProcessRunner;
 
@@ -34,7 +36,8 @@ public class DoctorService {
     private static final Duration PREREQUISITE_TIMEOUT = Duration.ofSeconds(3);
 
     private static final List<String> REQUIRED_CONFIG_KEYS = List.of(
-            "project.name", "project.command-prefix", "agent.name", "agent.folder");
+            "project.name", "project.command-prefix", "project.runtime", "project.camelVersion",
+            "project.platformBomVersion", "agent.name", "agent.folder");
 
     private static final List<String> STALE_REFERENCES = List.of(
             "/camel-design", ".camel-kit/business-requirements.md", ".camel-kit/flows/");
@@ -319,7 +322,19 @@ public class DoctorService {
         }
 
         try {
-            new GraphBuilder().build(root);
+            GraphBuildResult result = new GraphBuilder().buildWithDiagnostics(root);
+            for (ParserDiagnostic diagnostic : result.warningDiagnostics()) {
+                findings.add(DoctorFinding.warn("graph", relativize(root, graphFile),
+                        "Graph generation warning: " + diagnostic.summary(),
+                        "Inspect the listed source file and regenerate the graph after fixing it."));
+            }
+            if (!result.successful()) {
+                findings.add(DoctorFinding.fail("graph", relativize(root, graphFile),
+                        ".camel-kit/project-graph.json is missing and graph generation failed: "
+                                                                                      + result.failureSummary(),
+                        "Fix the project files reported by graph generation, then run camel-kit graph generate."));
+                return;
+            }
             findings.add(DoctorFinding.warn("graph", relativize(root, graphFile),
                     ".camel-kit/project-graph.json is missing, but graph generation can run",
                     "Run camel-kit graph generate --project-dir " + root + " to persist the graph."));

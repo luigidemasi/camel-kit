@@ -31,6 +31,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Adversarial review findings (#126)** — hardened graph building, init/doctor contracts, generator failure handling, distribution assets, and shipped skill content:
+  - Secure XML parsing (XXE/DTD disabled) in `XmlRouteParser` and `MuleXmlFlowParser`; parser failures and warnings now surface through `graph generate`, `doctor`, and `init` instead of producing silently empty graphs
+  - `GraphSerializer.read` validates format version and required fields; graph visualizer escapes embedded JSON against `</script>` injection
+  - `init` persists `project.runtime`, `project.camelVersion`, and `project.platformBomVersion` (spring-boot projects additionally get `project.springBootVersion`); `doctor` validates them
+  - Missing MCP config, skill resources, templates, and dispatch blocks now fail init loudly instead of degrading to warnings; `plan analyze` exits non-zero with a JSON error on failure
+  - `doc stale`/`unstale` preserve unknown frontmatter keys and fail closed on malformed staleness metadata
+  - Mule `flow-ref` targets resolve across files regardless of parse order; DataWeave node IDs unified on classpath-relative paths so Mule references and `.dwl` scans converge on one node
+  - JBang launcher ships snapshot repositories; removed broken `camel-kit-aio` alias; fixed the JBang plugin `init` forwarding (`--force`, shared `CamelKitMain`) and the plugin GAV in the README
+  - Corrected shipped Camel YAML guidance (steps under `from:`, `enrich`/`pollEnrich` expressions, `idempotentRepository`, `mimeMultipart`, `json` + `library: Jackson`, circuit-breaker seconds, `toD` for dynamic URIs) and removed stale migration/removal claims (`spel`, `mvel`, `hl7terser`, `activemq`, `pgevent`, `xstream`)
+  - Distribution defaults, compiled-in fallbacks, and tests now share the single repo-root `distribution.properties` (stale test fixture removed)
+
 - **Skill pipeline contract drift** — aligned shipped skills, templates, personas, and docs on the active `docs/camel-kit/<PIPELINE_ID>/` artifact model, deterministic Spring Boot version mappings, lowercase test-data flow tokens, and design-spec terminology.
 - **`camel-kit doctor` Bob 2 MCP validation** — doctor now resolves MCP config paths through the agent registry descriptor instead of a duplicated hard-coded switch, so Bob 2 projects validate `.bob/mcp.json` correctly.
 - **Incorrect relative path in Bob test template** — `camel-test.md` used `../main/resources/` instead of `../../main/resources/` for route YAML references in test examples

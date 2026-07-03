@@ -208,7 +208,8 @@ If `.camel-kit/project-graph.json` already exists (adding to existing project or
 
 ```
 Note: The project graph may be stale — it was built before this
-implementation. Run /camel-init to rebuild it before the
+implementation. Run `{COMMAND_PREFIX} init --force` with the current
+project settings to rebuild it before the
 post-execute validation and testing phases.
 ```
 

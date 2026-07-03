@@ -69,7 +69,7 @@ When amending an existing design spec:
 4. Self-review the amended spec (same review criteria as the original)
 5. Present the amended spec for user approval
 6. On approval, overwrite `design-spec.md` with the amended version
-7. **Mark downstream artifacts stale** — for each existing file in the pipeline directory (`implementation-plan.md`, `execution-report.md`, `validation-report.md`, `stamp-report.md`), prepend the staleness marker per `shared/pipeline-infrastructure.md`
+7. **Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, run `{COMMAND_PREFIX} doc stale --reason "design spec amended" --cascade <first-downstream-artifact>` (usually `implementation-plan.md`) so CLI-managed YAML frontmatter propagates staleness. Do not prepend manual marker text.
 8. STOP — do NOT auto-invoke plan (standalone mode)
 
 ---

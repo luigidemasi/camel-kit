@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -19,6 +20,7 @@ import io.github.luigidemasi.camelkit.graph.model.EdgeType;
 import io.github.luigidemasi.camelkit.graph.model.GraphEdge;
 import io.github.luigidemasi.camelkit.graph.model.GraphNode;
 import io.github.luigidemasi.camelkit.graph.model.NodeType;
+import io.github.luigidemasi.camelkit.graph.parser.GraphParser;
 
 /**
  * Parser for BizTalk BTM (map) files.
@@ -105,12 +107,16 @@ public class BizTalkBtmParser {
      * @param graph   the project graph to populate
      */
     public void parse(Path btmFile, ProjectGraph graph) {
+        parse(null, btmFile, graph);
+    }
+
+    public void parse(Path projectRoot, Path btmFile, ProjectGraph graph) {
         try {
             if (!Files.exists(btmFile)) {
                 return;
             }
 
-            parseBtmXml(btmFile, graph);
+            parseBtmXml(projectRoot, btmFile, graph);
         } catch (Exception e) {
             warningConsumer.accept("Failed to parse BizTalk BTM file: " + btmFile + " - " + e.getMessage());
         }
@@ -119,7 +125,7 @@ public class BizTalkBtmParser {
     /**
      * Parse BTM XML content using StAX.
      */
-    private void parseBtmXml(Path btmFile, ProjectGraph graph) throws Exception {
+    private void parseBtmXml(Path projectRoot, Path btmFile, ProjectGraph graph) throws Exception {
         XMLInputFactory factory = XMLInputFactory.newInstance();
         factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
         factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
@@ -132,7 +138,7 @@ public class BizTalkBtmParser {
                     int event = reader.next();
 
                     if (event == XMLStreamConstants.START_ELEMENT && "mapsource".equals(reader.getLocalName())) {
-                        parseMapSource(reader, btmFile, graph);
+                        parseMapSource(reader, projectRoot, btmFile, graph);
                     }
                 }
             } finally {
@@ -144,10 +150,13 @@ public class BizTalkBtmParser {
     /**
      * Parse the mapsource root element.
      */
-    private void parseMapSource(XMLStreamReader reader, Path btmFile, ProjectGraph graph) throws Exception {
+    private void parseMapSource(XMLStreamReader reader, Path projectRoot, Path btmFile, ProjectGraph graph)
+            throws Exception {
         // Extract map name from filename (strip .btm extension)
         String fileName = btmFile.getFileName().toString();
-        String mapName = fileName.endsWith(".btm") ? fileName.substring(0, fileName.length() - 4) : fileName;
+        String mapName = fileName.toLowerCase(Locale.ROOT).endsWith(".btm")
+                ? fileName.substring(0, fileName.length() - 4)
+                : fileName;
 
         String sourceSchema = null;
         String targetSchema = null;
@@ -184,7 +193,7 @@ public class BizTalkBtmParser {
         // Create map node
         String mapId = "biztalk-map:" + mapName;
         Map<String, String> mapProps = new HashMap<>();
-        mapProps.put("file", btmFile.toString());
+        mapProps.put("file", relativePath(projectRoot, btmFile));
         mapProps.put("name", mapName);
         if (sourceSchema != null) {
             mapProps.put("sourceSchema", sourceSchema);
@@ -229,6 +238,13 @@ public class BizTalkBtmParser {
         // Commit all nodes and edges to the graph after successful parsing
         nodes.forEach(graph::addNode);
         edges.forEach(graph::addEdge);
+    }
+
+    private String relativePath(Path projectRoot, Path file) {
+        if (projectRoot == null) {
+            return file.isAbsolute() ? file.getFileName().toString() : file.toString();
+        }
+        return GraphParser.relativeFileName(projectRoot, file);
     }
 
     /**

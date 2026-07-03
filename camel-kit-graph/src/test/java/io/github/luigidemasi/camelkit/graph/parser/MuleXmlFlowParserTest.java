@@ -1,5 +1,6 @@
 package io.github.luigidemasi.camelkit.graph.parser;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -8,6 +9,7 @@ import io.github.luigidemasi.camelkit.graph.model.*;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -92,6 +94,55 @@ class MuleXmlFlowParserTest {
     }
 
     @Test
+    void resolvesFlowRefsBeforeReferencedSubflowIsParsed(@TempDir Path tempDir) throws Exception {
+        Path mule = tempDir.resolve("flows.xml");
+        Files.writeString(mule, """
+                <mule xmlns="http://www.mulesoft.org/schema/mule/core">
+                  <flow name="main-flow">
+                    <flow-ref name="later-subflow"/>
+                  </flow>
+                  <sub-flow name="later-subflow"/>
+                </mule>
+                """);
+        MuleXmlFlowParser parser = new MuleXmlFlowParser();
+        ProjectGraph graph = new ProjectGraph();
+
+        parser.parseFiles(tempDir, List.of(mule), graph);
+
+        assertTrue(graph.getOutgoingEdges("mule-flow:main-flow").stream()
+                .anyMatch(edge -> edge.type() == EdgeType.MULE_CALLS_SUBFLOW
+                        && edge.to().equals("mule-subflow:later-subflow")));
+    }
+
+    @Test
+    void resolvesFlowRefsAcrossFilesRegardlessOfOrder(@TempDir Path tempDir) throws Exception {
+        Path caller = tempDir.resolve("a-caller.xml");
+        Files.writeString(caller, """
+                <mule xmlns="http://www.mulesoft.org/schema/mule/core">
+                  <flow name="caller-flow">
+                    <flow-ref name="target-flow"/>
+                  </flow>
+                </mule>
+                """);
+        Path callee = tempDir.resolve("b-callee.xml");
+        Files.writeString(callee, """
+                <mule xmlns="http://www.mulesoft.org/schema/mule/core">
+                  <flow name="target-flow"/>
+                </mule>
+                """);
+        MuleXmlFlowParser parser = new MuleXmlFlowParser();
+        ProjectGraph graph = new ProjectGraph();
+
+        // caller file is parsed first; the target flow lives in a later file
+        parser.parseFiles(tempDir, List.of(caller, callee), graph);
+
+        assertTrue(graph.getOutgoingEdges("mule-flow:caller-flow").stream()
+                .anyMatch(edge -> edge.type() == EdgeType.MULE_CALLS_SUBFLOW
+                        && edge.to().equals("mule-flow:target-flow")),
+                "flow-ref to a flow defined in a later file must resolve to the flow node, not a subflow guess");
+    }
+
+    @Test
     void parsesMule4Connectors() {
         assertTrue(graph.hasNode("mule-connector:http-listener-config"),
                 "http connector config should exist");
@@ -168,5 +219,27 @@ class MuleXmlFlowParserTest {
                 .toList();
         assertTrue(muleNodes.isEmpty(),
                 "no MULE_ nodes should come from camel-context.xml");
+    }
+
+    @Test
+    void rejectsDoctypeXml(@TempDir Path tempDir) throws Exception {
+        Path mule = tempDir.resolve("unsafe.xml");
+        Files.writeString(mule, """
+                <!DOCTYPE mule [
+                  <!ENTITY xxe SYSTEM "file:///etc/passwd">
+                ]>
+                <mule xmlns="http://www.mulesoft.org/schema/mule/core">
+                  <flow name="unsafe">
+                    <logger message="&xxe;"/>
+                  </flow>
+                </mule>
+                """);
+        MuleXmlFlowParser parser = new MuleXmlFlowParser();
+        ProjectGraph graph = new ProjectGraph();
+
+        parser.parseFiles(tempDir, List.of(mule), graph);
+
+        assertFalse(graph.hasNode("mule-flow:unsafe"));
+        assertFalse(parser.warnings().isEmpty());
     }
 }

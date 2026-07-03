@@ -255,7 +255,7 @@ When you encounter a BizTalk map (`.btm` file) during migration analysis, follow
 
 1. **Read the `.btm` file as XML** — BizTalk maps are stored as XML with `<mapsource>` root element.
 2. **Extract source and target schemas** — listed in `<SrcSchemaReference>` and `<TgtSchemaReference>`.
-3. **Parse functoids** — located in `<Functoid>` elements with `FunctoidType` attribute (String Concatenate = 1, Logical Equal = 6, etc.).
+3. **Parse functoids** — located in `<Functoid>` elements. Read the actual `FunctoidType`, `FID`, `Name`, and related attributes from the map; do not infer function identity from a hardcoded numeric table alone.
 4. **Trace links** — `<Link>` elements connect source fields, functoids, and target fields via `<SourceID>` and `<TargetID>`.
 5. **Classify each functoid using the Decision Matrix** above.
 6. **For scripting functoids:** Extract the inline script code from the `<Script>` element, flag for manual review, and suggest Groovy as a replacement.
@@ -265,25 +265,20 @@ When you encounter a BizTalk map (`.btm` file) during migration analysis, follow
 
 ## Functoid Types Quick Reference
 
-| Functoid Type ID | Name | Camel Equivalent |
-|---|---|---|
-| 0 | String Concatenate | Simple or XSLT `concat()` |
-| 1 | Uppercase | XSLT `upper-case()` |
-| 2 | Lowercase | XSLT `lower-case()` |
-| 6 | Logical Equal | `choice` EIP + Simple predicate |
-| 7 | Logical Greater Than | `choice` EIP + Simple predicate |
-| 10 | Logical AND | `choice` EIP + Simple predicate |
-| 11 | Logical OR | `choice` EIP + Simple predicate |
-| 12 | Logical NOT | `choice` EIP + Simple predicate |
-| 68 | Looping | `split` EIP |
-| 62 | Database Lookup | `enrich` EIP + `sql` |
-| 40 | Scripting | Groovy or custom Processor |
-| 45 | Value Mapping | XSLT `xsl:choose` |
-| 56 | Mass Copy | XSLT `xsl:copy-of` |
-| 42 | Record Count | XSLT `count()` |
-| 43 | Nil Value | XSLT `xsi:nil="true"` |
+| BizTalk Functoid Pattern | Camel Equivalent |
+|---|---|
+| String Concatenate | Simple or XSLT `concat()` |
+| Uppercase / Lowercase | XSLT `upper-case()` / `lower-case()` |
+| Logical comparison / AND / OR / NOT | `choice` EIP + Simple predicate |
+| Looping / Iteration | `split` EIP |
+| Database Lookup | `enrich` EIP + `sql` |
+| Scripting | Groovy or custom Processor |
+| Value Mapping | XSLT `xsl:choose` |
+| Mass Copy | XSLT `xsl:copy-of` |
+| Record Count | XSLT `count()` |
+| Nil Value | XSLT `xsi:nil="true"` |
 
-See Microsoft BizTalk Server documentation for the full functoid type reference.
+See Microsoft BizTalk Server documentation and the map's own metadata for authoritative functoid identifiers.
 
 ---
 

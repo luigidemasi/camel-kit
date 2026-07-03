@@ -53,7 +53,7 @@ For each Mule flow identified in Phase 1:
 
    **CRITICAL — the design spec "Configuration Properties" section must only list properties that actually exist.** For each `camel.component.<name>.<property>` entry, verify that `<property>` appears in the component options returned by `camel_catalog_component_doc`. Do NOT carry over Mule configuration parameters (host, port, etc.) as Camel component properties if the catalog does not list them.
 
-   **Platform-HTTP special case:** The `platform-http` component has NO `host` or `port` component options. Mule's HTTP Listener host/port do NOT map to `camel.component.platform-http.*` properties. If the Mule flow uses a non-default port, document it in the "Configuration Properties" section as `camel.server.enabled=true` and `camel.server.port=XXXX`.
+   **Platform-HTTP special case:** The `platform-http` component has NO `host` or `port` component options. Mule's HTTP Listener host/port do NOT map to `camel.component.platform-http.*` properties. If the Mule flow uses a non-default port, document it in the "Configuration Properties" section using the target runtime's HTTP server property: `camel.server.enabled=true` plus `camel.server.port=XXXX` for `main`, `server.port=XXXX` for `spring-boot`, or `quarkus.http.port=XXXX` for `quarkus`.
 
 2. **Apply proprietary connector decisions from Step 1.2** using the same catalog verification above.
 
@@ -244,7 +244,7 @@ sequenceDiagram
 
 ## Section 7: Configuration Properties
 
-> Only list properties that are valid for the actual Camel component (verified via `camel_catalog_component_doc` in Step 2.1). For `platform-http`, do NOT list host/port as component properties — use `camel.server.enabled` and `camel.server.port` instead.
+> Only list properties that are valid for the actual Camel component (verified via `camel_catalog_component_doc` in Step 2.1). For `platform-http`, do NOT list host/port as component properties — use the runtime HTTP server property (`camel.server.enabled` plus `camel.server.port` for `main`, `server.port` for `spring-boot`, or `quarkus.http.port` for `quarkus`) instead.
 
 | Property Key | Description | Example Value | Required |
 |-------------|-------------|---------------|----------|
@@ -258,8 +258,9 @@ sequenceDiagram
 
 ## Section 9: Constitution Gate Checks
 
-Constitution v2.0 — six enforced rules:
+Constitution v2.0 — seven enforced rules:
 
+- [ ] **MCP Catalog Verification** — every component, EIP, data format, language, and option was verified with runtime/platform BOM
 - [ ] **Route Structure** — route has a `from:` source and a final `to:` sink
 - [ ] **Single Responsibility** — route has one clear purpose; ≤ 7 processing steps
 - [ ] **Separation of Concerns** — ingestion, processing, and delivery are separate routes where appropriate

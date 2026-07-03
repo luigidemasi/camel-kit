@@ -141,8 +141,12 @@ public class InitCommand extends CamelKitCommand {
                 try {
                     return tui.run(this::doInitWork);
                 } catch (Throwable e) {
+                    // InitTuiView.run only throws during setup, before any init work starts,
+                    // so falling back to plain output cannot double-run the init.
                     main.setOut(original);
                     main.setTaskTracker(TaskTracker.noop());
+                    printer().println(yellow("Warning: TUI unavailable (" + e.getMessage()
+                                             + ") — continuing without it"));
                 }
             }
 

@@ -37,4 +37,16 @@ class GraphVisualizerTest {
         String html = GraphVisualizer.generate(new ProjectGraph(), "cytoscape");
         assertTrue(html.contains("<!DOCTYPE html>"));
     }
+
+    @Test
+    void escapesScriptEndTagsInEmbeddedJson() {
+        ProjectGraph graph = new ProjectGraph();
+        graph.addNode(new GraphNode(
+                "route:unsafe", NodeType.CAMEL_ROUTE, Map.of("name", "</script><script>alert(1)</script>")));
+
+        String html = GraphVisualizer.generate(graph);
+
+        assertFalse(html.contains("</script><script>alert(1)</script>"));
+        assertTrue(html.contains("\\u003C/script>"));
+    }
 }
