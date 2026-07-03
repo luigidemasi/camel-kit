@@ -21,11 +21,11 @@ class DistributionConfigTest {
         InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
         DistributionConfig config = DistributionConfig.load(in);
 
-        assertEquals("4.20.0", config.camelMainVersion());
-        assertEquals("4.20.0", config.camelSpringbootVersion());
+        assertEquals("4.21.0", config.camelMainVersion());
+        assertEquals("4.21.0", config.camelSpringbootVersion());
         assertEquals("4.18.2", config.camelQuarkusVersion());
-        assertEquals("4.20.0", config.springbootBomVersion());
-        assertEquals("4.0.5", config.springBootVersion());
+        assertEquals("4.21.0", config.springbootBomVersion());
+        assertEquals("4.1.0", config.springBootVersion());
         assertEquals("3.33.1", config.quarkusPlatformVersion());
     }
 
@@ -34,8 +34,8 @@ class DistributionConfigTest {
         InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
         DistributionConfig config = DistributionConfig.load(in);
 
-        assertEquals("4.20.0,4.18.2,4.14.7", config.camelMainSupported());
-        assertEquals("4.20.0,4.18.2,4.14.7", config.camelSpringbootSupported());
+        assertEquals("4.21.0,4.18.2,4.14.7", config.camelMainSupported());
+        assertEquals("4.21.0,4.18.2,4.14.7", config.camelSpringbootSupported());
         assertEquals("4.18.2,4.14.7", config.camelQuarkusSupported());
     }
 
@@ -69,7 +69,7 @@ class DistributionConfigTest {
         DistributionConfig config = DistributionConfig.load(in);
 
         var mappings = config.springBootMappings();
-        assertEquals("4.0.5", mappings.get("4.20.0"));
+        assertEquals("4.1.0", mappings.get("4.21.0"));
         assertEquals("3.5.13", mappings.get("4.18.2"));
         assertEquals("3.5.12", mappings.get("4.14.7"));
         assertFalse(mappings.containsKey("version"), "Default spring.boot.version must be excluded");
@@ -80,7 +80,7 @@ class DistributionConfigTest {
         InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
         DistributionConfig config = DistributionConfig.load(in);
 
-        assertEquals("4.21.0-SNAPSHOT", config.camelMcpVersion());
+        assertEquals("4.21.0", config.camelMcpVersion());
         assertEquals("0.0.1-SNAPSHOT", config.knowledgeMcpVersion());
         assertEquals("5.0.0-M2", config.citrusVersion());
         assertEquals("5.0.0-M2", config.citrusMcpVersion());
@@ -96,7 +96,7 @@ class DistributionConfigTest {
     void camelMcpVersionCanBeOverriddenViaProperties() {
         InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
         DistributionConfig baselineConfig = DistributionConfig.load(in);
-        assertEquals("4.21.0-SNAPSHOT", baselineConfig.camelMcpVersion());
+        assertEquals("4.21.0", baselineConfig.camelMcpVersion());
 
         Properties properties = new Properties();
         properties.setProperty("camel.mcp.version", "9.9.9-TEST");
@@ -113,8 +113,8 @@ class DistributionConfigTest {
         DistributionConfig config = DistributionConfig.loadFromFileWithClasspathBaseline(overrideFile);
 
         assertEquals("9.9.9", config.camelMainVersion());
-        assertEquals("4.20.0", config.camelSpringbootVersion());
-        assertEquals("4.21.0-SNAPSHOT", config.camelMcpVersion());
+        assertEquals("4.21.0", config.camelSpringbootVersion());
+        assertEquals("4.21.0", config.camelMcpVersion());
     }
 
     @Test
