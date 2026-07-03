@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Default Camel version updated to 4.21.0** — Camel Main and Spring Boot runtimes now default to Camel `4.21.0`, with the Spring Boot framework mapped to `4.1.0` (`spring.boot.4.21.0=4.1.0`, matching camel-parent 4.21.0). Supported version lists move to `4.21.0, 4.18.2, 4.14.7`.
+  - Camel MCP server now pinned to the released `4.21.0` instead of `4.21.0-SNAPSHOT`
+  - Compiled-in fallback defaults in `DistributionConfig` kept in lockstep with `distribution.properties`
+
 - **Default AI target changed to IBM Bob 2** — `camel-kit init` and `camel kit init` now default to `--ai bob2` when no `--ai` option is supplied.
   - CLI help and documentation now mark Bob 2 as the default target
   - `--ai bob` remains supported for IBM Bob 1 legacy workspaces
