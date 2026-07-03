@@ -52,7 +52,7 @@ camel-kit init --here [options]
 | `--citrus-version` | `5.0.0-M2` | Citrus Framework version for test schemas and generated test dependencies |
 | `--here` | `false` | Initialize in current directory |
 | `--no-fetch` | `false` | Skip external catalog fetching |
-| `-p`, `--property` | -- | Override a config property (repeatable). Example: `-p "camel.main.version=4.18.2"` |
+| `-p`, `--property` | -- | Override a config property (repeatable). Example: `-p "camel.main.version=4.18.3"` |
 | `-c`, `--config` | `~/.camel-kit/config.properties` | Path to a custom config properties file |
 | `--source-platform` | `auto` | Source platform for migration: `mulesoft`, `camel`, `biztalk`, `auto` |
 | `--force` | `false` | Overwrite existing project without prompting (skips overwrite detection) |
@@ -87,7 +87,7 @@ camel-kit init my-integration --ai opencode
 camel-kit init --here
 
 # Override config properties via CLI
-camel-kit init my-integration --ai claude -p "camel.main.version=4.18.2"
+camel-kit init my-integration --ai claude -p "camel.main.version=4.18.3"
 
 # Override multiple properties
 camel-kit init my-integration --ai claude -p "camel.quarkus.version=4.18.2" -p "quarkus.platform.version=3.33.1"
