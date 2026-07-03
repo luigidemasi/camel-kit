@@ -34,8 +34,8 @@ class DistributionConfigTest {
         InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
         DistributionConfig config = DistributionConfig.load(in);
 
-        assertEquals("4.21.0,4.18.2,4.14.7", config.camelMainSupported());
-        assertEquals("4.21.0,4.18.2,4.14.7", config.camelSpringbootSupported());
+        assertEquals("4.21.0,4.18.3,4.14.7", config.camelMainSupported());
+        assertEquals("4.21.0,4.18.3,4.14.7", config.camelSpringbootSupported());
         assertEquals("4.18.2,4.14.7", config.camelQuarkusSupported());
     }
 
@@ -70,7 +70,7 @@ class DistributionConfigTest {
 
         var mappings = config.springBootMappings();
         assertEquals("4.1.0", mappings.get("4.21.0"));
-        assertEquals("3.5.13", mappings.get("4.18.2"));
+        assertEquals("3.5.16", mappings.get("4.18.3"));
         assertEquals("3.5.12", mappings.get("4.14.7"));
         assertFalse(mappings.containsKey("version"), "Default spring.boot.version must be excluded");
     }

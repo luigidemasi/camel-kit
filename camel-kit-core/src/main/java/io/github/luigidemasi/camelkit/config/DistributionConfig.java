@@ -57,8 +57,8 @@ public class DistributionConfig {
         this.springbootBomVersion = props.getProperty("springboot.bom.version", "4.21.0");
         this.springBootVersion = props.getProperty("spring.boot.version", "4.1.0");
         this.quarkusPlatformVersion = props.getProperty("quarkus.platform.version", "3.33.1");
-        this.camelMainSupported = props.getProperty("camel.main.supported", "4.21.0,4.18.2,4.14.7");
-        this.camelSpringbootSupported = props.getProperty("camel.springboot.supported", "4.21.0,4.18.2,4.14.7");
+        this.camelMainSupported = props.getProperty("camel.main.supported", "4.21.0,4.18.3,4.14.7");
+        this.camelSpringbootSupported = props.getProperty("camel.springboot.supported", "4.21.0,4.18.3,4.14.7");
         this.camelQuarkusSupported = props.getProperty("camel.quarkus.supported", "4.18.2,4.14.7");
         this.citrusVersion = props.getProperty("citrus.version", DEFAULT_CITRUS_VERSION);
         this.camelMcpVersion = props.getProperty("camel.mcp.version", "4.21.0");

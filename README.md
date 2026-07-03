@@ -137,7 +137,7 @@ camel-kit init my-integration --ai qwen     # Qwen (requires dev build)
 camel-kit init my-integration --ai opencode # OpenCode (requires dev build)
 
 # 2. Override configuration if needed
-camel-kit init my-integration --ai claude -p "camel.main.version=4.18.2"
+camel-kit init my-integration --ai claude -p "camel.main.version=4.18.3"
 
 # 3. Open in your AI assistant
 cd my-integration
