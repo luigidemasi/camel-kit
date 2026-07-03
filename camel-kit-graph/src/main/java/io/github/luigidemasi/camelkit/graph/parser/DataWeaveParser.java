@@ -26,12 +26,12 @@ public class DataWeaveParser implements GraphParser {
 
     @Override
     public List<String> scannedFiles(Path projectRoot) {
-        return GraphParser.findFiles(projectRoot, file -> file.toString().endsWith(".dwl"));
+        return GraphParser.findFiles(projectRoot, DataWeaveParser::isDataWeaveFile);
     }
 
     @Override
     public List<Path> scannedFilePaths(Path projectRoot, List<Path> projectFiles) {
-        return GraphParser.findFilePaths(projectRoot, projectFiles, file -> file.toString().endsWith(".dwl"));
+        return GraphParser.findFilePaths(projectRoot, projectFiles, DataWeaveParser::isDataWeaveFile);
     }
 
     @Override
@@ -47,9 +47,8 @@ public class DataWeaveParser implements GraphParser {
             throw new RuntimeException("Failed to read DataWeave file: " + file, e);
         }
 
-        String fileName = file.getFileName().toString();
         String relativePath = projectRoot.relativize(file).toString().replace('\\', '/');
-        String nodeId = "dataweave:" + fileName;
+        String nodeId = "dataweave:" + relativePath;
 
         Map<String, String> properties = new HashMap<>();
         properties.put("file", relativePath);
@@ -72,6 +71,10 @@ public class DataWeaveParser implements GraphParser {
         }
 
         graph.addNode(new GraphNode(nodeId, NodeType.DATAWEAVE_SCRIPT, properties));
+    }
+
+    private static boolean isDataWeaveFile(Path file) {
+        return file.toString().toLowerCase(Locale.ROOT).endsWith(".dwl");
     }
 
     private Optional<String> extractFirst(Pattern pattern, String content) {

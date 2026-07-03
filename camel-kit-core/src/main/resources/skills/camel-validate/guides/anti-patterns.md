@@ -130,7 +130,7 @@ Check: Duplicate message handling
 - idempotentConsumer:
     expression:
       simple: "${header.MessageId}"
-    messageIdRepository:
+    idempotentRepository:
       type: memory
     skipDuplicate: true
 ```
@@ -210,13 +210,14 @@ Check: External dependency resilience
 - circuitBreaker:
     resilience4jConfiguration:
       failureRateThreshold: 50
-      waitDurationInOpenState: 30000
+      waitDurationInOpenState: 30  # seconds
     steps:
       - to:
           uri: "http://{{external.service.url}}"
     onFallback:
-      - log:
-          message: "Circuit breaker open, using fallback"
+      steps:
+        - log:
+            message: "Circuit breaker open, using fallback"
 ```
 
 ---

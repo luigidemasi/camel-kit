@@ -86,6 +86,7 @@ public class CatalogDownloader {
                 HttpResponse.BodyHandlers.ofInputStream());
 
         if (response.statusCode() != 200) {
+            response.body().close();
             throw new RuntimeException("Failed to download catalog: HTTP " + response.statusCode());
         }
 

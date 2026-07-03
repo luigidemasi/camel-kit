@@ -14,7 +14,9 @@ This guide contains **name mappings and syntax changes only**. All language opti
 | 2.x / 3.x Name | 4.x Name | Notes |
 |----------------|----------|-------|
 | `property` | `exchangeProperty` | Renamed to avoid ambiguity with system/component properties |
-| `spel` | *(removed)* | Spring Expression Language removed. Use `simple`, `groovy`, or `bean` instead. |
+| `spel` | `spel` | Still available — verify options and dependencies via MCP |
+| `mvel` | `mvel` | Still available — verify options and dependencies via MCP |
+| `hl7terser` | `hl7terser` | Still available for HL7 Terser expressions — verify via MCP |
 
 ## Simple Language Syntax Changes
 
@@ -44,9 +46,6 @@ The Simple expression language is the most commonly used. Key syntax changes:
 
 | Language | Removed In | Replacement |
 |---------|-----------|-------------|
-| `spel` | 4.0 | Use `simple` for basic expressions, `groovy` for complex logic, `bean` for method calls |
-| `mvel` | 4.0 | Use `simple` or `groovy` |
-| `terser` | 4.0 | No direct replacement — use custom processor |
 | `jxpath` | 3.0 | Use `xpath` |
 
 ## Expression Context Changes (Java DSL)

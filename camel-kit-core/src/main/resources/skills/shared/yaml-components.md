@@ -105,14 +105,14 @@ Timeout-based:
 
 ```yaml
 - enrich:
-    uri: direct:customer-lookup
+    simple: "direct:customer-lookup"
     aggregationStrategy: "#customerEnricher"
 ```
 
 Poll enrich:
 ```yaml
 - pollEnrich:
-    uri: file:data/lookup?fileName=${header.lookupFile}
+    simple: "file:data/lookup?fileName=${header.lookupFile}"
     timeout: 5000
     aggregationStrategy: "#fileEnricher"
 ```
@@ -273,7 +273,7 @@ handled:
 - circuitBreaker:
     resilience4jConfiguration:
       failureRateThreshold: 50
-      waitDurationInOpenState: 10000
+      waitDurationInOpenState: 10  # seconds
       slidingWindowSize: 10
     steps:
       - to:

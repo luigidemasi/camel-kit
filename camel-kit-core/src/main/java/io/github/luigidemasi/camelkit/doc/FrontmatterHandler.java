@@ -69,9 +69,12 @@ public final class FrontmatterHandler {
             if (stalenessObj instanceof Map) {
                 return YAML_MAPPER.convertValue(stalenessObj, StalenessInfo.class);
             }
+            if (root.containsKey("staleness")) {
+                return StalenessInfo.stale("Malformed staleness metadata", Instant.now().toString());
+            }
             return StalenessInfo.fresh();
         } catch (Exception e) {
-            return StalenessInfo.fresh();
+            return StalenessInfo.stale("Malformed frontmatter: " + e.getMessage(), Instant.now().toString());
         }
     }
 
@@ -93,12 +96,16 @@ public final class FrontmatterHandler {
     }
 
     public static String writeFrontmatter(StalenessInfo staleness, GeneratedInfo generated, String body) {
+        Map<String, Object> root = new LinkedHashMap<>();
+        root.put("staleness", staleness);
+        if (generated != null) {
+            root.put("generated", generated);
+        }
+        return writeFrontmatter(root, body);
+    }
+
+    private static String writeFrontmatter(Map<String, Object> root, String body) {
         try {
-            Map<String, Object> root = new LinkedHashMap<>();
-            root.put("staleness", staleness);
-            if (generated != null) {
-                root.put("generated", generated);
-            }
             String yaml = YAML_MAPPER.writeValueAsString(root).trim();
             StringBuilder sb = new StringBuilder();
             sb.append(DELIMITER).append('\n');
@@ -120,17 +127,17 @@ public final class FrontmatterHandler {
     public static String markStale(String content, String reason, String since) {
         String yaml = extractFrontmatterYaml(content);
         String body = extractBody(content);
-        StalenessInfo staleness = StalenessInfo.stale(reason, since);
-        GeneratedInfo generated = parseGenerated(yaml);
-        return writeFrontmatter(staleness, generated, body);
+        Map<String, Object> root = parseFrontmatterMap(yaml);
+        root.put("staleness", StalenessInfo.stale(reason, since));
+        return writeFrontmatter(root, body);
     }
 
     public static String clearStale(String content) {
         String yaml = extractFrontmatterYaml(content);
         String body = extractBody(content);
-        StalenessInfo staleness = StalenessInfo.fresh();
-        GeneratedInfo generated = parseGenerated(yaml);
-        return writeFrontmatter(staleness, generated, body);
+        Map<String, Object> root = parseFrontmatterMap(yaml);
+        root.put("staleness", StalenessInfo.fresh());
+        return writeFrontmatter(root, body);
     }
 
     public static String toCheckJson(String filePath, String content) {
@@ -149,6 +156,22 @@ public final class FrontmatterHandler {
             return JSON_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(result);
         } catch (Exception e) {
             throw new RuntimeException("Failed to build check JSON: " + e.getMessage(), e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> parseFrontmatterMap(String yaml) {
+        if (yaml == null || yaml.isBlank()) {
+            return new LinkedHashMap<>();
+        }
+        try {
+            Map<String, Object> parsed = YAML_MAPPER.readValue(yaml, Map.class);
+            return parsed == null ? new LinkedHashMap<>() : new LinkedHashMap<>(parsed);
+        } catch (Exception e) {
+            Map<String, Object> root = new LinkedHashMap<>();
+            root.put("staleness", StalenessInfo.stale(
+                    "Malformed frontmatter: " + e.getMessage(), Instant.now().toString()));
+            return root;
         }
     }
 }

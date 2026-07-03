@@ -21,6 +21,14 @@ mechanically — the component, pattern, or dependency is structurally wrong and
 
 ---
 
+## Approval Boundary
+
+The user's approved implementation plan authorizes normal task execution and the bounded automatic re-plan loop
+described here. It does **not** authorize unlimited design changes. Stop and ask the user when the round limit is
+reached, the same failure class repeats, or no MCP-verified alternative exists.
+
+---
+
 ## Entry Points
 
 This guide is invoked from two locations:
@@ -67,14 +75,14 @@ After the 3rd failed attempt, enter re-plan.
 Determine which flow design section(s) in the active design spec need modification.
 
 1. Read the failure context — which component, dependency, or pattern failed?
-2. Map the failure to design spec section(s):
+2. Map the failure to design spec heading/field anchors:
 
-   | Failure Type | Affected Design Spec Section(s) |
+   | Failure Type | Affected Design Spec Anchor(s) |
    |---|---|
-   | Component unavailable | Section 2 (Source System) or Section 4 (Sink System) |
-   | Dependency conflict | Section 8 (Dependencies) |
-   | Property/option not supported | Section 7 (Configuration) |
-   | EIP pattern unavailable | Section 2/4 (component) + Section 7 (config) |
+   | Component unavailable | The affected flow's **Source** or **Sink** component field |
+   | Dependency conflict | The affected flow/project **Dependencies** table |
+   | Property/option not supported | The affected flow's **Configuration Properties** and endpoint options |
+   | EIP pattern unavailable | The affected flow's **Transformations/Error Handling** entry plus related configuration |
 
 3. Determine the blast radius:
    - **Single flow:** failure is scoped to one flow design — modify that flow only
@@ -98,8 +106,8 @@ Query the MCP catalog for alternative components that fulfill the same role.
 Update ONLY the affected sections. Preserve all other sections verbatim.
 
 1. Replace the failing component/version/pattern with the verified alternative
-2. Update Section 8 (Dependencies) to match the new component's Maven coordinates
-3. Update Section 7 (Configuration) if the new component requires different properties
+2. Update the **Dependencies** table to match the new component's Maven coordinates
+3. Update **Configuration Properties** and endpoint options if the new component requires different properties
 4. Add a **Re-Plan History** appendix entry at the end of the affected flow design:
 
 ```markdown

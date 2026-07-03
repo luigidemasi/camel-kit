@@ -1,13 +1,13 @@
 # DataMapper Interview Guide
 
-> **Context variables provided by `camel-flow`:**
+> **Context variables provided by `camel-brainstorm`:**
 > - `FLOW_NAME` — the flow being designed
 > - `CAMEL_VERSION` — from `.camel-kit/config.properties`
 > - Source format and target format from the user's Q3 answer
 
-You are now acting as a **Data Mapping Specialist**. This guide is loaded by `camel-flow` when the user mentions data transformation or field mapping and the format pair is XML→XML, JSON→JSON, JSON→XML, or XML→JSON.
+You are now acting as a **Data Mapping Specialist**. This guide is loaded by `camel-brainstorm` when the user mentions data transformation or field mapping and the format pair is XML→XML, JSON→JSON, JSON→XML, or XML→JSON.
 
-Follow the steps below, then return control to `camel-flow` at Question 4.
+Follow the steps below, then return control to `camel-brainstorm` at Question 8.
 
 ---
 
@@ -219,4 +219,4 @@ The shared guide will:
 
 **Schema-less path:** If source or target has no schema file (Step 2c or 3c selected), the type is still `JSON_SCHEMA` or `XML_SCHEMA` (based on the data format) — the schema path is `"none"`. Pass the manually described field names and types. The shared guide will compute XPaths from the field paths without needing schema files. Only use `Primitive` if the data is a truly scalar value (single string, number, or boolean).
 
-**When done:** return control to `camel-flow` and continue at Question 4 (Sink System).
+**When done:** return control to `camel-brainstorm` and continue at Question 8 (Sink System).

@@ -68,11 +68,13 @@ Fallback policy:
 
 The `platformBom` parameter accepts a full Maven GAV (`groupId:artifactId:version`) and is the preferred way to query a specific catalog version. It works for all runtimes:
 
-- **main**: `org.apache.camel:camel-catalog:4.14.4`
-- **spring-boot**: `org.apache.camel.springboot:camel-catalog-provider-springboot:4.14.4`
-- **quarkus**: `io.quarkus.platform:quarkus-camel-bom:3.17.7`
+- **main**: `org.apache.camel:camel-catalog:{project.camelVersion}`
+- **spring-boot**: `org.apache.camel.springboot:camel-catalog-provider-springboot:{project.camelVersion}`
+- **quarkus**: `io.quarkus.platform:quarkus-camel-bom:{project.platformBomVersion}`
 
-The correct `platformBom` value for each runtime is derived from `.camel-kit/config.properties` (the single source of truth for all version numbers).
+The correct `platformBom` value for each runtime is derived from `.camel-kit/config.properties`. Version layering is:
+distribution defaults in `distribution.properties`, then init/version selection, then workspace values in
+`.camel-kit/config.properties`, then any downstream runtime context passed to a specific task.
 
 When `platformBom` is provided, `camelVersion` is ignored.
 
@@ -88,11 +90,12 @@ The runtime affects which components are returned (e.g., Quarkus extensions vs S
 
 ### Rule 3: Omitting `platformBom` and `camelVersion`
 
-When both are omitted, the MCP server uses its built-in catalog (4.21.0-SNAPSHOT). Use this as a fallback when the exact version doesn't matter.
+When both are omitted, the MCP server uses its built-in catalog for the server artifact configured by the distribution.
+Use this as a fallback when the exact version doesn't matter.
 
 **Examples:**
-- Project has `camelVersion: 4.14.4`, `runtime: quarkus` → `runtime=quarkus`, `platformBom=io.quarkus.platform:quarkus-camel-bom:3.17.7`
-- Project has `camelVersion: 4.8.5`, `runtime: spring-boot` → `runtime=spring-boot`, `platformBom=org.apache.camel.springboot:camel-catalog-provider-springboot:4.8.5`
+- Project has `runtime: quarkus` → `runtime=quarkus`, `platformBom=io.quarkus.platform:quarkus-camel-bom:{project.platformBomVersion}`
+- Project has `runtime: spring-boot` → `runtime=spring-boot`, `platformBom=org.apache.camel.springboot:camel-catalog-provider-springboot:{project.camelVersion}`
 - Quick lookup, version doesn't matter → `runtime=main`, omit `platformBom`
 
 ### Version configuration
@@ -115,6 +118,13 @@ Default platform BOMs by runtime:
 | quarkus | `io.quarkus.platform:quarkus-camel-bom:{project.platformBomVersion}` |
 
 Users can override any property via `-p key=value` CLI flags or a custom config file (`-c path`).
+
+### Placeholder conventions
+
+Use single-brace placeholders such as `{CAMEL_VERSION}` only for camel-kit install-time template expansion. Use
+context placeholders such as `{project.camelVersion}` when describing values read from `.camel-kit/config.properties`.
+Use double-brace placeholders such as `{{customer.host}}` only for literal Camel property placeholders that must remain
+in generated route files.
 
 ---
 

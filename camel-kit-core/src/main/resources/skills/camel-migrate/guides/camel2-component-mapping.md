@@ -37,7 +37,6 @@ These renames happened in Camel 4.0.
 |---------------|---------------|-------|
 | `direct-vm` | `direct` | Cross-CamelContext `direct-vm` removed. Use `direct` (single context). |
 | `vm` | `seda` | Cross-CamelContext `vm` removed. Use `seda` (single context). |
-| `activemq` | `jms` | Dedicated `activemq` component removed. Use `jms` with `activemq-client` on classpath. |
 | `dozer` | *(removed)* | Dozer component removed. Use DataMapper/XSLT via `camel-xslt-saxon`. |
 
 ## Removed Components — No Direct Replacement
@@ -58,7 +57,6 @@ These components were removed entirely. When encountered, **STOP and ask the use
 | `boon` | 3.0 | Use `jackson` |
 | `rx-netty` | 3.0 | Use `netty-http` |
 | `chronicle-engine` | 3.0 | No direct replacement |
-| `pgevent` | 4.0 | Use PostgreSQL LISTEN/NOTIFY via `sql` component |
 | `spark-rest` | 4.0 | Use `platform-http` |
 
 ## Default Migration Rules for HTTP Consumers and REST Services

@@ -61,11 +61,15 @@ public final class GraphSerializer {
     public static ProjectGraph read(Path file) throws IOException {
         ProjectGraph graph = new ProjectGraph();
         JsonNode root = MAPPER.readTree(file.toFile());
+        String version = requiredText(root, "version", "root");
+        if (!FORMAT_VERSION.equals(version)) {
+            throw new IOException("Unsupported graph format version '" + version + "'; expected " + FORMAT_VERSION);
+        }
 
-        JsonNode nodesObj = root.get("nodes");
+        JsonNode nodesObj = requiredObject(root, "nodes", "root");
         nodesObj.fieldNames().forEachRemaining(id -> {
             JsonNode nodeObj = nodesObj.get(id);
-            NodeType type = NodeType.valueOf(nodeObj.get("type").asText());
+            NodeType type = nodeType(requiredTextUnchecked(nodeObj, "type", "node " + id));
             Map<String, String> props = Map.of();
             if (nodeObj.has("properties")) {
                 props = MAPPER.convertValue(nodeObj.get("properties"), new TypeReference<>() {
@@ -74,11 +78,11 @@ public final class GraphSerializer {
             graph.addNode(new GraphNode(id, type, props));
         });
 
-        JsonNode edgesArr = root.get("edges");
+        JsonNode edgesArr = requiredArray(root, "edges", "root");
         for (JsonNode edgeObj : edgesArr) {
-            String from = edgeObj.get("from").asText();
-            String to = edgeObj.get("to").asText();
-            EdgeType type = EdgeType.valueOf(edgeObj.get("type").asText());
+            String from = requiredText(edgeObj, "from", "edge");
+            String to = requiredText(edgeObj, "to", "edge");
+            EdgeType type = edgeType(requiredText(edgeObj, "type", "edge"));
             Map<String, String> props = Map.of();
             if (edgeObj.has("properties")) {
                 props = MAPPER.convertValue(edgeObj.get("properties"), new TypeReference<>() {
@@ -88,5 +92,54 @@ public final class GraphSerializer {
         }
 
         return graph;
+    }
+
+    private static JsonNode requiredObject(JsonNode parent, String field, String location) throws IOException {
+        JsonNode node = parent.get(field);
+        if (node == null || !node.isObject()) {
+            throw new IOException("Malformed graph: " + location + " is missing object field '" + field + "'");
+        }
+        return node;
+    }
+
+    private static JsonNode requiredArray(JsonNode parent, String field, String location) throws IOException {
+        JsonNode node = parent.get(field);
+        if (node == null || !node.isArray()) {
+            throw new IOException("Malformed graph: " + location + " is missing array field '" + field + "'");
+        }
+        return node;
+    }
+
+    private static String requiredText(JsonNode parent, String field, String location) throws IOException {
+        JsonNode node = parent.get(field);
+        if (node == null || !node.isTextual()) {
+            throw new IOException("Malformed graph: " + location + " is missing text field '" + field + "'");
+        }
+        return node.asText();
+    }
+
+    private static String requiredTextUnchecked(JsonNode parent, String field, String location) {
+        JsonNode node = parent.get(field);
+        if (node == null || !node.isTextual()) {
+            throw new IllegalArgumentException(
+                    "Malformed graph: " + location + " is missing text field '" + field + "'");
+        }
+        return node.asText();
+    }
+
+    private static NodeType nodeType(String value) {
+        try {
+            return NodeType.valueOf(value);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Malformed graph: unknown node type '" + value + "'", e);
+        }
+    }
+
+    private static EdgeType edgeType(String value) throws IOException {
+        try {
+            return EdgeType.valueOf(value);
+        } catch (IllegalArgumentException e) {
+            throw new IOException("Malformed graph: unknown edge type '" + value + "'", e);
+        }
     }
 }

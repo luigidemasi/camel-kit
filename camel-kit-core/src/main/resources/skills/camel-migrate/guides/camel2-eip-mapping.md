@@ -41,7 +41,6 @@ These EIPs keep the same element name but had attributes renamed in Camel 4.0.
 | EIP | Removed In | Replacement |
 |-----|-----------|-------------|
 | `hystrix` | 4.0 | `circuitBreaker` with `resilience4jConfiguration` |
-| `loadBalance` type `custom` | 4.0 | Use `failover` or `roundRobin` — verify via MCP |
 
 ## XML Namespace Changes
 

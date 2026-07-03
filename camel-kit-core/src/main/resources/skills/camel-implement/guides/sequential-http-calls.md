@@ -94,7 +94,7 @@ Use the `removeHeaders` EIP right before setting up the request for the second `
             
         # 2. Execute FIRST call and isolate response via variableReceive
         - to: 
-            uri: "[https://api.system-one.com/v1/users](https://api.system-one.com/v1/users)"
+            uri: "https://api.system-one.com/v1/users"
             variableReceive: "FirstApiResponse"
 
         # 3. HEADER SANITIZATION (Crucial Step!)
@@ -113,7 +113,7 @@ Use the `removeHeaders` EIP right before setting up the request for the second `
             name: "X-User-Context"
             simple: "${variable.FirstApiResponse}"
         - to:
-            uri: "[https://api.system-two.com/v2/process](https://api.system-two.com/v2/process)"
+            uri: "https://api.system-two.com/v2/process"
             
         - log: "Processing completed successfully."
 ```
@@ -163,4 +163,3 @@ Apply the same sanitization pattern before the very first `to:` producer step:
 ```
 
 The same applies for `servlet`, `jetty`, `undertow` (as consumer), and `netty-http` (as consumer) in place of `platform-http`.
-

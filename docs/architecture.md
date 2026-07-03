@@ -500,7 +500,7 @@ The `DefaultGenerator` orchestrates shared generation services such as `CommandS
 
 ### Camel JBang MCP
 
-The Camel MCP server (`camel-jbang-mcp`, `4.21.0-SNAPSHOT`) exposes the Camel catalog, route validation,
+The configured Camel MCP server (`camel-jbang-mcp`, via `camel.mcp.version`) exposes the Camel catalog, route validation,
 diagnostics, migration, and scaffolding tools. Camel-Kit auto-allows the read-only and generation helpers used by
 the skills, and leaves runtime mutation/control tools out of the generated allowlist.
 
@@ -742,7 +742,7 @@ rules.
 
 ### Version Alignment
 
-Camel-Kit defaults to the latest Apache Camel version, configured in `distribution.properties` (the single source of truth for all version numbers and MCP settings). Users can override any property via `-p key=value` CLI flags or a custom config file (`-c path`). Component availability is verified via the MCP catalog layer.
+Camel-Kit ships version defaults in `distribution.properties`, then persists the selected runtime/version into `.camel-kit/config.properties` during init. Users can override properties via `-p key=value` CLI flags or a custom config file (`-c path`). Component availability is verified via the MCP catalog layer using the workspace-selected values.
 
 ### Multi-Agent Parity
 

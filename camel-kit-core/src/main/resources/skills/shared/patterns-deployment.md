@@ -12,18 +12,18 @@
     id: competing-consumer
     from:
       uri: jms:queue:orders?concurrentConsumers=5
-    steps:
-      - to:
-          uri: bean:orderProcessor
+      steps:
+        - to:
+            uri: bean:orderProcessor
 
 # Kafka consumer group (partition-based)
 - route:
     id: kafka-consumer
     from:
       uri: kafka:orders?groupId=order-processors
-    steps:
-      - to:
-          uri: bean:orderProcessor
+      steps:
+        - to:
+            uri: bean:orderProcessor
 ```
 
 **Kafka Consumer Scaling:**
@@ -47,13 +47,13 @@
 ```yaml
 - route:
     id: singleton-route
-    routePolicy: "#clusterServicePolicy"
+    routePolicyRef: "#clusterServicePolicy"
     autoStartup: false
     from:
       uri: file:incoming
-    steps:
-      - to:
-          uri: direct:process
+      steps:
+        - to:
+            uri: direct:process
 ```
 
 **Options**: Kubernetes Leader Election, Hazelcast/Infinispan distributed lock, database-based locking.
@@ -70,20 +70,20 @@
     id: order-receiver
     from:
       uri: platform-http:/orders
-    steps:
-      - to:
-          uri: kafka:order-queue
-      - transform:
-          constant: '{"status": "accepted"}'
+      steps:
+        - to:
+            uri: kafka:order-queue
+        - transform:
+            constant: '{"status": "accepted"}'
 
 # Consumer (processes at own pace)
 - route:
     id: order-processor
     from:
       uri: kafka:order-queue
-    steps:
-      - to:
-          uri: bean:orderProcessor
+      steps:
+        - to:
+            uri: bean:orderProcessor
 ```
 
 ---
@@ -97,19 +97,19 @@
     id: ingest
     from:
       uri: kafka:orders
-    steps:
-      - to:
-          uri: seda:validate?concurrentConsumers=5
+      steps:
+        - to:
+            uri: seda:validate?concurrentConsumers=5
 
 - route:
     id: validate
     from:
       uri: seda:validate
-    steps:
-      - to:
-          uri: bean:validator
-      - to:
-          uri: seda:enrich?concurrentConsumers=10
+      steps:
+        - to:
+            uri: bean:validator
+        - to:
+            uri: seda:enrich?concurrentConsumers=10
 ```
 
 **Considerations**: Flows must be stateless, message order not guaranteed across parallel stages.
@@ -140,12 +140,12 @@
     id: critical-processing
     from:
       uri: kafka:critical-orders
-    steps:
-      - threads:
-          executorService: "#criticalThreadPool"
-          steps:
-            - to:
-                uri: direct:process
+      steps:
+        - threads:
+            executorService: "#criticalThreadPool"
+            steps:
+              - to:
+                  uri: direct:process
 ```
 
 ---

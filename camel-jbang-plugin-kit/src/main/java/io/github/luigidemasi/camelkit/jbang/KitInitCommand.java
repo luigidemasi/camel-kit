@@ -39,6 +39,9 @@ public class KitInitCommand extends CamelCommand {
     @Option(names = {"--no-fetch"}, description = "Skip external catalog fetching")
     boolean noFetch;
 
+    @Option(names = {"--force"}, description = "Overwrite existing project without prompting")
+    boolean force;
+
     @Option(names = {"--silent"}, description = "Suppress all output (no banner, no progress, no summary)")
     boolean silent;
 
@@ -54,20 +57,27 @@ public class KitInitCommand extends CamelCommand {
             description = "Source platform for migration graph analysis: mulesoft, camel, biztalk, auto (default: auto)")
     String sourcePlatform;
 
+    private final CamelKitMain camelKitMain;
+
     public KitInitCommand(CamelJBangMain main) {
+        this(main, new CamelKitMain());
+    }
+
+    public KitInitCommand(CamelJBangMain main, CamelKitMain camelKitMain) {
         super(main);
+        this.camelKitMain = camelKitMain;
+        this.camelKitMain.disableTui();
     }
 
     @Override
     public Integer doCall() throws Exception {
-        CamelKitMain camelKitMain = new CamelKitMain();
-
         InitCommand initCommand = new InitCommand(camelKitMain);
         initCommand.projectName = this.projectName;
         initCommand.ai = this.ai;
         initCommand.here = this.here;
         initCommand.citrusVersion = this.citrusVersion;
         initCommand.noFetch = this.noFetch;
+        initCommand.force = this.force;
         initCommand.silent = this.silent;
         initCommand.configFile = this.configFile;
         initCommand.properties = this.properties;

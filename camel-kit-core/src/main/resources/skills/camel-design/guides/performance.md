@@ -106,7 +106,7 @@ kafka.maxPollRecords=500
 - idempotentConsumer:
     expression:
       simple: "${header.MessageId}"
-    messageIdRepository:
+    idempotentRepository:
       type: database
 ```
 
@@ -194,7 +194,7 @@ buffer.fullAction=block  # or drop, or exception
 - circuitBreaker:
     resilience4jConfiguration:
       failureRateThreshold: 50
-      waitDurationInOpenState: 30000
+      waitDurationInOpenState: 30  # seconds
 ```
 
 **Pros:** Fails fast, prevents cascade

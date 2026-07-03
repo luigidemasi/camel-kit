@@ -1,5 +1,6 @@
 package io.github.luigidemasi.camelkit.generator;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -11,7 +12,7 @@ class TemplateResourceCopier {
     void copy(String resourcePath, Path target) throws IOException {
         try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
             if (is == null) {
-                return;
+                throw new FileNotFoundException("Template resource not found: " + resourcePath);
             }
             Path parent = target.getParent();
             if (parent != null) {

@@ -44,10 +44,10 @@ XLANG/s is the expression language used in BizTalk orchestrations. It is based o
 | **String .Substring()** | `code.Substring(0, 3)` | Groovy: `code.substring(0, 3)` | Groovy |
 | **String .Replace()** | `phone.Replace("-", "")` | Groovy: `phone.replace("-", "")` | Groovy |
 | **String concatenation** | `firstName + " " + lastName` | `${header.firstName} ${header.lastName}` | Simple |
-| **Arithmetic (add)** | `quantity + 10` | `${header.quantity} + 10` | Simple |
-| **Arithmetic (subtract)** | `amount - discount` | `${header.amount} - ${header.discount}` | Simple |
-| **Arithmetic (multiply)** | `quantity * unitPrice` | `${header.quantity} * ${header.unitPrice}` | Simple |
-| **Arithmetic (divide)** | `total / count` | `${header.total} / ${header.count}` | Simple |
+| **Arithmetic (add)** | `quantity + 10` | Groovy: `headers.quantity + 10` | Groovy or custom Processor |
+| **Arithmetic (subtract)** | `amount - discount` | Groovy: `headers.amount - headers.discount` | Groovy or custom Processor |
+| **Arithmetic (multiply)** | `quantity * unitPrice` | Groovy: `headers.quantity * headers.unitPrice` | Groovy or custom Processor |
+| **Arithmetic (divide)** | `total / count` | Groovy: `headers.total / headers.count` | Groovy or custom Processor |
 | **Null check** | `status == null` | `${header.status} == null` | Simple |
 | **Not null check** | `status != null` | `${header.status} != null` | Simple |
 | **Ternary operator** | `status == null ? "PENDING" : status` | `${header.status} ?: 'PENDING'` | Simple (Elvis operator) |
@@ -247,10 +247,10 @@ lineTotal = quantity * unitPrice;
 finalAmount = subtotal - discount;
 ```
 
-**Camel Equivalent (Simple):**
+**Camel Equivalent (Groovy language or custom Processor):**
 ```java
-.setHeader("lineTotal", simple("${header.quantity} * ${header.unitPrice}"))
-.setHeader("finalAmount", simple("${header.subtotal} - ${header.discount}"))
+.setHeader("lineTotal", groovy("headers.quantity * headers.unitPrice"))
+.setHeader("finalAmount", groovy("headers.subtotal - headers.discount"))
 ```
 
 ---

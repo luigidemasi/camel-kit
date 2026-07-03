@@ -30,12 +30,12 @@
     id: transacted-route
     from:
       uri: jms:queue:orders
-    steps:
-      - transacted: {}
-      - to:
-          uri: jpa:Order
-      - to:
-          uri: jms:queue:notifications
+      steps:
+        - transacted: {}
+        - to:
+            uri: jpa:Order
+        - to:
+            uri: jms:queue:notifications
 ```
 
 **Guidance**: Prefer local transactions. Use XA only when necessary. Consider Saga for long-running processes.
@@ -52,31 +52,31 @@
     id: order-saga
     from:
       uri: direct:place-order
-    steps:
-      - saga:
-          propagation: REQUIRED
-          compensation:
-            uri: direct:cancel-order
-          completion:
-            uri: direct:complete-order
-          steps:
-            - to:
-                uri: direct:reserve-inventory
-            - to:
-                uri: direct:charge-payment
-            - to:
-                uri: direct:ship-order
+      steps:
+        - saga:
+            propagation: REQUIRED
+            compensation:
+              uri: direct:cancel-order
+            completion:
+              uri: direct:complete-order
+            steps:
+              - to:
+                  uri: direct:reserve-inventory
+              - to:
+                  uri: direct:charge-payment
+              - to:
+                  uri: direct:ship-order
 
 # Compensation route
 - route:
     id: cancel-order
     from:
       uri: direct:cancel-order
-    steps:
-      - to:
-          uri: direct:refund-payment
-      - to:
-          uri: direct:release-inventory
+      steps:
+        - to:
+            uri: direct:refund-payment
+        - to:
+            uri: direct:release-inventory
 ```
 
 **When to Apply**: Long-running processes, cross-service transactions, when XA is unavailable.
@@ -93,15 +93,15 @@
     id: idempotent-processing
     from:
       uri: kafka:orders
-    steps:
-      - idempotentConsumer:
-          expression:
-            header: orderId
-          idempotentRepository: "#jpaRepository"
-          skipDuplicate: true
-          steps:
-            - to:
-                uri: direct:process-order
+      steps:
+        - idempotentConsumer:
+            expression:
+              header: orderId
+            idempotentRepository: "#jpaRepository"
+            skipDuplicate: true
+            steps:
+              - to:
+                  uri: direct:process-order
 ```
 
 **Repository Selection**:
@@ -133,9 +133,9 @@
           retryAttemptedLogLevel: WARN
     from:
       uri: kafka:orders
-    steps:
-      - to:
-          uri: http:order-service
+      steps:
+        - to:
+            uri: http:order-service
 ```
 
 **Best Practices**: Keep retry delays short, use exponential backoff, set maximum redeliveries, use DLQ for persistent failures.
@@ -157,14 +157,14 @@
     id: throttled-api
     from:
       uri: platform-http:/orders
-    steps:
-      - throttle:
-          expression:
-            constant: 100
-          timePeriodMillis: 1000
-          rejectExecution: true
-      - to:
-          uri: direct:process-order
+      steps:
+        - throttle:
+            expression:
+              constant: 100
+            timePeriodMillis: 1000
+            rejectExecution: true
+        - to:
+            uri: direct:process-order
 ```
 
 ---
@@ -180,19 +180,19 @@
     id: circuit-breaker-route
     from:
       uri: direct:call-service
-    steps:
-      - circuitBreaker:
-          resilience4jConfiguration:
-            failureRateThreshold: 50
-            waitDurationInOpenState: 10000
-            slidingWindowSize: 10
-          steps:
-            - to:
-                uri: http:external-service
-          onFallback:
+      steps:
+        - circuitBreaker:
+            resilience4jConfiguration:
+              failureRateThreshold: 50
+              waitDurationInOpenState: 10  # seconds
+              slidingWindowSize: 10
             steps:
-              - transform:
-                  constant: '{"status": "service unavailable"}'
+              - to:
+                  uri: http:external-service
+            onFallback:
+              steps:
+                - transform:
+                    constant: '{"status": "service unavailable"}'
 ```
 
 | Parameter | Typical Value |
@@ -213,6 +213,16 @@
 | **Invalid Message Channel** | Route malformed messages | `onException` with `handled(true)` |
 
 ```yaml
+- onException:
+    exception:
+      - com.example.ValidationException
+    handled:
+      constant:
+        expression: "true"
+    steps:
+      - to:
+          uri: kafka:invalid-orders
+
 - route:
     id: error-handling-route
     errorHandler:
@@ -221,17 +231,11 @@
         useOriginalMessage: true
     from:
       uri: kafka:orders
-    steps:
-      - onException:
-          exception: com.example.ValidationException
-          handled: true
-          steps:
-            - to:
-                uri: kafka:invalid-orders
-      - to:
-          uri: bean:orderValidator
-      - to:
-          uri: direct:process
+      steps:
+        - to:
+            uri: bean:orderValidator
+        - to:
+            uri: direct:process
 ```
 
 **DLQ Best Practices**: Include original message + exception details, monitor DLQ depth, create reprocessing mechanism.

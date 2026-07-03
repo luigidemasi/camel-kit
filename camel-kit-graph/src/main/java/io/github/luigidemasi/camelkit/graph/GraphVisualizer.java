@@ -77,7 +77,7 @@ public final class GraphVisualizer {
             e.put("type", edge.type().name());
         }
         try {
-            return MAPPER.writeValueAsString(root);
+            return MAPPER.writeValueAsString(root).replace("<", "\\u003C");
         } catch (Exception e) {
             return "{\"nodes\":[],\"edges\":[]}";
         }

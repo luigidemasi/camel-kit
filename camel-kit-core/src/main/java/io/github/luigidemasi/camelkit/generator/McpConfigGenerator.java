@@ -31,7 +31,7 @@ class McpConfigGenerator {
 
             ctx.printer().println(AnsiColors.green("✓") + " MCP config created for " + ctx.agent().name());
         } catch (Exception e) {
-            ctx.printer().println(AnsiColors.yellow("  Warning: Could not create MCP config: " + e.getMessage()));
+            throw new IllegalStateException("Could not create MCP config: " + e.getMessage(), e);
         }
     }
 

@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import io.github.luigidemasi.camelkit.graph.ProjectGraph;
 import io.github.luigidemasi.camelkit.graph.parser.biztalk.*;
@@ -44,7 +45,7 @@ public class BizTalkParser implements GraphParser {
     @Override
     public void parseFiles(Path projectRoot, List<Path> files, ProjectGraph graph) {
         warnings.clear();
-        files.forEach(file -> parseArtifact(file, graph));
+        files.forEach(file -> parseArtifact(projectRoot, file, graph));
     }
 
     @Override
@@ -62,22 +63,22 @@ public class BizTalkParser implements GraphParser {
         return GraphParser.findFilePaths(projectRoot, projectFiles, this::isBizTalkArtifact);
     }
 
-    private void parseArtifact(Path file, ProjectGraph graph) {
-        String fileName = file.getFileName().toString();
+    private void parseArtifact(Path projectRoot, Path file, ProjectGraph graph) {
+        String fileName = file.getFileName().toString().toLowerCase(Locale.ROOT);
 
         if (fileName.endsWith(".odx")) {
             odxParser.parse(file, graph);
         } else if (fileName.endsWith(".btm")) {
-            btmParser.parse(file, graph);
+            btmParser.parse(projectRoot, file, graph);
         } else if (fileName.endsWith(".btp")) {
-            btpParser.parse(file, graph);
+            btpParser.parse(projectRoot, file, graph);
         } else if (fileName.endsWith(".xml") && !fileName.equals("pom.xml")) {
             bindingParser.parse(file, graph);
         }
     }
 
     private boolean isBizTalkArtifact(Path file) {
-        String fileName = file.getFileName().toString();
+        String fileName = file.getFileName().toString().toLowerCase(Locale.ROOT);
         return fileName.endsWith(".odx")
                 || fileName.endsWith(".btm")
                 || fileName.endsWith(".btp")

@@ -30,12 +30,12 @@ public class GroovyGraphParser implements GraphParser {
 
     @Override
     public List<String> scannedFiles(Path projectRoot) {
-        return GraphParser.findFiles(projectRoot, file -> file.toString().endsWith(".groovy"));
+        return GraphParser.findFiles(projectRoot, GroovyGraphParser::isGroovyFile);
     }
 
     @Override
     public List<Path> scannedFilePaths(Path projectRoot, List<Path> projectFiles) {
-        return GraphParser.findFilePaths(projectRoot, projectFiles, file -> file.toString().endsWith(".groovy"));
+        return GraphParser.findFilePaths(projectRoot, projectFiles, GroovyGraphParser::isGroovyFile);
     }
 
     @Override
@@ -239,7 +239,7 @@ public class GroovyGraphParser implements GraphParser {
         String fromEndpointId = "endpoint:" + fromUri;
         graph.addNode(new GraphNode(
                 fromEndpointId, NodeType.CAMEL_ENDPOINT,
-                Map.of("uri", fromUri)));
+                endpointProperties(fromUri)));
         graph.addEdge(new GraphEdge(routeNodeId, fromEndpointId, EdgeType.ROUTES_FROM, Map.of()));
 
         // Link route to declaring class
@@ -259,7 +259,7 @@ public class GroovyGraphParser implements GraphParser {
                     String toEndpointId = "endpoint:" + toUri;
                     graph.addNode(new GraphNode(
                             toEndpointId, NodeType.CAMEL_ENDPOINT,
-                            Map.of("uri", toUri)));
+                            endpointProperties(toUri)));
                     graph.addEdge(new GraphEdge(
                             routeNodeId, toEndpointId,
                             EdgeType.ROUTES_TO, Map.of()));
@@ -401,5 +401,17 @@ public class GroovyGraphParser implements GraphParser {
             }
         }
         return null;
+    }
+
+    private static boolean isGroovyFile(Path file) {
+        return file.toString().toLowerCase(Locale.ROOT).endsWith(".groovy");
+    }
+
+    private Map<String, String> endpointProperties(String uri) {
+        int colon = uri.indexOf(':');
+        if (colon > 0) {
+            return Map.of("uri", uri, "scheme", uri.substring(0, colon));
+        }
+        return Map.of("uri", uri);
     }
 }

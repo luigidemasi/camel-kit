@@ -22,6 +22,7 @@ class VersionPlaceholderResolverTest {
                 jackson: {}
                 ${quarkus.platform.version}
                 {COMMAND_PREFIX} graph stats
+                Runtime property placeholder: {{CAMEL_VERSION}}
                 Version: {QUARKUS_PLATFORM_VERSION}
                 """);
         new VersionPlaceholderResolver().substitute(mdFile);
@@ -31,6 +32,7 @@ class VersionPlaceholderResolverTest {
         assertTrue(result.contains("jackson: {}"), "YAML empty map must be preserved");
         assertTrue(result.contains("${quarkus.platform.version}"), "Maven property must be preserved");
         assertTrue(result.contains("{COMMAND_PREFIX} graph stats"), "Non-version placeholder must be preserved");
+        assertTrue(result.contains("{{CAMEL_VERSION}}"), "Camel runtime property placeholder must be preserved");
         assertTrue(result.contains(dist.quarkusPlatformVersion()), "Version placeholder must be resolved");
         assertFalse(result.contains("{QUARKUS_PLATFORM_VERSION}"), "Version placeholder must not remain");
     }

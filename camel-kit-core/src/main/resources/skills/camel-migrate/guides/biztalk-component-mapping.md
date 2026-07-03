@@ -59,7 +59,7 @@ I found the MSMQ adapter in your BizTalk application.
 MSMQ has no direct Apache Camel equivalent. Please choose a replacement:
 
 a) ActiveMQ Artemis (`camel-jms`) — drop-in JMS replacement, supports durable queues
-b) RabbitMQ (`camel-rabbitmq`) — AMQP-based messaging
+b) RabbitMQ (`camel-spring-rabbitmq`) — RabbitMQ messaging via Spring AMQP
 c) Azure Service Bus (`camel-azure-servicebus`) — cloud-native alternative (if migrating to Azure)
 d) Remove this processing step from the migration design
 

@@ -84,7 +84,7 @@ BizTalk includes default pipelines for common scenarios. Map these to Camel patt
     uri: "file:{{input.directory}}"
     steps:
       - unmarshal:
-          mime: {}                         # Decode stage
+          mimeMultipart: {}                # Decode stage
       - unmarshal:
           jacksonXml: {}                   # Disassemble stage
       - to:
@@ -114,7 +114,7 @@ BizTalk includes default pipelines for common scenarios. Map these to Camel patt
       - marshal:
           jacksonXml: {}                   # Assemble stage
       - marshal:
-          mime: {}                         # Encode stage
+          mimeMultipart: {}                # Encode stage
       - to:
           uri: "file:{{output.directory}}"
 ```
@@ -177,13 +177,15 @@ BizTalk includes default pipelines for common scenarios. Map these to Camel patt
 **BizTalk JSON Decoder:**
 ```yaml
 - unmarshal:
-    jackson: {}
+    json:
+      library: Jackson
 ```
 
 **BizTalk JSON Encoder:**
 ```yaml
 - marshal:
-    jackson:
+    json:
+      library: Jackson
       prettyPrint: true
 ```
 
@@ -219,21 +221,18 @@ BizTalk includes default pipelines for common scenarios. Map these to Camel patt
 
 ---
 
-### MIME/SMIME Decoder/Encoder → mime data format
+### MIME/SMIME Decoder/Encoder
 
 **BizTalk MIME Decoder:**
 ```yaml
 - unmarshal:
-    mime: {}
+    mimeMultipart: {}
 ```
 
-**BizTalk SMIME Encoder:**
-```yaml
-- marshal:
-    mime:
-      encrypt: true
-      keyManager: "{{key.manager}}"
-```
+**BizTalk S/MIME Encoder:** Do not model S/MIME as `mimeMultipart` options. Camel 4's `mimeMultipart`
+data format does not provide encryption or key-manager options. Preserve the security requirement in the design spec
+and implement it with verified `camel-crypto`, `camel-mail`, or a custom processor after certificate and keystore
+details are known.
 
 ---
 
@@ -325,7 +324,7 @@ When you encounter a BizTalk pipeline (`.btp` file) during migration analysis, f
 | **Flat file schema** | Medium | Convert BizTalk XSD to Flatpack/Bindy format. Document conversion in the design spec. |
 | **S/MIME encryption with certificate** | Medium | Use `camel-crypto` or `camel-mail` with Java KeyStore. Document certificate location. |
 | **BizTalk Framework** (deprecated) | High | Must be re-implemented; discuss with development team. |
-| **EDI Disassembler/Assembler** | High | Use `camel-edifact` or `camel-x12` (if supported). Otherwise, third-party EDI library. |
+| **EDI Disassembler/Assembler** | High | No Camel 4 catalog component is assumed. Verify available EDI support through MCP, otherwise use a third-party EDI library or custom Processor. |
 
 When these patterns are found, record a required custom implementation action in the relevant design spec section and
 flag it for development team attention.

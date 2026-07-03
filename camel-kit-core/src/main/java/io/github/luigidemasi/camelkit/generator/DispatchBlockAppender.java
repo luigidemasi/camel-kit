@@ -16,12 +16,8 @@ class DispatchBlockAppender {
             return;
         }
         String dispatchTemplatePath = descriptor.dispatchTemplatePath();
-        try {
-            String dispatchBlock = TemplateUtils.readTemplate(dispatchTemplatePath);
-            String existing = Files.readString(skillMdFile);
-            Files.writeString(skillMdFile, existing + "\n---\n\n" + dispatchBlock);
-        } catch (IOException e) {
-            // Dispatch template not found: skill works without it.
-        }
+        String dispatchBlock = TemplateUtils.readTemplate(dispatchTemplatePath);
+        String existing = Files.readString(skillMdFile);
+        Files.writeString(skillMdFile, existing + "\n---\n\n" + dispatchBlock);
     }
 }

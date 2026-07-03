@@ -21,6 +21,6 @@ public final class RuntimeDetector {
                 return "karaf";
             }
         }
-        return "camel-main";
+        return "main";
     }
 }

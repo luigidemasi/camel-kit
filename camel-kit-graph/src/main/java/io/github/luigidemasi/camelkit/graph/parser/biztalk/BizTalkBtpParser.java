@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
@@ -19,6 +20,7 @@ import io.github.luigidemasi.camelkit.graph.model.EdgeType;
 import io.github.luigidemasi.camelkit.graph.model.GraphEdge;
 import io.github.luigidemasi.camelkit.graph.model.GraphNode;
 import io.github.luigidemasi.camelkit.graph.model.NodeType;
+import io.github.luigidemasi.camelkit.graph.parser.GraphParser;
 
 /**
  * Parser for BizTalk BTP (pipeline) files.
@@ -64,12 +66,16 @@ public class BizTalkBtpParser {
      * @param graph   the project graph to populate
      */
     public void parse(Path btpFile, ProjectGraph graph) {
+        parse(null, btpFile, graph);
+    }
+
+    public void parse(Path projectRoot, Path btpFile, ProjectGraph graph) {
         try {
             if (!Files.exists(btpFile)) {
                 return;
             }
 
-            parseBtpXml(btpFile, graph);
+            parseBtpXml(projectRoot, btpFile, graph);
         } catch (Exception e) {
             warningConsumer.accept("Failed to parse BizTalk BTP file: " + btpFile + " - " + e.getMessage());
         }
@@ -78,7 +84,7 @@ public class BizTalkBtpParser {
     /**
      * Parse BTP XML content using StAX.
      */
-    private void parseBtpXml(Path btpFile, ProjectGraph graph) throws Exception {
+    private void parseBtpXml(Path projectRoot, Path btpFile, ProjectGraph graph) throws Exception {
         XMLInputFactory factory = XMLInputFactory.newInstance();
         factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
         factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
@@ -91,7 +97,7 @@ public class BizTalkBtpParser {
                     int event = reader.next();
 
                     if (event == XMLStreamConstants.START_ELEMENT && "Document".equals(reader.getLocalName())) {
-                        parseDocument(reader, btpFile, graph);
+                        parseDocument(reader, projectRoot, btpFile, graph);
                     }
                 }
             } finally {
@@ -103,10 +109,13 @@ public class BizTalkBtpParser {
     /**
      * Parse the Document root element.
      */
-    private void parseDocument(XMLStreamReader reader, Path btpFile, ProjectGraph graph) throws Exception {
+    private void parseDocument(XMLStreamReader reader, Path projectRoot, Path btpFile, ProjectGraph graph)
+            throws Exception {
         // Extract pipeline name from filename (strip .btp extension)
         String fileName = btpFile.getFileName().toString();
-        String pipelineName = fileName.endsWith(".btp") ? fileName.substring(0, fileName.length() - 4) : fileName;
+        String pipelineName = fileName.toLowerCase(Locale.ROOT).endsWith(".btp")
+                ? fileName.substring(0, fileName.length() - 4)
+                : fileName;
 
         String categoryId = null;
         String friendlyName = null;
@@ -156,7 +165,7 @@ public class BizTalkBtpParser {
         // Create pipeline node
         String pipelineId = "biztalk-pipeline:" + finalPipelineName;
         Map<String, String> pipelineProps = new HashMap<>();
-        pipelineProps.put("file", btpFile.toString());
+        pipelineProps.put("file", relativePath(projectRoot, btpFile));
         pipelineProps.put("name", finalPipelineName);
         if (categoryId != null) {
             pipelineProps.put("categoryId", categoryId);
@@ -191,6 +200,13 @@ public class BizTalkBtpParser {
             GraphEdge edge = new GraphEdge(pipelineId, componentId, EdgeType.BIZTALK_PIPELINE_STAGE, edgeProps);
             graph.addEdge(edge);
         }
+    }
+
+    private String relativePath(Path projectRoot, Path file) {
+        if (projectRoot == null) {
+            return file.isAbsolute() ? file.getFileName().toString() : file.toString();
+        }
+        return GraphParser.relativeFileName(projectRoot, file);
     }
 
     /**

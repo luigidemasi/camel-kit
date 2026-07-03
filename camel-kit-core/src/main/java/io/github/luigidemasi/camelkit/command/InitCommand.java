@@ -143,6 +143,8 @@ public class InitCommand extends CamelKitCommand {
                 } catch (Throwable e) {
                     main.setOut(original);
                     main.setTaskTracker(TaskTracker.noop());
+                    printer().println(red("Error: TUI initialization failed: " + e.getMessage()));
+                    return 1;
                 }
             }
 

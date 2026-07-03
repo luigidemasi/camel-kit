@@ -81,12 +81,13 @@ Mule's `<http:listener-config>` defines `host` and `port` attributes. Camel's `p
 
 Convert Mule HTTP Listener port configuration to Camel as follows:
 
-| Mule Config | Camel `application.properties` |
+| Runtime | Camel `application.properties` |
 |---|---|
-| `<http:listener-config host="0.0.0.0" port="8081">` | `camel.server.enabled=true` |
-| | `camel.server.port=8081` |
+| `main` | `camel.server.enabled=true` and `camel.server.port=8081` |
+| `spring-boot` | `server.port=8081` |
+| `quarkus` | `quarkus.http.port=8081` |
 
-Both `camel.server.enabled` and `camel.server.port` MUST be set together — they are a pair.
+For `main`, `camel.server.enabled` and `camel.server.port` MUST be set together — they are a pair.
 
 **Never generate** `camel.component.platform-http.host=...` or `camel.component.platform-http.port=...` — these options do not exist.
 
@@ -119,8 +120,8 @@ The following Mule connectors do **NOT** have a direct Apache Camel equivalent. 
 
 | Mule Component | Mule Version | Situation | Suggested Alternatives | Notes |
 |----------------|-------------|-----------|----------------------|-------|
-| **Anypoint MQ** | 4.x | No direct equivalent | Amazon SQS (`camel-aws2-sqs`), Azure Service Bus (`camel-azure-servicebus`), RabbitMQ (`camel-rabbitmq`), ActiveMQ (`camel-activemq`) | Ask user which message broker they will use in the target environment. |
-| **Object Store** | 4.x | No direct equivalent | Infinispan (`camel-infinispan`), Redis (`camel-redis`), Caffeine cache (`camel-caffeine`), JPA (`camel-jpa`) | Ask user what persistence tier is available in their infrastructure. |
+| **Anypoint MQ** | 4.x | No direct equivalent | Amazon SQS (`camel-aws2-sqs`), Azure Service Bus (`camel-azure-servicebus`), RabbitMQ (`camel-spring-rabbitmq`), ActiveMQ (`camel-activemq`) | Ask user which message broker they will use, then verify the selected component in MCP. |
+| **Object Store** | 4.x | No direct equivalent | Infinispan (`camel-infinispan`), Redis (`camel-spring-redis`), Caffeine cache (`camel-caffeine`), JPA (`camel-jpa`) | Ask user what persistence tier is available, then verify the selected component in MCP. |
 | **SAP Connector** | 3.x / 4.x | Licensed component | `camel-sap` (if SAP JCo licensed), REST/SOAP adapter to SAP APIs | Ask user if SAP JCo license is available, or if SAP exposes REST/SOAP APIs. |
 | **Workday Connector** | 4.x | No equivalent | `camel-http` with Workday REST APIs, `camel-cxf` for SOAP | Ask user if Workday REST API is available and get API credentials. |
 | **NetSuite Connector** | 4.x | No direct equivalent | `camel-http` with NetSuite REST/SOAP APIs | |

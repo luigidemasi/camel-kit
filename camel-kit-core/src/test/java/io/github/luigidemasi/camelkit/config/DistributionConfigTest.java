@@ -1,9 +1,12 @@
 package io.github.luigidemasi.camelkit.config;
 
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Properties;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -93,6 +96,18 @@ class DistributionConfigTest {
 
         DistributionConfig overriddenConfig = DistributionConfig.load(properties);
         assertEquals("9.9.9-TEST", overriddenConfig.camelMcpVersion());
+    }
+
+    @Test
+    void fileOverridesUseClasspathBaseline(@TempDir Path tempDir) throws Exception {
+        Path overrideFile = tempDir.resolve("distribution.properties");
+        Files.writeString(overrideFile, "camel.main.version=9.9.9\n");
+
+        DistributionConfig config = DistributionConfig.loadFromFileWithClasspathBaseline(overrideFile);
+
+        assertEquals("9.9.9", config.camelMainVersion());
+        assertEquals("4.14.4", config.camelSpringbootVersion());
+        assertEquals("4.21.0-SNAPSHOT", config.camelMcpVersion());
     }
 
     @Test

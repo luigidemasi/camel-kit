@@ -3,6 +3,7 @@ package io.github.luigidemasi.camelkit.config;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -52,21 +53,23 @@ public class DistributionConfig {
         this.rawProps = props;
         this.camelMainVersion = props.getProperty("camel.main.version", "4.20.0");
         this.camelSpringbootVersion = props.getProperty("camel.springboot.version", "4.20.0");
-        this.camelQuarkusVersion = props.getProperty("camel.quarkus.version", "4.18.0");
+        this.camelQuarkusVersion = props.getProperty("camel.quarkus.version", "4.18.2");
         this.springbootBomVersion = props.getProperty("springboot.bom.version", "4.20.0");
         this.springBootVersion = props.getProperty("spring.boot.version", "4.0.5");
         this.quarkusPlatformVersion = props.getProperty("quarkus.platform.version", "3.33.1");
-        this.camelMainSupported = props.getProperty("camel.main.supported", "4.20.0");
-        this.camelSpringbootSupported = props.getProperty("camel.springboot.supported", "4.20.0");
-        this.camelQuarkusSupported = props.getProperty("camel.quarkus.supported", "4.18.0");
+        this.camelMainSupported = props.getProperty("camel.main.supported", "4.20.0,4.18.2,4.14.7");
+        this.camelSpringbootSupported = props.getProperty("camel.springboot.supported", "4.20.0,4.18.2,4.14.7");
+        this.camelQuarkusSupported = props.getProperty("camel.quarkus.supported", "4.18.2,4.14.7");
         this.citrusVersion = props.getProperty("citrus.version", DEFAULT_CITRUS_VERSION);
         this.camelMcpVersion = props.getProperty("camel.mcp.version", "4.21.0-SNAPSHOT");
         this.knowledgeMcpVersion = props.getProperty("knowledge.mcp.version", "0.0.1-SNAPSHOT");
         this.citrusMcpVersion = props.getProperty("citrus.mcp.version", DEFAULT_CITRUS_MCP_VERSION);
-        this.camelMcpRepos = props.getProperty("camel.mcp.repos", "maven");
-        this.knowledgeMcpRepos = props.getProperty("knowledge.mcp.repos", "maven");
-        this.citrusMcpRepos = props.getProperty("citrus.mcp.repos", "maven");
-        this.camelCatalogRepos = props.getProperty("camel.catalog.repos", "maven");
+        this.camelMcpRepos = props.getProperty("camel.mcp.repos",
+                "central=https://repo1.maven.org/maven2/,apache_snap=https://repository.apache.org/snapshots,"
+                                                                  + "apache=https://repository.apache.org/");
+        this.knowledgeMcpRepos = props.getProperty("knowledge.mcp.repos", "central=https://repo1.maven.org/maven2/");
+        this.citrusMcpRepos = props.getProperty("citrus.mcp.repos", "central=https://repo1.maven.org/maven2/");
+        this.camelCatalogRepos = props.getProperty("camel.catalog.repos", "https://repository.apache.org/");
         this.overrideCount = overrideCount;
     }
 
@@ -79,14 +82,7 @@ public class DistributionConfig {
      */
     public static DistributionConfig loadWithOverrides(Path configFile, List<String> cliProperties) {
         // Layer 1: built-in defaults from classpath
-        Properties props = new Properties();
-        try (InputStream in = DistributionConfig.class.getClassLoader()
-                .getResourceAsStream("distribution.properties")) {
-            if (in != null) {
-                props.load(in);
-            }
-        } catch (Exception ignored) {
-        }
+        Properties props = loadClasspathProperties();
 
         // Layer 2: user config file (-c or default location)
         int overrides = 0;
@@ -150,6 +146,12 @@ public class DistributionConfig {
         }
     }
 
+    public static DistributionConfig loadFromFileWithClasspathBaseline(Path path) {
+        Properties props = loadClasspathProperties();
+        int overrides = applyFileOverrides(props, path);
+        return new DistributionConfig(props, overrides);
+    }
+
     public static DistributionConfig loadFromClasspathOrDefaults() {
         return loadWithOverrides(null, null);
     }
@@ -168,12 +170,13 @@ public class DistributionConfig {
      */
     public Map<String, String> quarkusPlatformMappings() {
         Map<String, String> mappings = new LinkedHashMap<>();
-        for (String key : rawProps.stringPropertyNames()) {
-            if (key.startsWith("quarkus.platform.") && !key.equals("quarkus.platform.version")) {
-                String camelVersion = key.substring("quarkus.platform.".length());
-                mappings.put(camelVersion, rawProps.getProperty(key));
-            }
-        }
+        rawProps.stringPropertyNames().stream()
+                .filter(key -> key.startsWith("quarkus.platform.") && !key.equals("quarkus.platform.version"))
+                .sorted(Comparator.comparing(key -> key.substring("quarkus.platform.".length())))
+                .forEach(key -> {
+                    String camelVersion = key.substring("quarkus.platform.".length());
+                    mappings.put(camelVersion, rawProps.getProperty(key));
+                });
         return mappings;
     }
 
@@ -183,13 +186,42 @@ public class DistributionConfig {
      */
     public Map<String, String> springBootMappings() {
         Map<String, String> mappings = new LinkedHashMap<>();
-        for (String key : rawProps.stringPropertyNames()) {
-            if (key.startsWith("spring.boot.") && !key.equals("spring.boot.version")) {
-                String camelVersion = key.substring("spring.boot.".length());
-                mappings.put(camelVersion, rawProps.getProperty(key));
-            }
-        }
+        rawProps.stringPropertyNames().stream()
+                .filter(key -> key.startsWith("spring.boot.") && !key.equals("spring.boot.version"))
+                .sorted(Comparator.comparing(key -> key.substring("spring.boot.".length())))
+                .forEach(key -> {
+                    String camelVersion = key.substring("spring.boot.".length());
+                    mappings.put(camelVersion, rawProps.getProperty(key));
+                });
         return mappings;
+    }
+
+    private static Properties loadClasspathProperties() {
+        Properties props = new Properties();
+        try (InputStream in = DistributionConfig.class.getClassLoader()
+                .getResourceAsStream("distribution.properties")) {
+            if (in != null) {
+                props.load(in);
+            }
+        } catch (Exception ignored) {
+        }
+        return props;
+    }
+
+    private static int applyFileOverrides(Properties props, Path path) {
+        if (path == null || !Files.exists(path)) {
+            return 0;
+        }
+        try (InputStream in = Files.newInputStream(path)) {
+            Properties fileProps = new Properties();
+            fileProps.load(in);
+            for (String key : fileProps.stringPropertyNames()) {
+                props.setProperty(key, fileProps.getProperty(key));
+            }
+            return fileProps.size();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to load distribution.properties from " + path, e);
+        }
     }
 
     public String camelMainVersion() {

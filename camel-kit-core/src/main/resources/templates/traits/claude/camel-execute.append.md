@@ -21,7 +21,7 @@ Before dispatching implementation tasks, use `EnterWorktree` to create an isolat
 
 For long implementation sessions (3+ tasks), use `CronCreate` to schedule a periodic build check:
 
-- Schedule `{COMMAND_PREFIX} verify --quick` every 15 minutes during execution
+- Schedule a lightweight project build command every 15 minutes during execution, such as `mvn -q -DskipTests verify` for Maven runtimes
 - This catches regressions early, before the full verification phase
 - Delete the cron job (`CronDelete`) when execution completes
 

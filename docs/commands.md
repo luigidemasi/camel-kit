@@ -164,7 +164,7 @@ Any property from `distribution.properties` can be overridden at layers 2 or 3. 
 | `springboot.bom.version` | `4.20.0` | Spring Boot BOM version |
 | `camel.quarkus.version` | `4.18.2` | Apache Camel version for Quarkus projects |
 | `quarkus.platform.version` | `3.33.1` | Quarkus platform BOM version |
-| `camel.mcp.version` | `4.21.0-SNAPSHOT` | Camel MCP server version |
+| `camel.mcp.version` | See `distribution.properties` | Camel MCP server version |
 | `knowledge.mcp.version` | `0.0.1-SNAPSHOT` | Knowledge MCP server version |
 | `citrus.version` | `5.0.0-M2` | Citrus test schema and dependency version |
 | `citrus.mcp.version` | `5.0.0-M2` | Citrus MCP server artifact version |

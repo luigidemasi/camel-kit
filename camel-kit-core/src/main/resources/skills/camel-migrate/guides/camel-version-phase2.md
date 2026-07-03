@@ -86,7 +86,7 @@ For every migration decision, follow the **Verification Chain**:
 
 **Before processing each route**, if graph CLI is available (check via `shared/graph-availability.md`), run these queries to build structural context. If the CLI is not available, skip this section and proceed with Step 2.1 as normal.
 
-Read `.camel-kit/config.properties` to get the `command-prefix` field (default: `camel-kit`).
+Read `.camel-kit/config.properties` to get the `project.command-prefix` property (default: `camel-kit`).
 
 **Migration ordering:** If `.camel-kit/project-snapshot.md` exists, process routes in the order specified in its "Migration Ordering" section (leaf routes first, then dependents). This prevents generating design specs that reference routes not yet migrated.
 
@@ -267,6 +267,7 @@ For each route, update the relevant `### Flow: {flow-name}` section in
 [From MCP catalog doc responses]
 
 ## Section 9: Constitution Gate Checks
+- [ ] MCP Catalog Verification — every component, EIP, data format, language, and option was verified with runtime/platform BOM
 - [ ] Route Structure — route has from: and final to:
 - [ ] Single Responsibility — ≤ 7 processing steps
 - [ ] Separation of Concerns — ingestion/processing/delivery separate

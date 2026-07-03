@@ -35,33 +35,33 @@ Validate → Enrich → Transform → Route → Operate
     id: order-processing
     from:
       uri: kafka:orders
-    steps:
-      # V - Validate
-      - unmarshal:
-          json: {}
-      - to:
-          uri: json-validator:schemas/order.json
-      # E - Enrich
-      - enrich:
-          expression:
-            simple: http:customer-service/{{body.customerId}}
-          aggregationStrategy: "#customerMerger"
-      # T - Transform
-      - transform:
-          expression:
-            simple: "..."
-      # R - Route
-      - choice:
-          when:
-            - simple: "${body.priority} == 'high'"
+      steps:
+        # V - Validate
+        - unmarshal:
+            json: {}
+        - to:
+            uri: json-validator:schemas/order.json
+        # E - Enrich
+        - enrich:
+            expression:
+              simple: "http:customer-service/${body.customerId}"
+            aggregationStrategy: "#customerMerger"
+        # T - Transform
+        - transform:
+            expression:
+              simple: "..."
+        # R - Route
+        - choice:
+            when:
+              - simple: "${body.priority} == 'high'"
+                steps:
+                  - to: direct:priority-processing
+            otherwise:
               steps:
-                - to: direct:priority-processing
-          otherwise:
-            steps:
-              - to: direct:standard-processing
-      # O - Operate
-      - to:
-          uri: jpa:Order
+                - to: direct:standard-processing
+        # O - Operate
+        - to:
+            uri: jpa:Order
 ```
 
 **When to Apply**:
@@ -84,37 +84,37 @@ Validate → Enrich → Transform → Route → Operate
     id: legacy-to-canonical
     from:
       uri: file:legacy-orders
-    steps:
-      - unmarshal:
-          csv: {}
-      - transform:
-          expression:
-            simple: "..."  # Map to canonical Order
-      - to:
-          uri: direct:process-order
+      steps:
+        - unmarshal:
+            csv: {}
+        - transform:
+            expression:
+              simple: "..."  # Map to canonical Order
+        - to:
+            uri: direct:process-order
 
 # Core processing uses canonical format
 - route:
     id: process-order
     from:
       uri: direct:process-order
-    steps:
-      - to:
-          uri: bean:orderService
+      steps:
+        - to:
+            uri: bean:orderService
 
 # Outbound: Canonical → External format
 - route:
     id: canonical-to-partner
     from:
       uri: direct:send-to-partner
-    steps:
-      - transform:
-          expression:
-            simple: "..."  # Map from canonical to partner format
-      - marshal:
-          json: {}
-      - to:
-          uri: http:partner-api
+      steps:
+        - transform:
+            expression:
+              simple: "..."  # Map from canonical to partner format
+        - marshal:
+            json: {}
+        - to:
+            uri: http:partner-api
 ```
 
 **Best Practices**:
@@ -135,26 +135,26 @@ Validate → Enrich → Transform → Route → Operate
     id: rest-edge
     from:
       uri: platform-http:/orders
-    steps:
-      - unmarshal:
-          json: {}
-      - removeHeaders:
-          pattern: "CamelHttp*"
-      - to:
-          uri: direct:order-business-logic
-      - marshal:
-          json: {}
+      steps:
+        - unmarshal:
+            json: {}
+        - removeHeaders:
+            pattern: "CamelHttp*"
+        - to:
+            uri: direct:order-business-logic
+        - marshal:
+            json: {}
 
 # Business logic route is protocol-agnostic
 - route:
     id: order-business-logic
     from:
       uri: direct:order-business-logic
-    steps:
-      - to:
-          uri: bean:orderValidator
-      - to:
-          uri: bean:orderProcessor
+      steps:
+        - to:
+            uri: bean:orderValidator
+        - to:
+            uri: bean:orderProcessor
 ```
 
 **Best Practices**:
@@ -175,26 +175,26 @@ Validate → Enrich → Transform → Route → Operate
     id: order-command
     from:
       uri: kafka:order-commands
-    steps:
-      - choice:
-          when:
-            - simple: "${header.commandType} == 'CREATE'"
-              steps:
-                - to: direct:create-order
-            - simple: "${header.commandType} == 'UPDATE'"
-              steps:
-                - to: direct:update-order
-      - to:
-          uri: kafka:order-events
+      steps:
+        - choice:
+            when:
+              - simple: "${header.commandType} == 'CREATE'"
+                steps:
+                  - to: direct:create-order
+              - simple: "${header.commandType} == 'UPDATE'"
+                steps:
+                  - to: direct:update-order
+        - to:
+            uri: kafka:order-events
 
 # Query route (reads)
 - route:
     id: order-query
     from:
       uri: platform-http:/orders/{id}
-    steps:
-      - to:
-          uri: sql:SELECT * FROM order_view WHERE id = :#id
+      steps:
+        - to:
+            uri: sql:SELECT * FROM order_view WHERE id = :#id
 ```
 
 **When to Apply**: High read/write ratio, complex domains, event-sourced systems.
@@ -216,17 +216,17 @@ Validate → Enrich → Transform → Route → Operate
     route:
       from:
         uri: direct:validate
-      steps:
-        - doTry:
-            steps:
-              - to:
-                  uri: json-validator:{{schemaPath}}
-          doCatch:
-            - exception: com.networknt.schema.JsonSchemaException
+        steps:
+          - doTry:
               steps:
                 - to:
-                    uri: kafka:{{errorQueue}}
-                - stop: {}
+                    uri: json-validator:{{schemaPath}}
+              doCatch:
+                - exception: com.networknt.schema.JsonSchemaException
+                  steps:
+                    - to:
+                        uri: kafka:{{errorQueue}}
+                    - stop: {}
 
 # Usage
 - templatedRoute:

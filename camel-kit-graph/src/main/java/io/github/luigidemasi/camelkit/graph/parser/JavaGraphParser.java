@@ -40,6 +40,8 @@ public class JavaGraphParser implements GraphParser {
             "Comparable", "Iterable", "AutoCloseable", "Cloneable", "Runnable",
             "Thread", "Override", "Deprecated", "SuppressWarnings");
 
+    private final List<String> warnings = new ArrayList<>();
+
     @Override
     public void parse(Path projectRoot, ProjectGraph graph) {
         parseFiles(projectRoot, scannedFilePaths(projectRoot, GraphParser.projectFiles(projectRoot)), graph);
@@ -53,18 +55,34 @@ public class JavaGraphParser implements GraphParser {
 
     @Override
     public List<String> scannedFiles(Path projectRoot) {
-        return GraphParser.findFiles(projectRoot, file -> file.toString().endsWith(".java"));
+        return GraphParser.findFiles(projectRoot, JavaGraphParser::isJavaFile);
     }
 
     @Override
     public List<Path> scannedFilePaths(Path projectRoot, List<Path> projectFiles) {
-        return GraphParser.findFilePaths(projectRoot, projectFiles, file -> file.toString().endsWith(".java"));
+        return GraphParser.findFilePaths(projectRoot, projectFiles, JavaGraphParser::isJavaFile);
+    }
+
+    @Override
+    public List<String> warnings() {
+        return List.copyOf(warnings);
+    }
+
+    @Override
+    public void resetWarnings() {
+        warnings.clear();
     }
 
     private void parseJavaFile(JavaParser parser, Path file, Path projectRoot, ProjectGraph graph) {
         try {
             var parseResult = parser.parse(file);
             if (parseResult.getResult().isEmpty()) {
+                String problems = parseResult.getProblems().stream()
+                        .map(Object::toString)
+                        .toList()
+                        .toString();
+                warnings.add("Could not parse Java file " + GraphParser.relativeFileName(projectRoot, file)
+                             + ": " + problems);
                 return;
             }
             CompilationUnit cu = parseResult.getResult().get();
@@ -83,9 +101,7 @@ public class JavaGraphParser implements GraphParser {
     private void parseClass(
             ClassOrInterfaceDeclaration classDecl, String packageName,
             Path projectRoot, Path file, ProjectGraph graph, CompilationUnit cu) {
-        String fqcn = packageName.isEmpty()
-                ? classDecl.getNameAsString()
-                : packageName + "." + classDecl.getNameAsString();
+        String fqcn = classFqcn(classDecl, packageName);
         String classNodeId = "class:" + fqcn;
 
         Map<String, String> classProps = new HashMap<>();
@@ -189,6 +205,21 @@ public class JavaGraphParser implements GraphParser {
                 extractCamelRoutes(method, classNodeId, graph);
             }
         }
+    }
+
+    private static boolean isJavaFile(Path file) {
+        return file.toString().toLowerCase(Locale.ROOT).endsWith(".java");
+    }
+
+    private String classFqcn(ClassOrInterfaceDeclaration classDecl, String packageName) {
+        Deque<String> names = new ArrayDeque<>();
+        ClassOrInterfaceDeclaration current = classDecl;
+        while (current != null) {
+            names.addFirst(current.getNameAsString());
+            current = current.findAncestor(ClassOrInterfaceDeclaration.class).orElse(null);
+        }
+        String nestedName = String.join("$", names);
+        return packageName.isEmpty() ? nestedName : packageName + "." + nestedName;
     }
 
     /**
@@ -469,7 +500,7 @@ public class JavaGraphParser implements GraphParser {
         String fromEndpointId = "endpoint:" + fromUri;
         graph.addNode(new GraphNode(
                 fromEndpointId, NodeType.CAMEL_ENDPOINT,
-                Map.of("uri", fromUri)));
+                endpointProperties(fromUri)));
         graph.addEdge(new GraphEdge(routeNodeId, fromEndpointId, EdgeType.ROUTES_FROM, Map.of()));
 
         // Link route to declaring class
@@ -486,7 +517,7 @@ public class JavaGraphParser implements GraphParser {
                     String toEndpointId = "endpoint:" + toUri;
                     graph.addNode(new GraphNode(
                             toEndpointId, NodeType.CAMEL_ENDPOINT,
-                            Map.of("uri", toUri)));
+                            endpointProperties(toUri)));
                     graph.addEdge(new GraphEdge(
                             routeNodeId, toEndpointId,
                             EdgeType.ROUTES_TO, Map.of()));
@@ -557,6 +588,14 @@ public class JavaGraphParser implements GraphParser {
             return strLiteral.getValue();
         }
         return null;
+    }
+
+    private Map<String, String> endpointProperties(String uri) {
+        int colon = uri.indexOf(':');
+        if (colon > 0) {
+            return Map.of("uri", uri, "scheme", uri.substring(0, colon));
+        }
+        return Map.of("uri", uri);
     }
 
     /**

@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -134,7 +135,7 @@ public final class InitTuiView {
                 .build();
 
         AtomicBoolean workDone = new AtomicBoolean(false);
-        AtomicInteger exitCode = new AtomicInteger(0);
+        AtomicInteger exitCode = new AtomicInteger(130);
         AtomicReference<java.util.concurrent.Future<Integer>> futureRef = new AtomicReference<>();
 
         ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
@@ -179,8 +180,14 @@ public final class InitTuiView {
                 while (true) {
                     // Poll for up to 50ms; returns null on timeout (acts as our tick)
                     Event event = runner.pollEvent(java.time.Duration.ofMillis(50));
-                    if (event instanceof KeyEvent k && k.isCtrlC())
+                    if (event instanceof KeyEvent k && k.isCtrlC()) {
+                        lines.add("Interrupted by user");
+                        java.util.concurrent.Future<Integer> f = futureRef.get();
+                        if (f != null) {
+                            f.cancel(true);
+                        }
                         break;
+                    }
                     if (event instanceof ResizeEvent) {
                         try {
                             System.out.write("\033[2J\033[H".getBytes(java.nio.charset.StandardCharsets.UTF_8));
@@ -197,7 +204,12 @@ public final class InitTuiView {
                         workDone.set(true);
                         try {
                             exitCode.set(f.get());
+                        } catch (ExecutionException e) {
+                            Throwable cause = e.getCause();
+                            lines.add("Init failed: " + (cause == null ? e.getMessage() : cause.getMessage()));
+                            exitCode.set(1);
                         } catch (Exception e) {
+                            lines.add("Init failed: " + e.getMessage());
                             exitCode.set(1);
                         }
                     }

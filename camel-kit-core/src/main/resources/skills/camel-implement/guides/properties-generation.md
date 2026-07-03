@@ -20,14 +20,21 @@ If `PROJECT_CONTEXT` is not available, proceed with the template below as-is.
 
 **CRITICAL -- verify every property name against the catalog.** Before writing any `camel.component.<component>.<property>`, confirm that `<property>` exists in the component options returned by `camel_catalog_component_doc` in Step 2. Do NOT invent property names -- only use options that the catalog lists for that component. If a needed configuration is not available as a component option (e.g., server port for `platform-http`), check whether it requires a different property prefix (see platform-http rule below).
 
-**Platform-HTTP port configuration.** The `platform-http` component has NO `port` component option. To change the HTTP listener port, use the Camel server properties instead:
+**Platform-HTTP port configuration.** The `platform-http` component has NO `host` or `port` component options. To change the HTTP listener port, use the runtime's HTTP server properties instead:
 
 ```properties
+# main runtime
 camel.server.enabled=true
 camel.server.port=8081
+
+# spring-boot runtime
+server.port=8081
+
+# quarkus runtime
+quarkus.http.port=8081
 ```
 
-Never write `camel.component.platform-http.port=...` -- it does not exist.
+Never write `camel.component.platform-http.host=...` or `camel.component.platform-http.port=...` -- those options do not exist.
 
 ## Properties Template
 

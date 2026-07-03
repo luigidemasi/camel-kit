@@ -129,8 +129,8 @@ Owning Team:         [✓/~/? ] [value]
 SLA / Performance:   [✓/~/? ] throughput, latency, deployment target
 Compliance:          [✓/~/? ] [findings]
 Failure Behaviour:   [✓/~/? ] error strategy, retry, DLQ, alerts
-Target Camel:        [✓/~/? ] Red Hat supported version (default: latest)
-Target Runtime:      [✓/~/? ] quarkus / spring-boot / camel-main / jbang
+Target Camel:        [✓/~/? ] Camel version from `.camel-kit/config.properties`
+Target Runtime:      [✓/~/? ] quarkus / spring-boot / main
 API Compatibility:   ✓ Assumed (same HTTP paths, queue names, contracts)
 Project Layout:      [✓/~/? ] single / multi-project
 Flows to migrate:    [N] flows detected with source→target mapping
@@ -143,20 +143,14 @@ Flows to migrate:    [N] flows detected with source→target mapping
 
 Present summary. Ask only about ? Unknown and invite corrections on ~ Inferred fields.
 
-**Target version MUST be Red Hat supported.** Fetch from `https://maven.repository.redhat.com/ga/org/apache/camel/camel-bom/` or fall back to static table:
-
-| Base | Full Maven Version |
-|------|-------------------|
-| `4.14.4` | `4.14.4.redhat-00008` |
-| `4.10.7` | `4.10.7.redhat-00009` |
-| `4.8.5` | `4.8.5.redhat-00008` |
-| `4.4.0` | `4.4.0.redhat-00046` |
-| `4.0.0` | `4.0.0.redhat-00036` |
+Use the community distribution matrix already written by `camel-kit init` in `.camel-kit/config.properties`.
+Do not fetch or invent Red Hat-qualified versions unless the user explicitly selects a Red Hat distribution.
 
 **Persist to `.camel-kit/config.properties`** after confirmation:
 ```properties
-project.camelVersion={{CAMEL_VERSION_WITH_REDHAT_QUALIFIER}}
+project.camelVersion={{CAMEL_VERSION}}
 project.runtime=quarkus
+project.platformBomVersion={{PLATFORM_BOM_VERSION}}
 ```
 
 ---

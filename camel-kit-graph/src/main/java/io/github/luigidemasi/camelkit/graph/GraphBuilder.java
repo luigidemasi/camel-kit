@@ -52,13 +52,29 @@ public class GraphBuilder {
     }
 
     public ProjectGraph build(Path projectRoot) {
-        return buildWithDiagnostics(projectRoot).graph();
+        GraphBuildResult result = buildWithDiagnostics(projectRoot);
+        if (!result.successful()) {
+            throw new IllegalStateException("Graph build failed: " + result.failureSummary());
+        }
+        return result.graph();
     }
 
     public GraphBuildResult buildWithDiagnostics(Path projectRoot) {
         ProjectGraph graph = new ProjectGraph();
         List<ParserDiagnostic> diagnostics = new ArrayList<>();
-        List<Path> projectFiles = projectFiles(projectRoot);
+        List<Path> projectFiles;
+        try {
+            projectFiles = GraphParser.projectFiles(projectRoot);
+        } catch (RuntimeException e) {
+            diagnostics.add(failureDiagnostic(
+                    "ProjectFileScanner",
+                    List.of(),
+                    e,
+                    0));
+            return new GraphBuildResult(graph, diagnostics);
+        }
+        pomParser.resetWarnings();
+        remainingParsers.forEach(GraphParser::resetWarnings);
 
         // Run PomParser first so MAVEN_ARTIFACT nodes are available for all other parsers
         ParserRun pomRun
@@ -149,6 +165,14 @@ public class GraphBuilder {
             ParserTask task) {
         long startedAt = System.nanoTime();
         ProjectGraph delta = new ProjectGraph();
+        if (task.preparationFailure() != null) {
+            ParserDiagnostic diagnostic = failureDiagnostic(
+                    parser,
+                    task.scannedFiles(),
+                    task.preparationFailure(),
+                    elapsedMillis(startedAt));
+            return new ParserRun(delta, diagnostic);
+        }
         try {
             ProjectGraph fragment = parser.parseFragment(projectRoot, baseGraph, task.scannedFilePaths());
             delta = deltaFrom(fragment, baseGraph);
@@ -169,23 +193,16 @@ public class GraphBuilder {
         }
     }
 
-    private List<Path> projectFiles(Path projectRoot) {
-        try {
-            return GraphParser.projectFiles(projectRoot);
-        } catch (RuntimeException e) {
-            return List.of();
-        }
-    }
-
     private ParserTask parserTask(GraphParser parser, Path projectRoot, List<Path> projectFiles) {
         try {
             List<Path> scannedFilePaths = parser.scannedFilePaths(projectRoot, projectFiles);
             return new ParserTask(
                     parser,
                     scannedFilePaths,
-                    GraphParser.relativeFileNames(projectRoot, scannedFilePaths));
+                    GraphParser.relativeFileNames(projectRoot, scannedFilePaths),
+                    null);
         } catch (RuntimeException e) {
-            return new ParserTask(parser, List.of(), List.of());
+            return new ParserTask(parser, List.of(), List.of(), e);
         }
     }
 
@@ -240,14 +257,20 @@ public class GraphBuilder {
     private ParserDiagnostic failureDiagnostic(
             GraphParser parser, List<String> scannedFiles, Throwable failure,
             long durationMillis) {
+        return failureDiagnostic(parserName(parser), scannedFiles, failure, durationMillis);
+    }
+
+    private ParserDiagnostic failureDiagnostic(
+            String parserName, List<String> scannedFiles, Throwable failure,
+            long durationMillis) {
         String message = failure == null || failure.getMessage() == null
                 ? "Parser failed"
                 : failure.getMessage();
         return diagnostic(
-                parser,
+                parserName,
                 scannedFiles,
                 List.of(),
-                collectWarnings(parser),
+                List.of(),
                 List.of(message),
                 false,
                 0,
@@ -315,8 +338,30 @@ public class GraphBuilder {
             int nodesAdded,
             int edgesAdded,
             long durationMillis) {
-        return new ParserDiagnostic(
+        return diagnostic(
                 parserName(parser),
+                scannedFiles,
+                skippedFiles,
+                warnings,
+                failures,
+                timedOut,
+                nodesAdded,
+                edgesAdded,
+                durationMillis);
+    }
+
+    private ParserDiagnostic diagnostic(
+            String parserName,
+            List<String> scannedFiles,
+            List<String> skippedFiles,
+            List<String> warnings,
+            List<String> failures,
+            boolean timedOut,
+            int nodesAdded,
+            int edgesAdded,
+            long durationMillis) {
+        return new ParserDiagnostic(
+                parserName,
                 scannedFiles,
                 skippedFiles,
                 warnings,
@@ -339,7 +384,11 @@ public class GraphBuilder {
         return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt);
     }
 
-    private record ParserTask(GraphParser parser, List<Path> scannedFilePaths, List<String> scannedFiles) {
+    private record ParserTask(
+            GraphParser parser,
+            List<Path> scannedFilePaths,
+            List<String> scannedFiles,
+            RuntimeException preparationFailure) {
     }
 
     private record ParserFuture(ParserTask task, Future<ParserRun> future, long submittedAt) {

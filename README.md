@@ -90,7 +90,7 @@ If you already use [Camel JBang](https://camel.apache.org/manual/camel-jbang.htm
 
 ```bash
 camel plugin add kit \
-  --gav io.github.luigidemasi:camel-kit-jbang-plugin:LATEST \
+  --gav io.github.luigidemasi:camel-jbang-plugin-kit:LATEST \
   --description "Design Apache Camel Integrations with AI"
 
 # Then use via the camel CLI

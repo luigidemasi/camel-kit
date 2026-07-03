@@ -104,6 +104,18 @@ class GraphBuilderTest {
     }
 
     @Test
+    void buildThrowsWhenDiagnosticsFail(@TempDir Path tempDir) {
+        GraphBuilder builder = new GraphBuilder(
+                new EmptyParser(),
+                List.of(new FailingParser()),
+                1,
+                TimeUnit.SECONDS);
+
+        IllegalStateException error = assertThrows(IllegalStateException.class, () -> builder.build(tempDir));
+        assertTrue(error.getMessage().contains("FailingParser"));
+    }
+
+    @Test
     void parserTimeoutsAreCapturedAsDiagnostics(@TempDir Path tempDir) {
         GraphBuilder builder = new GraphBuilder(
                 new EmptyParser(),

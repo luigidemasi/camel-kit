@@ -79,6 +79,9 @@ class DoctorServiceTest {
         Files.writeString(root.resolve(".camel-kit/config.properties"), String.format(Locale.ROOT, """
                 project.name=orders
                 project.command-prefix=camel-kit
+                project.runtime=main
+                project.camelVersion=4.20.0
+                project.platformBomVersion=4.20.0
                 agent.name=%s
                 agent.folder=%s
                 """, agentName, agent.folder()));

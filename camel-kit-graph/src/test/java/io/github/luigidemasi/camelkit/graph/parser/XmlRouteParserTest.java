@@ -1,5 +1,6 @@
 package io.github.luigidemasi.camelkit.graph.parser;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -8,6 +9,7 @@ import io.github.luigidemasi.camelkit.graph.model.*;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -63,5 +65,28 @@ class XmlRouteParserTest {
                 .filter(e -> e.type() == EdgeType.PROCESSES)
                 .toList();
         assertTrue(processors.size() >= 1); // at least filter
+    }
+
+    @Test
+    void rejectsDoctypeXml(@TempDir Path tempDir) throws Exception {
+        Path route = tempDir.resolve("route.xml");
+        Files.writeString(route, """
+                <!DOCTYPE routes [
+                  <!ENTITY xxe SYSTEM "file:///etc/passwd">
+                ]>
+                <routes xmlns="http://camel.apache.org/schema/spring">
+                  <route id="unsafe">
+                    <from uri="direct:start"/>
+                    <to uri="log:&xxe;"/>
+                  </route>
+                </routes>
+                """);
+        XmlRouteParser parser = new XmlRouteParser();
+        ProjectGraph graph = new ProjectGraph();
+
+        parser.parseFiles(tempDir, List.of(route), graph);
+
+        assertFalse(graph.hasNode("route:unsafe"));
+        assertFalse(parser.warnings().isEmpty());
     }
 }

@@ -32,7 +32,7 @@ If the design spec specifies exactly-once or at-least-once delivery:
 - idempotentConsumer:
     expression:
       simple: "${header.MessageId}"  # Or extract from body
-    messageIdRepository:
+    idempotentRepository:
       type: memory  # Or: database, redis, kafka
     skipDuplicate: true
     eager: true
@@ -96,7 +96,7 @@ If the design spec identifies external dependencies:
 - circuitBreaker:
     resilience4jConfiguration:
       failureRateThreshold: 50
-      waitDurationInOpenState: 30000
+      waitDurationInOpenState: 30  # seconds
       permittedNumberOfCallsInHalfOpenState: 3
       slidingWindowSize: 10
     steps:
@@ -104,11 +104,12 @@ If the design spec identifies external dependencies:
       - to:
           uri: "http://{{external.service.url}}"
     onFallback:
-      # Fallback action
-      - log:
-          message: "Circuit breaker open, using fallback"
-      - setBody:
-          constant: "Service temporarily unavailable"
+      steps:
+        # Fallback action
+        - log:
+            message: "Circuit breaker open, using fallback"
+        - setBody:
+            constant: "Service temporarily unavailable"
 ```
 
 **Configuration:**

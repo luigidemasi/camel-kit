@@ -200,6 +200,9 @@ class DoctorCommandTest {
         Files.writeString(root.resolve(".camel-kit/config.properties"), """
                 project.name=orders
                 project.command-prefix=camel-kit
+                project.runtime=main
+                project.camelVersion=4.20.0
+                project.platformBomVersion=4.20.0
                 agent.name=bob
                 agent.folder=.bob/commands
                 """);
@@ -228,7 +231,7 @@ class DoctorCommandTest {
 
     private void writeConfig(String config) throws Exception {
         Path camelKitDir = Files.createDirectories(tempDir.resolve(".camel-kit"));
-        Files.writeString(camelKitDir.resolve("config.properties"), config);
+        Files.writeString(camelKitDir.resolve("config.properties"), withVersionDefaults(config));
     }
 
     private void createGeneratedWorkspace(Path root, String agentName) throws Exception {
@@ -237,6 +240,9 @@ class DoctorCommandTest {
         Files.writeString(root.resolve(".camel-kit/config.properties"), String.format(Locale.ROOT, """
                 project.name=orders
                 project.command-prefix=camel-kit
+                project.runtime=main
+                project.camelVersion=4.20.0
+                project.platformBomVersion=4.20.0
                 agent.name=%s
                 agent.folder=%s
                 """, agentName, agent.folder()));
@@ -248,6 +254,20 @@ class DoctorCommandTest {
         InitContext ctx = new InitContext(
                 agent, agentName, commandsDir, skillsDir, root, "camel-kit", Printer.noop());
         AgentGeneratorFactory.create(agentName).generate(ctx);
+    }
+
+    private String withVersionDefaults(String config) {
+        StringBuilder merged = new StringBuilder(config);
+        if (!config.contains("project.runtime=")) {
+            merged.append("project.runtime=main\n");
+        }
+        if (!config.contains("project.camelVersion=")) {
+            merged.append("project.camelVersion=4.20.0\n");
+        }
+        if (!config.contains("project.platformBomVersion=")) {
+            merged.append("project.platformBomVersion=4.20.0\n");
+        }
+        return merged.toString();
     }
 
     private String mcpJson(Collection<String> camelTools, Collection<String> knowledgeTools) {

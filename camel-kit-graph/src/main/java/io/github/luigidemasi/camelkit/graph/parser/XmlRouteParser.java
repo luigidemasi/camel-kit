@@ -7,7 +7,6 @@ import java.nio.file.*;
 import java.util.*;
 
 import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.w3c.dom.*;
 
@@ -21,6 +20,8 @@ public class XmlRouteParser implements GraphParser {
     private static final Set<String> EIP_ELEMENTS = Set.of(
             "filter", "split", "aggregate", "marshal", "unmarshal",
             "transform", "bean", "process", "enrich", "log", "groovy", "script");
+
+    private final List<String> warnings = new ArrayList<>();
 
     @Override
     public void parse(Path projectRoot, ProjectGraph graph) {
@@ -42,8 +43,18 @@ public class XmlRouteParser implements GraphParser {
         files.forEach(file -> parseXmlFile(file, projectRoot, graph));
     }
 
+    @Override
+    public List<String> warnings() {
+        return List.copyOf(warnings);
+    }
+
+    @Override
+    public void resetWarnings() {
+        warnings.clear();
+    }
+
     private boolean isCamelXmlCandidate(Path file) {
-        String fileName = file.getFileName().toString();
+        String fileName = file.getFileName().toString().toLowerCase(Locale.ROOT);
         if (!fileName.endsWith(".xml") || fileName.equals("pom.xml")) {
             return false;
         }
@@ -51,14 +62,14 @@ public class XmlRouteParser implements GraphParser {
             String head = readHead(file);
             return !head.contains("mulesoft.org/schema/mule") && !BizTalkParser.isBizTalkXml(head);
         } catch (IOException e) {
+            warnings.add("Could not inspect XML file " + file + ": " + e.getMessage());
             return false;
         }
     }
 
     private void parseXmlFile(Path xmlFile, Path projectRoot, ProjectGraph graph) {
         try {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            factory.setNamespaceAware(true);
+            var factory = SecureXml.documentBuilderFactory();
             DocumentBuilder builder = factory.newDocumentBuilder();
             Document doc = builder.parse(xmlFile.toFile());
 
@@ -66,10 +77,11 @@ public class XmlRouteParser implements GraphParser {
             NodeList routes = doc.getElementsByTagNameNS("*", "route");
             for (int i = 0; i < routes.getLength(); i++) {
                 Element route = (Element) routes.item(i);
-                parseRoute(route, projectRoot, xmlFile, graph);
+                parseRoute(route, projectRoot, xmlFile, graph, i);
             }
         } catch (Exception e) {
-            // Skip unparseable XML silently
+            warnings.add("Could not parse XML route file " + GraphParser.relativeFileName(projectRoot, xmlFile)
+                         + ": " + e.getMessage());
         }
     }
 
@@ -84,15 +96,16 @@ public class XmlRouteParser implements GraphParser {
         }
     }
 
-    private void parseRoute(Element routeElement, Path projectRoot, Path xmlFile, ProjectGraph graph) {
+    private void parseRoute(Element routeElement, Path projectRoot, Path xmlFile, ProjectGraph graph, int routeIndex) {
         String routeId = routeElement.getAttribute("id");
         if (routeId == null || routeId.isEmpty()) {
-            return; // Skip routes without id
+            routeId = syntheticRouteId(projectRoot, xmlFile, routeIndex);
         }
 
         String routeNodeId = "route:" + routeId;
         Map<String, String> routeProps = new HashMap<>();
         routeProps.put("file", projectRoot.relativize(xmlFile).toString());
+        routeProps.put("routeId", routeId);
 
         // Parse from endpoint
         NodeList fromElements = routeElement.getElementsByTagNameNS("*", "from");
@@ -106,7 +119,7 @@ public class XmlRouteParser implements GraphParser {
                 String endpointId = "endpoint:" + fromUri;
                 graph.addNode(new GraphNode(
                         endpointId, NodeType.CAMEL_ENDPOINT,
-                        Map.of("uri", fromUri)));
+                        endpointProperties(fromUri)));
                 graph.addEdge(new GraphEdge(
                         routeNodeId, endpointId,
                         EdgeType.ROUTES_FROM, Map.of()));
@@ -139,7 +152,7 @@ public class XmlRouteParser implements GraphParser {
                     String endpointId = "endpoint:" + uri;
                     graph.addNode(new GraphNode(
                             endpointId, NodeType.CAMEL_ENDPOINT,
-                            Map.of("uri", uri)));
+                            endpointProperties(uri)));
                     graph.addEdge(new GraphEdge(
                             routeNodeId, endpointId,
                             EdgeType.ROUTES_TO, Map.of()));
@@ -164,5 +177,18 @@ public class XmlRouteParser implements GraphParser {
         }
 
         return order;
+    }
+
+    private String syntheticRouteId(Path projectRoot, Path xmlFile, int routeIndex) {
+        String relative = GraphParser.relativeFileName(projectRoot, xmlFile);
+        return relative.replaceAll("[^A-Za-z0-9_.-]", "_") + "#route-" + (routeIndex + 1);
+    }
+
+    private Map<String, String> endpointProperties(String uri) {
+        int colon = uri.indexOf(':');
+        if (colon > 0) {
+            return Map.of("uri", uri, "scheme", uri.substring(0, colon));
+        }
+        return Map.of("uri", uri);
     }
 }

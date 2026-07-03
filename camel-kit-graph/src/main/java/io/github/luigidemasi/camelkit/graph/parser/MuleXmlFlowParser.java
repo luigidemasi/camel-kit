@@ -7,7 +7,6 @@ import java.nio.file.*;
 import java.util.*;
 
 import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.w3c.dom.*;
 
@@ -39,6 +38,8 @@ public class MuleXmlFlowParser implements GraphParser {
     private static final Set<String> RECURSE_ELEMENTS = Set.of(
             "when", "otherwise");
 
+    private final List<String> warnings = new ArrayList<>();
+
     @Override
     public void parse(Path projectRoot, ProjectGraph graph) {
         parseFiles(projectRoot, scannedFilePaths(projectRoot, GraphParser.projectFiles(projectRoot)), graph);
@@ -59,8 +60,18 @@ public class MuleXmlFlowParser implements GraphParser {
         files.forEach(file -> parseMuleFile(file, projectRoot, graph));
     }
 
+    @Override
+    public List<String> warnings() {
+        return List.copyOf(warnings);
+    }
+
+    @Override
+    public void resetWarnings() {
+        warnings.clear();
+    }
+
     private boolean isMuleXmlCandidate(Path file) {
-        String fileName = file.getFileName().toString();
+        String fileName = file.getFileName().toString().toLowerCase(Locale.ROOT);
         return fileName.endsWith(".xml") && !fileName.equals("pom.xml") && isMuleXml(file);
     }
 
@@ -76,39 +87,61 @@ public class MuleXmlFlowParser implements GraphParser {
             String head = new String(buf, 0, read, StandardCharsets.UTF_8);
             return head.contains(MULE_NS_MARKER);
         } catch (IOException e) {
+            warnings.add("Could not inspect Mule XML file " + file + ": " + e.getMessage());
             return false;
         }
     }
 
     private void parseMuleFile(Path xmlFile, Path projectRoot, ProjectGraph graph) {
         try {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            factory.setNamespaceAware(true);
+            var factory = SecureXml.documentBuilderFactory();
             DocumentBuilder builder = factory.newDocumentBuilder();
             Document doc = builder.parse(xmlFile.toFile());
 
             String relPath = projectRoot.relativize(xmlFile).toString();
 
             Element root = doc.getDocumentElement();
-            NodeList children = root.getChildNodes();
-            for (int i = 0; i < children.getLength(); i++) {
-                Node child = children.item(i);
-                if (child.getNodeType() != Node.ELEMENT_NODE)
-                    continue;
-                Element el = (Element) child;
-                String localName = el.getLocalName();
+            List<Element> children = elementChildren(root);
 
+            for (Element el : children) {
+                String localName = el.getLocalName();
                 if ("flow".equals(localName)) {
-                    parseFlow(el, relPath, graph);
+                    addFlowNode(el, relPath, graph, NodeType.MULE_FLOW, "mule-flow:");
                 } else if ("sub-flow".equals(localName)) {
-                    parseSubFlow(el, relPath, graph);
+                    addFlowNode(el, relPath, graph, NodeType.MULE_SUB_FLOW, "mule-subflow:");
                 } else if (isConnectorElement(el)) {
                     parseConnector(el, relPath, graph);
                 }
             }
+
+            for (Element el : children) {
+                String localName = el.getLocalName();
+                String name = el.getAttribute("name");
+                if (name == null || name.isEmpty()) {
+                    continue;
+                }
+                if ("flow".equals(localName)) {
+                    parseFlowChildren(el, "mule-flow:" + name, graph, relPath, 0);
+                } else if ("sub-flow".equals(localName)) {
+                    parseFlowChildren(el, "mule-subflow:" + name, graph, relPath, 0);
+                }
+            }
         } catch (Exception e) {
-            // Skip unparseable XML silently
+            warnings.add("Could not parse Mule XML file " + GraphParser.relativeFileName(projectRoot, xmlFile)
+                         + ": " + e.getMessage());
         }
+    }
+
+    private List<Element> elementChildren(Element parent) {
+        List<Element> elements = new ArrayList<>();
+        NodeList children = parent.getChildNodes();
+        for (int i = 0; i < children.getLength(); i++) {
+            Node child = children.item(i);
+            if (child.getNodeType() == Node.ELEMENT_NODE) {
+                elements.add((Element) child);
+            }
+        }
+        return elements;
     }
 
     /**
@@ -135,30 +168,16 @@ public class MuleXmlFlowParser implements GraphParser {
         graph.addNode(new GraphNode(nodeId, NodeType.MULE_CONNECTOR, props));
     }
 
-    private void parseFlow(Element flowEl, String relPath, ProjectGraph graph) {
+    private void addFlowNode(
+            Element flowEl, String relPath, ProjectGraph graph, NodeType nodeType, String idPrefix) {
         String name = flowEl.getAttribute("name");
         if (name == null || name.isEmpty())
             return;
 
-        String flowId = "mule-flow:" + name;
+        String flowId = idPrefix + name;
         Map<String, String> props = new HashMap<>();
         props.put("file", relPath);
-        graph.addNode(new GraphNode(flowId, NodeType.MULE_FLOW, props));
-
-        parseFlowChildren(flowEl, flowId, graph, relPath, 0);
-    }
-
-    private void parseSubFlow(Element subFlowEl, String relPath, ProjectGraph graph) {
-        String name = subFlowEl.getAttribute("name");
-        if (name == null || name.isEmpty())
-            return;
-
-        String flowId = "mule-subflow:" + name;
-        Map<String, String> props = new HashMap<>();
-        props.put("file", relPath);
-        graph.addNode(new GraphNode(flowId, NodeType.MULE_SUB_FLOW, props));
-
-        parseFlowChildren(subFlowEl, flowId, graph, relPath, 0);
+        graph.addNode(new GraphNode(flowId, nodeType, props));
     }
 
     /**
@@ -219,7 +238,7 @@ public class MuleXmlFlowParser implements GraphParser {
         if (refName == null || refName.isEmpty())
             return;
 
-        // Prefer sub-flow target, fall back to flow
+        // Resolve after all flow and sub-flow nodes have been added, so forward references are stable.
         String targetId = graph.hasNode("mule-subflow:" + refName)
                 ? "mule-subflow:" + refName
                 : graph.hasNode("mule-flow:" + refName)
@@ -298,10 +317,11 @@ public class MuleXmlFlowParser implements GraphParser {
                 String dwlPath = resource.startsWith("classpath:")
                         ? resource.substring("classpath:".length())
                         : resource;
-                String dwlNodeId = "dwl:" + dwlPath;
+                String normalizedPath = dwlPath.replace('\\', '/');
+                String dwlNodeId = "dataweave:" + normalizedPath;
                 graph.addNode(new GraphNode(
                         dwlNodeId, NodeType.DATAWEAVE_SCRIPT,
-                        Map.of("path", dwlPath)));
+                        Map.of("path", normalizedPath)));
                 graph.addEdge(new GraphEdge(
                         transformNodeId, dwlNodeId,
                         EdgeType.MULE_REFERENCES_DWL, Map.of()));
