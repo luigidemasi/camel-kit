@@ -90,6 +90,8 @@ class DistributionConfigTest {
         assertEquals("central=https://repo1.maven.org/maven2/", config.citrusMcpRepos());
         assertEquals("https://repo1.maven.org/maven2/,https://repository.apache.org/snapshots",
                 config.camelCatalogRepos());
+        assertEquals("0.80.3", config.piVersion());
+        assertEquals("2.11.0", config.piMcpAdapterVersion());
     }
 
     @Test
@@ -103,6 +105,18 @@ class DistributionConfigTest {
 
         DistributionConfig overriddenConfig = DistributionConfig.load(properties);
         assertEquals("9.9.9-TEST", overriddenConfig.camelMcpVersion());
+    }
+
+    @Test
+    void piVersionsCanBeOverriddenViaProperties() {
+        Properties properties = new Properties();
+        properties.setProperty("pi.version", "9.9.9-test");
+        properties.setProperty("pi.mcp.adapter.version", "8.8.8-test");
+
+        DistributionConfig config = DistributionConfig.load(properties);
+
+        assertEquals("9.9.9-test", config.piVersion());
+        assertEquals("8.8.8-test", config.piMcpAdapterVersion());
     }
 
     @Test

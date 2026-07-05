@@ -1,0 +1,26 @@
+id: pi
+displayName: Pi
+commandDirectory: .pi/prompts
+commandFileFormat: md
+argumentPlaceholder: $ARGUMENTS
+mcpConfigPath: .mcp.json
+mcpConfigTemplatePath: templates/mcp-configs/pi-mcp.json
+mcpServerContainerKey: mcpServers
+description: Pi terminal coding agent
+generatorStrategy: pi
+dispatchTemplatePath: templates/dispatch/pi.md
+templates:
+  - source: templates/pi/agents-md.md
+    target: AGENTS.md
+  - source: templates/pi/extensions/camel-kit-guard.ts
+    target: .pi/extensions/camel-kit-guard.ts
+  - source: templates/pi/extensions/camel-kit-guard-policy.json
+    target: .pi/camel-kit-guard-policy.json
+supportsSubagents: false
+supportsTraits: true
+capabilities:
+  - project-skills
+  - prompt-templates
+  - instruction-files
+  - mcp
+  - hooks

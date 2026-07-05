@@ -14,6 +14,7 @@ public enum AgentGeneratorStrategy {
     COPILOT("copilot"),
     GEMINI("gemini"),
     OPENCODE("opencode"),
+    PI("pi"),
     QWEN("qwen");
 
     private final String descriptorValue;

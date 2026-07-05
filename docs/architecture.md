@@ -55,6 +55,9 @@ The frontmatter fields:
 - `description` -- trigger keywords that help agents match user intent to the correct skill
 - `user_invocable` -- `true` for `camel-start` (meta-router) only. Pipeline and standalone skills (Tier 1/2) still have generated entry points despite `user_invocable: false`: slash-command stubs for most agents and project skills for GitHub Copilot CLI. Internal skills (`camel-verify`, `camel-design`, `camel-implement`, `camel-test`) are dispatched only by pipeline skills
 
+Agent-specific generators may add runtime aliases to copied skill files. For example, Copilot and Pi generated
+copies add `user-invocable: false` alongside Camel-Kit's source `user_invocable` metadata.
+
 ### All Skills
 
 | Skill | User-Invocable | Loaded By | Purpose |
@@ -356,6 +359,7 @@ registry loading with a descriptor-specific error.
 | IBM Bob 2 | `templates/bob2/` | `custom_modes.yaml` + rules + shared skills | `.bob/mcp.json` | `.bob/skills/` |
 | Gemini CLI | `templates/gemini/` | `GEMINI.md` + `@file.md` imports + policies | `.gemini/settings.json` | `.gemini/skills/` |
 | GitHub Copilot CLI | `templates/copilot/` | `.github/copilot-instructions.md` + `.github/agents/` + hooks | `.github/mcp.json` | `.github/skills/` |
+| Pi | `templates/pi/` | `AGENTS.md` + `.pi/prompts/` + guard extension | `.mcp.json` | `.pi/skills/` |
 | Qwen | `templates/qwen/` | `QWEN.md` + sub-agent definitions | `.qwen/settings.json` | `.qwen/skills/` |
 | OpenCode | `templates/opencode/` | `AGENTS.md` + permission-based agents | `opencode.json` | `.opencode/skills/` |
 
@@ -437,6 +441,8 @@ Most supported agents use native **sub-agent dispatch** or custom-agent isolatio
 
 - **GitHub Copilot CLI** -- project skills live under `.github/skills/` and custom agents live under `.github/agents/`. Camel-Kit generates planner, implementer, tester, validator, migrator, catalog researcher, and security reviewer agents with Copilot tool aliases and MCP server prefixes. Internal guide skills copied for custom-agent use are marked `user-invocable: false` and `disable-model-invocation: true` using Copilot-readable metadata. MCP servers are committed in `.github/mcp.json` using Copilot's `tools` schema. Repository hooks under `.github/hooks/` provide a lightweight safety harness for destructive shell commands while keeping Copilot's normal permission prompts active.
 
+- **Pi** -- project skills live under `.pi/skills/` and command stubs are generated as `.pi/prompts/` prompt templates. Pi reads `AGENTS.md` natively. MCP servers are committed in `.mcp.json` for `pi-mcp-adapter` using the adapter's `directTools` allowlist schema. Internal guide skills are marked `user-invocable: false` and `disable-model-invocation: true`; Pi currently honors only the model-invocation flag. A static `.pi/extensions/camel-kit-guard.ts` extension interprets `.pi/camel-kit-guard-policy.json` to block destructive or secret-sensitive tool calls. Pi has no native subagents, so custom-agent parity is deferred.
+
 **IBM Bob 2** uses Bob's native `spawn_subagent` tool. Camel-Kit exposes this as `--ai bob2`, but generated project files still live under `.bob/` because Bob reads `.bob/commands`, `.bob/skills`, `.bob/custom_modes.yaml`, and `.bob/mcp.json`.
 
 - `explore` is used for read-only research, route inspection, spec review, quality review, and MCP verification summaries.
@@ -476,6 +482,7 @@ The trade-off table:
 | IBM Bob 2 | Native `spawn_subagent` plus custom modes | `explore`/`general` subagents, parallel same-turn dispatch, shared skills |
 | Gemini CLI | `invoke_subagent` + parallel scheduler | Default-parallel `Promise.all()`, TOML policy, MCP wildcards, A2A remote agents |
 | GitHub Copilot CLI | Project skills + custom agents + hooks | `.github/skills`, `.github/agents`, `.github/mcp.json`, safety hooks |
+| Pi | Project skills + prompt templates + guard extension | `.pi/skills`, `.pi/prompts`, `.mcp.json`, `pi-mcp-adapter`, trust-gated resources |
 | Qwen | Dual dispatch (named + fork) | Fork background tasks, DashScope cache sharing, auto-delegation |
 | OpenCode | `task` child sessions + opt-in delegation | 14 permission types, glob patterns, configurable depth limits |
 
@@ -801,6 +808,7 @@ user_invocable: false
    - IBM Bob 2: update `templates/bob2/custom_modes.yaml`, `templates/traits/bob2/`, and rules directories
    - Gemini CLI: update `templates/gemini/gemini-md.md`
    - GitHub Copilot CLI: update `templates/copilot/copilot-instructions.md`, `templates/copilot/agents-md.md`, and any affected `.github/agents` templates
+   - Pi: update `templates/pi/agents-md.md`, `templates/dispatch/pi.md`, and guard policy templates when relevant
    - Qwen: update `templates/qwen/qwen-md.md`
    - OpenCode: update `templates/opencode/agents-md.md`
 

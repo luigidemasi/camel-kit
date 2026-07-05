@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "rules": [
+    {
+      "id": "deny-git-push",
+      "toolNames": ["bash"],
+      "inputPattern": "\\bgit\\s+push\\b",
+      "flags": "i",
+      "reason": "Camel Kit safety guard blocked git push from an automated Pi session."
+    },
+    {
+      "id": "deny-recursive-force-delete",
+      "toolNames": ["bash"],
+      "inputPattern": "\\brm\\s+(?:[^\\n]*\\s+)?-[a-z]*r[a-z]*f\\b|\\brm\\s+(?:[^\\n]*\\s+)?-[a-z]*f[a-z]*r\\b|\\brm\\s+(?:[^\\n]*\\s+)?-[a-z]*r\\b[^\\n]*\\s-[a-z]*f\\b|\\brm\\s+(?:[^\\n]*\\s+)?-[a-z]*f\\b[^\\n]*\\s-[a-z]*r\\b",
+      "flags": "i",
+      "reason": "Camel Kit safety guard blocked a broad recursive force delete command."
+    },
+    {
+      "id": "deny-world-writable-chmod",
+      "toolNames": ["bash"],
+      "inputPattern": "\\bchmod\\s+777\\b",
+      "flags": "i",
+      "reason": "Camel Kit safety guard blocked chmod 777."
+    },
+    {
+      "id": "deny-common-secret-read",
+      "toolNames": ["bash", "read"],
+      "inputPattern": "(^|[\\s/])(?:\\.env|id_rsa|\\.npmrc|credentials|\\.aws/config|\\.aws/credentials)\\b",
+      "flags": "i",
+      "reason": "Camel Kit safety guard blocked access to a common secret or credential file."
+    }
+  ]
+}

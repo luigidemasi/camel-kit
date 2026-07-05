@@ -17,6 +17,7 @@ public final class AgentGeneratorFactory {
             case COPILOT -> new CopilotGenerator();
             case GEMINI -> new GeminiGenerator();
             case OPENCODE -> new OpenCodeGenerator();
+            case PI -> new PiGenerator();
             case QWEN -> new QwenGenerator();
             case DEFAULT -> new DefaultGenerator();
         };

@@ -169,6 +169,125 @@ public class DoctorService {
                     "Missing SKILL.md for: " + String.join(", ", missingSkills),
                     "Restore the missing skill folders or re-run camel-kit init --here --force."));
         }
+        checkAgentSpecificWorkspace(root, agent, findings);
+    }
+
+    private void checkAgentSpecificWorkspace(Path root, AgentConfig agent, List<DoctorFinding> findings) {
+        if (AgentGeneratorStrategy.PI.descriptorValue().equals(agentKey(agent))) {
+            checkPiGuard(root, findings);
+        }
+    }
+
+    private void checkPiGuard(Path root, List<DoctorFinding> findings) {
+        Path extension = root.resolve(".pi/extensions/camel-kit-guard.ts");
+        Path policy = root.resolve(".pi/camel-kit-guard-policy.json");
+        boolean extensionOk = Files.isRegularFile(extension);
+        boolean policyOk = false;
+
+        if (!extensionOk) {
+            findings.add(DoctorFinding.fail("workspace", relativize(root, extension),
+                    "Pi safety guard extension is missing",
+                    "Run camel-kit init --here --ai pi --force to regenerate Pi guard resources."));
+        }
+
+        if (!Files.isRegularFile(policy)) {
+            findings.add(DoctorFinding.fail("workspace", relativize(root, policy),
+                    "Pi safety guard policy is missing",
+                    "Run camel-kit init --here --ai pi --force to regenerate Pi guard resources."));
+        } else {
+            policyOk = checkPiGuardPolicy(root, policy, findings);
+        }
+
+        if (extensionOk && policyOk) {
+            findings.add(DoctorFinding.pass("workspace", relativize(root, extension),
+                    "Pi safety guard extension and policy are present",
+                    "No action required."));
+        }
+    }
+
+    private boolean checkPiGuardPolicy(Path root, Path policy, List<DoctorFinding> findings) {
+        JsonNode rootNode;
+        try {
+            rootNode = MAPPER.readTree(policy.toFile());
+        } catch (IOException e) {
+            findings.add(DoctorFinding.fail("workspace", relativize(root, policy),
+                    "Pi safety guard policy is not valid JSON: " + e.getMessage(),
+                    "Fix the JSON syntax or regenerate Pi guard resources with camel-kit init --here --ai pi --force."));
+            return false;
+        }
+
+        boolean valid = true;
+        JsonNode version = rootNode.path("version");
+        if (!version.isInt() || version.asInt() != 1 || !rootNode.path("rules").isArray()) {
+            findings.add(DoctorFinding.fail("workspace", relativize(root, policy),
+                    "Pi safety guard policy must declare version 1 and a rules array",
+                    "Regenerate Pi guard resources with camel-kit init --here --ai pi --force."));
+            valid = false;
+        }
+
+        JsonNode rules = rootNode.path("rules");
+        if (rules.isArray()) {
+            for (int i = 0; i < rules.size(); i++) {
+                valid &= checkPiGuardRule(root, policy, rules.get(i), i, findings);
+            }
+        }
+        return valid;
+    }
+
+    private boolean checkPiGuardRule(
+            Path root, Path policy, JsonNode rule, int index, List<DoctorFinding> findings) {
+        boolean valid = true;
+        if (!rule.isObject()) {
+            findings.add(DoctorFinding.fail("workspace", relativize(root, policy),
+                    "Pi safety guard policy rule at index " + index + " must be an object",
+                    "Ensure each rule declares inputPattern, reason, and optional toolNames."));
+            return false;
+        }
+
+        if (!isNonBlankText(rule.path("inputPattern"))) {
+            findings.add(DoctorFinding.fail("workspace", relativize(root, policy),
+                    "Pi safety guard policy rule at index " + index + " must declare a non-empty inputPattern",
+                    "Regenerate Pi guard resources with camel-kit init --here --ai pi --force."));
+            valid = false;
+        }
+        if (!isNonBlankText(rule.path("reason"))) {
+            findings.add(DoctorFinding.fail("workspace", relativize(root, policy),
+                    "Pi safety guard policy rule at index " + index + " must declare a non-empty reason",
+                    "Regenerate Pi guard resources with camel-kit init --here --ai pi --force."));
+            valid = false;
+        }
+
+        JsonNode toolNames = rule.path("toolNames");
+        if (!toolNames.isMissingNode()) {
+            if (!toolNames.isArray()) {
+                addPiGuardPolicyFailure(root, policy, findings,
+                        "Pi safety guard policy rule at index " + index
+                                                                + " has invalid toolNames; expected an array of strings");
+                valid = false;
+            } else {
+                for (int i = 0; i < toolNames.size(); i++) {
+                    if (!isNonBlankText(toolNames.get(i))) {
+                        addPiGuardPolicyFailure(root, policy, findings,
+                                "Pi safety guard policy rule at index " + index
+                                                                        + " has an invalid toolNames entry at index "
+                                                                        + i);
+                        valid = false;
+                    }
+                }
+            }
+        }
+        return valid;
+    }
+
+    private void addPiGuardPolicyFailure(
+            Path root, Path policy, List<DoctorFinding> findings, String message) {
+        findings.add(DoctorFinding.fail("workspace", relativize(root, policy),
+                message,
+                "Regenerate Pi guard resources with camel-kit init --here --ai pi --force."));
+    }
+
+    private boolean isNonBlankText(JsonNode node) {
+        return node.isTextual() && !node.asText().isBlank();
     }
 
     private void checkCommandFiles(
@@ -214,8 +333,11 @@ public class DoctorService {
 
     private void checkMcp(Path root, Properties config, List<DoctorFinding> findings) {
         String agentName = config.getProperty("agent.name", "").trim();
+        String normalizedAgentName = agentName.toLowerCase(Locale.ROOT);
         boolean copilotToolsSchema = AgentGeneratorStrategy.COPILOT.descriptorValue()
-                .equals(agentName.toLowerCase(Locale.ROOT));
+                .equals(normalizedAgentName);
+        boolean piDirectToolsSchema = AgentGeneratorStrategy.PI.descriptorValue()
+                .equals(normalizedAgentName);
         Path mcpFile = mcpConfigPath(root, agentName);
         if (mcpFile == null) {
             findings.add(DoctorFinding.fail("mcp", null,
@@ -249,10 +371,11 @@ public class DoctorService {
         }
 
         boolean camelOk = checkMcpServer(
-                root, mcpFile, servers, "camel", expectations.camelMcpTools(), copilotToolsSchema, findings);
+                root, mcpFile, servers, "camel", expectations.camelMcpTools(), copilotToolsSchema,
+                piDirectToolsSchema, findings);
         boolean knowledgeOk = checkMcpServer(
                 root, mcpFile, servers, "camel-knowledge", expectations.knowledgeMcpTools(), copilotToolsSchema,
-                findings);
+                piDirectToolsSchema, findings);
         if (camelOk && knowledgeOk) {
             findings.add(DoctorFinding.pass("mcp", relativize(root, mcpFile),
                     "MCP config exists and tool allowlists match Camel-Kit expectations",
@@ -262,7 +385,7 @@ public class DoctorService {
 
     private boolean checkMcpServer(
             Path root, Path mcpFile, JsonNode servers, String serverName, Set<String> expected,
-            boolean copilotToolsSchema, List<DoctorFinding> findings) {
+            boolean copilotToolsSchema, boolean piDirectToolsSchema, List<DoctorFinding> findings) {
         JsonNode server = servers.path(serverName);
         if (!server.isObject()) {
             findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
@@ -273,6 +396,9 @@ public class DoctorService {
 
         if (copilotToolsSchema) {
             return checkCopilotTools(root, mcpFile, serverName, server, expected, findings);
+        }
+        if (piDirectToolsSchema) {
+            return checkPiDirectTools(root, mcpFile, serverName, server, expected, findings);
         }
 
         boolean autoApproveOk = checkAllowlist(root, mcpFile, serverName, "autoApprove", server, expected, findings);
@@ -310,6 +436,42 @@ public class DoctorService {
                 "MCP server '" + serverName + "' tools must be an array or comma-separated string",
                 "Set tools to [\"*\"] or the generated Camel-Kit tool list, then re-run camel-kit doctor."));
         return false;
+    }
+
+    private boolean checkPiDirectTools(
+            Path root, Path mcpFile, String serverName, JsonNode server, Set<String> expected,
+            List<DoctorFinding> findings) {
+        JsonNode directTools = server.path("directTools");
+        if (directTools.isMissingNode() || directTools.isNull()) {
+            findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                    "MCP server '" + serverName + "' is missing directTools",
+                    "Regenerate the Pi MCP config with camel-kit init --here --ai pi --force."));
+            return false;
+        }
+
+        if (directTools.isBoolean()) {
+            if (directTools.asBoolean()) {
+                findings.add(DoctorFinding.warn("mcp", relativize(root, mcpFile),
+                        "MCP server '" + serverName + "' directTools promotes all tools",
+                        "Prefer the generated Camel-Kit tool allowlist for least privilege unless broader access is intentional."));
+                return true;
+            }
+            findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                    "MCP server '" + serverName + "' directTools disables first-class tools",
+                    "Set directTools to the generated Camel-Kit tool allowlist and re-run camel-kit doctor."));
+            return false;
+        }
+
+        if (!directTools.isArray()) {
+            findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                    "MCP server '" + serverName + "' directTools must be an array or true",
+                    "Set directTools to true or the generated Camel-Kit tool list, then re-run camel-kit doctor."));
+            return false;
+        }
+
+        Set<String> actual = new LinkedHashSet<>();
+        directTools.forEach(value -> actual.add(value.asText()));
+        return checkToolSet(root, mcpFile, serverName, "directTools", actual, expected, false, findings);
     }
 
     private boolean checkAllowlist(

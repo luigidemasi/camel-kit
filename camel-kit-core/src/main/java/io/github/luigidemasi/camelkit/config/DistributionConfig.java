@@ -25,6 +25,8 @@ public class DistributionConfig {
 
     private static final String DEFAULT_CITRUS_VERSION = "5.0.0-M2";
     private static final String DEFAULT_CITRUS_MCP_VERSION = "5.0.0-M2";
+    private static final String DEFAULT_PI_VERSION = "0.80.3";
+    private static final String DEFAULT_PI_MCP_ADAPTER_VERSION = "2.11.0";
 
     private static final Path DEFAULT_USER_CONFIG = Path.of(
             System.getProperty("user.home"), ".camel-kit", "config.properties");
@@ -47,6 +49,8 @@ public class DistributionConfig {
     private final String knowledgeMcpRepos;
     private final String citrusMcpRepos;
     private final String camelCatalogRepos;
+    private final String piVersion;
+    private final String piMcpAdapterVersion;
     private final int overrideCount;
 
     private DistributionConfig(Properties props, int overrideCount) {
@@ -70,6 +74,8 @@ public class DistributionConfig {
         this.citrusMcpRepos = props.getProperty("citrus.mcp.repos", "central=https://repo1.maven.org/maven2/");
         this.camelCatalogRepos = props.getProperty("camel.catalog.repos",
                 "https://repo1.maven.org/maven2/,https://repository.apache.org/snapshots");
+        this.piVersion = props.getProperty("pi.version", DEFAULT_PI_VERSION);
+        this.piMcpAdapterVersion = props.getProperty("pi.mcp.adapter.version", DEFAULT_PI_MCP_ADAPTER_VERSION);
         this.overrideCount = overrideCount;
     }
 
@@ -290,6 +296,14 @@ public class DistributionConfig {
 
     public String camelCatalogRepos() {
         return camelCatalogRepos;
+    }
+
+    public String piVersion() {
+        return piVersion;
+    }
+
+    public String piMcpAdapterVersion() {
+        return piMcpAdapterVersion;
     }
 
     public int overrideCount() {

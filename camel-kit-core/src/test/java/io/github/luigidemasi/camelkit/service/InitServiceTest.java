@@ -94,6 +94,28 @@ class InitServiceTest {
     }
 
     @Test
+    void initializesPiWorkspaceWithNativeAssets() throws Exception {
+        RecordingProgress progress = new RecordingProgress();
+        Path targetDir = tempDir.resolve("orders");
+
+        InitResult result = new InitService().initialize(
+                request(targetDir, "pi", progress, InitReporter.noop()));
+
+        assertEquals("pi", result.agentName());
+        assertTrue(Files.isRegularFile(targetDir.resolve("AGENTS.md")));
+        assertTrue(Files.isRegularFile(targetDir.resolve(".mcp.json")));
+        assertTrue(Files.isRegularFile(targetDir.resolve(".pi/skills/camel-start/SKILL.md")));
+        assertTrue(Files.isRegularFile(targetDir.resolve(".pi/prompts/camel-start.md")));
+        assertTrue(Files.isRegularFile(targetDir.resolve(".pi/extensions/camel-kit-guard.ts")));
+        assertTrue(Files.isRegularFile(targetDir.resolve(".pi/camel-kit-guard-policy.json")));
+        assertTrue(progress.events().contains("start:Generating Pi workspace"));
+
+        String config = Files.readString(targetDir.resolve(".camel-kit/config.properties"));
+        assertTrue(config.contains("agent.name=pi"));
+        assertTrue(config.contains("agent.folder=.pi/prompts"));
+    }
+
+    @Test
     void initPersistsRuntimeAndVersionConfig() throws Exception {
         Path targetDir = tempDir.resolve("orders");
 
