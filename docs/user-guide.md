@@ -144,6 +144,7 @@ camel-kit init order-processing --ai bob      # IBM Bob 1 legacy
 camel-kit init order-processing --ai bob2     # IBM Bob 2
 camel-kit init order-processing --ai gemini
 camel-kit init order-processing --ai copilot
+camel-kit init order-processing --ai pi
 camel-kit init order-processing --ai qwen
 camel-kit init order-processing --ai opencode
 ```
@@ -194,6 +195,7 @@ order-processing/
     constitution.md          # 7 route quality rules
   .mcp.json                  # MCP server config (agent-specific location)
   .github/                   # GitHub Copilot CLI assets when --ai copilot is selected
+  .pi/                       # Pi skills, prompt templates, and guard extension when --ai pi is selected
   pom.xml                    # Maven project with Camel BOM
   mvnw / mvnw.cmd            # Maven wrapper
 ```
@@ -723,6 +725,7 @@ The same skills work across all supported AI coding assistants. Camel-Kit uses m
 | **Bob 2** (IBM Bob, default) | `--ai bob2` | Uses native `spawn_subagent` plus Bob custom modes and shared skills |
 | **Gemini** (Google Gemini CLI) | `--ai gemini` | Dispatches to 6 subagents; execute phase runs in main agent |
 | **GitHub Copilot CLI** | `--ai copilot` | Uses `.github/skills`, `.github/agents`, `.github/mcp.json`, and repository safety hooks |
+| **Pi** | `--ai pi` | Uses `.pi/skills`, `.pi/prompts`, `.mcp.json` through `pi-mcp-adapter`, and a project guard extension |
 | **Qwen** (Alibaba Qwen CLI) | `--ai qwen` | Auto-delegates to 7 sub-agents based on intent matching |
 | **OpenCode** | `--ai opencode` | Dispatches to 7 agents with granular permission control |
 
@@ -743,10 +746,10 @@ All agents produce the same output (YAML routes, properties files, tests). The d
 
 | Aspect | What You'll Notice |
 |--------|-------------------|
-| **Dispatch transparency** | Claude and Bob 2 show subagent dispatch; Bob 1 legacy shows mode switching; Gemini/Qwen/OpenCode/Copilot delegate to specialized agents |
-| **Tool restrictions** | During brainstorm, Bob modes can physically prevent code edits. Claude and Qwen rely on skill instructions. OpenCode uses glob-pattern permissions. Copilot uses tool allow/deny permissions and generated safety hooks. |
+| **Dispatch transparency** | Claude and Bob 2 show subagent dispatch; Bob 1 legacy shows mode switching; Gemini/Qwen/OpenCode/Copilot delegate to specialized agents; Pi runs in the main session |
+| **Tool restrictions** | During brainstorm, Bob modes can physically prevent code edits. Claude and Qwen rely on skill instructions. OpenCode uses glob-pattern permissions. Copilot uses tool allow/deny permissions and generated safety hooks. Pi uses a generated guard extension plus external sandboxing when needed. |
 | **Parallel execution** | Claude and Bob 2 can dispatch independent tasks in the same wave; other agents have more limited parallelism |
-| **MCP approval prompts** | Gemini auto-approves MCP tool calls via its policy engine. Copilot uses `.github/mcp.json` plus Copilot's permission system. Other agents may prompt you for each MCP call. |
+| **MCP approval prompts** | Gemini auto-approves MCP tool calls via its policy engine. Copilot uses `.github/mcp.json` plus Copilot's permission system. Pi uses `pi-mcp-adapter` `directTools`. Other agents may prompt you for each MCP call. |
 | **Execution limits** | OpenCode and Gemini enforce step/turn limits per phase. Other agents have no hard limits. |
 
 ### How Execution Works: Subagents vs. Mode Switching
@@ -818,11 +821,14 @@ MCP is auto-configured during `camel-kit init`. The init command creates agent-s
 - **Bob:** `.bob/mcp.json`
 - **Gemini:** `.gemini/mcp.json`
 - **GitHub Copilot CLI:** `.github/mcp.json`
+- **Pi:** `.mcp.json` via `pi-mcp-adapter`
 - **Qwen/OpenCode:** agent-specific config locations
 
 GitHub Copilot CLI workspaces also get `.github/copilot-instructions.md`, `.github/skills/`, `.github/agents/`, and `.github/hooks/camel-kit-safety.json`. Internal guide skills copied for custom-agent use are marked so Copilot does not directly or automatically invoke them. The generated hook denies obvious destructive or secret-sensitive shell commands such as `git push`, broad `rm -rf`, `chmod 777`, and reads of common secret files, while leaving normal Copilot permissions in place. Workspace MCP servers from `.github/mcp.json` load only after the repository folder is trusted.
 
-No additional configuration is needed. The AI assistant automatically uses MCP tools when available.
+Pi workspaces also get `AGENTS.md`, `.pi/skills/`, `.pi/prompts/`, `.pi/extensions/camel-kit-guard.ts`, and `.pi/camel-kit-guard-policy.json`. Install `pi-mcp-adapter` with `pi install npm:pi-mcp-adapter`, run `/trust`, then invoke `/skill:camel-start`. For headless validation, use `pi -a` so Pi loads project resources.
+
+After the agent-specific setup above, the AI assistant automatically uses MCP tools when available.
 
 ### Knowledge and Citrus MCP
 

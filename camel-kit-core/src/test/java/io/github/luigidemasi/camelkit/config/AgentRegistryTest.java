@@ -23,7 +23,7 @@ class AgentRegistryTest {
 
     @Test
     void builtInAgentsAreLoadedFromResourceDescriptors() {
-        assertEquals(Set.of("bob", "bob2", "claude", "copilot", "gemini", "opencode", "qwen"),
+        assertEquals(Set.of("bob", "bob2", "claude", "copilot", "gemini", "opencode", "pi", "qwen"),
                 AgentRegistry.names());
 
         AgentConfig claude = AgentRegistry.get("claude");
@@ -69,6 +69,30 @@ class AgentRegistryTest {
         assertTrue(descriptor.capabilities().contains("custom-agents"));
         assertTrue(descriptor.capabilities().contains("project-skills"));
         assertTrue(descriptor.capabilities().contains("hooks"));
+    }
+
+    @Test
+    void piDescriptorUsesNativeProjectLocations() {
+        AgentConfig pi = AgentRegistry.get("pi");
+        assertNotNull(pi);
+        assertEquals("Pi", pi.name());
+        assertEquals(".pi/prompts", pi.folder());
+        assertEquals("md", pi.fileFormat());
+        assertEquals(".mcp.json", pi.mcpConfigPath());
+        assertEquals("templates/mcp-configs/pi-mcp.json", pi.mcpConfigTemplatePath());
+        assertEquals("mcpServers", pi.mcpServerContainerKey());
+
+        AgentDescriptor descriptor = AgentRegistry.descriptor("pi");
+        assertNotNull(descriptor);
+        assertEquals("pi", descriptor.generatorStrategy());
+        assertEquals(AgentGeneratorStrategy.PI, descriptor.generatorStrategyType());
+        assertEquals("templates/dispatch/pi.md", descriptor.dispatchTemplatePath());
+        assertFalse(descriptor.supportsSubagents());
+        assertTrue(descriptor.supportsTraits());
+        assertTrue(descriptor.capabilities().contains("project-skills"));
+        assertTrue(descriptor.capabilities().contains("prompt-templates"));
+        assertTrue(descriptor.capabilities().contains("hooks"));
+        assertFalse(descriptor.capabilities().contains("custom-agents"));
     }
 
     @Test

@@ -18,7 +18,7 @@ import io.github.luigidemasi.camelkit.util.AnsiColors;
 
 class SkillResourceInstaller {
 
-    private static final Set<String> COPILOT_INTERNAL_SKILLS = Set.of(
+    private static final Set<String> MODEL_HIDDEN_INTERNAL_SKILLS = Set.of(
             "camel-design",
             "camel-implement",
             "camel-test",
@@ -133,6 +133,9 @@ class SkillResourceInstaller {
             if (AgentGeneratorStrategy.COPILOT.descriptorValue().equals(ctx.agentName())) {
                 addCopilotReadableInternalSkillMetadata(destination);
             }
+            if (AgentGeneratorStrategy.PI.descriptorValue().equals(ctx.agentName())) {
+                addPiReadableInternalSkillMetadata(destination);
+            }
             dispatchBlockAppender.append(destination, ctx.agentName());
         }
         if (destination.getFileName().toString().endsWith(".md")) {
@@ -170,8 +173,16 @@ class SkillResourceInstaller {
     }
 
     void addCopilotReadableInternalSkillMetadata(Path skillFile) throws Exception {
+        addInternalSkillInvocationMetadata(skillFile, "Copilot");
+    }
+
+    void addPiReadableInternalSkillMetadata(Path skillFile) throws Exception {
+        addInternalSkillInvocationMetadata(skillFile, "Pi");
+    }
+
+    private void addInternalSkillInvocationMetadata(Path skillFile, String agentName) throws Exception {
         String skillName = skillFile.getParent().getFileName().toString();
-        if (!COPILOT_INTERNAL_SKILLS.contains(skillName)) {
+        if (!MODEL_HIDDEN_INTERNAL_SKILLS.contains(skillName)) {
             return;
         }
 
@@ -179,8 +190,8 @@ class SkillResourceInstaller {
         String normalized = content.replace("\r\n", "\n");
         if (!normalized.startsWith("---\n")) {
             throw new IOException(
-                    "Internal Copilot skill '" + skillName
-                                  + "' must declare frontmatter so Copilot invocation metadata can be generated");
+                    "Internal " + agentName + " skill '" + skillName
+                                  + "' must declare frontmatter so invocation metadata can be generated");
         }
 
         boolean hasUserInvocable = normalized.contains("\nuser-invocable:");
@@ -191,8 +202,8 @@ class SkillResourceInstaller {
         boolean hasCamelKitUserInvocable = normalized.contains("\nuser_invocable:");
         if (!hasCamelKitUserInvocable && !hasUserInvocable) {
             throw new IOException(
-                    "Internal Copilot skill '" + skillName
-                                  + "' must declare user_invocable or user-invocable so Copilot invocation metadata can be generated");
+                    "Internal " + agentName + " skill '" + skillName
+                                  + "' must declare user_invocable or user-invocable so invocation metadata can be generated");
         }
 
         String[] lines = normalized.split("\n", -1);

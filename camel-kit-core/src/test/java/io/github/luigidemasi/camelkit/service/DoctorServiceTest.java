@@ -19,6 +19,7 @@ class DoctorServiceTest {
 
     private static final DoctorExpectations EXPECTATIONS = DoctorExpectations.loadDefault();
     private static final String COPILOT = AgentGeneratorStrategy.COPILOT.descriptorValue();
+    private static final String PI = AgentGeneratorStrategy.PI.descriptorValue();
 
     @TempDir
     Path tempDir;
@@ -58,6 +59,21 @@ class DoctorServiceTest {
         assertFalse(result.hasFailures(), result.findings().toString());
         assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
                 "MCP config exists and tool allowlists match Camel-Kit expectations",
+                "No action required."));
+    }
+
+    @Test
+    void healthyPiWorkspaceUsesDirectToolsSchemaAndGuardResources() throws Exception {
+        createHealthyWorkspace(tempDir, "pi");
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "MCP config exists and tool allowlists match Camel-Kit expectations",
+                "No action required."));
+        assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "workspace",
+                "Pi safety guard extension and policy are present",
                 "No action required."));
     }
 
@@ -147,6 +163,71 @@ class DoctorServiceTest {
     }
 
     @Test
+    void piDirectToolsTrueWarnsWithoutFailing() throws Exception {
+        createHealthyWorkspace(tempDir, "pi");
+        writeMcpConfig(tempDir, "pi", """
+                {
+                  "mcpServers": {
+                    "camel": {
+                      "command": "jbang",
+                      "directTools": true
+                    },
+                    "camel-knowledge": {
+                      "command": "jbang",
+                      "directTools": true
+                    }
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.WARN, "mcp",
+                "MCP server 'camel' directTools promotes all tools",
+                "Prefer the generated Camel-Kit tool allowlist"));
+    }
+
+    @Test
+    void invalidPiDirectToolsScalarProducesClearFailure() throws Exception {
+        createHealthyWorkspace(tempDir, "pi");
+        writeMcpConfig(tempDir, "pi", """
+                {
+                  "mcpServers": {
+                    "camel": {
+                      "command": "jbang",
+                      "directTools": "camel_catalog_components"
+                    },
+                    "camel-knowledge": {
+                      "command": "jbang",
+                      "directTools": []
+                    }
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "MCP server 'camel' directTools must be an array or true",
+                "Set directTools"));
+    }
+
+    @Test
+    void missingPiGuardPolicyProducesClearFailure() throws Exception {
+        createHealthyWorkspace(tempDir, "pi");
+        Files.delete(tempDir.resolve(".pi/camel-kit-guard-policy.json"));
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "workspace",
+                "Pi safety guard policy is missing",
+                "Run camel-kit init --here --ai pi --force"));
+    }
+
+    @Test
     void nonCopilotToolsKeyDoesNotBypassLegacyAllowlistValidation() throws Exception {
         createHealthyWorkspace(tempDir, "bob");
         writeMcpConfig(tempDir, "bob", """
@@ -233,6 +314,18 @@ class DoctorServiceTest {
         Files.createDirectories(mcpFile.getParent());
         Files.writeString(mcpFile,
                 mcpJson(agentName, EXPECTATIONS.camelMcpTools(), EXPECTATIONS.knowledgeMcpTools()));
+
+        if (PI.equals(agentName)) {
+            Files.createDirectories(root.resolve(".pi/extensions"));
+            Files.writeString(root.resolve(".pi/extensions/camel-kit-guard.ts"),
+                    "export default function camelKitGuard(pi: any) {}\n");
+            Files.writeString(root.resolve(".pi/camel-kit-guard-policy.json"), """
+                    {
+                      "version": 1,
+                      "rules": []
+                    }
+                    """);
+        }
     }
 
     private void writeMcpConfig(Path root, String agentName, String content) throws Exception {
@@ -256,6 +349,22 @@ class DoctorServiceTest {
                           "type": "stdio",
                           "command": "jbang",
                           "tools": [%s]
+                        }
+                      }
+                    }
+                    """, jsonArray(camelTools), jsonArray(knowledgeTools));
+        }
+        if (PI.equals(agentName)) {
+            return String.format(Locale.ROOT, """
+                    {
+                      "mcpServers": {
+                        "camel": {
+                          "command": "jbang",
+                          "directTools": [%s]
+                        },
+                        "camel-knowledge": {
+                          "command": "jbang",
+                          "directTools": [%s]
                         }
                       }
                     }

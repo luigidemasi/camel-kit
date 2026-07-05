@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class DefaultGeneratorTest {
 
     private static final String COPILOT = AgentGeneratorStrategy.COPILOT.descriptorValue();
+    private static final String PI = AgentGeneratorStrategy.PI.descriptorValue();
 
     @TempDir
     Path tempDir;
@@ -95,7 +96,7 @@ class DefaultGeneratorTest {
                 .allowedTools());
 
         ObjectMapper mapper = new ObjectMapper();
-        for (String agentName : List.of("bob", "claude", COPILOT, "gemini", "qwen", "opencode")) {
+        for (String agentName : List.of("bob", "claude", COPILOT, "gemini", "qwen", "opencode", PI)) {
             InitContext ctx = createContext(agentName);
             new DefaultGenerator().generate(ctx);
 
@@ -103,6 +104,9 @@ class DefaultGeneratorTest {
             if (COPILOT.equals(agentName)) {
                 assertEquals(implementedKnowledgeTools, jsonArrayToList(knowledgeServer.path("tools")),
                         agentName + " tools must only include implemented Knowledge MCP tools");
+            } else if (PI.equals(agentName)) {
+                assertEquals(implementedKnowledgeTools, jsonArrayToList(knowledgeServer.path("directTools")),
+                        agentName + " directTools must only include implemented Knowledge MCP tools");
             } else {
                 assertEquals(implementedKnowledgeTools, jsonArrayToList(knowledgeServer.path("autoApprove")),
                         agentName + " autoApprove must only include implemented Knowledge MCP tools");

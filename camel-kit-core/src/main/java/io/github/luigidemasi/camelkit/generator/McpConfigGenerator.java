@@ -44,7 +44,9 @@ class McpConfigGenerator {
                         "CAMEL_MCP_REPOS", dist.camelMcpRepos(),
                         "KNOWLEDGE_MCP_REPOS", dist.knowledgeMcpRepos(),
                         "CITRUS_MCP_REPOS", dist.citrusMcpRepos(),
-                        "CAMEL_CATALOG_REPOS", dist.camelCatalogRepos()));
+                        "CAMEL_CATALOG_REPOS", dist.camelCatalogRepos(),
+                        "PI_VERSION", dist.piVersion(),
+                        "PI_MCP_ADAPTER_VERSION", dist.piMcpAdapterVersion()));
 
         WorkflowManifest.WorkflowMcpServer camelServer = workflow.mcpServer("camel");
         data.put("CAMEL_TOOLS_JSON", toJsonArray(camelServer.allowedTools()));

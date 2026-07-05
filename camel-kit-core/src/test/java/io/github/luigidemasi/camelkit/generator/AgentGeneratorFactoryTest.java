@@ -42,6 +42,11 @@ class AgentGeneratorFactoryTest {
     }
 
     @Test
+    void piReturnsPiGenerator() {
+        assertInstanceOf(PiGenerator.class, AgentGeneratorFactory.create("pi"));
+    }
+
+    @Test
     void unknownAgentFailsFast() {
         IllegalArgumentException thrown = assertThrows(
                 IllegalArgumentException.class,

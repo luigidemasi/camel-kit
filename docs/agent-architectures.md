@@ -551,16 +551,64 @@ The generated safety hook is deliberately narrow. It denies `git push`, broad `r
 
 ---
 
+## Pi -- Native Skills + Prompt Templates + Guard Extension
+
+### Dispatch Model
+
+Pi reads `AGENTS.md` and native project skills from `.pi/skills/`. Camel-Kit also writes command stubs to `.pi/prompts/`
+so users can launch prompt templates, but the primary entry remains `/skill:camel-start`.
+
+Pi has no native subagents. `/camel-execute` keeps orchestration in the main Pi session. For isolated read-only
+research, users can launch separate Pi sessions manually with tool constraints such as `pi --tools read,grep,find,ls`
+and bring the findings back to the main task.
+
+### Template Files
+
+| File | Purpose |
+|------|---------|
+| `templates/pi/agents-md.md` | `AGENTS.md` -- Pi entry point, trust guidance, laws, and adapter setup |
+| `templates/pi/extensions/camel-kit-guard.ts` | Static `tool_call` guard extension |
+| `templates/pi/extensions/camel-kit-guard-policy.json` | Declarative policy interpreted by the guard extension |
+| `templates/mcp-configs/pi-mcp.json` | `.mcp.json` for `pi-mcp-adapter` using `directTools` |
+| `templates/dispatch/pi.md` | Shared dispatch block for Pi skill copies |
+
+### How It Works
+
+```text
+User: /trust
+User: /skill:camel-start
+  └── Pi loads AGENTS.md after project trust
+      ├── Skill retrieval selects .pi/skills/camel-start/SKILL.md
+      ├── Prompt templates are available from .pi/prompts/
+      ├── MCP tools come from .mcp.json through pi-mcp-adapter
+      └── .pi/extensions/camel-kit-guard.ts blocks policy-matched tool calls
+```
+
+### Tool Restriction Model
+
+Pi has no built-in permission prompt model. Camel-Kit provides a project guard extension that blocks obvious
+destructive or secret-sensitive tool calls and keeps the policy in JSON. Broader sandboxing remains an external
+container or VM concern.
+
+### Unique Capabilities
+
+- **Native skills:** Camel Kit skills use Pi's `.pi/skills/` discovery path.
+- **Trust-gated project resources:** post-init guidance and doctor checks use `pi -a` for headless validation.
+- **Adapter-backed MCP:** `.mcp.json` uses `pi-mcp-adapter` and `directTools` allowlists.
+- **Static guard extension:** generated policy is declarative JSON; executable TypeScript stays fixed.
+
+---
+
 ## Agent Comparison
 
-| Aspect | Claude | Bob 1 legacy | Bob 2 | Gemini | Copilot | Qwen | OpenCode |
-|--------|--------|--------------|-------|--------|---------|------|----------|
-| Dispatch model | Parallel subagents | Mode switching | `spawn_subagent` (`explore`, `general`) | `invoke_subagent` unified tool (local/remote/browser) | Project skills + custom agents | Dual: named subagent + fork | `task` tool creating child sessions |
-| Template files | 3 | 17+ | Bob 2 modes + traits + rules | 12 | 11 | 9 | 8 |
-| Tool restriction | Instruction-based | Mode tool groups | Mode tool groups + `allowedSubagents` | Allowlist + TOML policy + server-scoped wildcards | Custom-agent `tools` plus hooks | Allowlist + blocklist | 3-state permissions + bash glob patterns |
-| Path-scoped edits | No | `.md` only (via fileRegex) | Mode-dependent `fileRegex` | Yes (Policy Engine) | Tool-level, not path-scoped | No | Yes (glob patterns) |
-| MCP auto-approval | No (manual) | No (manual) | No (manual) | Yes (TOML policy) | No (permission prompts) | No (manual) | No (manual) |
-| Parallel execution | Yes (graph-based) | No | Yes (same-turn `spawn_subagent`) | Yes (scheduler `Promise.all()`) | Unknown | Partial (read-only tools concurrent; fork background) | Partial (LLM-level parallel tool calls) |
-| Subagent recursion | Yes (no limit) | N/A | No (subagents must not spawn subagents) | No (hardcoded `Kind.Agent` filter) | Unknown | No (fork-of-fork blocked) | Opt-in configurable depth |
-| Execute phase | Subagent with parallel dispatch | Gate file with mode switch | Parent task orchestrates subagents | Main agent (recursion prevention) | Project skill delegates when available | Sub-agent with `task` tool | Agent with `task` permission |
-| Instruction composition | Single `CLAUDE.md` | Modes + gates + rules | Shared skills + Bob 2 traits + modes | `@file.md` modular imports | `.github/copilot-instructions.md` + project skills | Single `QWEN.md` | Ultra-minimal `AGENTS.md` |
+| Aspect | Claude | Bob 1 legacy | Bob 2 | Gemini | Copilot | Pi | Qwen | OpenCode |
+|--------|--------|--------------|-------|--------|---------|----|------|----------|
+| Dispatch model | Parallel subagents | Mode switching | `spawn_subagent` (`explore`, `general`) | `invoke_subagent` unified tool (local/remote/browser) | Project skills + custom agents | Project skills + prompt templates | Dual: named subagent + fork | `task` tool creating child sessions |
+| Template files | 3 | 17+ | Bob 2 modes + traits + rules | 12 | 11 | 5 | 9 | 8 |
+| Tool restriction | Instruction-based | Mode tool groups | Mode tool groups + `allowedSubagents` | Allowlist + TOML policy + server-scoped wildcards | Custom-agent `tools` plus hooks | Guard extension + external sandbox | Allowlist + blocklist | 3-state permissions + bash glob patterns |
+| Path-scoped edits | No | `.md` only (via fileRegex) | Mode-dependent `fileRegex` | Yes (Policy Engine) | Tool-level, not path-scoped | No | No | Yes (glob patterns) |
+| MCP auto-approval | No (manual) | No (manual) | No (manual) | Yes (TOML policy) | No (permission prompts) | Adapter `directTools` | No (manual) | No (manual) |
+| Parallel execution | Yes (graph-based) | No | Yes (same-turn `spawn_subagent`) | Yes (scheduler `Promise.all()`) | Unknown | No native subagents | Partial (read-only tools concurrent; fork background) | Partial (LLM-level parallel tool calls) |
+| Subagent recursion | Yes (no limit) | N/A | No (subagents must not spawn subagents) | No (hardcoded `Kind.Agent` filter) | Unknown | N/A | No (fork-of-fork blocked) | Opt-in configurable depth |
+| Execute phase | Subagent with parallel dispatch | Gate file with mode switch | Parent task orchestrates subagents | Main agent (recursion prevention) | Project skill delegates when available | Main Pi session | Sub-agent with `task` tool | Agent with `task` permission |
+| Instruction composition | Single `CLAUDE.md` | Modes + gates + rules | Shared skills + Bob 2 traits + modes | `@file.md` modular imports | `.github/copilot-instructions.md` + project skills | `AGENTS.md` + `.pi/skills` | Single `QWEN.md` | Ultra-minimal `AGENTS.md` |

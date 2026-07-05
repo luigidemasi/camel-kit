@@ -30,6 +30,7 @@ class ResourceConsistencyTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final String COPILOT = AgentGeneratorStrategy.COPILOT.descriptorValue();
+    private static final String PI = AgentGeneratorStrategy.PI.descriptorValue();
 
     private static final List<StalePattern> STALE_PATTERNS = List.of(
             new StalePattern(".camel-kit/config.yaml", Pattern.compile(Pattern.quote(".camel-kit/config.yaml"))),
@@ -164,6 +165,8 @@ class ResourceConsistencyTest {
             JsonNode knowledgeServer = serverConfig(agentName, projectDir, "camel-knowledge");
             if (COPILOT.equals(agentName)) {
                 assertKnowledgeTools(agentName, "tools", knowledgeServer.get("tools"));
+            } else if (PI.equals(agentName)) {
+                assertKnowledgeTools(agentName, "directTools", knowledgeServer.get("directTools"));
             } else {
                 assertKnowledgeTools(agentName, "autoApprove", knowledgeServer.get("autoApprove"));
                 assertKnowledgeTools(agentName, "alwaysAllow", knowledgeServer.get("alwaysAllow"));
@@ -172,6 +175,8 @@ class ResourceConsistencyTest {
             JsonNode citrusServer = serverConfig(agentName, projectDir, "citrus");
             if (COPILOT.equals(agentName)) {
                 assertCitrusTools(agentName, "tools", citrusServer.get("tools"));
+            } else if (PI.equals(agentName)) {
+                assertCitrusTools(agentName, "directTools", citrusServer.get("directTools"));
             } else {
                 assertCitrusTools(agentName, "autoApprove", citrusServer.get("autoApprove"));
                 assertCitrusTools(agentName, "alwaysAllow", citrusServer.get("alwaysAllow"));

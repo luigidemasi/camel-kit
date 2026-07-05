@@ -163,7 +163,7 @@ class DoctorCommandTest {
 
     @Test
     void generatedWorkspacesMatchDoctorExpectations() throws Exception {
-        for (String agentName : List.of("bob", "bob2", "claude", "copilot", "gemini", "qwen", "opencode")) {
+        for (String agentName : List.of("bob", "bob2", "claude", "copilot", "gemini", "qwen", "opencode", "pi")) {
             Path root = tempDir.resolve(agentName);
             createGeneratedWorkspace(root, agentName);
 

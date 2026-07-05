@@ -48,7 +48,7 @@ camel-kit init --here [options]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--ai`, `-a` | `bob2` | AI coding assistant to configure (`bob2` for IBM Bob 2, `bob` for IBM Bob 1 legacy, `gemini`, `claude`, `copilot`, `qwen`, `opencode`) |
+| `--ai`, `-a` | `bob2` | AI coding assistant to configure (`bob2` for IBM Bob 2, `bob` for IBM Bob 1 legacy, `gemini`, `claude`, `copilot`, `pi`, `qwen`, `opencode`) |
 | `--citrus-version` | `5.0.0-M2` | Citrus Framework version for test schemas and generated test dependencies |
 | `--here` | `false` | Initialize in current directory |
 | `--no-fetch` | `false` | Skip external catalog fetching |
@@ -79,6 +79,9 @@ camel-kit init my-integration --ai claude
 
 # Create new project for GitHub Copilot CLI
 camel-kit init my-integration --ai copilot
+
+# Create new project for Pi
+camel-kit init my-integration --ai pi
 
 # Create new project for Qwen
 camel-kit init my-integration --ai qwen
@@ -195,7 +198,7 @@ my-integration/
 │   │   ├── camelYamlDsl-{version}.json
 │   │   └── citrus/{version}/    # Citrus JSON schemas
 │   └── templates/               # Reference templates
-├── .mcp.json                    # Claude Code MCP configuration
+├── .mcp.json                    # Claude Code or Pi MCP configuration
 ├── .bob/mcp.json                # IBM Bob MCP configuration
 ├── .gemini/mcp.json             # Gemini CLI MCP configuration
 ├── .github/mcp.json             # GitHub Copilot CLI MCP configuration
@@ -203,6 +206,7 @@ my-integration/
 ├── .github/agents/              # GitHub Copilot CLI custom agents
 ├── .github/skills/              # GitHub Copilot CLI project skills
 ├── .github/hooks/               # GitHub Copilot CLI safety hooks
+├── .pi/                         # Pi skills, prompt templates, and guard extension
 ├── .qwen/mcp.json               # Qwen MCP configuration
 └── .opencode/mcp.json           # OpenCode MCP configuration
 ```
@@ -210,6 +214,8 @@ my-integration/
 The MCP configuration file created depends on the `--ai` option chosen.
 
 For GitHub Copilot CLI, Camel-Kit also generates `.github/copilot-instructions.md`, project skills under `.github/skills/`, custom agents under `.github/agents/`, and a conservative `.github/hooks/camel-kit-safety.json` hook that denies destructive or secret-sensitive shell commands while leaving normal Copilot permission prompts intact. Copilot users should start by asking Copilot to "Use the `/camel-start` skill." Run `/skills list` to inspect available project skills.
+
+For Pi, Camel-Kit generates `AGENTS.md`, project skills under `.pi/skills/`, prompt templates under `.pi/prompts/`, `.mcp.json` for `pi-mcp-adapter`, and `.pi/extensions/camel-kit-guard.ts` plus a JSON guard policy. Install the adapter with `pi install npm:pi-mcp-adapter`, trust the project with `/trust`, then run `/skill:camel-start`. Headless checks must use `pi -a`.
 
 ### camel-kit doctor
 

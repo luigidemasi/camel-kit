@@ -54,6 +54,23 @@ class InitCommandTest {
         assertFalse(output.contains("select camel-start"));
     }
 
+    @Test
+    void piNextStepsUseTrustAndSkillInvocation() {
+        CapturingPrinter printer = new CapturingPrinter();
+        CamelKitMain main = new CamelKitMain();
+        main.setOut(printer);
+
+        InitCommand command = new InitCommand(main);
+        command.printNextSteps("orders", "Pi", "pi");
+
+        String output = printer.output();
+        assertTrue(output.contains("pi install npm:pi-mcp-adapter"));
+        assertTrue(output.contains("/trust"));
+        assertTrue(output.contains("/skill:camel-start"));
+        assertTrue(output.contains("/mcp status"));
+        assertFalse(output.contains("/camel-start  "));
+    }
+
     private static final class CapturingPrinter implements Printer {
         private final StringBuilder output = new StringBuilder();
 
