@@ -209,7 +209,7 @@ my-integration/
 
 The MCP configuration file created depends on the `--ai` option chosen.
 
-For GitHub Copilot CLI, Camel-Kit also generates `.github/copilot-instructions.md`, project skills under `.github/skills/`, custom agents under `.github/agents/`, and a conservative `.github/hooks/camel-kit-safety.json` hook that denies destructive or secret-sensitive shell commands while leaving normal Copilot permission prompts intact. Copilot users should start with the `camel-start` project skill, either by asking Copilot to use it or by running `/skills`.
+For GitHub Copilot CLI, Camel-Kit also generates `.github/copilot-instructions.md`, project skills under `.github/skills/`, custom agents under `.github/agents/`, and a conservative `.github/hooks/camel-kit-safety.json` hook that denies destructive or secret-sensitive shell commands while leaving normal Copilot permission prompts intact. Copilot users should start by asking Copilot to "Use the `/camel-start` skill." Run `/skills list` to inspect available project skills.
 
 ### camel-kit doctor
 

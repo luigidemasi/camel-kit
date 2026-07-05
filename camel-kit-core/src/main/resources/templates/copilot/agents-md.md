@@ -2,7 +2,7 @@
 
 This repository is initialized for GitHub Copilot CLI.
 
-Use `.github/copilot-instructions.md` as the primary instructions file. For integration work, start with the `camel-start` project skill, then follow the routed Camel Kit skill. Direct skill names include `camel-brainstorm`, `camel-migrate`, `camel-plan`, `camel-execute`, `camel-validate`, `camel-ship`, `camel-knowledge`, and `camel-debug`.
+Use `.github/copilot-instructions.md` as the primary instructions file. For integration work, start with the `/camel-start` project skill, then follow the routed Camel Kit skill. Direct skill names include `/camel-brainstorm`, `/camel-migrate`, `/camel-plan`, `/camel-execute`, `/camel-validate`, `/camel-ship`, `/camel-knowledge`, and `/camel-debug`.
 
 ## Laws
 

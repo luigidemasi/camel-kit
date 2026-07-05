@@ -187,8 +187,8 @@ public class InitCommand extends CamelKitCommand {
         printer().println(divider);
         printer().println("  1  Open " + cyan(projectName) + " in " + agentName);
         if ("GitHub Copilot CLI".equals(agentName)) {
-            printer().println("  2  Ask Copilot to use the " + cyan("camel-start") + " project skill");
-            printer().println("     Or run " + cyan("/skills") + " and select " + cyan("camel-start"));
+            printer().println("  2  Ask Copilot: " + cyan("\"Use the /camel-start skill.\""));
+            printer().println("     Run " + cyan("/skills list") + " to inspect available project skills");
             printer().println("  3  Use " + cyan("/mcp show") + " to verify Camel Kit MCP servers");
             printer().println();
             return;

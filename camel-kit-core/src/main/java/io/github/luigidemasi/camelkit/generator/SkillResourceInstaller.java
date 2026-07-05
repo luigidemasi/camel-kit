@@ -11,10 +11,17 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import io.github.luigidemasi.camelkit.util.AnsiColors;
 
 class SkillResourceInstaller {
+
+    private static final Set<String> COPILOT_INTERNAL_SKILLS = Set.of(
+            "camel-design",
+            "camel-implement",
+            "camel-test",
+            "camel-verify");
 
     private final DispatchBlockAppender dispatchBlockAppender;
     private final VersionPlaceholderResolver versionPlaceholderResolver;
@@ -122,6 +129,9 @@ class SkillResourceInstaller {
             if ("bob2".equals(ctx.agentName())) {
                 addBobReadableUserInvocableMetadata(destination);
             }
+            if ("copilot".equals(ctx.agentName())) {
+                addCopilotReadableInternalSkillMetadata(destination);
+            }
             dispatchBlockAppender.append(destination, ctx.agentName());
         }
         if (destination.getFileName().toString().endsWith(".md")) {
@@ -150,6 +160,46 @@ class SkillResourceInstaller {
                 }
                 inserted = true;
             } else if (i < lines.length - 1) {
+                updated.append('\n');
+            }
+        }
+        if (inserted) {
+            Files.writeString(skillFile, updated.toString());
+        }
+    }
+
+    private void addCopilotReadableInternalSkillMetadata(Path skillFile) throws Exception {
+        String skillName = skillFile.getParent().getFileName().toString();
+        if (!COPILOT_INTERNAL_SKILLS.contains(skillName)) {
+            return;
+        }
+
+        String content = Files.readString(skillFile);
+        String normalized = content.replace("\r\n", "\n");
+        if (!normalized.startsWith("---\n")
+                || (normalized.contains("\nuser-invocable:")
+                        && normalized.contains("\ndisable-model-invocation:"))) {
+            return;
+        }
+
+        String[] lines = normalized.split("\n", -1);
+        StringBuilder updated = new StringBuilder(normalized.length() + 64);
+        boolean inserted = false;
+        boolean hasUserInvocable = normalized.contains("\nuser-invocable:");
+        boolean hasDisableModelInvocation = normalized.contains("\ndisable-model-invocation:");
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            updated.append(line);
+            if (!inserted && line.startsWith("user_invocable:")) {
+                if (!hasUserInvocable) {
+                    updated.append('\n').append("user-invocable: false");
+                }
+                if (!hasDisableModelInvocation) {
+                    updated.append('\n').append("disable-model-invocation: true");
+                }
+                inserted = true;
+            }
+            if (i < lines.length - 1) {
                 updated.append('\n');
             }
         }

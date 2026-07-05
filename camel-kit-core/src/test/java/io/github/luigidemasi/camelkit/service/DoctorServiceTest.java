@@ -60,6 +60,117 @@ class DoctorServiceTest {
     }
 
     @Test
+    void copilotWildcardToolsSchemaWarnsWithoutFailing() throws Exception {
+        createHealthyWorkspace(tempDir, "copilot");
+        writeMcpConfig(tempDir, "copilot", """
+                {
+                  "mcpServers": {
+                    "camel": {
+                      "type": "stdio",
+                      "command": "jbang",
+                      "tools": ["*"]
+                    },
+                    "camel-knowledge": {
+                      "type": "stdio",
+                      "command": "jbang",
+                      "tools": ["*"]
+                    }
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.WARN, "mcp",
+                "MCP server 'camel' tools field allows all tools with '*'",
+                "Prefer the generated Camel-Kit tool allowlist"));
+    }
+
+    @Test
+    void copilotCommaSeparatedToolsStringIsAccepted() throws Exception {
+        createHealthyWorkspace(tempDir, "copilot");
+        writeMcpConfig(tempDir, "copilot", String.format(Locale.ROOT, """
+                {
+                  "mcpServers": {
+                    "camel": {
+                      "type": "stdio",
+                      "command": "jbang",
+                      "tools": "%s"
+                    },
+                    "camel-knowledge": {
+                      "type": "stdio",
+                      "command": "jbang",
+                      "tools": "%s"
+                    }
+                  }
+                }
+                """, String.join(",", EXPECTATIONS.camelMcpTools()),
+                String.join(",", EXPECTATIONS.knowledgeMcpTools())));
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "MCP config exists and tool allowlists match Camel-Kit expectations",
+                "No action required."));
+    }
+
+    @Test
+    void invalidCopilotToolsScalarProducesClearFailure() throws Exception {
+        createHealthyWorkspace(tempDir, "copilot");
+        writeMcpConfig(tempDir, "copilot", """
+                {
+                  "mcpServers": {
+                    "camel": {
+                      "type": "stdio",
+                      "command": "jbang",
+                      "tools": 42
+                    },
+                    "camel-knowledge": {
+                      "type": "stdio",
+                      "command": "jbang",
+                      "tools": []
+                    }
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "MCP server 'camel' tools must be an array or comma-separated string",
+                "Set tools to"));
+    }
+
+    @Test
+    void nonCopilotToolsKeyDoesNotBypassLegacyAllowlistValidation() throws Exception {
+        createHealthyWorkspace(tempDir, "bob");
+        writeMcpConfig(tempDir, "bob", """
+                {
+                  "mcpServers": {
+                    "camel": {
+                      "command": "jbang",
+                      "tools": ["*"]
+                    },
+                    "camel-knowledge": {
+                      "command": "jbang",
+                      "tools": ["*"]
+                    }
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "MCP server 'camel' is missing autoApprove array",
+                "Regenerate the MCP config"));
+    }
+
+    @Test
     void mixedCaseAgentNameStillResolvesRegisteredMcpPathForMcpChecks() throws Exception {
         createHealthyWorkspace(tempDir, "bob");
         Path configFile = tempDir.resolve(".camel-kit/config.properties");
@@ -120,6 +231,13 @@ class DoctorServiceTest {
         Files.createDirectories(mcpFile.getParent());
         Files.writeString(mcpFile,
                 mcpJson(agentName, EXPECTATIONS.camelMcpTools(), EXPECTATIONS.knowledgeMcpTools()));
+    }
+
+    private void writeMcpConfig(Path root, String agentName, String content) throws Exception {
+        AgentConfig agent = AgentRegistry.get(agentName);
+        Path mcpFile = root.resolve(agent.mcpConfigPath());
+        Files.createDirectories(mcpFile.getParent());
+        Files.writeString(mcpFile, content);
     }
 
     private String mcpJson(String agentName, Collection<String> camelTools, Collection<String> knowledgeTools) {

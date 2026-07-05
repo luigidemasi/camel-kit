@@ -47,7 +47,7 @@ class CopilotGeneratorTest {
         String agentsMd = Files.readString(tempDir.resolve("AGENTS.md"));
         assertTrue(agentsMd.contains("GitHub Copilot CLI"));
         assertTrue(agentsMd.contains("camel-start"));
-        assertFalse(agentsMd.contains("/camel-start"));
+        assertTrue(agentsMd.contains("/camel-start"));
     }
 
     @Test
@@ -58,6 +58,19 @@ class CopilotGeneratorTest {
         assertTrue(Files.exists(tempDir.resolve(".github/skills/camel-start/SKILL.md")));
         assertTrue(Files.exists(tempDir.resolve(".github/skills/camel-execute/SKILL.md")));
         assertTrue(Files.exists(tempDir.resolve(".github/skills/shared/iron-laws.md")));
+    }
+
+    @Test
+    void marksInternalSkillsAsNotUserOrModelInvocableForCopilot() throws Exception {
+        InitContext ctx = createContext();
+        new CopilotGenerator().generate(ctx);
+
+        String implement = Files.readString(tempDir.resolve(".github/skills/camel-implement/SKILL.md"));
+        assertTrue(implement.contains("user-invocable: false"));
+        assertTrue(implement.contains("disable-model-invocation: true"));
+
+        String start = Files.readString(tempDir.resolve(".github/skills/camel-start/SKILL.md"));
+        assertFalse(start.contains("disable-model-invocation: true"));
     }
 
     @Test

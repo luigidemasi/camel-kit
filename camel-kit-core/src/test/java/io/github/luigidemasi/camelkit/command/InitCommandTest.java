@@ -47,10 +47,10 @@ class InitCommandTest {
         command.printNextSteps("orders", "GitHub Copilot CLI");
 
         String output = printer.output();
-        assertTrue(output.contains("camel-start"));
-        assertTrue(output.contains("/skills"));
+        assertTrue(output.contains("Use the /camel-start skill"));
+        assertTrue(output.contains("/skills list"));
         assertTrue(output.contains("/mcp show"));
-        assertFalse(output.contains("/camel-start"));
+        assertFalse(output.contains("select camel-start"));
     }
 
     private static final class CapturingPrinter implements Printer {

@@ -4,7 +4,7 @@ This repository is initialized for GitHub Copilot CLI with Camel Kit.
 
 ## Entry Point
 
-For integration work, use the `camel-start` project skill first. It routes to the correct Camel Kit skill:
+For integration work, use the `/camel-start` project skill first. It routes to the correct Camel Kit skill:
 
 - `camel-brainstorm` for new integration design.
 - `camel-migrate` for MuleSoft, BizTalk, Fuse, Camel 2.x, or Camel 3.x migrations.
@@ -14,7 +14,7 @@ For integration work, use the `camel-start` project skill first. It routes to th
 - `camel-debug` for ad-hoc build, startup, or runtime failures.
 - `camel-knowledge` for Apache Camel documentation, component, CVE, errata, and version questions.
 
-Use `/skills` if you need to inspect or invoke project skills explicitly.
+Use `/skills list` if you need to inspect project skills.
 
 ## Native Copilot Assets
 
@@ -43,7 +43,7 @@ Use the configured MCP servers before relying on model memory:
 - `camel-knowledge` for Camel documentation, CVEs, release notes, errata, and issue lookup.
 - `citrus` for Citrus action, endpoint, schema, and documentation lookups during test generation.
 
-If Copilot CLI does not show the workspace servers immediately, run `/mcp show` or `copilot mcp list --json`. If needed, run `/mcp reload` and continue.
+If Copilot CLI does not show the workspace servers immediately, first ensure this repository folder is trusted, then run `/mcp show` or `copilot mcp list --json`. If needed, run `/mcp reload` and continue.
 
 ## Safety
 

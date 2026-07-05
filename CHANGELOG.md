@@ -13,8 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **GitHub Copilot CLI AI target (`--ai copilot`)** — added a first-class Copilot CLI target that generates GitHub-native project assets.
   - New `copilot` agent registry descriptor, generator strategy, and `CopilotGenerator`
   - Generated workspaces include `.github/copilot-instructions.md`, `.github/skills/`, `.github/agents/`, `.github/mcp.json`, and `.github/hooks/camel-kit-safety.json`
-  - Copilot MCP config uses the documented `tools` schema while `doctor` continues to validate existing `autoApprove`/`alwaysAllow` configs for other agents
-  - README, command reference, user guide, architecture docs, agent architecture guide, and ADRs document the Copilot target and skill-based invocation model
+  - Copilot MCP config uses the documented `tools` schema while `doctor` continues to validate existing `autoApprove`/`alwaysAllow` configs for other agents; wildcard Copilot tool filters produce a least-privilege warning
+  - Internal Copilot guide skills are marked so Copilot does not directly or automatically invoke them
+  - README, command reference, user guide, architecture docs, agent architecture guide, and changelog document the Copilot target and skill-based invocation model
 
 ### Changed
 

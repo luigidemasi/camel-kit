@@ -146,8 +146,8 @@ cd my-integration
 # 4. Start designing
 /camel-start
 
-# For GitHub Copilot CLI, ask Copilot to use the camel-start project skill,
-# or run /skills and select camel-start.
+# For GitHub Copilot CLI, ask Copilot: "Use the /camel-start skill."
+# Run /skills list if you need to inspect available project skills.
 ```
 
 ---

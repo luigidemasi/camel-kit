@@ -213,6 +213,7 @@ public class DoctorService {
 
     private void checkMcp(Path root, Properties config, List<DoctorFinding> findings) {
         String agentName = config.getProperty("agent.name", "").trim();
+        boolean copilotToolsSchema = "copilot".equals(agentName.toLowerCase(Locale.ROOT));
         Path mcpFile = mcpConfigPath(root, agentName);
         if (mcpFile == null) {
             findings.add(DoctorFinding.fail("mcp", null,
@@ -245,9 +246,11 @@ public class DoctorService {
             return;
         }
 
-        boolean camelOk = checkMcpServer(root, mcpFile, servers, "camel", expectations.camelMcpTools(), findings);
+        boolean camelOk = checkMcpServer(
+                root, mcpFile, servers, "camel", expectations.camelMcpTools(), copilotToolsSchema, findings);
         boolean knowledgeOk = checkMcpServer(
-                root, mcpFile, servers, "camel-knowledge", expectations.knowledgeMcpTools(), findings);
+                root, mcpFile, servers, "camel-knowledge", expectations.knowledgeMcpTools(), copilotToolsSchema,
+                findings);
         if (camelOk && knowledgeOk) {
             findings.add(DoctorFinding.pass("mcp", relativize(root, mcpFile),
                     "MCP config exists and tool allowlists match Camel-Kit expectations",
@@ -257,7 +260,7 @@ public class DoctorService {
 
     private boolean checkMcpServer(
             Path root, Path mcpFile, JsonNode servers, String serverName, Set<String> expected,
-            List<DoctorFinding> findings) {
+            boolean copilotToolsSchema, List<DoctorFinding> findings) {
         JsonNode server = servers.path(serverName);
         if (!server.isObject()) {
             findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
@@ -266,13 +269,45 @@ public class DoctorService {
             return false;
         }
 
-        if (server.has("tools")) {
-            return checkAllowlist(root, mcpFile, serverName, "tools", server, expected, findings);
+        if (copilotToolsSchema) {
+            return checkCopilotTools(root, mcpFile, serverName, server, expected, findings);
         }
 
         boolean autoApproveOk = checkAllowlist(root, mcpFile, serverName, "autoApprove", server, expected, findings);
         boolean alwaysAllowOk = checkAllowlist(root, mcpFile, serverName, "alwaysAllow", server, expected, findings);
         return autoApproveOk && alwaysAllowOk;
+    }
+
+    private boolean checkCopilotTools(
+            Path root, Path mcpFile, String serverName, JsonNode server, Set<String> expected,
+            List<DoctorFinding> findings) {
+        JsonNode tools = server.path("tools");
+        if (tools.isMissingNode() || tools.isNull()) {
+            findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                    "MCP server '" + serverName + "' is missing tools",
+                    "Regenerate the MCP config with camel-kit init --here --force."));
+            return false;
+        }
+
+        Set<String> actual = new LinkedHashSet<>();
+        if (tools.isArray()) {
+            tools.forEach(value -> actual.add(value.asText()));
+            return checkToolSet(root, mcpFile, serverName, "tools", actual, expected, true, findings);
+        }
+        if (tools.isTextual()) {
+            for (String value : tools.asText().split(",")) {
+                String trimmed = value.trim();
+                if (!trimmed.isEmpty()) {
+                    actual.add(trimmed);
+                }
+            }
+            return checkToolSet(root, mcpFile, serverName, "tools", actual, expected, true, findings);
+        }
+
+        findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                "MCP server '" + serverName + "' tools must be an array or comma-separated string",
+                "Set tools to [\"*\"] or the generated Camel-Kit tool list, then re-run camel-kit doctor."));
+        return false;
     }
 
     private boolean checkAllowlist(
@@ -288,6 +323,19 @@ public class DoctorService {
 
         Set<String> actual = new LinkedHashSet<>();
         node.forEach(value -> actual.add(value.asText()));
+        return checkToolSet(root, mcpFile, serverName, field, actual, expected, false, findings);
+    }
+
+    private boolean checkToolSet(
+            Path root, Path mcpFile, String serverName, String field, Set<String> actual, Set<String> expected,
+            boolean allowWildcard, List<DoctorFinding> findings) {
+        if (allowWildcard && actual.contains("*")) {
+            findings.add(DoctorFinding.warn("mcp", relativize(root, mcpFile),
+                    "MCP server '" + serverName + "' " + field + " field allows all tools with '*'",
+                    "Prefer the generated Camel-Kit tool allowlist for least privilege unless broader access is intentional."));
+            return true;
+        }
+
         Set<String> missing = new LinkedHashSet<>(expected);
         missing.removeAll(actual);
         Set<String> extra = new LinkedHashSet<>(actual);

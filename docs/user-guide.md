@@ -789,7 +789,7 @@ Skills are markdown instruction files that the AI agent loads and follows. Becau
 - The same MCP tools are called
 - The same output formats are produced
 
-The dispatch model is internal to the agent. For most agents, you run the same commands (`/camel-brainstorm`, `/camel-execute`, etc.) and get the same artifacts. For GitHub Copilot CLI, use the same skill names through Copilot project skills; start with `camel-start` via `/skills` or a direct instruction such as "use the camel-start skill."
+The dispatch model is internal to the agent. For most agents, you run the same commands (`/camel-brainstorm`, `/camel-execute`, etc.) and get the same artifacts. For GitHub Copilot CLI, use the same skill names through Copilot project skills; start with a direct instruction such as "Use the `/camel-start` skill." Run `/skills list` to inspect available project skills.
 
 For contributor-level details on each agent's architecture (template files, permission models, dispatch internals), see [Agent Architectures](agent-architectures.md).
 
@@ -820,7 +820,7 @@ MCP is auto-configured during `camel-kit init`. The init command creates agent-s
 - **GitHub Copilot CLI:** `.github/mcp.json`
 - **Qwen/OpenCode:** agent-specific config locations
 
-GitHub Copilot CLI workspaces also get `.github/copilot-instructions.md`, `.github/skills/`, `.github/agents/`, and `.github/hooks/camel-kit-safety.json`. The generated hook denies obvious destructive or secret-sensitive shell commands such as `git push`, broad `rm -rf`, `chmod 777`, and reads of common secret files, while leaving normal Copilot permissions in place.
+GitHub Copilot CLI workspaces also get `.github/copilot-instructions.md`, `.github/skills/`, `.github/agents/`, and `.github/hooks/camel-kit-safety.json`. Internal guide skills copied for custom-agent use are marked so Copilot does not directly or automatically invoke them. The generated hook denies obvious destructive or secret-sensitive shell commands such as `git push`, broad `rm -rf`, `chmod 777`, and reads of common secret files, while leaving normal Copilot permissions in place. Workspace MCP servers from `.github/mcp.json` load only after the repository folder is trusted.
 
 No additional configuration is needed. The AI assistant automatically uses MCP tools when available.
 

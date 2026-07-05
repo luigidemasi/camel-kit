@@ -511,7 +511,7 @@ GitHub Copilot CLI uses repository-native customization surfaces rather than Cam
 - `.github/mcp.json` for workspace MCP servers.
 - `.github/hooks/*.json` for repository safety hooks.
 
-Users start by asking Copilot to use the `camel-start` project skill, or by running `/skills` and selecting `camel-start`. Pipeline skills can then delegate implementation, validation, testing, migration, catalog research, and security review to the generated custom agents.
+Users start by asking Copilot to "Use the `/camel-start` skill." Run `/skills list` to inspect available project skills. Pipeline skills can then delegate implementation, validation, testing, migration, catalog research, and security review to the generated custom agents.
 
 ### Template Files
 
@@ -527,11 +527,11 @@ Users start by asking Copilot to use the `camel-start` project skill, or by runn
 ### How It Works
 
 ```text
-User: "Use the camel-start skill to design this integration"
+User: "Use the /camel-start skill to design this integration"
   └── Copilot loads .github/copilot-instructions.md
       ├── Skill retrieval selects .github/skills/camel-start/SKILL.md
       ├── Pipeline skills use .github/agents/* for isolated work
-      ├── MCP tools come from .github/mcp.json
+      ├── MCP tools come from .github/mcp.json after the repository folder is trusted
       └── .github/hooks/camel-kit-safety.json denies obvious destructive shell commands
 ```
 
