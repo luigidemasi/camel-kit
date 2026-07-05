@@ -499,16 +499,68 @@ Each agent has a `steps` limit. When reached, OpenCode instructs the agent to su
 
 ---
 
+## GitHub Copilot CLI -- Project Skills + Custom Agents + Hooks
+
+### Dispatch Model
+
+GitHub Copilot CLI uses repository-native customization surfaces rather than Camel-Kit slash commands:
+
+- `.github/copilot-instructions.md` for project instructions.
+- `.github/skills/` for project skills.
+- `.github/agents/*.agent.md` for custom agents.
+- `.github/mcp.json` for workspace MCP servers.
+- `.github/hooks/*.json` for repository safety hooks.
+
+Users start by asking Copilot to "Use the `/camel-start` skill." Run `/skills list` to inspect available project skills. Pipeline skills can then delegate implementation, validation, testing, migration, catalog research, and security review to the generated custom agents.
+
+### Template Files
+
+| File | Purpose |
+|------|---------|
+| `templates/copilot/copilot-instructions.md` | `.github/copilot-instructions.md` -- project entry point, laws, MCP guidance, and safety policy |
+| `templates/copilot/agents/*.agent.md` | 7 custom agents with Copilot tool aliases and MCP server prefixes |
+| `templates/copilot/hooks/camel-kit-safety.json` | `preToolUse` hook that denies destructive or secret-sensitive shell commands |
+| `templates/copilot/agents-md.md` | `AGENTS.md` bridge for clients that also read root agent instructions |
+| `templates/mcp-configs/copilot-mcp.json` | `.github/mcp.json` using Copilot's `tools` schema |
+| `templates/dispatch/copilot.md` | Shared dispatch block for Copilot skill copies |
+
+### How It Works
+
+```text
+User: "Use the /camel-start skill to design this integration"
+  └── Copilot loads .github/copilot-instructions.md
+      ├── Skill retrieval selects .github/skills/camel-start/SKILL.md
+      ├── Pipeline skills use .github/agents/* for isolated work
+      ├── MCP tools come from .github/mcp.json after the repository folder is trusted
+      └── .github/hooks/camel-kit-safety.json denies obvious destructive shell commands
+```
+
+### Tool Restriction Model
+
+Copilot custom agents use the documented `tools` aliases: `read`, `search`, `edit`, `execute`, `agent`, and `web`. MCP tools are exposed through server prefixes such as `camel/*`, `camel-knowledge/*`, and `citrus/*`.
+
+The generated safety hook is deliberately narrow. It denies `git push`, broad `rm -rf`, `chmod 777`, and reads of common secret files. It returns no decision for normal commands, so Copilot's regular permission prompts and any user or organization policy still apply.
+
+### Unique Capabilities
+
+- **GitHub-native project skills:** Camel Kit skills live where Copilot CLI discovers project skills by default.
+- **Custom agents:** planner, implementer, tester, validator, migrator, catalog researcher, and security reviewer map directly to Camel Kit pipeline roles.
+- **Workspace MCP config:** `.github/mcp.json` is version-controlled with the project and uses Copilot's `tools` allowlist schema.
+- **Repository hooks:** guardrails are committed with the project and can be disabled locally through Copilot settings when needed.
+- **Cloud/local sandbox compatibility:** generated instructions recommend sandboxed execution for high-autonomy runs and avoid `--yolo` defaults.
+
+---
+
 ## Agent Comparison
 
-| Aspect | Claude | Bob 1 legacy | Bob 2 | Gemini | Qwen | OpenCode |
-|--------|--------|--------------|-------|--------|------|----------|
-| Dispatch model | Parallel subagents | Mode switching | `spawn_subagent` (`explore`, `general`) | `invoke_subagent` unified tool (local/remote/browser) | Dual: named subagent + fork | `task` tool creating child sessions |
-| Template files | 3 | 17+ | Bob 2 modes + traits + rules | 12 | 9 | 8 |
-| Tool restriction | Instruction-based | Mode tool groups | Mode tool groups + `allowedSubagents` | Allowlist + TOML policy + server-scoped wildcards | Allowlist + blocklist | 3-state permissions + bash glob patterns |
-| Path-scoped edits | No | `.md` only (via fileRegex) | Mode-dependent `fileRegex` | Yes (Policy Engine) | No | Yes (glob patterns) |
-| MCP auto-approval | No (manual) | No (manual) | No (manual) | Yes (TOML policy) | No (manual) | No (manual) |
-| Parallel execution | Yes (graph-based) | No | Yes (same-turn `spawn_subagent`) | Yes (scheduler `Promise.all()`) | Partial (read-only tools concurrent; fork background) | Partial (LLM-level parallel tool calls) |
-| Subagent recursion | Yes (no limit) | N/A | No (subagents must not spawn subagents) | No (hardcoded `Kind.Agent` filter) | No (fork-of-fork blocked) | Opt-in configurable depth |
-| Execute phase | Subagent with parallel dispatch | Gate file with mode switch | Parent task orchestrates subagents | Main agent (recursion prevention) | Sub-agent with `task` tool | Agent with `task` permission |
-| Instruction composition | Single `CLAUDE.md` | Modes + gates + rules | Shared skills + Bob 2 traits + modes | `@file.md` modular imports | Single `QWEN.md` | Ultra-minimal `AGENTS.md` |
+| Aspect | Claude | Bob 1 legacy | Bob 2 | Gemini | Copilot | Qwen | OpenCode |
+|--------|--------|--------------|-------|--------|---------|------|----------|
+| Dispatch model | Parallel subagents | Mode switching | `spawn_subagent` (`explore`, `general`) | `invoke_subagent` unified tool (local/remote/browser) | Project skills + custom agents | Dual: named subagent + fork | `task` tool creating child sessions |
+| Template files | 3 | 17+ | Bob 2 modes + traits + rules | 12 | 11 | 9 | 8 |
+| Tool restriction | Instruction-based | Mode tool groups | Mode tool groups + `allowedSubagents` | Allowlist + TOML policy + server-scoped wildcards | Custom-agent `tools` plus hooks | Allowlist + blocklist | 3-state permissions + bash glob patterns |
+| Path-scoped edits | No | `.md` only (via fileRegex) | Mode-dependent `fileRegex` | Yes (Policy Engine) | Tool-level, not path-scoped | No | Yes (glob patterns) |
+| MCP auto-approval | No (manual) | No (manual) | No (manual) | Yes (TOML policy) | No (permission prompts) | No (manual) | No (manual) |
+| Parallel execution | Yes (graph-based) | No | Yes (same-turn `spawn_subagent`) | Yes (scheduler `Promise.all()`) | Unknown | Partial (read-only tools concurrent; fork background) | Partial (LLM-level parallel tool calls) |
+| Subagent recursion | Yes (no limit) | N/A | No (subagents must not spawn subagents) | No (hardcoded `Kind.Agent` filter) | Unknown | No (fork-of-fork blocked) | Opt-in configurable depth |
+| Execute phase | Subagent with parallel dispatch | Gate file with mode switch | Parent task orchestrates subagents | Main agent (recursion prevention) | Project skill delegates when available | Sub-agent with `task` tool | Agent with `task` permission |
+| Instruction composition | Single `CLAUDE.md` | Modes + gates + rules | Shared skills + Bob 2 traits + modes | `@file.md` modular imports | `.github/copilot-instructions.md` + project skills | Single `QWEN.md` | Ultra-minimal `AGENTS.md` |

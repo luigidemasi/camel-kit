@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **GitHub Copilot CLI AI target (`--ai copilot`)** — added a first-class Copilot CLI target that generates GitHub-native project assets.
+  - New `copilot` agent registry descriptor, generator strategy, and `CopilotGenerator`
+  - Generated workspaces include `.github/copilot-instructions.md`, `.github/skills/`, `.github/agents/`, `.github/mcp.json`, and `.github/hooks/camel-kit-safety.json`
+  - Copilot MCP config uses the documented `tools` schema while `doctor` continues to validate existing `autoApprove`/`alwaysAllow` configs for other agents; wildcard Copilot tool filters produce a least-privilege warning
+  - Internal Copilot guide skills are marked so Copilot does not directly or automatically invoke them
+  - README, command reference, user guide, architecture docs, agent architecture guide, and changelog document the Copilot target and skill-based invocation model
+
 ### Changed
 
 - **Default Camel version updated to 4.21.0** — Camel Main and Spring Boot runtimes now default to Camel `4.21.0`, with the Spring Boot framework mapped to `4.1.0` (`spring.boot.4.21.0=4.1.0`, matching camel-parent 4.21.0). Supported version lists for Main and Spring Boot move to `4.21.0, 4.18.3, 4.14.7` (LTS fix release 4.18.3 maps to Spring Boot `3.5.16`).
@@ -216,7 +225,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Apache Camel MCP Server Integration**
   - Automatic project-specific MCP configuration during `camel-kit init`
-  - Support for 5 AI agents: Claude Code (`.mcp.json`), IBM Bob (`.bob/mcp.json`), Gemini CLI (`.gemini/mcp.json`), Qwen, OpenCode
+  - Support for multiple AI agents: Claude Code (`.mcp.json`), IBM Bob (`.bob/mcp.json`), Gemini CLI (`.gemini/mcp.json`), Qwen, OpenCode
   - 15 MCP tools available, 7 actively used across skills
   - Real-time catalog queries: `camel_catalog_components`, `camel_catalog_component_doc`
   - Route validation: `camel_validate_route`, `camel_route_context`
@@ -271,7 +280,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Template engine migrated to Qute** — all templates migrated from `String.replace()` to Qute engine (`qute-core` dependency); supports conditional blocks, loops, and distribution-aware rendering
 
-- **Documentation rewritten** — all docs updated to reflect the 3-phase orchestrated pipeline, 6 user-invocable commands, 5 AI agents, Groovy DataMapper, and runtime verification
+- **Documentation rewritten** — all docs updated to reflect the 3-phase orchestrated pipeline, user-invocable workflows, AI-agent targets, Groovy DataMapper, and runtime verification
 
 - **`/camel-project` deprecated** — replaced by `/camel-brainstorm`
 

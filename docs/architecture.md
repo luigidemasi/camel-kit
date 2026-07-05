@@ -48,12 +48,12 @@ user_invocable: false
 | `guides/optional-guide.md` | When condition X | Supplementary guide |
 ```
 
-**Note:** Only `camel-start` sets `user_invocable: true` — it is the single auto-discovered entry point (meta-router). Pipeline and standalone skills (Tier 1/2) are invoked via explicit slash commands. Internal skills are dispatched only by pipeline skills.
+**Note:** Only `camel-start` sets `user_invocable: true` — it is the single auto-discovered entry point (meta-router). Pipeline and standalone skills (Tier 1/2) are invoked through generated command stubs on slash-command agents and through project skill selection on GitHub Copilot CLI. Internal skills are dispatched only by pipeline skills.
 
 The frontmatter fields:
 - `name` -- skill identifier, used in cross-references
 - `description` -- trigger keywords that help agents match user intent to the correct skill
-- `user_invocable` -- `true` for `camel-start` (meta-router) only. Pipeline and standalone skills (Tier 1/2) have explicit slash commands despite `user_invocable: false`. Internal skills (`camel-verify`, `camel-design`, `camel-implement`, `camel-test`) are dispatched only by pipeline skills
+- `user_invocable` -- `true` for `camel-start` (meta-router) only. Pipeline and standalone skills (Tier 1/2) still have generated entry points despite `user_invocable: false`: slash-command stubs for most agents and project skills for GitHub Copilot CLI. Internal skills (`camel-verify`, `camel-design`, `camel-implement`, `camel-test`) are dispatched only by pipeline skills
 
 ### All Skills
 
@@ -73,7 +73,7 @@ The frontmatter fields:
 | `camel-knowledge` | No | `camel-brainstorm`, `camel-execute` | Routes questions to knowledge MCP tools |
 | `camel-debug` | No | `camel-start` (ad-hoc troubleshooting) | Standalone debugging: STOP → PRESERVE → DIAGNOSE → FIX → GUARD workflow |
 
-**Note:** Only `camel-start` has `user_invocable: true` in its skill metadata. Pipeline and standalone skills have explicit slash commands despite `user_invocable: false`. Internal skills (`camel-verify`, `camel-design`, `camel-implement`, `camel-test`) are dispatched only by pipeline skills.
+**Note:** Only `camel-start` has `user_invocable: true` in its skill metadata. Pipeline and standalone skills still have generated entry points despite `user_invocable: false`: slash-command stubs for most agents and project skills for GitHub Copilot CLI. Internal skills (`camel-verify`, `camel-design`, `camel-implement`, `camel-test`) are dispatched only by pipeline skills.
 
 ### Shared Guides
 
@@ -81,7 +81,7 @@ Shared guides live at `camel-kit-core/src/main/resources/skills/shared/` and are
 
 | Guide | Purpose |
 |-------|---------|
-| `iron-laws.md` | Four non-negotiable pipeline process enforcement rules |
+| `iron-laws.md` | Six non-negotiable pipeline process enforcement rules |
 | `datamapper-canonicalize.md` | Engine selection and field mapping enrichment for DataMapper |
 | `flow-test-data.md` | Test data generation patterns for flow design |
 | `mcp-setup.md` | MCP version mapping and connection parameters |
@@ -355,6 +355,7 @@ registry loading with a descriptor-specific error.
 | IBM Bob 1 legacy | `templates/bob/` | `custom_modes.yaml` + rules + gates | `.bob/mcp.json` | `.bob/skills/` |
 | IBM Bob 2 | `templates/bob2/` | `custom_modes.yaml` + rules + shared skills | `.bob/mcp.json` | `.bob/skills/` |
 | Gemini CLI | `templates/gemini/` | `GEMINI.md` + `@file.md` imports + policies | `.gemini/settings.json` | `.gemini/skills/` |
+| GitHub Copilot CLI | `templates/copilot/` | `.github/copilot-instructions.md` + `.github/agents/` + hooks | `.github/mcp.json` | `.github/skills/` |
 | Qwen | `templates/qwen/` | `QWEN.md` + sub-agent definitions | `.qwen/settings.json` | `.qwen/skills/` |
 | OpenCode | `templates/opencode/` | `AGENTS.md` + permission-based agents | `opencode.json` | `.opencode/skills/` |
 
@@ -372,7 +373,7 @@ Historical release notes, old planning material, and archived ADR-style document
 
 ### The Equalization Layer
 
-All five agents receive the same skills (markdown instruction files). The template layer adapts the instruction format to each agent's conventions (system prompt vs. custom modes vs. agent files), but the underlying skill content is identical. This means a fix to a skill guide benefits all agents simultaneously.
+All supported agents receive the same skills (markdown instruction files). The template layer adapts the instruction format to each agent's conventions (system prompt vs. custom modes vs. agent files), but the underlying skill content is identical. This means a fix to a skill guide benefits all agents simultaneously.
 
 **What equalization covers:**
 - Skill content (all agents read the same `SKILL.md` and guide files)
@@ -385,7 +386,7 @@ All five agents receive the same skills (markdown instruction files). The templa
 - Dispatch mechanism (sub-agents vs. modes vs. inline)
 - Tool restriction model (each agent's permission system is different)
 - File reading patterns (context isolation varies)
-- Parallelization strategy (only Claude supports parallel sub-agent dispatch)
+- Parallelization strategy (parallel sub-agent behavior differs by agent)
 - Configuration format (YAML modes, TOML policies, markdown frontmatter)
 
 ### Agent Traits
@@ -424,7 +425,7 @@ The six shared Iron Laws from `skills/shared/iron-laws.md` are embedded in or re
 
 The `/camel-execute` pipeline relies on dispatching discrete units of work to isolated agents. The design principle: the agent that writes the code should never be the same agent that reviews it, and each task should start from a clean context with no residual assumptions from previous tasks.
 
-Four of the five agents support this natively through **sub-agent dispatch**:
+Most supported agents use native **sub-agent dispatch** or custom-agent isolation:
 
 - **Claude Code** -- uses the `Agent` tool to spawn fresh sub-agents per task. Each sub-agent receives the task text, relevant design spec section, guide file paths, and MCP parameters. Before implementation, a `catalog-researcher` sub-agent batch-verifies all MCP catalog artifacts (research isolation). After implementation, an Adversarial Code Review dispatches parallel Critic Lanes (Route Architecture, Security, Performance, Boundary Compliance, Behavioral Equivalence) via a Moderator sub-agent, then a spec-compliance reviewer sub-agent checks the design spec, then a code-quality reviewer sub-agent checks constitution compliance. At the Stamp Gate, three reviewers run in parallel (spec, quality, security). Claude uniquely supports **parallel dispatch**: `camel-kit plan analyze` groups tasks into waves using structured plan metadata (`dependsOn`, file overlap, and logical `provides`/`consumes` resources such as endpoints, routes, properties, schemas, test data, beans, external services, and route contracts), then independent tasks are dispatched simultaneously to multiple sub-agents.
 
@@ -433,6 +434,8 @@ Four of the five agents support this natively through **sub-agent dispatch**:
 - **Qwen** -- dual dispatch model: **named sub-agents** (clean context, parent blocks) and **forks** (inherit parent context, run in background). The fork model enables parallel review and research tasks. Read-only tools (Read, Search, Fetch) are concurrent with a configurable cap (max 10). The `"MUST BE USED for..."` phrasing in description fields forces automatic delegation.
 
 - **OpenCode** -- 7 agents with granular, per-type glob permissions. The executor agent has `task: {"*": allow}` permission. Sub-agent-to-sub-agent delegation is now opt-in (PR #7756) with configurable depth limits and call budgets. LLM-level parallel tool calls are supported. Each agent has a `steps` limit (implementer: 50, executor: 100) that triggers graceful summarization rather than hard failure.
+
+- **GitHub Copilot CLI** -- project skills live under `.github/skills/` and custom agents live under `.github/agents/`. Camel-Kit generates planner, implementer, tester, validator, migrator, catalog researcher, and security reviewer agents with Copilot tool aliases and MCP server prefixes. Internal guide skills copied for custom-agent use are marked `user-invocable: false` and `disable-model-invocation: true` using Copilot-readable metadata. MCP servers are committed in `.github/mcp.json` using Copilot's `tools` schema. Repository hooks under `.github/hooks/` provide a lightweight safety harness for destructive shell commands while keeping Copilot's normal permission prompts active.
 
 **IBM Bob 2** uses Bob's native `spawn_subagent` tool. Camel-Kit exposes this as `--ai bob2`, but generated project files still live under `.bob/` because Bob reads `.bob/commands`, `.bob/skills`, `.bob/custom_modes.yaml`, and `.bob/mcp.json`.
 
@@ -472,6 +475,7 @@ The trade-off table:
 | IBM Bob 1 legacy | B+A hybrid with custom modes | Monolithic gate files, 3 checkpoint types |
 | IBM Bob 2 | Native `spawn_subagent` plus custom modes | `explore`/`general` subagents, parallel same-turn dispatch, shared skills |
 | Gemini CLI | `invoke_subagent` + parallel scheduler | Default-parallel `Promise.all()`, TOML policy, MCP wildcards, A2A remote agents |
+| GitHub Copilot CLI | Project skills + custom agents + hooks | `.github/skills`, `.github/agents`, `.github/mcp.json`, safety hooks |
 | Qwen | Dual dispatch (named + fork) | Fork background tasks, DashScope cache sharing, auto-delegation |
 | OpenCode | `task` child sessions + opt-in delegation | 14 permission types, glob patterns, configurable depth limits |
 
@@ -490,7 +494,8 @@ To add support for a new AI coding assistant:
 6. Map pipeline phases to the agent's native dispatch mechanism (modes, sub-agents, permissions, etc.)
 7. Add MCP configuration for the agent's MCP config format
 8. Verify `camel-kit doctor` can validate a generated workspace using the descriptor MCP path.
-9. Write tests following existing patterns (registry, factory, generated structure, doctor, and key content markers)
+9. Update ADRs and user documentation when the new agent changes architecture or user-visible behavior.
+10. Write tests following existing patterns (registry, factory, generated structure, doctor, and key content markers)
 
 The `DefaultGenerator` orchestrates shared generation services such as `CommandStubGenerator`, `SkillResourceInstaller`, `TraitApplicator`, and `McpConfigGenerator`. Each agent-specific generator adds or overrides template generation to produce the agent's native format.
 
@@ -784,17 +789,18 @@ user_invocable: false
 | `guides/main-guide.md` | Always | Primary instruction guide |
 ```
 
-**Note:** Only `camel-start` should have `user_invocable: true`. All other skills have `user_invocable: false`. Slash commands still work independently of this metadata.
+**Note:** Only `camel-start` should have `user_invocable: true`. All other skills have `user_invocable: false`. Generated command stubs and Copilot project skills still work independently of this metadata.
 
 3. **Write guide files** in `guides/`. Each guide is a self-contained markdown instruction file loaded by the agent when the skill is active.
 
 4. **Update the workflow manifest first:** add or modify the entry in `camel-kit-core/src/main/resources/workflow/camel-kit-workflow.yaml`. Set `generated_stub: true` only for commands that should be emitted into each agent's commands directory. Add or update the corresponding skill entry, stage/artifact metadata, transitions, and MCP tool allowlists if the workflow contract changes.
 
-5. **If registering slash commands:** update agent-specific guidance only where the command needs custom behavior beyond the generated stub. The default generator creates command stubs from the manifest. Agent templates still need updates when they contain human-readable command tables, custom modes, policies, or sub-agent dispatch:
+5. **If registering generated command or skill entry points:** update agent-specific guidance only where the command needs custom behavior beyond the generated stub or project skill. The default generator creates command stubs from the manifest. Agent templates still need updates when they contain human-readable command tables, custom modes, policies, or sub-agent dispatch:
    - Claude Code: update `templates/claude/claude-md.md`
    - IBM Bob 1 legacy: update `templates/bob/custom_modes.yaml`, gate files, and rules directories
    - IBM Bob 2: update `templates/bob2/custom_modes.yaml`, `templates/traits/bob2/`, and rules directories
    - Gemini CLI: update `templates/gemini/gemini-md.md`
+   - GitHub Copilot CLI: update `templates/copilot/copilot-instructions.md`, `templates/copilot/agents-md.md`, and any affected `.github/agents` templates
    - Qwen: update `templates/qwen/qwen-md.md`
    - OpenCode: update `templates/opencode/agents-md.md`
 

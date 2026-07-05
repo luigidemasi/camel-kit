@@ -22,6 +22,11 @@ class AgentGeneratorFactoryTest {
     }
 
     @Test
+    void copilotReturnsCopilotGenerator() {
+        assertInstanceOf(CopilotGenerator.class, AgentGeneratorFactory.create("copilot"));
+    }
+
+    @Test
     void geminiReturnsGeminiGenerator() {
         assertInstanceOf(GeminiGenerator.class, AgentGeneratorFactory.create("gemini"));
     }

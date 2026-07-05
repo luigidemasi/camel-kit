@@ -1,6 +1,7 @@
 package io.github.luigidemasi.camelkit.command;
 
 import io.github.luigidemasi.camelkit.CamelKitMain;
+import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
 
 import org.junit.jupiter.api.Test;
@@ -26,7 +27,7 @@ class InitCommandTest {
         main.setOut(printer);
 
         InitCommand command = new InitCommand(main);
-        command.printNextSteps("orders", "Claude Code");
+        command.printNextSteps("orders", AgentRegistry.get("claude").name(), "claude");
 
         String output = printer.output();
         assertTrue(output.contains("/camel-start"));
@@ -35,6 +36,22 @@ class InitCommandTest {
         assertTrue(output.contains("/camel-knowledge"));
         assertFalse(output.contains("/camel-design"));
         assertFalse(output.contains("/camel-verify"));
+    }
+
+    @Test
+    void copilotNextStepsUseSkillsInsteadOfCamelSlashCommands() {
+        CapturingPrinter printer = new CapturingPrinter();
+        CamelKitMain main = new CamelKitMain();
+        main.setOut(printer);
+
+        InitCommand command = new InitCommand(main);
+        command.printNextSteps("orders", "Renamed Copilot Display", "copilot");
+
+        String output = printer.output();
+        assertTrue(output.contains("Use the /camel-start skill"));
+        assertTrue(output.contains("/skills list"));
+        assertTrue(output.contains("/mcp show"));
+        assertFalse(output.contains("select camel-start"));
     }
 
     private static final class CapturingPrinter implements Printer {

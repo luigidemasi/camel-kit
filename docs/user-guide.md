@@ -143,6 +143,7 @@ camel-kit init order-processing --ai claude
 camel-kit init order-processing --ai bob      # IBM Bob 1 legacy
 camel-kit init order-processing --ai bob2     # IBM Bob 2
 camel-kit init order-processing --ai gemini
+camel-kit init order-processing --ai copilot
 camel-kit init order-processing --ai qwen
 camel-kit init order-processing --ai opencode
 ```
@@ -192,6 +193,7 @@ order-processing/
   docs/
     constitution.md          # 7 route quality rules
   .mcp.json                  # MCP server config (agent-specific location)
+  .github/                   # GitHub Copilot CLI assets when --ai copilot is selected
   pom.xml                    # Maven project with Camel BOM
   mvnw / mvnw.cmd            # Maven wrapper
 ```
@@ -720,6 +722,7 @@ The same skills work across all supported AI coding assistants. Camel-Kit uses m
 | **Bob 1 legacy** (IBM Bob) | `--ai bob` | Switches between custom modes and monolithic gate files |
 | **Bob 2** (IBM Bob, default) | `--ai bob2` | Uses native `spawn_subagent` plus Bob custom modes and shared skills |
 | **Gemini** (Google Gemini CLI) | `--ai gemini` | Dispatches to 6 subagents; execute phase runs in main agent |
+| **GitHub Copilot CLI** | `--ai copilot` | Uses `.github/skills`, `.github/agents`, `.github/mcp.json`, and repository safety hooks |
 | **Qwen** (Alibaba Qwen CLI) | `--ai qwen` | Auto-delegates to 7 sub-agents based on intent matching |
 | **OpenCode** | `--ai opencode` | Dispatches to 7 agents with granular permission control |
 
@@ -732,24 +735,25 @@ All agents produce the same output (YAML routes, properties files, tests). The d
 | **Speed** (parallel implementation of independent flows) | Claude or Bob 2 |
 | **Safety** (strictest tool restrictions per phase) | Bob 1 legacy, Bob 2, or OpenCode |
 | **Automatic routing** (say what you want, agent picks the right phase) | Qwen |
-| **Customizability** (override policies, compose instructions) | Gemini |
+| **Customizability** (override policies, compose instructions) | Gemini or GitHub Copilot CLI |
+| **GitHub-native agent workflows** (skills, custom agents, hooks, MCP) | GitHub Copilot CLI |
 | **Fine-grained file permissions** (auto-allow test dirs, ask for source) | OpenCode |
 
 ### What Differs Between Agents
 
 | Aspect | What You'll Notice |
 |--------|-------------------|
-| **Dispatch transparency** | Claude and Bob 2 show subagent dispatch; Bob 1 legacy shows mode switching; Gemini/Qwen/OpenCode delegate to specialized agents |
-| **Tool restrictions** | During brainstorm, Bob modes can physically prevent code edits. Claude and Qwen rely on skill instructions. OpenCode uses glob-pattern permissions. |
+| **Dispatch transparency** | Claude and Bob 2 show subagent dispatch; Bob 1 legacy shows mode switching; Gemini/Qwen/OpenCode/Copilot delegate to specialized agents |
+| **Tool restrictions** | During brainstorm, Bob modes can physically prevent code edits. Claude and Qwen rely on skill instructions. OpenCode uses glob-pattern permissions. Copilot uses tool allow/deny permissions and generated safety hooks. |
 | **Parallel execution** | Claude and Bob 2 can dispatch independent tasks in the same wave; other agents have more limited parallelism |
-| **MCP approval prompts** | Gemini auto-approves MCP tool calls via its policy engine. Other agents may prompt you for each MCP call. |
+| **MCP approval prompts** | Gemini auto-approves MCP tool calls via its policy engine. Copilot uses `.github/mcp.json` plus Copilot's permission system. Other agents may prompt you for each MCP call. |
 | **Execution limits** | OpenCode and Gemini enforce step/turn limits per phase. Other agents have no hard limits. |
 
 ### How Execution Works: Subagents vs. Mode Switching
 
 During `/camel-execute`, the AI must implement multiple tasks, review each one, and fix issues -- all autonomously. How it manages this work internally depends on the agent's native capabilities.
 
-**Agents with subagent support (Claude, Bob 2, Gemini, Qwen, OpenCode)** dispatch each pipeline task to a fresh, isolated subagent. The subagent receives only the information it needs -- the task description, the relevant design spec section, and the skill guides -- and works in its own context window. When it finishes, a separate reviewer subagent checks the output. This isolation prevents cross-contamination: a mistake in one task cannot leak into the next, and the reviewer has no bias from having written the code.
+**Agents with subagent support (Claude, Bob 2, Gemini, GitHub Copilot CLI, Qwen, OpenCode)** dispatch each pipeline task to a fresh, isolated subagent. The subagent receives only the information it needs -- the task description, the relevant design spec section, and the skill guides -- and works in its own context window. When it finishes, a separate reviewer subagent checks the output. This isolation prevents cross-contamination: a mistake in one task cannot leak into the next, and the reviewer has no bias from having written the code.
 
 The execution loop for these agents:
 
@@ -766,7 +770,7 @@ The execution loop for these agents:
 
 The Bob 1 trade-off is that work stays in a single session and reviewer checks are not isolated. The compensation is strict platform-enforced mode restrictions. Bob 2 keeps those mode restrictions where useful and adds native isolated subagents.
 
-| Capability | Subagent Agents (Claude, Bob 2, Gemini, Qwen, OpenCode) | Bob 1 Legacy Mode Switching |
+| Capability | Subagent Agents (Claude, Bob 2, Gemini, Copilot, Qwen, OpenCode) | Bob 1 Legacy Mode Switching |
 |-----------|----------------------------------------------------------|-----------------------------|
 | Context isolation per task | Fresh subagent with clean context | Same session, accumulated context |
 | Reviewer independence | Separate subagent reviews the work | Same session reviews its own work |
@@ -785,7 +789,7 @@ Skills are markdown instruction files that the AI agent loads and follows. Becau
 - The same MCP tools are called
 - The same output formats are produced
 
-The dispatch model is internal to the agent. You run the same commands (`/camel-brainstorm`, `/camel-execute`, etc.) and get the same artifacts regardless of which agent you chose.
+The dispatch model is internal to the agent. For most agents, you run the same commands (`/camel-brainstorm`, `/camel-execute`, etc.) and get the same artifacts. For GitHub Copilot CLI, use the same skill names through Copilot project skills; start with a direct instruction such as "Use the `/camel-start` skill." Run `/skills list` to inspect available project skills.
 
 For contributor-level details on each agent's architecture (template files, permission models, dispatch internals), see [Agent Architectures](agent-architectures.md).
 
@@ -813,7 +817,10 @@ MCP is auto-configured during `camel-kit init`. The init command creates agent-s
 - **Claude:** `.mcp.json`
 - **Bob:** `.bob/mcp.json`
 - **Gemini:** `.gemini/mcp.json`
+- **GitHub Copilot CLI:** `.github/mcp.json`
 - **Qwen/OpenCode:** agent-specific config locations
+
+GitHub Copilot CLI workspaces also get `.github/copilot-instructions.md`, `.github/skills/`, `.github/agents/`, and `.github/hooks/camel-kit-safety.json`. Internal guide skills copied for custom-agent use are marked so Copilot does not directly or automatically invoke them. The generated hook denies obvious destructive or secret-sensitive shell commands such as `git push`, broad `rm -rf`, `chmod 777`, and reads of common secret files, while leaving normal Copilot permissions in place. Workspace MCP servers from `.github/mcp.json` load only after the repository folder is trusted.
 
 No additional configuration is needed. The AI assistant automatically uses MCP tools when available.
 
