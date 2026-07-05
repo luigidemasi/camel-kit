@@ -151,7 +151,7 @@ cd my-integration
 # Run /skills list if you need to inspect available project skills.
 
 # For Pi, install the MCP adapter, trust the project, then run /skill:camel-start.
-# pi install npm:pi-mcp-adapter
+# pi install npm:pi-mcp-adapter@2.11.0
 ```
 
 ---

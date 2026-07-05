@@ -195,20 +195,7 @@ public class DoctorService {
                     "Pi safety guard policy is missing",
                     "Run camel-kit init --here --ai pi --force to regenerate Pi guard resources."));
         } else {
-            try {
-                JsonNode rootNode = MAPPER.readTree(policy.toFile());
-                policyOk = rootNode.path("version").asInt() == 1 && rootNode.path("rules").isArray();
-            } catch (IOException e) {
-                findings.add(DoctorFinding.fail("workspace", relativize(root, policy),
-                        "Pi safety guard policy is not valid JSON: " + e.getMessage(),
-                        "Fix the JSON syntax or regenerate Pi guard resources with camel-kit init --here --force."));
-                return;
-            }
-            if (!policyOk) {
-                findings.add(DoctorFinding.fail("workspace", relativize(root, policy),
-                        "Pi safety guard policy must declare version 1 and a rules array",
-                        "Regenerate Pi guard resources with camel-kit init --here --ai pi --force."));
-            }
+            policyOk = checkPiGuardPolicy(root, policy, findings);
         }
 
         if (extensionOk && policyOk) {
@@ -216,6 +203,91 @@ public class DoctorService {
                     "Pi safety guard extension and policy are present",
                     "No action required."));
         }
+    }
+
+    private boolean checkPiGuardPolicy(Path root, Path policy, List<DoctorFinding> findings) {
+        JsonNode rootNode;
+        try {
+            rootNode = MAPPER.readTree(policy.toFile());
+        } catch (IOException e) {
+            findings.add(DoctorFinding.fail("workspace", relativize(root, policy),
+                    "Pi safety guard policy is not valid JSON: " + e.getMessage(),
+                    "Fix the JSON syntax or regenerate Pi guard resources with camel-kit init --here --ai pi --force."));
+            return false;
+        }
+
+        boolean valid = true;
+        JsonNode version = rootNode.path("version");
+        if (!version.isInt() || version.asInt() != 1 || !rootNode.path("rules").isArray()) {
+            findings.add(DoctorFinding.fail("workspace", relativize(root, policy),
+                    "Pi safety guard policy must declare version 1 and a rules array",
+                    "Regenerate Pi guard resources with camel-kit init --here --ai pi --force."));
+            valid = false;
+        }
+
+        JsonNode rules = rootNode.path("rules");
+        if (rules.isArray()) {
+            for (int i = 0; i < rules.size(); i++) {
+                valid &= checkPiGuardRule(root, policy, rules.get(i), i, findings);
+            }
+        }
+        return valid;
+    }
+
+    private boolean checkPiGuardRule(
+            Path root, Path policy, JsonNode rule, int index, List<DoctorFinding> findings) {
+        boolean valid = true;
+        if (!rule.isObject()) {
+            findings.add(DoctorFinding.fail("workspace", relativize(root, policy),
+                    "Pi safety guard policy rule at index " + index + " must be an object",
+                    "Ensure each rule declares inputPattern, reason, and optional toolNames."));
+            return false;
+        }
+
+        if (!isNonBlankText(rule.path("inputPattern"))) {
+            findings.add(DoctorFinding.fail("workspace", relativize(root, policy),
+                    "Pi safety guard policy rule at index " + index + " must declare a non-empty inputPattern",
+                    "Regenerate Pi guard resources with camel-kit init --here --ai pi --force."));
+            valid = false;
+        }
+        if (!isNonBlankText(rule.path("reason"))) {
+            findings.add(DoctorFinding.fail("workspace", relativize(root, policy),
+                    "Pi safety guard policy rule at index " + index + " must declare a non-empty reason",
+                    "Regenerate Pi guard resources with camel-kit init --here --ai pi --force."));
+            valid = false;
+        }
+
+        JsonNode toolNames = rule.path("toolNames");
+        if (!toolNames.isMissingNode()) {
+            if (!toolNames.isArray()) {
+                addPiGuardPolicyFailure(root, policy, findings,
+                        "Pi safety guard policy rule at index " + index
+                                                                + " has invalid toolNames; expected an array of strings");
+                valid = false;
+            } else {
+                for (int i = 0; i < toolNames.size(); i++) {
+                    if (!isNonBlankText(toolNames.get(i))) {
+                        addPiGuardPolicyFailure(root, policy, findings,
+                                "Pi safety guard policy rule at index " + index
+                                                                        + " has an invalid toolNames entry at index "
+                                                                        + i);
+                        valid = false;
+                    }
+                }
+            }
+        }
+        return valid;
+    }
+
+    private void addPiGuardPolicyFailure(
+            Path root, Path policy, List<DoctorFinding> findings, String message) {
+        findings.add(DoctorFinding.fail("workspace", relativize(root, policy),
+                message,
+                "Regenerate Pi guard resources with camel-kit init --here --ai pi --force."));
+    }
+
+    private boolean isNonBlankText(JsonNode node) {
+        return node.isTextual() && !node.asText().isBlank();
     }
 
     private void checkCommandFiles(

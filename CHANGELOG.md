@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New `pi` agent registry descriptor, generator strategy, and `PiGenerator`
   - Generated workspaces include `AGENTS.md`, `.pi/skills/`, `.pi/prompts/`, `.mcp.json`, `.pi/extensions/camel-kit-guard.ts`, and `.pi/camel-kit-guard-policy.json`
   - Pi MCP config uses `pi-mcp-adapter` with `directTools` allowlists, and `doctor` validates the Pi schema plus guard resources
-  - Internal guide skills are marked with `disable-model-invocation: true` and future-proof `user-invocable: false`
+  - Internal guide skills are marked with `disable-model-invocation: true` and future-proof agent alias `user-invocable: false`
   - Distribution defaults record the tested Pi and adapter versions
 
 - **GitHub Copilot CLI AI target (`--ai copilot`)** — added a first-class Copilot CLI target that generates GitHub-native project assets.

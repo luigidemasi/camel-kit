@@ -64,7 +64,7 @@ class InitCommandTest {
         command.printNextSteps("orders", "Pi", "pi");
 
         String output = printer.output();
-        assertTrue(output.contains("pi install npm:pi-mcp-adapter"));
+        assertTrue(output.contains("pi install npm:pi-mcp-adapter@2.11.0"));
         assertTrue(output.contains("/trust"));
         assertTrue(output.contains("/skill:camel-start"));
         assertTrue(output.contains("/mcp status"));

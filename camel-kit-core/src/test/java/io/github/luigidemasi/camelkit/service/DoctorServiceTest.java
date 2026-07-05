@@ -228,6 +228,53 @@ class DoctorServiceTest {
     }
 
     @Test
+    void invalidPiGuardPolicyJsonUsesPiRegenerationCommand() throws Exception {
+        createHealthyWorkspace(tempDir, "pi");
+        writePiGuardPolicy("""
+                {
+                  "version": 1,
+                  "rules": [
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "workspace",
+                "Pi safety guard policy is not valid JSON",
+                "camel-kit init --here --ai pi --force"));
+    }
+
+    @Test
+    void malformedPiGuardPolicyRuleProducesClearFailure() throws Exception {
+        createHealthyWorkspace(tempDir, "pi");
+        writePiGuardPolicy("""
+                {
+                  "version": 1,
+                  "rules": [
+                    {
+                      "toolNames": "bash",
+                      "reason": ""
+                    }
+                  ]
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "workspace",
+                "must declare a non-empty inputPattern",
+                "camel-kit init --here --ai pi --force"));
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "workspace",
+                "must declare a non-empty reason",
+                "camel-kit init --here --ai pi --force"));
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "workspace",
+                "has invalid toolNames; expected an array of strings",
+                "camel-kit init --here --ai pi --force"));
+    }
+
+    @Test
     void nonCopilotToolsKeyDoesNotBypassLegacyAllowlistValidation() throws Exception {
         createHealthyWorkspace(tempDir, "bob");
         writeMcpConfig(tempDir, "bob", """
@@ -333,6 +380,10 @@ class DoctorServiceTest {
         Path mcpFile = root.resolve(agent.mcpConfigPath());
         Files.createDirectories(mcpFile.getParent());
         Files.writeString(mcpFile, content);
+    }
+
+    private void writePiGuardPolicy(String content) throws Exception {
+        Files.writeString(tempDir.resolve(".pi/camel-kit-guard-policy.json"), content);
     }
 
     private String mcpJson(String agentName, Collection<String> camelTools, Collection<String> knowledgeTools) {

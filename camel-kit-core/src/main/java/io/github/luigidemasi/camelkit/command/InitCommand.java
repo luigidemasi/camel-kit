@@ -195,7 +195,8 @@ public class InitCommand extends CamelKitCommand {
             return;
         }
         if (AgentGeneratorStrategy.PI.descriptorValue().equalsIgnoreCase(agentId)) {
-            printer().println("  2  Install MCP adapter: " + cyan("pi install npm:pi-mcp-adapter"));
+            String adapter = "pi install npm:pi-mcp-adapter@" + CamelKitMain.distribution().piMcpAdapterVersion();
+            printer().println("  2  Install MCP adapter: " + cyan(adapter));
             printer().println("  3  In Pi, run " + cyan("/trust") + " then " + cyan("/skill:camel-start"));
             printer().println("     Use " + cyan("/mcp status") + " to verify Camel Kit MCP servers");
             printer().println();

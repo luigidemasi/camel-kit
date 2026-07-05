@@ -3,6 +3,7 @@ package io.github.luigidemasi.camelkit.generator;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentDescriptor;
@@ -115,6 +116,32 @@ class PiGeneratorTest {
 
         JsonNode citrus = root.path("mcpServers").path("citrus");
         assertTrue(citrus.path("directTools").isArray());
+    }
+
+    @Test
+    void guardPolicyBlocksRecursiveForceDeleteWithoutBlockingForceDeleteOfRegularFiles() throws Exception {
+        InitContext ctx = createContext();
+        new PiGenerator().generate(ctx);
+
+        JsonNode rules = MAPPER.readTree(tempDir.resolve(".pi/camel-kit-guard-policy.json").toFile()).path("rules");
+        JsonNode rmRule = null;
+        for (JsonNode rule : rules) {
+            if ("deny-recursive-force-delete".equals(rule.path("id").asText())) {
+                rmRule = rule;
+                break;
+            }
+        }
+        assertNotNull(rmRule);
+        Pattern pattern = Pattern.compile(rmRule.path("inputPattern").asText(), Pattern.CASE_INSENSITIVE);
+
+        assertTrue(pattern.matcher("rm -rf target").find());
+        assertTrue(pattern.matcher("rm -fr target").find());
+        assertTrue(pattern.matcher("rm -vrf target").find());
+        assertTrue(pattern.matcher("rm --one-file-system -Rf target").find());
+        assertTrue(pattern.matcher("rm -r -f target").find());
+        assertTrue(pattern.matcher("rm -f -r target").find());
+        assertFalse(pattern.matcher("rm -f README.md").find());
+        assertFalse(pattern.matcher("rm -f target/output.txt").find());
     }
 
     @Test

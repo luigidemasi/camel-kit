@@ -215,7 +215,7 @@ The MCP configuration file created depends on the `--ai` option chosen.
 
 For GitHub Copilot CLI, Camel-Kit also generates `.github/copilot-instructions.md`, project skills under `.github/skills/`, custom agents under `.github/agents/`, and a conservative `.github/hooks/camel-kit-safety.json` hook that denies destructive or secret-sensitive shell commands while leaving normal Copilot permission prompts intact. Copilot users should start by asking Copilot to "Use the `/camel-start` skill." Run `/skills list` to inspect available project skills.
 
-For Pi, Camel-Kit generates `AGENTS.md`, project skills under `.pi/skills/`, prompt templates under `.pi/prompts/`, `.mcp.json` for `pi-mcp-adapter`, and `.pi/extensions/camel-kit-guard.ts` plus a JSON guard policy. Install the adapter with `pi install npm:pi-mcp-adapter`, trust the project with `/trust`, then run `/skill:camel-start`. Headless checks must use `pi -a`.
+For Pi, Camel-Kit generates `AGENTS.md`, project skills under `.pi/skills/`, prompt templates under `.pi/prompts/`, `.mcp.json` for `pi-mcp-adapter`, and `.pi/extensions/camel-kit-guard.ts` plus a JSON guard policy. Install the adapter with `pi install npm:pi-mcp-adapter@2.11.0`, trust the project with `/trust`, then run `/skill:camel-start`. Headless checks must use `pi -a`.
 
 ### camel-kit doctor
 

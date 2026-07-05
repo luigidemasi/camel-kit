@@ -55,6 +55,9 @@ The frontmatter fields:
 - `description` -- trigger keywords that help agents match user intent to the correct skill
 - `user_invocable` -- `true` for `camel-start` (meta-router) only. Pipeline and standalone skills (Tier 1/2) still have generated entry points despite `user_invocable: false`: slash-command stubs for most agents and project skills for GitHub Copilot CLI. Internal skills (`camel-verify`, `camel-design`, `camel-implement`, `camel-test`) are dispatched only by pipeline skills
 
+Agent-specific generators may add runtime aliases to copied skill files. For example, Copilot and Pi generated
+copies add `user-invocable: false` alongside Camel-Kit's source `user_invocable` metadata.
+
 ### All Skills
 
 | Skill | User-Invocable | Loaded By | Purpose |
