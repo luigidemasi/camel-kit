@@ -169,7 +169,7 @@ class SkillResourceInstaller {
         }
     }
 
-    private void addCopilotReadableInternalSkillMetadata(Path skillFile) throws Exception {
+    void addCopilotReadableInternalSkillMetadata(Path skillFile) throws Exception {
         String skillName = skillFile.getParent().getFileName().toString();
         if (!COPILOT_INTERNAL_SKILLS.contains(skillName)) {
             return;
@@ -177,21 +177,31 @@ class SkillResourceInstaller {
 
         String content = Files.readString(skillFile);
         String normalized = content.replace("\r\n", "\n");
-        if (!normalized.startsWith("---\n")
-                || (normalized.contains("\nuser-invocable:")
-                        && normalized.contains("\ndisable-model-invocation:"))) {
+        if (!normalized.startsWith("---\n")) {
+            throw new IOException(
+                    "Internal Copilot skill '" + skillName
+                                  + "' must declare frontmatter so Copilot invocation metadata can be generated");
+        }
+
+        boolean hasUserInvocable = normalized.contains("\nuser-invocable:");
+        boolean hasDisableModelInvocation = normalized.contains("\ndisable-model-invocation:");
+        if (hasUserInvocable && hasDisableModelInvocation) {
             return;
+        }
+        boolean hasCamelKitUserInvocable = normalized.contains("\nuser_invocable:");
+        if (!hasCamelKitUserInvocable && !hasUserInvocable) {
+            throw new IOException(
+                    "Internal Copilot skill '" + skillName
+                                  + "' must declare user_invocable or user-invocable so Copilot invocation metadata can be generated");
         }
 
         String[] lines = normalized.split("\n", -1);
         StringBuilder updated = new StringBuilder(normalized.length() + 64);
         boolean inserted = false;
-        boolean hasUserInvocable = normalized.contains("\nuser-invocable:");
-        boolean hasDisableModelInvocation = normalized.contains("\ndisable-model-invocation:");
         for (int i = 0; i < lines.length; i++) {
             String line = lines[i];
             updated.append(line);
-            if (!inserted && line.startsWith("user_invocable:")) {
+            if (!inserted && (line.startsWith("user_invocable:") || line.startsWith("user-invocable:"))) {
                 if (!hasUserInvocable) {
                     updated.append('\n').append("user-invocable: false");
                 }
