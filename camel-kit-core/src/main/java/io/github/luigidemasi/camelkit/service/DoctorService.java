@@ -266,6 +266,10 @@ public class DoctorService {
             return false;
         }
 
+        if (server.has("tools")) {
+            return checkAllowlist(root, mcpFile, serverName, "tools", server, expected, findings);
+        }
+
         boolean autoApproveOk = checkAllowlist(root, mcpFile, serverName, "autoApprove", server, expected, findings);
         boolean alwaysAllowOk = checkAllowlist(root, mcpFile, serverName, "alwaysAllow", server, expected, findings);
         return autoApproveOk && alwaysAllowOk;

@@ -1,0 +1,40 @@
+{
+  "mcpServers": {
+    "camel": {
+      "type": "stdio",
+      "command": "jbang",
+      "args": [
+        "--repos", "{CAMEL_MCP_REPOS}",
+        "-Dcamel.catalog.repos={CAMEL_CATALOG_REPOS}",
+        "-Dquarkus.log.level=WARN",
+        "-Dquarkus.http.port=-1",
+        "org.apache.camel:camel-jbang-mcp:{CAMEL_MCP_VERSION}:runner"
+      ],
+      "description": "Apache Camel MCP Server - Component catalog, validation, and security analysis",
+      "tools": {CAMEL_TOOLS_JSON}
+    },
+    "camel-knowledge": {
+      "type": "stdio",
+      "command": "jbang",
+      "args": [
+        "--repos", "{KNOWLEDGE_MCP_REPOS}",
+        "-Dquarkus.log.level=WARN",
+        "io.github.luigidemasi:camel-kit-knowledge-mcp:{KNOWLEDGE_VERSION}:runner"
+      ],
+      "description": "{KNOWLEDGE_DESCRIPTION}",
+      "tools": {KNOWLEDGE_TOOLS_JSON}
+    },
+    "citrus": {
+      "type": "stdio",
+      "command": "jbang",
+      "args": [
+        "--repos", "{CITRUS_MCP_REPOS}",
+        "-Dquarkus.log.level=WARN",
+        "-Dquarkus.http.port=-1",
+        "org.citrusframework:citrus-mcp-server:{CITRUS_MCP_VERSION}:runner"
+      ],
+      "description": "{CITRUS_DESCRIPTION}",
+      "tools": {CITRUS_TOOLS_JSON}
+    }
+  }
+}

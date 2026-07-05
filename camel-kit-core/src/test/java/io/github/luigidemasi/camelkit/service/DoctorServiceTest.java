@@ -48,6 +48,18 @@ class DoctorServiceTest {
     }
 
     @Test
+    void healthyCopilotWorkspaceUsesGithubMcpToolsSchema() throws Exception {
+        createHealthyWorkspace(tempDir, "copilot");
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "MCP config exists and tool allowlists match Camel-Kit expectations",
+                "No action required."));
+    }
+
+    @Test
     void mixedCaseAgentNameStillResolvesRegisteredMcpPathForMcpChecks() throws Exception {
         createHealthyWorkspace(tempDir, "bob");
         Path configFile = tempDir.resolve(".camel-kit/config.properties");
@@ -107,10 +119,28 @@ class DoctorServiceTest {
         Path mcpFile = root.resolve(agent.mcpConfigPath());
         Files.createDirectories(mcpFile.getParent());
         Files.writeString(mcpFile,
-                mcpJson(EXPECTATIONS.camelMcpTools(), EXPECTATIONS.knowledgeMcpTools()));
+                mcpJson(agentName, EXPECTATIONS.camelMcpTools(), EXPECTATIONS.knowledgeMcpTools()));
     }
 
-    private String mcpJson(Collection<String> camelTools, Collection<String> knowledgeTools) {
+    private String mcpJson(String agentName, Collection<String> camelTools, Collection<String> knowledgeTools) {
+        if ("copilot".equals(agentName)) {
+            return String.format(Locale.ROOT, """
+                    {
+                      "mcpServers": {
+                        "camel": {
+                          "type": "stdio",
+                          "command": "jbang",
+                          "tools": [%s]
+                        },
+                        "camel-knowledge": {
+                          "type": "stdio",
+                          "command": "jbang",
+                          "tools": [%s]
+                        }
+                      }
+                    }
+                    """, jsonArray(camelTools), jsonArray(knowledgeTools));
+        }
         return String.format(Locale.ROOT, """
                 {
                   "mcpServers": {

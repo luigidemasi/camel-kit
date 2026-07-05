@@ -23,7 +23,8 @@ class AgentRegistryTest {
 
     @Test
     void builtInAgentsAreLoadedFromResourceDescriptors() {
-        assertEquals(Set.of("bob", "bob2", "claude", "gemini", "opencode", "qwen"), AgentRegistry.names());
+        assertEquals(Set.of("bob", "bob2", "claude", "copilot", "gemini", "opencode", "qwen"),
+                AgentRegistry.names());
 
         AgentConfig claude = AgentRegistry.get("claude");
         assertNotNull(claude);
@@ -45,6 +46,29 @@ class AgentRegistryTest {
         assertTrue(descriptor.supportsSubagents());
         assertTrue(descriptor.supportsTraits());
         assertTrue(descriptor.capabilities().contains("parallel-subagent-dispatch"));
+    }
+
+    @Test
+    void copilotDescriptorUsesGithubNativeProjectLocations() {
+        AgentConfig copilot = AgentRegistry.get("copilot");
+        assertNotNull(copilot);
+        assertEquals("GitHub Copilot CLI", copilot.name());
+        assertEquals(".github/commands", copilot.folder());
+        assertEquals("md", copilot.fileFormat());
+        assertEquals(".github/mcp.json", copilot.mcpConfigPath());
+        assertEquals("templates/mcp-configs/copilot-mcp.json", copilot.mcpConfigTemplatePath());
+        assertEquals("mcpServers", copilot.mcpServerContainerKey());
+
+        AgentDescriptor descriptor = AgentRegistry.descriptor("copilot");
+        assertNotNull(descriptor);
+        assertEquals("copilot", descriptor.generatorStrategy());
+        assertEquals(AgentGeneratorStrategy.COPILOT, descriptor.generatorStrategyType());
+        assertEquals("templates/dispatch/copilot.md", descriptor.dispatchTemplatePath());
+        assertTrue(descriptor.supportsSubagents());
+        assertTrue(descriptor.supportsTraits());
+        assertTrue(descriptor.capabilities().contains("custom-agents"));
+        assertTrue(descriptor.capabilities().contains("project-skills"));
+        assertTrue(descriptor.capabilities().contains("hooks"));
     }
 
     @Test

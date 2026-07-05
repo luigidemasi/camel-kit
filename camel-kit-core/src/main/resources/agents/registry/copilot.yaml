@@ -1,0 +1,41 @@
+id: copilot
+displayName: GitHub Copilot CLI
+commandDirectory: .github/commands
+commandFileFormat: md
+argumentPlaceholder: $ARGUMENTS
+mcpConfigPath: .github/mcp.json
+mcpConfigTemplatePath: templates/mcp-configs/copilot-mcp.json
+mcpServerContainerKey: mcpServers
+description: GitHub Copilot CLI terminal agent
+generatorStrategy: copilot
+dispatchTemplatePath: templates/dispatch/copilot.md
+templates:
+  - source: templates/copilot/copilot-instructions.md
+    target: .github/copilot-instructions.md
+  - source: templates/copilot/agents/camel-planner.agent.md
+    target: .github/agents/camel-planner.agent.md
+  - source: templates/copilot/agents/camel-implementer.agent.md
+    target: .github/agents/camel-implementer.agent.md
+  - source: templates/copilot/agents/camel-tester.agent.md
+    target: .github/agents/camel-tester.agent.md
+  - source: templates/copilot/agents/camel-validator.agent.md
+    target: .github/agents/camel-validator.agent.md
+  - source: templates/copilot/agents/camel-migrator.agent.md
+    target: .github/agents/camel-migrator.agent.md
+  - source: templates/copilot/agents/camel-catalog-researcher.agent.md
+    target: .github/agents/camel-catalog-researcher.agent.md
+  - source: templates/copilot/agents/camel-security-reviewer.agent.md
+    target: .github/agents/camel-security-reviewer.agent.md
+  - source: templates/copilot/hooks/camel-kit-safety.json
+    target: .github/hooks/camel-kit-safety.json
+  - source: templates/copilot/agents-md.md
+    target: AGENTS.md
+supportsSubagents: true
+supportsTraits: true
+capabilities:
+  - custom-agents
+  - project-skills
+  - hooks
+  - mcp
+  - permissions
+  - sandbox

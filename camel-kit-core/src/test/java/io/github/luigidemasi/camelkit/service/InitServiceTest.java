@@ -72,6 +72,28 @@ class InitServiceTest {
     }
 
     @Test
+    void initializesCopilotWorkspaceWithGithubNativeAssets() throws Exception {
+        RecordingProgress progress = new RecordingProgress();
+        Path targetDir = tempDir.resolve("orders");
+
+        InitResult result = new InitService().initialize(
+                request(targetDir, "copilot", progress, InitReporter.noop()));
+
+        assertEquals("copilot", result.agentName());
+        assertTrue(Files.isRegularFile(targetDir.resolve(".github/copilot-instructions.md")));
+        assertTrue(Files.isRegularFile(targetDir.resolve(".github/mcp.json")));
+        assertTrue(Files.isRegularFile(targetDir.resolve(".github/skills/camel-start/SKILL.md")));
+        assertTrue(Files.isRegularFile(targetDir.resolve(".github/agents/camel-implementer.agent.md")));
+        assertTrue(Files.isRegularFile(targetDir.resolve(".github/hooks/camel-kit-safety.json")));
+        assertTrue(Files.isRegularFile(targetDir.resolve(".github/commands/camel-start.md")));
+        assertTrue(progress.events().contains("start:Generating GitHub Copilot CLI workspace"));
+
+        String config = Files.readString(targetDir.resolve(".camel-kit/config.properties"));
+        assertTrue(config.contains("agent.name=copilot"));
+        assertTrue(config.contains("agent.folder=.github/commands"));
+    }
+
+    @Test
     void initPersistsRuntimeAndVersionConfig() throws Exception {
         Path targetDir = tempDir.resolve("orders");
 

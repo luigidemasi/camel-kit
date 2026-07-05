@@ -160,12 +160,20 @@ class ResourceConsistencyTest {
             new DefaultGenerator().generate(ctx);
 
             JsonNode knowledgeServer = serverConfig(agentName, projectDir, "camel-knowledge");
-            assertKnowledgeTools(agentName, "autoApprove", knowledgeServer.get("autoApprove"));
-            assertKnowledgeTools(agentName, "alwaysAllow", knowledgeServer.get("alwaysAllow"));
+            if ("copilot".equals(agentName)) {
+                assertKnowledgeTools(agentName, "tools", knowledgeServer.get("tools"));
+            } else {
+                assertKnowledgeTools(agentName, "autoApprove", knowledgeServer.get("autoApprove"));
+                assertKnowledgeTools(agentName, "alwaysAllow", knowledgeServer.get("alwaysAllow"));
+            }
 
             JsonNode citrusServer = serverConfig(agentName, projectDir, "citrus");
-            assertCitrusTools(agentName, "autoApprove", citrusServer.get("autoApprove"));
-            assertCitrusTools(agentName, "alwaysAllow", citrusServer.get("alwaysAllow"));
+            if ("copilot".equals(agentName)) {
+                assertCitrusTools(agentName, "tools", citrusServer.get("tools"));
+            } else {
+                assertCitrusTools(agentName, "autoApprove", citrusServer.get("autoApprove"));
+                assertCitrusTools(agentName, "alwaysAllow", citrusServer.get("alwaysAllow"));
+            }
         }
     }
 

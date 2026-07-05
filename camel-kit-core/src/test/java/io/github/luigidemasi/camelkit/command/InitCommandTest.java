@@ -37,6 +37,22 @@ class InitCommandTest {
         assertFalse(output.contains("/camel-verify"));
     }
 
+    @Test
+    void copilotNextStepsUseSkillsInsteadOfCamelSlashCommands() {
+        CapturingPrinter printer = new CapturingPrinter();
+        CamelKitMain main = new CamelKitMain();
+        main.setOut(printer);
+
+        InitCommand command = new InitCommand(main);
+        command.printNextSteps("orders", "GitHub Copilot CLI");
+
+        String output = printer.output();
+        assertTrue(output.contains("camel-start"));
+        assertTrue(output.contains("/skills"));
+        assertTrue(output.contains("/mcp show"));
+        assertFalse(output.contains("/camel-start"));
+    }
+
     private static final class CapturingPrinter implements Printer {
         private final StringBuilder output = new StringBuilder();
 

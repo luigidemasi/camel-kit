@@ -33,7 +33,7 @@ public class InitCommand extends CamelKitCommand {
 
     @Option(names = {"-a", "--ai"},
             description = "AI agent: bob2 (IBM Bob 2, default), bob (IBM Bob 1 legacy), "
-                          + "gemini, claude, qwen, opencode",
+                          + "gemini, claude, copilot, qwen, opencode",
             defaultValue = "bob2")
     public String ai;
 
@@ -186,6 +186,13 @@ public class InitCommand extends CamelKitCommand {
         printer().println("  " + bold("Next steps"));
         printer().println(divider);
         printer().println("  1  Open " + cyan(projectName) + " in " + agentName);
+        if ("GitHub Copilot CLI".equals(agentName)) {
+            printer().println("  2  Ask Copilot to use the " + cyan("camel-start") + " project skill");
+            printer().println("     Or run " + cyan("/skills") + " and select " + cyan("camel-start"));
+            printer().println("  3  Use " + cyan("/mcp show") + " to verify Camel Kit MCP servers");
+            printer().println();
+            return;
+        }
         printer().println("  2  " + cyan("/camel-start") + "  \u2014 route integration work");
         printer().println("     " + cyan("/camel-migrate") + " \u2014 migration shortcut");
         printer().println("  3  " + cyan("/camel-debug") + "  \u2014 troubleshoot broken routes");

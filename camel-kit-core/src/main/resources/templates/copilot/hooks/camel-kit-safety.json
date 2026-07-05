@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "matcher": "bash|powershell",
+        "bash": "input=$(cat); printf '%s' \"$input\" | grep -Eiq 'git[[:space:]]+push|rm[[:space:]]+-rf|chmod[[:space:]]+777|cat[[:space:]].*(\\.env|id_rsa|\\.npmrc)' && printf '{\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Camel Kit safety hook blocked destructive or secret-sensitive shell command.\"}' || true",
+        "powershell": "$input = [Console]::In.ReadToEnd(); if ($input -match '(?i)git\\s+push|rm\\s+-rf|chmod\\s+777|cat\\s+.*(\\.env|id_rsa|\\.npmrc)') { '{\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Camel Kit safety hook blocked destructive or secret-sensitive shell command.\"}' }",
+        "timeoutSec": 5
+      }
+    ]
+  }
+}

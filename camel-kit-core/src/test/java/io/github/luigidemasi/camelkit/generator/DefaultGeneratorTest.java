@@ -92,15 +92,20 @@ class DefaultGeneratorTest {
                 .allowedTools());
 
         ObjectMapper mapper = new ObjectMapper();
-        for (String agentName : List.of("bob", "claude", "gemini", "qwen", "opencode")) {
+        for (String agentName : List.of("bob", "claude", "copilot", "gemini", "qwen", "opencode")) {
             InitContext ctx = createContext(agentName);
             new DefaultGenerator().generate(ctx);
 
             JsonNode knowledgeServer = readKnowledgeServerConfig(mapper, agentName);
-            assertEquals(implementedKnowledgeTools, jsonArrayToList(knowledgeServer.path("autoApprove")),
-                    agentName + " autoApprove must only include implemented Knowledge MCP tools");
-            assertEquals(implementedKnowledgeTools, jsonArrayToList(knowledgeServer.path("alwaysAllow")),
-                    agentName + " alwaysAllow must only include implemented Knowledge MCP tools");
+            if ("copilot".equals(agentName)) {
+                assertEquals(implementedKnowledgeTools, jsonArrayToList(knowledgeServer.path("tools")),
+                        agentName + " tools must only include implemented Knowledge MCP tools");
+            } else {
+                assertEquals(implementedKnowledgeTools, jsonArrayToList(knowledgeServer.path("autoApprove")),
+                        agentName + " autoApprove must only include implemented Knowledge MCP tools");
+                assertEquals(implementedKnowledgeTools, jsonArrayToList(knowledgeServer.path("alwaysAllow")),
+                        agentName + " alwaysAllow must only include implemented Knowledge MCP tools");
+            }
         }
     }
 

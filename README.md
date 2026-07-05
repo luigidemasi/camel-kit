@@ -9,7 +9,7 @@
 
 > Design, implement, and verify Apache Camel integrations with AI coding assistants.
 
-Camel-Kit adds structured slash commands to your AI assistant that guide you through the full integration lifecycle — from designing the integration, through implementation and testing, to runtime verification. It works across multiple AI agents and produces production-ready Apache Camel routes.
+Camel-Kit adds structured AI-agent workflows to your assistant that guide you through the full integration lifecycle — from designing the integration, through implementation and testing, to runtime verification. It works across multiple AI agents and produces production-ready Apache Camel routes.
 
 **Inspired by [GitHub Spec-Kit](https://github.com/github/spec-kit)**, adapted for the Apache Camel ecosystem.
 
@@ -99,7 +99,7 @@ camel kit init my-integration
 
 ### Build from Source (development version)
 
-Some features (including `--ai qwen` and `--ai opencode`) are only available in the development version. To build from source:
+Some features (including `--ai copilot`, `--ai qwen`, and `--ai opencode`) are only available in the development version. To build from source:
 
 ```bash
 git clone https://github.com/luigidemasi/camel-kit.git
@@ -133,6 +133,7 @@ camel-kit init my-integration --ai claude   # Anthropic Claude Code
 camel-kit init my-integration --ai bob      # IBM Bob 1 legacy
 camel-kit init my-integration --ai bob2     # IBM Bob 2
 camel-kit init my-integration --ai gemini   # Google Gemini CLI
+camel-kit init my-integration --ai copilot  # GitHub Copilot CLI
 camel-kit init my-integration --ai qwen     # Qwen (requires dev build)
 camel-kit init my-integration --ai opencode # OpenCode (requires dev build)
 
@@ -144,6 +145,9 @@ cd my-integration
 
 # 4. Start designing
 /camel-start
+
+# For GitHub Copilot CLI, ask Copilot to use the camel-start project skill,
+# or run /skills and select camel-start.
 ```
 
 ---
@@ -156,10 +160,11 @@ cd my-integration
 | IBM Bob 1 legacy | `--ai bob` | `custom_modes.yaml` + rules + gates | `.bob/mcp.json` |
 | IBM Bob 2 (default) | `--ai bob2` | `custom_modes.yaml` + rules + skills | `.bob/mcp.json` |
 | Google Gemini CLI | `--ai gemini` | `GEMINI.md` | `.gemini/mcp.json` |
+| GitHub Copilot CLI | `--ai copilot` | `.github/copilot-instructions.md` + `.github/agents/` + `.github/skills/` | `.github/mcp.json` |
 | Qwen | `--ai qwen` | `QWEN.md` | `.qwen/mcp.json` |
 | OpenCode | `--ai opencode` | `AGENTS.md` | `.opencode/mcp.json` |
 
-All agents use the same skills — camel-kit generates agent-specific instruction files with per-agent traits that load the shared skill guides. The skills are the equalization layer. [Architecture Guide →](docs/architecture.md)
+All agents use the same skills — camel-kit generates agent-specific instruction files with per-agent traits that load the shared skill guides. GitHub Copilot CLI uses native project skills and custom agents instead of Camel-Kit slash commands. The skills are the equalization layer. [Architecture Guide →](docs/architecture.md)
 
 ---
 
@@ -196,14 +201,14 @@ All agents use the same skills — camel-kit generates agent-specific instructio
 
 ### Multi-Agent
 
-- **6 AI targets** — same skills work across Claude Code, IBM Bob 1 legacy, IBM Bob 2, Gemini CLI, Qwen, and OpenCode. Agent-specific traits customize behavior (pacing, approval modes, tool usage) without changing the shared skills. [Learn more →](docs/architecture.md)
+- **7 AI targets** — same skills work across Claude Code, IBM Bob 1 legacy, IBM Bob 2, Gemini CLI, GitHub Copilot CLI, Qwen, and OpenCode. Agent-specific traits customize behavior (pacing, approval modes, tool usage) without changing the shared skills. [Learn more →](docs/architecture.md)
 
 ---
 
 ## Documentation
 
 - **[User Guide](docs/user-guide.md)** — workflows, migration, verification, DataMapper
-- **[Command Reference](docs/commands.md)** — all slash commands, CLI options, graph subcommands
+- **[Command Reference](docs/commands.md)** — CLI options, AI-agent workflows, graph subcommands
 - **[Architecture Guide](docs/architecture.md)** — skills, MCP, graph intelligence, pipeline internals
 - **[Contributing](CONTRIBUTING.md)** — development setup, how to add skills
 
