@@ -169,7 +169,7 @@ class SkillResourceInstaller {
         }
     }
 
-    private void addCopilotReadableInternalSkillMetadata(Path skillFile) throws Exception {
+    void addCopilotReadableInternalSkillMetadata(Path skillFile) throws Exception {
         String skillName = skillFile.getParent().getFileName().toString();
         if (!COPILOT_INTERNAL_SKILLS.contains(skillName)) {
             return;
@@ -188,10 +188,11 @@ class SkillResourceInstaller {
         if (hasUserInvocable && hasDisableModelInvocation) {
             return;
         }
-        if (!normalized.contains("\nuser_invocable:")) {
+        boolean hasCamelKitUserInvocable = normalized.contains("\nuser_invocable:");
+        if (!hasCamelKitUserInvocable && !hasUserInvocable) {
             throw new IOException(
                     "Internal Copilot skill '" + skillName
-                                  + "' must declare user_invocable so Copilot invocation metadata can be generated");
+                                  + "' must declare user_invocable or user-invocable so Copilot invocation metadata can be generated");
         }
 
         String[] lines = normalized.split("\n", -1);
@@ -200,7 +201,7 @@ class SkillResourceInstaller {
         for (int i = 0; i < lines.length; i++) {
             String line = lines[i];
             updated.append(line);
-            if (!inserted && line.startsWith("user_invocable:")) {
+            if (!inserted && (line.startsWith("user_invocable:") || line.startsWith("user-invocable:"))) {
                 if (!hasUserInvocable) {
                     updated.append('\n').append("user-invocable: false");
                 }
