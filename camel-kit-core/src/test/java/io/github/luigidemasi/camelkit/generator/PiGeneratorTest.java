@@ -142,6 +142,9 @@ class PiGeneratorTest {
         assertTrue(pattern.matcher("rm -f -r target").find());
         assertFalse(pattern.matcher("rm -f README.md").find());
         assertFalse(pattern.matcher("rm -f target/output.txt").find());
+        assertFalse(pattern.matcher("rm -f foo-bar.txt").find());
+        assertFalse(pattern.matcher("rm -f my-runner.log").find());
+        assertFalse(pattern.matcher("rm -r some-conf").find());
     }
 
     @Test

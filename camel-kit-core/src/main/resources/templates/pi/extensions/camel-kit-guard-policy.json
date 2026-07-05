@@ -11,7 +11,7 @@
     {
       "id": "deny-recursive-force-delete",
       "toolNames": ["bash"],
-      "inputPattern": "\\brm\\s+(?:[^\\n]*\\s+)?-[a-z]*r[a-z]*f\\b|\\brm\\s+(?:[^\\n]*\\s+)?-[a-z]*f[a-z]*r\\b|\\brm\\s+[^\\n]*-[a-z]*r\\b[^\\n]*-[a-z]*f\\b|\\brm\\s+[^\\n]*-[a-z]*f\\b[^\\n]*-[a-z]*r\\b",
+      "inputPattern": "\\brm\\s+(?:[^\\n]*\\s+)?-[a-z]*r[a-z]*f\\b|\\brm\\s+(?:[^\\n]*\\s+)?-[a-z]*f[a-z]*r\\b|\\brm\\s+(?:[^\\n]*\\s+)?-[a-z]*r\\b[^\\n]*\\s-[a-z]*f\\b|\\brm\\s+(?:[^\\n]*\\s+)?-[a-z]*f\\b[^\\n]*\\s-[a-z]*r\\b",
       "flags": "i",
       "reason": "Camel Kit safety guard blocked a broad recursive force delete command."
     },
