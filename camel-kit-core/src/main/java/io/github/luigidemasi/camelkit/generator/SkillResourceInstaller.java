@@ -177,17 +177,26 @@ class SkillResourceInstaller {
 
         String content = Files.readString(skillFile);
         String normalized = content.replace("\r\n", "\n");
-        if (!normalized.startsWith("---\n")
-                || (normalized.contains("\nuser-invocable:")
-                        && normalized.contains("\ndisable-model-invocation:"))) {
+        if (!normalized.startsWith("---\n")) {
+            throw new IOException(
+                    "Internal Copilot skill '" + skillName
+                                  + "' must declare frontmatter so Copilot invocation metadata can be generated");
+        }
+
+        boolean hasUserInvocable = normalized.contains("\nuser-invocable:");
+        boolean hasDisableModelInvocation = normalized.contains("\ndisable-model-invocation:");
+        if (hasUserInvocable && hasDisableModelInvocation) {
             return;
+        }
+        if (!normalized.contains("\nuser_invocable:")) {
+            throw new IOException(
+                    "Internal Copilot skill '" + skillName
+                                  + "' must declare user_invocable so Copilot invocation metadata can be generated");
         }
 
         String[] lines = normalized.split("\n", -1);
         StringBuilder updated = new StringBuilder(normalized.length() + 64);
         boolean inserted = false;
-        boolean hasUserInvocable = normalized.contains("\nuser-invocable:");
-        boolean hasDisableModelInvocation = normalized.contains("\ndisable-model-invocation:");
         for (int i = 0; i < lines.length; i++) {
             String line = lines[i];
             updated.append(line);

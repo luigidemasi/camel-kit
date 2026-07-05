@@ -4,12 +4,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import io.github.luigidemasi.camelkit.config.AgentDescriptor;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.util.AnsiColors;
 
 public class CopilotGenerator extends DefaultGenerator {
+
+    private static final Set<String> RENDERED_TEMPLATES = Set.of(
+            "templates/copilot/copilot-instructions.md",
+            "templates/copilot/agents-md.md");
 
     private final QuteTemplateEngine templateEngine = new QuteTemplateEngine();
 
@@ -37,7 +42,7 @@ public class CopilotGenerator extends DefaultGenerator {
             if (parent != null) {
                 Files.createDirectories(parent);
             }
-            if (template.source().endsWith(".md")) {
+            if (RENDERED_TEMPLATES.contains(template.source())) {
                 Files.writeString(target, templateEngine.render(template.source(), data));
             } else {
                 copyTemplateResource(template.source(), target);

@@ -1,7 +1,10 @@
 package io.github.luigidemasi.camelkit.generator;
 
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Set;
 
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentDescriptor;
@@ -18,6 +21,11 @@ import static org.junit.jupiter.api.Assertions.*;
 class CopilotGeneratorTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final Set<String> INTERNAL_SKILLS = Set.of(
+            "camel-design",
+            "camel-implement",
+            "camel-test",
+            "camel-verify");
 
     @TempDir
     Path tempDir;
@@ -78,9 +86,12 @@ class CopilotGeneratorTest {
         InitContext ctx = createContext();
         new CopilotGenerator().generate(ctx);
 
-        String implement = Files.readString(tempDir.resolve(".github/skills/camel-implement/SKILL.md"));
-        assertTrue(implement.contains("user-invocable: false"));
-        assertTrue(implement.contains("disable-model-invocation: true"));
+        for (String skillName : INTERNAL_SKILLS) {
+            String skill = Files.readString(tempDir.resolve(".github/skills/" + skillName + "/SKILL.md"));
+            assertTrue(skill.contains("user-invocable: false"), skillName + " must not be user invocable");
+            assertTrue(skill.contains("disable-model-invocation: true"),
+                    skillName + " must not be model invocable");
+        }
 
         String start = Files.readString(tempDir.resolve(".github/skills/camel-start/SKILL.md"));
         assertFalse(start.contains("disable-model-invocation: true"));
@@ -116,6 +127,15 @@ class CopilotGeneratorTest {
         String securityReviewer = Files.readString(tempDir.resolve(".github/agents/camel-security-reviewer.agent.md"));
         assertFalse(securityReviewer.contains("\"edit\""));
         assertFalse(securityReviewer.contains("\"execute\""));
+    }
+
+    @Test
+    void copiesCustomAgentTemplatesVerbatim() throws Exception {
+        InitContext ctx = createContext();
+        new CopilotGenerator().generate(ctx);
+
+        String generated = Files.readString(tempDir.resolve(".github/agents/camel-implementer.agent.md"));
+        assertEquals(resourceText("templates/copilot/agents/camel-implementer.agent.md"), generated);
     }
 
     @Test
@@ -160,5 +180,12 @@ class CopilotGeneratorTest {
 
         String content = Files.readString(ctx.commandsDir().resolve("camel-start.md"));
         assertTrue(content.contains(".github/skills/camel-start/SKILL.md"));
+    }
+
+    private String resourceText(String resourcePath) throws Exception {
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+            assertNotNull(in, "Missing test resource " + resourcePath);
+            return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        }
     }
 }
