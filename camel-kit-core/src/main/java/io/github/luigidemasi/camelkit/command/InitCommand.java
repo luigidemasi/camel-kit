@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import io.github.luigidemasi.camelkit.CamelKitMain;
+import io.github.luigidemasi.camelkit.config.AgentGeneratorStrategy;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
 import io.github.luigidemasi.camelkit.service.InitGraphSummary;
@@ -177,16 +178,16 @@ public class InitCommand extends CamelKitCommand {
 
         var result = initService.initialize(request);
         printSummary(result.projectName(), result.agent().name(), result.citrusSchemaCount());
-        printNextSteps(result.projectName(), result.agent().name());
+        printNextSteps(result.projectName(), result.agent().name(), result.agentName());
         return 0;
     }
 
-    void printNextSteps(String projectName, String agentName) {
+    void printNextSteps(String projectName, String agentName, String agentId) {
         String divider = "  " + "\u2500".repeat(34);
         printer().println("  " + bold("Next steps"));
         printer().println(divider);
         printer().println("  1  Open " + cyan(projectName) + " in " + agentName);
-        if ("GitHub Copilot CLI".equals(agentName)) {
+        if (AgentGeneratorStrategy.COPILOT.descriptorValue().equalsIgnoreCase(agentId)) {
             printer().println("  2  Ask Copilot: " + cyan("\"Use the /camel-start skill.\""));
             printer().println("     Run " + cyan("/skills list") + " to inspect available project skills");
             printer().println("  3  Use " + cyan("/mcp show") + " to verify Camel Kit MCP servers");

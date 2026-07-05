@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
+import io.github.luigidemasi.camelkit.config.AgentGeneratorStrategy;
 import io.github.luigidemasi.camelkit.util.AnsiColors;
 
 class SkillResourceInstaller {
@@ -126,10 +127,10 @@ class SkillResourceInstaller {
             Files.copy(in, destination, StandardCopyOption.REPLACE_EXISTING);
         }
         if (destination.getFileName().toString().equals("SKILL.md")) {
-            if ("bob2".equals(ctx.agentName())) {
+            if (AgentGeneratorStrategy.BOB2.descriptorValue().equals(ctx.agentName())) {
                 addBobReadableUserInvocableMetadata(destination);
             }
-            if ("copilot".equals(ctx.agentName())) {
+            if (AgentGeneratorStrategy.COPILOT.descriptorValue().equals(ctx.agentName())) {
                 addCopilotReadableInternalSkillMetadata(destination);
             }
             dispatchBlockAppender.append(destination, ctx.agentName());

@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import io.github.luigidemasi.camelkit.config.AgentConfig;
+import io.github.luigidemasi.camelkit.config.AgentGeneratorStrategy;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.graph.GraphBuildResult;
 import io.github.luigidemasi.camelkit.graph.GraphBuilder;
@@ -213,7 +214,8 @@ public class DoctorService {
 
     private void checkMcp(Path root, Properties config, List<DoctorFinding> findings) {
         String agentName = config.getProperty("agent.name", "").trim();
-        boolean copilotToolsSchema = "copilot".equals(agentName.toLowerCase(Locale.ROOT));
+        boolean copilotToolsSchema = AgentGeneratorStrategy.COPILOT.descriptorValue()
+                .equals(agentName.toLowerCase(Locale.ROOT));
         Path mcpFile = mcpConfigPath(root, agentName);
         if (mcpFile == null) {
             findings.add(DoctorFinding.fail("mcp", null,

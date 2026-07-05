@@ -1,6 +1,7 @@
 package io.github.luigidemasi.camelkit.command;
 
 import io.github.luigidemasi.camelkit.CamelKitMain;
+import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
 
 import org.junit.jupiter.api.Test;
@@ -26,7 +27,7 @@ class InitCommandTest {
         main.setOut(printer);
 
         InitCommand command = new InitCommand(main);
-        command.printNextSteps("orders", "Claude Code");
+        command.printNextSteps("orders", AgentRegistry.get("claude").name(), "claude");
 
         String output = printer.output();
         assertTrue(output.contains("/camel-start"));
@@ -44,7 +45,7 @@ class InitCommandTest {
         main.setOut(printer);
 
         InitCommand command = new InitCommand(main);
-        command.printNextSteps("orders", "GitHub Copilot CLI");
+        command.printNextSteps("orders", "Renamed Copilot Display", "copilot");
 
         String output = printer.output();
         assertTrue(output.contains("Use the /camel-start skill"));

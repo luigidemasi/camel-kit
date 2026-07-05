@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Locale;
 
 import io.github.luigidemasi.camelkit.config.AgentConfig;
+import io.github.luigidemasi.camelkit.config.AgentGeneratorStrategy;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class DoctorServiceTest {
 
     private static final DoctorExpectations EXPECTATIONS = DoctorExpectations.loadDefault();
+    private static final String COPILOT = AgentGeneratorStrategy.COPILOT.descriptorValue();
 
     @TempDir
     Path tempDir;
@@ -241,7 +243,7 @@ class DoctorServiceTest {
     }
 
     private String mcpJson(String agentName, Collection<String> camelTools, Collection<String> knowledgeTools) {
-        if ("copilot".equals(agentName)) {
+        if (COPILOT.equals(agentName)) {
             return String.format(Locale.ROOT, """
                     {
                       "mcpServers": {

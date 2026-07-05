@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import io.github.luigidemasi.camelkit.config.AgentConfig;
+import io.github.luigidemasi.camelkit.config.AgentGeneratorStrategy;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.output.Printer;
@@ -20,6 +21,8 @@ import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
 
 class DefaultGeneratorTest {
+
+    private static final String COPILOT = AgentGeneratorStrategy.COPILOT.descriptorValue();
 
     @TempDir
     Path tempDir;
@@ -92,12 +95,12 @@ class DefaultGeneratorTest {
                 .allowedTools());
 
         ObjectMapper mapper = new ObjectMapper();
-        for (String agentName : List.of("bob", "claude", "copilot", "gemini", "qwen", "opencode")) {
+        for (String agentName : List.of("bob", "claude", COPILOT, "gemini", "qwen", "opencode")) {
             InitContext ctx = createContext(agentName);
             new DefaultGenerator().generate(ctx);
 
             JsonNode knowledgeServer = readKnowledgeServerConfig(mapper, agentName);
-            if ("copilot".equals(agentName)) {
+            if (COPILOT.equals(agentName)) {
                 assertEquals(implementedKnowledgeTools, jsonArrayToList(knowledgeServer.path("tools")),
                         agentName + " tools must only include implemented Knowledge MCP tools");
             } else {

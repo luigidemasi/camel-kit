@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.github.luigidemasi.camelkit.config.AgentConfig;
+import io.github.luigidemasi.camelkit.config.AgentGeneratorStrategy;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
 import io.github.luigidemasi.camelkit.workflow.WorkflowManifestLoader;
@@ -28,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ResourceConsistencyTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final String COPILOT = AgentGeneratorStrategy.COPILOT.descriptorValue();
 
     private static final List<StalePattern> STALE_PATTERNS = List.of(
             new StalePattern(".camel-kit/config.yaml", Pattern.compile(Pattern.quote(".camel-kit/config.yaml"))),
@@ -160,7 +162,7 @@ class ResourceConsistencyTest {
             new DefaultGenerator().generate(ctx);
 
             JsonNode knowledgeServer = serverConfig(agentName, projectDir, "camel-knowledge");
-            if ("copilot".equals(agentName)) {
+            if (COPILOT.equals(agentName)) {
                 assertKnowledgeTools(agentName, "tools", knowledgeServer.get("tools"));
             } else {
                 assertKnowledgeTools(agentName, "autoApprove", knowledgeServer.get("autoApprove"));
@@ -168,7 +170,7 @@ class ResourceConsistencyTest {
             }
 
             JsonNode citrusServer = serverConfig(agentName, projectDir, "citrus");
-            if ("copilot".equals(agentName)) {
+            if (COPILOT.equals(agentName)) {
                 assertCitrusTools(agentName, "tools", citrusServer.get("tools"));
             } else {
                 assertCitrusTools(agentName, "autoApprove", citrusServer.get("autoApprove"));

@@ -4,6 +4,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import io.github.luigidemasi.camelkit.config.AgentConfig;
+import io.github.luigidemasi.camelkit.config.AgentDescriptor;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
 
@@ -48,6 +49,18 @@ class CopilotGeneratorTest {
         assertTrue(agentsMd.contains("GitHub Copilot CLI"));
         assertTrue(agentsMd.contains("camel-start"));
         assertTrue(agentsMd.contains("/camel-start"));
+    }
+
+    @Test
+    void installsEveryTemplateDeclaredByCopilotDescriptor() throws Exception {
+        InitContext ctx = createContext();
+        new CopilotGenerator().generate(ctx);
+
+        AgentDescriptor descriptor = AgentRegistry.descriptor("copilot");
+        for (AgentDescriptor.TemplateInstall template : descriptor.templates()) {
+            assertTrue(Files.isRegularFile(tempDir.resolve(template.target())),
+                    "Missing generated Copilot template target " + template.target());
+        }
     }
 
     @Test
