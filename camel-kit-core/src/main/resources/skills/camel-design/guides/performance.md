@@ -214,6 +214,16 @@ camel.beans.dataSource.maxIdle=10
 camel.beans.dataSource.minIdle=5
 ```
 
+With Forage (rung 1), pool tuning lives on the same keys as the datasource:
+
+```properties
+forage.myDb.jdbc.pool.initial.size=5
+forage.myDb.jdbc.pool.min.size=5
+forage.myDb.jdbc.pool.max.size=20
+```
+
+See `skills/shared/forage.md` for the ladder.
+
 ### HTTP Connections
 
 ```properties

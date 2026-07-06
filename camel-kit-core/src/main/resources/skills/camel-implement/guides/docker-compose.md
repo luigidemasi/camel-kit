@@ -181,6 +181,8 @@ camel.component.smtp.port=1025
     restart: unless-stopped
 ```
 
+> Wire the application to this broker via rung 1: `forage.<name>.jms.kind=artemis` + `forage.<name>.jms.broker.url=tcp://localhost:61616` (see `skills/shared/forage.md`).
+
 ---
 
 ### Cache

@@ -86,7 +86,7 @@ Analyze the error output. Common issues:
 | `Property placeholder` | Missing property | Add to `application.properties` |
 | `Invalid URI` | Malformed endpoint URI | Fix URI in route YAML |
 | `BUILD FAILURE` | Compilation error | Check pom.xml, plugin versions |
-| `bean with name ... not found` | Missing bean definition | Add bean to application.properties |
+| `bean with name ... not found` | Missing bean definition | Follow the Configuration Ladder in `skills/shared/forage.md` (rung 1 forage.* / rung 3 camel.beans.*) |
 | `PropertyBindingException` / `No such property` | Invalid component-level key in `application.properties` (often version-gated) | Re-run `camel_configuration_validate` with `platformBom` (properties-generation.md §5.4) and fix from its suggestions |
 | Startup error not matching any row above | Unknown | Call `camel_error_diagnose` with the full error output; apply its suggested fix |
 

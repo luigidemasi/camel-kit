@@ -47,6 +47,8 @@ This guide maps Microsoft BizTalk adapters and components to their Apache Camel 
 | Azure ServiceBus (2016+) | `azure-servicebus` | `camel-azure-servicebus` | BizTalk 2016 or later only. |
 | Azure Blob (2016+) | `azure-storage-blob` | `camel-azure-storage-blob` | BizTalk 2016 or later only. |
 
+Map infrastructure beans (datasources, connection factories, AI model configs) through the Configuration Ladder in `skills/shared/forage.md` — prefer `forage.*` properties over `camel.beans.*` in the migration target.
+
 ---
 
 ## MSMQ Adapter Mapping

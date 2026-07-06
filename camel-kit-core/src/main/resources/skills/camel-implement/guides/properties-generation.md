@@ -53,6 +53,12 @@ Never write `camel.component.platform-http.host=...` or `camel.component.platfor
 
 For `RUNTIME=main`, never write `camel.component.x.y=${other.prop}` — write `camel.component.x.y={{other.prop}}`. (Route-URI rules for `${}` Simple vs `{{}}` placeholders are separate — see yaml-catalog-rules Rule 0f.)
 
+## Infrastructure beans — the Configuration Ladder
+
+Before writing ANY bean definition, load `skills/shared/forage.md` and follow the Configuration Ladder
+(rung 1: `forage.*` → rung 2: `camel.component.*` scalars → rung 3: `camel.beans.*` with reason comment).
+Case (c) of the option-not-in-catalog branch above resolves through this ladder.
+
 ## Properties Template
 
 Based on components used and their catalog documentation, generate component configuration:
@@ -76,16 +82,22 @@ camel.component.[exact-scheme-from-route].[property]=[value from design spec]
 camel.component.[exact-scheme-from-route].[property]=[value from design spec]
 
 # --------------------------------------------
-# BEAN DEFINITIONS
-# Syntax: camel.beans.<beanName>=#class:<ClassName>
+# INFRASTRUCTURE BEANS — follow the Configuration Ladder
+# Load skills/shared/forage.md and walk rungs 1 -> 2 -> 3.
 # --------------------------------------------
 
-# DataSource Bean (if SQL component used)
-camel.beans.dataSource=#class:org.apache.commons.dbcp2.BasicDataSource
-camel.beans.dataSource.driverClassName=[driver from design spec]
-camel.beans.dataSource.url=[jdbc url from design spec]
-camel.beans.dataSource.username=[username]
-camel.beans.dataSource.password=[password]
+# Rung 1 (Forage available): e.g. datasource
+# forage.myDb.jdbc.db.kind=[database kind from design spec]
+# forage.myDb.jdbc.url=[jdbc url from design spec]
+# forage.myDb.jdbc.username=[username]
+# forage.myDb.jdbc.password=[password]
+
+# Rung 3 ONLY when rungs 1-2 don't apply (state the reason in a comment):
+# camel.beans.dataSource=#class:org.apache.commons.dbcp2.BasicDataSource
+# camel.beans.dataSource.driverClassName=[driver from design spec]
+# camel.beans.dataSource.url=[jdbc url from design spec]
+# camel.beans.dataSource.username=[username]
+# camel.beans.dataSource.password=[password]
 
 # --------------------------------------------
 # ROUTE PLACEHOLDERS
