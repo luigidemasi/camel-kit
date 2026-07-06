@@ -12,7 +12,7 @@ For integration work, use the `/camel-start` project skill first. It routes to t
 - `camel-execute` for approved plans that need implementation and verification.
 - `camel-validate` for route quality, correctness, security, and anti-pattern checks.
 - `camel-debug` for ad-hoc build, startup, or runtime failures.
-- `camel-knowledge` for Apache Camel documentation, component, CVE, errata, and version questions.
+- `camel-knowledge` for Apache Camel documentation, component, CVE/security-advisory, and version questions.
 
 Use `/skills list` if you need to inspect project skills.
 
@@ -40,7 +40,7 @@ Use `{COMMAND_PREFIX}` for Camel Kit CLI commands, for example `{COMMAND_PREFIX}
 Use the configured MCP servers before relying on model memory:
 
 - `camel` for Camel catalog, route validation, hardening, and error diagnosis.
-- `camel-knowledge` for Camel documentation, CVEs, release notes, errata, and issue lookup.
+- `camel-knowledge` for Camel documentation, CVEs/security advisories, release notes, and issue lookup.
 - `citrus` for Citrus action, endpoint, schema, and documentation lookups during test generation.
 
 If Copilot CLI does not show the workspace servers immediately, first ensure this repository folder is trusted, then run `/mcp show` or `copilot mcp list --json`. If needed, run `/mcp reload` and continue.

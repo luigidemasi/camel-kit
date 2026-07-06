@@ -24,7 +24,7 @@
 
 **MCP catalog tools — MANDATORY when MCP is configured (same rules as the design assembly guide):**
 
-Before every MCP catalog call, translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` parameter using the version mapping table in `skills/shared/mcp-setup.md`. Never pass the raw `CAMEL_VERSION` or a stripped minor version (e.g., `4.14`) directly — always use the translated Red Hat artifact version from the table. Never use a Camel component name, EIP name, data format name, or expression language name from training data or the mapping guide without first verifying it in the catalog.
+Before every MCP catalog call, translate `CAMEL_VERSION` + `RUNTIME` to the correct `platformBom` GAV using Rule 1 in `skills/shared/mcp-setup.md`. Never pass a stripped minor version (e.g., `4.14`) as `camelVersion` — always pass the full runtime-specific `platformBom` coordinate. Never use a Camel component name, EIP name, data format name, or expression language name from training data or the mapping guide without first verifying it in the catalog.
 
 → **For MCP setup, version mapping, and fallback policy:** see `skills/shared/mcp-setup.md`
 
