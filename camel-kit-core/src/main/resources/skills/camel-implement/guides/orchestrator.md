@@ -90,6 +90,8 @@ Assign these as context variables for all subsequent steps:
 **Main runtime only:** INCLUDE `camel.jbang.dependencies` section listing all required Camel dependencies.
 **Spring Boot / Quarkus:** Do NOT include `camel.jbang.dependencies` — dependencies are managed via Maven.
 
+The properties validation gate (properties-generation.md §5.4) is part of this step's completion criteria — Step 3 is not complete until `camel_configuration_validate` passes or the documented manual fallback is recorded.
+
 ### Step 4: Docker Compose (ALWAYS)
 
 - Load `guides/docker-compose.md`
