@@ -112,3 +112,20 @@ If the design spec Configuration Properties section defines environment-specific
 ```
 
 **File location:** Use `PROPS_DIR` context variable for file location (no hardcoded paths).
+
+## 5.4 Properties Validation Gate (MANDATORY)
+
+After writing `application.properties` (and any `application-<env>.properties`), validate every file with the MCP tool before declaring this step complete. Do NOT rely on the Step 2 catalog reading alone — this gate is a fresh, mechanical check.
+
+1. Read the generated properties file content.
+2. Remove `camel.beans.*` lines from the text to submit (bean instances are not catalog options; the tool cannot judge them — they are covered by the bean rules in this guide).
+3. Call `camel_configuration_validate` with:
+   - `properties`: the remaining file content (multi-line)
+   - `runtime`: {RUNTIME}
+   - `platformBom`: the project platform BOM GAV from `.camel-kit/config.properties`
+4. Check the `camelVersion` echoed in the result matches the project version; on mismatch, re-call with an explicit `platformBom`.
+5. For every line reported invalid (issue kinds: `unknown`, `unknownComponent`, `syntax`, `invalidEnum`, `invalidBoolean`, `invalidInteger`, `invalidNumber`, `invalidDuration`, `required`, `deprecated`): fix the key or value using the tool's `suggestions`, then re-run the validation. Maximum 3 fix attempts.
+6. If lines still fail after 3 attempts: STOP and report the failing lines with the tool output. Never silently keep an invalid key.
+7. If the tool is unavailable (not found / network error): manually cross-check every `camel.component.*` key against the Step 2 `camel_catalog_component_doc` component-options list and add the note `"properties validated manually — MCP unavailable"` to your report.
+
+The tool call and its result must be visible in your work (Iron Law 1 evidence requirement).
