@@ -59,10 +59,11 @@ If a tool is missing, skip the phases that depend on it. Never fail silently —
 
 Compile the project and verify it builds successfully.
 
-**Skip this phase entirely for the main runtime** — Camel JBang compiles at runtime, so there is no separate build step.
-Proceed directly to Phase 2.
+**For the main runtime there is no compile step.** Instead of Maven build verification, run the smoke test from `camel-implement/guides/smoke-test.md` as this phase (startup + log markers + fix loop). Only proceed to Phase 2 after the smoke test passes.
 
 ### Steps
+
+(spring-boot/quarkus only — for the main runtime, the smoke test above IS Phase 1; skip these steps and proceed to Phase 2 once it passes.)
 
 1. Run: `{MAVEN_CMD} compile -q` (capture stdout + stderr)
 2. If output contains `BUILD SUCCESS` → proceed to Phase 2
