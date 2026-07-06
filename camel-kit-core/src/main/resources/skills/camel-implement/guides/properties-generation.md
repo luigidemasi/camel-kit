@@ -18,7 +18,14 @@ If `PROJECT_CONTEXT` is not available, proceed with the template below as-is.
 
 **CRITICAL -- component name in property keys.** The `<component>` in `camel.component.<component>.<property>` MUST be the **exact URI scheme** from the route (the same name verified via `camel_catalog_component_doc` in Step 2). For example, if the route uses `smtp://...`, the properties MUST use `camel.component.smtp.*` -- never a parent or meta component like `camel.component.mail.*`.
 
-**CRITICAL -- verify every property name against the catalog.** Before writing any `camel.component.<component>.<property>`, confirm that `<property>` exists in the component options returned by `camel_catalog_component_doc` in Step 2. Do NOT invent property names -- only use options that the catalog lists for that component. If a needed configuration is not available as a component option (e.g., server port for `platform-http`), check whether it requires a different property prefix (see platform-http rule below).
+**CRITICAL -- verify every property name against the catalog.** Before writing any `camel.component.<component>.<property>`, confirm that `<property>` exists in the component options returned by `camel_catalog_component_doc` in Step 2. Do NOT invent property names -- only use options that the catalog lists for that component. **When a wanted configuration is NOT a component-level option in the project's Camel version, do NOT emit it.** Determine which case applies:
+
+- **(a) Endpoint-level option** (catalog lists it under endpoint options, `kind=parameter`) → move it to the route URI `parameters:` block, never to `camel.component.*`.
+- **(b) Runtime server configuration** (HTTP listener host/port and similar) → use the runtime's server properties (`camel.server.*` for main, `server.port` for spring-boot, `quarkus.http.port` for quarkus — see the platform-http rule below for the worked example).
+- **(c) Requires an object the component wires via an option** (`connectionFactory`, `dataSource`, …) → define the object as a bean and reference it (`camel.component.<c>.<option>=#beanName`).
+- **(d) Version-gated** (the option exists in a newer Camel version's catalog but not this project's) → report the minimum required version and use an alternative from (a)–(c).
+
+If none of the cases resolves it, STOP and ask the user — never guess a property name or prefix.
 
 **Platform-HTTP port configuration.** The `platform-http` component has NO `host` or `port` component options. To change the HTTP listener port, use the runtime's HTTP server properties instead:
 
