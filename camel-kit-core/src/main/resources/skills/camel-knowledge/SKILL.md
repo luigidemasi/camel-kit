@@ -1,6 +1,6 @@
 ---
 name: camel-knowledge
-description: Look up Camel documentation, components, CVEs, errata, and versions.
+description: Look up Camel documentation, components, CVEs/security advisories, and versions.
 user_invocable: false
 ---
 

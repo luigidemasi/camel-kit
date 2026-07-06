@@ -71,7 +71,7 @@ commands:
     generated_stub: true
     user_facing: true
     tier: utility
-    description: "Look up Camel documentation, components, CVEs, errata, and versions."
+    description: "Look up Camel documentation, components, CVEs/security advisories, and versions."
     standalone: true
     chained: false
   - name: camel-debug
