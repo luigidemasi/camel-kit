@@ -43,6 +43,16 @@ quarkus.http.port=8081
 
 Never write `camel.component.platform-http.host=...` or `camel.component.platform-http.port=...` -- those options do not exist.
 
+**Placeholder syntax INSIDE properties files (per runtime).** When one property value references another property:
+
+| Runtime | Reference syntax inside `application.properties` |
+|---|---|
+| main / JBang | `{{key}}` — camel-main resolves `{{}}`; `${key}` is NOT resolved and passes through literally |
+| spring-boot | `${key}` (Spring property interpolation) |
+| quarkus | `${key}` (MicroProfile Config) |
+
+For `RUNTIME=main`, never write `camel.component.x.y=${other.prop}` — write `camel.component.x.y={{other.prop}}`. (Route-URI rules for `${}` Simple vs `{{}}` placeholders are separate — see yaml-catalog-rules Rule 0f.)
+
 ## Properties Template
 
 Based on components used and their catalog documentation, generate component configuration:
