@@ -240,7 +240,7 @@ You MUST complete these items in order:
 - `camel_catalog_dataformat_doc` — verify dataformat exists
 - `camel_catalog_language_doc` — verify expression language exists
 
-Pass `runtime` and `platformBom` from `.camel-kit/config.properties` on every call, and check the echoed `camelVersion` matches the project version (Iron Law 1).
+Pass `runtime` and the full `platformBom` GAV (derived from `.camel-kit/config.properties` per `shared/mcp-setup.md` — the file stores bare versions, not the GAV) on every call, and check the echoed `camelVersion` matches the project version (Iron Law 1).
 
 → For MCP setup, version mapping, and fallback policy: see `shared/mcp-setup.md`
 → For graph analysis: use `{COMMAND_PREFIX} graph` CLI commands (see `shared/graph-availability.md`)

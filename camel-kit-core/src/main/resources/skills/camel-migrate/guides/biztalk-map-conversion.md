@@ -311,7 +311,7 @@ flag it for development team attention.
 
 ## Notes
 
-- Always verify component names in the MCP catalog before writing design spec entries (using `camel_catalog_component_doc`). Pass `runtime` and `platformBom` from `.camel-kit/config.properties` on every call, and check the echoed `camelVersion` matches the project version (Iron Law 1).
+- Always verify component names in the MCP catalog before writing design spec entries (using `camel_catalog_component_doc`). Pass `runtime` and the full `platformBom` GAV (derived from `.camel-kit/config.properties` per `shared/mcp-setup.md` — the file stores bare versions, not the GAV) on every call, and check the echoed `camelVersion` matches the project version (Iron Law 1).
 - BizTalk maps are XSLT-based — most functoids map cleanly to XSLT functions.
 - Scripting functoids MUST be flagged for manual review and suggested Groovy replacements.
 - Database Lookup functoids require `enrich` EIP + `sql` component in Camel.

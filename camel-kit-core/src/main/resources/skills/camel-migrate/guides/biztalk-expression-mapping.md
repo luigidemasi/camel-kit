@@ -315,7 +315,7 @@ flag it for development team attention.
 
 ## Notes
 
-- Always verify expression language names in the MCP catalog before writing design spec entries (using `camel_catalog_language_doc`). Pass `runtime` and `platformBom` from `.camel-kit/config.properties` on every call, and check the echoed `camelVersion` matches the project version (Iron Law 1).
+- Always verify expression language names in the MCP catalog before writing design spec entries (using `camel_catalog_language_doc`). Pass `runtime` and the full `platformBom` GAV (derived from `.camel-kit/config.properties` per `shared/mcp-setup.md` — the file stores bare versions, not the GAV) on every call, and check the echoed `camelVersion` matches the project version (Iron Law 1).
 - BizTalk orchestration variables map to Camel exchange headers (`${header.*}`).
 - BizTalk message context properties map to Camel exchange properties (`${exchangeProperty.*}`).
 - Multi-line C# code blocks MUST be flagged for manual review and suggested Groovy replacements.

@@ -7,7 +7,7 @@ This guide contains **name mappings and syntax changes only**. All language opti
 1. For each expression language used in routes (conditions, transformations, predicates), check the tables below
 2. Apply name renames and syntax changes
 3. Verify with `camel_catalog_languages` that the language exists in 4.x
-4. Call `camel_catalog_language_doc` to verify options. Pass `runtime` and `platformBom` from `.camel-kit/config.properties` on every call, and check the echoed `camelVersion` matches the project version (Iron Law 1).
+4. Call `camel_catalog_language_doc` to verify options. Pass `runtime` and the full `platformBom` GAV (derived from `.camel-kit/config.properties` per `shared/mcp-setup.md` — the file stores bare versions, not the GAV) on every call, and check the echoed `camelVersion` matches the project version (Iron Law 1).
 
 ## Language Renames
 

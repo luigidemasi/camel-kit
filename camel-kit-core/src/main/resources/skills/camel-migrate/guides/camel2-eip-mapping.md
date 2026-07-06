@@ -1,13 +1,13 @@
 # Camel 2.x/3.x → 4.x EIP Name & Attribute Mapping
 
-This guide contains **name and attribute mappings only**. All EIP options and syntax details MUST be retrieved from the MCP catalog at runtime using `camel_catalog_eip_doc`.
+This guide contains **name and attribute mappings only**. All EIP options and syntax details MUST be retrieved from the MCP catalog at runtime using `camel_catalog_eip_doc`. Pass `runtime` and the full `platformBom` GAV (derived from `.camel-kit/config.properties` per `shared/mcp-setup.md` — the file stores bare versions, not the GAV) on every call, and check the echoed `camelVersion` matches the project version (Iron Law 1).
 
 ## How to Use This Guide
 
 1. For each EIP used in a source route, check the tables below
 2. If found, apply the rename or attribute change
 3. If not found, the EIP name is likely unchanged — verify with `camel_catalog_eips`
-4. After mapping, call `camel_catalog_eip_doc` to verify all attributes/options
+4. After mapping, call `camel_catalog_eip_doc` to verify all attributes/options. Pass `runtime` and the full `platformBom` GAV (derived from `.camel-kit/config.properties` per `shared/mcp-setup.md` — the file stores bare versions, not the GAV) on every call, and check the echoed `camelVersion` matches the project version (Iron Law 1).
 
 ## EIP Renames (3.x → 4.x)
 

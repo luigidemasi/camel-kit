@@ -139,7 +139,7 @@ After writing `application.properties` (and any `application-<env>.properties`),
 3. Call `camel_configuration_validate` with:
    - `properties`: the remaining file content (multi-line)
    - `runtime`: {RUNTIME}
-   - `platformBom`: the project platform BOM GAV from `.camel-kit/config.properties`
+   - `platformBom`: the full GAV derived from the versions in `.camel-kit/config.properties` per `shared/mcp-setup.md` (never a bare version number)
 4. Check the `camelVersion` echoed in the result matches the project version; on mismatch, re-call with an explicit `platformBom`.
 5. For every line reported invalid (issue kinds: `unknown`, `unknownComponent`, `syntax`, `invalidEnum`, `invalidBoolean`, `invalidInteger`, `invalidNumber`, `invalidDuration`, `required`, `deprecated`): fix the key or value using the tool's `suggestions`, then re-run the validation. Maximum 3 fix attempts.
 6. If lines still fail after 3 attempts: STOP and report the failing lines with the tool output. Never silently keep an invalid key.

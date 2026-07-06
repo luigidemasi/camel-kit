@@ -64,7 +64,7 @@ SQL Component:
 
 ### 5.2 Component Catalog Verification
 
-For each component, call `camel_catalog_component_doc` with the component name, `runtime`, and `platformBom` from `.camel-kit/config.properties` (see `shared/mcp-setup.md`). Check the `camelVersion` echoed in each response matches the project version — a mismatch means the answer came from the wrong catalog and must be re-queried with an explicit `platformBom`. If the tool call fails (tool not found, network error), skip this section with a note: `"Skipping catalog verification — MCP not available."`
+For each component, call `camel_catalog_component_doc` with the component name, `runtime`, and the full `platformBom` GAV derived from the versions in `.camel-kit/config.properties` per `shared/mcp-setup.md` (never a bare version number). Check the `camelVersion` echoed in each response matches the project version — a mismatch means the answer came from the wrong catalog and must be re-queried with an explicit `platformBom`. If the tool call fails (tool not found, network error), skip this section with a note: `"Skipping catalog verification — MCP not available."`
 
 **This step is data collection only.** Store the results (availability per component) for use in Stage 6 Constitution Rule 7, which evaluates and reports warnings.
 
@@ -162,7 +162,7 @@ Run the properties file through the catalog validator — do NOT pattern-match k
 
 1. Read `application.properties` (and each `application-<env>.properties`).
 2. Remove `camel.beans.*` lines from the text to submit (covered by 7.3, not a catalog concept).
-3. Call `camel_configuration_validate` with `properties` = the remaining file content, `runtime` and `platformBom` from `.camel-kit/config.properties`. Check the echoed `camelVersion` matches the project version.
+3. Call `camel_configuration_validate` with `properties` = the remaining file content, `runtime`, and the full `platformBom` GAV derived from the versions in `.camel-kit/config.properties` per `shared/mcp-setup.md` (never a bare version number). Check the echoed `camelVersion` matches the project version.
 4. Report the tool's per-line results. Any `unknown` key or invalid value = ❌ FAIL, including the tool's suggestion in the report.
 5. If the tool is unavailable, fall back to per-component `camel_catalog_component_doc` (with `runtime`+`platformBom`) and diff every `camel.component.<c>.<prop>` key against the returned component-options list; note the fallback in the report.
 6. Additionally check (manually): no duplicate property keys in the file.
@@ -201,7 +201,15 @@ All placeholders resolved: ✅
 
 ### 7.3 Bean Definitions
 
-Validate bean definitions:
+`camel.beans.*` lines are excluded from the 7.1 MCP call, so they MUST be fully checked here — at least as strictly as the bean rules in `camel-implement/guides/properties-generation.md` (strictness invariant):
+
+1. Every root definition follows `camel.beans.<name>=#class:<fully.qualified.ClassName>` — any other value shape is ❌ FAIL.
+2. Every nested line `camel.beans.<name>.<prop>=<value>` has a matching root `camel.beans.<name>=#class:...` in the same file — orphan nested keys are ❌ FAIL.
+3. Every bean reference in a component option value (`camel.component.<c>.<option>=#<name>`) resolves to a defined `camel.beans.<name>` or a documented existing project bean — dangling references are ❌ FAIL.
+4. For each nested `<prop>`, cross-check the name against the bean class's setters/documented properties (from the design spec or the class's documentation) — a property the class does not have is ❌ FAIL. If the class is unknown, report the property as ⚠️ unverified, never silently ✅.
+5. The bean class's Maven dependency must be declared in the project — missing dependency is ❌ FAIL.
+
+Report per bean:
 
 ```
 Bean Definitions:

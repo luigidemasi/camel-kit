@@ -98,7 +98,7 @@ Query the MCP catalog for alternative components that fulfill the same role.
    - Fulfills the same integration role (same protocol family or equivalent)
    - Has required options that can satisfy the design spec requirements
    - Does not conflict with other planned components in the project
-3. Verify the alternative's required and optional options via `camel_catalog_component_doc(component="{alternative}")`
+3. Verify the alternative's required and optional options via `camel_catalog_component_doc(component="{alternative}")`, passing the same `runtime` and `platformBom` as step 1 and checking the echoed `camelVersion` matches the project version
 4. If no viable alternative exists in the catalog — skip to escalation (do not guess)
 
 ### Step 3: Modify Design Spec

@@ -7,7 +7,7 @@ This guide contains **name mappings only**. All data format options MUST be retr
 1. For each data format in `<marshal>`/`<unmarshal>` blocks or `.marshal()`/`.unmarshal()` calls, check the table below
 2. If found, use the mapped 4.x name
 3. If not found, the name may be unchanged — verify with `camel_catalog_dataformats`
-4. After mapping, call `camel_catalog_dataformat_doc` to verify all options. Pass `runtime` and `platformBom` from `.camel-kit/config.properties` on every call, and check the echoed `camelVersion` matches the project version (Iron Law 1).
+4. After mapping, call `camel_catalog_dataformat_doc` to verify all options. Pass `runtime` and the full `platformBom` GAV (derived from `.camel-kit/config.properties` per `shared/mcp-setup.md` — the file stores bare versions, not the GAV) on every call, and check the echoed `camelVersion` matches the project version (Iron Law 1).
 
 ## Data Format Renames
 
