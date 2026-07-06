@@ -6,6 +6,8 @@
 >
 > **Version mapping:** When calling MCP catalog tools, translate `CAMEL_VERSION` to the correct catalog version using the version mapping table in `skills/shared/mcp-setup.md`.
 
+> **The ✅ blocks in this guide are OUTPUT FORMATS, not results.** Every ✅ you print must be derived from an actual check or tool call performed in this run. Printing the example blocks without performing the checks is a validation failure.
+
 ## Stage 4: Completeness Checks
 
 Verify all required elements are present:
@@ -154,17 +156,25 @@ If `docs/constitution.md` defines project-specific rules (under "Project Customi
 
 Validate `application.properties`:
 
-### 7.1 Property Format
+### 7.1 Property Key Validation (MCP)
+
+Run the properties file through the catalog validator — do NOT pattern-match keys by shape.
+
+1. Read `application.properties` (and each `application-<env>.properties`).
+2. Remove `camel.beans.*` lines from the text to submit (covered by 7.3, not a catalog concept).
+3. Call `camel_configuration_validate` with `properties` = the remaining file content, `runtime` and `platformBom` from `.camel-kit/config.properties`. Check the echoed `camelVersion` matches the project version.
+4. Report the tool's per-line results. Any `unknown` key or invalid value = ❌ FAIL, including the tool's suggestion in the report.
+5. If the tool is unavailable, fall back to per-component `camel_catalog_component_doc` (with `runtime`+`platformBom`) and diff every `camel.component.<c>.<prop>` key against the returned component-options list; note the fallback in the report.
+6. Additionally check (manually): no duplicate property keys in the file.
 
 ```
 == CONFIGURATION VALIDATION ==
 
-application.properties:
-
-✅ Component config: Uses camel.component.<name>.<property> pattern
-✅ Bean definitions: Uses #class: prefix correctly
-✅ Property placeholders: All {{placeholders}} defined
-✅ No duplicates: No duplicate property keys
+application.properties (via camel_configuration_validate, Camel {{CAMEL_VERSION}}):
+  [real per-line results — e.g.:]
+  ✅ camel.component.kafka.brokers — valid
+  ❌ camel.component.amqp.brokerUr — unknown option; suggestion: brokerUrl
+  ✅ No duplicate property keys
 ```
 
 ### 7.2 Property Completeness
