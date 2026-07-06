@@ -38,7 +38,9 @@ coordinates. **Never use training-data knowledge as a substitute** — component
 syntax change between Camel versions and must be verified against the catalog for the project's exact version.
 
 If `camel-execute` provided a pre-verified catalog summary for this wave, use that summary as the verified catalog data
-and do not repeat the MCP calls. If no summary is provided, call MCP directly as described below.
+and do not repeat the MCP calls. If no summary is provided, call MCP directly as described below. The summary is only
+valid if it records the `camelVersion` it was built with AND that version matches `.camel-kit/config.properties`. If
+the version is missing or different, ignore the summary and perform the MCP calls yourself.
 
 ### 2.1 With MCP (Required)
 

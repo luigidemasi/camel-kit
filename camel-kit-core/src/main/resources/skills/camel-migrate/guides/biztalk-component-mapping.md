@@ -205,7 +205,7 @@ See `biztalk-expression-mapping.md` for XLANG/s expression conversion.
 
 ## Notes
 
-- Always verify component names in the MCP catalog before writing design spec entries (using `camel_catalog_component_doc`).
+- Always verify component names in the MCP catalog before writing design spec entries (using `camel_catalog_component_doc`). Pass `runtime` and `platformBom` from `.camel-kit/config.properties` on every call, and check the echoed `camelVersion` matches the project version (Iron Law 1).
 - CRITICAL: use the exact component scheme from the route URI (e.g., `smtp`, not `mail`).
 - For MSMQ, WCF-Custom, and third-party adapters, always **ASK USER** before selecting a replacement.
 - BizTalk orchestration variables map to Camel exchange headers (`${header.*}`).
