@@ -333,7 +333,7 @@ flag it for development team attention.
 
 ## Notes
 
-- Always verify component names in the MCP catalog before writing design spec entries (using `camel_catalog_component_doc` or `camel_catalog_dataformat_doc`). Pass `runtime` and `platformBom` from `.camel-kit/config.properties` on every call, and check the echoed `camelVersion` matches the project version (Iron Law 1).
+- Always verify component names in the MCP catalog before writing design spec entries (using `camel_catalog_component_doc` or `camel_catalog_dataformat_doc`). Pass `runtime` and the full `platformBom` GAV (derived from `.camel-kit/config.properties` per `shared/mcp-setup.md` — the file stores bare versions, not the GAV) on every call, and check the echoed `camelVersion` matches the project version (Iron Law 1).
 - BizTalk pipelines execute in a fixed order — preserve this order in the Camel route.
 - Custom pipeline components MUST be flagged for manual review and documented with the original assembly name and purpose.
 - Flat file schemas require manual conversion from BizTalk XSD to Flatpack/Bindy format.

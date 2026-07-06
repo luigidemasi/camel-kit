@@ -17,7 +17,7 @@ You do NOT know what components exist. You do NOT know their options. The MCP ca
 
 **Gate function:**
 1. IDENTIFY the component/EIP/dataformat/language name
-2. CALL the appropriate MCP tool (`camel_catalog_component_doc`, `camel_catalog_eip_doc`, `camel_catalog_dataformat_doc`, `camel_catalog_language_doc`), ALWAYS passing `runtime` and `platformBom` from `.camel-kit/config.properties` (see `shared/mcp-setup.md` for the version mapping table). A call without version parameters is answered from the catalog bundled in the MCP server jar — a silently wrong version.
+2. CALL the appropriate MCP tool (`camel_catalog_component_doc`, `camel_catalog_eip_doc`, `camel_catalog_dataformat_doc`, `camel_catalog_language_doc`), ALWAYS passing `runtime` and the full `platformBom` GAV derived from the versions in `.camel-kit/config.properties` per the mapping table in `shared/mcp-setup.md` — the config file stores bare versions, never pass those alone. A call without version parameters is answered from the catalog bundled in the MCP server jar — a silently wrong version.
 3. READ the response — confirm the artifact exists, note exact option names, and CHECK the `camelVersion` echoed in the response: it must match the project's resolved Camel version. On mismatch, treat the response as invalid and re-call with an explicit `platformBom`.
 4. USE only verified names and options in your output
 5. If the artifact does NOT exist, STOP and find an alternative
