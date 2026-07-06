@@ -51,7 +51,7 @@ Triggered when the MCP catalog CONFIRMS the failure is structural. Skip further 
 | Failure | MCP Verification | Action |
 |---|---|---|
 | Component does not exist in the catalog for this runtime/version | `camel_catalog_component_doc` returns no result | Enter re-plan |
-| Required EIP pattern not available in this Camel version | `camel_catalog_model` returns no result | Enter re-plan |
+| Required EIP pattern not available in this Camel version | `camel_catalog_eip_doc` returns no result | Enter re-plan |
 | Component combination is invalid (incompatible transitive dependencies confirmed) | Both components exist individually but dependency analysis shows conflict | Enter re-plan |
 
 ### Tier 2: Progressive Promotion (3 failed fix attempts)
