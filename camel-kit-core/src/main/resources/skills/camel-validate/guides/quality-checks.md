@@ -197,6 +197,8 @@ Properties file defines:
 All placeholders resolved: ✅
 ```
 
+**Placeholder syntax check (per runtime).** For `RUNTIME=main`: flag any `${...}` reference inside `application.properties` as ❌ FAIL — camel-main does not resolve `${}`; the correct syntax is `{{...}}`. Exception: values resolved by an external system (e.g. `${CITRUS_TESTCONTAINERS_*}` in `application-test.properties`, resolved by Citrus) are valid — note the resolver in the report. For spring-boot/quarkus, `${...}` is the correct syntax.
+
 ### 7.3 Bean Definitions
 
 Validate bean definitions:
