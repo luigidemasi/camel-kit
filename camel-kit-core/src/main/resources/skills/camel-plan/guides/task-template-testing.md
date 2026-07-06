@@ -33,8 +33,8 @@ Use `dependsOn` when a test must wait for a validation or smoke-test task even w
 - `camel-test/guides/test-runner.md` — execution and verification
 
 **MCP Tools:**
-- `camel_catalog_component_doc(component="[source-component]")` — understand trigger behavior
-- `camel_catalog_component_doc(component="[sink-component]")` — understand assertion points
+- `camel_catalog_component_doc(component="[source-component]", runtime="{RUNTIME}", platformBom="[project platform BOM GAV]")` — understand trigger behavior
+- `camel_catalog_component_doc(component="[sink-component]", runtime="{RUNTIME}", platformBom="[project platform BOM GAV]")` — understand assertion points
 
 **Design Spec Section:** Section 3, Flow: [flow-name]
 

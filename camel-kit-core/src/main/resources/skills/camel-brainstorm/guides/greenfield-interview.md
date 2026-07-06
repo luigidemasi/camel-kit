@@ -298,7 +298,7 @@ Record: `project.constraints`
 
 After the interview, for EACH flow, verify all source and sink components via MCP catalog:
 
-1. Call `camel_catalog_component_doc` for each source/sink technology
+1. Call `camel_catalog_component_doc` for each source/sink technology. Pass `runtime` and `platformBom` from `.camel-kit/config.properties` on every call, and check the echoed `camelVersion` matches the project version (Iron Law 1).
 2. Confirm the component exists and note exact option names
 
 This verification happens BEFORE assembling the design spec. Failed verification = the design spec is wrong.

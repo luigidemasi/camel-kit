@@ -60,9 +60,9 @@ SQL Component:
   ✅ Component-level config: camel.component.sql.dataSource (defined)
 ```
 
-### 5.2 Component Catalog Verification (optional, if catalog MCP is available)
+### 5.2 Component Catalog Verification
 
-For each component, call `camel_catalog_component_doc` to collect catalog availability. If the tool call fails (tool not found, network error), skip this section with a note: `"Skipping catalog verification — MCP not available."`
+For each component, call `camel_catalog_component_doc` with the component name, `runtime`, and `platformBom` from `.camel-kit/config.properties` (see `shared/mcp-setup.md`). Check the `camelVersion` echoed in each response matches the project version — a mismatch means the answer came from the wrong catalog and must be re-queried with an explicit `platformBom`. If the tool call fails (tool not found, network error), skip this section with a note: `"Skipping catalog verification — MCP not available."`
 
 **This step is data collection only.** Store the results (availability per component) for use in Stage 6 Constitution Rule 7, which evaluates and reports warnings.
 
