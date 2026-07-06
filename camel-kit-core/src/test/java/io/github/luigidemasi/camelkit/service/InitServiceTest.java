@@ -180,6 +180,32 @@ class InitServiceTest {
         assertFalse(mcp.contains("org.citrusframework:citrus-mcp-server:4.9.2:runner"));
     }
 
+    @Test
+    void forageVersionMappedToDefaultCamelVersionIsWrittenToConfig() throws Exception {
+        Path targetDir = tempDir.resolve("orders");
+        Properties properties = new Properties();
+        properties.setProperty("forage.version.4.21.0", "1.5.0");
+        DistributionConfig distribution = DistributionConfig.load(properties);
+
+        // pre-seeded cache keeps the unit test offline (isCached short-circuits the download)
+        Path forageCacheDir = targetDir.resolve(".camel-kit/.cache/forage/1.5.0");
+        Files.createDirectories(forageCacheDir);
+        Files.writeString(forageCacheDir.resolve("forage-catalog.json"), "{}");
+        Files.writeString(forageCacheDir.resolve("forage-configuration-catalog.json"), "{}");
+
+        new InitService().initialize(
+                request(targetDir, "bob2", "default", distribution, InitProgress.noop(), InitReporter.noop()));
+
+        String config = Files.readString(targetDir.resolve(".camel-kit/config.properties"));
+        assertTrue(config.contains("forage.version=1.5.0"));
+
+        // guard: if the cache short-circuit stopped working, the real download would overwrite
+        // these dummy files with actual catalog JSON — asserting content stays "{}" proves no
+        // network call happened.
+        assertEquals("{}", Files.readString(forageCacheDir.resolve("forage-catalog.json")));
+        assertEquals("{}", Files.readString(forageCacheDir.resolve("forage-configuration-catalog.json")));
+    }
+
     private InitRequest request(
             Path targetDir,
             String agentName,
