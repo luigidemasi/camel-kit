@@ -15,6 +15,8 @@ user_invocable: false
 - Design work or architecture decisions — use `/camel-brainstorm` instead
 - Fixing the issues found — this skill reports problems, it does not fix them
 
+**Strictness invariant:** for every rule class (property keys, bean definitions, placeholders, component usage), this skill must be AT LEAST as strict as the generation rules in `camel-implement`. If generation forbids emitting X, validation must detect X — hand-edited projects must not pass checks that generated projects are held to.
+
 ## Invocation Modes
 
 This skill supports two invocation modes (see `shared/pipeline-infrastructure.md` for details):
