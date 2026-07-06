@@ -48,6 +48,7 @@ Record:
 - `EXISTING_BEANS` = response.existingBeans
 
 When generating bean definitions in `application.properties` (Step 3), check `EXISTING_BEANS` first. If a DataSource bean already exists, reference it by name — do NOT generate a duplicate `#class:` bean definition.
+Existing `forage.<name>.*` property blocks in the project are reusable beans too — reference them as `#<name>` instead of creating new ones.
 
 ### 0.3 — Dependency Version Alignment
 

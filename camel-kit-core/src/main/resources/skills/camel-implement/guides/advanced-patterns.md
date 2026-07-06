@@ -51,6 +51,10 @@ idempotent.repository.cacheRemovalPeriod=3600000
 # camel.beans.idempotentRepository.processorName={flow-name}
 ```
 
+**Rung 1 (preferred, Forage available):** a JDBC idempotent repository is a derived bean of the Forage datasource —
+`forage.<dsName>.jdbc.idempotent.repository.name=idempotentRepository` registers `#idempotentRepository` with no
+`camel.beans.*` lines. See `skills/shared/forage.md`. Use the `#class:` form above only as rung 3.
+
 ### 8.2 Transaction Support
 
 If the design spec requires transactional processing:
@@ -78,6 +82,11 @@ camel.beans.transactionManager.dataSource=#dataSource
 # camel.component.jms.transacted=true
 # camel.component.jms.transactionManager=#jmsTransactionManager
 ```
+
+**Rung 1 (preferred, Forage available):** `forage.<dsName>.jdbc.transaction.enabled=true` auto-registers the
+`PROPAGATION_REQUIRED` / `PROPAGATION_MANDATORY` policy beans on the Forage datasource — no transactionManager bean
+needed. For JMS, `forage.<brokerName>.jms.transaction.enabled=true` (XA/Narayana options available). See
+`skills/shared/forage.md`. Use the `#class:` form above only as rung 3.
 
 **Dependencies to add:**
 ```xml

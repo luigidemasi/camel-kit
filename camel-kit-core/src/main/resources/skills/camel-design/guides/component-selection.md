@@ -45,6 +45,11 @@ Endpoint options (go in the URI parameters: block):
 
 Present the suggestion and full option list to the user. If the user prefers a different component, repeat `camel_catalog_component_doc` for the new choice before proceeding — never document an option from training-data memory.
 
+**Forage steering:** when two components can satisfy the requirement (e.g. `jms` vs `amqp` against an Artemis
+broker), prefer the one a Forage factory can wire — check the factory→components mapping in the cached Forage
+catalog (`skills/shared/forage.md`, query 2). A protocol-mandated requirement (e.g. AMQP 1.0 interop with
+non-Artemis peers) overrides this preference; record the reason in the design spec.
+
 ### Step 2: Component Not Found
 
 **If `camel_catalog_components` returns no results for the category:**

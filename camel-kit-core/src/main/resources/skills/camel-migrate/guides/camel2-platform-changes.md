@@ -17,6 +17,8 @@ Blueprint XML (`<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0">`)
 | `<camelContext xmlns="http://camel.apache.org/schema/blueprint">` | YAML DSL route files (`.camel.yaml`) |
 | `<propertyPlaceholder>` inside `<camelContext>` | `application.properties` with `camel.component.*` prefix |
 
+Map infrastructure beans (datasources, connection factories, AI model configs) through the Configuration Ladder in `skills/shared/forage.md` — prefer `forage.*` properties over `camel.beans.*`, `@Bean` classes, or `registry.bind()` in the migration target.
+
 ### Karaf / ServiceMix Specifics
 
 | Karaf Construct | Camel 4.x Equivalent |
