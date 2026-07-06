@@ -171,6 +171,19 @@ public class DistributionConfig {
     }
 
     /**
+     * Returns the Forage stream version mapped to the given Camel version via {@code forage.version.<camelVersion>}
+     * properties, or {@code null} when no Forage stream is mapped (Forage support is then skipped).
+     */
+    public String forageVersionForCamel(String camelVersion) {
+        return rawProps.getProperty("forage.version." + camelVersion);
+    }
+
+    /** Maven {@code groupId:artifactId} of the Forage catalog artifact. */
+    public String forageCatalogArtifact() {
+        return rawProps.getProperty("forage.catalog.artifact", "io.kaoto.forage:forage-catalog");
+    }
+
+    /**
      * Returns all explicit Camel Quarkus → Quarkus platform version mappings from the {@code quarkus.platform.*}
      * properties (excluding the default {@code quarkus.platform.version}).
      */
