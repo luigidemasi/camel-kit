@@ -62,6 +62,7 @@ public class InitService {
 
         progress.startTask("\uD83D\uDCDD", "Writing configuration");
         createConfigFile(camelKitDir, request.projectName(), request.agentName(), agent, request, createdPaths);
+        cacheForageCatalog(camelKitDir, request, warnings);
         createConstitution(docsDir, request, createdPaths);
         copyAdditionalTemplates(camelKitDir.resolve("templates"), createdPaths);
         progress.finishTask();
@@ -133,12 +134,41 @@ public class InitService {
         if (request.sourcePlatform() != null && !"auto".equals(request.sourcePlatform())) {
             config.setProperty("project.sourcePlatform", request.sourcePlatform());
         }
+        String forageVersion = request.distribution().forageVersionForCamel(config.getProperty("project.camelVersion"));
+        if (forageVersion != null) {
+            config.setProperty("forage.version", forageVersion);
+        }
 
         Path configFile = dir.resolve("config.properties");
         try (var out = Files.newOutputStream(configFile)) {
             config.store(out, "Camel-Kit Project Configuration");
         }
         createdPaths.add(configFile);
+    }
+
+    private void cacheForageCatalog(Path camelKitDir, InitRequest request, List<InitWarning> warnings)
+            throws Exception {
+        Properties config = new Properties();
+        try (var in = Files.newInputStream(camelKitDir.resolve("config.properties"))) {
+            config.load(in);
+        }
+        String forageVersion = config.getProperty("forage.version");
+        if (forageVersion == null) {
+            return;
+        }
+        try {
+            new ForageCatalogService().cache(camelKitDir, request.distribution().forageCatalogArtifact(),
+                    forageVersion);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            reportWarning(request, warnings,
+                    "Forage catalog could not be cached (interrupted) — Forage support disabled for this "
+                                             + "workspace; skills fall back to component properties/beans.");
+        } catch (Exception e) {
+            reportWarning(request, warnings,
+                    "Forage catalog could not be cached (" + e.getMessage()
+                                             + ") — Forage support disabled for this workspace; skills fall back to component properties/beans.");
+        }
     }
 
     private void createConstitution(Path dir, InitRequest request, List<Path> createdPaths) throws Exception {
