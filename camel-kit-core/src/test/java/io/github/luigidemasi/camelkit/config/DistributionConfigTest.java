@@ -147,4 +147,26 @@ class DistributionConfigTest {
         DistributionConfig config = DistributionConfig.loadFromClasspathOrDefaults();
         assertNotNull(config.camelMainVersion());
     }
+
+    @Test
+    void forageVersionForCamelReturnsMappedStream() {
+        Properties props = new Properties();
+        props.setProperty("forage.version.4.21.0", "1.5.0");
+        props.setProperty("forage.version.4.18.3", "1.3");
+        DistributionConfig config = DistributionConfig.load(props);
+        assertEquals("1.5.0", config.forageVersionForCamel("4.21.0"));
+        assertEquals("1.3", config.forageVersionForCamel("4.18.3"));
+    }
+
+    @Test
+    void forageVersionForCamelReturnsNullWhenUnmapped() {
+        DistributionConfig config = DistributionConfig.load(new Properties());
+        assertNull(config.forageVersionForCamel("4.14.7"));
+    }
+
+    @Test
+    void forageCatalogArtifactHasDefault() {
+        DistributionConfig config = DistributionConfig.load(new Properties());
+        assertEquals("io.kaoto.forage:forage-catalog", config.forageCatalogArtifact());
+    }
 }
