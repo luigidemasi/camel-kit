@@ -258,7 +258,7 @@ sequenceDiagram
 
 ## Section 9: Constitution Gate Checks
 
-Constitution v2.0 — seven enforced rules:
+Constitution v2.0 — eight enforced rules:
 
 - [ ] **MCP Catalog Verification** — every component, EIP, data format, language, and option was verified with runtime/platform BOM
 - [ ] **Route Structure** — route has a `from:` source and a final `to:` sink
@@ -267,6 +267,7 @@ Constitution v2.0 — seven enforced rules:
 - [ ] **Naming Conventions** — route ID follows `<domain>-<action>[-<qualifier>]`
 - [ ] **Observability** — `routeId` and `description` declared; correlation ID propagated
 - [ ] **External Configuration** — no hardcoded credentials, connection strings, or env-specific values; all use `{{PLACEHOLDER}}`
+- [ ] **Infrastructure via Forage** — infrastructure beans follow the Forage configuration ladder (see `skills/shared/forage.md`)
 
 ## Section 10: Testing Strategy
 

@@ -187,14 +187,15 @@ class InitServiceTest {
         properties.setProperty("forage.version.4.21.0", "1.5.0");
         DistributionConfig distribution = DistributionConfig.load(properties);
 
-        // pre-seeded cache keeps the unit test offline (isCached short-circuits the download)
+        // pre-seeded cache keeps the unit test offline (isCached short-circuits the download);
+        // noFetch=false so the caching path actually runs and the offline guard below stays meaningful
         Path forageCacheDir = targetDir.resolve(".camel-kit/.cache/forage/1.5.0");
         Files.createDirectories(forageCacheDir);
         Files.writeString(forageCacheDir.resolve("forage-catalog.json"), "{}");
         Files.writeString(forageCacheDir.resolve("forage-configuration-catalog.json"), "{}");
 
         new InitService().initialize(
-                request(targetDir, "bob2", "default", distribution, InitProgress.noop(), InitReporter.noop()));
+                request(targetDir, "bob2", "default", distribution, false, InitProgress.noop(), InitReporter.noop()));
 
         String config = Files.readString(targetDir.resolve(".camel-kit/config.properties"));
         assertTrue(config.contains("forage.version=1.5.0"));
@@ -204,6 +205,58 @@ class InitServiceTest {
         // network call happened.
         assertEquals("{}", Files.readString(forageCacheDir.resolve("forage-catalog.json")));
         assertEquals("{}", Files.readString(forageCacheDir.resolve("forage-configuration-catalog.json")));
+    }
+
+    @Test
+    void noFetchSkipsForageCatalogCaching() throws Exception {
+        Path targetDir = tempDir.resolve("orders");
+        Properties properties = new Properties();
+        properties.setProperty("forage.version.4.21.0", "1.5.0");
+        DistributionConfig distribution = DistributionConfig.load(properties);
+
+        new InitService().initialize(
+                request(targetDir, "bob2", "default", distribution, InitProgress.noop(), InitReporter.noop()));
+
+        String config = Files.readString(targetDir.resolve(".camel-kit/config.properties"));
+        assertTrue(config.contains("forage.version=1.5.0"), "version mapping is still written with --no-fetch");
+        assertFalse(Files.exists(targetDir.resolve(".camel-kit/.cache/forage")),
+                "--no-fetch must not attempt any catalog download");
+    }
+
+    @Test
+    void runtimeDetectionRecomputesForageVersionForDetectedRuntime() throws Exception {
+        Path targetDir = tempDir.resolve("orders");
+        Files.createDirectories(targetDir);
+        Files.writeString(targetDir.resolve("pom.xml"), """
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                  <modelVersion>4.0.0</modelVersion>
+                  <groupId>demo</groupId>
+                  <artifactId>orders</artifactId>
+                  <version>1.0</version>
+                  <dependencies>
+                    <dependency>
+                      <groupId>org.apache.camel.quarkus</groupId>
+                      <artifactId>camel-quarkus-core</artifactId>
+                      <version>3.15.0</version>
+                    </dependency>
+                  </dependencies>
+                </project>
+                """);
+        Properties properties = new Properties();
+        properties.setProperty("forage.version.4.21.0", "1.5.0");
+        properties.setProperty("forage.version.4.18.2", "1.3");
+        DistributionConfig distribution = DistributionConfig.load(properties);
+
+        new InitService().initialize(
+                request(targetDir, "bob2", "default", distribution, InitProgress.noop(), InitReporter.noop()));
+
+        Properties config = new Properties();
+        try (var in = Files.newInputStream(targetDir.resolve(".camel-kit/config.properties"))) {
+            config.load(in);
+        }
+        assertEquals("quarkus", config.getProperty("project.runtime"));
+        assertEquals("1.3", config.getProperty("forage.version"),
+                "forage.version must track the runtime-detected Camel version, not the initial main default");
     }
 
     private InitRequest request(
@@ -242,12 +295,23 @@ class InitServiceTest {
             DistributionConfig distribution,
             InitProgress progress,
             InitReporter reporter) {
+        return request(targetDir, agentName, citrusVersion, distribution, true, progress, reporter);
+    }
+
+    private InitRequest request(
+            Path targetDir,
+            String agentName,
+            String citrusVersion,
+            DistributionConfig distribution,
+            boolean noFetch,
+            InitProgress progress,
+            InitReporter reporter) {
         return new InitRequest(
                 "orders",
                 agentName,
                 targetDir,
                 citrusVersion,
-                true,
+                noFetch,
                 "mulesoft",
                 "camel-kit",
                 "5.0.0-M2",

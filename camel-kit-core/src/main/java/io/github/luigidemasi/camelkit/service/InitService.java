@@ -62,7 +62,6 @@ public class InitService {
 
         progress.startTask("\uD83D\uDCDD", "Writing configuration");
         createConfigFile(camelKitDir, request.projectName(), request.agentName(), agent, request, createdPaths);
-        cacheForageCatalog(camelKitDir, request, warnings);
         createConstitution(docsDir, request, createdPaths);
         copyAdditionalTemplates(camelKitDir.resolve("templates"), createdPaths);
         progress.finishTask();
@@ -87,6 +86,8 @@ public class InitService {
 
         int citrusSchemaCount = 0;
         if (!request.noFetch()) {
+            // After graph build: runtime detection may have rewritten project.camelVersion (and forage.version).
+            cacheForageCatalog(camelKitDir, request, warnings);
             progress.startTask("\u2B07\uFE0F", "Downloading Citrus schemas");
             citrusSchemaCount = fetchCitrusSchemas(camelKitDir, citrusVersion, request, warnings);
             progress.finishTask();
@@ -133,10 +134,6 @@ public class InitService {
         writeVersionConfig(config, request.distribution(), "main");
         if (request.sourcePlatform() != null && !"auto".equals(request.sourcePlatform())) {
             config.setProperty("project.sourcePlatform", request.sourcePlatform());
-        }
-        String forageVersion = request.distribution().forageVersionForCamel(config.getProperty("project.camelVersion"));
-        if (forageVersion != null) {
-            config.setProperty("forage.version", forageVersion);
         }
 
         Path configFile = dir.resolve("config.properties");
@@ -339,6 +336,14 @@ public class InitService {
                 config.setProperty("project.camelVersion", distribution.camelMainVersion());
                 config.setProperty("project.platformBomVersion", distribution.camelMainVersion());
             }
+        }
+        // forage.version must always track project.camelVersion — recomputed on every write,
+        // including the post-graph runtime rewrite (e.g. main 4.21.0/1.5.0 -> quarkus 4.18.2/1.3).
+        String forageVersion = distribution.forageVersionForCamel(config.getProperty("project.camelVersion"));
+        if (forageVersion != null) {
+            config.setProperty("forage.version", forageVersion);
+        } else {
+            config.remove("forage.version");
         }
     }
 

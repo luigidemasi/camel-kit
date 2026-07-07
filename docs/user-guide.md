@@ -29,7 +29,7 @@ Camel-Kit is an AI-powered toolkit that guides you through designing, planning, 
 | **Business Requirements** | The requirements output from the brainstorm phase. Captures business purpose, systems landscape, flow summaries, and integration requirements. |
 | **Design Spec** | The pipeline design contract. Describes each flow's source, processing steps, sink, error handling, data transformation, configuration, dependencies, and test criteria. |
 | **MCP** (Model Context Protocol) | Real-time catalog queries. The AI assistant queries the Camel MCP server to verify components, EIPs, data formats, and expression languages exist in your exact Camel version -- never relying on training data. |
-| **Constitution** | Seven route quality rules enforced on every generated route: route structure, single responsibility, separation of concerns, naming conventions, observability, external configuration, and component support verification. |
+| **Constitution** | Eight route quality rules enforced on every generated route: route structure, single responsibility, separation of concerns, naming conventions, observability, external configuration, component support verification, and infrastructure via Forage. |
 | **Iron Laws** | Non-negotiable pipeline rules that govern the entire workflow: MCP catalog verification for every component, constitution compliance on every route, no code without design approval, and spec compliance review before quality review. |
 
 ---
@@ -192,7 +192,7 @@ order-processing/
   .camel-kit/
     config.properties        # Project config (Camel version, runtime)
   docs/
-    constitution.md          # 7 route quality rules
+    constitution.md          # 8 route quality rules
   .mcp.json                  # MCP server config (agent-specific location)
   .github/                   # GitHub Copilot CLI assets when --ai copilot is selected
   .pi/                       # Pi skills, prompt templates, and guard extension when --ai pi is selected
