@@ -73,6 +73,8 @@ This guide maps MuleSoft Mule components to their Apache Camel equivalents. It i
 | Email Listener POP3S | 4.x | `pop3s` (consumer) | `camel-mail` | See **Email Component Mapping** below. |
 | Email (Mule 3.x) | 3.x | `smtp` / `imap` / `pop3` (+ `s` variants) | `camel-mail` | Mule 3.x uses transport-based `<smtp:outbound-endpoint>`, `<imap:inbound-endpoint>`, etc. Map directly by protocol name. |
 
+Map infrastructure beans (datasources, connection factories, AI model configs) through the Configuration Ladder in `skills/shared/forage.md` — prefer `forage.*` properties over `camel.beans.*` in the migration target.
+
 ---
 
 ### HTTP Listener Port Conversion

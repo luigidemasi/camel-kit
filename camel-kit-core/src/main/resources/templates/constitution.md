@@ -8,7 +8,7 @@
 
 | Property | Value |
 |----------|-------|
-| Version | 2.0 |
+| Version | 2.1 |
 | Last Updated | {DATE} |
 | Camel Version | `{CAMEL_VERSION}` (default; per-platform version in `.camel-kit/config.properties`) |
 
@@ -100,6 +100,8 @@ Every component used in a route MUST be verified to **exist in the Apache Camel 
 ### 8. Infrastructure via Forage
 
 Declare infrastructure beans with `forage.*` properties when Forage covers them; follow the configuration ladder (Forage → component properties → hand-rolled bean with a stated reason). Hand-rolled `camel.beans.*` definitions require a one-line reason comment.
+
+- **Violation:** an unknown `forage.*` key, or a hand-rolled `camel.beans.*` bean with a Forage (rung-1) equivalent and no reason comment, fails validation. A hand-rolled bean where only a rung-2 scalar alternative exists triggers a WARNING.
 
 ---
 

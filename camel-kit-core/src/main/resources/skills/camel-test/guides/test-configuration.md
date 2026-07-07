@@ -50,7 +50,7 @@ camel.component.kafka.autoOffsetReset=earliest
 
 > **Note:** the `${CITRUS_TESTCONTAINERS_*}` values above are resolved by Citrus at test runtime — this `${}` shape is test-file-specific. Do NOT generalize `${}` to non-test properties files on the main runtime; camel-main resolves `{{key}}`, not `${key}` (see properties-generation.md §5.1).
 
-> **Forage override channels:** Forage resolves configuration with precedence env vars > system properties > properties files. In CI, `FORAGE_<DOMAIN>_<PROP>` environment variables (e.g. `FORAGE_JDBC_URL`) can override the app's `forage.*` keys without touching files — useful when the test harness cannot write properties.
+> **Forage override channels:** Forage resolves configuration with precedence env vars > system properties > properties files. In CI, `FORAGE_<DOMAIN>_<PROP>` environment variables (e.g. `FORAGE_JDBC_URL`) address the DEFAULT-bean key form only — they can override an app's default `forage.*` keys without touching files, but cannot target a NAMED bean's key (`forage.myDb.jdbc.url`). Override a named bean's config through the properties file (e.g. the `forage.myDb.jdbc.*` overrides shown above), not env vars.
 
 The snippet above is a fallback pattern. Prefer the route's real property keys and endpoint option names. For example,
 if the route uses `kafka:orders?groupId=order-writer&autoOffsetReset=latest`, keep the actual topic and group id and

@@ -419,7 +419,7 @@ Traits are agent-specific instruction fragments that are appended to shared skil
 The six shared Iron Laws from `skills/shared/iron-laws.md` are embedded in or referenced by each agent's instruction file:
 
 1. **MCP Catalog Verification** -- every component, EIP, dataformat, and language must be verified via MCP before being written to any design spec or YAML file
-2. **Constitution Compliance** -- every generated route must pass all 7 constitution rules (incorporates and enforces the constitution)
+2. **Constitution Compliance** -- every generated route must pass all 8 constitution rules (incorporates and enforces the constitution)
 3. **No Code Without Plan & Design Approval** -- never generate implementation artifacts before the user has approved the design spec and a task-based implementation plan exists
 4. **Spec Compliance Before Quality** -- always run spec compliance review before code quality review; wrong order wastes effort
 5. **Adversarial Code Review** -- generated code must pass the adversarial review gate before spec compliance and quality review
@@ -762,11 +762,11 @@ Skills are markdown instruction files -- the same skill works across all support
 
 ### Constitution vs Iron Laws
 
-The **Constitution** defines 7 route quality rules (what makes a good route): route structure, single responsibility, separation of concerns, naming conventions, observability, external configuration, component support verification.
+The **Constitution** defines 8 route quality rules (what makes a good route): route structure, single responsibility, separation of concerns, naming conventions, observability, external configuration, component support verification, infrastructure via Forage.
 
 The **Iron Laws** define pipeline process enforcement rules (how the pipeline operates): MCP verification, constitution compliance, no code without design approval, spec compliance before quality.
 
-Iron Law 2 explicitly incorporates and enforces the 7 constitution rules. They are complementary, not overlapping -- the constitution says what to check, the iron laws say when and how to enforce it.
+Iron Law 2 explicitly incorporates and enforces the 8 constitution rules. They are complementary, not overlapping -- the constitution says what to check, the iron laws say when and how to enforce it.
 
 ---
 

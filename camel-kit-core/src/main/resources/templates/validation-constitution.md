@@ -16,7 +16,7 @@ Verify routes follow constitution best practices and resolve internal dependenci
 | `CONST-006` | Structured data should have schema validation | WARNING | Consumes JSON but no validation step |
 | `CONST-007` | Sensitive values should use placeholders | ERROR | Hardcoded value looks like a secret |
 | `CONST-008` | Error strategy must match constitution | WARNING | Error handling doesn't follow guidelines |
-| `CONST-009` | Infrastructure via Forage — beans must follow the Forage configuration ladder (Forage → component properties → hand-rolled bean with a stated reason) | WARNING (FAIL for unknown `forage.*` keys) | Hand-rolled bean without a Forage equivalent, or missing one-line reason comment |
+| `CONST-009` | Infrastructure via Forage — beans must follow the Forage configuration ladder (Forage → component properties → hand-rolled bean with a stated reason) | ERROR (unknown `forage.*` key, or hand-rolled bean with a Forage rung-1 equivalent and no reason comment); WARNING (only a rung-2 scalar alternative exists) | Unknown Forage key, or hand-rolled bean with a Forage equivalent and no one-line reason comment; a rung-3 bean with a reason comment passes |
 
 ---
 
