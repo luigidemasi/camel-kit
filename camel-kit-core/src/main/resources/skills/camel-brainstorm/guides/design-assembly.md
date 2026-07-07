@@ -218,7 +218,7 @@ After assembling the spec, check:
 1. **Placeholder scan:** Any "TBD", "TODO", empty sections? Fix them.
 2. **MCP verification:** Every component/EIP has "(MCP-verified)" notation? If not, verify now.
 3. **Internal consistency:** Do flow designs match the systems landscape? Are all systems used?
-4. **Constitution compliance:** Would each flow pass all 7 rules as designed?
+4. **Constitution compliance:** Would each flow pass all 8 rules as designed?
 5. **Property completeness:** Does every externalized value have a property name?
 6. **Flow completeness:** Does each flow from the interview have a design section?
 7. **Decision rationale:** Does every component and EIP selection have Rationale and Constraints filled in? Generic answers like "best fit" are not sufficient — explain the specific technical reasons.

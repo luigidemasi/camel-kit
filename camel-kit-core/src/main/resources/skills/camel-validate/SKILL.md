@@ -165,4 +165,4 @@ This creates an audit trail of validation results over time.
 
 All guides in this skill enforce:
 - **Iron Law 1**: MCP Catalog Verification — endpoint validation uses MCP catalog as source of truth
-- **Iron Law 2**: Constitution Compliance — validation checks all 7 constitution rules
+- **Iron Law 2**: Constitution Compliance — validation checks all 8 constitution rules

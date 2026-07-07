@@ -36,7 +36,7 @@ Implementation only happens after approval.
 ## Load Implementation Context
 
 Read these files:
-1. `docs/constitution.md` — constitution rules (all 7 rules)
+1. `docs/constitution.md` — constitution rules (all 8 rules)
 2. `.camel-kit/config.properties` — Camel version, runtime, platform BOM
 3. `.camel-kit/project-graph.json` — project conventions (if exists)
 4. `docs/camel-kit/<PIPELINE_ID>/design-spec.md` — approved design spec
@@ -135,7 +135,7 @@ Load `guides/route-validation.md` and run cross-route validation:
 <Step>
 ## Constitution Compliance Check
 
-For EVERY route, verify compliance with all 7 constitution rules:
+For EVERY route, verify compliance with all 8 constitution rules:
 
 1. **No Hardcoded URLs** — all endpoints use properties
 2. **Explicit Error Handling** — every route has `onException` or `doTry`
@@ -144,6 +144,7 @@ For EVERY route, verify compliance with all 7 constitution rules:
 5. **Circuit Breaker** — HTTP calls have resilience patterns
 6. **TLS Everywhere** — all HTTP endpoints use HTTPS
 7. **Component Verification** — all components verified via MCP catalog
+8. **Infrastructure via Forage** — infrastructure beans declared with `forage.*` properties when Forage covers them (ladder: Forage → component properties → hand-rolled bean with stated reason); hand-rolled `camel.beans.*` requires a one-line reason comment
 
 If any rule is violated, fix immediately before proceeding.
 </Step>
@@ -164,7 +165,7 @@ git commit -m "feat: implement all routes per approved plan"
 
 All implementation enforces:
 - **Iron Law 1**: MCP Catalog Verification — verify component options before generating YAML
-- **Iron Law 2**: Constitution Compliance — every generated route passes all 7 rules
+- **Iron Law 2**: Constitution Compliance — every generated route passes all 8 rules
 
 ## MCP Tools Used
 

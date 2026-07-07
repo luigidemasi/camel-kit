@@ -98,7 +98,7 @@ Validate all expressions used in the route:
 
 ## Stage 6: Constitution Checks
 
-Validate against the 7 rules in `docs/constitution.md`. Each gate maps 1:1 to a constitution rule.
+Validate against the 8 rules in `docs/constitution.md`. Each gate maps 1:1 to a constitution rule.
 
 ### 6.1 Constitution Gates
 
@@ -111,6 +111,7 @@ Validate against the 7 rules in `docs/constitution.md`. Each gate maps 1:1 to a 
 | 5 | Observability | routeId + description | Every route declares both a `routeId` and a `description` (≥10 chars describing the flow's business purpose). These are essential for monitoring, logging, and tracing. | FAIL |
 | 6 | External Configuration | No hardcoded values | No hostnames, ports, IPs, database URLs, queue names, credentials, API keys, tokens, or secrets in route YAML. Detect patterns: `password=`, `apiKey=`, `secret=`, `token=`, Base64 strings >20 chars, `jdbc:` URLs with inline credentials. All must use `{{placeholder}}` syntax. | FAIL |
 | 7 | Component Support | Catalog verified | Every component verified to exist in the Apache Camel catalog for the target version. **Primary:** Uses Stage 5.2 collected data (from `camel_catalog_component_doc`). **Fallback (Stage 5.2 was skipped):** Consult the Apache Camel component catalog for the target version. Two warning levels: (1) **Not found** — component not in catalog; (2) **Deprecated** — component is deprecated in the target version. "Available" passes without warning. | WARNING |
+| 8 | Infrastructure via Forage | Ladder compliance | Delegated to Stage 7.4 (Infrastructure Ladder Compliance). A rung-3 bean without a reason comment, an unknown `forage.*` key, or a hand-rolled bean with a Forage equivalent fails per Stage 7.4 rules. | WARNING (FAIL for unknown `forage.*` keys) |
 
 Show results:
 

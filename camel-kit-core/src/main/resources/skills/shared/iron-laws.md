@@ -24,18 +24,21 @@ You do NOT know what components exist. You do NOT know their options. The MCP ca
 
 **Evidence requirement:** the tool call and its result must be visible in your work. A claim of "verified via MCP" with no visible call is a violation of this law.
 
+**Forage carve-out:** `forage.*` property keys are NOT Camel catalog artifacts. Verify them against the cached
+Forage catalog (`.camel-kit/.cache/forage/{FORAGE_VERSION}/`) per `shared/forage.md` — same rigor, different catalog.
+
 ---
 
 ## Iron Law 2: Constitution Compliance
 
 ```
-EVERY GENERATED ROUTE MUST PASS ALL 7 CONSTITUTION RULES.
+EVERY GENERATED ROUTE MUST PASS ALL 8 CONSTITUTION RULES.
 NO ROUTE PASSES QUALITY REVIEW WITHOUT CONSTITUTION GATE CHECK.
 ```
 
-The 7 rules are absolute. They apply to every route, every time, regardless of complexity or context.
+The 8 rules are absolute. They apply to every route, every time, regardless of complexity or context.
 
-**The 7 Rules:**
+**The 8 Rules:**
 1. **Route Structure** — every route has a source (`from:`) and a sink (final `to:`). `direct:`/`seda:` sub-routes exempt from external sink.
 2. **Single Responsibility** — one route = one purpose, one sentence. >7 processing steps = WARNING.
 3. **Separation of Concerns** — Ingestion → Processing → Delivery. Business logic in beans, integration logic in routes.
@@ -43,6 +46,7 @@ The 7 rules are absolute. They apply to every route, every time, regardless of c
 5. **Observability** — every route declares `routeId` and `description`. Correlation IDs for cross-route tracing.
 6. **External Configuration** — never hardcode connection strings, credentials, or environment values. Use `{{PLACEHOLDER}}` syntax.
 7. **Component Catalog Verification** — every component verified to exist in the Apache Camel catalog (see Iron Law 1).
+8. **Infrastructure via Forage** — infrastructure beans are declared with `forage.*` properties when Forage covers them; configuration follows the ladder in `shared/forage.md` (Forage → component properties → hand-rolled bean with stated reason).
 
 ---
 
