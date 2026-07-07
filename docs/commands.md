@@ -799,7 +799,7 @@ For connectors with no direct equivalent, the command stops and asks the user be
 **Produces:**
 - Validation report saved to `docs/validation-report-YYYY-MM-DD_HH-mm.md`
 - Categorized findings: PASS / FAIL / WARN per quality dimension
-- Constitution compliance check (all 7 rules)
+- Constitution compliance check (all 8 rules)
 - Recommendations for priority fixes
 
 **Example:**

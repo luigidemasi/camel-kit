@@ -1,8 +1,8 @@
 # Forage — Configuration-Driven Infrastructure Beans (Shared Guide)
 
 Forage (KaotoIO, `io.kaoto.forage`) provides bean factories configured purely by properties: you declare
-`forage.<beanName>.<domain>.*` keys and Forage builds the bean and registers it in the Camel registry as
-`#<beanName>`. No Java, no `camel.beans.*` wiring.
+`forage.<name>.<domain>.*` keys and Forage builds the bean and registers it in the Camel registry as
+`#<name>`. No Java, no `camel.beans.*` wiring.
 
 **Availability check (do this first):** read `forage.version` from `.camel-kit/config.properties` → `FORAGE_VERSION`.
 If the key is absent, or `.camel-kit/.cache/forage/{FORAGE_VERSION}/forage-catalog.json` does not exist, Forage is
@@ -36,7 +36,7 @@ camel.component.amqp.connectionFactory=#amqpConnectionFactory
 
 ## Naming convention
 
-`forage.<beanName>.<domain>.<property>` — the `<beanName>` segment IS the Camel registry name (`#<beanName>`).
+`forage.<name>.<domain>.<property>` — the `<name>` segment IS the Camel registry name (`#<name>`).
 The cached configuration catalog lists keys in DEFAULT-bean form (no name segment), e.g. `forage.jdbc.url`;
 for a named bean insert the name after `forage.`: `forage.myDb.jdbc.url` → bean `#myDb`. Domains: `jdbc`, `jms`,
 `rabbitmq`, `cxf`, `agent`. Multiple instances = multiple names (`forage.ds1.jdbc.*` + `forage.ds2.jdbc.*`).
@@ -52,8 +52,10 @@ forage.myDb.jdbc.password={{db.password}}
 
 Route usage: `sql:...?dataSource=#myDb`. Derived beans on the same datasource:
 `forage.myDb.jdbc.transaction.enabled=true` (registers PROPAGATION_* policy beans),
-`forage.myDb.jdbc.idempotent.repository.name=myRepo` (registers `#myRepo`),
-`forage.myDb.jdbc.aggregation.repository.name=myAgg` (registers `#myAgg`).
+`forage.myDb.jdbc.idempotent.repository.enabled=true` + `forage.myDb.jdbc.idempotent.repository.table.name=myRepo`
+(registers `#myRepo` — the bean name comes from `table.name`, not a dedicated name key),
+`forage.myDb.jdbc.aggregation.repository.enabled=true` + `forage.myDb.jdbc.aggregation.repository.name=myAgg`
+(registers `#myAgg`).
 
 Example (rung 1, Artemis connection factory — also the PREFERRED design for Artemis brokers instead of `amqp:`):
 
@@ -69,7 +71,9 @@ Route usage: `jms:queue:orders?connectionFactory=#myBroker`.
 
 **Configuration precedence:** Forage resolves each key from, highest to lowest: environment variables
 (`FORAGE_<DOMAIN>_<PROP>`, e.g. `FORAGE_JDBC_URL`) > system properties (`-Dforage.jdbc.url=...`) >
-properties files > defaults. Env vars and system properties use the DEFAULT-bean key form (no name segment).
+properties files > defaults. Env vars and system properties only address the DEFAULT-bean key form
+(no name segment) — they cannot target a NAMED bean's key (`forage.myDb.jdbc.url`). Override a named
+bean's config through the properties file.
 
 ## Catalog queries (never load the whole file)
 
@@ -90,7 +94,7 @@ jq -r '.factories[] | .name + " -> " + (.components | join(", "))' $CACHE/forage
 jq -r '.factories[] | select(.name=="DataSource") | .variants.base.gav' $CACHE/forage-catalog.json
 
 # 4. Property keys for a module (default-bean form; insert the bean name segment when emitting):
-jq -r '.modules[] | select(.artifactId=="forage-jdbc") | .configEntries[] | .name + " (" + .type + ") - " + .description' \
+jq -r '.modules[] | select(.artifactId=="forage-jdbc-common") | .configEntries[] | .name + " (" + .type + ") - " + .description' \
   $CACHE/forage-configuration-catalog.json
 
 # 5. Per-kind bean GAVs (e.g. the postgresql driver module):

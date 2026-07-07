@@ -52,8 +52,9 @@ idempotent.repository.cacheRemovalPeriod=3600000
 ```
 
 **Rung 1 (preferred, Forage available):** a JDBC idempotent repository is a derived bean of the Forage datasource —
-`forage.<dsName>.jdbc.idempotent.repository.name=idempotentRepository` registers `#idempotentRepository` with no
-`camel.beans.*` lines. See `skills/shared/forage.md`. Use the `#class:` form above only as rung 3.
+`forage.<dsName>.jdbc.idempotent.repository.enabled=true` + `forage.<dsName>.jdbc.idempotent.repository.table.name=idempotentRepository`
+registers `#idempotentRepository` (the bean name comes from `table.name`) with no `camel.beans.*` lines.
+See `skills/shared/forage.md`. Use the `#class:` form above only as rung 3.
 
 ### 8.2 Transaction Support
 

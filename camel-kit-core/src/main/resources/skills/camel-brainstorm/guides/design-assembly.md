@@ -140,7 +140,7 @@ The design spec is the single source of truth for what gets built. It contains:
 
 ## 5. Constitution Compliance
 
-All flows in this spec are designed to comply with the 7 constitution rules:
+All flows in this spec are designed to comply with the 8 constitution rules:
 - [ ] Route Structure — every route has source and sink
 - [ ] Single Responsibility — one purpose per route
 - [ ] Separation of Concerns — Ingestion/Processing/Delivery
@@ -148,6 +148,7 @@ All flows in this spec are designed to comply with the 7 constitution rules:
 - [ ] Observability — routeId and description on every route
 - [ ] External Configuration — no hardcoded values
 - [ ] Component Support — all components MCP-verified
+- [ ] Infrastructure via Forage — beans follow the Forage configuration ladder
 
 ---
 
