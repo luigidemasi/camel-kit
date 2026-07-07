@@ -39,11 +39,18 @@ camel.beans.dataSource.url=${CITRUS_TESTCONTAINERS_POSTGRESQL_URL}
 camel.beans.dataSource.username=${CITRUS_TESTCONTAINERS_POSTGRESQL_USERNAME}
 camel.beans.dataSource.password=${CITRUS_TESTCONTAINERS_POSTGRESQL_PASSWORD}
 
+# Forage projects (rung 1): override the same keys the app defines
+# forage.myDb.jdbc.url=${CITRUS_TESTCONTAINERS_POSTGRESQL_URL}
+# forage.myDb.jdbc.username=${CITRUS_TESTCONTAINERS_POSTGRESQL_USERNAME}
+# forage.myDb.jdbc.password=${CITRUS_TESTCONTAINERS_POSTGRESQL_PASSWORD}
+
 # Test-specific settings
 camel.component.kafka.autoOffsetReset=earliest
 ```
 
 > **Note:** the `${CITRUS_TESTCONTAINERS_*}` values above are resolved by Citrus at test runtime — this `${}` shape is test-file-specific. Do NOT generalize `${}` to non-test properties files on the main runtime; camel-main resolves `{{key}}`, not `${key}` (see properties-generation.md §5.1).
+
+> **Forage override channels:** Forage resolves configuration with precedence env vars > system properties > properties files. In CI, `FORAGE_<DOMAIN>_<PROP>` environment variables (e.g. `FORAGE_JDBC_URL`) can override the app's `forage.*` keys without touching files — useful when the test harness cannot write properties.
 
 The snippet above is a fallback pattern. Prefer the route's real property keys and endpoint option names. For example,
 if the route uses `kafka:orders?groupId=order-writer&autoOffsetReset=latest`, keep the actual topic and group id and
