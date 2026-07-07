@@ -1,6 +1,6 @@
 # Forage — Configuration-Driven Infrastructure Beans (Shared Guide)
 
-Forage (KaotoIO, `io.kaoto.forage`) provides bean factories configured purely by properties: you declare
+Forage (Kaoto, `io.kaoto.forage`) provides bean factories configured purely by properties: you declare
 `forage.<name>.<domain>.*` keys and Forage builds the bean and registers it in the Camel registry as
 `#<name>`. No Java, no `camel.beans.*` wiring.
 
