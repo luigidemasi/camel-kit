@@ -169,7 +169,7 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces ALL six:
 - **Iron Law 1: MCP Catalog Verification** — every component must be verified before YAML generation. A
   `catalog-researcher` pre-verification summary satisfies this rule for the wave; otherwise implementer subagents must
   verify directly via MCP.
-- **Iron Law 2: Constitution Compliance** — quality reviewer checks all 7 constitution rules.
+- **Iron Law 2: Constitution Compliance** — quality reviewer checks all 8 constitution rules.
 - **Iron Law 3: No Code Without Plan & Design Approval** — this phase runs after the design spec is approved and planning is complete. NO code is generated during design or migration phases.
 - **Iron Law 4: Spec Compliance Before Quality** — ALWAYS spec review FIRST, then quality review. Never in parallel. Never reversed.
 - **Iron Law 5: Adversarial Code Review** — parallel Critic Lanes run after implementation and before Stage 1 review. Each critic operates in a fresh context with no accumulated session state.

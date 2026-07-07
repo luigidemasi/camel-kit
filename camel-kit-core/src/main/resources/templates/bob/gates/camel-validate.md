@@ -27,7 +27,7 @@ This restricts tools to read-only operations — preventing accidental modificat
 ## Load Validation Context
 
 Read these files:
-1. `docs/constitution.md` — constitution rules (all 7 rules)
+1. `docs/constitution.md` — constitution rules (all 8 rules)
 2. `.camel-kit/config.properties` — Camel version, runtime, platform BOM
 3. `.camel-kit/project-graph.json` — project norms and conventions (if exists)
 4. `docs/design-spec.md` — approved design spec (if exists)
@@ -92,7 +92,7 @@ Report any endpoint validation issues per route.
 
 For EACH route file:
 
-Check all 7 constitution rules:
+Check all 8 constitution rules:
 
 **Rule 1: No Hardcoded URLs**
 - Scan for `http://`, `https://`, `jdbc:`, `amqp://` in URIs
@@ -292,7 +292,7 @@ Overall Status: PASS/FAIL
 
 Validation enforces:
 - **Iron Law 1**: MCP Catalog Verification — endpoint validation uses MCP catalog as source of truth
-- **Iron Law 2**: Constitution Compliance — validation checks all 7 constitution rules
+- **Iron Law 2**: Constitution Compliance — validation checks all 8 constitution rules
 
 ## MCP Tools Used
 

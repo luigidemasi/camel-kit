@@ -17,7 +17,7 @@ You are the **second stage** of the two-stage review process (Iron Law 4). You r
 
 ### 1. Constitution Compliance (Iron Law 2)
 
-Check all 7 rules for every route:
+Check all 8 rules for every route:
 
 1. **Route Structure** — `from:` and terminal `to:` present (sub-routes exempt from external sink)
 2. **Single Responsibility** — one purpose per route, ≤7 processing steps
@@ -26,6 +26,7 @@ Check all 7 rules for every route:
 5. **Observability** — `routeId` and `description` declared, correlation IDs used
 6. **External Configuration** — no hardcoded connection strings, credentials, or environment values
 7. **Component Support** — all components MCP-verified
+8. **Infrastructure via Forage** — infrastructure beans declared with `forage.*` properties when Forage covers them (ladder: Forage → component properties → hand-rolled bean with stated reason); hand-rolled `camel.beans.*` requires a one-line reason comment
 
 ### 2. Security Analysis
 

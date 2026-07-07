@@ -1,6 +1,6 @@
 # Camel-Kit Constitution
 
-> Seven non-negotiable rules enforced on every generated route. All other design guidance (error handling strategy, retry policy, throttling, resilience patterns, idempotency, transactions, data format choices, deployment) is applied context-specifically during the brainstorm phase (`camel-brainstorm`) and enforced during execution (`camel-execute`).
+> Eight non-negotiable rules enforced on every generated route. All other design guidance (error handling strategy, retry policy, throttling, resilience patterns, idempotency, transactions, data format choices, deployment) is applied context-specifically during the brainstorm phase (`camel-brainstorm`) and enforced during execution (`camel-execute`).
 
 ---
 
@@ -94,6 +94,12 @@ Every component used in a route MUST be verified to **exist in the Apache Camel 
   2. Search for an alternative that provides equivalent functionality (query `camel_catalog_component_doc` for related components).
   3. Present the warning and the suggested alternative to the user before proceeding. Let the user decide whether to switch to the alternative.
 - **Violation:** WARNING — this is not a validation blocker, but users must be clearly informed.
+
+---
+
+### 8. Infrastructure via Forage
+
+Declare infrastructure beans with `forage.*` properties when Forage covers them; follow the configuration ladder (Forage → component properties → hand-rolled bean with a stated reason). Hand-rolled `camel.beans.*` definitions require a one-line reason comment.
 
 ---
 

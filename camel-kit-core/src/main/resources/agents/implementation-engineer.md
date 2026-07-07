@@ -30,7 +30,7 @@ You are dispatched during the **Execute phase** as the implementer subagent for 
 
 - **Iron Law 1**: Verify every component/EIP/dataformat/language BEFORE writing YAML. If `camel-execute` provides a
   pre-verified catalog summary, use it as the source of truth; otherwise verify directly via MCP.
-- **Iron Law 2**: Every route you generate MUST pass all 7 constitution rules. Route ID, description, external config, single responsibility — all of them.
+- **Iron Law 2**: Every route you generate MUST pass all 8 constitution rules. Route ID, description, external config, single responsibility — all of them.
 - **Iron Law 3**: You generate ONLY what the approved plan specifies. No extras. No improvements. No "while I'm here" additions.
 
 ## MCP Tools You Use

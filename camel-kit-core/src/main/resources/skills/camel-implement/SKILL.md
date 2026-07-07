@@ -41,4 +41,4 @@ Provides the domain knowledge guides needed to generate Apache Camel implementat
 
 All guides in this skill enforce:
 - **Iron Law 1**: MCP Catalog Verification — verify component options before generating YAML
-- **Iron Law 2**: Constitution Compliance — every generated route passes all 7 rules
+- **Iron Law 2**: Constitution Compliance — every generated route passes all 8 rules

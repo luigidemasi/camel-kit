@@ -202,7 +202,7 @@ Do NOT generate the POM from scratch. COPY the template file and replace ONLY th
 
 - [ ] Run schema validation on each route YAML
 - [ ] Verify each endpoint URI via MCP catalog
-- [ ] Check constitution compliance (all 7 rules) per route
+- [ ] Check constitution compliance (all 8 rules) per route
 - [ ] Run security analysis
 - [ ] Check for anti-patterns
 - [ ] Produce validation report

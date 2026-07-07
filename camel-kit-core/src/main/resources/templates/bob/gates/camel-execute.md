@@ -120,7 +120,7 @@ Do NOT proceed to code quality review until spec review passes.
 
 Load `guides/quality-reviewer-criteria.md` (if exists) or use these criteria:
 
-Check all 7 constitution rules:
+Check all 8 constitution rules:
 1. No hardcoded URLs
 2. Explicit error handling
 3. Structured logging
@@ -128,6 +128,7 @@ Check all 7 constitution rules:
 5. Circuit breaker (for HTTP calls)
 6. TLS everywhere
 7. Component verification
+8. Infrastructure via Forage (`forage.*` properties when Forage covers it; ladder: Forage → component properties → hand-rolled bean with stated reason; hand-rolled `camel.beans.*` requires a one-line reason comment)
 
 Check security:
 - No hardcoded credentials
@@ -186,7 +187,7 @@ After ALL tasks complete:
 - Check for orphaned properties
 
 **Constitution Compliance:**
-- Verify ALL routes pass all 7 constitution rules
+- Verify ALL routes pass all 8 constitution rules
 - Not just individual routes, but as a complete system
 
 **Graph Analysis (if available):**
@@ -240,7 +241,7 @@ Review Results:
 Cross-Cutting Review: PASS/FAIL
 Smoke Test: PASS/FAIL/NOT_RUN
 
-Constitution Compliance: PASS/FAIL (all 7 rules)
+Constitution Compliance: PASS/FAIL (all 8 rules)
 
 ===============================================================
 
@@ -296,7 +297,7 @@ NEVER:
 Execution enforces the shared Iron Laws:
 
 - **Iron Law 1**: MCP Catalog Verification — verify every component via MCP before generating YAML
-- **Iron Law 2**: Constitution Compliance — every route passes all 7 rules
+- **Iron Law 2**: Constitution Compliance — every route passes all 8 rules
 - **Iron Law 3**: No Code Without Design Approval — only runs after design approval
 - **Iron Law 4**: Spec Compliance Before Quality — ALWAYS spec first, quality second
 - **Iron Law 5**: Adversarial Code Review — generated artifacts pass adversarial review before staged review

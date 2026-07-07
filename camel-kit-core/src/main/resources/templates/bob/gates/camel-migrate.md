@@ -234,7 +234,7 @@ Tests: PASS/FAIL ([N] passing, [M] failing)
 Generated Files:
   [list all generated files]
 
-Constitution Compliance: PASS/FAIL (all 7 rules)
+Constitution Compliance: PASS/FAIL (all 8 rules)
 ===============================================================
 ```
 </Step>

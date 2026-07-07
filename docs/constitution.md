@@ -1,6 +1,6 @@
 # Camel-Kit Constitution
 
-> Seven non-negotiable rules enforced on every generated route. All other design guidance (error handling strategy, retry policy, throttling, resilience patterns, idempotency, transactions, data format choices, deployment) lives in `/camel-brainstorm` and `/camel-migrate`, where it is applied context-specifically during flow design.
+> Eight non-negotiable rules enforced on every generated route. All other design guidance (error handling strategy, retry policy, throttling, resilience patterns, idempotency, transactions, data format choices, deployment) lives in `/camel-brainstorm` and `/camel-migrate`, where it is applied context-specifically during flow design.
 
 ---
 
@@ -15,7 +15,7 @@
 
 ## Rules
 
-> These 7 rules define what makes a good Camel route. They are enforced by **Iron Law 2 (Constitution Compliance)** across all pipeline phases. See `skills/shared/iron-laws.md` for the full set of six iron laws.
+> These 8 rules define what makes a good Camel route. They are enforced by **Iron Law 2 (Constitution Compliance)** across all pipeline phases. See `skills/shared/iron-laws.md` for the full set of six iron laws.
 
 ### 1. Route Structure
 
@@ -96,6 +96,12 @@ Every component used in a route MUST be verified as **available** in the target 
   3. Present the warning and the suggested alternative to the user before proceeding. Let the user decide whether to accept the component or switch to the alternative.
 - **Automated verification:** `/camel-execute` dispatches internal runtime verification to check component availability at build and startup time, catching missing components that passed design-time validation.
 - **Violation:** WARNING — this is not a validation blocker, but users must be clearly informed of the availability implications.
+
+---
+
+### 8. Infrastructure via Forage
+
+Declare infrastructure beans with `forage.*` properties when Forage covers them; follow the configuration ladder (Forage → component properties → hand-rolled bean with a stated reason). Hand-rolled `camel.beans.*` definitions require a one-line reason comment.
 
 ---
 
