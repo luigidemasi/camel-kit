@@ -67,6 +67,10 @@ forage.myBroker.jms.pool.enabled=true
 
 Route usage: `jms:queue:orders?connectionFactory=#myBroker`.
 
+**Configuration precedence:** Forage resolves each key from, highest to lowest: environment variables
+(`FORAGE_<DOMAIN>_<PROP>`, e.g. `FORAGE_JDBC_URL`) > system properties (`-Dforage.jdbc.url=...`) >
+properties files > defaults. Env vars and system properties use the DEFAULT-bean key form (no name segment).
+
 ## Catalog queries (never load the whole file)
 
 Cache dir: `.camel-kit/.cache/forage/{FORAGE_VERSION}/`. Two files:
