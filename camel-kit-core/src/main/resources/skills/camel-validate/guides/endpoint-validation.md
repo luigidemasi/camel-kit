@@ -50,7 +50,7 @@ Endpoint 2: sql:{{sql.insert}}
   Result: ✅ VALID
   - Component: sql exists
   - Query: valid SQL syntax
-  - Warning: Ensure dataSource bean is configured
+  - Warning: Ensure dataSource bean is configured (Configured means: a `forage.<name>.jdbc.*` block, a `camel.beans.dataSource` definition, or rung-2 scalar configuration — see `skills/shared/forage.md`.)
 
 Endpoint 3: http://{{api.endpoint}}
   MCP Tool: camel_validate_route

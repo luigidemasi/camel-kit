@@ -221,3 +221,25 @@ Bean Definitions:
      ✅ username=postgres
      ✅ password=postgres
 ```
+
+### 7.4 Infrastructure Ladder Compliance (Forage)
+
+Load `skills/shared/forage.md` (availability check included there). Then:
+
+1. **Forage key validity:** for every `forage.<name>.<domain>.*` key in the properties files, remove the `<name>`
+   segment and confirm the resulting key exists in
+   `.camel-kit/.cache/forage/{FORAGE_VERSION}/forage-configuration-catalog.json` (query 4 in the shared guide).
+   Unknown Forage key = ❌ FAIL with the closest catalog key as suggestion.
+2. **Ladder violations:** for every `camel.beans.<n>=#class:<FQCN>` bean, check whether a HIGHER rung could serve:
+   - rung 1: the bean's type/purpose matches a Forage factory (`javax.sql.DataSource`, `jakarta.jms.ConnectionFactory`
+     for artemis/ibmmq, chat models/agents, `CxfEndpoint`, Spring RabbitMQ connection factory) → ❌ FAIL,
+     suggest the `forage.*` replacement;
+   - rung 2: the component has scalar options building the same object in this Camel version (check
+     `camel_catalog_component_doc`) → ⚠️ WARNING, suggest the scalar form.
+   A rung-3 bean with a `#`-comment stating why rungs 1–2 don't apply passes.
+3. **Required-bean check:** for every component used in routes, if its catalog doc lists an object-type option that
+   the component needs to operate (`connectionFactory`, `dataSource`) and NEITHER a Forage bean NOR a
+   `camel.beans.*` bean NOR rung-2 scalar auto-configuration provides it → ❌ FAIL ("component X requires a
+   <option> — none configured").
+4. If the Forage cache is absent, skip checks 1–2 with the note "Forage unavailable — ladder checks skipped" (check 3
+   still runs).

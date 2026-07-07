@@ -81,6 +81,7 @@ If error cannot be auto-fixed:
 Property 'customProcessor' references bean not defined
 
 Manual fix required:
+  First check the Configuration Ladder (`skills/shared/forage.md`): if a Forage factory covers the bean, the fix is `forage.X.<domain>.*` keys, not `camel.beans.*`.
   Add bean definition to application.properties:
   camel.beans.customProcessor=#class:com.example.MyProcessor
 ```
