@@ -3,6 +3,7 @@ package io.github.luigidemasi.camelkit.service;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.zip.ZipEntry;
@@ -23,7 +24,7 @@ class ForageCatalogServiceTest {
         try (ZipOutputStream zip = new ZipOutputStream(bytes)) {
             for (String entry : entries) {
                 zip.putNextEntry(new ZipEntry(entry));
-                zip.write(("{\"from\":\"" + entry + "\"}").getBytes());
+                zip.write(("{\"from\":\"" + entry + "\"}").getBytes(StandardCharsets.UTF_8));
                 zip.closeEntry();
             }
         }

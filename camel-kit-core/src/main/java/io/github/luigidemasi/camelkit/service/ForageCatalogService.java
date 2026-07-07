@@ -39,7 +39,11 @@ public class ForageCatalogService {
         if (isCached(camelKitDir, forageVersion)) {
             return cacheDir(camelKitDir, forageVersion);
         }
-        String[] gav = catalogArtifact.split(":");
+        String[] gav = catalogArtifact == null ? new String[0] : catalogArtifact.split(":");
+        if (gav.length != 2 || gav[0].isBlank() || gav[1].isBlank()) {
+            throw new IllegalArgumentException(
+                    "Invalid forage.catalog.artifact GAV '" + catalogArtifact + "' — expected 'groupId:artifactId'");
+        }
         String url = MAVEN_CENTRAL + gav[0].replace('.', '/') + "/" + gav[1] + "/" + forageVersion
                      + "/" + gav[1] + "-" + forageVersion + ".jar";
         HttpClient client = HttpClient.newBuilder()
