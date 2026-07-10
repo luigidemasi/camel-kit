@@ -15,6 +15,7 @@ concurrency:
 
 jobs:
   check:
+    if: github.repository == 'luigidemasi/camel-kit'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source repository
@@ -62,6 +63,7 @@ jobs:
             and (.summary | type == "string")
             and (.rationale | type == "string")
             and (.suggested_pages | type == "array")
+            and all(.suggested_pages[]; type == "string")
           ' "$RESULT_FILE" > /dev/null
 
           jq -r '
@@ -96,18 +98,32 @@ jobs:
           fi
 
           verdict=$(jq -r '.verdict' "$RESULT_FILE")
+          current_labels=$(gh issue view "$ISSUE_NUMBER" --json labels --jq '.labels[].name')
           if [[ "$verdict" == "required" ]]; then
             gh label create website-impact \
               --description "Requires a public website update" \
               --color 1D76DB \
               --force
             gh issue edit "$ISSUE_NUMBER" --add-label website-impact
+            if grep -Fxq website-impact-review <<< "$current_labels"; then
+              gh issue edit "$ISSUE_NUMBER" --remove-label website-impact-review
+            fi
           elif [[ "$verdict" == "unclear" ]]; then
             gh label create website-impact-review \
               --description "Website impact needs a maintainer review" \
               --color FBCA04 \
               --force
             gh issue edit "$ISSUE_NUMBER" --add-label website-impact-review
+            if grep -Fxq website-impact <<< "$current_labels"; then
+              gh issue edit "$ISSUE_NUMBER" --remove-label website-impact
+            fi
+          else
+            if grep -Fxq website-impact <<< "$current_labels"; then
+              gh issue edit "$ISSUE_NUMBER" --remove-label website-impact
+            fi
+            if grep -Fxq website-impact-review <<< "$current_labels"; then
+              gh issue edit "$ISSUE_NUMBER" --remove-label website-impact-review
+            fi
           fi
 
       - name: Fail safe to manual review
@@ -143,4 +159,8 @@ jobs:
             --description "Website impact needs a maintainer review" \
             --color FBCA04 \
             --force
+          current_labels=$(gh issue view "$ISSUE_NUMBER" --json labels --jq '.labels[].name')
+          if grep -Fxq website-impact <<< "$current_labels"; then
+            gh issue edit "$ISSUE_NUMBER" --remove-label website-impact
+          fi
           gh issue edit "$ISSUE_NUMBER" --add-label website-impact-review
