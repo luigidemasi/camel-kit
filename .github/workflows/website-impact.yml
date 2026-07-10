@@ -1,0 +1,146 @@
+name: Check website impact
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+  models: read
+
+concurrency:
+  group: website-impact-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+
+      - name: Checkout website
+        run: git clone --depth 1 https://github.com/luigidemasi/camel-kit-website.git camel-kit-website
+
+      - name: Prepare issue and website evidence
+        shell: bash
+        run: |
+          jq '{
+            repository: .repository.full_name,
+            number: .issue.number,
+            title: .issue.title,
+            body: (.issue.body // ""),
+            labels: [.issue.labels[].name]
+          }' "$GITHUB_EVENT_PATH" > /tmp/issue.json
+
+          while IFS= read -r -d '' page; do
+            relative="${page#camel-kit-website/}"
+            printf '\nFILE: %s\n' "$relative"
+            awk '/^title:[[:space:]]*/ || /^description:[[:space:]]*/ || /^#{1,3}[[:space:]]/ { print }' "$page"
+          done < <(find camel-kit-website/content -type f -name '*.md' -print0 | sort -z) \
+            > /tmp/website-inventory.txt
+
+      - name: Assess website impact
+        id: assessment
+        uses: actions/ai-inference@v1
+        with:
+          prompt-file: .github/prompts/website-impact.prompt.yml
+          file_input: |
+            issue: /tmp/issue.json
+            website_inventory: /tmp/website-inventory.txt
+
+      - name: Report verdict
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          RESULT_FILE: ${{ steps.assessment.outputs.response-file }}
+        run: |
+          jq -e '
+            (.verdict == "required" or .verdict == "not_required" or .verdict == "unclear")
+            and (.summary | type == "string")
+            and (.rationale | type == "string")
+            and (.suggested_pages | type == "array")
+          ' "$RESULT_FILE" > /dev/null
+
+          jq -r '
+            def heading:
+              if . == "required" then "Required"
+              elif . == "not_required" then "Not required"
+              else "Unclear"
+              end;
+            def pages:
+              if (.suggested_pages | length) == 0 then ""
+              else "\n\n**Suggested pages to review:**\n" +
+                ([.suggested_pages[] | "- `" + . + "`"] | join("\n"))
+              end;
+            "<!-- website-impact-check -->\n" +
+            "### Website impact check\n\n" +
+            "**Verdict:** " + (.verdict | heading) + "\n\n" +
+            .summary + "\n\n" + .rationale + pages +
+            "\n\n_This automated review used the issue details and the current website page inventory. Confirm the verdict during implementation._"
+          ' "$RESULT_FILE" > /tmp/website-impact-comment.md
+
+          comment_id=$(gh api \
+            "repos/$GITHUB_REPOSITORY/issues/$ISSUE_NUMBER/comments" \
+            --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- website-impact-check -->"))) | .id' \
+            | head -n 1)
+          if [[ -n "$comment_id" ]]; then
+            gh api --method PATCH \
+              "repos/$GITHUB_REPOSITORY/issues/comments/$comment_id" \
+              -f body="$(< /tmp/website-impact-comment.md)" > /dev/null
+          else
+            gh issue comment "$ISSUE_NUMBER" --body-file /tmp/website-impact-comment.md
+          fi
+
+          verdict=$(jq -r '.verdict' "$RESULT_FILE")
+          if [[ "$verdict" == "required" ]]; then
+            gh label create website-impact \
+              --description "Requires a public website update" \
+              --color 1D76DB \
+              --force
+            gh issue edit "$ISSUE_NUMBER" --add-label website-impact
+          elif [[ "$verdict" == "unclear" ]]; then
+            gh label create website-impact-review \
+              --description "Website impact needs a maintainer review" \
+              --color FBCA04 \
+              --force
+            gh issue edit "$ISSUE_NUMBER" --add-label website-impact-review
+          fi
+
+      - name: Fail safe to manual review
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          cat > /tmp/website-impact-comment.md <<'EOF'
+          <!-- website-impact-check -->
+          ### Website impact check
+
+          **Verdict:** Needs review
+
+          The automated website-impact check did not produce a valid result. A maintainer or implementation agent must review this issue before it is closed.
+          EOF
+
+          comment_id=$(gh api \
+            "repos/$GITHUB_REPOSITORY/issues/$ISSUE_NUMBER/comments" \
+            --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- website-impact-check -->"))) | .id' \
+            | head -n 1)
+          if [[ -n "$comment_id" ]]; then
+            gh api --method PATCH \
+              "repos/$GITHUB_REPOSITORY/issues/comments/$comment_id" \
+              -f body="$(< /tmp/website-impact-comment.md)" > /dev/null
+          else
+            gh issue comment "$ISSUE_NUMBER" --body-file /tmp/website-impact-comment.md
+          fi
+
+          gh label create website-impact-review \
+            --description "Website impact needs a maintainer review" \
+            --color FBCA04 \
+            --force
+          gh issue edit "$ISSUE_NUMBER" --add-label website-impact-review
