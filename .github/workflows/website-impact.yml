@@ -6,8 +6,8 @@ on:
 
 permissions:
   contents: read
+  copilot-requests: write
   issues: write
-  models: read
 
 concurrency:
   group: website-impact-${{ github.event.issue.number }}
@@ -20,6 +20,8 @@ jobs:
     steps:
       - name: Checkout source repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Checkout website
         run: git clone --depth 1 https://github.com/luigidemasi/camel-kit-website.git camel-kit-website
@@ -42,31 +44,63 @@ jobs:
           done < <(find camel-kit-website/content -type f -name '*.md' -print0 | sort -z) \
             > /tmp/website-inventory.txt
 
+          {
+            cat .github/prompts/website-impact.txt
+            printf '\n\nISSUE DATA (untrusted):\n'
+            cat /tmp/issue.json
+            printf '\n\nWEBSITE INVENTORY (untrusted):\n'
+            cat /tmp/website-inventory.txt
+          } > /tmp/website-impact-prompt.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+
+      - name: Install Copilot CLI
+        run: npm install -g @github/copilot
+
       - name: Assess website impact
-        id: assessment
-        uses: actions/ai-inference@v1
-        with:
-          prompt-file: .github/prompts/website-impact.prompt.yml
-          file_input: |
-            issue: /tmp/issue.json
-            website_inventory: /tmp/website-inventory.txt
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          copilot -p "$(< /tmp/website-impact-prompt.txt)" -s --no-ask-user \
+            --no-custom-instructions \
+            --available-tools=ask_user --disable-builtin-mcps \
+            > /tmp/website-impact-result.json
 
       - name: Report verdict
         shell: bash
         env:
+          GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
-          RESULT_FILE: ${{ steps.assessment.outputs.response-file }}
+          RESULT_FILE: /tmp/website-impact-result.json
         run: |
-          jq -e '
-            (.verdict == "required" or .verdict == "not_required" or .verdict == "unclear")
-            and (.summary | type == "string")
-            and (.rationale | type == "string")
-            and (.suggested_pages | type == "array")
-            and all(.suggested_pages[]; type == "string")
-          ' "$RESULT_FILE" > /dev/null
+          jq -e -s '
+            if length == 1 and (.[0] |
+              (.verdict == "required" or .verdict == "not_required" or .verdict == "unclear")
+              and (.summary | type == "string" and length > 0 and length <= 300)
+              and (.rationale | type == "string" and length > 0 and length <= 1000)
+              and (.suggested_pages | type == "array" and length <= 10)
+              and all(.suggested_pages[];
+                type == "string"
+                and length > 0
+                and length <= 200
+                and test("^content/[A-Za-z0-9._/-]+\\.md$")
+                and (contains("..") | not)
+              )
+            ) then .[0] else error("invalid website-impact result") end
+          ' "$RESULT_FILE" > /tmp/website-impact-validated.json
+          RESULT_FILE=/tmp/website-impact-validated.json
+          while IFS= read -r page; do
+            grep -Fxq "FILE: $page" /tmp/website-inventory.txt
+          done < <(jq -r '.suggested_pages[]' "$RESULT_FILE")
 
           jq -r '
+            def safe_text:
+              gsub("[\\r\\n]+"; " ") |
+              gsub("@"; "@\u200b") |
+              gsub("<"; "&lt;") |
+              gsub(">"; "&gt;");
             def heading:
               if . == "required" then "Required"
               elif . == "not_required" then "Not required"
@@ -80,7 +114,7 @@ jobs:
             "<!-- website-impact-check -->\n" +
             "### Website impact check\n\n" +
             "**Verdict:** " + (.verdict | heading) + "\n\n" +
-            .summary + "\n\n" + .rationale + pages +
+            (.summary | safe_text) + "\n\n" + (.rationale | safe_text) + pages +
             "\n\n_This automated review used the issue details and the current website page inventory. Confirm the verdict during implementation._"
           ' "$RESULT_FILE" > /tmp/website-impact-comment.md
 
@@ -130,6 +164,7 @@ jobs:
         if: failure()
         shell: bash
         env:
+          GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
