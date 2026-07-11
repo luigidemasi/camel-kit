@@ -32,3 +32,48 @@ jobs:
         env:
           MAVEN_USERNAME: ${{ secrets.MVN_CENTRAL_USER }}
           MAVEN_PASSWORD: ${{ secrets.MVN_CENTRAL_PASSWORD }}
+
+  smoke-install:
+    name: Verify snapshot installation
+    needs: deploy
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install snapshot in a clean JBang container
+        run: |
+          snapshot_version=$(awk -F'[<>]' '/^[[:space:]]*<version>/{print $3; exit}' pom.xml)
+          [[ "$snapshot_version" == *-SNAPSHOT ]]
+
+          for attempt in {1..10}; do
+            if docker run --rm \
+              --entrypoint /bin/bash \
+              -e SNAPSHOT_VERSION="$snapshot_version" \
+              docker.io/jbangdev/jbang-action:0.139.3@sha256:f5d2d51955d4b6c8ed005b880e6b5f48f0322585298d7e3c146f8241e2d44b01 -lc '
+                set -euo pipefail
+                export HOME=/tmp/camel-kit-smoke
+                export JBANG_DIR="$HOME/.jbang"
+                export JBANG_REPO="$HOME/.m2/repository"
+                export JAVA_TOOL_OPTIONS="-Duser.home=$HOME -Dmaven.repo.local=$JBANG_REPO"
+                export JBANG_NO_VERSION_CHECK=1
+                export PATH="$JBANG_DIR/bin:/jbang/bin:$PATH"
+
+                mkdir -p "$HOME" "$JBANG_REPO"
+                jbang trust add https://github.com/luigidemasi/camel-kit/
+                jbang app install camel-kit@luigidemasi/camel-kit
+                test "$(camel-kit --version)" = "$SNAPSHOT_VERSION"
+              '; then
+              exit 0
+            fi
+
+            if [ "$attempt" -eq 10 ]; then
+              exit 1
+            fi
+
+            echo "Snapshot not visible yet; retrying in 30 seconds"
+            sleep 30
+          done
