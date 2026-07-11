@@ -58,13 +58,14 @@ jobs:
           node-version: 22
 
       - name: Install Copilot CLI
-        run: npm install -g @github/copilot
+        run: npm install -g @github/copilot@1.0.70
 
       - name: Assess website impact
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           copilot -p "$(< /tmp/website-impact-prompt.txt)" -s --no-ask-user \
+            --model=claude-haiku-4.5 --no-auto-update \
             --no-custom-instructions \
             --available-tools=ask_user --disable-builtin-mcps \
             > /tmp/website-impact-result.json
@@ -99,6 +100,7 @@ jobs:
 
           jq -r '
             def safe_text:
+              gsub("&"; "&amp;") |
               gsub("[\\r\\n]+"; " ") |
               gsub("@"; "@\u200b") |
               gsub("<"; "&lt;") |
@@ -116,7 +118,8 @@ jobs:
             "<!-- website-impact-check -->\n" +
             "### Website impact check\n\n" +
             "**Verdict:** " + (.verdict | heading) + "\n\n" +
-            (.summary | safe_text) + "\n\n" + (.rationale | safe_text) + pages +
+            "<pre>" + (.summary | safe_text) + "\n\n" +
+            (.rationale | safe_text) + "</pre>" + pages +
             "\n\n_This automated review used the issue details and the current website page inventory. Confirm the verdict during implementation._"
           ' "$RESULT_FILE" > /tmp/website-impact-comment.md
 
