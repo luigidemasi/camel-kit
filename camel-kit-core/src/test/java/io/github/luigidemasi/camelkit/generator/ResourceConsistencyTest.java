@@ -23,12 +23,16 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.tomlj.Toml;
+import org.tomlj.TomlArray;
+import org.tomlj.TomlTable;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class ResourceConsistencyTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final String CODEX = AgentGeneratorStrategy.CODEX.descriptorValue();
     private static final String COPILOT = AgentGeneratorStrategy.COPILOT.descriptorValue();
     private static final String PI = AgentGeneratorStrategy.PI.descriptorValue();
 
@@ -133,6 +137,11 @@ class ResourceConsistencyTest {
 
             new DefaultGenerator().generate(ctx);
 
+            if (!ctx.agent().generatesCommandStubs()) {
+                assertFalse(Files.exists(ctx.commandsDir()), agentName + " must not generate command scaffolding");
+                continue;
+            }
+
             Set<String> generatedCommands;
             try (Stream<Path> files = Files.list(ctx.commandsDir())) {
                 generatedCommands = files
@@ -161,6 +170,14 @@ class ResourceConsistencyTest {
             InitContext ctx = createContext(agentName, projectDir);
 
             new DefaultGenerator().generate(ctx);
+
+            if (CODEX.equals(agentName)) {
+                TomlTable knowledgeServer = tomlServerConfig(agentName, projectDir, "camel-knowledge");
+                assertTomlTools(agentName, "enabled_tools", knowledgeServer, "camel-knowledge");
+                TomlTable citrusServer = tomlServerConfig(agentName, projectDir, "citrus");
+                assertTomlTools(agentName, "enabled_tools", citrusServer, "citrus");
+                continue;
+            }
 
             JsonNode knowledgeServer = serverConfig(agentName, projectDir, "camel-knowledge");
             if (COPILOT.equals(agentName)) {
@@ -276,6 +293,30 @@ class ResourceConsistencyTest {
         return server;
     }
 
+    private TomlTable tomlServerConfig(String agentName, Path projectDir, String serverId) throws IOException {
+        AgentConfig agent = AgentRegistry.get(agentName);
+        var config = Toml.parse(projectDir.resolve(agent.mcpConfigPath()));
+        assertFalse(config.hasErrors(), config.errors().toString());
+        TomlTable servers = config.getTable(agent.mcpServerContainerKey());
+        assertNotNull(servers, "Missing MCP server config for " + agentName);
+        TomlTable server = servers.getTable(serverId);
+        assertNotNull(server, "Missing " + serverId + " MCP server config for " + agentName);
+        return server;
+    }
+
+    private static void assertTomlTools(
+            String agentName, String field, TomlTable server, String workflowServer)
+            throws IOException {
+        TomlArray allowlist = server.getArray(field);
+        assertNotNull(allowlist, "Missing " + field + " allowlist for " + agentName);
+        Set<String> actual = java.util.stream.IntStream.range(0, allowlist.size())
+                .mapToObj(allowlist::getString)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        assertEquals(new LinkedHashSet<>(
+                WorkflowManifestLoader.loadDefault().mcpServer(workflowServer).allowedTools()), actual,
+                field + " allowlist for " + agentName + " must match " + workflowServer + " tools");
+    }
+
     private static List<Path> activeResourceFiles(Path root) throws IOException {
         List<Path> scanRoots = List.of(
                 root.resolve("camel-kit-core/src/main/resources/skills"),
@@ -328,9 +369,10 @@ class ResourceConsistencyTest {
 
     private static InitContext createContext(String agentName, Path projectDir) {
         AgentConfig agent = AgentRegistry.get(agentName);
-        String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf("/"));
-        Path commandsDir = projectDir.resolve(agent.folder());
-        Path skillsDir = projectDir.resolve(agentBaseFolder + "/skills");
+        Path commandsDir = agent.generatesCommandStubs()
+                ? projectDir.resolve(agent.commandDirectory())
+                : projectDir.resolve(".codex/commands");
+        Path skillsDir = projectDir.resolve(agent.skillsDirectory());
         return new InitContext(
                 agent, agentName, commandsDir, skillsDir, projectDir,
                 "camel-kit", Printer.noop());

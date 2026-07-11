@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import io.github.luigidemasi.camelkit.config.AgentConfig;
+import io.github.luigidemasi.camelkit.config.AgentDescriptor;
 import io.github.luigidemasi.camelkit.config.AgentGeneratorStrategy;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.graph.GraphBuildResult;
@@ -27,6 +28,10 @@ import io.github.luigidemasi.camelkit.util.ProcessRunner;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.tomlj.Toml;
+import org.tomlj.TomlArray;
+import org.tomlj.TomlParseResult;
+import org.tomlj.TomlTable;
 
 /**
  * Validates generated Camel-Kit workspaces.
@@ -140,16 +145,18 @@ public class DoctorService {
             return;
         }
 
-        Path commandsDir = root.resolve(agent.folder());
-        if (!Files.isDirectory(commandsDir)) {
-            findings.add(DoctorFinding.fail("workspace", relativize(root, commandsDir),
-                    "Generated command directory is missing",
-                    "Run camel-kit init --here --ai " + agentKey(agent) + " --force to regenerate commands."));
-        } else {
-            checkCommandFiles(root, commandsDir, agent, findings);
+        if (agent.generatesCommandStubs()) {
+            Path commandsDir = root.resolve(agent.commandDirectory());
+            if (!Files.isDirectory(commandsDir)) {
+                findings.add(DoctorFinding.fail("workspace", relativize(root, commandsDir),
+                        "Generated command directory is missing",
+                        "Run camel-kit init --here --ai " + agentKey(agent) + " --force to regenerate commands."));
+            } else {
+                checkCommandFiles(root, commandsDir, agent, findings);
+            }
         }
 
-        Path skillsDir = root.resolve(agent.folder()).getParent().resolve("skills");
+        Path skillsDir = root.resolve(agent.skillsDirectory());
         if (!Files.isDirectory(skillsDir)) {
             findings.add(DoctorFinding.fail("skills", relativize(root, skillsDir),
                     "Generated skills directory is missing",
@@ -176,6 +183,71 @@ public class DoctorService {
         if (AgentGeneratorStrategy.PI.descriptorValue().equals(agentKey(agent))) {
             checkPiGuard(root, findings);
         }
+        if (AgentGeneratorStrategy.CODEX.descriptorValue().equals(agentKey(agent))) {
+            checkCodexAgents(root, findings);
+        }
+    }
+
+    private void checkCodexAgents(Path root, List<DoctorFinding> findings) {
+        AgentDescriptor descriptor = AgentRegistry.descriptor(AgentGeneratorStrategy.CODEX.descriptorValue());
+        boolean valid = true;
+        for (AgentDescriptor.TemplateInstall template : descriptor.templates()) {
+            if (!template.target().startsWith(".codex/agents/") || !template.target().endsWith(".toml")) {
+                continue;
+            }
+
+            Path agentFile = root.resolve(template.target());
+            if (!Files.isRegularFile(agentFile)) {
+                findings.add(DoctorFinding.fail("workspace", relativize(root, agentFile),
+                        "Codex custom agent is missing",
+                        "Run camel-kit init --here --ai codex --force to regenerate Codex agents."));
+                valid = false;
+                continue;
+            }
+
+            try {
+                TomlParseResult parsed = Toml.parse(agentFile);
+                if (parsed.hasErrors()) {
+                    findings.add(DoctorFinding.fail("workspace", relativize(root, agentFile),
+                            "Codex custom agent is not valid TOML: " + parsed.errors().get(0),
+                            "Fix the TOML syntax or regenerate Codex agents with camel-kit init --here --ai codex --force."));
+                    valid = false;
+                    continue;
+                }
+                List<String> missing = List.of("name", "description", "developer_instructions").stream()
+                        .filter(key -> !(parsed.get(key) instanceof String value) || value.isBlank())
+                        .toList();
+                if (!missing.isEmpty()) {
+                    findings.add(DoctorFinding.fail("workspace", relativize(root, agentFile),
+                            "Codex custom agent is missing required fields: " + String.join(", ", missing),
+                            "Restore the required fields or regenerate Codex agents with camel-kit init --here --ai codex --force."));
+                    valid = false;
+                }
+                if (isReadOnlyCodexAgent(template.target())
+                        && !"read-only".equals(parsed.get("sandbox_mode"))) {
+                    findings.add(DoctorFinding.fail("workspace", relativize(root, agentFile),
+                            "Codex research or security agent must declare sandbox_mode = 'read-only'",
+                            "Restore sandbox_mode = \"read-only\" or regenerate Codex agents with camel-kit init --here --ai codex --force."));
+                    valid = false;
+                }
+            } catch (IOException e) {
+                findings.add(DoctorFinding.fail("workspace", relativize(root, agentFile),
+                        "Could not read Codex custom agent: " + e.getMessage(),
+                        "Check filesystem permissions and re-run camel-kit doctor."));
+                valid = false;
+            }
+        }
+
+        if (valid) {
+            findings.add(DoctorFinding.pass("workspace", ".codex/agents",
+                    "Codex custom agents are valid TOML and declare the required fields",
+                    "No action required."));
+        }
+    }
+
+    private boolean isReadOnlyCodexAgent(String target) {
+        return target.endsWith("camel-catalog-researcher.toml")
+                || target.endsWith("camel-security-reviewer.toml");
     }
 
     private void checkPiGuard(Path root, List<DoctorFinding> findings) {
@@ -352,6 +424,12 @@ public class DoctorService {
             return;
         }
 
+        AgentConfig configuredAgent = AgentRegistry.get(normalizedAgentName);
+        if (configuredAgent != null && "toml".equals(configuredAgent.mcpConfigFormat())) {
+            checkCodexMcp(root, mcpFile, findings);
+            return;
+        }
+
         JsonNode rootNode;
         try {
             rootNode = MAPPER.readTree(mcpFile.toFile());
@@ -381,6 +459,107 @@ public class DoctorService {
                     "MCP config exists and tool allowlists match Camel-Kit expectations",
                     "No action required."));
         }
+    }
+
+    private void checkCodexMcp(Path root, Path mcpFile, List<DoctorFinding> findings) {
+        TomlParseResult parsed;
+        try {
+            parsed = Toml.parse(mcpFile);
+        } catch (IOException e) {
+            findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                    "Could not read Codex MCP config: " + e.getMessage(),
+                    "Check filesystem permissions and re-run camel-kit doctor."));
+            return;
+        }
+        if (parsed.hasErrors()) {
+            findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                    "Codex MCP config is not valid TOML: " + parsed.errors().get(0),
+                    "Fix the TOML syntax or regenerate it with camel-kit init --here --ai codex --force."));
+            return;
+        }
+
+        if (!(parsed.get("mcp_servers") instanceof TomlTable servers)) {
+            findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                    "Codex MCP config does not contain an mcp_servers table",
+                    "Regenerate it with camel-kit init --here --ai codex --force."));
+            return;
+        }
+
+        boolean camelOk = checkCodexMcpServer(
+                root, mcpFile, servers, "camel", expectations.camelMcpTools(), findings);
+        boolean knowledgeOk = checkCodexMcpServer(
+                root, mcpFile, servers, "camel-knowledge", expectations.knowledgeMcpTools(), findings);
+        boolean citrusOk = checkCodexMcpServer(
+                root, mcpFile, servers, "citrus", expectations.citrusMcpTools(), findings);
+        if (camelOk && knowledgeOk && citrusOk) {
+            findings.add(DoctorFinding.pass("mcp", relativize(root, mcpFile),
+                    "Codex MCP config is valid TOML and all tool allowlists match Camel-Kit expectations",
+                    "No action required."));
+        }
+    }
+
+    private boolean checkCodexMcpServer(
+            Path root, Path mcpFile, TomlTable servers, String serverName, Set<String> expected,
+            List<DoctorFinding> findings) {
+        if (!(servers.get(serverName) instanceof TomlTable server)) {
+            findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                    "Codex MCP server '" + serverName + "' is missing",
+                    "Regenerate the Codex MCP config with camel-kit init --here --ai codex --force."));
+            return false;
+        }
+
+        boolean valid = true;
+        if (!(server.get("command") instanceof String command) || command.isBlank()) {
+            findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                    "Codex MCP server '" + serverName + "' must declare a non-empty command",
+                    "Regenerate the Codex MCP config with camel-kit init --here --ai codex --force."));
+            valid = false;
+        }
+
+        TomlArray args = server.get("args") instanceof TomlArray value ? value : null;
+        if (!isStringArray(args)) {
+            findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                    "Codex MCP server '" + serverName + "' args must be an array of strings",
+                    "Regenerate the Codex MCP config with camel-kit init --here --ai codex --force."));
+            valid = false;
+        }
+
+        TomlArray enabledTools = server.get("enabled_tools") instanceof TomlArray value ? value : null;
+        if (!isStringArray(enabledTools)) {
+            findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                    "Codex MCP server '" + serverName + "' enabled_tools must be an array of strings",
+                    "Regenerate the Codex MCP config with camel-kit init --here --ai codex --force."));
+            valid = false;
+        } else {
+            Set<String> actual = new LinkedHashSet<>();
+            for (int i = 0; i < enabledTools.size(); i++) {
+                actual.add((String) enabledTools.get(i));
+            }
+            valid &= checkToolSet(
+                    root, mcpFile, serverName, "enabled_tools", actual, expected, false, findings);
+        }
+
+        Object approvalMode = server.get("default_tools_approval_mode");
+        if (!"prompt".equals(approvalMode)) {
+            findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                    "Codex MCP server '" + serverName
+                                                                              + "' default_tools_approval_mode must be 'prompt' for least privilege",
+                    "Set default_tools_approval_mode = \"prompt\" or regenerate the Codex MCP config."));
+            valid = false;
+        }
+        return valid;
+    }
+
+    private boolean isStringArray(TomlArray array) {
+        if (array == null) {
+            return false;
+        }
+        for (int i = 0; i < array.size(); i++) {
+            if (!(array.get(i) instanceof String)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean checkMcpServer(
@@ -634,8 +813,8 @@ public class DoctorService {
         addIfExists(activeFiles, root.resolve("QWEN.md"));
         addIfExists(activeFiles, root.resolve("opencode.json"));
         if (agent != null) {
-            Path commandsDir = root.resolve(agent.folder());
-            if (Files.isDirectory(commandsDir)) {
+            Path commandsDir = agent.generatesCommandStubs() ? root.resolve(agent.commandDirectory()) : null;
+            if (commandsDir != null && Files.isDirectory(commandsDir)) {
                 try (Stream<Path> stream = Files.list(commandsDir)) {
                     stream.filter(Files::isRegularFile).forEach(activeFiles::add);
                 } catch (IOException e) {

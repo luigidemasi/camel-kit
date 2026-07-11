@@ -14,6 +14,7 @@ public final class AgentGeneratorFactory {
             case BOB -> new BobGenerator();
             case BOB2 -> new Bob2Generator();
             case CLAUDE -> new ClaudeGenerator();
+            case CODEX -> new CodexGenerator();
             case COPILOT -> new CopilotGenerator();
             case GEMINI -> new GeminiGenerator();
             case OPENCODE -> new OpenCodeGenerator();

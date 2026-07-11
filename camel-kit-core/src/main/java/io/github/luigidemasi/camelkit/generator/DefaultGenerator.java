@@ -55,11 +55,13 @@ public class DefaultGenerator implements AgentGenerator {
     }
 
     protected void generateBaseAssets(InitContext ctx, WorkflowManifest workflow) throws Exception {
-        Files.createDirectories(ctx.commandsDir());
         Files.createDirectories(ctx.skillsDir());
         agentsMdGenerator.generate(ctx);
-        commandStubGenerator.generate(ctx, workflow);
-        skillResourceInstaller.install(ctx);
+        if (ctx.agent().generatesCommandStubs()) {
+            Files.createDirectories(ctx.commandsDir());
+            commandStubGenerator.generate(ctx, workflow);
+        }
+        skillResourceInstaller.install(ctx, workflow);
     }
 
     protected void beforeApplyTraits(InitContext ctx) throws Exception {

@@ -551,6 +551,61 @@ The generated safety hook is deliberately narrow. It denies `git push`, broad `r
 
 ---
 
+## OpenAI Codex CLI -- Project Skills + Native Custom Agents
+
+### Dispatch Model
+
+Codex reads repository instructions from `AGENTS.md`, discovers project skills under `.agents/skills/`, and loads
+custom roles from `.codex/agents/*.toml`. Camel-Kit generates planner, implementer, tester, validator, migrator,
+catalog researcher, and security reviewer roles. The parent session remains the orchestrator, dispatches independent
+tasks from the same implementation wave in parallel, and keeps dependent waves sequential. Delegated agents return
+results to the parent and do not spawn another layer. If delegation is unavailable, the skill runs inline.
+
+Codex does not use generated slash-command files, so Camel-Kit does not create `.codex/commands/`. Project config and
+any user-added project hooks are skipped until repository trust; Camel-Kit itself generates no hooks. After trusting
+the repository, users start with `$camel-start`, inspect skills with `/skills`, and inspect MCP servers with `/mcp`.
+
+### Template Files
+
+| File | Purpose |
+|------|---------|
+| `templates/codex/agents-md.md` | `AGENTS.md` -- entry point, laws, trust, sandbox, and approval guidance |
+| `templates/codex/agents/*.toml` | 7 custom-agent role definitions |
+| `templates/mcp-configs/codex-mcp.toml` | Three project MCP servers in `.codex/config.toml` |
+| `templates/dispatch/codex.md` | Parent-owned dispatch, parallel-wave, and inline-fallback guidance |
+
+### How It Works
+
+```text
+User: $camel-start
+  └── Codex loads AGENTS.md and .agents/skills/camel-start/SKILL.md
+      ├── Parent selects a generated .codex/agents role for isolated work
+      ├── Independent tasks in one plan wave may run in parallel
+      ├── Child roles return concise evidence to the parent orchestrator
+      └── MCP tools come from .codex/config.toml after repository trust
+```
+
+### Tool Restriction Model
+
+Camel-Kit leaves the user's Codex sandbox and approval policy in force. The catalog researcher and security reviewer
+declare `sandbox_mode = "read-only"`; other roles inherit the active policy. Each generated MCP server uses an exact
+`enabled_tools` list and `default_tools_approval_mode = "prompt"`. Camel-Kit writes only repository-scoped files: it
+does not change global Codex configuration or authentication and does not generate executable hooks.
+
+When `.codex/config.toml` already exists, init preserves unrelated valid settings and replaces only Camel-Kit's
+marked MCP block. Invalid TOML or conflicting managed server tables fail clearly without changing the existing file.
+
+### Unique Capabilities
+
+- **Native repository skills:** all shared Camel-Kit skills use Codex's `.agents/skills/` discovery path.
+- **Seven custom roles:** pipeline work maps to explicit Codex custom-agent definitions.
+- **Parent-owned parallel dispatch:** independent implementation-wave tasks can run together without recursive delegation.
+- **Trust-gated project config:** MCP configuration loads only for a trusted repository.
+- **Least-privilege MCP:** exact allowlists and per-call prompt approval for Camel, knowledge, and Citrus tools.
+- **Safe config composition:** managed-block replacement is idempotent and preserves unrelated project settings.
+
+---
+
 ## Pi -- Native Skills + Prompt Templates + Guard Extension
 
 ### Dispatch Model
@@ -601,14 +656,14 @@ container or VM concern.
 
 ## Agent Comparison
 
-| Aspect | Claude | Bob 1 legacy | Bob 2 | Gemini | Copilot | Pi | Qwen | OpenCode |
-|--------|--------|--------------|-------|--------|---------|----|------|----------|
-| Dispatch model | Parallel subagents | Mode switching | `spawn_subagent` (`explore`, `general`) | `invoke_subagent` unified tool (local/remote/browser) | Project skills + custom agents | Project skills + prompt templates | Dual: named subagent + fork | `task` tool creating child sessions |
-| Template files | 3 | 17+ | Bob 2 modes + traits + rules | 12 | 11 | 5 | 9 | 8 |
-| Tool restriction | Instruction-based | Mode tool groups | Mode tool groups + `allowedSubagents` | Allowlist + TOML policy + server-scoped wildcards | Custom-agent `tools` plus hooks | Guard extension + external sandbox | Allowlist + blocklist | 3-state permissions + bash glob patterns |
-| Path-scoped edits | No | `.md` only (via fileRegex) | Mode-dependent `fileRegex` | Yes (Policy Engine) | Tool-level, not path-scoped | No | No | Yes (glob patterns) |
-| MCP auto-approval | No (manual) | No (manual) | No (manual) | Yes (TOML policy) | No (permission prompts) | Adapter `directTools` | No (manual) | No (manual) |
-| Parallel execution | Yes (graph-based) | No | Yes (same-turn `spawn_subagent`) | Yes (scheduler `Promise.all()`) | Unknown | No native subagents | Partial (read-only tools concurrent; fork background) | Partial (LLM-level parallel tool calls) |
-| Subagent recursion | Yes (no limit) | N/A | No (subagents must not spawn subagents) | No (hardcoded `Kind.Agent` filter) | Unknown | N/A | No (fork-of-fork blocked) | Opt-in configurable depth |
-| Execute phase | Subagent with parallel dispatch | Gate file with mode switch | Parent task orchestrates subagents | Main agent (recursion prevention) | Project skill delegates when available | Main Pi session | Sub-agent with `task` tool | Agent with `task` permission |
-| Instruction composition | Single `CLAUDE.md` | Modes + gates + rules | Shared skills + Bob 2 traits + modes | `@file.md` modular imports | `.github/copilot-instructions.md` + project skills | `AGENTS.md` + `.pi/skills` | Single `QWEN.md` | Ultra-minimal `AGENTS.md` |
+| Aspect | Claude | Bob 1 legacy | Bob 2 | Gemini | Codex | Copilot | Pi | Qwen | OpenCode |
+|--------|--------|--------------|-------|--------|-------|---------|----|------|----------|
+| Dispatch model | Parallel subagents | Mode switching | `spawn_subagent` (`explore`, `general`) | `invoke_subagent` unified tool (local/remote/browser) | Project skills + custom agents | Project skills + custom agents | Project skills + prompt templates | Dual: named subagent + fork | `task` tool creating child sessions |
+| Template files | 3 | 17+ | Bob 2 modes + traits + rules | 12 | 10 | 11 | 5 | 9 | 8 |
+| Tool restriction | Instruction-based | Mode tool groups | Mode tool groups + `allowedSubagents` | Allowlist + TOML policy + server-scoped wildcards | Inherited sandbox/approvals + read-only research roles | Custom-agent `tools` plus hooks | Guard extension + external sandbox | Allowlist + blocklist | 3-state permissions + bash glob patterns |
+| Path-scoped edits | No | `.md` only (via fileRegex) | Mode-dependent `fileRegex` | Yes (Policy Engine) | No | Tool-level, not path-scoped | No | No | Yes (glob patterns) |
+| MCP auto-approval | No (manual) | No (manual) | No (manual) | Yes (TOML policy) | No (`prompt`) | No (permission prompts) | Adapter `directTools` | No (manual) | No (manual) |
+| Parallel execution | Yes (graph-based) | No | Yes (same-turn `spawn_subagent`) | Yes (scheduler `Promise.all()`) | Yes (independent waves) | Unknown | No native subagents | Partial (read-only tools concurrent; fork background) | Partial (LLM-level parallel tool calls) |
+| Subagent recursion | Yes (no limit) | N/A | No (subagents must not spawn subagents) | No (hardcoded `Kind.Agent` filter) | No (parent-owned) | Unknown | N/A | No (fork-of-fork blocked) | Opt-in configurable depth |
+| Execute phase | Subagent with parallel dispatch | Gate file with mode switch | Parent task orchestrates subagents | Main agent (recursion prevention) | Parent dispatches custom roles with inline fallback | Project skill delegates when available | Main Pi session | Sub-agent with `task` tool | Agent with `task` permission |
+| Instruction composition | Single `CLAUDE.md` | Modes + gates + rules | Shared skills + Bob 2 traits + modes | `@file.md` modular imports | `AGENTS.md` + `.agents/skills` | `.github/copilot-instructions.md` + project skills | `AGENTS.md` + `.pi/skills` | Single `QWEN.md` | Ultra-minimal `AGENTS.md` |

@@ -19,16 +19,19 @@ public final class DoctorExpectations {
     private final List<String> requiredSkills;
     private final Set<String> camelMcpTools;
     private final Set<String> knowledgeMcpTools;
+    private final Set<String> citrusMcpTools;
 
     private DoctorExpectations(
                                List<String> userCommands,
                                List<String> requiredSkills,
                                Set<String> camelMcpTools,
-                               Set<String> knowledgeMcpTools) {
+                               Set<String> knowledgeMcpTools,
+                               Set<String> citrusMcpTools) {
         this.userCommands = List.copyOf(userCommands);
         this.requiredSkills = List.copyOf(requiredSkills);
         this.camelMcpTools = Collections.unmodifiableSet(new LinkedHashSet<>(camelMcpTools));
         this.knowledgeMcpTools = Collections.unmodifiableSet(new LinkedHashSet<>(knowledgeMcpTools));
+        this.citrusMcpTools = Collections.unmodifiableSet(new LinkedHashSet<>(citrusMcpTools));
     }
 
     public static DoctorExpectations loadDefault() {
@@ -48,7 +51,8 @@ public final class DoctorExpectations {
                         .map(WorkflowManifest.WorkflowSkill::name)
                         .toList(),
                 orderedSet(workflow.mcpServer("camel").allowedTools()),
-                orderedSet(workflow.mcpServer("camel-knowledge").allowedTools()));
+                orderedSet(workflow.mcpServer("camel-knowledge").allowedTools()),
+                orderedSet(workflow.mcpServer("citrus").allowedTools()));
     }
 
     public List<String> userCommands() {
@@ -65,6 +69,10 @@ public final class DoctorExpectations {
 
     public Set<String> knowledgeMcpTools() {
         return knowledgeMcpTools;
+    }
+
+    public Set<String> citrusMcpTools() {
+        return citrusMcpTools;
     }
 
     private static Set<String> orderedSet(List<String> values) {

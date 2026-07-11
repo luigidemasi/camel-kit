@@ -9,6 +9,9 @@ import java.util.Locale;
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentGeneratorStrategy;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
+import io.github.luigidemasi.camelkit.generator.AgentGeneratorFactory;
+import io.github.luigidemasi.camelkit.generator.InitContext;
+import io.github.luigidemasi.camelkit.output.Printer;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -19,6 +22,7 @@ class DoctorServiceTest {
 
     private static final DoctorExpectations EXPECTATIONS = DoctorExpectations.loadDefault();
     private static final String COPILOT = AgentGeneratorStrategy.COPILOT.descriptorValue();
+    private static final String CODEX = AgentGeneratorStrategy.CODEX.descriptorValue();
     private static final String PI = AgentGeneratorStrategy.PI.descriptorValue();
 
     @TempDir
@@ -75,6 +79,110 @@ class DoctorServiceTest {
         assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "workspace",
                 "Pi safety guard extension and policy are present",
                 "No action required."));
+    }
+
+    @Test
+    void healthyCodexWorkspaceValidatesTomlAgentsAndDoesNotRequireCommands() throws Exception {
+        createHealthyWorkspace(tempDir, CODEX);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertFalse(Files.exists(tempDir.resolve(".codex/commands")));
+        assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "Codex MCP config is valid TOML and all tool allowlists match Camel-Kit expectations",
+                "No action required."));
+        assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "workspace",
+                "Codex custom agents are valid TOML and declare the required fields",
+                "No action required."));
+    }
+
+    @Test
+    void malformedCodexConfigProducesActionableFailure() throws Exception {
+        createHealthyWorkspace(tempDir, CODEX);
+        Files.writeString(tempDir.resolve(".codex/config.toml"), "[mcp_servers.camel\n");
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "Codex MCP config is not valid TOML",
+                "camel-kit init --here --ai codex --force"));
+    }
+
+    @Test
+    void codexMcpApprovalModeMustRemainPrompt() throws Exception {
+        createHealthyWorkspace(tempDir, CODEX);
+        Path config = tempDir.resolve(".codex/config.toml");
+        Files.writeString(config, Files.readString(config)
+                .replace("default_tools_approval_mode = \"prompt\"",
+                        "default_tools_approval_mode = \"never\""));
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "default_tools_approval_mode must be 'prompt' for least privilege",
+                "default_tools_approval_mode = \"prompt\""));
+    }
+
+    @Test
+    void codexMcpEnabledToolsMustMatchTheGeneratedAllowlist() throws Exception {
+        createHealthyWorkspace(tempDir, CODEX);
+        Path config = tempDir.resolve(".codex/config.toml");
+        String firstTool = EXPECTATIONS.camelMcpTools().iterator().next();
+        Files.writeString(config, Files.readString(config)
+                .replace("\"" + firstTool + "\"", "\"" + firstTool + "\", \"unexpected_tool\""));
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "enabled_tools has extra unexpected_tool",
+                "update the allowlist"));
+    }
+
+    @Test
+    void missingCodexCustomAgentProducesActionableFailure() throws Exception {
+        createHealthyWorkspace(tempDir, CODEX);
+        Files.delete(tempDir.resolve(".codex/agents/camel-implementer.toml"));
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "workspace",
+                "Codex custom agent is missing",
+                "camel-kit init --here --ai codex --force"));
+    }
+
+    @Test
+    void codexCustomAgentRequiresDocumentedFields() throws Exception {
+        createHealthyWorkspace(tempDir, CODEX);
+        Path agentFile = tempDir.resolve(".codex/agents/camel-implementer.toml");
+        Files.writeString(agentFile, Files.readString(agentFile)
+                .replace("name = \"camel_implementer\"", "name = \"\""));
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "workspace",
+                "Codex custom agent is missing required fields: name",
+                "regenerate Codex agents"));
+    }
+
+    @Test
+    void codexResearchAgentsMustRemainReadOnly() throws Exception {
+        createHealthyWorkspace(tempDir, CODEX);
+        Path agentFile = tempDir.resolve(".codex/agents/camel-security-reviewer.toml");
+        Files.writeString(agentFile, Files.readString(agentFile)
+                .replace("sandbox_mode = \"read-only\"\n", ""));
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "workspace",
+                "must declare sandbox_mode = 'read-only'",
+                "sandbox_mode = \"read-only\""));
     }
 
     @Test
@@ -341,6 +449,19 @@ class DoctorServiceTest {
         Files.writeString(root.resolve(".camel-kit/project-graph.json"), "{}");
         Files.writeString(root.resolve("AGENTS.md"), "Integration work -> /camel-start\n");
         Files.writeString(root.resolve("mvnw"), "#!/bin/sh\n");
+
+        if (CODEX.equals(agentName)) {
+            InitContext context = new InitContext(
+                    agent,
+                    agentName,
+                    root.resolve(".codex/commands"),
+                    root.resolve(agent.skillsDirectory()),
+                    root,
+                    "camel-kit",
+                    Printer.noop());
+            AgentGeneratorFactory.create(agentName).generate(context);
+            return;
+        }
 
         Path commands = root.resolve(agent.folder());
         String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf('/'));

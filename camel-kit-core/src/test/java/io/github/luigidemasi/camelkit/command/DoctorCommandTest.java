@@ -163,7 +163,8 @@ class DoctorCommandTest {
 
     @Test
     void generatedWorkspacesMatchDoctorExpectations() throws Exception {
-        for (String agentName : List.of("bob", "bob2", "claude", "copilot", "gemini", "qwen", "opencode", "pi")) {
+        for (String agentName : List.of(
+                "bob", "bob2", "claude", "copilot", "codex", "gemini", "qwen", "opencode", "pi")) {
             Path root = tempDir.resolve(agentName);
             createGeneratedWorkspace(root, agentName);
 
@@ -171,14 +172,20 @@ class DoctorCommandTest {
 
             assertEquals(0, result.exitCode(), agentName + System.lineSeparator() + result.output());
             AgentConfig agent = AgentRegistry.get(agentName);
-            String extension = "." + agent.fileFormat();
-            Path commandsDir = root.resolve(agent.folder());
-            for (String internalCommand : List.of("camel-design", "camel-implement", "camel-test", "camel-verify")) {
-                assertFalse(Files.exists(commandsDir.resolve(internalCommand + extension)),
-                        agentName + " should not expose " + internalCommand + " as a command");
+            if (agent.generatesCommandStubs()) {
+                String extension = "." + agent.fileFormat();
+                Path commandsDir = root.resolve(agent.commandDirectory());
+                for (String internalCommand : List.of(
+                        "camel-design", "camel-implement", "camel-test", "camel-verify")) {
+                    assertFalse(Files.exists(commandsDir.resolve(internalCommand + extension)),
+                            agentName + " should not expose " + internalCommand + " as a command");
+                }
+            } else {
+                assertFalse(Files.exists(root.resolve(".codex/commands")),
+                        agentName + " should not generate command stubs");
             }
 
-            Path skillsDir = commandsDir.getParent().resolve("skills");
+            Path skillsDir = root.resolve(agent.skillsDirectory());
             for (String internalSkill : List.of("camel-design", "camel-implement", "camel-test", "camel-verify")) {
                 assertTrue(Files.isRegularFile(skillsDir.resolve(internalSkill).resolve("SKILL.md")),
                         agentName + " should keep " + internalSkill + " as a skill");
@@ -249,8 +256,10 @@ class DoctorCommandTest {
         Files.writeString(root.resolve(".camel-kit/project-graph.json"), "{}");
         Files.writeString(root.resolve("mvnw"), "#!/bin/sh\n");
 
-        Path commandsDir = root.resolve(agent.folder());
-        Path skillsDir = commandsDir.getParent().resolve("skills");
+        Path commandsDir = agent.generatesCommandStubs()
+                ? root.resolve(agent.commandDirectory())
+                : root.resolve(".codex/commands");
+        Path skillsDir = root.resolve(agent.skillsDirectory());
         InitContext ctx = new InitContext(
                 agent, agentName, commandsDir, skillsDir, root, "camel-kit", Printer.noop());
         AgentGeneratorFactory.create(agentName).generate(ctx);

@@ -44,9 +44,11 @@ public class InitService {
 
         Path targetDir = request.targetDir();
         Path camelKitDir = targetDir.resolve(".camel-kit");
-        Path commandsDir = targetDir.resolve(agent.folder());
+        Path skillsDir = targetDir.resolve(agent.skillsDirectory());
+        Path commandsDir = agent.generatesCommandStubs()
+                ? targetDir.resolve(agent.commandDirectory())
+                : skillsDir;
         Path docsDir = targetDir.resolve("docs");
-        Path skillsDir = commandsDir.getParent().resolve("skills");
         String citrusVersion = request.resolvedCitrusVersion();
 
         List<Path> createdPaths = new ArrayList<>();
@@ -57,7 +59,12 @@ public class InitService {
         }
 
         progress.startTask("\uD83D\uDCC1", "Creating project structure");
-        createProjectStructure(targetDir, commandsDir, camelKitDir, docsDir, createdPaths);
+        createProjectStructure(
+                targetDir,
+                agent.generatesCommandStubs() ? commandsDir : null,
+                camelKitDir,
+                docsDir,
+                createdPaths);
         progress.finishTask();
 
         progress.startTask("\uD83D\uDCDD", "Writing configuration");
@@ -67,10 +74,9 @@ public class InitService {
         progress.finishTask();
 
         progress.startTask("\uD83E\uDD16", "Generating " + agent.name() + " workspace");
-        Path agentBaseDir = targetDir.resolve(agent.folder()).getParent();
         InitContext genCtx = new InitContext(
                 agent, request.agentName(), commandsDir,
-                agentBaseDir.resolve("skills"), targetDir,
+                skillsDir, targetDir,
                 request.commandPrefix(), request.distribution(), request.printer());
         AgentGeneratorFactory.create(request.agentName()).generate(genCtx);
         progress.finishTask();
@@ -102,7 +108,9 @@ public class InitService {
             Path targetDir, Path commandsDir, Path camelKitDir, Path docsDir, List<Path> createdPaths)
             throws Exception {
         createDirectory(targetDir, createdPaths);
-        createDirectory(commandsDir, createdPaths);
+        if (commandsDir != null) {
+            createDirectory(commandsDir, createdPaths);
+        }
         createDirectory(camelKitDir, createdPaths);
         createDirectory(docsDir.resolve("flows"), createdPaths);
         createDirectory(camelKitDir.resolve("templates"), createdPaths);

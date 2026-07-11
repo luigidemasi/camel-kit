@@ -11,10 +11,13 @@ public record AgentDescriptor(
         String id,
         String displayName,
         String commandDirectory,
+        String skillsDirectory,
+        Boolean generatesCommandStubs,
         String commandFileFormat,
         String argumentPlaceholder,
         String mcpConfigPath,
         String mcpConfigTemplatePath,
+        String mcpConfigFormat,
         String mcpServerContainerKey,
         String description,
         String generatorStrategy,
@@ -25,6 +28,14 @@ public record AgentDescriptor(
         List<String> capabilities) {
 
     public AgentDescriptor {
+        generatesCommandStubs = generatesCommandStubs == null || generatesCommandStubs;
+        if ((skillsDirectory == null || skillsDirectory.isBlank())
+                && commandDirectory != null && commandDirectory.contains("/")) {
+            skillsDirectory = commandDirectory.substring(0, commandDirectory.lastIndexOf('/')) + "/skills";
+        }
+        if (mcpConfigFormat == null || mcpConfigFormat.isBlank()) {
+            mcpConfigFormat = "json";
+        }
         templates = immutableList(templates);
         capabilities = immutableList(capabilities);
     }
@@ -32,11 +43,19 @@ public record AgentDescriptor(
     AgentDescriptor validate(String source) {
         requireText(id, "id", source);
         requireText(displayName, "displayName", source);
-        requireText(commandDirectory, "commandDirectory", source);
-        requireText(commandFileFormat, "commandFileFormat", source);
-        requireText(argumentPlaceholder, "argumentPlaceholder", source);
+        requireText(skillsDirectory, "skillsDirectory", source);
+        requireBoolean(generatesCommandStubs, "generatesCommandStubs", source);
+        if (generatesCommandStubs) {
+            requireText(commandDirectory, "commandDirectory", source);
+            requireText(commandFileFormat, "commandFileFormat", source);
+            requireText(argumentPlaceholder, "argumentPlaceholder", source);
+        }
         requireText(mcpConfigPath, "mcpConfigPath", source);
         requireText(mcpConfigTemplatePath, "mcpConfigTemplatePath", source);
+        requireText(mcpConfigFormat, "mcpConfigFormat", source);
+        if (!mcpConfigFormat.equals("json") && !mcpConfigFormat.equals("toml")) {
+            throw new IllegalStateException(source + " has unsupported mcpConfigFormat '" + mcpConfigFormat + "'");
+        }
         requireText(mcpServerContainerKey, "mcpServerContainerKey", source);
         requireText(description, "description", source);
         requireText(generatorStrategy, "generatorStrategy", source);
@@ -73,10 +92,13 @@ public record AgentDescriptor(
         return new AgentConfig(
                 displayName,
                 commandDirectory,
+                skillsDirectory,
+                generatesCommandStubs,
                 commandFileFormat,
                 argumentPlaceholder,
                 mcpConfigPath,
                 mcpConfigTemplatePath,
+                mcpConfigFormat,
                 mcpServerContainerKey,
                 description);
     }

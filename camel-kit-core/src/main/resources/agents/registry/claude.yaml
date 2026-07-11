@@ -1,10 +1,13 @@
 id: claude
 displayName: Claude Code
 commandDirectory: .claude/commands
+skillsDirectory: .claude/skills
+generatesCommandStubs: true
 commandFileFormat: md
 argumentPlaceholder: $ARGUMENTS
 mcpConfigPath: .mcp.json
 mcpConfigTemplatePath: templates/mcp-configs/claude-code-mcp.json
+mcpConfigFormat: json
 mcpServerContainerKey: mcpServers
 description: Anthropic's Claude Code CLI
 generatorStrategy: claude

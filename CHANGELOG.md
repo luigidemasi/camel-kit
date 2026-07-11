@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **OpenAI Codex CLI AI target (`--ai codex`)** — added a first-class Codex target with native repository assets.
+  - Generated workspaces include `AGENTS.md`, `.agents/skills/`, `.codex/config.toml`, and seven `.codex/agents/*.toml` roles without an unused command directory
+  - Codex skill references use native `$camel-*` invocation, with `/skills`, `$camel-start`, and `/mcp` guidance
+  - Repository-scoped TOML config preserves unrelated settings and configures Camel, Camel Knowledge, and Citrus with exact tool allowlists and prompt approval defaults
+  - Doctor validates Codex skills, custom-agent TOML, MCP tables, and least-privilege defaults; an isolated Codex CLI smoke verifies instruction, skill, agent, and MCP discovery
+
 - **Pi AI target (`--ai pi`)** — added a first-class Pi target for `@earendil-works/pi-coding-agent`.
   - New `pi` agent registry descriptor, generator strategy, and `PiGenerator`
   - Generated workspaces include `AGENTS.md`, `.pi/skills/`, `.pi/prompts/`, `.mcp.json`, `.pi/extensions/camel-kit-guard.ts`, and `.pi/camel-kit-guard-policy.json`

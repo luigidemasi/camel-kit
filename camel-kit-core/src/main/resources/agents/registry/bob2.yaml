@@ -1,10 +1,13 @@
 id: bob2
 displayName: IBM Bob 2
 commandDirectory: .bob/commands
+skillsDirectory: .bob/skills
+generatesCommandStubs: true
 commandFileFormat: md
 argumentPlaceholder: $ARGUMENTS
 mcpConfigPath: .bob/mcp.json
 mcpConfigTemplatePath: templates/mcp-configs/bob-mcp.json
+mcpConfigFormat: json
 mcpServerContainerKey: mcpServers
 description: IBM Bob 2 with native skills and subagents
 generatorStrategy: bob2

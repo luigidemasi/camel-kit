@@ -116,6 +116,28 @@ class InitServiceTest {
     }
 
     @Test
+    void initializesCodexWorkspaceWithNativeAssetsWithoutCommandStubs() throws Exception {
+        RecordingProgress progress = new RecordingProgress();
+        Path targetDir = tempDir.resolve("orders");
+
+        InitResult result = new InitService().initialize(
+                request(targetDir, "codex", progress, InitReporter.noop()));
+
+        assertEquals("codex", result.agentName());
+        assertTrue(Files.isRegularFile(targetDir.resolve("AGENTS.md")));
+        assertTrue(Files.isRegularFile(targetDir.resolve(".codex/config.toml")));
+        assertTrue(Files.isRegularFile(targetDir.resolve(".agents/skills/camel-start/SKILL.md")));
+        assertTrue(Files.isRegularFile(targetDir.resolve(".codex/agents/camel-implementer.toml")));
+        assertFalse(Files.exists(targetDir.resolve(".codex/commands")));
+        assertFalse(Files.exists(targetDir.resolve(".agents/commands")));
+        assertTrue(progress.events().contains("start:Generating OpenAI Codex CLI workspace"));
+
+        String config = Files.readString(targetDir.resolve(".camel-kit/config.properties"));
+        assertTrue(config.contains("agent.name=codex"));
+        assertTrue(config.contains("agent.folder=.agents/skills"));
+    }
+
+    @Test
     void initPersistsRuntimeAndVersionConfig() throws Exception {
         Path targetDir = tempDir.resolve("orders");
 

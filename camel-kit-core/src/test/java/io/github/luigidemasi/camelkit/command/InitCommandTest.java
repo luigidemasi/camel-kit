@@ -71,6 +71,34 @@ class InitCommandTest {
         assertFalse(output.contains("/camel-start  "));
     }
 
+    @Test
+    void codexOptionIsAcceptedAndShownInHelp() {
+        InitCommand command = new InitCommand(new CamelKitMain());
+        CommandLine commandLine = new CommandLine(command);
+
+        commandLine.parseArgs("orders", "--ai", "codex");
+
+        assertEquals("codex", command.ai);
+        assertTrue(commandLine.getUsageMessage().contains("codex"));
+    }
+
+    @Test
+    void codexNextStepsUseTrustSkillsAndMcpDiscovery() {
+        CapturingPrinter printer = new CapturingPrinter();
+        CamelKitMain main = new CamelKitMain();
+        main.setOut(printer);
+
+        InitCommand command = new InitCommand(main);
+        command.printNextSteps("orders", "OpenAI Codex CLI", "codex");
+
+        String output = printer.output();
+        assertTrue(output.contains("trust"));
+        assertTrue(output.contains("/skills"));
+        assertTrue(output.contains("$camel-start"));
+        assertTrue(output.contains("/mcp"));
+        assertFalse(output.contains("/camel-start"));
+    }
+
     private static final class CapturingPrinter implements Printer {
         private final StringBuilder output = new StringBuilder();
 

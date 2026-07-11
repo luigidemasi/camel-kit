@@ -27,7 +27,11 @@ class McpConfigGenerator {
             QuteTemplateEngine qute = new QuteTemplateEngine();
             String template = TemplateUtils.readTemplate(ctx.agent().mcpConfigTemplatePath());
             String processed = qute.renderString(template, templateData(ctx.distribution(), workflow));
-            Files.writeString(configFile, processed);
+            if ("toml".equals(ctx.agent().mcpConfigFormat())) {
+                new CodexConfigMerger().merge(configFile, processed);
+            } else {
+                Files.writeString(configFile, processed);
+            }
 
             ctx.printer().println(AnsiColors.green("✓") + " MCP config created for " + ctx.agent().name());
         } catch (Exception e) {

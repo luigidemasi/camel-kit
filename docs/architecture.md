@@ -48,15 +48,16 @@ user_invocable: false
 | `guides/optional-guide.md` | When condition X | Supplementary guide |
 ```
 
-**Note:** Only `camel-start` sets `user_invocable: true` — it is the single auto-discovered entry point (meta-router). Pipeline and standalone skills (Tier 1/2) are invoked through generated command stubs on slash-command agents and through project skill selection on GitHub Copilot CLI. Internal skills are dispatched only by pipeline skills.
+**Note:** Only `camel-start` sets `user_invocable: true` — it is the single auto-discovered entry point (meta-router). Pipeline and standalone skills (Tier 1/2) are invoked through generated command stubs on slash-command agents and through native project skill selection on Codex CLI and GitHub Copilot CLI. Internal skills are dispatched only by pipeline skills.
 
 The frontmatter fields:
 - `name` -- skill identifier, used in cross-references
 - `description` -- trigger keywords that help agents match user intent to the correct skill
-- `user_invocable` -- `true` for `camel-start` (meta-router) only. Pipeline and standalone skills (Tier 1/2) still have generated entry points despite `user_invocable: false`: slash-command stubs for most agents and project skills for GitHub Copilot CLI. Internal skills (`camel-verify`, `camel-design`, `camel-implement`, `camel-test`) are dispatched only by pipeline skills
+- `user_invocable` -- `true` for `camel-start` (meta-router) only. Pipeline and standalone skills (Tier 1/2) still have generated entry points despite `user_invocable: false`: slash-command stubs for most agents and project skills for Codex CLI and GitHub Copilot CLI. Internal skills (`camel-verify`, `camel-design`, `camel-implement`, `camel-test`) are dispatched only by pipeline skills
 
 Agent-specific generators may add runtime aliases to copied skill files. For example, Copilot and Pi generated
-copies add `user-invocable: false` alongside Camel-Kit's source `user_invocable` metadata.
+copies add `user-invocable: false` alongside Camel-Kit's source `user_invocable` metadata. Codex generated copies
+adapt exact `/camel-*` skill invocations to native `$camel-*` mentions while leaving file paths unchanged.
 
 ### All Skills
 
@@ -76,7 +77,7 @@ copies add `user-invocable: false` alongside Camel-Kit's source `user_invocable`
 | `camel-knowledge` | No | `camel-brainstorm`, `camel-execute` | Routes questions to knowledge MCP tools |
 | `camel-debug` | No | `camel-start` (ad-hoc troubleshooting) | Standalone debugging: STOP → PRESERVE → DIAGNOSE → FIX → GUARD workflow |
 
-**Note:** Only `camel-start` has `user_invocable: true` in its skill metadata. Pipeline and standalone skills still have generated entry points despite `user_invocable: false`: slash-command stubs for most agents and project skills for GitHub Copilot CLI. Internal skills (`camel-verify`, `camel-design`, `camel-implement`, `camel-test`) are dispatched only by pipeline skills.
+**Note:** Only `camel-start` has `user_invocable: true` in its skill metadata. Pipeline and standalone skills still have generated entry points despite `user_invocable: false`: slash-command stubs for most agents and project skills for Codex CLI and GitHub Copilot CLI. Internal skills (`camel-verify`, `camel-design`, `camel-implement`, `camel-test`) are dispatched only by pipeline skills.
 
 ### Shared Guides
 
@@ -344,11 +345,11 @@ Built-in agent metadata lives in `camel-kit-core/src/main/resources/agents/regis
 `AgentRegistry` loads these descriptors at startup and maps them into the public `AgentConfig` model used by
 commands and generators.
 
-Each descriptor defines the agent id, display name, command directory, command file format, argument placeholder,
-MCP config path, MCP config template path, MCP server container key, description, generator strategy, dispatch
-template path, templates installed by the agent-specific generator, and whether the agent supports sub-agents or
-traits. Missing required fields, duplicate ids, unsupported generator strategies, or malformed YAML fail during
-registry loading with a descriptor-specific error.
+Each descriptor defines the agent id, display name, skills directory, whether it generates command stubs, optional
+command directory and command syntax, MCP config path, template and format, MCP server container key, description,
+generator strategy, dispatch template path, templates installed by the agent-specific generator, and whether the
+agent supports sub-agents or traits. Missing required fields, duplicate ids, unsupported generator strategies, or
+malformed YAML fail during registry loading with a descriptor-specific error.
 
 ### What `camel-kit init` Generates
 
@@ -358,6 +359,7 @@ registry loading with a descriptor-specific error.
 | IBM Bob 1 legacy | `templates/bob/` | `custom_modes.yaml` + rules + gates | `.bob/mcp.json` | `.bob/skills/` |
 | IBM Bob 2 | `templates/bob2/` | `custom_modes.yaml` + rules + shared skills | `.bob/mcp.json` | `.bob/skills/` |
 | Gemini CLI | `templates/gemini/` | `GEMINI.md` + `@file.md` imports + policies | `.gemini/settings.json` | `.gemini/skills/` |
+| OpenAI Codex CLI | `templates/codex/` | `AGENTS.md` + `.codex/agents/*.toml` | `.codex/config.toml` | `.agents/skills/` |
 | GitHub Copilot CLI | `templates/copilot/` | `.github/copilot-instructions.md` + `.github/agents/` + hooks | `.github/mcp.json` | `.github/skills/` |
 | Pi | `templates/pi/` | `AGENTS.md` + `.pi/prompts/` + guard extension | `.mcp.json` | `.pi/skills/` |
 | Qwen | `templates/qwen/` | `QWEN.md` + sub-agent definitions | `.qwen/settings.json` | `.qwen/skills/` |
@@ -371,7 +373,7 @@ The active scan covers `camel-kit-core/src/main/resources/skills`, `camel-kit-co
 
 Docs subdirectories are intentionally out of scope; this keeps ignored archives such as `docs/plans/` and `docs/superpowers/`, image assets, and generated planning material out of the contract check.
 
-`ShippedAssetStructureTest` covers structural coherence for shipped assets. It verifies that workflow manifest skills have `skills/<name>/SKILL.md`, guide tables in `SKILL.md` point to existing bundled files, shared guide references in shipped skills and templates resolve, every supported agent descriptor has dispatch and MCP config templates, descriptor template sources exist, trait files target existing skills or guides, every shipped trait appears in generated output for its production agent generator, generated command files match manifest command names, generated command skill references resolve to copied skills, and generated MCP configs parse as JSON with the expected server containers.
+`ShippedAssetStructureTest` covers structural coherence for shipped assets. It verifies that workflow manifest skills have `skills/<name>/SKILL.md`, guide tables in `SKILL.md` point to existing bundled files, shared guide references in shipped skills and templates resolve, every supported agent descriptor has dispatch and MCP config templates, descriptor template sources exist, trait files target existing skills or guides, every shipped trait appears in generated output for its production agent generator, generated command files match manifest command names, generated command skill references resolve to copied skills, and generated MCP configs parse as their declared JSON or TOML format with the expected server containers.
 
 Historical release notes, old planning material, and archived ADR-style documents are outside the active contract unless they are copied into generated projects or used as live instructions. Keep historical context in those files as history; do not exclude an active shipped instruction just because it is inconvenient to update.
 
@@ -441,6 +443,8 @@ Most supported agents use native **sub-agent dispatch** or custom-agent isolatio
 
 - **GitHub Copilot CLI** -- project skills live under `.github/skills/` and custom agents live under `.github/agents/`. Camel-Kit generates planner, implementer, tester, validator, migrator, catalog researcher, and security reviewer agents with Copilot tool aliases and MCP server prefixes. Internal guide skills copied for custom-agent use are marked `user-invocable: false` and `disable-model-invocation: true` using Copilot-readable metadata. MCP servers are committed in `.github/mcp.json` using Copilot's `tools` schema. Repository hooks under `.github/hooks/` provide a lightweight safety harness for destructive shell commands while keeping Copilot's normal permission prompts active.
 
+- **OpenAI Codex CLI** -- native project skills live under `.agents/skills/`, project instructions live in `AGENTS.md`, and seven custom roles live under `.codex/agents/`. Codex receives no command-stub directory; `$camel-start` and `/skills` are the entry points. The generated `.codex/config.toml` preserves unrelated valid project settings while adding three version-pinned MCP servers with exact `enabled_tools` lists and prompt approval. Repository trust controls whether project config loads, while the user's sandbox and approval settings remain authoritative. The parent Codex agent owns orchestration, dispatches independent wave work in parallel when supported, and falls back to inline execution when delegation is unavailable.
+
 - **Pi** -- project skills live under `.pi/skills/` and command stubs are generated as `.pi/prompts/` prompt templates. Pi reads `AGENTS.md` natively. MCP servers are committed in `.mcp.json` for `pi-mcp-adapter` using the adapter's `directTools` allowlist schema. Internal guide skills are marked `user-invocable: false` and `disable-model-invocation: true`; Pi currently honors only the model-invocation flag. A static `.pi/extensions/camel-kit-guard.ts` extension interprets `.pi/camel-kit-guard-policy.json` to block destructive or secret-sensitive tool calls. Pi has no native subagents, so custom-agent parity is deferred.
 
 **IBM Bob 2** uses Bob's native `spawn_subagent` tool. Camel-Kit exposes this as `--ai bob2`, but generated project files still live under `.bob/` because Bob reads `.bob/commands`, `.bob/skills`, `.bob/custom_modes.yaml`, and `.bob/mcp.json`.
@@ -468,7 +472,7 @@ The trade-off table:
 | Context isolation | Per-task (fresh sub-agent) | Per-session (accumulated) |
 | Reviewer independence | Separate sub-agent | Same session self-reviews |
 | Tool restriction mechanism | Instruction-based / tool whitelists / policies | Platform-enforced mode tool groups |
-| Parallel execution | Claude (graph topology), Bob 2 (`spawn_subagent` in one turn), Gemini (scheduler `Promise.all()`), Qwen (fork), OpenCode (LLM-level) | Not possible |
+| Parallel execution | Claude (graph topology), Bob 2 (`spawn_subagent` in one turn), Gemini (scheduler `Promise.all()`), Codex (independent waves), Qwen (fork), OpenCode (LLM-level) | Not possible |
 | Skill loading | Loaded into sub-agent context on dispatch | Inlined in monolithic gate files |
 | Template complexity | 3-12 files per agent | 17+ files (gates + rules + modes) |
 | Failure isolation | Sub-agent failure doesn't affect other tasks | Phase failure affects entire session |
@@ -481,6 +485,7 @@ The trade-off table:
 | IBM Bob 1 legacy | B+A hybrid with custom modes | Monolithic gate files, 3 checkpoint types |
 | IBM Bob 2 | Native `spawn_subagent` plus custom modes | `explore`/`general` subagents, parallel same-turn dispatch, shared skills |
 | Gemini CLI | `invoke_subagent` + parallel scheduler | Default-parallel `Promise.all()`, TOML policy, MCP wildcards, A2A remote agents |
+| OpenAI Codex CLI | Native custom-agent dispatch | `.agents/skills`, `.codex/agents`, prompt-gated MCP tools, inherited sandbox and approvals |
 | GitHub Copilot CLI | Project skills + custom agents + hooks | `.github/skills`, `.github/agents`, `.github/mcp.json`, safety hooks |
 | Pi | Project skills + prompt templates + guard extension | `.pi/skills`, `.pi/prompts`, `.mcp.json`, `pi-mcp-adapter`, trust-gated resources |
 | Qwen | Dual dispatch (named + fork) | Fork background tasks, DashScope cache sharing, auto-delegation |
@@ -492,8 +497,8 @@ For full per-agent deep dives (template files, tool restriction models, configur
 
 To add support for a new AI coding assistant:
 
-1. Add `agents/registry/{agent-name}.yaml` with command paths, MCP config path, generator strategy,
-   dispatch template, and capabilities.
+1. Add `agents/registry/{agent-name}.yaml` with the skills path, optional command-stub contract, MCP config path and
+   format, generator strategy, dispatch template, and capabilities.
 2. Create a template directory: `templates/{agent-name}/`
 3. Implement `{Agent}Generator extends DefaultGenerator` in `io.github.luigidemasi.camelkit.generator`
 4. Register the generator strategy in `AgentGeneratorStrategy` and `AgentGeneratorFactory`
@@ -796,7 +801,7 @@ user_invocable: false
 | `guides/main-guide.md` | Always | Primary instruction guide |
 ```
 
-**Note:** Only `camel-start` should have `user_invocable: true`. All other skills have `user_invocable: false`. Generated command stubs and Copilot project skills still work independently of this metadata.
+**Note:** Only `camel-start` should have `user_invocable: true`. All other skills have `user_invocable: false`. Generated command stubs and Codex/Copilot project skills still work independently of this metadata.
 
 3. **Write guide files** in `guides/`. Each guide is a self-contained markdown instruction file loaded by the agent when the skill is active.
 
@@ -807,14 +812,15 @@ user_invocable: false
    - IBM Bob 1 legacy: update `templates/bob/custom_modes.yaml`, gate files, and rules directories
    - IBM Bob 2: update `templates/bob2/custom_modes.yaml`, `templates/traits/bob2/`, and rules directories
    - Gemini CLI: update `templates/gemini/gemini-md.md`
+   - OpenAI Codex CLI: update `templates/codex/`, `templates/dispatch/codex.md`, and custom-agent TOML templates
    - GitHub Copilot CLI: update `templates/copilot/copilot-instructions.md`, `templates/copilot/agents-md.md`, and any affected `.github/agents` templates
    - Pi: update `templates/pi/agents-md.md`, `templates/dispatch/pi.md`, and guard policy templates when relevant
    - Qwen: update `templates/qwen/qwen-md.md`
    - OpenCode: update `templates/opencode/agents-md.md`
 
-6. **If changing an agent capability:** update `agents/registry/{agent}.yaml` when command directories,
-   file formats, MCP config paths, generator strategy, dispatch templates, installed templates, sub-agent support,
-   trait support, or capability labels change.
+6. **If changing an agent capability:** update `agents/registry/{agent}.yaml` when skills or command directories,
+   command-generation behavior, file formats, MCP config paths or formats, generator strategy, dispatch templates,
+   installed templates, sub-agent support, trait support, or capability labels change.
 
 7. **If internal:** update the loading skill's `SKILL.md` to reference the new guides (e.g., add a guide reference to `camel-execute`'s guide manifest).
 

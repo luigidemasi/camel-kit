@@ -12,10 +12,9 @@ class CommandStubGenerator {
 
     void generate(InitContext ctx, WorkflowManifest workflow) throws Exception {
         List<WorkflowCommand> commands = workflow.generatedCommandStubs();
-        String agentBaseFolder = ctx.agent().folder().substring(0, ctx.agent().folder().lastIndexOf("/"));
 
         for (WorkflowCommand command : commands) {
-            String content = commandContent(ctx, agentBaseFolder, command);
+            String content = commandContent(ctx, command);
             String filename = command.name() + "." + ctx.agent().fileFormat();
             Files.writeString(ctx.commandsDir().resolve(filename), content);
         }
@@ -23,8 +22,8 @@ class CommandStubGenerator {
         ctx.printer().println(AnsiColors.green("✓") + " Created " + commands.size() + " skill reference commands");
     }
 
-    private String commandContent(InitContext ctx, String agentBaseFolder, WorkflowCommand command) {
-        String content = "Read " + agentBaseFolder + "/skills/" + command.skill()
+    private String commandContent(InitContext ctx, WorkflowCommand command) {
+        String content = "Read " + ctx.agent().skillsDirectory() + "/" + command.skill()
                          + "/SKILL.md and follow those instructions";
         if ("toml".equals(ctx.agent().fileFormat())) {
             return wrapInToml(command.shortName(), content);

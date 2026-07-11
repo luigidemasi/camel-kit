@@ -334,8 +334,11 @@ Camel-Kit works across multiple AI coding assistants. The same design-plan-execu
 | Agent | Provider |
 |-------|----------|
 | Claude Code | Anthropic |
-| Project Bob | IBM |
+| Project Bob 1 legacy / Bob 2 | IBM |
 | Gemini CLI | Google |
+| Codex CLI | OpenAI |
+| GitHub Copilot CLI | GitHub |
+| Pi | Community |
 | Qwen | Alibaba |
 | OpenCode | Community |
 
@@ -358,6 +361,9 @@ flowchart TB
         claude["CLAUDE.md\n(Claude)"]
         bob["custom_modes.yaml\n(Bob 1/Bob 2)"]
         gemini["GEMINI.md\n(Gemini)"]
+        codex["AGENTS.md + .codex/\n(Codex)"]
+        copilot[".github/ skills + agents\n(Copilot)"]
+        pi["AGENTS.md + .pi/\n(Pi)"]
         qwen["QWEN.md\n(Qwen)"]
         opencode["AGENTS.md\n(OpenCode)"]
     end
@@ -430,7 +436,7 @@ flowchart TB
 | Documentation | Knowledge MCP server (Apache Camel docs -- hybrid semantic search) |
 | Testing | Citrus MCP + Citrus YAML + Testcontainers |
 | IDE support | Kaoto (visual route and DataMapper editing) |
-| AI agents | Claude Code, IBM Bob 1 legacy, IBM Bob 2, Gemini CLI, Qwen, OpenCode |
+| AI agents | Claude Code, IBM Bob 1 legacy, IBM Bob 2, Gemini CLI, OpenAI Codex CLI, GitHub Copilot CLI, Pi, Qwen, OpenCode |
 
 ---
 

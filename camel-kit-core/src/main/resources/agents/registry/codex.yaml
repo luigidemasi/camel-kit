@@ -1,0 +1,38 @@
+id: codex
+displayName: OpenAI Codex CLI
+skillsDirectory: .agents/skills
+generatesCommandStubs: false
+mcpConfigPath: .codex/config.toml
+mcpConfigTemplatePath: templates/mcp-configs/codex-mcp.toml
+mcpConfigFormat: toml
+mcpServerContainerKey: mcp_servers
+description: OpenAI's coding agent for the terminal
+generatorStrategy: codex
+dispatchTemplatePath: templates/dispatch/codex.md
+templates:
+  - source: templates/codex/agents-md.md
+    target: AGENTS.md
+  - source: templates/codex/agents/camel-planner.toml
+    target: .codex/agents/camel-planner.toml
+  - source: templates/codex/agents/camel-implementer.toml
+    target: .codex/agents/camel-implementer.toml
+  - source: templates/codex/agents/camel-tester.toml
+    target: .codex/agents/camel-tester.toml
+  - source: templates/codex/agents/camel-validator.toml
+    target: .codex/agents/camel-validator.toml
+  - source: templates/codex/agents/camel-migrator.toml
+    target: .codex/agents/camel-migrator.toml
+  - source: templates/codex/agents/camel-catalog-researcher.toml
+    target: .codex/agents/camel-catalog-researcher.toml
+  - source: templates/codex/agents/camel-security-reviewer.toml
+    target: .codex/agents/camel-security-reviewer.toml
+supportsSubagents: true
+supportsTraits: true
+capabilities:
+  - project-skills
+  - custom-agents
+  - parallel-subagent-dispatch
+  - mcp
+  - approvals
+  - sandbox
+  - repository-trust

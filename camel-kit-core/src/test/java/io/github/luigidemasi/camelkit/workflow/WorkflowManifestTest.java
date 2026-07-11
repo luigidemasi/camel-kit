@@ -133,6 +133,11 @@ class WorkflowManifestTest {
             InitContext ctx = createContext(agentName);
             AgentGeneratorFactory.create(agentName).generate(ctx);
 
+            if (!ctx.agent().generatesCommandStubs()) {
+                assertFalse(Files.exists(ctx.commandsDir()), agentName + " must not generate a command directory");
+                continue;
+            }
+
             Set<String> expected = manifest.generatedCommandStubs().stream()
                     .map(command -> command.name() + "." + ctx.agent().fileFormat())
                     .collect(Collectors.toCollection(java.util.TreeSet::new));
@@ -337,9 +342,10 @@ class WorkflowManifestTest {
 
     private InitContext createContext(String agentName) {
         AgentConfig agent = AgentRegistry.get(agentName);
-        String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf("/"));
-        Path commandsDir = tempDir.resolve(agent.folder());
-        Path skillsDir = tempDir.resolve(agentBaseFolder + "/skills");
+        Path commandsDir = agent.generatesCommandStubs()
+                ? tempDir.resolve(agent.commandDirectory())
+                : tempDir.resolve(".codex/commands");
+        Path skillsDir = tempDir.resolve(agent.skillsDirectory());
         return new InitContext(
                 agent, agentName, commandsDir, skillsDir, tempDir,
                 "camel-kit", Printer.noop());

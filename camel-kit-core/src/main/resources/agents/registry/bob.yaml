@@ -1,10 +1,13 @@
 id: bob
 displayName: IBM Project Bob
 commandDirectory: .bob/commands
+skillsDirectory: .bob/skills
+generatesCommandStubs: true
 commandFileFormat: md
 argumentPlaceholder: $ARGUMENTS
 mcpConfigPath: .bob/mcp.json
 mcpConfigTemplatePath: templates/mcp-configs/bob-mcp.json
+mcpConfigFormat: json
 mcpServerContainerKey: mcpServers
 description: IBM's AI-powered development assistant
 generatorStrategy: bob
