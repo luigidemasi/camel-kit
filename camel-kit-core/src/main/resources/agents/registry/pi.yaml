@@ -1,10 +1,13 @@
 id: pi
 displayName: Pi
 commandDirectory: .pi/prompts
+skillsDirectory: .pi/skills
+generatesCommandStubs: true
 commandFileFormat: md
 argumentPlaceholder: $ARGUMENTS
 mcpConfigPath: .mcp.json
 mcpConfigTemplatePath: templates/mcp-configs/pi-mcp.json
+mcpConfigFormat: json
 mcpServerContainerKey: mcpServers
 description: Pi terminal coding agent
 generatorStrategy: pi

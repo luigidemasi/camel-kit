@@ -1,10 +1,13 @@
 id: copilot
 displayName: GitHub Copilot CLI
 commandDirectory: .github/commands
+skillsDirectory: .github/skills
+generatesCommandStubs: true
 commandFileFormat: md
 argumentPlaceholder: $ARGUMENTS
 mcpConfigPath: .github/mcp.json
 mcpConfigTemplatePath: templates/mcp-configs/copilot-mcp.json
+mcpConfigFormat: json
 mcpServerContainerKey: mcpServers
 description: GitHub Copilot CLI terminal agent
 generatorStrategy: copilot

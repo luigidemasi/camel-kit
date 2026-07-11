@@ -1,10 +1,13 @@
 id: gemini
 displayName: Gemini CLI
 commandDirectory: .gemini/commands
+skillsDirectory: .gemini/skills
+generatesCommandStubs: true
 commandFileFormat: toml
 argumentPlaceholder: "{{args}}"
 mcpConfigPath: .gemini/settings.json
 mcpConfigTemplatePath: templates/mcp-configs/gemini-mcp.json
+mcpConfigFormat: json
 mcpServerContainerKey: mcpServers
 description: Google's Gemini CLI
 generatorStrategy: gemini

@@ -19,6 +19,17 @@ class CamelKitPluginTest {
     }
 
     @Test
+    void kitInitAcceptsCodexAndShowsItInHelp() {
+        KitInitCommand command = new KitInitCommand(new CamelJBangMain());
+        CommandLine commandLine = new CommandLine(command);
+
+        commandLine.parseArgs("orders", "--ai", "codex");
+
+        assertEquals("codex", command.ai);
+        assertTrue(commandLine.getUsageMessage().contains("codex"));
+    }
+
+    @Test
     void registersDoctorUnderKitCommand() {
         CamelJBangMain main = new CamelJBangMain();
         CommandLine root = new CommandLine(main);

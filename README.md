@@ -99,7 +99,7 @@ camel kit init my-integration
 
 ### Build from Source (development version)
 
-Some features (including `--ai copilot`, `--ai pi`, `--ai qwen`, and `--ai opencode`) are only available in the development version. To build from source:
+Some features (including `--ai codex`, `--ai copilot`, `--ai pi`, `--ai qwen`, and `--ai opencode`) are only available in the development version. To build from source:
 
 ```bash
 git clone https://github.com/luigidemasi/camel-kit.git
@@ -133,6 +133,7 @@ camel-kit init my-integration --ai claude   # Anthropic Claude Code
 camel-kit init my-integration --ai bob      # IBM Bob 1 legacy
 camel-kit init my-integration --ai bob2     # IBM Bob 2
 camel-kit init my-integration --ai gemini   # Google Gemini CLI
+camel-kit init my-integration --ai codex    # OpenAI Codex CLI
 camel-kit init my-integration --ai copilot  # GitHub Copilot CLI
 camel-kit init my-integration --ai pi       # Pi
 camel-kit init my-integration --ai qwen     # Qwen (requires dev build)
@@ -150,6 +151,9 @@ cd my-integration
 # For GitHub Copilot CLI, ask Copilot: "Use the /camel-start skill."
 # Run /skills list if you need to inspect available project skills.
 
+# For Codex CLI, trust the repository, then run $camel-start.
+# Use /skills to inspect project skills and /mcp to inspect MCP servers.
+
 # For Pi, install the MCP adapter, trust the project, then run /skill:camel-start.
 # pi install npm:pi-mcp-adapter@2.11.0
 ```
@@ -164,12 +168,13 @@ cd my-integration
 | IBM Bob 1 legacy | `--ai bob` | `custom_modes.yaml` + rules + gates | `.bob/mcp.json` |
 | IBM Bob 2 (default) | `--ai bob2` | `custom_modes.yaml` + rules + skills | `.bob/mcp.json` |
 | Google Gemini CLI | `--ai gemini` | `GEMINI.md` | `.gemini/mcp.json` |
+| OpenAI Codex CLI | `--ai codex` | `AGENTS.md` + `.agents/skills/` + `.codex/agents/` | `.codex/config.toml` |
 | GitHub Copilot CLI | `--ai copilot` | `.github/copilot-instructions.md` + `.github/agents/` + `.github/skills/` | `.github/mcp.json` |
 | Pi | `--ai pi` | `AGENTS.md` + `.pi/skills/` + `.pi/prompts/` | `.mcp.json` via `pi-mcp-adapter` |
 | Qwen | `--ai qwen` | `QWEN.md` | `.qwen/mcp.json` |
 | OpenCode | `--ai opencode` | `AGENTS.md` | `.opencode/mcp.json` |
 
-All agents use the same skills — camel-kit generates agent-specific instruction files with per-agent traits that load the shared skill guides. GitHub Copilot CLI uses native project skills and custom agents instead of Camel-Kit slash commands. Pi uses native project skills and prompt templates, with MCP provided by `pi-mcp-adapter`. The skills are the equalization layer. [Architecture Guide →](docs/architecture.md)
+All agents use the same skills — camel-kit generates agent-specific instruction files with per-agent traits that load the shared skill guides. Codex CLI and GitHub Copilot CLI use native project skills and custom agents instead of Camel-Kit slash commands. Pi uses native project skills and prompt templates, with MCP provided by `pi-mcp-adapter`. The skills are the equalization layer. [Architecture Guide →](docs/architecture.md)
 
 ---
 
@@ -206,7 +211,7 @@ All agents use the same skills — camel-kit generates agent-specific instructio
 
 ### Multi-Agent
 
-- **7 AI targets** — same skills work across Claude Code, IBM Bob 1 legacy, IBM Bob 2, Gemini CLI, GitHub Copilot CLI, Qwen, and OpenCode. Agent-specific traits customize behavior (pacing, approval modes, tool usage) without changing the shared skills. [Learn more →](docs/architecture.md)
+- **9 AI targets** — same skills work across Claude Code, IBM Bob 1 legacy, IBM Bob 2, Gemini CLI, OpenAI Codex CLI, GitHub Copilot CLI, Pi, Qwen, and OpenCode. Agent-specific traits customize behavior (pacing, approval modes, tool usage) without changing the shared skills. [Learn more →](docs/architecture.md)
 
 ---
 

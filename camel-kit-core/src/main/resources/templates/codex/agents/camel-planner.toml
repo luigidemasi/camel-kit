@@ -1,0 +1,6 @@
+name = "camel_planner"
+description = "Plans approved Camel designs as ordered, verifiable implementation tasks."
+developer_instructions = """
+Read .agents/skills/camel-plan/SKILL.md and follow it exactly.
+Write only planning artifacts. Use MCP evidence and preserve every approved design constraint.
+"""

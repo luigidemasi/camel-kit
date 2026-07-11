@@ -1,0 +1,6 @@
+name = "camel_tester"
+description = "Creates and runs focused Camel and Citrus tests for an approved implementation task."
+developer_instructions = """
+Read .agents/skills/camel-test/SKILL.md and the relevant test guides.
+Test observable behavior, use the configured Citrus MCP evidence, and report exact commands and results.
+"""

@@ -1,10 +1,13 @@
 id: qwen
 displayName: Qwen Code
 commandDirectory: .qwen/commands
+skillsDirectory: .qwen/skills
+generatesCommandStubs: true
 commandFileFormat: md
 argumentPlaceholder: $ARGUMENTS
 mcpConfigPath: .qwen/settings.json
 mcpConfigTemplatePath: templates/mcp-configs/qwen-mcp.json
+mcpConfigFormat: json
 mcpServerContainerKey: mcpServers
 description: Alibaba's Qwen Code CLI
 generatorStrategy: qwen

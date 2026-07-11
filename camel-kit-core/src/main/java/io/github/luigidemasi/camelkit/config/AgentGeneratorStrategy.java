@@ -11,6 +11,7 @@ public enum AgentGeneratorStrategy {
     BOB("bob"),
     BOB2("bob2"),
     CLAUDE("claude"),
+    CODEX("codex"),
     COPILOT("copilot"),
     GEMINI("gemini"),
     OPENCODE("opencode"),

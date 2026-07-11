@@ -12,9 +12,12 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import io.github.luigidemasi.camelkit.config.AgentGeneratorStrategy;
 import io.github.luigidemasi.camelkit.util.AnsiColors;
+import io.github.luigidemasi.camelkit.workflow.WorkflowManifest;
 
 class SkillResourceInstaller {
 
@@ -38,7 +41,7 @@ class SkillResourceInstaller {
         this.versionPlaceholderResolver = versionPlaceholderResolver;
     }
 
-    void install(InitContext ctx) throws Exception {
+    void install(InitContext ctx, WorkflowManifest workflow) throws Exception {
         Files.createDirectories(ctx.skillsDir());
 
         var skillsResource = getClass().getClassLoader().getResource("skills");
@@ -60,7 +63,7 @@ class SkillResourceInstaller {
                 skillsSourceDir = Path.of(uri);
             }
 
-            int filesCopied = copySkills(ctx, skillsSourceDir);
+            int filesCopied = copySkills(ctx, skillsSourceDir, workflow);
             int skillCount;
             try (var stream = Files.list(ctx.skillsDir())) {
                 skillCount = (int) stream.filter(Files::isDirectory).count();
@@ -92,7 +95,7 @@ class SkillResourceInstaller {
         }
     }
 
-    private int copySkills(InitContext ctx, Path skillsSourceDir) throws Exception {
+    private int copySkills(InitContext ctx, Path skillsSourceDir, WorkflowManifest workflow) throws Exception {
         int filesCopied = 0;
         List<String> failures = new ArrayList<>();
         try (var stream = Files.walk(skillsSourceDir)) {
@@ -107,7 +110,7 @@ class SkillResourceInstaller {
                     if (Files.isDirectory(source)) {
                         Files.createDirectories(destination);
                     } else {
-                        copySkillFile(ctx, source, destination);
+                        copySkillFile(ctx, source, destination, workflow);
                         filesCopied++;
                     }
                 } catch (Exception e) {
@@ -121,7 +124,9 @@ class SkillResourceInstaller {
         return filesCopied;
     }
 
-    private void copySkillFile(InitContext ctx, Path source, Path destination) throws Exception {
+    private void copySkillFile(
+            InitContext ctx, Path source, Path destination, WorkflowManifest workflow)
+            throws Exception {
         Files.createDirectories(destination.getParent());
         try (InputStream in = Files.newInputStream(source)) {
             Files.copy(in, destination, StandardCopyOption.REPLACE_EXISTING);
@@ -140,6 +145,23 @@ class SkillResourceInstaller {
         }
         if (destination.getFileName().toString().endsWith(".md")) {
             versionPlaceholderResolver.substitute(destination, ctx.distribution());
+            if (AgentGeneratorStrategy.CODEX.descriptorValue().equals(ctx.agentName())) {
+                useCodexSkillInvocations(destination, workflow);
+            }
+        }
+    }
+
+    private void useCodexSkillInvocations(Path markdown, WorkflowManifest workflow) throws IOException {
+        String content = Files.readString(markdown);
+        String adapted = content;
+        for (WorkflowManifest.WorkflowSkill skill : workflow.skills()) {
+            Pattern invocation = Pattern.compile(
+                    "(?<![A-Za-z0-9._/-])/" + Pattern.quote(skill.name()) + "(?![A-Za-z0-9-])");
+            adapted = invocation.matcher(adapted)
+                    .replaceAll(Matcher.quoteReplacement("$" + skill.name()));
+        }
+        if (!adapted.equals(content)) {
+            Files.writeString(markdown, adapted);
         }
     }
 

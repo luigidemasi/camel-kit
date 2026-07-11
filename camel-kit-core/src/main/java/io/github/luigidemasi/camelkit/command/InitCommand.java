@@ -34,7 +34,7 @@ public class InitCommand extends CamelKitCommand {
 
     @Option(names = {"-a", "--ai"},
             description = "AI agent: bob2 (IBM Bob 2, default), bob (IBM Bob 1 legacy), "
-                          + "gemini, claude, copilot, pi, qwen, opencode",
+                          + "gemini, claude, codex, copilot, pi, qwen, opencode",
             defaultValue = "bob2")
     public String ai;
 
@@ -187,6 +187,13 @@ public class InitCommand extends CamelKitCommand {
         printer().println("  " + bold("Next steps"));
         printer().println(divider);
         printer().println("  1  Open " + cyan(projectName) + " in " + agentName);
+        if (AgentGeneratorStrategy.CODEX.descriptorValue().equalsIgnoreCase(agentId)) {
+            printer().println("  2  Start Codex from the project root and review the repository before trusting it");
+            printer().println("  3  Run " + cyan("/skills") + ", then invoke " + cyan("$camel-start"));
+            printer().println("     Use " + cyan("/mcp") + " to verify Camel Kit MCP servers");
+            printer().println();
+            return;
+        }
         if (AgentGeneratorStrategy.COPILOT.descriptorValue().equalsIgnoreCase(agentId)) {
             printer().println("  2  Ask Copilot: " + cyan("\"Use the /camel-start skill.\""));
             printer().println("     Run " + cyan("/skills list") + " to inspect available project skills");

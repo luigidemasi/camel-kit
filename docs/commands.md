@@ -1,6 +1,6 @@
 # Camel-Kit Command Reference
 
-This document is the reference for all Camel-Kit commands: the `camel-kit` CLI, slash commands used inside most AI coding assistants, and GitHub Copilot CLI project skills.
+This document is the reference for all Camel-Kit commands: the `camel-kit` CLI, slash commands used inside most AI coding assistants, and native project skills used by Codex CLI and GitHub Copilot CLI.
 
 ## Table of Contents
 
@@ -36,6 +36,8 @@ Initialize a new Camel-Kit project.
 ```bash
 camel-kit init <project-name> [options]
 camel-kit init --here [options]
+camel kit init <project-name> [options]
+camel kit init --here [options]
 ```
 
 **Arguments:**
@@ -48,7 +50,7 @@ camel-kit init --here [options]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--ai`, `-a` | `bob2` | AI coding assistant to configure (`bob2` for IBM Bob 2, `bob` for IBM Bob 1 legacy, `gemini`, `claude`, `copilot`, `pi`, `qwen`, `opencode`) |
+| `--ai`, `-a` | `bob2` | AI coding assistant to configure (`bob2` for IBM Bob 2, `bob` for IBM Bob 1 legacy, `gemini`, `claude`, `codex`, `copilot`, `pi`, `qwen`, `opencode`) |
 | `--citrus-version` | `5.0.0-M2` | Citrus Framework version for test schemas and generated test dependencies |
 | `--here` | `false` | Initialize in current directory |
 | `--no-fetch` | `false` | Skip external catalog fetching |
@@ -76,6 +78,10 @@ camel-kit init my-integration --ai gemini
 
 # Create new project for Claude Code
 camel-kit init my-integration --ai claude
+
+# Create new project for OpenAI Codex CLI
+camel-kit init my-integration --ai codex
+camel kit init my-integration --ai codex
 
 # Create new project for GitHub Copilot CLI
 camel-kit init my-integration --ai copilot
@@ -201,6 +207,10 @@ my-integration/
 ├── .mcp.json                    # Claude Code or Pi MCP configuration
 ├── .bob/mcp.json                # IBM Bob MCP configuration
 ├── .gemini/mcp.json             # Gemini CLI MCP configuration
+├── AGENTS.md                    # Codex CLI, Pi, or OpenCode project instructions
+├── .agents/skills/              # Codex CLI project skills
+├── .codex/config.toml           # Codex CLI project MCP configuration
+├── .codex/agents/               # Codex CLI custom agents
 ├── .github/mcp.json             # GitHub Copilot CLI MCP configuration
 ├── .github/copilot-instructions.md
 ├── .github/agents/              # GitHub Copilot CLI custom agents
@@ -212,6 +222,8 @@ my-integration/
 ```
 
 The MCP configuration file created depends on the `--ai` option chosen.
+
+For OpenAI Codex CLI, Camel-Kit generates `AGENTS.md`, native project skills under `.agents/skills/`, seven custom agents under `.codex/agents/`, and the `camel`, `camel-knowledge`, and `citrus` MCP servers in `.codex/config.toml`. It does not create `.codex/commands/`; after trusting the repository, start with `$camel-start`, use `/skills` to inspect skills, and use `/mcp` to inspect servers. Codex skips project config and any project hooks until the repository is trusted. The three generated MCP servers use exact tool allowlists and `default_tools_approval_mode = "prompt"`. Existing valid, unrelated project configuration is preserved; invalid TOML or conflicting managed server tables cause init to fail without changing the existing config file. Camel-Kit does not change global Codex configuration or authentication and does not install project hooks.
 
 For GitHub Copilot CLI, Camel-Kit also generates `.github/copilot-instructions.md`, project skills under `.github/skills/`, custom agents under `.github/agents/`, and a conservative `.github/hooks/camel-kit-safety.json` hook that denies destructive or secret-sensitive shell commands while leaving normal Copilot permission prompts intact. Copilot users should start by asking Copilot to "Use the `/camel-start` skill." Run `/skills list` to inspect available project skills.
 
@@ -254,7 +266,7 @@ camel kit doctor --json
 
 **Checks:**
 
-`doctor` validates `.camel-kit/config.properties`, selected agent command stubs, skill directories and `SKILL.md` files, user-invocable command exposure, agent MCP config, MCP tool allowlists, graph availability, command prefix configuration, Java/Maven/JBang prerequisites, and common stale references in active generated files. Internal skills such as `camel-verify` must exist as skills, but must not be exposed as user command stubs.
+`doctor` validates `.camel-kit/config.properties`, selected agent command stubs when that target uses them, skill directories and `SKILL.md` files, user-invocable command exposure, agent MCP config, MCP tool allowlists, graph availability, command prefix configuration, Java/Maven/JBang prerequisites, and common stale references in active generated files. For Codex, it parses `.codex/config.toml`, checks all three exact MCP allowlists and prompt approval modes, and verifies that every generated custom-agent TOML file declares `name`, `description`, and `developer_instructions`. Internal skills such as `camel-verify` must exist as skills, but must not be exposed as user command stubs.
 
 Findings are printed as `PASS`, `WARN`, or `FAIL`. Missing external prerequisites are warnings so automated checks do not depend on the local machine having every optional tool installed. Broken generated workspace artifacts are failures and produce a non-zero exit code.
 

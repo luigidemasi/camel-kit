@@ -23,7 +23,7 @@ class AgentRegistryTest {
 
     @Test
     void builtInAgentsAreLoadedFromResourceDescriptors() {
-        assertEquals(Set.of("bob", "bob2", "claude", "copilot", "gemini", "opencode", "pi", "qwen"),
+        assertEquals(Set.of("bob", "bob2", "claude", "codex", "copilot", "gemini", "opencode", "pi", "qwen"),
                 AgentRegistry.names());
 
         AgentConfig claude = AgentRegistry.get("claude");
@@ -46,6 +46,28 @@ class AgentRegistryTest {
         assertTrue(descriptor.supportsSubagents());
         assertTrue(descriptor.supportsTraits());
         assertTrue(descriptor.capabilities().contains("parallel-subagent-dispatch"));
+    }
+
+    @Test
+    void codexDescriptorUsesNativeProjectLocationsWithoutCommands() {
+        AgentConfig codex = AgentRegistry.get("codex");
+        assertNotNull(codex);
+        assertEquals("OpenAI Codex CLI", codex.name());
+        assertNull(codex.commandDirectory());
+        assertEquals(".agents/skills", codex.skillsDirectory());
+        assertFalse(codex.generatesCommandStubs());
+        assertEquals(".agents/skills", codex.folder());
+        assertEquals(".codex/config.toml", codex.mcpConfigPath());
+        assertEquals("toml", codex.mcpConfigFormat());
+        assertEquals("mcp_servers", codex.mcpServerContainerKey());
+
+        AgentDescriptor descriptor = AgentRegistry.descriptor("codex");
+        assertNotNull(descriptor);
+        assertEquals(AgentGeneratorStrategy.CODEX, descriptor.generatorStrategyType());
+        assertTrue(descriptor.supportsSubagents());
+        assertTrue(descriptor.capabilities().contains("project-skills"));
+        assertTrue(descriptor.capabilities().contains("custom-agents"));
+        assertTrue(descriptor.capabilities().contains("repository-trust"));
     }
 
     @Test
@@ -185,6 +207,35 @@ class AgentRegistryTest {
     }
 
     @Test
+    void legacyJsonDescriptorDefaultsNewPathAndFormatFields() throws IOException {
+        Files.writeString(tempDir.resolve("legacy.yaml"), """
+                id: legacy
+                displayName: Legacy Agent
+                commandDirectory: .legacy/commands
+                commandFileFormat: md
+                argumentPlaceholder: $ARGUMENTS
+                mcpConfigPath: .legacy/mcp.json
+                mcpConfigTemplatePath: templates/mcp-configs/legacy-mcp.json
+                mcpServerContainerKey: mcpServers
+                description: Legacy descriptor shape
+                generatorStrategy: default
+                dispatchTemplatePath: templates/dispatch/legacy.md
+                supportsSubagents: false
+                supportsTraits: false
+                """);
+
+        AgentDescriptor descriptor = AgentDescriptorLoader.load(tempDir).get("legacy");
+        AgentConfig config = descriptor.toAgentConfig();
+
+        assertTrue(descriptor.generatesCommandStubs());
+        assertEquals(".legacy/skills", descriptor.skillsDirectory());
+        assertEquals("json", descriptor.mcpConfigFormat());
+        assertTrue(config.generatesCommandStubs());
+        assertEquals(".legacy/skills", config.skillsDirectory());
+        assertEquals("json", config.mcpConfigFormat());
+    }
+
+    @Test
     void jarBackedRegistryLoadsDescriptors() throws Exception {
         Path jarFile = tempDir.resolve("agents.jar");
         try (JarOutputStream jar = new JarOutputStream(Files.newOutputStream(jarFile))) {
@@ -219,10 +270,13 @@ class AgentRegistryTest {
                 id: %1$s
                 displayName: Test Agent
                 commandDirectory: .%1$s/commands
+                skillsDirectory: .%1$s/skills
+                generatesCommandStubs: true
                 commandFileFormat: md
                 argumentPlaceholder: $ARGUMENTS
                 mcpConfigPath: .%1$s/mcp.json
                 mcpConfigTemplatePath: templates/mcp-configs/%1$s-mcp.json
+                mcpConfigFormat: json
                 mcpServerContainerKey: mcpServers
                 description: Test agent
                 generatorStrategy: default

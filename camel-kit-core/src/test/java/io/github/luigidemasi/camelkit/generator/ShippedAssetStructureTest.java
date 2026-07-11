@@ -29,6 +29,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.tomlj.Toml;
+import org.tomlj.TomlTable;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -212,8 +214,12 @@ class ShippedAssetStructureTest {
             InitContext ctx = createContext(agentName, tempDir.resolve(agentName));
             AgentGeneratorFactory.create(agentName).generate(ctx);
 
-            assertGeneratedCommandFiles(agentName, ctx, generatedCommands);
-            assertGeneratedSkillReferencesResolve(agentName, ctx, generatedCommands);
+            if (ctx.agent().generatesCommandStubs()) {
+                assertGeneratedCommandFiles(agentName, ctx, generatedCommands);
+                assertGeneratedSkillReferencesResolve(agentName, ctx, generatedCommands);
+            } else {
+                assertFalse(Files.exists(ctx.commandsDir()), agentName + " must not generate command scaffolding");
+            }
             assertGeneratedMcpConfigIsValid(agentName, ctx);
         }
     }
@@ -471,19 +477,34 @@ class ShippedAssetStructureTest {
         Path configPath = ctx.projectDir().resolve(ctx.agent().mcpConfigPath());
         assertTrue(Files.isRegularFile(configPath), agentName + " MCP config must be generated at " + configPath);
 
+        if ("toml".equals(ctx.agent().mcpConfigFormat())) {
+            var root = Toml.parse(configPath);
+            assertFalse(root.hasErrors(), root.errors().toString());
+            TomlTable servers = root.getTable(ctx.agent().mcpServerContainerKey());
+            assertNotNull(servers, agentName + " MCP config missing " + ctx.agent().mcpServerContainerKey());
+            assertInstanceOf(TomlTable.class, servers.get("camel"), agentName + " MCP config missing camel server");
+            assertInstanceOf(TomlTable.class, servers.get("camel-knowledge"),
+                    agentName + " MCP config missing camel-knowledge server");
+            assertInstanceOf(TomlTable.class, servers.get("citrus"),
+                    agentName + " MCP config missing citrus server");
+            return;
+        }
+
         JsonNode root = MAPPER.readTree(configPath.toFile());
         JsonNode servers = root.get(ctx.agent().mcpServerContainerKey());
         assertNotNull(servers, agentName + " MCP config missing " + ctx.agent().mcpServerContainerKey());
         assertTrue(servers.has("camel"), agentName + " MCP config missing camel server");
         assertTrue(servers.has("camel-knowledge"), agentName + " MCP config missing camel-knowledge server");
+        assertTrue(servers.has("citrus"), agentName + " MCP config missing citrus server");
     }
 
     private static InitContext createContext(String agentName, Path projectDir) {
         AgentConfig agent = AgentRegistry.get(agentName);
         assertNotNull(agent, "Unexpected agent: " + agentName);
-        String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf("/"));
-        Path commandsDir = projectDir.resolve(agent.folder());
-        Path skillsDir = projectDir.resolve(agentBaseFolder + "/skills");
+        Path commandsDir = agent.generatesCommandStubs()
+                ? projectDir.resolve(agent.commandDirectory())
+                : projectDir.resolve(".codex/commands");
+        Path skillsDir = projectDir.resolve(agent.skillsDirectory());
         return new InitContext(
                 agent, agentName, commandsDir, skillsDir, projectDir,
                 "camel-kit", Printer.noop());

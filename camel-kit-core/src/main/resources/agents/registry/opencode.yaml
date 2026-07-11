@@ -1,10 +1,13 @@
 id: opencode
 displayName: OpenCode
 commandDirectory: .opencode/commands
+skillsDirectory: .opencode/skills
+generatesCommandStubs: true
 commandFileFormat: md
 argumentPlaceholder: $ARGUMENTS
 mcpConfigPath: opencode.json
 mcpConfigTemplatePath: templates/mcp-configs/opencode-mcp.json
+mcpConfigFormat: json
 mcpServerContainerKey: mcp
 description: AI coding agent for the terminal
 generatorStrategy: opencode
