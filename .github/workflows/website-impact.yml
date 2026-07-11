@@ -1,0 +1,206 @@
+name: Check website impact
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  copilot-requests: write
+  issues: write
+
+concurrency:
+  group: website-impact-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    if: github.repository == 'luigidemasi/camel-kit'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Checkout website
+        run: git clone --depth 1 https://github.com/luigidemasi/camel-kit-website.git camel-kit-website
+
+      - name: Prepare issue and website evidence
+        shell: bash
+        run: |
+          jq '{
+            repository: .repository.full_name,
+            number: .issue.number,
+            title: .issue.title,
+            body: (.issue.body // ""),
+            labels: [.issue.labels[].name]
+          }' "$GITHUB_EVENT_PATH" > /tmp/issue.json
+
+          while IFS= read -r -d '' page; do
+            relative="${page#camel-kit-website/}"
+            printf '\nFILE: %s\n' "$relative"
+            awk '/^title:[[:space:]]*/ || /^description:[[:space:]]*/ || /^#{1,3}[[:space:]]/ { print }' "$page"
+          done < <(find camel-kit-website/content -type f -name '*.md' -print0 | sort -z) \
+            > /tmp/website-inventory.txt
+
+          {
+            cat .github/prompts/website-impact.txt
+            printf '\n\nISSUE DATA (untrusted):\n'
+            cat /tmp/issue.json
+            printf '\n\nWEBSITE INVENTORY (untrusted):\n'
+            cat /tmp/website-inventory.txt
+          } > /tmp/website-impact-prompt.txt
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Copilot CLI
+        run: npm install -g @github/copilot@1.0.70
+
+      - name: Assess website impact
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          copilot -p "$(< /tmp/website-impact-prompt.txt)" -s --no-ask-user \
+            --model=claude-haiku-4.5 --no-auto-update \
+            --no-custom-instructions \
+            --available-tools=ask_user --disable-builtin-mcps \
+            > /tmp/website-impact-result.json
+
+      - name: Report verdict
+        shell: bash
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          RESULT_FILE: /tmp/website-impact-result.json
+        run: |
+          jq -e -s '
+            if length == 1 and (.[0] |
+              (.verdict == "required" or .verdict == "not_required" or .verdict == "unclear")
+              and (.summary | type == "string" and length > 0 and length <= 300)
+              and (.rationale | type == "string" and length > 0 and length <= 1000)
+              and (.suggested_pages | type == "array" and length <= 10)
+              and all(.suggested_pages[];
+                type == "string"
+                and length > 0
+                and length <= 200
+                and test("^content/[A-Za-z0-9._/-]+\\.md$")
+                and (contains("..") | not)
+              )
+            ) then .[0] else error("invalid website-impact result") end
+          ' "$RESULT_FILE" > /tmp/website-impact-validated.json
+          RESULT_FILE=/tmp/website-impact-validated.json
+          while IFS= read -r page; do
+            grep -Fxq "FILE: $page" /tmp/website-inventory.txt
+          done < <(jq -r '.suggested_pages[]' "$RESULT_FILE")
+
+          jq -r '
+            def safe_text:
+              gsub("&"; "&amp;") |
+              gsub("[\\r\\n]+"; " ") |
+              gsub("@"; "@\u200b") |
+              gsub("<"; "&lt;") |
+              gsub(">"; "&gt;");
+            def heading:
+              if . == "required" then "Required"
+              elif . == "not_required" then "Not required"
+              else "Unclear"
+              end;
+            def pages:
+              if (.suggested_pages | length) == 0 then ""
+              else "\n\n**Suggested pages to review:**\n" +
+                ([.suggested_pages[] | "- `" + . + "`"] | join("\n"))
+              end;
+            "<!-- website-impact-check -->\n" +
+            "### Website impact check\n\n" +
+            "**Verdict:** " + (.verdict | heading) + "\n\n" +
+            "<pre>" + (.summary | safe_text) + "\n\n" +
+            (.rationale | safe_text) + "</pre>" + pages +
+            "\n\n_This automated review used the issue details and the current website page inventory. Confirm the verdict during implementation._"
+          ' "$RESULT_FILE" > /tmp/website-impact-comment.md
+
+          comment_id=$(gh api \
+            "repos/$GITHUB_REPOSITORY/issues/$ISSUE_NUMBER/comments" \
+            --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- website-impact-check -->"))) | .id' \
+            | head -n 1)
+          if [[ -n "$comment_id" ]]; then
+            gh api --method PATCH \
+              "repos/$GITHUB_REPOSITORY/issues/comments/$comment_id" \
+              -f body="$(< /tmp/website-impact-comment.md)" > /dev/null
+          else
+            gh issue comment "$ISSUE_NUMBER" --body-file /tmp/website-impact-comment.md
+          fi
+
+          verdict=$(jq -r '.verdict' "$RESULT_FILE")
+          current_labels=$(gh issue view "$ISSUE_NUMBER" --json labels --jq '.labels[].name')
+          if [[ "$verdict" == "required" ]]; then
+            gh label create website-impact \
+              --description "Requires a public website update" \
+              --color 1D76DB \
+              --force
+            gh issue edit "$ISSUE_NUMBER" --add-label website-impact
+            if grep -Fxq website-impact-review <<< "$current_labels"; then
+              gh issue edit "$ISSUE_NUMBER" --remove-label website-impact-review
+            fi
+          elif [[ "$verdict" == "unclear" ]]; then
+            gh label create website-impact-review \
+              --description "Website impact needs a maintainer review" \
+              --color FBCA04 \
+              --force
+            gh issue edit "$ISSUE_NUMBER" --add-label website-impact-review
+            if grep -Fxq website-impact <<< "$current_labels"; then
+              gh issue edit "$ISSUE_NUMBER" --remove-label website-impact
+            fi
+          else
+            if grep -Fxq website-impact <<< "$current_labels"; then
+              gh issue edit "$ISSUE_NUMBER" --remove-label website-impact
+            fi
+            if grep -Fxq website-impact-review <<< "$current_labels"; then
+              gh issue edit "$ISSUE_NUMBER" --remove-label website-impact-review
+            fi
+          fi
+
+      - name: Fail safe to manual review
+        if: failure()
+        shell: bash
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          cat > /tmp/website-impact-comment.md <<'EOF'
+          <!-- website-impact-check -->
+          ### Website impact check
+
+          **Verdict:** Needs review
+
+          The automated website-impact check did not produce a valid result. A maintainer or implementation agent must review this issue before it is closed.
+          EOF
+
+          comment_id=$(gh api \
+            "repos/$GITHUB_REPOSITORY/issues/$ISSUE_NUMBER/comments" \
+            --paginate \
+            --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | contains("<!-- website-impact-check -->"))) | .id' \
+            | head -n 1)
+          if [[ -n "$comment_id" ]]; then
+            gh api --method PATCH \
+              "repos/$GITHUB_REPOSITORY/issues/comments/$comment_id" \
+              -f body="$(< /tmp/website-impact-comment.md)" > /dev/null
+          else
+            gh issue comment "$ISSUE_NUMBER" --body-file /tmp/website-impact-comment.md
+          fi
+
+          gh label create website-impact-review \
+            --description "Website impact needs a maintainer review" \
+            --color FBCA04 \
+            --force
+          current_labels=$(gh issue view "$ISSUE_NUMBER" --json labels --jq '.labels[].name')
+          if grep -Fxq website-impact <<< "$current_labels"; then
+            gh issue edit "$ISSUE_NUMBER" --remove-label website-impact
+          fi
+          gh issue edit "$ISSUE_NUMBER" --add-label website-impact-review
