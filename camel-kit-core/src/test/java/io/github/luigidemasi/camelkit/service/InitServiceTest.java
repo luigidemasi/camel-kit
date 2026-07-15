@@ -17,6 +17,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class InitServiceTest {
 
+    private static final String EXPECTED_CITRUS_MCP_VERSION = "5.0.0-M1";
+
     @TempDir
     Path tempDir;
 
@@ -46,7 +48,7 @@ class InitServiceTest {
         assertTrue(config.contains("agent.name=bob"));
         assertTrue(config.contains("project.sourcePlatform=mulesoft"));
         assertTrue(config.contains("citrus.version=5.0.0-M2"));
-        assertTrue(config.contains("citrus.mcp.version=5.0.0-M1"));
+        assertTrue(config.contains("citrus.mcp.version=" + EXPECTED_CITRUS_MCP_VERSION));
 
         assertTrue(progress.events().contains("start:Creating project structure"));
         assertTrue(progress.events().contains("start:Generating IBM Project Bob workspace"));
@@ -177,9 +179,10 @@ class InitServiceTest {
         assertEquals("4.9.2", result.citrusVersion());
         String config = Files.readString(targetDir.resolve(".camel-kit/config.properties"));
         assertTrue(config.contains("citrus.version=4.9.2"));
-        assertTrue(config.contains("citrus.mcp.version=5.0.0-M1"));
+        assertTrue(config.contains("citrus.mcp.version=" + EXPECTED_CITRUS_MCP_VERSION));
         String mcp = Files.readString(targetDir.resolve(".bob/mcp.json"));
-        assertTrue(mcp.contains("org.citrusframework:citrus-mcp-server:5.0.0-M1:runner"));
+        assertTrue(mcp.contains(
+                "org.citrusframework:citrus-mcp-server:" + EXPECTED_CITRUS_MCP_VERSION + ":runner"));
         assertFalse(mcp.contains("org.citrusframework:citrus-mcp-server:4.9.2:runner"));
     }
 
