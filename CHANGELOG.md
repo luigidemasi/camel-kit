@@ -59,6 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Citrus MCP startup (#147)** — downgraded the generated MCP runner from `5.0.0-M2`, which fails during Quarkus startup with an incompatible JSON Schema Generator dependency, to the verified working `5.0.0-M1` release. Citrus test schemas and dependencies remain on `5.0.0-M2`.
+
 - **Adversarial review findings (#126)** — hardened graph building, init/doctor contracts, generator failure handling, distribution assets, and shipped skill content:
   - Secure XML parsing (XXE/DTD disabled) in `XmlRouteParser` and `MuleXmlFlowParser`; parser failures and warnings now surface through `graph generate`, `doctor`, and `init` instead of producing silently empty graphs
   - `GraphSerializer.read` validates format version and required fields; graph visualizer escapes embedded JSON against `</script>` injection
@@ -77,7 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Citrus MCP integration for test generation** — generated agent MCP configs now include the published Citrus MCP server (`org.citrusframework:citrus-mcp-server:5.0.0-M2`) so `camel-test` can verify Citrus YAML actions, endpoints, and schemas during test generation.
+- **Citrus MCP integration for test generation** — generated agent MCP configs now include the published Citrus MCP server (`org.citrusframework:citrus-mcp-server:5.0.0-M1`) so `camel-test` can verify Citrus YAML actions, endpoints, and schemas during test generation.
   - Added Citrus distribution properties (`citrus.version`, `citrus.mcp.version`, `citrus.mcp.repos`)
   - `--citrus-version default` now resolves to `5.0.0-M2`
   - Generated project config records `citrus.version`
