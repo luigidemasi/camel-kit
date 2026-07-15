@@ -179,7 +179,7 @@ Any property from `distribution.properties` can be overridden at layers 2 or 3. 
 | `camel.mcp.version` | See `distribution.properties` | Camel MCP server version |
 | `knowledge.mcp.version` | `0.0.1-SNAPSHOT` | Knowledge MCP server version |
 | `citrus.version` | `5.0.0-M2` | Citrus test schema and dependency version |
-| `citrus.mcp.version` | `5.0.0-M2` | Citrus MCP server artifact version |
+| `citrus.mcp.version` | `5.0.0-M1` | Citrus MCP server artifact version |
 
 **Output:**
 

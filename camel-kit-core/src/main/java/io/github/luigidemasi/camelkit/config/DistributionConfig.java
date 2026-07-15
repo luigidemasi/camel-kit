@@ -24,7 +24,7 @@ import java.util.Properties;
 public class DistributionConfig {
 
     private static final String DEFAULT_CITRUS_VERSION = "5.0.0-M2";
-    private static final String DEFAULT_CITRUS_MCP_VERSION = "5.0.0-M2";
+    private static final String DEFAULT_CITRUS_MCP_VERSION = "5.0.0-M1";
     private static final String DEFAULT_PI_VERSION = "0.80.3";
     private static final String DEFAULT_PI_MCP_ADAPTER_VERSION = "2.11.0";
 

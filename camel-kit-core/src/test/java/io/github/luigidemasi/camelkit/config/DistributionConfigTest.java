@@ -83,7 +83,7 @@ class DistributionConfigTest {
         assertEquals("4.21.0", config.camelMcpVersion());
         assertEquals("0.0.1-SNAPSHOT", config.knowledgeMcpVersion());
         assertEquals("5.0.0-M2", config.citrusVersion());
-        assertEquals("5.0.0-M2", config.citrusMcpVersion());
+        assertEquals("5.0.0-M1", config.citrusMcpVersion());
         assertEquals("central=https://repo1.maven.org/maven2/,apache_snap=https://repository.apache.org/snapshots",
                 config.camelMcpRepos());
         assertEquals("central=https://repo1.maven.org/maven2/", config.knowledgeMcpRepos());
@@ -139,7 +139,7 @@ class DistributionConfigTest {
         DistributionConfig config = DistributionConfig.load(properties);
 
         assertEquals("4.9.2", config.citrusVersion());
-        assertEquals("5.0.0-M2", config.citrusMcpVersion());
+        assertEquals("5.0.0-M1", config.citrusMcpVersion());
     }
 
     @Test

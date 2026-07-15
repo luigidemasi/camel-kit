@@ -51,7 +51,8 @@ class CodexCliSmokeTest {
         generateWorkspace(workspace, environment);
 
         CommandResult prompt = runCodex(
-                List.of("codex", "-C", workspace.toString(), "debug", "prompt-input", "smoke"),
+                List.of("codex", "-C", workspace.toString(), "debug", "prompt-input",
+                        "-c", "mcp_servers.citrus.enabled=false", "smoke"),
                 workspace,
                 environment);
         assertEquals(0, prompt.exitCode(), "Codex did not render the isolated prompt input");
