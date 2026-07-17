@@ -31,12 +31,20 @@ import org.eclipse.aether.util.repository.SimpleArtifactDescriptorPolicy;
 public final class ShipMavenResolver {
 
     private static final String CENTRAL = "https://repo.maven.apache.org/maven2/";
-    private static final int MAX_ROOTS = 64;
-    private static final int MAX_ARTIFACTS = 512;
+
+    /** Fixed fail-closed ceiling for unique direct roots in one resolution request. */
+    public static final int MAX_ROOTS = 64;
+
+    /** Fixed fail-closed ceiling for artifacts returned by one resolution request. */
+    public static final int MAX_ARTIFACTS = 512;
 
     private ShipMavenResolver() {
     }
 
+    /**
+     * Resolves between one and {@value #MAX_ROOTS} unique roots and returns no more than {@value #MAX_ARTIFACTS}
+     * artifacts. The bounds are part of the resolver contract and are not runtime configurable.
+     */
     public static List<ResolvedMavenArtifact> resolve(
             Path repository, List<MavenDependencyRoot> roots)
             throws IOException {
@@ -80,7 +88,7 @@ public final class ShipMavenResolver {
                                 artifact.getVersion()),
                         artifact.getFile().toPath()));
                 if (result.size() > MAX_ARTIFACTS) {
-                    throw new IOException("Ship resolver returned too many artifacts");
+                    throw new IOException("Ship resolver returned more than " + MAX_ARTIFACTS + " artifacts");
                 }
             }
             return List.copyOf(result);

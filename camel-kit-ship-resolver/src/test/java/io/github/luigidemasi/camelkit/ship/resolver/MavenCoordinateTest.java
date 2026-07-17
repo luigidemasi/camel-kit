@@ -1,6 +1,12 @@
 package io.github.luigidemasi.camelkit.ship.resolver;
 
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.stream.IntStream;
+
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -30,7 +36,39 @@ class MavenCoordinateTest {
                 () -> assertThrows(IllegalArgumentException.class,
                         () -> MavenCoordinate.jar("org.apache.camel", "camel-main", "4.18.3-SNAPSHOT")),
                 () -> assertThrows(IllegalArgumentException.class,
-                        () -> MavenCoordinate.jar("org.apache.camel", "camel-main", "4.18.3-20260101.010101-1")));
+                        () -> MavenCoordinate.jar("org.apache.camel", "camel-main", "4.18.3-20260101.010101-1")),
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> MavenCoordinate.jar("org.apache.camel", "camel-main", "LATEST")),
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> MavenCoordinate.jar("org.apache.camel", "camel-main", "RELEASE")),
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> MavenCoordinate.jar("org.apache.camel", "camel..main", "4.18.3")),
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> MavenCoordinate.of("org.apache.camel", "camel-main", "4.18.3", ".jar")),
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> new MavenCoordinate("org.apache.camel", "camel-main", "jar", "tests.", "4.18.3")),
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> new MavenCoordinate("org.apache.camel", "camel-main", "jar", "tests/evil", "4.18.3")),
+                () -> assertThrows(IllegalArgumentException.class,
+                        () -> MavenCoordinate.jar("org.apache.camel", "camel-main", "4..18.3")));
+    }
+
+    @Test
+    void rejectsNullRequiredPartsAndNormalizesNullClassifier() {
+        assertAll(
+                () -> assertThrows(NullPointerException.class,
+                        () -> new MavenCoordinate(null, "camel-main", "jar", "", "4.18.3")),
+                () -> assertThrows(NullPointerException.class,
+                        () -> new MavenCoordinate("org.apache.camel", null, "jar", "", "4.18.3")),
+                () -> assertThrows(NullPointerException.class,
+                        () -> new MavenCoordinate("org.apache.camel", "camel-main", null, "", "4.18.3")),
+                () -> assertThrows(NullPointerException.class,
+                        () -> new MavenCoordinate("org.apache.camel", "camel-main", "jar", "", null)),
+                () -> assertThrows(IllegalArgumentException.class, () -> MavenCoordinate.parseGav(null)),
+                () -> assertEquals(
+                        "",
+                        new MavenCoordinate("org.apache.camel", "camel-main", "jar", null, "4.18.3")
+                                .classifier()));
     }
 
     @Test
@@ -48,5 +86,26 @@ class MavenCoordinateTest {
                 java.util.List.of(
                         new MavenDependencyExclusion("org.slf4j", "*"),
                         new MavenDependencyExclusion("org.slf4j", "*"))));
+
+        List<MavenDependencyExclusion> tooMany = IntStream.rangeClosed(0, MavenDependencyRoot.MAX_EXCLUSIONS)
+                .mapToObj(index -> new MavenDependencyExclusion("org.example", "artifact-" + index))
+                .toList();
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, () -> new MavenDependencyRoot(
+                MavenCoordinate.jar("org.apache.camel", "camel-main", "4.18.3"), tooMany));
+        assertEquals(
+                "A dependency root may contain at most " + MavenDependencyRoot.MAX_EXCLUSIONS + " unique exclusions",
+                failure.getMessage());
+    }
+
+    @Test
+    void resolverRejectsRootCountAboveDocumentedLimit(@TempDir Path repository) {
+        List<MavenDependencyRoot> roots = IntStream.rangeClosed(0, ShipMavenResolver.MAX_ROOTS)
+                .mapToObj(index -> MavenDependencyRoot.jar("org.example", "artifact-" + index, "1.0.0"))
+                .toList();
+
+        IOException failure = assertThrows(IOException.class, () -> ShipMavenResolver.resolve(repository, roots));
+        assertEquals(
+                "Ship resolver requires between 1 and " + ShipMavenResolver.MAX_ROOTS + " unique roots",
+                failure.getMessage());
     }
 }

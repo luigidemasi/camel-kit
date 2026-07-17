@@ -4,12 +4,18 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
-/** One direct Maven dependency and its transitive exclusions. */
+/**
+ * One direct Maven dependency and its transitive exclusions.
+ *
+ * <p>
+ * Each root accepts at most {@value #MAX_EXCLUSIONS} unique exclusions.
+ */
 public record MavenDependencyRoot(
         MavenCoordinate coordinate,
         List<MavenDependencyExclusion> exclusions) {
 
-    private static final int MAX_EXCLUSIONS = 16;
+    /** Fixed fail-closed ceiling for unique exclusions on one dependency root. */
+    public static final int MAX_EXCLUSIONS = 16;
 
     public MavenDependencyRoot {
         Objects.requireNonNull(coordinate, "coordinate must not be null");
