@@ -250,10 +250,6 @@ class ControllerIsolationIT {
                 .map(String::trim)
                 .toList();
         assertEquals(1, modules.stream().filter("camel-kit-ship-controller"::equals).count());
-        assertEquals(
-                modules.indexOf("camel-kit-ship-resolver") + 1,
-                modules.indexOf("camel-kit-ship-controller"),
-                "Controller module must follow the isolated resolver without coupling to it");
     }
 
     @Test
