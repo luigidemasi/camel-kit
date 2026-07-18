@@ -23,10 +23,13 @@ import io.github.luigidemasi.camelkit.ship.security.ShipFilesystemTestFixtures;
 import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@EnabledOnOs(OS.LINUX)
 class InitialContextResolverTest {
 
     @TempDir
@@ -220,6 +223,7 @@ class InitialContextResolverTest {
         InitialContextResolver resolver = resolver(opener, 128, 256);
         String oversizedSecret = "secret-" + "x".repeat(ShipTreePolicy.MAX_PATH_CHARACTERS);
         String unsafeSecret = "secret\nforged-log-entry.md";
+        String uriSecret = "https://user:sentinel-password@example.test/context.md";
 
         InitialContextException oversized = assertThrows(
                 InitialContextException.class,
@@ -229,6 +233,15 @@ class InitialContextResolverTest {
                 InitialContextException.class,
                 () -> resolver.resolve(
                         project, new InitialContextRequest.Documents(unsafeSecret)));
+        InitialContextException uri = assertThrows(
+                InitialContextException.class,
+                () -> resolver.resolve(
+                        project, new InitialContextRequest.Documents(uriSecret)));
+        Path unsafeProjectRoot = Files.createDirectory(
+                temporaryDirectory.resolve("unsafe\nproject-root")).toAbsolutePath().normalize();
+        InitialContextException unsafeRoot = assertThrows(
+                InitialContextException.class,
+                () -> resolver.resolve(unsafeProjectRoot, new InitialContextRequest.None()));
 
         assertEquals(InitialContextException.Reason.MALFORMED_DOCUMENT_REFERENCE, oversized.reason());
         assertEquals("<oversized>", oversized.input());
@@ -238,6 +251,14 @@ class InitialContextResolverTest {
         assertEquals("<invalid-document-reference>", unsafe.input());
         assertNull(unsafe.getCause());
         assertFalse(unsafe.getMessage().contains("secret"));
+        assertEquals(InitialContextException.Reason.MALFORMED_DOCUMENT_REFERENCE, uri.reason());
+        assertEquals("<invalid-document-reference>", uri.input());
+        assertNull(uri.getCause());
+        assertFalse(uri.getMessage().contains("sentinel-password"));
+        assertFalse(uri.toString().contains("sentinel-password"));
+        assertEquals(InitialContextException.Reason.INVALID_PROJECT_ROOT, unsafeRoot.reason());
+        assertEquals("<invalid-project-root>", unsafeRoot.input());
+        assertFalse(unsafeRoot.toString().contains("unsafe\nproject-root"));
         assertEquals(0, opener.openCount);
         assertEquals(0, opener.readCount);
     }
@@ -307,6 +328,22 @@ class InitialContextResolverTest {
 
         assertEquals(1, readsAfterProjectAggregate);
         assertEquals(readsAfterProjectAggregate, opener.readCount);
+    }
+
+    @Test
+    void acceptsDocumentAndAggregateLimitsExactly() throws Exception {
+        Path project = project("exact-limits");
+        RecordingOpener opener = new RecordingOpener(Map.of("project.md", bytes("5678")));
+        InitialContextResolver resolver = resolver(opener, 4, 8);
+
+        InitialContext context = resolved(resolver.resolve(
+                project,
+                new InitialContextRequest.Composite(
+                        List.of(new UserText("1234"), new DocumentReference("project.md")))));
+
+        assertEquals(2, context.sources().size());
+        assertEquals(8, context.sources().stream().mapToLong(InitialContext.Source::byteSize).sum());
+        assertEquals(1, opener.readCount);
     }
 
     @Test

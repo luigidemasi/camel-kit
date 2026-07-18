@@ -2,7 +2,11 @@ package io.github.luigidemasi.camelkit.ship.context;
 
 import java.util.Objects;
 
-/** A deterministic failure while classifying or resolving initial Ship context. */
+/**
+ * A deterministic failure while classifying or resolving initial Ship context. The reason, input, and top-level message
+ * are safe controller projections. Causes and suppressed failures are controller-local diagnostics and must not be
+ * exposed to workers or remote clients.
+ */
 public final class InitialContextException extends Exception {
 
     private final Reason reason;

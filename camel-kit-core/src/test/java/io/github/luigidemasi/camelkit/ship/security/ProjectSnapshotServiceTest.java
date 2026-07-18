@@ -28,6 +28,8 @@ import io.github.luigidemasi.camelkit.ship.security.ProjectContextFiles.HeldRoot
 import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy.Classification;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -37,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@EnabledOnOs(OS.LINUX)
 class ProjectSnapshotServiceTest {
 
     @TempDir
@@ -76,6 +79,7 @@ class ProjectSnapshotServiceTest {
         assertFalse(snapshot.files().containsKey(".camel-kit/.cache/generated.json"));
         assertTrue(snapshot.digest().matches("sha256:[0-9a-f]{64}"));
         assertTrue(snapshot.rootIdentity().matches("sha256:[0-9a-f]{64}"));
+        assertEquals("ProjectSnapshot[redacted]", snapshot.toString());
     }
 
     @Test
@@ -148,12 +152,8 @@ class ProjectSnapshotServiceTest {
 
         ProjectSnapshot.Comparison material = service.compareContents(
                 service.capture(source), service.capture(copy));
-        ProjectSnapshot.Comparison exact = service.compareExactContents(
-                service.capture(source), service.capture(copy));
-
         assertTrue(has(material, "README.md", ProjectSnapshot.Change.MODIFIED));
         assertFalse(material.differences().stream().anyMatch(change -> change.path().startsWith(".idea/")));
-        assertTrue(has(exact, ".idea/workspace.xml", ProjectSnapshot.Change.MODIFIED));
     }
 
     @Test
@@ -255,6 +255,9 @@ class ProjectSnapshotServiceTest {
         write(project, "one.txt", "1234");
         write(project, "two.txt", "5678");
 
+        assertScanReachesSnapshotPolicyAdmissionAtLimits(
+                () -> new ProjectSnapshotService(ShipTreePolicy.testing(2, 4, 8)).capture(project));
+
         assertCode(ShipFilesystemException.TREE_QUOTA_EXCEEDED,
                 () -> new ProjectSnapshotService(ShipTreePolicy.testing(1, 8, 8)).capture(project));
         assertCode(ShipFilesystemException.TREE_QUOTA_EXCEEDED,
@@ -304,6 +307,24 @@ class ProjectSnapshotServiceTest {
                 () -> ShipTreePolicy.requireCanonicalRelativePath("unpaired-low-\udc00"));
         assertEquals("supplementary-\ud83d\ude80",
                 ShipTreePolicy.requireCanonicalRelativePath("supplementary-\ud83d\ude80"));
+    }
+
+    @Test
+    void rejectsHostileOnDiskNamesWithTypedDisplaySafeDiagnostics() throws Exception {
+        for (String hostile : List.of("line\nbreak", "back\\slash")) {
+            Path project = project();
+            Files.writeString(project.resolve(hostile), "content");
+
+            ShipFilesystemException failure = assertThrows(
+                    ShipFilesystemException.class,
+                    () -> new ProjectSnapshotService().capture(project));
+
+            assertEquals(ShipFilesystemException.UNSAFE_ENTRY, failure.code());
+            assertFalse(failure.getMessage().contains(hostile));
+            assertFalse(failure.toString().contains(hostile));
+            assertFalse(String.valueOf(failure.getCause()).contains(hostile));
+            assertFalse(failure.getMessage().contains("\n"));
+        }
     }
 
     @Test
@@ -581,6 +602,11 @@ class ProjectSnapshotServiceTest {
         Path project = project();
         write(project, "one/two/three/requirements.md", "requirements");
 
+        assertScanReachesSnapshotPolicyAdmissionAtLimits(
+                () -> new ProjectSnapshotService(
+                        ShipTreePolicy.testing(20, 1024, 4096, 3))
+                        .capture(project));
+
         assertCode(ShipFilesystemException.TREE_QUOTA_EXCEEDED,
                 () -> new ProjectSnapshotService(
                         ShipTreePolicy.testing(20, 1024, 4096, 2))
@@ -712,6 +738,12 @@ class ProjectSnapshotServiceTest {
     private static void assertCode(String expected, ThrowingOperation operation) {
         ShipFilesystemException error = assertThrows(ShipFilesystemException.class, operation::run);
         assertEquals(expected, error.code());
+    }
+
+    private static void assertScanReachesSnapshotPolicyAdmissionAtLimits(ThrowingOperation operation) {
+        IllegalArgumentException admission = assertThrows(
+                IllegalArgumentException.class, operation::run);
+        assertEquals("Project snapshot uses an unknown Ship tree policy", admission.getMessage());
     }
 
     @FunctionalInterface

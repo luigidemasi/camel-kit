@@ -1,10 +1,12 @@
 package io.github.luigidemasi.camelkit.ship.context;
 
+import java.lang.reflect.Modifier;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.AbstractList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -133,6 +135,17 @@ class InitialContextModelTest {
         assertEquals(List.of(new UserText("qualification")), request.sources());
         assertEquals(List.of(source), context.sources());
         assertEquals(List.of(consent), pending.consents());
+
+        List<UserText> exactRequestLimit = Collections.nCopies(
+                InitialContext.MAX_SOURCES, new UserText(""));
+        List<InitialContext.Source> exactContextLimit = Collections.nCopies(
+                InitialContext.MAX_SOURCES, InitialContext.userText(""));
+        assertEquals(
+                InitialContext.MAX_SOURCES,
+                new InitialContextRequest.Text(exactRequestLimit).sources().size());
+        assertEquals(
+                InitialContext.MAX_SOURCES,
+                InitialContext.fromSources(exactContextLimit).sources().size());
 
         List<String> tooManyTokens = overLimitWithoutExtraRead("qualification");
         InitialContextException tokenFailure = assertThrows(
@@ -264,8 +277,25 @@ class InitialContextModelTest {
 
     @Test
     void doesNotExposeAnExternalSourceFactoryBeforeTheConsentConsumptionSlice() {
-        assertFalse(Arrays.stream(InitialContext.Source.class.getDeclaredMethods())
-                .anyMatch(method -> method.getName().equals("externalDocument")));
+        List<String> publicFactories = Arrays.stream(InitialContext.class.getDeclaredMethods())
+                .filter(method -> Modifier.isPublic(method.getModifiers()))
+                .filter(method -> method.getReturnType() == InitialContext.Source.class)
+                .map(method -> method.getName())
+                .sorted()
+                .toList();
+        InitialContext.Source project = InitialContext.projectDocument("requirements.md", "requirements");
+        IllegalArgumentException external = assertThrows(
+                IllegalArgumentException.class,
+                () -> new InitialContext.Source(
+                        project.id(),
+                        project.kind(),
+                        "external:consent-bound-document",
+                        project.content(),
+                        project.byteSize(),
+                        project.digest()));
+
+        assertEquals(List.of("projectDocument", "userText"), publicFactories);
+        assertEquals("Resolved document provenance must be project-relative", external.getMessage());
     }
 
     @Test

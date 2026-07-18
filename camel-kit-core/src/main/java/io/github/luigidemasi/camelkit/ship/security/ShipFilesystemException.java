@@ -2,7 +2,12 @@ package io.github.luigidemasi.camelkit.ship.security;
 
 import java.io.IOException;
 
-/** Stable fail-closed errors raised at the Ship filesystem trust boundary. */
+/**
+ * Stable fail-closed errors raised at the Ship filesystem trust boundary. Only {@link #code()} is a projectable
+ * protocol surface. Messages, causes, and suppressed failures are controller-local diagnostics, may identify paths
+ * inside the caller-owned project, and must not be displayed to workers or remote clients. Controller-protected paths
+ * remain redacted even from those diagnostics.
+ */
 public final class ShipFilesystemException extends IOException {
 
     public static final String SECURE_FILESYSTEM_UNSUPPORTED = "secure-filesystem-unsupported";

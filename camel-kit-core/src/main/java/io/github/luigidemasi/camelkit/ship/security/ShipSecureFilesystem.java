@@ -28,7 +28,12 @@ import io.github.luigidemasi.camelkit.ship.security.ProjectSnapshot.DirectoryEnt
 import io.github.luigidemasi.camelkit.ship.security.ProjectSnapshot.FileEntry;
 import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy.Classification;
 
-/** Internal read-only, descriptor-relative filesystem policy boundary for Ship trees. */
+/**
+ * Internal read-only, descriptor-relative filesystem policy boundary for Ship trees. This Java 17 implementation is a
+ * phase-one, non-certifying boundary: metadata samples cannot exclude same-device bind mounts, inode or file-key reuse
+ * between samples, or replacement of the final entry while a read channel is open. Public execution remains gated on
+ * the later OS helper that binds mount policy and identity checks to the exact opened descriptor.
+ */
 final class ShipSecureFilesystem {
 
     private static final String UNIX_ATTRIBUTES = "unix:dev,ino,nlink,size,lastModifiedTime,ctime,mode,uid,gid";
@@ -58,7 +63,7 @@ final class ShipSecureFilesystem {
         }
         Path absolute = requestedRoot.toAbsolutePath().normalize();
         if (!policy.isAllowedAbsolutePath(absolute)) {
-            throw unsafe(label + " is outside the allowed project-root lineage: " + absolute);
+            throw unsafe(label + " is outside the allowed project-root lineage");
         }
         rejectSymbolicComponents(absolute, label);
         Path root = absolute.toRealPath();
@@ -291,6 +296,10 @@ final class ShipSecureFilesystem {
         return new ShipFilesystemException(ShipFilesystemException.UNSAFE_ENTRY, message);
     }
 
+    private static ShipFilesystemException unsafe(String message, Throwable cause) {
+        return new ShipFilesystemException(ShipFilesystemException.UNSAFE_ENTRY, message, cause);
+    }
+
     private static ShipFilesystemException concurrentMutation(String message) {
         return new ShipFilesystemException(ShipFilesystemException.CONCURRENT_MUTATION, message);
     }
@@ -367,8 +376,8 @@ final class ShipSecureFilesystem {
             if (maximumBytes < 1) {
                 throw new IllegalArgumentException("Maximum Ship read size must be positive");
             }
-            String relative = ShipTreePolicy.requireCanonicalRelativePath(relativePath);
-            if (policy.classify(relative) != Classification.MATERIAL) {
+            String relative = canonicalPath(relativePath);
+            if (classify(relative) != Classification.MATERIAL) {
                 throw unsafe("Only material project files may be read as Ship context: " + relative);
             }
             assertRootBinding();
@@ -434,7 +443,7 @@ final class ShipSecureFilesystem {
                 Path name = Path.of(singleName(entry.getFileName().toString()));
                 String relative = prefix.isEmpty() ? name.toString() : prefix + "/" + name;
                 relative = relative.replace('\\', '/');
-                Classification classification = policy.classify(relative);
+                Classification classification = classify(relative);
                 BasicFileAttributes basic = attributes(directory, name);
                 if (basic.isSymbolicLink()) {
                     throw unsafe("Ship tree contains a symbolic link: " + relative);
@@ -581,7 +590,7 @@ final class ShipSecureFilesystem {
             if (relative == null || relative.isBlank()) {
                 return operation.apply(root);
             }
-            String canonical = ShipTreePolicy.requireCanonicalRelativePath(relative);
+            String canonical = canonicalPath(relative);
             String[] components = canonical.split("/");
             if (components.length > policy.maxDepth()) {
                 throw quota("Ship path exceeds the depth quota: " + canonical);
@@ -669,12 +678,31 @@ final class ShipSecureFilesystem {
             root.close();
         }
 
-        private static String singleName(String value) {
-            if (value == null || value.isBlank() || value.indexOf('/') >= 0
-                    || value.indexOf('\\') >= 0 || ".".equals(value) || "..".equals(value)) {
-                throw new IllegalArgumentException("Invalid secure directory entry name: " + value);
+        private String canonicalPath(String value) throws ShipFilesystemException {
+            try {
+                return ShipTreePolicy.requireCanonicalRelativePath(value);
+            } catch (IllegalArgumentException e) {
+                throw unsafe("Ship tree path is unsafe", e);
             }
-            return value;
+        }
+
+        private Classification classify(String relative) throws ShipFilesystemException {
+            try {
+                return policy.classify(relative);
+            } catch (IllegalArgumentException e) {
+                throw unsafe("Ship tree path is unsafe", e);
+            }
+        }
+
+        private static String singleName(String value) throws ShipFilesystemException {
+            try {
+                if (value == null || value.indexOf('/') >= 0) {
+                    throw new IllegalArgumentException("Invalid Ship tree entry name");
+                }
+                return ShipTreePolicy.requireCanonicalRelativePath(value);
+            } catch (IllegalArgumentException e) {
+                throw unsafe("Ship tree contains an unsafe directory entry name", e);
+            }
         }
 
         private static String display(String relative) {

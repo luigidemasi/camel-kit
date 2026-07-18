@@ -12,7 +12,7 @@ import java.util.Locale;
 /** One versioned classification and quota policy for every Ship project tree boundary. */
 public final class ShipTreePolicy {
 
-    public static final int SCHEMA_VERSION = 5;
+    private static final int SCHEMA_VERSION = 5;
     public static final int DEFAULT_MAX_FILE_COUNT = 20_000;
     public static final long DEFAULT_MAX_FILE_BYTES = 64L * 1024 * 1024;
     public static final long DEFAULT_MAX_AGGREGATE_BYTES = 1024L * 1024 * 1024;
@@ -79,10 +79,6 @@ public final class ShipTreePolicy {
         return new ShipTreePolicy(maxFileCount, maxFileBytes, maxAggregateBytes, maxDepth);
     }
 
-    public int schemaVersion() {
-        return SCHEMA_VERSION;
-    }
-
     public int maxFileCount() {
         return maxFileCount;
     }
@@ -103,6 +99,13 @@ public final class ShipTreePolicy {
         return digest;
     }
 
+    /**
+     * Classifies a canonical relative project-tree path under this policy.
+     *
+     * @param  relativePath             canonical slash-separated relative path
+     * @return                          the path classification
+     * @throws IllegalArgumentException if the path is not canonical and display-safe
+     */
     public Classification classify(String relativePath) {
         String path = requireCanonicalRelativePath(relativePath);
         String folded = path.toLowerCase(Locale.ROOT);
@@ -128,6 +131,13 @@ public final class ShipTreePolicy {
         return Classification.MATERIAL;
     }
 
+    /**
+     * Checks only whether an absolute normalized path has an allowed lexical lineage. This method does not canonicalize
+     * the path or prove anything about its filesystem identity.
+     *
+     * @param  absoluteRoot absolute path to inspect
+     * @return              {@code true} when the lexical lineage is allowed
+     */
     public boolean isAllowedAbsolutePath(Path absoluteRoot) {
         if (absoluteRoot == null || !absoluteRoot.isAbsolute() || absoluteRoot.getNameCount() == 0) {
             return false;
@@ -159,19 +169,26 @@ public final class ShipTreePolicy {
                 && !isCredentialPath(lineage);
     }
 
+    /**
+     * Validates and returns an unchanged canonical, display-safe relative path.
+     *
+     * @param  value                    candidate slash-separated path
+     * @return                          {@code value}, unchanged
+     * @throws IllegalArgumentException if the path is not canonical and display-safe
+     */
     public static String requireCanonicalRelativePath(String value) {
         if (value == null || value.isBlank() || value.length() > MAX_PATH_CHARACTERS
                 || value.startsWith("/") || value.endsWith("/")
                 || value.indexOf('\\') >= 0 || value.indexOf('\0') >= 0
                 || isWindowsAbsolute(value)) {
-            throw new IllegalArgumentException("Invalid Ship tree path: " + value);
+            throw new IllegalArgumentException("Invalid Ship tree path");
         }
         String[] components = value.split("/", -1);
         for (String component : components) {
             if (component.isEmpty() || ".".equals(component) || "..".equals(component)
                     || component.getBytes(StandardCharsets.UTF_8).length > MAX_COMPONENT_UTF8_BYTES
                     || containsUnsafeDisplayCharacter(component)) {
-                throw new IllegalArgumentException("Invalid Ship tree path: " + value);
+                throw new IllegalArgumentException("Invalid Ship tree path");
             }
         }
         return value;

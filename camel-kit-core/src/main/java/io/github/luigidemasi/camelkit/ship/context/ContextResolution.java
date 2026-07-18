@@ -14,8 +14,9 @@ public sealed interface ContextResolution
     }
 
     /**
-     * Describes consent candidates only. It is neither authority nor a resumable plan; the controller must retain the
-     * exact typed request and lifecycle head independently.
+     * Describes consent candidates only. It is neither authority nor a resumable plan and cannot itself become resolved
+     * context. The controller must retain the exact typed request and lifecycle head independently; a later protected
+     * boundary must define the versioned consent-consumption and document-open path.
      */
     record Pending(List<PendingDocumentConsent> consents) implements ContextResolution {
         public Pending(PendingDocumentConsent consent) {

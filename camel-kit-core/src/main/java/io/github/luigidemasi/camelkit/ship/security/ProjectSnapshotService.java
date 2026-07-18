@@ -59,14 +59,6 @@ final class ProjectSnapshotService {
         return compareMaps(material(before.files()), material(after.files()));
     }
 
-    /** Compares every tracked material and protected entry while allowing distinct physical roots. */
-    Comparison compareExactContents(ProjectSnapshot before, ProjectSnapshot after) {
-        requireCompatible(before, after);
-        return combine(
-                compareMaps(before.files(), after.files()),
-                compareMaps(before.directories(), after.directories()));
-    }
-
     /** Compares the complete material file-and-directory tree across distinct roots. */
     Comparison compareMaterialTree(ProjectSnapshot before, ProjectSnapshot after) {
         requireCompatible(before, after);

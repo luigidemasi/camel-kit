@@ -11,6 +11,8 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.spi.ToolProvider;
 
 import io.github.luigidemasi.camelkit.ship.context.ContextFilesystemPolicy;
@@ -92,6 +94,18 @@ class ShipFoundationBoundaryTest {
             "Files.copy",
             "FileChannel.open",
             "AsynchronousFileChannel.open");
+    private static final Set<String> ALLOWED_CONTEXT_FILES_METHODS = Set.of(
+            "exists",
+            "isDirectory",
+            "isSymbolicLink",
+            "newDirectoryStream",
+            "readAttributes");
+    private static final Set<String> ALLOWED_CONTEXT_JAVA_IO_TYPES = Set.of(
+            "FileNotFoundException", "IOException");
+    private static final Pattern FILES_METHOD_REFERENCE = Pattern.compile(
+            "java/nio/file/Files\\.([A-Za-z0-9_$]+)");
+    private static final Pattern JAVA_IO_TYPE_REFERENCE = Pattern.compile(
+            "java/io/([A-Za-z0-9_$]+)");
 
     @Test
     void foundationRemainsJavaBaseOnlyAndPurposeBound() throws Exception {
@@ -145,17 +159,51 @@ class ShipFoundationBoundaryTest {
 
         ToolProvider javap = ToolProvider.findFirst("javap").orElseThrow(
                 () -> new AssertionError("Ship foundation boundary test requires a JDK with javap"));
-        String policyBytecode = jdeps(
-                javap,
-                "-classpath", classes.toString(),
-                "-c",
-                "-p",
-                CONTEXT_PACKAGE + "ContextFilesystemPolicy");
-        for (String forbidden : FORBIDDEN_CONTENT_OPEN_REFERENCES) {
-            assertFalse(
-                    policyBytecode.contains(forbidden),
-                    () -> "External context policy gained a content-opening reference: " + forbidden);
+        List<Path> contextClasses;
+        try (var files = Files.walk(context)) {
+            contextClasses = files.filter(path -> path.toString().endsWith(".class")).toList();
         }
+        for (Path classFile : contextClasses) {
+            String relative = classes.relativize(classFile).toString();
+            String className = relative.substring(0, relative.length() - ".class".length())
+                    .replace('/', '.')
+                    .replace('\\', '.');
+            String bytecode = jdeps(
+                    javap,
+                    "-classpath", classes.toString(),
+                    "-c",
+                    "-p",
+                    className);
+            for (String forbidden : FORBIDDEN_CONTENT_OPEN_REFERENCES) {
+                assertFalse(
+                        bytecode.contains(forbidden),
+                        () -> className + " gained a content-opening reference: " + forbidden);
+            }
+            assertMetadataOnlyContextIo(className, bytecode);
+        }
+    }
+
+    private static void assertMetadataOnlyContextIo(String className, String bytecode) {
+        Matcher filesMethods = FILES_METHOD_REFERENCE.matcher(bytecode);
+        while (filesMethods.find()) {
+            String method = filesMethods.group(1);
+            assertTrue(
+                    ALLOWED_CONTEXT_FILES_METHODS.contains(method),
+                    () -> className + " gained an unreviewed Files method: " + method);
+        }
+        Matcher javaIoTypes = JAVA_IO_TYPE_REFERENCE.matcher(bytecode);
+        while (javaIoTypes.find()) {
+            String type = javaIoTypes.group(1);
+            assertTrue(
+                    ALLOWED_CONTEXT_JAVA_IO_TYPES.contains(type),
+                    () -> className + " gained an unreviewed java.io type: " + type);
+        }
+        assertFalse(
+                bytecode.contains("java/nio/channels/"),
+                () -> className + " gained a java.nio.channels capability");
+        assertFalse(
+                bytecode.contains("java/util/Scanner"),
+                () -> className + " gained a path-capable Scanner");
     }
 
     private static boolean isForbidden(String dependency) {

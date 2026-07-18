@@ -61,6 +61,17 @@ public final class InitialContextResolver {
         this.projectReaderOpener = Objects.requireNonNull(projectReaderOpener, "project reader opener");
     }
 
+    /**
+     * Resolves an initial-context request through an admitted project root. A {@link ContextResolution.Pending Pending}
+     * result is metadata-only: no document content, including project-document content, has been opened. This slice
+     * cannot consume consent; the controller must retain the exact typed request independently for the later protected
+     * consent-consumption and document-open boundary.
+     *
+     * @param  projectRoot             canonical project root
+     * @param  request                 typed initial-context request
+     * @return                         either worker-safe resolved context or descriptive pending consents
+     * @throws InitialContextException if classification or secure resolution fails
+     */
     public ContextResolution resolve(Path projectRoot, InitialContextRequest request)
             throws InitialContextException {
         Objects.requireNonNull(request, "initial context request");
@@ -79,8 +90,8 @@ public final class InitialContextResolver {
             if (source instanceof UserText text) {
                 requireNoNul(text.value(), ordinal);
                 int remaining = Math.toIntExact(maxTotalBytes - reservedBytes);
-                byte[] bytes = encodeText(text.value(), ordinal, remaining);
-                reservedBytes = reserve(reservedBytes, bytes.length);
+                int byteLength = textUtf8Length(text.value(), ordinal, remaining);
+                reservedBytes = reserve(reservedBytes, byteLength);
                 plan.add(new PlannedText(text.value()));
             } else {
                 PlannedDocument document = documents.get(ordinal);
@@ -204,12 +215,17 @@ public final class InitialContextResolver {
     }
 
     private static Path parseDocumentReference(String reference) throws InitialContextException {
-        String diagnosticInput = ContextModelSupport.safeDocumentReferenceDiagnostic(reference);
+        boolean rejectedUri = reference != null
+                && reference.length() <= ShipTreePolicy.MAX_PATH_CHARACTERS
+                && URI_SCHEME.matcher(reference).matches();
+        String diagnosticInput = rejectedUri
+                ? "<invalid-document-reference>"
+                : ContextModelSupport.safeDocumentReferenceDiagnostic(reference);
         if (reference == null
                 || reference.length() > ShipTreePolicy.MAX_PATH_CHARACTERS
                 || reference.isBlank()
                 || reference.indexOf('\\') >= 0
-                || URI_SCHEME.matcher(reference).matches()
+                || rejectedUri
                 || !diagnosticInput.equals(reference)) {
             throw failure(
                     Reason.MALFORMED_DOCUMENT_REFERENCE,
@@ -266,10 +282,10 @@ public final class InitialContextResolver {
         }
     }
 
-    private static byte[] encodeText(String value, int ordinal, int maximumBytes)
+    private static int textUtf8Length(String value, int ordinal, int maximumBytes)
             throws InitialContextException {
         try {
-            return ContextModelSupport.encodeStrictUtf8(
+            return ContextModelSupport.strictUtf8Length(
                     value, maximumBytes, "text-source-" + ordinal);
         } catch (ContextModelSupport.StrictUtf8Exception e) {
             if (e.failure() == ContextModelSupport.Utf8Failure.MALFORMED_SCALAR) {
@@ -439,6 +455,10 @@ public final class InitialContextResolver {
     }
 
     private record PlannedText(String value) implements PlannedSource {
+        @Override
+        public String toString() {
+            return "PlannedText[redacted]";
+        }
     }
 
     private record PlannedProject(String relativePath) implements PlannedDocument {

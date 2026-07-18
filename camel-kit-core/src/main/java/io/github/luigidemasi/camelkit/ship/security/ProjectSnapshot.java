@@ -122,6 +122,11 @@ public record ProjectSnapshot(
                         root, rootIdentity, policyDigest, entries.directories(), entries.files()));
     }
 
+    @Override
+    public String toString() {
+        return "ProjectSnapshot[redacted]";
+    }
+
     static String computeDigest(
             String root,
             String rootIdentity,

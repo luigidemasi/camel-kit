@@ -32,10 +32,13 @@ import io.github.luigidemasi.camelkit.ship.security.ProjectContextFiles;
 import io.github.luigidemasi.camelkit.ship.security.ShipFilesystemException;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@EnabledOnOs(OS.LINUX)
 class ContextFilesystemPolicyTest {
 
     @TempDir
@@ -49,9 +52,15 @@ class ContextFilesystemPolicyTest {
         InitialContextException absentCredentials = assertThrows(
                 InitialContextException.class,
                 () -> new ContextFilesystemPolicy(temporaryDirectory.toRealPath(), null));
+        InitialContextException unsafePolicyRoot = assertThrows(
+                InitialContextException.class,
+                () -> new ContextFilesystemPolicy(
+                        temporaryDirectory.resolve("unsafe\nstate").toAbsolutePath(), List.of()));
 
         assertEquals(Reason.INVALID_POLICY_CONFIGURATION, relative.reason());
         assertEquals(Reason.INVALID_POLICY_CONFIGURATION, absentCredentials.reason());
+        assertEquals("<invalid-policy-root>", unsafePolicyRoot.input());
+        assertFalse(unsafePolicyRoot.toString().contains("unsafe\nstate"));
     }
 
     @Test
@@ -189,6 +198,12 @@ class ContextFilesystemPolicyTest {
                     () -> access.requireContextPath("module/target/generated.yaml"));
             assertReason(Reason.DOCUMENT_PATH_ESCAPE,
                     () -> access.requireContextPath("../requirements.md"));
+            InitialContextException unsafe = assertThrows(
+                    InitialContextException.class,
+                    () -> access.requireContextPath("unsafe\nrequirements.md"));
+            assertEquals(Reason.DOCUMENT_PATH_ESCAPE, unsafe.reason());
+            assertEquals("<invalid-project-path>", unsafe.input());
+            assertFalse(unsafe.toString().contains("unsafe\nrequirements.md"));
         }
     }
 
@@ -350,6 +365,12 @@ class ContextFilesystemPolicyTest {
         ContextFilesystemPolicy policy = policy();
         Path missing = temporaryDirectory.resolve("missing.md").toAbsolutePath();
         Path empty = Files.createFile(temporaryDirectory.resolve("empty.md"));
+        Path atLimit = temporaryDirectory.resolve("at-limit.md");
+        try (SeekableByteChannel channel = Files.newByteChannel(
+                atLimit, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
+            channel.position(InitialContext.MAX_DOCUMENT_BYTES - 1L);
+            channel.write(ByteBuffer.wrap(new byte[]{0}));
+        }
         Path oversize = temporaryDirectory.resolve("oversize.md");
         try (SeekableByteChannel channel = Files.newByteChannel(
                 oversize, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
@@ -358,6 +379,9 @@ class ContextFilesystemPolicyTest {
         }
         assertReason(Reason.DOCUMENT_MISSING, () -> policy.inspectExternal(missing));
         assertReason(Reason.DOCUMENT_EMPTY, () -> policy.inspectExternal(empty.toRealPath()));
+        assertEquals(
+                InitialContext.MAX_DOCUMENT_BYTES,
+                policy.inspectExternal(atLimit.toRealPath()).candidateIdentity().byteSize());
         assertReason(Reason.DOCUMENT_TOO_LARGE, () -> policy.inspectExternal(oversize.toRealPath()));
     }
 

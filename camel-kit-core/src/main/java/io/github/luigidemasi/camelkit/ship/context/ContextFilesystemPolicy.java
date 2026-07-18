@@ -177,7 +177,7 @@ public final class ContextFilesystemPolicy {
         } catch (IllegalArgumentException e) {
             throw failure(
                     Reason.DOCUMENT_PATH_ESCAPE,
-                    String.valueOf(relativePath),
+                    ContextModelSupport.safePathDiagnostic(relativePath, "<invalid-project-path>"),
                     "Project context path is not canonical",
                     e);
         }
@@ -195,7 +195,8 @@ public final class ContextFilesystemPolicy {
     }
 
     private Path requireProjectContextRoot(Path projectRoot) throws InitialContextException {
-        String input = projectRoot == null ? "<null>" : projectRoot.toString();
+        String input = ContextModelSupport.safePathDiagnostic(
+                projectRoot == null ? null : projectRoot.toString(), "<invalid-project-root>");
         if (projectRoot == null
                 || !projectRoot.isAbsolute()
                 || !projectRoot.normalize().equals(projectRoot)) {
@@ -305,7 +306,7 @@ public final class ContextFilesystemPolicy {
                 || !root.normalize().equals(root)) {
             throw failure(
                     Reason.INVALID_POLICY_CONFIGURATION,
-                    String.valueOf(root),
+                    "<invalid-policy-root>",
                     label + " must be an absolute normalized path");
         }
         StringBuilder components = new StringBuilder();
@@ -320,7 +321,7 @@ public final class ContextFilesystemPolicy {
         } catch (IllegalArgumentException e) {
             throw failure(
                     Reason.INVALID_POLICY_CONFIGURATION,
-                    root.toString(),
+                    "<invalid-policy-root>",
                     label + " contains an unsafe or oversized path component",
                     e);
         }
@@ -338,7 +339,7 @@ public final class ContextFilesystemPolicy {
         if (existing == null) {
             throw failure(
                     Reason.INVALID_POLICY_CONFIGURATION,
-                    root.toString(),
+                    "<invalid-policy-root>",
                     "Protected root has no canonicalizable ancestor");
         }
         try {
@@ -348,7 +349,7 @@ public final class ContextFilesystemPolicy {
                     || !Files.isDirectory(projected, LinkOption.NOFOLLOW_LINKS)) {
                 throw failure(
                         Reason.INVALID_POLICY_CONFIGURATION,
-                        root.toString(),
+                        "<invalid-policy-root>",
                         "Protected roots must have a link-free directory ancestor");
             }
             DirectoryIdentity identity = captureDirectoryIdentity(projected);
@@ -365,7 +366,7 @@ public final class ContextFilesystemPolicy {
         } catch (IOException e) {
             throw failure(
                     Reason.INVALID_POLICY_CONFIGURATION,
-                    root.toString(),
+                    "<invalid-policy-root>",
                     "Protected root could not be canonicalized",
                     e);
         }
@@ -619,6 +620,11 @@ public final class ContextFilesystemPolicy {
             return claimed;
         }
 
+        /**
+         * Releases the admitted-root lease. Release failure is fail-closed and aborts an encompassing resolution;
+         * {@code secure-filesystem-unsupported} covers failure to establish or release this secure filesystem
+         * lifecycle.
+         */
         @Override
         public synchronized void close() throws InitialContextException {
             if (heldRoot == null) {
