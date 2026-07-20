@@ -54,6 +54,15 @@ class MavenCoordinateTest {
     }
 
     @Test
+    void coordinatePartsAcceptTheLimitAndRejectOneOver() {
+        String atLimit = "a".repeat(128);
+
+        assertEquals(atLimit, MavenCoordinate.jar("org.example", atLimit, "1.0.0").artifactId());
+        assertThrows(IllegalArgumentException.class,
+                () -> MavenCoordinate.jar("org.example", atLimit + 'a', "1.0.0"));
+    }
+
+    @Test
     void rejectsNullRequiredPartsAndNormalizesNullClassifier() {
         assertAll(
                 () -> assertThrows(NullPointerException.class,
