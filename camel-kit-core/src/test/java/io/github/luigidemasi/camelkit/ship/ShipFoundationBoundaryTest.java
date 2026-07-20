@@ -3,15 +3,19 @@ package io.github.luigidemasi.camelkit.ship;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.nio.channels.Channel;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -21,6 +25,8 @@ import io.github.luigidemasi.camelkit.ship.context.ContextFilesystemPolicy;
 import io.github.luigidemasi.camelkit.ship.context.ContextResolution;
 import io.github.luigidemasi.camelkit.ship.context.InitialContext;
 import io.github.luigidemasi.camelkit.ship.security.ProjectContextFiles;
+import io.github.luigidemasi.camelkit.ship.security.ProjectSnapshot;
+import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy;
 
 import org.junit.jupiter.api.Test;
 
@@ -178,6 +184,7 @@ class ShipFoundationBoundaryTest {
             "java/util/ServiceLoader",
             "java/util/jar/",
             "java/util/zip/");
+    // javap -v instruction, constant-pool, and bootstrap output is checked by JavapFormatCanary below.
     private static final String METHOD_REFERENCE_PREFIX
             = "(?:REF_(?:invoke[A-Za-z]+|newInvokeSpecial)\\s+"
               + "|(?:Interface)?Methodref\\s+#[^\\r\\n]*//\\s+"
@@ -373,15 +380,19 @@ class ShipFoundationBoundaryTest {
         Path testClasses = Path.of(ShipFoundationBoundaryTest.class.getProtectionDomain()
                 .getCodeSource().getLocation().toURI());
         ToolProvider javap = ToolProvider.findFirst("javap").orElseThrow();
-        String methodReference = jdeps(
+        String javapCanary = jdeps(
                 javap,
                 "-classpath", testClasses.toString(),
                 "-v",
                 "-p",
-                ForbiddenMethodReference.class.getName());
+                JavapFormatCanary.class.getName());
+        assertJavapFormatCanary(javapCanary);
         assertThrows(
                 AssertionError.class,
-                () -> assertMetadataOnlyContextIo(CONTEXT_FILESYSTEM_POLICY, methodReference));
+                () -> assertMetadataOnlyContextIo(CONTEXT_FILESYSTEM_POLICY, javapCanary));
+        assertThrows(
+                AssertionError.class,
+                () -> assertFixedUnixAttributeRead(CONTEXT_FILESYSTEM_POLICY + "$Canary", javapCanary));
     }
 
     private static void assertCompiledBoundary() throws Exception {
@@ -408,6 +419,7 @@ class ShipFoundationBoundaryTest {
                 "-filter:none",
                 "--class-path", classes.toString(),
                 context.toString(), security.toString());
+        Set<String> observedContextDependencies = new HashSet<>();
         for (String line : dependencies.lines().toList()) {
             int arrow = line.indexOf(" -> ");
             if (arrow < 0) {
@@ -420,6 +432,7 @@ class ShipFoundationBoundaryTest {
             String dependency = line.substring(arrow + 4).trim().split("\\s+", 2)[0];
             assertFalse(isForbidden(dependency), line.trim() + " crosses a forbidden Ship boundary");
             if (source.startsWith(CONTEXT_PACKAGE)) {
+                observedContextDependencies.add(source + " -> " + dependency);
                 assertMetadataOnlyContextDependency(source, dependency);
             }
             assertTrue(
@@ -429,6 +442,14 @@ class ShipFoundationBoundaryTest {
                             || dependency.startsWith(SECURITY_PACKAGE),
                     line.trim() + " is outside the java.base-only Ship foundation");
         }
+        // These known edges are parser tripwires, not dependencies that production must retain.
+        Set<String> expectedContextDependencies = Set.of(
+                CONTEXT_FILESYSTEM_POLICY + " -> java.nio.file.Files",
+                CONTEXT_FILESYSTEM_POLICY + " -> " + SECURITY_PACKAGE + "ProjectContextFiles");
+        assertTrue(
+                observedContextDependencies.containsAll(expectedContextDependencies),
+                () -> "jdeps no longer exposes the known Ship context dependency edges; expected "
+                      + expectedContextDependencies + " but found " + observedContextDependencies);
 
         ToolProvider javap = ToolProvider.findFirst("javap").orElseThrow(
                 () -> new AssertionError("Ship foundation boundary test requires a JDK with javap"));
@@ -565,6 +586,65 @@ class ShipFoundationBoundaryTest {
         return List.copyOf(instructions);
     }
 
+    private static void assertJavapFormatCanary(String bytecode) {
+        Set<String> fileMethods = new HashSet<>();
+        Matcher fileReferences = FILE_METHOD_REFERENCE.matcher(bytecode);
+        while (fileReferences.find()) {
+            fileMethods.add(fileReferences.group(1) + '.' + fileReferences.group(2));
+        }
+        Set<String> expectedFileMethods = Set.of(
+                "java/nio/file/Files.exists",
+                "java/nio/file/Files.readAttributes",
+                "java/nio/file/Files.readString",
+                "java/nio/file/Path.normalize");
+        assertTrue(
+                fileMethods.containsAll(expectedFileMethods),
+                () -> "javap no longer exposes the known filesystem references; expected "
+                      + expectedFileMethods + " but found " + fileMethods);
+
+        Set<String> securityMethods = new HashSet<>();
+        Matcher securityReferences = SECURITY_METHOD_REFERENCE.matcher(bytecode);
+        while (securityReferences.find()) {
+            securityMethods.add(securityReferences.group(1));
+        }
+        Set<String> expectedSecurityMethods = Set.of(
+                "io/github/luigidemasi/camelkit/ship/security/ShipTreePolicy.maxFileCount:()I",
+                "io/github/luigidemasi/camelkit/ship/security/ProjectSnapshot$DirectoryEntry.\"<init>\":"
+                                                                                                + "(Lio/github/luigidemasi/camelkit/ship/security/ShipTreePolicy$Classification;IJJ)V");
+        assertTrue(
+                securityMethods.containsAll(expectedSecurityMethods),
+                () -> "javap no longer exposes the known security method references; expected "
+                      + expectedSecurityMethods + " but found " + securityMethods);
+
+        Set<String> securityFields = new HashSet<>();
+        Matcher fieldReferences = SECURITY_FIELD_REFERENCE.matcher(bytecode);
+        while (fieldReferences.find()) {
+            securityFields.add(fieldReferences.group(1));
+        }
+        String expectedSecurityField
+                = "io/github/luigidemasi/camelkit/ship/security/ShipTreePolicy$Classification.DENIED:"
+                  + "Lio/github/luigidemasi/camelkit/ship/security/ShipTreePolicy$Classification;";
+        assertTrue(
+                securityFields.contains(expectedSecurityField),
+                () -> "javap no longer exposes the known security field reference; found " + securityFields);
+
+        assertTrue(
+                DIRECT_METHOD_HANDLE_REFERENCE.matcher(bytecode).find(),
+                "javap no longer exposes the explicit MethodHandles reference");
+        assertTrue(
+                DIRECT_CLASS_REFLECTION_REFERENCE.matcher(bytecode).find(),
+                "javap no longer exposes the direct Class reflection reference");
+        assertTrue(
+                NATIVE_LOAD_REFERENCE.matcher(bytecode).find(),
+                "javap no longer exposes the native-library loading reference");
+        assertTrue(
+                NATIVE_METHOD.matcher(bytecode).find(),
+                "javap no longer exposes ACC_NATIVE");
+        assertTrue(
+                STRING_ATTRIBUTE_READ_METHOD_HANDLE.matcher(bytecode).find(),
+                "javap no longer exposes the string-attribute method handle");
+    }
+
     private static boolean isForbidden(String dependency) {
         if (dependency.startsWith("java.net.")
                 || dependency.startsWith("javax.net.")
@@ -695,10 +775,41 @@ class ShipFoundationBoundaryTest {
         String read(Path path) throws IOException;
     }
 
-    private static final class ForbiddenMethodReference {
-        private static final PathReader READ = Files::readString;
+    @FunctionalInterface
+    private interface StringAttributeReader {
+        Map<String, Object> read(Path path, String attributes, LinkOption... options) throws IOException;
+    }
 
-        private ForbiddenMethodReference() {
+    @FunctionalInterface
+    private interface DirectoryEntryFactory {
+        ProjectSnapshot.DirectoryEntry create(
+                ShipTreePolicy.Classification classification, int unixMode, long userId, long groupId);
+    }
+
+    // Replace canary targets when APIs change; this fixture does not require those APIs to remain public.
+    private static final class JavapFormatCanary {
+        private static final PathReader READ = Files::readString;
+        private static final StringAttributeReader ATTRIBUTES = Files::readAttributes;
+        private static final DirectoryEntryFactory DIRECTORY_ENTRY = ProjectSnapshot.DirectoryEntry::new;
+
+        private JavapFormatCanary() {
         }
+
+        private static Object[] directReferences(Path path, ShipTreePolicy policy) throws ClassNotFoundException {
+            return new Object[]{
+                    Files.exists(path),
+                    path.normalize(),
+                    policy.maxFileCount(),
+                    ShipTreePolicy.Classification.DENIED,
+                    MethodHandles.lookup(),
+                    Class.forName(path.toString())
+            };
+        }
+
+        private static void loadNative(String library) {
+            System.load(library);
+        }
+
+        private static native void nativeCapability();
     }
 }
