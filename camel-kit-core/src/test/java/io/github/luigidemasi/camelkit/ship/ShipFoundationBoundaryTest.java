@@ -469,8 +469,7 @@ class ShipFoundationBoundaryTest {
                     "-p",
                     className);
             assertMetadataOnlyContextIo(className, bytecode);
-            if (className.equals(CONTEXT_FILESYSTEM_POLICY)
-                    || className.startsWith(CONTEXT_FILESYSTEM_POLICY + '$')) {
+            if (isFilesystemPolicyClass(className)) {
                 assertFixedUnixAttributeRead(className, bytecode);
             }
         }
@@ -502,8 +501,7 @@ class ShipFoundationBoundaryTest {
                     () -> className + " gained an unreviewed filesystem method: " + method);
             if (POLICY_ONLY_FILE_METHODS.contains(method)) {
                 assertTrue(
-                        className.equals(CONTEXT_FILESYSTEM_POLICY)
-                                || className.startsWith(CONTEXT_FILESYSTEM_POLICY + '$'),
+                        isFilesystemPolicyClass(className),
                         () -> className + " used a policy-only filesystem method outside ContextFilesystemPolicy: "
                               + method);
             }
@@ -539,6 +537,10 @@ class ShipFoundationBoundaryTest {
         assertFalse(
                 NATIVE_METHOD.matcher(bytecode).find(),
                 () -> className + " gained a native method");
+    }
+
+    private static boolean isFilesystemPolicyClass(String className) {
+        return className.equals(CONTEXT_FILESYSTEM_POLICY) || className.startsWith(CONTEXT_FILESYSTEM_POLICY + '$');
     }
 
     private static void assertFixedUnixAttributeRead(String className, String bytecode) {
