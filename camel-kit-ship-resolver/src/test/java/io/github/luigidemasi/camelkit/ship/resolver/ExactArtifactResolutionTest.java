@@ -10,6 +10,7 @@ import java.net.Socket;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
+import java.net.http.HttpTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -200,6 +201,16 @@ class ExactArtifactResolutionTest {
     @Test
     void directFetchTimesOutAndClosesAnExchangeStalledMidBody() throws Exception {
         assertStalledExchangeIsBounded(true);
+    }
+
+    @Test
+    void directFetchNormalizesTheJdkRequestTimeout() {
+        HttpTimeoutException jdkFailure = new HttpTimeoutException("request timed out");
+
+        IOException normalized = ShipMavenResolver.directFetchFailure(jdkFailure);
+
+        assertEquals("Timed out fetching exact artifact bytes from Maven Central", normalized.getMessage());
+        assertSame(jdkFailure, normalized.getCause());
     }
 
     @Test

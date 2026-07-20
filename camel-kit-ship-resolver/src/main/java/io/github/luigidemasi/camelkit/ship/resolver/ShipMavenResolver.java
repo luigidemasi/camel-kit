@@ -9,6 +9,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.net.http.HttpTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -59,6 +60,8 @@ public final class ShipMavenResolver {
     private static final long MAX_EXACT_JAR_BYTES = 128L * 1024 * 1024;
     private static final long MAX_EXACT_POM_BYTES = 4L * 1024 * 1024;
     private static final Duration DIRECT_FETCH_TIMEOUT = Duration.ofSeconds(30);
+    private static final String DIRECT_FETCH_TIMEOUT_MESSAGE
+            = "Timed out fetching exact artifact bytes from Maven Central";
     private static final ScheduledThreadPoolExecutor DIRECT_FETCH_DEADLINES = directFetchDeadlines();
 
     /** Fixed fail-closed ceiling for unique direct roots in one resolution request. */
@@ -348,7 +351,7 @@ public final class ShipMavenResolver {
         CompletableFuture<HttpResponse<ContentIdentity>> exchange
                 = directClient().sendAsync(directRequest(uri, timeout), handler);
         AtomicBoolean deadlineExpired = new AtomicBoolean();
-        IOException timeoutFailure = new IOException("Timed out fetching exact artifact bytes from Maven Central");
+        IOException timeoutFailure = new IOException(DIRECT_FETCH_TIMEOUT_MESSAGE);
         ScheduledFuture<?> watchdog = DIRECT_FETCH_DEADLINES.schedule(() -> {
             deadlineExpired.set(true);
             handler.abort(timeoutFailure);
@@ -371,7 +374,13 @@ public final class ShipMavenResolver {
             Thread.currentThread().interrupt();
             throw new IOException("Interrupted while fetching an exact artifact from Maven Central", e);
         } catch (ExecutionException e) {
-            throw directFetchFailure(e.getCause());
+            IOException failure = directFetchFailure(e.getCause());
+            if (e.getCause() instanceof HttpTimeoutException) {
+                deadlineExpired.set(true);
+                handler.abort(failure);
+                exchange.cancel(true);
+            }
+            throw failure;
         } catch (CancellationException e) {
             if (deadlineExpired.get()) {
                 throw timeoutFailure;
@@ -407,7 +416,10 @@ public final class ShipMavenResolver {
                 .build();
     }
 
-    private static IOException directFetchFailure(Throwable failure) {
+    static IOException directFetchFailure(Throwable failure) {
+        if (failure instanceof HttpTimeoutException) {
+            return new IOException(DIRECT_FETCH_TIMEOUT_MESSAGE, failure);
+        }
         if (failure instanceof IOException ioFailure) {
             return ioFailure;
         }

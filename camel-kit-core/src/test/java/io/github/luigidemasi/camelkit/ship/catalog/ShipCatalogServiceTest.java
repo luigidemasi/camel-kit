@@ -288,6 +288,24 @@ class ShipCatalogServiceTest {
     }
 
     @Test
+    void pomAttributeLimitAcceptsTheBoundaryAndRejectsOneBeyond() throws Exception {
+        writeMainCatalog(CAMEL_VERSION, "timer");
+        writeQuarkusProvider("3.33.1", CAMEL_VERSION);
+        CatalogTarget target = new CatalogTarget("quarkus", CAMEL_VERSION, "3.33.2", null);
+        String body = minifiedQuarkusBomBody("3.33.1", CAMEL_VERSION);
+
+        writeRawPom("io.quarkus.platform", "quarkus-camel-bom", "3.33.2",
+                attributeDeclarations(511), body);
+        assertEquals(3, service().snapshot(target).evidenceFor(
+                List.of(subject(Kind.COMPONENT, "kafka"))).artifacts().size());
+
+        writeRawPom("io.quarkus.platform", "quarkus-camel-bom", "3.33.2",
+                attributeDeclarations(512), body);
+        IOException excessive = assertThrows(IOException.class, () -> service().snapshot(target));
+        assertTrue(excessive.getMessage().contains("structural limits"));
+    }
+
+    @Test
     void pomNamespaceModelAndSingletonAmbiguityFailClosed() throws Exception {
         writeMainCatalog(CAMEL_VERSION, "timer");
         CatalogTarget target = new CatalogTarget("quarkus", CAMEL_VERSION, "3.33.2", null);
@@ -887,6 +905,14 @@ class ShipCatalogServiceTest {
         StringBuilder result = new StringBuilder();
         for (int index = 0; index < count; index++) {
             result.append(" xmlns:n").append(index).append("=\"urn:n").append(index).append("\"");
+        }
+        return result.toString();
+    }
+
+    private static String attributeDeclarations(int count) {
+        StringBuilder result = new StringBuilder();
+        for (int index = 0; index < count; index++) {
+            result.append(" a").append(index).append("=\"v\"");
         }
         return result.toString();
     }

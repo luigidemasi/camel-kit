@@ -575,6 +575,7 @@ public final class ShipCatalogService {
             factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
             factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
             factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+            factory.setAttribute("jdk.xml.elementAttributeLimit", MAX_POM_ATTRIBUTES);
             var builder = factory.newDocumentBuilder();
             builder.setErrorHandler(new StrictXmlErrorHandler());
             try (InputStream input = new ByteArrayInputStream(pom)) {
@@ -589,7 +590,7 @@ public final class ShipCatalogService {
                 }
                 return document;
             }
-        } catch (ParserConfigurationException | SAXException e) {
+        } catch (IllegalArgumentException | ParserConfigurationException | SAXException e) {
             throw new IOException("Could not securely parse catalog POM", e);
         }
     }
@@ -597,6 +598,7 @@ public final class ShipCatalogService {
     private static void requireBoundedPomStructure(byte[] pom) throws IOException {
         XMLInputFactory factory = XMLInputFactory.newDefaultFactory();
         try {
+            factory.setProperty("jdk.xml.elementAttributeLimit", MAX_POM_ATTRIBUTES);
             factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
             factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
             factory.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, false);
