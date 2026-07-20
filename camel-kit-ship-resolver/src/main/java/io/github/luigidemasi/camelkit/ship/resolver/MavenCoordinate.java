@@ -65,7 +65,7 @@ public record MavenCoordinate(
 
     private static String requirePart(String value, String label) {
         Objects.requireNonNull(value, label + " must not be null");
-        if (!SAFE_PART.matcher(value).matches()
+        if (value.length() > 128 || !SAFE_PART.matcher(value).matches()
                 || value.startsWith(".") || value.endsWith(".") || value.contains("..")) {
             throw new IllegalArgumentException("Unsafe Maven coordinate " + label);
         }

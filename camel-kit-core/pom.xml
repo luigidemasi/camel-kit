@@ -68,6 +68,19 @@
             <artifactId>tamboui-jline3-backend</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>io.github.luigidemasi</groupId>
+            <artifactId>camel-kit-ship-resolver</artifactId>
+            <version>${project.version}</version>
+            <exclusions>
+                <!-- The published module contains relocated internals; keep the source reactor equally isolated. -->
+                <exclusion>
+                    <groupId>*</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
         <!-- No camel-catalog or citrus-catalog-schema dependency - JSON downloaded at runtime -->
 
         <!-- Graph builder for project code analysis -->
@@ -86,6 +99,32 @@
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <version>5.11.4</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- The reactor substitutes the resolver's unshaded target/classes for its packaged JAR. -->
+        <dependency>
+            <groupId>org.apache.maven.resolver</groupId>
+            <artifactId>maven-resolver-supplier</artifactId>
+            <version>${maven.resolver.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven.resolver</groupId>
+            <artifactId>maven-resolver-util</artifactId>
+            <version>${maven.resolver.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-resolver-provider</artifactId>
+            <version>${maven.provider.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-model-builder</artifactId>
+            <version>${maven.provider.version}</version>
             <scope>test</scope>
         </dependency>
 

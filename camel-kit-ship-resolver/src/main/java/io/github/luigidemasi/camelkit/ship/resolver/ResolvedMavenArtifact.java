@@ -10,4 +10,9 @@ public record ResolvedMavenArtifact(MavenCoordinate coordinate, Path path) {
         Objects.requireNonNull(coordinate, "coordinate must not be null");
         path = Objects.requireNonNull(path, "path must not be null").toAbsolutePath().normalize();
     }
+
+    @Override
+    public String toString() {
+        return "ResolvedMavenArtifact[coordinate=" + coordinate + ", path=<redacted>]";
+    }
 }
