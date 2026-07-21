@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/luigidemasi/camel-kit/schemas/ship/v1/ship-stamp.schema.json",
+  "title": "Camel Kit Ship controller Stamp",
+  "description": "Closed storage shape. COMPLETED_WITH_WAIVER and nonempty waivers are scaffolding for PR 6 and are not issuable by the current controller substrate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "status", "adapterId", "requirementsDigest", "designDigest", "artifactManifestDigest", "candidateSnapshotDigest", "catalogUsageDigest", "checks", "waivers", "generatedAt", "failureCode", "failureMessage"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "runId": { "type": "string", "pattern": "^ship-[0-9a-f]{32}$" },
+    "status": { "enum": ["PASS", "COMPLETED_WITH_WAIVER", "FAIL"] },
+    "adapterId": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,63}$" },
+    "requirementsDigest": { "$ref": "#/$defs/digest" },
+    "designDigest": { "$ref": "#/$defs/digest" },
+    "artifactManifestDigest": { "$ref": "#/$defs/digest" },
+    "candidateSnapshotDigest": { "$ref": "#/$defs/digest" },
+    "catalogUsageDigest": { "$ref": "#/$defs/digest" },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/check" }
+    },
+    "waivers": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/waiver" }
+    },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "failureCode": { "type": ["string", "null"] },
+    "failureMessage": { "type": ["string", "null"] }
+  },
+  "$defs": {
+    "nonBlank": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "mandatory", "passed", "evidenceDigest"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonBlank" },
+        "mandatory": { "type": "boolean" },
+        "passed": { "type": "boolean" },
+        "evidenceDigest": {
+          "oneOf": [
+            { "$ref": "#/$defs/digest" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "waiver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checkId", "evidenceDigest", "responseDigest"],
+      "properties": {
+        "checkId": { "$ref": "#/$defs/nonBlank" },
+        "evidenceDigest": { "$ref": "#/$defs/digest" },
+        "responseDigest": { "$ref": "#/$defs/digest" }
+      }
+    }
+  }
+}

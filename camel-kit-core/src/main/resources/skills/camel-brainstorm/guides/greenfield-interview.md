@@ -11,8 +11,10 @@
 1. Ask **ONE question at a time**. Wait for the user's response before proceeding.
 2. Prefer **multiple choice** when possible, open-ended when necessary.
 3. **Listen** — extract all information from each answer, don't re-ask what's already been said.
-4. If the user's initial request contains enough detail to answer some questions, pre-fill and confirm rather than re-asking.
-5. Never skip questions. Mark conditional questions as "N/A" if the condition isn't met.
+4. Analyze the user's supplied material first. If it conclusively resolves an item, record its evidence and do not
+   re-ask it. Ask only about unresolved conflicts, ambiguities, assumptions, or untaken material decisions.
+5. Never leave a required category unresolved. Mark conditional categories as "N/A" with a concrete rationale when
+   their condition is not met. A complete requirements document may need zero clarification questions.
 
 ---
 

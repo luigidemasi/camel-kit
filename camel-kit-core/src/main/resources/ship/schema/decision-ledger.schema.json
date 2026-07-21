@@ -1,0 +1,392 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/luigidemasi/camel-kit/schemas/ship/v1/decision-ledger.schema.json",
+  "title": "Camel Kit Ship decision ledger",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "revision",
+    "facts",
+    "decisions",
+    "conflicts",
+    "assumptions",
+    "catalogEvidence",
+    "openQuestions",
+    "completeness",
+    "blockingOpenItemIds",
+    "gapReviewStatus",
+    "requirementsPolicy"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "facts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    },
+    "conflicts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/conflict"
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/assumption"
+      }
+    },
+    "catalogEvidence": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "openQuestions": {
+      "type": "array",
+      "maxItems": 1,
+      "items": {
+        "$ref": "#/$defs/question"
+      }
+    },
+    "completeness": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/category"
+      }
+    },
+    "blockingOpenItemIds": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/nonBlank"
+      }
+    },
+    "gapReviewStatus": {
+      "enum": ["NOT_RUN", "FAILED", "PASSED"]
+    },
+    "requirementsPolicy": {
+      "oneOf": [
+        { "$ref": "#/$defs/requirementsPolicy" },
+        { "type": "null" }
+      ]
+    }
+  },
+  "$defs": {
+    "nonBlank": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "nullableString": {
+      "type": ["string", "null"]
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "status": {
+      "enum": ["OPEN", "NEEDS_USER_DECISION", "RESOLVED", "NOT_APPLICABLE", "SUPERSEDED"]
+    },
+    "sourceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceId", "locator", "digest", "excerpt"],
+      "properties": {
+        "sourceId": {
+          "$ref": "#/$defs/nonBlank"
+        },
+        "locator": {
+          "$ref": "#/$defs/nonBlank"
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "excerpt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384,
+          "pattern": "\\S"
+        }
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "category", "value", "status", "sourceRefs", "rationale"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nonBlank"
+        },
+        "category": {
+          "$ref": "#/$defs/nonBlank"
+        },
+        "value": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "sourceRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceRef"
+          }
+        },
+        "rationale": {
+          "$ref": "#/$defs/nullableString"
+        }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "sourceRef"],
+      "properties": {
+        "value": {
+          "$ref": "#/$defs/nonBlank"
+        },
+        "sourceRef": {
+          "$ref": "#/$defs/sourceRef"
+        }
+      }
+    },
+    "conflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "category", "claims", "status", "rationale"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nonBlank"
+        },
+        "category": {
+          "$ref": "#/$defs/nonBlank"
+        },
+        "claims": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/claim"
+          }
+        },
+        "status": {
+          "enum": ["OPEN", "NEEDS_USER_DECISION"]
+        },
+        "rationale": {
+          "$ref": "#/$defs/nullableString"
+        }
+      }
+    },
+    "assumption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "category", "proposedValue", "status", "sourceRefs", "rationale"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nonBlank"
+        },
+        "category": {
+          "$ref": "#/$defs/nonBlank"
+        },
+        "proposedValue": {
+          "$ref": "#/$defs/nonBlank"
+        },
+        "status": {
+          "enum": ["OPEN", "NEEDS_USER_DECISION"]
+        },
+        "sourceRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceRef"
+          }
+        },
+        "rationale": {
+          "$ref": "#/$defs/nullableString"
+        }
+      }
+    },
+    "catalogEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "prerequisiteLedgerRevision", "requestAttemptId", "requestPolicyDigest", "kind", "tool", "subject", "runtime", "camelVersion", "platformVersion", "springBootVersion", "platformBom", "verified", "response", "responseDigest"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonBlank" },
+        "prerequisiteLedgerRevision": { "type": "integer", "minimum": 1 },
+        "requestAttemptId": { "$ref": "#/$defs/nonBlank" },
+        "requestPolicyDigest": { "$ref": "#/$defs/digest" },
+        "kind": { "enum": ["COMPONENT", "EIP", "DATAFORMAT", "LANGUAGE"] },
+        "tool": { "enum": ["camel_catalog_component_doc", "camel_catalog_eip_doc", "camel_catalog_dataformat_doc", "camel_catalog_language_doc"] },
+        "subject": { "$ref": "#/$defs/nonBlank" },
+        "runtime": { "enum": ["main", "spring-boot", "quarkus"] },
+        "camelVersion": { "$ref": "#/$defs/nonBlank" },
+        "platformVersion": { "$ref": "#/$defs/nullableString" },
+        "springBootVersion": { "$ref": "#/$defs/nullableString" },
+        "platformBom": { "$ref": "#/$defs/nonBlank" },
+        "verified": { "type": "boolean" },
+        "response": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 524288,
+          "pattern": "\\S"
+        },
+        "responseDigest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "openItemId", "prompt", "options", "recommendation", "status"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "\\S"
+        },
+        "openItemId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "\\S"
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 16384,
+          "pattern": "\\S"
+        },
+        "options": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "pattern": "\\S"
+          }
+        },
+        "recommendation": {
+          "oneOf": [
+            {
+              "type": "string",
+              "maxLength": 4096
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        }
+      }
+    },
+    "category": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "rationale", "sourceRefs"],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/nonBlank"
+        },
+        "status": {
+          "$ref": "#/$defs/status"
+        },
+        "rationale": {
+          "$ref": "#/$defs/nullableString"
+        },
+        "sourceRefs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sourceRef"
+          }
+        }
+      }
+    },
+    "requirementsPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runtime", "camelVersion", "platformVersion", "springBootVersion", "routeDsl", "expressionLanguage", "citrusVersion", "citrusDependencies", "javaPolicy", "approvedJavaExceptions", "routes", "citrusTestsRequired", "oneCitrusTestPerRoute"],
+      "properties": {
+        "runtime": {
+          "oneOf": [
+            { "enum": ["main", "spring-boot", "quarkus"] },
+            { "type": "null" }
+          ]
+        },
+        "camelVersion": {
+          "oneOf": [
+            { "$ref": "#/$defs/nonBlank" },
+            { "type": "null" }
+          ]
+        },
+        "platformVersion": { "$ref": "#/$defs/nullableString" },
+        "springBootVersion": { "$ref": "#/$defs/nullableString" },
+        "routeDsl": {
+          "oneOf": [
+            { "const": "yaml" },
+            { "type": "null" }
+          ]
+        },
+        "expressionLanguage": {
+          "oneOf": [
+            { "const": "simple" },
+            { "type": "null" }
+          ]
+        },
+        "citrusVersion": {
+          "oneOf": [
+            { "$ref": "#/$defs/nonBlank" },
+            { "type": "null" }
+          ]
+        },
+        "citrusDependencies": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/nonBlank" }
+        },
+        "javaPolicy": {
+          "oneOf": [
+            { "enum": ["FORBIDDEN", "JUSTIFICATION_REQUIRED", "ALLOWED"] },
+            { "type": "null" }
+          ]
+        },
+        "approvedJavaExceptions": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/nonBlank" }
+        },
+        "routes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/routeContract" }
+        },
+        "citrusTestsRequired": { "type": "boolean" },
+        "oneCitrusTestPerRoute": { "type": "boolean" }
+      }
+    },
+    "routeContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["routeId", "routePath", "citrusTestPath"],
+      "properties": {
+        "routeId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$" },
+        "routePath": { "type": "string", "pattern": "^[^/].*\\.camel\\.yaml$" },
+        "citrusTestPath": { "type": "string", "pattern": "^test/[^/]+\\.camel\\.it\\.yaml$" }
+      }
+    }
+  }
+}

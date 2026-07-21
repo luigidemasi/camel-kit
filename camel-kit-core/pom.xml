@@ -34,6 +34,11 @@
         </dependency>
 
         <dependency>
+            <groupId>com.networknt</groupId>
+            <artifactId>json-schema-validator</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>org.tomlj</groupId>
             <artifactId>tomlj</artifactId>
         </dependency>
@@ -79,6 +84,13 @@
                     <artifactId>*</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <!-- One-way access to the lifecycle authority vocabulary; that module never depends on Core. -->
+        <dependency>
+            <groupId>io.github.luigidemasi</groupId>
+            <artifactId>camel-kit-ship-controller</artifactId>
+            <version>${project.version}</version>
         </dependency>
 
         <!-- Compile only; Ship resolves the exact accepted runtime into an isolated payload. -->

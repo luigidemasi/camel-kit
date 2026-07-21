@@ -9,7 +9,9 @@
 
 ## Step 1: Select Runtime Platform
 
-Ask the user:
+First inspect the analyzed requirements and recorded answers. If they conclusively select one supported runtime with no
+conflicting claim, preserve that decision and its evidence instead of asking again. If the runtime is absent, ambiguous,
+conflicting, or only assumed/recommended, ask the user:
 
 ```
 Which runtime platform would you like to use?
@@ -25,7 +27,10 @@ Record: `project.runtime` (`main`, `spring-boot`, or `quarkus`)
 
 ## Step 2: Select Camel Version
 
-Present the supported versions for the selected runtime.
+First inspect the analyzed requirements and recorded answers. If they conclusively select a version supported by the
+chosen runtime, preserve that decision and its evidence instead of asking again. Otherwise present the supported
+versions for the selected runtime. An explicit unsupported version remains an open conflict; do not silently replace it
+with the default.
 
 ### If runtime is `main` (JBang)
 

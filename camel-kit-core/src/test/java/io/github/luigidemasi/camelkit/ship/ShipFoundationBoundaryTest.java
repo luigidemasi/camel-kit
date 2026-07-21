@@ -28,6 +28,7 @@ import io.github.luigidemasi.camelkit.ship.security.ProjectContextFiles;
 import io.github.luigidemasi.camelkit.ship.security.ProjectEvidenceFiles;
 import io.github.luigidemasi.camelkit.ship.security.ProjectSnapshot;
 import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy;
+import io.github.luigidemasi.camelkit.ship.security.StagedArtifactSource;
 
 import org.junit.jupiter.api.Test;
 
@@ -105,6 +106,13 @@ class ShipFoundationBoundaryTest {
             "static materializeMaterial(java.nio.file.Path,java.nio.file.Path)->" + SECURITY_PACKAGE
                                                                                                                                                                                                                                      + "ProjectSnapshot throws java.io.IOException",
             "static readMaterial(java.nio.file.Path,java.lang.String,int)->byte[] throws java.io.IOException");
+    private static final Set<String> STAGED_ARTIFACT_SOURCE_METHODS = Set.of(
+            "static open(java.nio.file.Path)->" + SECURITY_PACKAGE
+                                                                             + "StagedArtifactSource$Session throws java.io.IOException");
+    private static final Set<String> STAGED_ARTIFACT_SESSION_METHODS = Set.of(
+            "copyTo(java.lang.String,long,java.nio.channels.WritableByteChannel)->" + SECURITY_PACKAGE
+                                                                              + "StagedArtifactSource$CopyResult throws java.io.IOException",
+            "close()->void throws java.io.IOException");
     private static final Set<String> ALLOWED_CONTEXT_FILE_DEPENDENCIES = Set.of(
             "java.io.FileNotFoundException",
             "java.io.IOException",
@@ -738,6 +746,31 @@ class ShipFoundationBoundaryTest {
                 .map(ShipFoundationBoundaryTest::signature)
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());
         assertEquals(PROJECT_EVIDENCE_METHODS, evidenceMethods);
+
+        assertTrue(Modifier.isPublic(StagedArtifactSource.class.getModifiers()));
+        assertTrue(Modifier.isFinal(StagedArtifactSource.class.getModifiers()));
+        assertEquals(0, StagedArtifactSource.class.getConstructors().length);
+        assertEquals(
+                STAGED_ARTIFACT_SOURCE_METHODS,
+                Arrays.stream(StagedArtifactSource.class.getDeclaredMethods())
+                        .filter(method -> Modifier.isPublic(method.getModifiers()))
+                        .map(ShipFoundationBoundaryTest::signature)
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet()));
+
+        Class<?> stagedSession = StagedArtifactSource.Session.class;
+        assertTrue(Modifier.isPublic(stagedSession.getModifiers()));
+        assertTrue(Modifier.isFinal(stagedSession.getModifiers()));
+        assertEquals(0, stagedSession.getConstructors().length);
+        assertEquals(
+                STAGED_ARTIFACT_SESSION_METHODS,
+                Arrays.stream(stagedSession.getDeclaredMethods())
+                        .filter(method -> Modifier.isPublic(method.getModifiers()))
+                        .map(ShipFoundationBoundaryTest::signature)
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet()));
+        assertTrue(StagedArtifactSource.CopyResult.class.isRecord());
+        assertTrue(Arrays.stream(StagedArtifactSource.CopyResult.class.getRecordComponents())
+                .noneMatch(component -> Path.class.equals(component.getType())
+                        || Channel.class.isAssignableFrom(component.getType())));
     }
 
     private static String signature(java.lang.reflect.Method method) {
