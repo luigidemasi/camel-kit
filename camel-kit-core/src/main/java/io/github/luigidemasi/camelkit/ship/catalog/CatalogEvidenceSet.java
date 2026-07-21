@@ -67,7 +67,7 @@ public record CatalogEvidenceSet(
     }
 
     /** Creates a canonically ordered snapshot and derives its content digest. */
-    static CatalogEvidenceSet create(
+    public static CatalogEvidenceSet create(
             CatalogTarget target,
             MavenCoordinate platformCoordinate,
             List<ArtifactEvidence> artifacts,

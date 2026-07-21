@@ -1,7 +1,11 @@
 package io.github.luigidemasi.camelkit.ship.security;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -67,6 +71,99 @@ final class ProjectSnapshotService {
                 compareMaps(
                         materialDirectories(before.directories()),
                         materialDirectories(after.directories())));
+    }
+
+    boolean unchanged(ProjectSnapshot before, ProjectSnapshot after) {
+        return compare(before, after).unchanged();
+    }
+
+    boolean unchangedMaterialTree(ProjectSnapshot before, ProjectSnapshot after) {
+        return compareMaterialTree(before, after).unchanged();
+    }
+
+    /** Copies an authenticated material snapshot into an empty controller-owned directory. */
+    ProjectSnapshot materializeMaterial(Path sourceRoot, Path targetRoot) throws IOException {
+        ProjectSnapshot expected = capture(sourceRoot);
+        Path target = requireEmptyTarget(targetRoot);
+        try (SecureRoot source = ShipSecureFilesystem.open(sourceRoot, "Ship baseline source", policy)) {
+            ProjectSnapshot before = source.snapshot();
+            if (!compare(before, expected).unchanged()) {
+                throw new ShipFilesystemException(
+                        ShipFilesystemException.CONCURRENT_MUTATION,
+                        "Ship project differs from the accepted baseline before materialization");
+            }
+            for (Map.Entry<String, DirectoryEntry> item : before.directories().entrySet()) {
+                if (item.getValue().classification() == Classification.MATERIAL) {
+                    Path directory = target.resolve(item.getKey());
+                    Files.createDirectory(directory);
+                }
+            }
+            for (Map.Entry<String, FileEntry> item : before.files().entrySet()) {
+                if (item.getValue().classification() != Classification.MATERIAL) {
+                    continue;
+                }
+                byte[] content = source.readMaterialBytes(
+                        item.getKey(), Math.max(1, Math.toIntExact(item.getValue().size())));
+                Path file = target.resolve(item.getKey());
+                Files.write(file, content, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+                setMode(file, item.getValue().unixMode());
+            }
+            for (Map.Entry<String, DirectoryEntry> item : before.directories().entrySet().stream()
+                    .sorted(Map.Entry.<String, DirectoryEntry>comparingByKey().reversed())
+                    .toList()) {
+                if (item.getValue().classification() == Classification.MATERIAL) {
+                    setMode(target.resolve(item.getKey()), item.getValue().unixMode());
+                }
+            }
+            ProjectSnapshot after = source.snapshot();
+            if (!compare(before, after).unchanged()) {
+                throw new ShipFilesystemException(
+                        ShipFilesystemException.CONCURRENT_MUTATION,
+                        "Ship project changed while its accepted baseline was materialized");
+            }
+        }
+        ProjectSnapshot materialized = captureSealed(target);
+        if (!compareMaterialTree(expected, materialized).unchanged()) {
+            throw new ShipFilesystemException(
+                    ShipFilesystemException.CONCURRENT_MUTATION,
+                    "Materialized Ship workspace differs from its accepted baseline");
+        }
+        return materialized;
+    }
+
+    /** Reads one bounded material file through the descriptor-relative project boundary. */
+    byte[] readMaterial(Path root, String relativePath, int maximumBytes) throws IOException {
+        try (SecureRoot secure = ShipSecureFilesystem.open(root, "Ship material read", policy)) {
+            return secure.readMaterialBytes(relativePath, maximumBytes);
+        }
+    }
+
+    private static Path requireEmptyTarget(Path targetRoot) throws IOException {
+        Path target = targetRoot.toAbsolutePath().normalize();
+        if (Files.isSymbolicLink(target) || !Files.isDirectory(target, LinkOption.NOFOLLOW_LINKS)
+                || !target.toRealPath(LinkOption.NOFOLLOW_LINKS).equals(target)) {
+            throw new IOException("Ship materialized workspace must be a real directory");
+        }
+        try (var entries = Files.newDirectoryStream(target)) {
+            if (entries.iterator().hasNext()) {
+                throw new IOException("Ship materialized workspace must be empty");
+            }
+        }
+        return target;
+    }
+
+    private static void setMode(Path path, int unixMode) throws IOException {
+        int permissions = unixMode & 0777;
+        String mode = "---------";
+        char[] chars = mode.toCharArray();
+        int[] bits = {0400, 0200, 0100, 0040, 0020, 0010, 0004, 0002, 0001};
+        char[] values = {'r', 'w', 'x', 'r', 'w', 'x', 'r', 'w', 'x'};
+        for (int index = 0; index < bits.length; index++) {
+            if ((permissions & bits[index]) != 0) {
+                chars[index] = values[index];
+            }
+        }
+        Files.setPosixFilePermissions(path, PosixFilePermissions.fromString(new String(chars)));
     }
 
     private void requireCompatible(ProjectSnapshot before, ProjectSnapshot after) {

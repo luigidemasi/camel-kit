@@ -81,6 +81,38 @@
             </exclusions>
         </dependency>
 
+        <!-- Compile only; Ship resolves the exact accepted runtime into an isolated payload. -->
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-yaml-dsl-validator</artifactId>
+            <version>${camel.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-main</artifactId>
+            <version>${camel.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-yaml-dsl</artifactId>
+            <version>${camel.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-stub</artifactId>
+            <version>${camel.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-direct</artifactId>
+            <version>${camel.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- No camel-catalog or citrus-catalog-schema dependency - JSON downloaded at runtime -->
 
         <!-- Graph builder for project code analysis -->
@@ -144,7 +176,41 @@
                 <filtering>false</filtering>
             </resource>
         </resources>
-        <plugins>
-        </plugins>
     </build>
+
+    <profiles>
+        <!-- Explicit Linux/Bubblewrap certification; ordinary reactor builds stay platform-portable. -->
+        <profile>
+            <id>linux-ship-certification</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <version>${maven.failsafe.plugin.version}</version>
+                        <configuration>
+                            <classpathDependencyExcludes>
+                                <classpathDependencyExclude>io.github.luigidemasi:camel-kit-ship-resolver</classpathDependencyExclude>
+                            </classpathDependencyExcludes>
+                            <additionalClasspathElements>
+                                <additionalClasspathElement>${maven.multiModuleProjectDirectory}/camel-kit-ship-resolver/target/camel-kit-ship-resolver-${project.version}.jar</additionalClasspathElement>
+                            </additionalClasspathElements>
+                            <systemPropertyVariables>
+                                <ship.resolver.jar>${maven.multiModuleProjectDirectory}/camel-kit-ship-resolver/target/camel-kit-ship-resolver-${project.version}.jar</ship.resolver.jar>
+                            </systemPropertyVariables>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>verify-packaged-ship-payloads</id>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                    <goal>verify</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

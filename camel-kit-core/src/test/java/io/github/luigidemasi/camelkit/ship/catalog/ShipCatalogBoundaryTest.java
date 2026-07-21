@@ -39,6 +39,12 @@ class ShipCatalogBoundaryTest {
             "com.fasterxml.jackson.databind.DeserializationFeature",
             "com.fasterxml.jackson.databind.JsonNode",
             "com.fasterxml.jackson.databind.ObjectMapper",
+            "com.fasterxml.jackson.databind.ObjectReader",
+            "com.fasterxml.jackson.databind.node.TextNode",
+            "com.fasterxml.jackson.dataformat.yaml.YAMLFactory",
+            "com.fasterxml.jackson.dataformat.yaml.YAMLFactoryBuilder",
+            "io.github.luigidemasi.camelkit.ship.ShipDigest",
+            "io.github.luigidemasi.camelkit.ship.expression.ShipExpressionPolicy",
             "io.github.luigidemasi.camelkit.ship.resolver.MavenCoordinate",
             "io.github.luigidemasi.camelkit.ship.resolver.ResolvedExactMavenArtifact",
             "io.github.luigidemasi.camelkit.ship.resolver.ShipMavenResolver",
@@ -65,7 +71,12 @@ class ShipCatalogBoundaryTest {
             CATALOG_PACKAGE + "CatalogEvidenceSet$ArtifactEvidence",
             CATALOG_PACKAGE + "CatalogEvidenceSet$SubjectEvidence",
             CATALOG_PACKAGE + "CatalogComponentModel",
-            CATALOG_PACKAGE + "CatalogComponentModel$Option");
+            CATALOG_PACKAGE + "CatalogComponentModel$Option",
+            CATALOG_PACKAGE + "CamelYamlCatalogUsageExtractor$Extraction",
+            CATALOG_PACKAGE + "CatalogUsageRecord",
+            CATALOG_PACKAGE + "CatalogUsageRecord$RouteUsage",
+            CATALOG_PACKAGE + "CatalogUsageRecord$EndpointUsage",
+            CATALOG_PACKAGE + "CatalogUsageRecord$RuntimeDependency");
     private static final Set<String> PUBLIC_ENUMS = Set.of(
             CATALOG_PACKAGE + "CatalogSubject$Kind",
             CATALOG_PACKAGE + "CatalogComponentModel$Scope",
@@ -111,7 +122,28 @@ class ShipCatalogBoundaryTest {
             Map.entry(CATALOG_PACKAGE + "CatalogComponentModel$Scope", Set.of()),
             Map.entry(CATALOG_PACKAGE + "CatalogComponentModel$Kind", Set.of()),
             Map.entry(CATALOG_PACKAGE + "ShipCatalogService", Set.of(constructor("java.nio.file.Path"))),
-            Map.entry(CATALOG_PACKAGE + "ShipCatalogService$Snapshot", Set.of()));
+            Map.entry(CATALOG_PACKAGE + "ShipCatalogService$Snapshot", Set.of()),
+            Map.entry(CATALOG_PACKAGE + "CamelYamlCatalogUsageExtractor", Set.of("<init>()")),
+            Map.entry(CATALOG_PACKAGE + "CamelYamlCatalogUsageExtractor$Extraction", Set.of(constructor(
+                    "java.lang.String", "java.util.List<" + CATALOG_PACKAGE + "CatalogSubject>",
+                    "java.util.List<" + CATALOG_PACKAGE + "CatalogUsageRecord$EndpointUsage>"))),
+            Map.entry(CATALOG_PACKAGE + "CatalogExpressionInventory", Set.of()),
+            Map.entry(CATALOG_PACKAGE + "CatalogUsageRecord", Set.of(constructor(
+                    "int", "java.lang.String", "java.lang.String", "java.lang.String", "java.lang.String",
+                    "java.lang.String", "java.lang.String", "java.lang.String",
+                    "java.util.List<" + CATALOG_PACKAGE + "CatalogUsageRecord$RouteUsage>",
+                    "java.util.List<" + CATALOG_PACKAGE + "CatalogComponentModel>",
+                    "java.util.List<" + CATALOG_PACKAGE + "CatalogUsageRecord$RuntimeDependency>",
+                    CATALOG_PACKAGE + "CatalogEvidenceSet"))),
+            Map.entry(CATALOG_PACKAGE + "CatalogUsageRecord$RouteUsage", Set.of(constructor(
+                    "java.lang.String", "java.lang.String", "java.lang.String",
+                    "java.util.List<" + CATALOG_PACKAGE + "CatalogSubject>",
+                    "java.util.List<" + CATALOG_PACKAGE + "CatalogUsageRecord$EndpointUsage>"))),
+            Map.entry(CATALOG_PACKAGE + "CatalogUsageRecord$EndpointUsage", Set.of(constructor(
+                    CATALOG_PACKAGE + "CatalogSubject", "int", "java.util.List<java.lang.String>",
+                    "java.util.List<java.lang.String>"))),
+            Map.entry(CATALOG_PACKAGE + "CatalogUsageRecord$RuntimeDependency", Set.of(constructor(
+                    "java.lang.String", "java.lang.String", "java.lang.String", "java.lang.String"))));
     private static final Map<String, Set<String>> PUBLIC_METHODS = Map.ofEntries(
             Map.entry(CATALOG_PACKAGE + "CatalogTarget", Set.of(
                     method("toString", "java.lang.String"), method("hashCode", "int"),
@@ -137,7 +169,12 @@ class ShipCatalogBoundaryTest {
                                         + "CatalogEvidenceSet$ArtifactEvidence>"),
                     method("subjects", "java.util.List<" + CATALOG_PACKAGE
                                        + "CatalogEvidenceSet$SubjectEvidence>"),
-                    method("digest", "java.lang.String"))),
+                    method("digest", "java.lang.String"),
+                    staticMethod("create", CATALOG_PACKAGE + "CatalogEvidenceSet",
+                            CATALOG_PACKAGE + "CatalogTarget",
+                            "io.github.luigidemasi.camelkit.ship.resolver.MavenCoordinate",
+                            "java.util.List<" + CATALOG_PACKAGE + "CatalogEvidenceSet$ArtifactEvidence>",
+                            "java.util.List<" + CATALOG_PACKAGE + "CatalogEvidenceSet$SubjectEvidence>"))),
             Map.entry(CATALOG_PACKAGE + "CatalogEvidenceSet$ArtifactEvidence", Set.of(
                     method("toString", "java.lang.String"), method("hashCode", "int"),
                     method("equals", "boolean", "java.lang.Object"),
@@ -188,7 +225,63 @@ class ShipCatalogBoundaryTest {
                     throwingMethod("componentModelsFor",
                             "java.util.List<" + CATALOG_PACKAGE + "CatalogComponentModel>", "java.io.IOException",
                             "java.util.Collection<" + CATALOG_PACKAGE + "CatalogSubject>"),
-                    method("toString", "java.lang.String"))));
+                    method("toString", "java.lang.String"))),
+            Map.entry(CATALOG_PACKAGE + "CamelYamlCatalogUsageExtractor", Set.of(
+                    throwingMethod("extract", "java.util.List<" + CATALOG_PACKAGE + "CatalogSubject>",
+                            "java.io.IOException", "java.nio.file.Path",
+                            "java.util.Collection<" + CATALOG_PACKAGE + "CatalogSubject>"),
+                    throwingMethod("extractBound", CATALOG_PACKAGE + "CamelYamlCatalogUsageExtractor$Extraction",
+                            "java.io.IOException", "java.nio.file.Path",
+                            "java.util.Collection<" + CATALOG_PACKAGE + "CatalogSubject>"),
+                    throwingMethod("extractBound", CATALOG_PACKAGE + "CamelYamlCatalogUsageExtractor$Extraction",
+                            "java.io.IOException", "java.nio.file.Path",
+                            "java.util.Collection<" + CATALOG_PACKAGE + "CatalogSubject>",
+                            "java.util.Collection<" + CATALOG_PACKAGE + "CatalogComponentModel>"))),
+            Map.entry(CATALOG_PACKAGE + "CamelYamlCatalogUsageExtractor$Extraction", Set.of(
+                    method("toString", "java.lang.String"), method("hashCode", "int"),
+                    method("equals", "boolean", "java.lang.Object"), method("digest", "java.lang.String"),
+                    method("subjects", "java.util.List<" + CATALOG_PACKAGE + "CatalogSubject>"),
+                    method("endpoints", "java.util.List<" + CATALOG_PACKAGE
+                                        + "CatalogUsageRecord$EndpointUsage>"))),
+            Map.entry(CATALOG_PACKAGE + "CatalogExpressionInventory", Set.of(
+                    staticMethod("yamlAliases", "java.util.Set<java.lang.String>"),
+                    staticMethod("catalogLanguages", "java.util.Set<java.lang.String>"),
+                    staticMethod("isKnownAlias", "boolean", "java.lang.String"),
+                    staticMethod("isRejectedAlias", "boolean", "java.lang.String"),
+                    staticMethod("isNonExactAlias", "boolean", "java.lang.String"),
+                    staticMethod("isSafeSimple", "boolean", "java.lang.String"))),
+            Map.entry(CATALOG_PACKAGE + "CatalogUsageRecord", Set.of(
+                    method("toString", "java.lang.String"), method("hashCode", "int"),
+                    method("equals", "boolean", "java.lang.Object"), method("schemaVersion", "int"),
+                    method("runId", "java.lang.String"), method("catalogEvidenceDigest", "java.lang.String"),
+                    method("artifactManifestDigest", "java.lang.String"),
+                    method("candidateSnapshotDigest", "java.lang.String"),
+                    method("candidateContentDigest", "java.lang.String"),
+                    method("pomDigest", "java.lang.String"), method("inventoryDigest", "java.lang.String"),
+                    method("routes", "java.util.List<" + CATALOG_PACKAGE + "CatalogUsageRecord$RouteUsage>"),
+                    method("componentModels", "java.util.List<" + CATALOG_PACKAGE + "CatalogComponentModel>"),
+                    method("runtimeDependencies", "java.util.List<" + CATALOG_PACKAGE
+                                                  + "CatalogUsageRecord$RuntimeDependency>"),
+                    method("evidence", CATALOG_PACKAGE + "CatalogEvidenceSet"))),
+            Map.entry(CATALOG_PACKAGE + "CatalogUsageRecord$RouteUsage", Set.of(
+                    method("toString", "java.lang.String"), method("hashCode", "int"),
+                    method("equals", "boolean", "java.lang.Object"), method("routeId", "java.lang.String"),
+                    method("path", "java.lang.String"), method("routeDigest", "java.lang.String"),
+                    method("subjects", "java.util.List<" + CATALOG_PACKAGE + "CatalogSubject>"),
+                    method("endpoints", "java.util.List<" + CATALOG_PACKAGE
+                                        + "CatalogUsageRecord$EndpointUsage>"))),
+            Map.entry(CATALOG_PACKAGE + "CatalogUsageRecord$EndpointUsage", Set.of(
+                    method("toString", "java.lang.String"), method("hashCode", "int"),
+                    method("equals", "boolean", "java.lang.Object"),
+                    method("component", CATALOG_PACKAGE + "CatalogSubject"),
+                    method("pathParameterCount", "int"),
+                    method("componentOptions", "java.util.List<java.lang.String>"),
+                    method("endpointOptions", "java.util.List<java.lang.String>"))),
+            Map.entry(CATALOG_PACKAGE + "CatalogUsageRecord$RuntimeDependency", Set.of(
+                    method("toString", "java.lang.String"), method("hashCode", "int"),
+                    method("equals", "boolean", "java.lang.Object"), method("coordinate", "java.lang.String"),
+                    method("groupId", "java.lang.String"), method("artifactId", "java.lang.String"),
+                    method("version", "java.lang.String"), method("scope", "java.lang.String"))));
     private static final Map<String, Set<String>> PUBLIC_FIELDS = Map.ofEntries(
             Map.entry(CATALOG_PACKAGE + "CatalogTarget", Set.of()),
             Map.entry(CATALOG_PACKAGE + "CatalogSubject", Set.of()),
@@ -210,9 +303,21 @@ class ShipCatalogBoundaryTest {
                     field("PATH", CATALOG_PACKAGE + "CatalogComponentModel$Kind"),
                     field("PARAMETER", CATALOG_PACKAGE + "CatalogComponentModel$Kind"))),
             Map.entry(CATALOG_PACKAGE + "ShipCatalogService", Set.of()),
-            Map.entry(CATALOG_PACKAGE + "ShipCatalogService$Snapshot", Set.of()));
+            Map.entry(CATALOG_PACKAGE + "ShipCatalogService$Snapshot", Set.of()),
+            Map.entry(CATALOG_PACKAGE + "CamelYamlCatalogUsageExtractor", Set.of()),
+            Map.entry(CATALOG_PACKAGE + "CamelYamlCatalogUsageExtractor$Extraction", Set.of()),
+            Map.entry(CATALOG_PACKAGE + "CatalogExpressionInventory", Set.of(
+                    field("SIMPLE", "java.lang.String"), field("GENERIC", "java.lang.String"),
+                    field("METHOD", "java.lang.String"))),
+            Map.entry(CATALOG_PACKAGE + "CatalogUsageRecord", Set.of(field("SCHEMA_VERSION", "int"))),
+            Map.entry(CATALOG_PACKAGE + "CatalogUsageRecord$RouteUsage", Set.of()),
+            Map.entry(CATALOG_PACKAGE + "CatalogUsageRecord$EndpointUsage", Set.of()),
+            Map.entry(CATALOG_PACKAGE + "CatalogUsageRecord$RuntimeDependency", Set.of()));
     private static final Map<String, Map<String, Object>> PUBLIC_CONSTANT_VALUES = Map.of(
-            CATALOG_PACKAGE + "CatalogEvidenceSet", Map.of("SCHEMA_VERSION", 1));
+            CATALOG_PACKAGE + "CatalogEvidenceSet", Map.of("SCHEMA_VERSION", 1),
+            CATALOG_PACKAGE + "CatalogExpressionInventory", Map.of(
+                    "SIMPLE", "simple", "GENERIC", "language", "METHOD", "method"),
+            CATALOG_PACKAGE + "CatalogUsageRecord", Map.of("SCHEMA_VERSION", 1));
 
     @Test
     void compiledCatalogUsesOnlyApprovedModulesAndExactExternalTypes()
@@ -262,7 +367,14 @@ class ShipCatalogBoundaryTest {
                 CatalogComponentModel.Scope.class,
                 CatalogComponentModel.Kind.class,
                 ShipCatalogService.class,
-                ShipCatalogService.Snapshot.class);
+                ShipCatalogService.Snapshot.class,
+                CamelYamlCatalogUsageExtractor.class,
+                CamelYamlCatalogUsageExtractor.Extraction.class,
+                CatalogExpressionInventory.class,
+                CatalogUsageRecord.class,
+                CatalogUsageRecord.RouteUsage.class,
+                CatalogUsageRecord.EndpointUsage.class,
+                CatalogUsageRecord.RuntimeDependency.class);
         Path classes = Path.of(System.getProperty("basedir"), "target", "classes");
         Path catalog = classes.resolve("io/github/luigidemasi/camelkit/ship/catalog");
         Set<Class<?>> actual = new HashSet<>();

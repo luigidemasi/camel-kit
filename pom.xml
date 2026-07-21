@@ -31,24 +31,27 @@
         <minimalJavaBuildVersion>${jdk.version}</minimalJavaBuildVersion>
         <picocli.version>4.7.7</picocli.version>
         <ascii-table.version>1.9.0</ascii-table.version>
-        <jackson.version>2.19.2</jackson.version>
+        <jackson.version>${ship.evidence.jackson-yaml.version}</jackson.version>
         <jline.version>3.30.6</jline.version>
         <tamboui.version>0.1.0</tamboui.version>
         <tomlj.version>1.1.1</tomlj.version>
         <quarkus.version>3.20.2.2</quarkus.version>
         <quarkus-mcp.version>1.6.1</quarkus-mcp.version>
-        <camel.version>4.21.0</camel.version>
+        <camel.version>${camel.main.version}</camel.version>
         <!-- BEGIN distribution property mirrors
              distribution.properties is the packaged runtime source of truth.
              These literals must also exist here because Maven builds its model
              and resolves dependency/plugin versions before a lifecycle plugin
              can read that file. DistributionVersionMirrorTest prevents drift. -->
+        <camel.main.version>4.21.0</camel.main.version>
         <camel.mcp.version>4.21.0</camel.mcp.version>
+        <ship.evidence.jackson-yaml.version>2.19.2</ship.evidence.jackson-yaml.version>
         <maven.resolver.version>1.9.27</maven.resolver.version>
         <maven.provider.version>3.9.12</maven.provider.version>
         <maven.jar.plugin.version>3.5.0</maven.jar.plugin.version>
         <maven.shade.plugin.version>3.6.1</maven.shade.plugin.version>
         <maven.surefire.plugin.version>3.5.4</maven.surefire.plugin.version>
+        <maven.failsafe.plugin.version>3.5.4</maven.failsafe.plugin.version>
         <slf4j.version>1.7.36</slf4j.version>
         <!-- END distribution property mirrors -->
 

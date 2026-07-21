@@ -25,6 +25,7 @@ import io.github.luigidemasi.camelkit.ship.context.ContextFilesystemPolicy;
 import io.github.luigidemasi.camelkit.ship.context.ContextResolution;
 import io.github.luigidemasi.camelkit.ship.context.InitialContext;
 import io.github.luigidemasi.camelkit.ship.security.ProjectContextFiles;
+import io.github.luigidemasi.camelkit.ship.security.ProjectEvidenceFiles;
 import io.github.luigidemasi.camelkit.ship.security.ProjectSnapshot;
 import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy;
 
@@ -92,6 +93,18 @@ class ShipFoundationBoundaryTest {
     private static final Set<String> HELD_ROOT_METHODS = Set.of(
             "close()->void throws java.io.IOException",
             "toString()->java.lang.String");
+    private static final Set<String> PROJECT_EVIDENCE_METHODS = Set.of(
+            "static capture(java.nio.file.Path)->" + SECURITY_PACKAGE
+                                                                       + "ProjectSnapshot throws java.io.IOException",
+            "static captureSealed(java.nio.file.Path)->" + SECURITY_PACKAGE
+                                                                                                                       + "ProjectSnapshot throws java.io.IOException",
+            "static unchanged(" + SECURITY_PACKAGE + "ProjectSnapshot," + SECURITY_PACKAGE
+                                                                                                                                                                       + "ProjectSnapshot)->boolean",
+            "static unchangedMaterialTree(" + SECURITY_PACKAGE + "ProjectSnapshot," + SECURITY_PACKAGE
+                                                                                                                                                                                                      + "ProjectSnapshot)->boolean",
+            "static materializeMaterial(java.nio.file.Path,java.nio.file.Path)->" + SECURITY_PACKAGE
+                                                                                                                                                                                                                                     + "ProjectSnapshot throws java.io.IOException",
+            "static readMaterial(java.nio.file.Path,java.lang.String,int)->byte[] throws java.io.IOException");
     private static final Set<String> ALLOWED_CONTEXT_FILE_DEPENDENCIES = Set.of(
             "java.io.FileNotFoundException",
             "java.io.IOException",
@@ -715,6 +728,16 @@ class ShipFoundationBoundaryTest {
                 .map(ShipFoundationBoundaryTest::signature)
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());
         assertEquals(HELD_ROOT_METHODS, heldRootMethods);
+
+        assertTrue(Modifier.isPublic(ProjectEvidenceFiles.class.getModifiers()));
+        assertTrue(Modifier.isFinal(ProjectEvidenceFiles.class.getModifiers()));
+        assertEquals(0, ProjectEvidenceFiles.class.getConstructors().length);
+        assertEquals(0, ProjectEvidenceFiles.class.getFields().length);
+        Set<String> evidenceMethods = Arrays.stream(ProjectEvidenceFiles.class.getDeclaredMethods())
+                .filter(method -> Modifier.isPublic(method.getModifiers()))
+                .map(ShipFoundationBoundaryTest::signature)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        assertEquals(PROJECT_EVIDENCE_METHODS, evidenceMethods);
     }
 
     private static String signature(java.lang.reflect.Method method) {
