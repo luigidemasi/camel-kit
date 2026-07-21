@@ -38,7 +38,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install --yes apparmor-profiles bubblewrap
           sudo apparmor_parser -r /usr/share/apparmor/extra-profiles/bwrap-userns-restrict
-          bwrap --unshare-user --unshare-net --disable-userns --ro-bind /usr /usr --symlink usr/lib64 /lib64 --proc /proc --dev /dev -- /usr/bin/true
+          bwrap \
+            --unshare-user --unshare-net --disable-userns \
+            --dir /usr --dir /opt \
+            --ro-bind /usr/lib /usr/lib --ro-bind /usr/lib64 /usr/lib64 \
+            --ro-bind "$JAVA_HOME" /opt/jdk \
+            --symlink usr/lib /lib --symlink usr/lib64 /lib64 \
+            --proc /proc --dev /dev -- /opt/jdk/bin/java -version
 
       - name: Check code formatting and imports
         run: ./mvnw -B -Psourcecheck validate

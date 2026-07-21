@@ -208,6 +208,7 @@ class JvmPayloadCompatibilityIT {
                 directory.resolve(request.kind().id() + "-tmp-" + launch));
 
         List<Mount> mounts = List.of(
+                new Mount(Path.of("/usr/lib").toRealPath(), "/usr/lib", Access.READ_ONLY),
                 new Mount(Path.of("/usr/lib64").toRealPath(), "/usr/lib64", Access.READ_ONLY),
                 new Mount(javaHome, "/opt/camel-kit/jdk", Access.READ_ONLY),
                 new Mount(workspace.toRealPath(), "/workspace", Access.READ_ONLY),

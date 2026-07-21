@@ -17,6 +17,7 @@ final class BubblewrapSandboxLauncher implements EvidenceSandboxLauncher {
     static final String PROVIDER = "bubblewrap-linux-v1";
     static final String PROFILE_ID = PROVIDER
                                      + ":die-with-parent,new-session,clearenv,drop-all-caps,merged-usr"
+                                     + ":ro-system-lib,ro-system-lib64"
                                      + ":unshare-user,pid,ipc,uts,cgroup,net";
 
     private final Path configuredExecutable;
@@ -64,6 +65,7 @@ final class BubblewrapSandboxLauncher implements EvidenceSandboxLauncher {
                 "--disable-userns",
                 "--cap-drop", "ALL",
                 "--clearenv",
+                "--symlink", "usr/lib", "/lib",
                 "--symlink", "usr/lib64", "/lib64",
                 "--proc", "/proc",
                 "--dev", "/dev",
@@ -134,7 +136,9 @@ final class BubblewrapSandboxLauncher implements EvidenceSandboxLauncher {
     }
 
     private static void requireMergedUsr() throws IOException {
-        Map<Path, Path> required = Map.of(Path.of("/lib64"), Path.of("usr/lib64"));
+        Map<Path, Path> required = Map.of(
+                Path.of("/lib"), Path.of("usr/lib"),
+                Path.of("/lib64"), Path.of("usr/lib64"));
         for (Map.Entry<Path, Path> entry : required.entrySet().stream()
                 .sorted(Comparator.comparing(item -> item.getKey().toString())).toList()) {
             if (!Files.isSymbolicLink(entry.getKey())

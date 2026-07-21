@@ -575,10 +575,15 @@ public final class EvidenceRunner {
             ResolvedToolchain toolchain,
             JdkIdentity jdk)
             throws IOException {
-        List<Path> systemLibraries = List.of(
-                realDirectory(Path.of("/usr/lib64"), "system library root"));
-        for (Path system : systemLibraries) {
-            if (candidate.startsWith(system) || evidenceDirectory.startsWith(system)) {
+        List<Mount> systemLibraries = List.of(
+                new Mount(
+                        realDirectory(Path.of("/usr/lib"), "system library root"),
+                        "/usr/lib", Access.READ_ONLY),
+                new Mount(
+                        realDirectory(Path.of("/usr/lib64"), "system library root"),
+                        "/usr/lib64", Access.READ_ONLY));
+        for (Mount system : systemLibraries) {
+            if (candidate.startsWith(system.source()) || evidenceDirectory.startsWith(system.source())) {
                 throw new IOException("Candidate and controller evidence must be outside system library mounts");
             }
         }
@@ -586,7 +591,7 @@ public final class EvidenceRunner {
             throw new IOException("Candidate and controller evidence directories must be disjoint");
         }
         List<Mount> mounts = new ArrayList<>();
-        mounts.add(new Mount(systemLibraries.get(0), "/usr/lib64", Access.READ_ONLY));
+        mounts.addAll(systemLibraries);
         if (jdk.root().startsWith(candidate) || candidate.startsWith(jdk.root())
                 || evidenceDirectory.startsWith(jdk.root())) {
             throw new IOException("Controller JDK overlaps candidate or controller state");

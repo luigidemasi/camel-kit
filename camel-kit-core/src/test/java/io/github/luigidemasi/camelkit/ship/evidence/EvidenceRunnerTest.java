@@ -63,6 +63,7 @@ class EvidenceRunnerTest {
                     Files.getPosixFilePermissions(emptyDirectory),
                     Files.getPosixFilePermissions(frozenEmptyDirectory));
             assertTrue(invocation.mounts().stream().noneMatch(mount -> "/usr".equals(mount.target())));
+            assertTrue(invocation.mounts().stream().anyMatch(mount -> "/usr/lib".equals(mount.target())));
             assertTrue(invocation.mounts().stream().anyMatch(mount -> "/usr/lib64".equals(mount.target())));
         }
         assertEquals("Camel direct YAML validator 4.21.0", result.executableVersion());
@@ -76,6 +77,7 @@ class EvidenceRunnerTest {
         assertTrue(bubblewrapArguments.containsAll(List.of(
                 "--unshare-user", "--unshare-pid", "--unshare-ipc", "--unshare-uts",
                 "--unshare-cgroup", "--unshare-net", "--die-with-parent", "--new-session", "--clearenv")));
+        assertTrue(bubblewrapArguments.containsAll(List.of("usr/lib", "/lib", "usr/lib64", "/lib64")));
         assertFalse(bubblewrapArguments.contains("/bin"));
         assertFalse(bubblewrapArguments.contains("/sbin"));
         int separator = bubblewrapArguments.indexOf("--");
