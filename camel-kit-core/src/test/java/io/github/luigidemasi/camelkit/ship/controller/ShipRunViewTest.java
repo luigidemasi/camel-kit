@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
+import io.github.luigidemasi.camelkit.ship.controller.ShipBlobStore.BlobReference;
 import io.github.luigidemasi.camelkit.ship.protocol.Interaction;
 import io.github.luigidemasi.camelkit.ship.protocol.Interaction.DiscoveryAnswer;
 import io.github.luigidemasi.camelkit.ship.protocol.Interaction.DiscoveryChallenge;
@@ -23,6 +24,80 @@ class ShipRunViewTest {
 
     @TempDir
     Path temporaryDirectory;
+
+    @Test
+    void rejectsMissingLifecycleAuthority() {
+        NullPointerException failure
+                = assertThrows(NullPointerException.class, () -> view(null, null, null));
+
+        assertEquals("Ship lifecycle authority", failure.getMessage());
+    }
+
+    @Test
+    void rejectsInvalidEventDigest() {
+        IllegalArgumentException failure = assertThrows(
+                IllegalArgumentException.class,
+                () -> view(authority(), "sha256:invalid", projectRoot(), "native", List.of(), Map.of()));
+
+        assertTrue(failure.getMessage().contains("event digest"));
+    }
+
+    @Test
+    void rejectsProjectRootThatIsRelativeOrNotNormalized() {
+        ShipRun authority = authority();
+
+        assertAll(
+                () -> assertThrows(
+                        IllegalArgumentException.class,
+                        () -> view(authority, DIGEST, Path.of("project"), "native", List.of(), Map.of())),
+                () -> assertThrows(
+                        IllegalArgumentException.class,
+                        () -> view(
+                                authority,
+                                DIGEST,
+                                projectRoot().resolve("child").resolve(".."),
+                                "native",
+                                List.of(),
+                                Map.of())));
+    }
+
+    @Test
+    void rejectsInvalidAdapterId() {
+        IllegalArgumentException failure = assertThrows(
+                IllegalArgumentException.class,
+                () -> view(authority(), DIGEST, projectRoot(), "Native", List.of(), Map.of()));
+
+        assertTrue(failure.getMessage().contains("adapter ID"));
+    }
+
+    @Test
+    void rejectsInvalidEvidenceReferences() {
+        ShipRun authority = authority();
+        BlobReference evidence = new BlobReference("evidence", DIGEST, 0);
+
+        assertAll(
+                () -> assertThrows(
+                        NullPointerException.class,
+                        () -> view(
+                                authority,
+                                DIGEST,
+                                projectRoot(),
+                                "native",
+                                java.util.Collections.singletonList(null),
+                                Map.of())),
+                () -> {
+                    IllegalArgumentException failure = assertThrows(
+                            IllegalArgumentException.class,
+                            () -> view(
+                                    authority,
+                                    DIGEST,
+                                    projectRoot(),
+                                    "native",
+                                    List.of(),
+                                    Map.of(" ", evidence)));
+                    assertTrue(failure.getMessage().contains("evidence references"));
+                });
+    }
 
     @Test
     void rejectsPendingInteractionFromAnotherRun() {
@@ -85,11 +160,33 @@ class ShipRunViewTest {
 
     private ShipRunView view(
             ShipRun authority, StageRequest activeRequest, ShipInteractionBundle.Exchange pending) {
+        return view(authority, DIGEST, projectRoot(), "native", List.of(), Map.of(), activeRequest, pending);
+    }
+
+    private ShipRunView view(
+            ShipRun authority,
+            String eventDigest,
+            Path projectRoot,
+            String adapterId,
+            List<BlobReference> evidence,
+            Map<String, BlobReference> evidenceById) {
+        return view(authority, eventDigest, projectRoot, adapterId, evidence, evidenceById, null, null);
+    }
+
+    private ShipRunView view(
+            ShipRun authority,
+            String eventDigest,
+            Path projectRoot,
+            String adapterId,
+            List<BlobReference> evidence,
+            Map<String, BlobReference> evidenceById,
+            StageRequest activeRequest,
+            ShipInteractionBundle.Exchange pending) {
         return new ShipRunView(
                 authority,
-                DIGEST,
-                temporaryDirectory.toAbsolutePath().normalize(),
-                "native",
+                eventDigest,
+                projectRoot,
+                adapterId,
                 null,
                 null,
                 null,
@@ -112,14 +209,18 @@ class ShipRunViewTest {
                 null,
                 null,
                 null,
-                List.of(),
-                Map.of(),
+                evidence,
+                evidenceById,
                 null,
                 null,
                 null,
                 null,
                 null,
                 null);
+    }
+
+    private Path projectRoot() {
+        return temporaryDirectory.toAbsolutePath().normalize();
     }
 
     private ShipRun authority() {
