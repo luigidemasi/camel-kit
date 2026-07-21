@@ -33,6 +33,9 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
+      - name: Install Bubblewrap
+        run: sudo apt-get update && sudo apt-get install --yes bubblewrap
+
       - name: Check code formatting and imports
         run: ./mvnw -B -Psourcecheck validate
 
