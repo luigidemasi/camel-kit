@@ -1,0 +1,101 @@
+registry_schema_version: 1
+
+adapters:
+  - harness_id: bob
+    status: incompatible
+    ingress_mode: none
+    interaction_profile: none
+    launcher_profile: none
+    sandbox_profile: none
+    provider_profile: none
+    protocol_profile: none
+    evidence_profile: none
+    reason: IBM Bob 1 uses single-session mode switching without native spawned subagents; no Bob 1 Ship wrapper is in scope.
+
+  - harness_id: bob2
+    status: untested
+    ingress_mode: none
+    interaction_profile: none
+    launcher_profile: none
+    sandbox_profile: none
+    provider_profile: none
+    protocol_profile: none
+    evidence_profile: none
+    reason: No certified Ship adapter tuple is registered for this harness.
+
+  - harness_id: claude
+    status: untested
+    ingress_mode: none
+    interaction_profile: none
+    launcher_profile: none
+    sandbox_profile: none
+    provider_profile: none
+    protocol_profile: none
+    evidence_profile: none
+    reason: No certified Ship adapter tuple is registered for this harness.
+
+  - harness_id: codex
+    status: untested
+    ingress_mode: none
+    interaction_profile: none
+    launcher_profile: none
+    sandbox_profile: none
+    provider_profile: none
+    protocol_profile: none
+    evidence_profile: none
+    reason: No certified Ship adapter tuple is registered for this harness.
+
+  - harness_id: copilot
+    status: untested
+    ingress_mode: none
+    interaction_profile: none
+    launcher_profile: none
+    sandbox_profile: none
+    provider_profile: none
+    protocol_profile: none
+    evidence_profile: none
+    reason: No certified Ship adapter tuple is registered for this harness.
+
+  - harness_id: gemini
+    status: untested
+    ingress_mode: none
+    interaction_profile: none
+    launcher_profile: none
+    sandbox_profile: none
+    provider_profile: none
+    protocol_profile: none
+    evidence_profile: none
+    reason: No certified Ship adapter tuple is registered for this harness.
+
+  - harness_id: opencode
+    status: untested
+    ingress_mode: none
+    interaction_profile: none
+    launcher_profile: none
+    sandbox_profile: none
+    provider_profile: none
+    protocol_profile: none
+    evidence_profile: none
+    reason: No certified Ship adapter tuple is registered for this harness.
+
+  - harness_id: pi
+    status: untested
+    ingress_mode: none
+    interaction_profile: none
+    launcher_profile: none
+    sandbox_profile: none
+    provider_profile: none
+    protocol_profile: none
+    evidence_profile: none
+    reason: No certified Ship adapter tuple is registered for this harness.
+
+  - harness_id: qwen
+    status: untested
+    ingress_mode: none
+    interaction_profile: none
+    launcher_profile: none
+    sandbox_profile: none
+    provider_profile: none
+    protocol_profile: none
+    evidence_profile: none
+    reason: No certified Ship adapter tuple is registered for this harness.
