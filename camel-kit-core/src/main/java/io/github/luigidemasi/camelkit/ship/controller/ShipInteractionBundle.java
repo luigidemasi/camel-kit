@@ -58,7 +58,7 @@ public record ShipInteractionBundle(
             if (pending) {
                 throw new IllegalArgumentException("Only the final interaction exchange may be pending");
             }
-            exchange.validate(runId);
+            exchange.validate(runId, contextDigest);
             pending = exchange.pending();
         }
     }
@@ -189,7 +189,7 @@ public record ShipInteractionBundle(
                     : waiver.challenge().runId();
         }
 
-        private void validate(String runId) {
+        private void validate(String runId, String contextDigest) {
             if (discovery != null) {
                 ShipInteractionBundle.validate(runId, discovery.challenge(), discovery.answer());
             } else if (documentConsent != null) {
@@ -199,8 +199,16 @@ public record ShipInteractionBundle(
                 ShipInteractionBundle.validate(
                         runId, remoteProviderConsent.challenge(), remoteProviderConsent.response());
             } else if (design != null) {
+                if (!contextDigest.equals(design.challenge().contextDigest())) {
+                    throw new IllegalArgumentException(
+                            "Design challenge context does not match its interaction bundle");
+                }
                 ShipInteractionBundle.validate(runId, design.challenge(), design.response());
             } else if (plan != null) {
+                if (!contextDigest.equals(plan.challenge().contextDigest())) {
+                    throw new IllegalArgumentException(
+                            "Plan challenge context does not match its interaction bundle");
+                }
                 ShipInteractionBundle.validate(runId, plan.challenge(), plan.response());
             } else {
                 ShipInteractionBundle.validate(runId, waiver.challenge(), waiver.response());

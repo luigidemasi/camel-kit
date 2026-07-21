@@ -27,6 +27,10 @@ import java.util.concurrent.TimeUnit;
  * <p>
  * The source channel for an artifact is opened exactly once. Its bytes are hashed while they are copied to the caller's
  * controller-owned quarantine channel; no verified path or source channel escapes this boundary.
+ *
+ * <p>
+ * The caller must prove the worker process tree is stopped and protect the output ancestry from peer replacement. This
+ * class does not make a concurrently writable same-identity tree safe.
  */
 public final class StagedArtifactSource {
 
@@ -37,8 +41,8 @@ public final class StagedArtifactSource {
         return Session.open(requestedRoot);
     }
 
-    /** Identity observed while copying the exact opened source stream. */
-    public record CopyResult(String digest, long size, int unixMode) {
+    /** Digest and size observed while copying the exact opened source stream. */
+    public record CopyResult(String digest, long size) {
     }
 
     /** Held attempt-output root for one bounded import batch. */
@@ -239,8 +243,7 @@ public final class StagedArtifactSource {
             if (!before.equals(after) || size != before.size()) {
                 throw new IOException("Staged artifact changed while it was read");
             }
-            return new CopyResult(
-                    "sha256:" + HexFormat.of().formatHex(digest.digest()), size, before.mode());
+            return new CopyResult("sha256:" + HexFormat.of().formatHex(digest.digest()), size);
         }
 
         @Override

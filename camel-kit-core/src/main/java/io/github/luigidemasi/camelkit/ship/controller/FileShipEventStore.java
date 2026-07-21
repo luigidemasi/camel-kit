@@ -178,6 +178,7 @@ final class FileShipEventStore {
                     throw new ShipEventStoreException(
                             "Ship event exceeds " + MAX_EVENT_BYTES + " bytes");
                 }
+                ShipEventCodec.decode(encoded);
                 long historyBytes = 0;
                 for (ShipEvent item : history) {
                     historyBytes = checkedAdd(historyBytes, ShipEventCodec.encode(item).length);

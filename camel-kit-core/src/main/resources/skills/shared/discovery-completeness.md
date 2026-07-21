@@ -13,8 +13,8 @@ Use these semantics for both standalone `camel-brainstorm` interviews and contro
    remain valid.
 5. Cover business purpose, actors and flows, triggers/sources/destinations, message contracts and transformations,
    routing rules, runtime and versions, deployment, route DSL and expression language, Java policy, failure handling,
-   security, observability, acceptance criteria, required integration tests, the exact Citrus release, and the
-   exact Citrus dependency set approved for the workflow.
+   security, observability, acceptance criteria, the required integration-test approach, and any test-framework release
+   or dependency constraints applicable to the workflow.
 6. Resolve runtime, Camel version, and applicable platform versions before using runtime-sensitive Camel catalog
    results. A later runtime/version change invalidates those results.
 7. Discovery completion means no blocking ambiguity, conflict, unconfirmed assumption, or untaken material decision

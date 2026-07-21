@@ -29,12 +29,42 @@
       "uniqueItems": true,
       "items": { "$ref": "#/$defs/waiver" }
     },
-    "generatedAt": { "type": "string", "format": "date-time" },
-    "failureCode": { "type": ["string", "null"] },
-    "failureMessage": { "type": ["string", "null"] }
+    "generatedAt": { "type": "string", "format": "date-time", "maxLength": 64 },
+    "failureCode": {
+      "oneOf": [
+        { "$ref": "#/$defs/nonBlank" },
+        { "type": "null" }
+      ]
+    },
+    "failureMessage": {
+      "oneOf": [
+        { "$ref": "#/$defs/nonBlank" },
+        { "type": "null" }
+      ]
+    }
   },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "PASS" } } },
+      "then": {
+        "properties": {
+          "failureCode": { "type": "null" },
+          "failureMessage": { "type": "null" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "FAIL" } } },
+      "then": {
+        "properties": {
+          "failureCode": { "$ref": "#/$defs/nonBlank" },
+          "failureMessage": { "$ref": "#/$defs/nonBlank" }
+        }
+      }
+    }
+  ],
   "$defs": {
-    "nonBlank": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "nonBlank": { "type": "string", "minLength": 1, "maxLength": 65536, "pattern": "\\S" },
     "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
     "check": {
       "type": "object",

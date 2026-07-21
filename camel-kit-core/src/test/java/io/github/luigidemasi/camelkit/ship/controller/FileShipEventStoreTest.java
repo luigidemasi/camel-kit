@@ -1,6 +1,7 @@
 package io.github.luigidemasi.camelkit.ship.controller;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -11,7 +12,9 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
@@ -19,6 +22,7 @@ import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -91,6 +95,24 @@ class FileShipEventStoreTest {
         assertEquals(ShipEventHead.genesis(), failure.expected());
         assertEquals(ShipEventHead.from(first), failure.actual());
         assertEquals(List.of(first), store.replay());
+    }
+
+    @Test
+    void rejectsNonCanonicalDecimalWithoutCommittingIt() throws Exception {
+        ObjectNode payload = MAPPER.createObjectNode();
+        payload.put("amount", new BigDecimal("1.10"));
+
+        assertPayloadRejectedWithoutCommit("decimal-state", payload);
+    }
+
+    @Test
+    void rejectsPayloadBeyondParserTokenBudgetWithoutCommittingIt() throws Exception {
+        ArrayNode payload = MAPPER.createArrayNode();
+        for (int index = 0; index < 60_000; index++) {
+            payload.addObject();
+        }
+
+        assertPayloadRejectedWithoutCommit("token-state", payload);
     }
 
     @Test
@@ -193,6 +215,30 @@ class FileShipEventStoreTest {
     }
 
     @Test
+    void rejectsUnauthenticatedEventForcedBeforeItsHeadUpdate() throws Exception {
+        ShipRunId runId = ShipRunId.create();
+        Path stateRoot = temporaryDirectory.resolve("unauthenticated-tail-state");
+        FileShipEventStore store = FileShipEventStore.create(stateRoot, runId);
+        ShipEvent first = appendFirst(store);
+        Path runRoot = stateRoot.resolve(runId.storageId());
+        Path headPath = runRoot.resolve("current-head.json");
+        byte[] precedingHead = Files.readAllBytes(headPath);
+        appendNext(store, first, 2);
+        Path tailPath = eventFiles(runRoot).get(1);
+        ObjectNode tail = (ObjectNode) MAPPER.readTree(Files.readAllBytes(tailPath));
+        tail.put("hmac", "hmac-sha256:" + "0".repeat(64));
+        overwriteEvent(tailPath, MAPPER.writeValueAsBytes(tail));
+        Files.write(headPath, precedingHead);
+
+        ShipEventStoreException failure = assertThrows(
+                ShipEventStoreException.class,
+                () -> FileShipEventStore.open(stateRoot, runId));
+
+        assertTrue(failure.getMessage().contains("HMAC"));
+        assertArrayEquals(precedingHead, Files.readAllBytes(headPath));
+    }
+
+    @Test
     void replayRejectsHardLinkedAndSymbolicEventEntries() throws Exception {
         ShipRunId hardLinkRun = ShipRunId.create();
         Path hardLinkRoot = temporaryDirectory.resolve("hard-link-state");
@@ -265,6 +311,32 @@ class FileShipEventStoreTest {
                         null,
                         AuthorityHeadId.create(),
                         1));
+    }
+
+    private void assertPayloadRejectedWithoutCommit(String directory, JsonNode payload) throws Exception {
+        ShipRunId runId = ShipRunId.create();
+        Path stateRoot = temporaryDirectory.resolve(directory);
+        FileShipEventStore store = FileShipEventStore.create(stateRoot, runId);
+        Path runRoot = stateRoot.resolve(runId.storageId());
+        Path headPath = runRoot.resolve("current-head.json");
+        byte[] genesisHead = Files.readAllBytes(headPath);
+
+        assertThrows(
+                ShipEventStoreException.class,
+                () -> store.appendIfLatest(
+                        ShipEventHead.genesis(),
+                        new ShipEventDraft(
+                                ShipEventType.RUN_CREATED,
+                                ShipState.CREATED,
+                                null,
+                                AuthorityHeadId.create(),
+                                NOW,
+                                payload)));
+
+        assertEquals(List.of(), store.replay());
+        assertEquals(ShipEventHead.genesis(), store.currentHead());
+        assertTrue(eventFiles(runRoot).isEmpty());
+        assertArrayEquals(genesisHead, Files.readAllBytes(headPath));
     }
 
     private ShipEvent appendNext(FileShipEventStore store, ShipEvent previous, int step)

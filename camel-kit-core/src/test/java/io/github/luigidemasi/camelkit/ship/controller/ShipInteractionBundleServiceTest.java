@@ -147,6 +147,26 @@ class ShipInteractionBundleServiceTest {
     }
 
     @Test
+    void rejectsApprovalRecordsForAnotherBundleContext() throws Exception {
+        Fixture fixture = fixture("context-mismatch");
+        BlobReference current = fixture.service().create(fixture.blobs(), RUN_ID, OTHER_DIGEST);
+
+        assertThrows(IllegalArgumentException.class, () -> fixture.service().record(
+                fixture.blobs(), current, designChallenge(fixture.signer())));
+        assertThrows(IllegalArgumentException.class, () -> fixture.service().record(
+                fixture.blobs(), current, planChallenge(fixture.signer())));
+    }
+
+    @Test
+    void rejectsValidlySignedResponseForAnotherChallengeNonce() throws Exception {
+        Fixture fixture = fixture("nonce-mismatch");
+        BlobReference current = recordChallenge(fixture, designChallenge(fixture.signer()));
+
+        assertThrows(IllegalArgumentException.class, () -> fixture.service().record(
+                fixture.blobs(), current, designResponse(fixture.signer(), DIGEST, "b".repeat(43))));
+    }
+
+    @Test
     void amendedContextStartsANewEmptyBoundedRevision() throws Exception {
         Fixture fixture = fixture("amend");
         BlobReference first = recordChallenge(fixture, discoveryChallenge(fixture.signer()));
@@ -302,9 +322,15 @@ class ShipInteractionBundleServiceTest {
 
     private static DesignResponse designResponse(ShipInteractionSigner signer, String designDigest)
             throws Exception {
+        return designResponse(signer, designDigest, NONCE);
+    }
+
+    private static DesignResponse designResponse(
+            ShipInteractionSigner signer, String designDigest, String nonce)
+            throws Exception {
         DesignResponse value = new DesignResponse(
                 Interaction.SCHEMA_VERSION, RUN_ID, DIGEST, 1, DIGEST, DIGEST, DIGEST, DIGEST, designDigest,
-                NONCE, DesignDecision.APPROVE, "", "uid:1000", "terminal-v1", "cli", Instant.EPOCH,
+                nonce, DesignDecision.APPROVE, "", "uid:1000", "terminal-v1", "cli", Instant.EPOCH,
                 SYNTACTIC_MAC);
         return new DesignResponse(
                 value.schemaVersion(), value.runId(), value.contextDigest(), value.ledgerRevision(),

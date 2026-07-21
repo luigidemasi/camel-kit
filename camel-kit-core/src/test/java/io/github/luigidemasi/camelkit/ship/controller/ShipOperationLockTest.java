@@ -83,6 +83,25 @@ class ShipOperationLockTest {
     }
 
     @Test
+    void runMustPrecedeProjectAndProjectMustCloseFirst() throws Exception {
+        ShipRunId firstRun = ShipRunId.create();
+        ShipRunId secondRun = ShipRunId.create();
+        Path stateRoot = stateWithRuns(firstRun, secondRun);
+        Path projectRoot = Files.createDirectory(temporaryDirectory.resolve("ordered-project"));
+        ShipOperationLock.Lease run = ShipOperationLock.acquireRun(stateRoot, firstRun.storageId());
+        ShipOperationLock.Lease project = ShipOperationLock.acquireProject(stateRoot, projectRoot);
+        try {
+            assertThrows(
+                    IllegalStateException.class,
+                    () -> ShipOperationLock.acquireRun(stateRoot, secondRun.storageId()));
+            assertThrows(IOException.class, run::close);
+        } finally {
+            project.close();
+            run.close();
+        }
+    }
+
+    @Test
     void hardLinkedLockAndSymbolicStateRootFailClosed() throws Exception {
         ShipRunId runId = ShipRunId.create();
         Path stateRoot = stateWithRuns(runId);

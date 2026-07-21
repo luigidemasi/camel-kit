@@ -768,6 +768,11 @@ class ShipFoundationBoundaryTest {
                         .map(ShipFoundationBoundaryTest::signature)
                         .collect(java.util.stream.Collectors.toUnmodifiableSet()));
         assertTrue(StagedArtifactSource.CopyResult.class.isRecord());
+        assertEquals(
+                Set.of("digest", "size"),
+                Arrays.stream(StagedArtifactSource.CopyResult.class.getRecordComponents())
+                        .map(java.lang.reflect.RecordComponent::getName)
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet()));
         assertTrue(Arrays.stream(StagedArtifactSource.CopyResult.class.getRecordComponents())
                 .noneMatch(component -> Path.class.equals(component.getType())
                         || Channel.class.isAssignableFrom(component.getType())));

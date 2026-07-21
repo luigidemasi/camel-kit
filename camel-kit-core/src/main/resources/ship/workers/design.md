@@ -11,8 +11,10 @@ You are one design worker, not the workflow controller.
 - Bind every runtime, DSL, Java-policy, error-handling, security, observability, and test choice to the ledger. Use only
   scalar allowlisted Simple expressions, including for literals; never design another Camel expression language.
   Admit only `${header.<key>}`, `${headers.<key>}`, singular `${exchangeProperty.<key>}`, `${variable.<key>}`, and
-  `${variables.<key>}`, where `<key>` matches `[A-Za-z0-9_-]+`. Never use plural `${exchangeProperties.<key>}`, keys
-  containing dots, bracket syntax, nested paths, or any other OGNL-capable form.
+  `${variables.<key>}`, where `<key>` matches `[A-Za-z0-9_-]+`. Under plural `headers` and `variables`, keys `size`
+  and `length` are forbidden: `${headers.size}`, `${headers.length}`, `${variables.size}`, and `${variables.length}`.
+  Never use plural `${exchangeProperties.<key>}`, keys containing dots, bracket syntax, nested paths, or any other
+  OGNL-capable form.
 - Ship protocol v1 admits only a configuration-free Camel Main YAML route bundle. Require `pom.xml` as an exact
   dependency manifest with explicit versions for `camel-main`, `camel-yaml-dsl`, and every distinct controller-catalog
   runtime artifact used by a component, data format, or language. Do not design a parent, properties, dependency or

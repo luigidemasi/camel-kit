@@ -46,7 +46,7 @@
       "required": ["kind", "name"],
       "properties": {
         "kind": { "enum": ["COMPONENT", "EIP", "DATAFORMAT", "LANGUAGE"] },
-        "name": { "$ref": "#/$defs/nonBlank" }
+        "name": { "$ref": "catalog-evidence.schema.json#/$defs/safeIdentity" }
       }
     },
     "routeUsage": {

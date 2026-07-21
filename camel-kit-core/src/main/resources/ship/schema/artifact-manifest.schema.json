@@ -144,7 +144,9 @@
         },
         "path": {
           "type": "string",
-          "pattern": "\\.camel\\.yaml$"
+          "minLength": 1,
+          "maxLength": 4096,
+          "pattern": "^(?!/)(?!.*\\\\)(?!\\.{1,2}(?:/|$))(?!.*(?:/\\.{1,2})(?:/|$))(?!.*//)[^\\u0000/]+(?:/[^\\u0000/]+)*\\.camel\\.yaml$"
         },
         "digest": {
           "$ref": "#/$defs/digest"

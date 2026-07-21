@@ -91,6 +91,7 @@ final class ShipOperationLock {
         });
         if (!jvmLock.lock.tryLock()) {
             releaseJvmLock(path, jvmLock);
+            removeHeldIfEmpty();
             throw busy(label);
         }
 
@@ -138,6 +139,7 @@ final class ShipOperationLock {
             } finally {
                 jvmLock.lock.unlock();
                 releaseJvmLock(path, jvmLock);
+                removeHeldIfEmpty();
             }
             if (cleanupFailure != null) {
                 e.addSuppressed(cleanupFailure);
@@ -325,6 +327,12 @@ final class ShipOperationLock {
             }
             return current.references == 0 ? null : current;
         });
+    }
+
+    private static void removeHeldIfEmpty() {
+        if (HELD.get().isEmpty()) {
+            HELD.remove();
+        }
     }
 
     static final class Lease implements AutoCloseable {
