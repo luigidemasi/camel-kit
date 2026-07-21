@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/luigidemasi/camel-kit/schemas/ship/v1/catalog-usage.schema.json",
+  "title": "Camel Kit Ship accepted route catalog usage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "catalogEvidenceDigest", "artifactManifestDigest", "candidateSnapshotDigest", "candidateContentDigest", "pomDigest", "inventoryDigest", "routes", "componentModels", "runtimeDependencies", "evidence"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "runId": { "type": "string", "pattern": "^ship-[0-9a-f]{32}$" },
+    "catalogEvidenceDigest": { "$ref": "#/$defs/digest" },
+    "artifactManifestDigest": { "$ref": "#/$defs/digest" },
+    "candidateSnapshotDigest": { "$ref": "#/$defs/digest" },
+    "candidateContentDigest": { "$ref": "#/$defs/digest" },
+    "pomDigest": { "$ref": "#/$defs/digest" },
+    "inventoryDigest": { "$ref": "#/$defs/digest" },
+    "routes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/routeUsage" }
+    },
+    "componentModels": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 512,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/componentModel" }
+    },
+    "runtimeDependencies": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 48,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/runtimeDependency" }
+    },
+    "evidence": { "$ref": "catalog-evidence.schema.json#/$defs/evidenceSet" }
+  },
+  "$defs": {
+    "nonBlank": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "catalogSubject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name"],
+      "properties": {
+        "kind": { "enum": ["COMPONENT", "EIP", "DATAFORMAT", "LANGUAGE"] },
+        "name": { "$ref": "catalog-evidence.schema.json#/$defs/safeIdentity" }
+      }
+    },
+    "routeUsage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["routeId", "path", "routeDigest", "subjects", "endpoints"],
+      "properties": {
+        "routeId": { "$ref": "#/$defs/nonBlank" },
+        "path": { "$ref": "#/$defs/nonBlank" },
+        "routeDigest": { "$ref": "#/$defs/digest" },
+        "subjects": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 512,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/catalogSubject" }
+        },
+        "endpoints": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 2048,
+          "items": { "$ref": "#/$defs/endpointUsage" }
+        }
+      }
+    },
+    "endpointUsage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["component", "pathParameterCount", "componentOptions", "endpointOptions"],
+      "properties": {
+        "component": { "$ref": "#/$defs/catalogSubject" },
+        "pathParameterCount": { "type": "integer", "minimum": 0, "maximum": 1 },
+        "componentOptions": {
+          "type": "array", "maxItems": 512, "uniqueItems": true,
+          "items": { "$ref": "#/$defs/nonBlank" }
+        },
+        "endpointOptions": {
+          "type": "array", "maxItems": 512, "uniqueItems": true,
+          "items": { "$ref": "#/$defs/nonBlank" }
+        }
+      }
+    },
+    "componentModel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidence", "syntax", "lenientProperties", "options"],
+      "properties": {
+        "evidence": { "$ref": "catalog-evidence.schema.json#/$defs/subjectEvidence" },
+        "syntax": { "$ref": "#/$defs/nonBlank" },
+        "lenientProperties": { "type": "boolean" },
+        "options": {
+          "type": "array", "minItems": 1, "maxItems": 4096, "uniqueItems": true,
+          "items": { "$ref": "#/$defs/componentOption" }
+        }
+      }
+    },
+    "componentOption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "scope", "kind", "index", "type", "javaType", "required", "multiValue", "prefix", "optionalPrefix", "enumValues"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonBlank" },
+        "scope": { "enum": ["COMPONENT", "ENDPOINT"] },
+        "kind": { "enum": ["PROPERTY", "PATH", "PARAMETER"] },
+        "index": { "type": "integer", "minimum": 0 },
+        "type": { "$ref": "#/$defs/nonBlank" },
+        "javaType": { "$ref": "#/$defs/nonBlank" },
+        "required": { "type": "boolean" },
+        "multiValue": { "type": "boolean" },
+        "prefix": {
+          "type": ["string", "null"],
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9+._-]{0,127}$"
+        },
+        "optionalPrefix": {
+          "type": ["string", "null"],
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9+._-]{0,127}$"
+        },
+        "enumValues": {
+          "type": "array", "maxItems": 4096, "uniqueItems": true,
+          "items": { "$ref": "#/$defs/nonBlank" }
+        }
+      }
+    },
+    "runtimeDependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["groupId", "artifactId", "version", "scope"],
+      "properties": {
+        "groupId": { "$ref": "#/$defs/nonBlank" },
+        "artifactId": { "$ref": "#/$defs/nonBlank" },
+        "version": { "$ref": "#/$defs/nonBlank" },
+        "scope": { "enum": ["compile", "runtime"] }
+      }
+    }
+  }
+}

@@ -1,0 +1,230 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/luigidemasi/camel-kit/schemas/ship/v1/artifact-manifest.schema.json",
+  "title": "Camel Kit Ship artifact manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "runtime",
+    "camelVersion",
+    "platformVersion",
+    "springBootVersion",
+    "routeDsl",
+    "expressionLanguage",
+    "citrusVersion",
+    "citrusDependencies",
+    "javaPolicy",
+    "approvedJavaExceptions",
+    "routes",
+    "citrusTests",
+    "artifacts",
+    "testsRequired",
+    "oneTestPerRoute"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "runtime": {
+      "enum": ["main", "spring-boot", "quarkus"]
+    },
+    "camelVersion": {
+      "$ref": "#/$defs/nonBlank"
+    },
+    "platformVersion": {
+      "$ref": "#/$defs/nullableString"
+    },
+    "springBootVersion": {
+      "$ref": "#/$defs/nullableString"
+    },
+    "routeDsl": {
+      "$ref": "#/$defs/nonBlank"
+    },
+    "expressionLanguage": {
+      "const": "simple"
+    },
+    "citrusVersion": {
+      "$ref": "#/$defs/nonBlank"
+    },
+    "citrusDependencies": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/nonBlank"
+      }
+    },
+    "javaPolicy": {
+      "enum": ["FORBIDDEN", "JUSTIFICATION_REQUIRED", "ALLOWED"]
+    },
+    "approvedJavaExceptions": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/nonBlank"
+      }
+    },
+    "routes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/routeArtifact"
+      }
+    },
+    "citrusTests": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/testArtifact"
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/declaredArtifact"
+      },
+      "allOf": [
+        {
+          "contains": {
+            "properties": {
+              "kind": {
+                "const": "pom"
+              }
+            },
+            "required": ["kind"]
+          },
+          "minContains": 1,
+          "maxContains": 1
+        },
+        {
+          "contains": {
+            "properties": {
+              "kind": {
+                "const": "config"
+              }
+            },
+            "required": ["kind"]
+          },
+          "minContains": 1,
+          "maxContains": 1
+        }
+      ]
+    },
+    "testsRequired": {
+      "type": "boolean"
+    },
+    "oneTestPerRoute": {
+      "type": "boolean"
+    }
+  },
+  "$defs": {
+    "nonBlank": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "nullableString": {
+      "type": ["string", "null"]
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "routeArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["routeId", "path", "digest"],
+      "properties": {
+        "routeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4096,
+          "pattern": "^(?!/)(?!.*\\\\)(?!\\.{1,2}(?:/|$))(?!.*(?:/\\.{1,2})(?:/|$))(?!.*//)[^\\u0000/]+(?:/[^\\u0000/]+)*\\.camel\\.yaml$"
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "testArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["routeId", "path", "digest"],
+      "properties": {
+        "routeId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^test/[^/]+\\.camel\\.it\\.yaml$"
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        }
+      }
+    },
+    "declaredArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "digest", "required"],
+      "properties": {
+        "kind": {
+          "enum": ["config", "pom"]
+        },
+        "path": {
+          "enum": [".camel-kit/config.properties", "pom.xml"]
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "required": {
+          "const": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "pom"
+              }
+            },
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": {
+              "path": {
+                "const": "pom.xml"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "config"
+              }
+            },
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": {
+              "path": {
+                "const": ".camel-kit/config.properties"
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

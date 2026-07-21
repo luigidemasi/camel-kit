@@ -219,7 +219,7 @@ You MUST complete these items in order:
 2. **Detect project type** — greenfield or migration
 3. **Resolve pipeline** — read `shared/pipeline-infrastructure.md` for pipeline resolution logic. If no active pipeline exists, prompt the user to run `{COMMAND_PREFIX} nextId <slug>` to create one. The pipeline ID determines where artifacts are saved.
 4. **Load context** — read `docs/constitution.md` (if it exists), `.camel-kit/config.properties` (if it exists)
-5. **Run interview/discovery** — load the appropriate guide:
+5. **Run interview/discovery** — first read `shared/discovery-completeness.md`, then load the appropriate guide:
    - Greenfield: `guides/greenfield-interview.md`
    - Migration: `guides/migration-discovery.md`
 6. **Select Camel version** — load `guides/version-selection.md`

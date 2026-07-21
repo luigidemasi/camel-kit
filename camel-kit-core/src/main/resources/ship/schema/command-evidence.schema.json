@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/luigidemasi/camel-kit/schemas/ship/v1/command-evidence.schema.json",
+  "title": "Camel Kit Ship controller command evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "commandId", "sandbox", "toolchainDigest", "postToolchainDigest", "toolchainSnapshot", "toolchainSnapshotDigest", "executable", "executableDigest", "postExecutableDigest", "executableSnapshot", "executableVersion", "arguments", "workingDirectory", "controlledEnvironment", "startedAt", "endedAt", "launched", "timedOut", "exitCode", "launchError", "stdoutLog", "stdoutDigest", "stderrLog", "stderrDigest", "inputDigests"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "commandId": { "$ref": "#/$defs/commandId" },
+    "sandbox": { "oneOf": [{ "$ref": "#/$defs/sandboxIdentity" }, { "type": "null" }] },
+    "toolchainDigest": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+    "postToolchainDigest": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+    "toolchainSnapshot": { "oneOf": [{ "$ref": "#/$defs/reference" }, { "type": "null" }] },
+    "toolchainSnapshotDigest": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+    "executable": { "$ref": "#/$defs/reference" },
+    "executableDigest": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+    "postExecutableDigest": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+    "executableSnapshot": { "oneOf": [{ "$ref": "#/$defs/reference" }, { "type": "null" }] },
+    "executableVersion": { "type": "string", "minLength": 1, "maxLength": 131072, "pattern": "\\S" },
+    "arguments": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "workingDirectory": { "$ref": "#/$defs/reference" },
+    "controlledEnvironment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["CAMEL_KIT_JDK_DIGEST", "HOME", "JAVA_HOME", "JAVA_TOOL_OPTIONS", "LANG", "LC_ALL", "TMPDIR"],
+      "properties": {
+        "CAMEL_KIT_JDK_DIGEST": { "$ref": "#/$defs/digest" },
+        "HOME": { "$ref": "#/$defs/nonBlank" },
+        "JAVA_HOME": { "$ref": "#/$defs/nonBlank" },
+        "JAVA_TOOL_OPTIONS": { "$ref": "#/$defs/nonBlank" },
+        "LANG": { "$ref": "#/$defs/nonBlank" },
+        "LC_ALL": { "$ref": "#/$defs/nonBlank" },
+        "TMPDIR": { "$ref": "#/$defs/nonBlank" }
+      }
+    },
+    "startedAt": { "$ref": "#/$defs/timestamp" },
+    "endedAt": { "$ref": "#/$defs/timestamp" },
+    "launched": { "type": "boolean" },
+    "timedOut": { "type": "boolean" },
+    "exitCode": { "type": ["integer", "null"] },
+    "launchError": { "oneOf": [{ "$ref": "#/$defs/failureMessage" }, { "type": "null" }] },
+    "stdoutLog": { "$ref": "#/$defs/reference" },
+    "stdoutDigest": { "$ref": "#/$defs/digest" },
+    "stderrLog": { "$ref": "#/$defs/reference" },
+    "stderrDigest": { "$ref": "#/$defs/digest" },
+    "inputDigests": { "type": "array", "items": { "$ref": "#/$defs/digest" } }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "launched": {
+            "const": false
+          }
+        },
+        "required": ["launched"]
+      },
+      "then": {
+        "properties": {
+          "timedOut": {
+            "const": false
+          },
+          "exitCode": {
+            "type": "null"
+          },
+          "launchError": {
+            "$ref": "#/$defs/failureMessage"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "timedOut": {
+            "const": true
+          }
+        },
+        "required": ["timedOut"]
+      },
+      "then": {
+        "properties": {
+          "launched": {
+            "const": true
+          },
+          "exitCode": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "launched": {
+            "const": true
+          }
+        },
+        "required": ["launched"]
+      },
+      "then": {
+        "properties": {
+          "sandbox": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/sandboxIdentity"
+              },
+              {
+                "properties": {
+                  "executableDigest": {
+                    "$ref": "#/$defs/digest"
+                  },
+                  "postExecutableDigest": {
+                    "$ref": "#/$defs/digest"
+                  },
+                  "profileDigest": {
+                    "$ref": "#/$defs/digest"
+                  }
+                }
+              }
+            ]
+          },
+          "toolchainDigest": {
+            "$ref": "#/$defs/digest"
+          },
+          "postToolchainDigest": {
+            "$ref": "#/$defs/digest"
+          },
+          "toolchainSnapshot": {
+            "$ref": "#/$defs/reference"
+          },
+          "toolchainSnapshotDigest": {
+            "$ref": "#/$defs/digest"
+          },
+          "executableDigest": {
+            "$ref": "#/$defs/digest"
+          },
+          "postExecutableDigest": {
+            "$ref": "#/$defs/digest"
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sandboxIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "executable", "executableDigest", "postExecutableDigest", "executableSnapshot", "profileDigest"],
+      "properties": {
+        "provider": { "$ref": "#/$defs/nonBlank" },
+        "executable": { "$ref": "#/$defs/reference" },
+        "executableDigest": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+        "postExecutableDigest": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] },
+        "executableSnapshot": { "oneOf": [{ "$ref": "#/$defs/reference" }, { "type": "null" }] },
+        "profileDigest": { "oneOf": [{ "$ref": "#/$defs/digest" }, { "type": "null" }] }
+      }
+    },
+    "commandId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "reference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "^(?=.*\\S)[^\\u0000-\\u001f\\u007f]+$"
+    },
+    "failureMessage": { "type": "string", "minLength": 1, "maxLength": 65536, "pattern": "\\S" },
+    "timestamp": { "type": "string", "format": "date-time", "maxLength": 64 },
+    "nonBlank": { "type": "string", "minLength": 1, "pattern": "\\S" },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}

@@ -5,6 +5,8 @@ import java.util.Objects;
 import java.util.UUID;
 
 final class AuthorityHeadId {
+    private static final String STORAGE_PREFIX = "head-";
+
     private final UUID value;
 
     private AuthorityHeadId(UUID value) {
@@ -13,6 +15,23 @@ final class AuthorityHeadId {
 
     static AuthorityHeadId create() {
         return new AuthorityHeadId(UUID.randomUUID());
+    }
+
+    static AuthorityHeadId fromStorageId(String storageId) {
+        if (storageId == null || !storageId.matches("head-[0-9a-f]{32}")) {
+            throw new IllegalArgumentException("Invalid Ship authority head ID");
+        }
+        String compact = storageId.substring(STORAGE_PREFIX.length());
+        String canonical = compact.substring(0, 8)
+                           + "-" + compact.substring(8, 12)
+                           + "-" + compact.substring(12, 16)
+                           + "-" + compact.substring(16, 20)
+                           + "-" + compact.substring(20);
+        return new AuthorityHeadId(UUID.fromString(canonical));
+    }
+
+    String storageId() {
+        return STORAGE_PREFIX + value.toString().replace("-", "");
     }
 
     @Override

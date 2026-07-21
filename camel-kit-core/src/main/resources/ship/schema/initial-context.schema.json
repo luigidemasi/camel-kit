@@ -1,0 +1,234 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/luigidemasi/camel-kit/schemas/ship/v1/initial-context.schema.json",
+  "title": "Camel Kit Ship initial context",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "sources", "digest"],
+  "properties": {
+    "kind": {
+      "enum": ["none", "text", "documents", "composite"]
+    },
+    "sources": {
+      "type": "array",
+      "maxItems": 256,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/source"
+      }
+    },
+    "digest": {
+      "$ref": "#/$defs/digest"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "none"
+          }
+        },
+        "required": ["kind"]
+      },
+      "then": {
+        "properties": {
+          "sources": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "text"
+          }
+        },
+        "required": ["kind"]
+      },
+      "then": {
+        "properties": {
+          "sources": {
+            "minItems": 1,
+            "contains": {
+              "properties": {
+                "kind": {
+                  "const": "user-text"
+                }
+              },
+              "required": ["kind"]
+            },
+            "not": {
+              "contains": {
+                "properties": {
+                  "kind": {
+                    "const": "document"
+                  }
+                },
+                "required": ["kind"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "documents"
+          }
+        },
+        "required": ["kind"]
+      },
+      "then": {
+        "properties": {
+          "sources": {
+            "minItems": 1,
+            "contains": {
+              "properties": {
+                "kind": {
+                  "const": "document"
+                }
+              },
+              "required": ["kind"]
+            },
+            "not": {
+              "contains": {
+                "properties": {
+                  "kind": {
+                    "const": "user-text"
+                  }
+                },
+                "required": ["kind"]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "composite"
+          }
+        },
+        "required": ["kind"]
+      },
+      "then": {
+        "properties": {
+          "sources": {
+            "minItems": 2,
+            "allOf": [
+              {
+                "contains": {
+                  "properties": {
+                    "kind": {
+                      "const": "user-text"
+                    }
+                  },
+                  "required": ["kind"]
+                }
+              },
+              {
+                "contains": {
+                  "properties": {
+                    "kind": {
+                      "const": "document"
+                    }
+                  },
+                  "required": ["kind"]
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "provenance", "content", "byteSize", "digest"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 75,
+          "pattern": "^source-[0-9a-f]{64}(?:-(?:[2-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-6]))?$"
+        },
+        "kind": {
+          "enum": ["user-text", "document"]
+        },
+        "provenance": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4104
+        },
+        "content": {
+          "type": "string",
+          "maxLength": 8388608,
+          "pattern": "^[^\\u0000]*$"
+        },
+        "byteSize": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 8388608
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "user-text"
+              }
+            },
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": {
+              "provenance": {
+                "pattern": "^context:user-text:[0-9a-f]{64}$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "document"
+              }
+            },
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": {
+              "provenance": {
+                "pattern": "^project:(?!/)(?!.*\\\\)(?!\\.{1,2}(?:/|$))(?!.*(?:/\\.{1,2})(?:/|$))(?!.*//)[^\\u0000/]+(?:/[^\\u0000/]+)*$"
+              },
+              "content": {
+                "minLength": 1,
+                "maxLength": 4194304
+              },
+              "byteSize": {
+                "maximum": 4194304
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

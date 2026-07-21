@@ -255,6 +255,36 @@ class StageResultValidatorTest {
     }
 
     @Test
+    void envelopeValidationDoesNotOpenAClaimedWorkerFile() {
+        ProducedArtifact missing = new ProducedArtifact(
+                "design", "missing.md", "sha256:" + "0".repeat(64), 8);
+        StageRequest request = request(ShipStage.DESIGN);
+        StageResult result = result(
+                request, StageResult.Outcome.COMPLETED, null, null, List.of(missing));
+
+        assertDoesNotThrow(() -> StageResultValidator.validateEnvelope(request, result, output));
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    void declaredArtifactSizeMustMatchTheSameOpenedBytes() throws Exception {
+        byte[] content = "candidate".getBytes(StandardCharsets.UTF_8);
+        Files.write(output.resolve("design.md"), content);
+        ProducedArtifact wrongSize = new ProducedArtifact(
+                "design", "design.md", producedArtifact("design", "design.md", content).digest(),
+                content.length + 1L);
+        StageRequest request = request(ShipStage.DESIGN);
+        StageResult result = result(
+                request, StageResult.Outcome.COMPLETED, null, null, List.of(wrongSize));
+
+        StageResultValidationException error = assertThrows(
+                StageResultValidationException.class,
+                () -> StageResultValidator.validatePreflight(request, result, output));
+
+        assertTrue(error.getMessage().contains("size mismatch"));
+    }
+
+    @Test
     @EnabledOnOs(OS.LINUX)
     void intermediateSymlinkCannotEscapeTheAttemptOutputDirectory() throws Exception {
         Path outside = Files.createDirectory(temporaryDirectory.resolve("outside"));
