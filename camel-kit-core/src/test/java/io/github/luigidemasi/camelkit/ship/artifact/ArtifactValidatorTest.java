@@ -454,6 +454,27 @@ class ArtifactValidatorTest {
     }
 
     @Test
+    void staleAndMalformedArtifactDigestsFailClosed() throws Exception {
+        write("src/main/resources/routes/orders.camel.yaml", "- route:\n    id: orders\n");
+        write("test/orders.camel.it.yaml", citrusTest());
+        String approvedRouteDigest = digest("src/main/resources/routes/orders.camel.yaml");
+        write("src/main/resources/routes/orders.camel.yaml", "- route:\n    id: orders\n# edited after approval\n");
+
+        ArtifactValidationResult result = ArtifactValidator.validate(project, manifest(
+                "main",
+                List.of(new RouteArtifact(
+                        "orders", "src/main/resources/routes/orders.camel.yaml",
+                        approvedRouteDigest)),
+                List.of(new TestArtifact(
+                        "orders", "test/orders.camel.it.yaml", "sha256:not-a-digest")),
+                JavaPolicy.FORBIDDEN,
+                List.of()));
+
+        assertTrue(hasError(result, "artifact-digest", "src/main/resources/routes/orders.camel.yaml"));
+        assertTrue(hasError(result, "artifact-digest-format", "test/orders.camel.it.yaml"));
+    }
+
+    @Test
     void routeAndCitrusBasenamesMustMatchRouteIdExactly() throws Exception {
         write("src/main/resources/routes/order-route.camel.yaml", "- route:\n    id: orders\n");
         write("test/order-test.camel.it.yaml", citrusTest());
@@ -544,6 +565,22 @@ class ArtifactValidatorTest {
     }
 
     @Test
+    void rejectsMavenControlsThatIgnoreTestFailures() throws Exception {
+        for (String control : List.of("maven.test.failure.ignore", "testFailureIgnore")) {
+            writeSpringProject("${spring.boot.version}");
+            Path pom = project.resolve("pom.xml");
+            Files.writeString(pom, Files.readString(pom).replace(
+                    "<properties>",
+                    "<properties><" + control + ">true</" + control + ">"));
+
+            ArtifactValidationResult result = ArtifactValidator.validate(
+                    project, springManifest(), springPolicy());
+
+            assertTrue(hasError(result, "runtime-pom-test-skip", "pom.xml"), control);
+        }
+    }
+
+    @Test
     void rejectsUninspectedMavenModelSourcesAndStartupHooks() throws Exception {
         writeSpringProject("${spring.boot.version}");
         Path pom = project.resolve("pom.xml");
@@ -605,6 +642,21 @@ class ArtifactValidatorTest {
                   <groupId>example</groupId><artifactId>&xxe;</artifactId><version>1</version>
                 </project>
                 """);
+
+        ArtifactValidationResult result = ArtifactValidator.validate(
+                project, springManifest(), springPolicy());
+
+        assertTrue(hasError(result, "runtime-pom-parse", "pom.xml"));
+    }
+
+    @Test
+    void deeplyNestedPomFailsClosedBeforeDomTraversal() throws Exception {
+        writeSpringProject("${spring.boot.version}");
+        write("pom.xml", """
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                  <modelVersion>4.0.0</modelVersion>
+                  <groupId>example</groupId><artifactId>orders</artifactId><version>1</version>
+                """ + "<nested>".repeat(150) + "value" + "</nested>".repeat(150) + "</project>");
 
         ArtifactValidationResult result = ArtifactValidator.validate(
                 project, springManifest(), springPolicy());

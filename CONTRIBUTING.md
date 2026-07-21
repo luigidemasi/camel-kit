@@ -49,8 +49,11 @@ This project follows the [Apache Software Foundation Code of Conduct](https://ww
 ### Building the Project
 
 ```bash
-# Build all modules using Maven Wrapper
+# Portable build of all modules using Maven Wrapper
 ./mvnw clean install
+
+# On Linux with Bubblewrap, also certify the packaged Ship payloads
+./mvnw -B -Plinux-ship-certification clean install
 
 # Run CLI using JBang (from jbang-catalog.json)
 jbang camel-kit@. --help
@@ -183,7 +186,11 @@ Before opening an issue:
 
 3. **Build the project:**
    ```bash
+   # Portable build
    ./mvnw clean install
+
+   # Required packaged-payload certification on Linux with Bubblewrap
+   ./mvnw -B -Plinux-ship-certification clean install
    ```
 
 4. **Test the CLI:**

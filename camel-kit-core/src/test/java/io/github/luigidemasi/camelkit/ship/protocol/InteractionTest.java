@@ -2,6 +2,7 @@ package io.github.luigidemasi.camelkit.ship.protocol;
 
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.HexFormat;
 import java.util.List;
 
 import io.github.luigidemasi.camelkit.ship.protocol.Interaction.DiscoveryAnswer;
@@ -25,6 +26,28 @@ class InteractionTest {
     private static final String UI_PROFILE = "camel-kit-cli:1";
 
     @Test
+    void canonicalMacEncodingPreservesDomainsFieldBoundariesAndNulls() {
+        byte[] separated = Interaction.canonicalMacBytes(new String[]{"response-v1", "a", "b\nc"});
+        byte[] injected = Interaction.canonicalMacBytes(new String[]{"response-v1", "a\nb", "c"});
+        byte[] otherDomain = Interaction.canonicalMacBytes(new String[]{"challenge-v1", "a", "b\nc"});
+        byte[] nullField = Interaction.canonicalMacBytes(new String[]{"response-v1", null});
+        byte[] emptyField = Interaction.canonicalMacBytes(new String[]{"response-v1", ""});
+
+        assertArrayEquals(separated,
+                Interaction.canonicalMacBytes(new String[]{"response-v1", "a", "b\nc"}));
+        assertFalse(Arrays.equals(separated, injected));
+        assertFalse(Arrays.equals(separated, otherDomain));
+        assertFalse(Arrays.equals(nullField, emptyField));
+        assertThrows(IllegalArgumentException.class,
+                () -> Interaction.canonicalMacBytes(new String[]{"response-v1", "unpaired-\ud800"}));
+        assertArrayEquals(
+                HexFormat.of().parseHex(
+                        "000000040000000b726573706f6e73652d7631"
+                                        + "00000002c3a9ffffffff00000000"),
+                Interaction.canonicalMacBytes(new String[]{"response-v1", "é", null, ""}));
+    }
+
+    @Test
     void discoveryMacBindsOrderedOptionsAndRecommendation() {
         String[] original = Interaction.discoveryChallengeMacFields(
                 RUN_ID, 1, "question-1", "open-1", "Runtime?",
@@ -38,6 +61,8 @@ class InteractionTest {
 
         assertFalse(Arrays.equals(original, reordered));
         assertFalse(Arrays.equals(original, changedRecommendation));
+        assertFalse(Arrays.equals(
+                Interaction.canonicalMacBytes(original), Interaction.canonicalMacBytes(reordered)));
         assertEquals("discovery-challenge-v1", original[0]);
     }
 
@@ -86,6 +111,9 @@ class InteractionTest {
         assertFalse(Arrays.equals(
                 Interaction.documentConsentChallengeMacFields(local),
                 Interaction.remoteProviderConsentChallengeMacFields(remote)));
+        assertFalse(Arrays.equals(
+                Interaction.canonicalMacBytes(Interaction.documentConsentChallengeMacFields(local)),
+                Interaction.canonicalMacBytes(Interaction.remoteProviderConsentChallengeMacFields(remote))));
     }
 
     @Test
@@ -111,6 +139,9 @@ class InteractionTest {
         assertFalse(Arrays.equals(
                 Interaction.designResponseMacFields(designResponse),
                 Interaction.planResponseMacFields(planResponse)));
+        assertFalse(Arrays.equals(
+                Interaction.canonicalMacBytes(Interaction.designResponseMacFields(designResponse)),
+                Interaction.canonicalMacBytes(Interaction.planResponseMacFields(planResponse))));
         assertFalse(Arrays.equals(
                 Interaction.designResponseMacFields(designResponse),
                 Interaction.designResponseMacFields(

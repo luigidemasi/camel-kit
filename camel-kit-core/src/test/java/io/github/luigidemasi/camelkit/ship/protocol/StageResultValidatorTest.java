@@ -22,7 +22,10 @@ import io.github.luigidemasi.camelkit.ship.protocol.StageCapability.Operation;
 import io.github.luigidemasi.camelkit.ship.protocol.StageCapability.RepositoryAccess;
 import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -37,14 +40,21 @@ class StageResultValidatorTest {
     private static final List<CatalogSubject> CATALOG_REQUESTS = List.of(new CatalogSubject(Kind.COMPONENT, "kafka"));
 
     @TempDir
+    Path temporaryDirectory;
+
     Path output;
+
+    @BeforeEach
+    void createAttemptOutput() throws Exception {
+        output = Files.createDirectory(temporaryDirectory.resolve("output"));
+    }
 
     @Test
     void acceptsCompletedDiscoveryOnlyWithCompleteUnreviewedCandidateLedger() {
         StageRequest request = request(ShipStage.DISCOVERY);
         StageResult result = result(request, StageResult.Outcome.COMPLETED, readyLedger(), null, List.of());
 
-        assertDoesNotThrow(() -> StageResultValidator.validate(request, result, output));
+        assertDoesNotThrow(() -> StageResultValidator.validatePreflight(request, result, output));
     }
 
     @Test
@@ -56,11 +66,42 @@ class StageResultValidatorTest {
 
         StageResultValidationException error = assertThrows(
                 StageResultValidationException.class,
-                () -> StageResultValidator.validate(request, result, output));
+                () -> StageResultValidator.validatePreflight(request, result, output));
 
         assertTrue(error.getMessage().contains("run ID"));
         assertTrue(error.getMessage().contains("attempt ID"));
         assertTrue(error.getMessage().contains("challenge"));
+    }
+
+    @Test
+    void rejectsUnsupportedRequestSchemaBeforeApplyingVersionedCapabilityRules() {
+        StageRequest request = request(
+                2, ShipStage.DISCOVERY, output.toString(), capability(ShipStage.DISCOVERY, output));
+        StageResult result = result(
+                request, StageResult.Outcome.COMPLETED, readyLedger(), null, List.of());
+
+        StageResultValidationException error = assertThrows(
+                StageResultValidationException.class,
+                () -> StageResultValidator.validatePreflight(request, result, output));
+
+        assertTrue(error.getMessage().contains("request schema version"));
+        assertTrue(error.getMessage().contains("schema version"));
+    }
+
+    @Test
+    void everyResultRequiresStructuredResultAuthority() {
+        StageCapability noReturn = new StageCapability(
+                RepositoryAccess.READ_ONLY, List.of(output.toString()), List.of(),
+                List.of(Operation.READ), false, false);
+        StageRequest request = request(ShipStage.DISCOVERY, output.toString(), noReturn);
+        StageResult result = result(
+                request, StageResult.Outcome.COMPLETED, readyLedger(), null, List.of());
+
+        StageResultValidationException error = assertThrows(
+                StageResultValidationException.class,
+                () -> StageResultValidator.validatePreflight(request, result, output));
+
+        assertTrue(error.getMessage().contains("structured result"));
     }
 
     @Test
@@ -72,7 +113,7 @@ class StageResultValidatorTest {
 
         StageResultValidationException error = assertThrows(
                 StageResultValidationException.class,
-                () -> StageResultValidator.validate(request, result, output));
+                () -> StageResultValidator.validatePreflight(request, result, output));
 
         assertTrue(error.getMessage().contains("may not return implementation artifacts"));
     }
@@ -83,7 +124,7 @@ class StageResultValidatorTest {
         StageResult result = result(
                 request, StageResult.Outcome.NEEDS_DISCOVERY, readyLedger(), null, List.of());
 
-        assertDoesNotThrow(() -> StageResultValidator.validate(request, result, output));
+        assertDoesNotThrow(() -> StageResultValidator.validatePreflight(request, result, output));
     }
 
     @Test
@@ -107,7 +148,7 @@ class StageResultValidatorTest {
 
         StageResultValidationException error = assertThrows(
                 StageResultValidationException.class,
-                () -> StageResultValidator.validate(request, result, output));
+                () -> StageResultValidator.validatePreflight(request, result, output));
 
         assertTrue(error.getMessage().contains("requires at least one catalog request"));
     }
@@ -121,7 +162,7 @@ class StageResultValidatorTest {
 
         StageResultValidationException error = assertThrows(
                 StageResultValidationException.class,
-                () -> StageResultValidator.validate(request, result, output));
+                () -> StageResultValidator.validatePreflight(request, result, output));
 
         assertTrue(error.getMessage().contains("Only discovery may return catalog requests"));
     }
@@ -132,7 +173,7 @@ class StageResultValidatorTest {
         StageResult result = result(
                 request, StageResult.Outcome.NEEDS_DISCOVERY, readyLedger(), null, List.of(), List.of());
 
-        assertDoesNotThrow(() -> StageResultValidator.validate(request, result, output));
+        assertDoesNotThrow(() -> StageResultValidator.validatePreflight(request, result, output));
     }
 
     @Test
@@ -144,25 +185,61 @@ class StageResultValidatorTest {
 
         StageResultValidationException error = assertThrows(
                 StageResultValidationException.class,
-                () -> StageResultValidator.validate(request, result, output));
+                () -> StageResultValidator.validatePreflight(request, result, output));
 
         assertTrue(error.getMessage().contains("may not return implementation artifacts"));
     }
 
     @Test
-    void designArtifactMustUseAPortableRelativePath() throws Exception {
+    void designArtifactMustUseTheSharedPortablePathAndDepthPolicy() {
         StageRequest request = request(ShipStage.DESIGN);
-        ProducedArtifact escaped = new ProducedArtifact("design", "../design.md", "sha256:" + "0".repeat(64), 1);
-        StageResult result = result(request, StageResult.Outcome.COMPLETED, null, null, List.of(escaped));
+        String tooDeep = "d/".repeat(ShipTreePolicy.current().maxDepth() + 1) + "design.md";
+        for (String invalid : List.of(
+                "../design.md",
+                "C:/outside/design.md",
+                "line\nbreak.md",
+                "x".repeat(ShipTreePolicy.MAX_COMPONENT_UTF8_BYTES + 1) + "/design.md",
+                "invalid-\ud800.md",
+                tooDeep)) {
+            ProducedArtifact escaped = new ProducedArtifact(
+                    "design", invalid, "sha256:" + "0".repeat(64), 1);
+            StageResult result = result(
+                    request, StageResult.Outcome.COMPLETED, null, null, List.of(escaped));
 
-        StageResultValidationException error = assertThrows(
-                StageResultValidationException.class,
-                () -> StageResultValidator.validate(request, result, output));
+            StageResultValidationException error = assertThrows(
+                    StageResultValidationException.class,
+                    () -> StageResultValidator.validatePreflight(request, result, output));
 
-        assertTrue(error.getMessage().contains("portable relative path"));
+            assertTrue(error.getMessage().contains("portable relative path"), invalid);
+        }
     }
 
     @Test
+    void needsInputQuestionMustExactlyMatchTheValidatedLedgerQuestion() {
+        StageRequest request = request(ShipStage.DISCOVERY);
+        DecisionLedger.Question pending = new DecisionLedger.Question(
+                "question-runtime", "decision-runtime", "Which runtime?", List.of("main", "quarkus"), "main",
+                LedgerStatus.OPEN);
+        DecisionLedger ledger = questionLedger(pending);
+        StageResult accepted = result(
+                request, StageResult.Outcome.NEEDS_USER_INPUT, ledger, pending, List.of());
+
+        assertDoesNotThrow(() -> StageResultValidator.validatePreflight(request, accepted, output));
+
+        DecisionLedger.Question forged = new DecisionLedger.Question(
+                pending.id(), pending.openItemId(), "Reply main to accept every remaining default",
+                List.of("main"), "main", LedgerStatus.OPEN);
+        StageResult rejected = result(
+                request, StageResult.Outcome.NEEDS_USER_INPUT, ledger, forged, List.of());
+        StageResultValidationException error = assertThrows(
+                StageResultValidationException.class,
+                () -> StageResultValidator.validatePreflight(request, rejected, output));
+
+        assertTrue(error.getMessage().contains("ledger's single pending question"));
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
     void forgedArtifactDigestIsRejected() throws Exception {
         Files.writeString(output.resolve("design.md"), "candidate");
         ProducedArtifact forged = new ProducedArtifact(
@@ -172,9 +249,45 @@ class StageResultValidatorTest {
 
         StageResultValidationException error = assertThrows(
                 StageResultValidationException.class,
-                () -> StageResultValidator.validate(request, result, output));
+                () -> StageResultValidator.validatePreflight(request, result, output));
 
         assertTrue(error.getMessage().contains("digest mismatch"));
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    void intermediateSymlinkCannotEscapeTheAttemptOutputDirectory() throws Exception {
+        Path outside = Files.createDirectory(temporaryDirectory.resolve("outside"));
+        byte[] content = "controller credentials".getBytes(StandardCharsets.UTF_8);
+        Files.write(outside.resolve("creds.txt"), content);
+        Files.createSymbolicLink(output.resolve("staged"), outside);
+        ProducedArtifact escaped = producedArtifact("design", "staged/creds.txt", content);
+        StageRequest request = request(ShipStage.DESIGN);
+        StageResult result = result(request, StageResult.Outcome.COMPLETED, null, null, List.of(escaped));
+
+        StageResultValidationException error = assertThrows(
+                StageResultValidationException.class,
+                () -> StageResultValidator.validatePreflight(request, result, output));
+
+        assertTrue(error.getMessage().contains("symbolic"));
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    void hardLinkedArtifactCannotAliasContentOutsideTheAttemptOutputDirectory() throws Exception {
+        byte[] content = "mutable external content".getBytes(StandardCharsets.UTF_8);
+        Path outside = Files.write(temporaryDirectory.resolve("external-design.md"), content);
+        Files.createLink(output.resolve("design.md"), outside);
+        ProducedArtifact linked = producedArtifact("design", "design.md", content);
+        StageRequest request = request(ShipStage.DESIGN);
+        StageResult result = result(
+                request, StageResult.Outcome.COMPLETED, null, null, List.of(linked));
+
+        StageResultValidationException error = assertThrows(
+                StageResultValidationException.class,
+                () -> StageResultValidator.validatePreflight(request, result, output));
+
+        assertTrue(error.getMessage().contains("hard-linked"));
     }
 
     @Test
@@ -189,19 +302,75 @@ class StageResultValidatorTest {
 
         StageResultValidationException error = assertThrows(
                 StageResultValidationException.class,
-                () -> StageResultValidator.validate(request, result, output));
+                () -> StageResultValidator.validatePreflight(request, result, output));
 
         assertTrue(error.getMessage().contains("canonical kind"));
         assertTrue(error.getMessage().contains("per-file limit"));
     }
 
     @Test
+    @EnabledOnOs(OS.LINUX)
     void validDesignArtifactIsAccepted() throws Exception {
         ProducedArtifact artifact = artifact("design", "design.md", "candidate");
         StageRequest request = request(ShipStage.DESIGN);
         StageResult result = result(request, StageResult.Outcome.COMPLETED, null, null, List.of(artifact));
 
-        assertDoesNotThrow(() -> StageResultValidator.validate(request, result, output));
+        assertDoesNotThrow(() -> StageResultValidator.validatePreflight(request, result, output));
+    }
+
+    @Test
+    void stagedArtifactRequiresControllerIssuedWriteAuthority() throws Exception {
+        ProducedArtifact artifact = artifact("design", "design.md", "candidate");
+        StageCapability readOnly = new StageCapability(
+                RepositoryAccess.READ_ONLY, List.of(output.toString()), List.of(),
+                List.of(Operation.READ, Operation.RETURN_STRUCTURED_RESULT), false, false);
+        StageRequest request = request(ShipStage.DESIGN, output.toString(), readOnly);
+        StageResult result = result(request, StageResult.Outcome.COMPLETED, null, null, List.of(artifact));
+
+        StageResultValidationException error = assertThrows(
+                StageResultValidationException.class,
+                () -> StageResultValidator.validatePreflight(request, result, output));
+
+        assertTrue(error.getMessage().contains("staged-artifact write authority"));
+
+        StageCapability executionOnly = new StageCapability(
+                RepositoryAccess.DECLARED_EXECUTION_PATHS, List.of(output.toString()), List.of(output.toString()),
+                List.of(Operation.READ, Operation.WRITE_STAGED_ARTIFACT, Operation.RETURN_STRUCTURED_RESULT),
+                false, false);
+        StageRequest wrongStage = request(ShipStage.DESIGN, output.toString(), executionOnly);
+        StageResult wrongStageResult = result(
+                wrongStage, StageResult.Outcome.COMPLETED, null, null, List.of(artifact));
+        StageResultValidationException wrongStageError = assertThrows(
+                StageResultValidationException.class,
+                () -> StageResultValidator.validatePreflight(wrongStage, wrongStageResult, output));
+        assertTrue(wrongStageError.getMessage().contains("stage-compatible"));
+    }
+
+    @Test
+    void stagedArtifactMustStayInsideTheCapabilityOutputEnvelope() throws Exception {
+        ProducedArtifact artifact = artifact("design", "design.md", "candidate");
+        Path other = Files.createDirectory(temporaryDirectory.resolve("other"));
+        StageCapability wrongRoot = new StageCapability(
+                RepositoryAccess.READ_WITH_STAGED_OUTPUT, List.of(output.toString()), List.of(other.toString()),
+                List.of(Operation.READ, Operation.WRITE_STAGED_ARTIFACT, Operation.RETURN_STRUCTURED_RESULT),
+                false, false);
+        StageRequest uncovered = request(ShipStage.DESIGN, output.toString(), wrongRoot);
+        StageResult uncoveredResult = result(
+                uncovered, StageResult.Outcome.COMPLETED, null, null, List.of(artifact));
+
+        StageResultValidationException uncoveredError = assertThrows(
+                StageResultValidationException.class,
+                () -> StageResultValidator.validatePreflight(uncovered, uncoveredResult, output));
+        assertTrue(uncoveredError.getMessage().contains("covered by a canonical capability write root"));
+
+        StageCapability authority = stagedCapability(output);
+        StageRequest mismatched = request(ShipStage.DESIGN, other.toString(), authority);
+        StageResult mismatchedResult = result(
+                mismatched, StageResult.Outcome.COMPLETED, null, null, List.of(artifact));
+        StageResultValidationException mismatchedError = assertThrows(
+                StageResultValidationException.class,
+                () -> StageResultValidator.validatePreflight(mismatched, mismatchedResult, output));
+        assertTrue(mismatchedError.getMessage().contains("does not match the request capability envelope"));
     }
 
     @Test
@@ -214,7 +383,7 @@ class StageResultValidatorTest {
 
         StageResultValidationException error = assertThrows(
                 StageResultValidationException.class,
-                () -> StageResultValidator.validate(request, result, output));
+                () -> StageResultValidator.validatePreflight(request, result, output));
 
         assertTrue(error.getMessage().contains("exactly one design artifact"));
     }
@@ -230,7 +399,7 @@ class StageResultValidatorTest {
 
         StageResultValidationException error = assertThrows(
                 StageResultValidationException.class,
-                () -> StageResultValidator.validate(request, result, output));
+                () -> StageResultValidator.validatePreflight(request, result, output));
 
         assertTrue(error.getMessage().contains("may not return implementation artifacts"));
     }
@@ -247,7 +416,7 @@ class StageResultValidatorTest {
 
         StageResultValidationException error = assertThrows(
                 StageResultValidationException.class,
-                () -> StageResultValidator.validate(request, result, output));
+                () -> StageResultValidator.validatePreflight(request, result, output));
 
         assertTrue(error.getMessage().contains("may not return implementation artifacts"));
     }
@@ -263,7 +432,7 @@ class StageResultValidatorTest {
 
         StageResultValidationException error = assertThrows(
                 StageResultValidationException.class,
-                () -> StageResultValidator.validate(request, result, output));
+                () -> StageResultValidator.validatePreflight(request, result, output));
 
         assertTrue(error.getMessage().contains("Only discovery may request user input"));
     }
@@ -275,21 +444,52 @@ class StageResultValidatorTest {
 
         StageResultValidationException error = assertThrows(
                 StageResultValidationException.class,
-                () -> StageResultValidator.validate(request, result, output));
+                () -> StageResultValidator.validatePreflight(request, result, output));
 
         assertTrue(error.getMessage().contains("failure code and message"));
     }
 
     private StageRequest request(ShipStage stage) {
-        StageCapability capability = new StageCapability(
-                RepositoryAccess.READ_ONLY, List.of(output.toString()), List.of(),
-                List.of(Operation.READ, Operation.RETURN_STRUCTURED_RESULT), false, false);
+        return request(stage, output.toString(), capability(stage, output));
+    }
+
+    private StageRequest request(ShipStage stage, String outputDirectory, StageCapability capability) {
+        return request(StageRequest.SCHEMA_VERSION, stage, outputDirectory, capability);
+    }
+
+    private StageRequest request(
+            int schemaVersion,
+            ShipStage stage,
+            String outputDirectory,
+            StageCapability capability) {
         return new StageRequest(
-                1, "ship-run", stage, "attempt-1", 1, "idempotency", "challenge",
+                schemaVersion, "ship-run", stage, "attempt-1", 1, "idempotency", "challenge",
                 "sha256:" + "1".repeat(64), "sha256:" + "2".repeat(64),
                 null, null, null,
                 "context.json", "ledger.json", null, null, null, null, null, null, List.of(), null, null,
-                "contract.md", output.toString(), capability);
+                "contract.md", outputDirectory, capability);
+    }
+
+    private static StageCapability stagedCapability(Path output) {
+        return new StageCapability(
+                RepositoryAccess.READ_WITH_STAGED_OUTPUT, List.of(output.toString()), List.of(output.toString()),
+                List.of(Operation.READ, Operation.WRITE_STAGED_ARTIFACT, Operation.RETURN_STRUCTURED_RESULT),
+                false, false);
+    }
+
+    private static StageCapability capability(ShipStage stage, Path output) {
+        if (stage == ShipStage.EXECUTE) {
+            return new StageCapability(
+                    RepositoryAccess.DECLARED_EXECUTION_PATHS, List.of(output.toString()), List.of(output.toString()),
+                    List.of(Operation.READ, Operation.WRITE_STAGED_ARTIFACT, Operation.RETURN_STRUCTURED_RESULT),
+                    false, false);
+        }
+        if (stage == ShipStage.DESIGN || stage == ShipStage.PLAN || stage == ShipStage.VALIDATE) {
+            return stagedCapability(output);
+        }
+        return new StageCapability(
+                RepositoryAccess.READ_ONLY, List.of(output.toString()), List.of(),
+                List.of(Operation.READ, Operation.RETURN_STRUCTURED_RESULT), false, false);
     }
 
     private StageResult result(
@@ -319,9 +519,26 @@ class StageResultValidatorTest {
     private ProducedArtifact artifact(String kind, String name, String content) throws Exception {
         byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
         Files.write(output.resolve(name), bytes);
+        return producedArtifact(kind, name, bytes);
+    }
+
+    private static ProducedArtifact producedArtifact(String kind, String name, byte[] bytes) throws Exception {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         return new ProducedArtifact(
                 kind, name, "sha256:" + java.util.HexFormat.of().formatHex(digest.digest(bytes)), bytes.length);
+    }
+
+    private DecisionLedger questionLedger(DecisionLedger.Question question) {
+        DecisionLedger.Entry decision = new DecisionLedger.Entry(
+                question.openItemId(), "runtime", null, LedgerStatus.NEEDS_USER_DECISION,
+                List.of(), "Camel Main is recommended");
+        List<Category> categories = LedgerValidator.REQUIRED_CATEGORIES.stream()
+                .sorted()
+                .map(category -> new Category(category, LedgerStatus.OPEN, null, List.of()))
+                .toList();
+        return new DecisionLedger(
+                1, 1, List.of(), List.of(decision), List.of(), List.of(), List.of(), List.of(question),
+                categories, List.of(decision.id()), GapReviewStatus.NOT_RUN, null);
     }
 
     private DecisionLedger readyLedger() {

@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - release
       - 'release/**'
   pull_request:
     branches:
@@ -49,14 +50,8 @@ jobs:
       - name: Check code formatting and imports
         run: ./mvnw -B -Psourcecheck validate
 
-      - name: Build with Maven
-        run: ./mvnw clean install -B -V -Dformat.skip=true
-
-      - name: Run tests
-        run: ./mvnw test -B -Dformat.skip=true
-
-      - name: Verify package
-        run: ./mvnw verify -B -Dformat.skip=true
+      - name: Build and certify Ship payloads
+        run: ./mvnw -B -V -Plinux-ship-certification -Dformat.skip=true clean install
 
       - name: Upload build artifacts
         if: success() && matrix.java == '17'

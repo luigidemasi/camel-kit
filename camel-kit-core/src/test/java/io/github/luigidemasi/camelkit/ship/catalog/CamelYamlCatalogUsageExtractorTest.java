@@ -139,7 +139,19 @@ class CamelYamlCatalogUsageExtractorTest {
     }
 
     @Test
-    void endpointParametersCannotManufactureFalseCatalogUsage() throws Exception {
+    void nonExactExpressionAliasesFailClosedWithoutDependingOnCatalogAvailability() throws Exception {
+        for (String alias : List.of("exchange-property", "exchange_property", "Json-Path")) {
+            Path route = expressionRoute(alias + ": order-status");
+
+            IOException error = assertThrows(IOException.class,
+                    () -> extractor().extract(route, available()), alias);
+
+            assertTrue(error.getMessage().contains("non-exact language alias"), error::getMessage);
+        }
+    }
+
+    @Test
+    void endpointParameterValuesCannotManufactureFalseCatalogUsage() throws Exception {
         Path route = write("""
                 - route:
                     from:
@@ -236,7 +248,7 @@ class CamelYamlCatalogUsageExtractorTest {
                 - route:
                     from:
                       uri: direct:start?block=true
-                      endpointParameters:
+                      parameters:
                         timeout: 50
                 """);
 
@@ -247,6 +259,102 @@ class CamelYamlCatalogUsageExtractorTest {
         CatalogUsageRecord.EndpointUsage endpoint = result.endpoints().get(0);
         assertEquals(1, endpoint.pathParameterCount());
         assertEquals(List.of("block", "timeout"), endpoint.endpointOptions());
+    }
+
+    @Test
+    void endpointMetadataScalarsAreNotMisclassifiedAsUris() throws Exception {
+        Path route = write("""
+                - route:
+                    from:
+                      uri: direct:start
+                      steps:
+                        - to:
+                            uri: direct:orders
+                            id: deliver
+                            description: "kafka: orders"
+                            pattern: InOnly
+                """);
+
+        CamelYamlCatalogUsageExtractor.Extraction result = extractor().extractBound(
+                route, available(), List.of(directModel()));
+
+        assertFalse(result.subjects().contains(subject(Kind.COMPONENT, "kafka")));
+        assertEquals(2, result.endpoints().size());
+        assertTrue(result.endpoints().stream()
+                .allMatch(endpoint -> endpoint.component().equals(subject(Kind.COMPONENT, "direct"))));
+    }
+
+    @Test
+    void everyStaticEndpointFieldProducesExactlyValidatedUsage() throws Exception {
+        Path route = write("""
+                - route:
+                    errorHandler:
+                      deadLetterChannel:
+                        deadLetterUri: direct:dead
+                    from:
+                      uri: direct:start
+                      steps:
+                        - saga:
+                            compensation: direct:compensate
+                            completion: direct:complete
+                            steps:
+                              - to: direct:done
+                - interceptFrom:
+                    uri: direct:incoming
+                - interceptSendToEndpoint:
+                    uri: direct:target
+                    afterUri: direct:after
+                    steps: []
+                - endpointTransformer:
+                    uri: direct:transform
+                - endpointValidator:
+                    uri: direct:validate
+                """);
+
+        CamelYamlCatalogUsageExtractor.Extraction result = extractor().extractBound(
+                route, available(), List.of(directModel()));
+
+        assertEquals(10, result.endpoints().size());
+        assertEquals(List.of(subject(Kind.COMPONENT, "direct")), result.subjects().stream()
+                .filter(subject -> subject.kind() == Kind.COMPONENT)
+                .toList());
+    }
+
+    @Test
+    void expressionDrivenAndServiceDiscoveredEndpointEipsFailClosed() throws Exception {
+        for (String endpointStep : List.of(
+                "- dynamicRouter:\n    simple: kafka:orders",
+                "- enrich:\n    simple: kafka:orders",
+                "- pollEnrich:\n    simple: kafka:orders",
+                "- recipientList:\n    simple: kafka:orders",
+                "- routingSlip:\n    simple: kafka:orders",
+                // serviceCall is an endpoint EIP in the certified Camel 4.18.3 schema only.
+                "- serviceCall: orders",
+                "- serviceCall:\n    name: orders\n    component: kafka")) {
+            Path route = endpointStepRoute(endpointStep);
+
+            IOException error = assertThrows(IOException.class, () -> extractor().extractBound(
+                    route, available(), List.of(directModel())), endpointStep);
+
+            assertTrue(error.getMessage().contains("cannot catalog-prove"), error::getMessage);
+        }
+    }
+
+    @Test
+    void endpointFieldsOutsidePrimaryEndpointEipsValidateFrozenOptions() throws Exception {
+        Path route = write("""
+                - route:
+                    errorHandler:
+                      deadLetterChannel:
+                        deadLetterUri: direct:dead?invented=true
+                    from:
+                      uri: direct:start
+                """);
+
+        IOException error = assertThrows(IOException.class, () -> extractor().extractBound(
+                route, available(), List.of(directModel())));
+
+        assertTrue(error.getMessage().contains("absent from frozen component metadata"));
     }
 
     @Test
@@ -277,7 +385,7 @@ class CamelYamlCatalogUsageExtractorTest {
                 - route:
                     from:
                       uri: direct:start
-                      endpointParameters:
+                      parameters:
                         timeout: "${header.timeout}"
                 """);
         IOException error = assertThrows(IOException.class, () -> extractor().extractBound(
@@ -324,15 +432,39 @@ class CamelYamlCatalogUsageExtractorTest {
                 """ + indented + '\n');
     }
 
+    private Path endpointStepRoute(String endpointStep) throws IOException {
+        String indented = endpointStep.lines()
+                .map(line -> "        " + line)
+                .reduce((left, right) -> left + '\n' + right)
+                .orElseThrow();
+        return write("""
+                - route:
+                    from:
+                      uri: direct:start
+                      steps:
+                """ + indented + '\n');
+    }
+
     private static List<CatalogSubject> available() {
         return List.of(
                 subject(Kind.COMPONENT, "direct"),
                 subject(Kind.COMPONENT, "kafka"),
                 subject(Kind.EIP, "route"),
                 subject(Kind.EIP, "from"),
+                subject(Kind.EIP, "dynamicRouter"),
+                subject(Kind.EIP, "enrich"),
+                subject(Kind.EIP, "interceptFrom"),
+                subject(Kind.EIP, "interceptSendToEndpoint"),
+                subject(Kind.EIP, "endpointTransformer"),
+                subject(Kind.EIP, "endpointValidator"),
+                subject(Kind.EIP, "pollEnrich"),
+                subject(Kind.EIP, "recipientList"),
+                subject(Kind.EIP, "routingSlip"),
+                subject(Kind.EIP, "serviceCall"),
                 subject(Kind.EIP, "to"),
                 subject(Kind.EIP, "setBody"),
                 subject(Kind.EIP, "split"),
+                subject(Kind.EIP, "saga"),
                 subject(Kind.EIP, "marshal"),
                 subject(Kind.DATAFORMAT, "csv"),
                 subject(Kind.LANGUAGE, "simple"),

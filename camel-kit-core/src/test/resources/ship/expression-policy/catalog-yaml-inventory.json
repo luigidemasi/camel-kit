@@ -2,7 +2,9 @@
   "schemaVersion": 1,
   "versions": {
     "4.18.3": {
+      "yamlSchemaArtifact": "org.apache.camel:camel-yaml-dsl:4.18.3!/schema/camelYamlDsl.json",
       "yamlSchemaSha256": "sha256:5d86a18895db53b84e56924e1f39391afa796e11c033de9c3c7a730f702ec627",
+      "catalogLanguagesArtifact": "org.apache.camel:camel-catalog:4.18.3!/org/apache/camel/catalog/languages.properties",
       "catalogLanguagesSha256": "sha256:b5a2a2ad2234cd73abe350766130fd9f00154f59f7b9adf5062d34eba83a173d",
       "yamlAliases": {
         "constant": "org.apache.camel.model.language.ConstantExpression",
@@ -51,7 +53,9 @@
       }
     },
     "4.21.0": {
+      "yamlSchemaArtifact": "org.apache.camel:camel-yaml-dsl:4.21.0!/schema/camelYamlDsl.json",
       "yamlSchemaSha256": "sha256:76bd2fdd99098009b0c6c23b287c8e89095b79fccebb8b10570cc65db4ebafd0",
+      "catalogLanguagesArtifact": "org.apache.camel:camel-catalog:4.21.0!/org/apache/camel/catalog/languages.properties",
       "catalogLanguagesSha256": "sha256:b5a2a2ad2234cd73abe350766130fd9f00154f59f7b9adf5062d34eba83a173d",
       "yamlAliases": {
         "constant": "org.apache.camel.model.language.ConstantExpression",

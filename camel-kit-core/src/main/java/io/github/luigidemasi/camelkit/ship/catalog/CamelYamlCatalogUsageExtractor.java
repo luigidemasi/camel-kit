@@ -45,10 +45,11 @@ public final class CamelYamlCatalogUsageExtractor {
     private static final Set<String> DOCUMENT_CONTAINERS = Set.of("routes");
     private static final Set<String> NESTED_EIPS = Set.of(
             "from", "when", "otherwise", "doCatch", "doFinally", "onException", "onCompletion", "onWhen");
-    private static final Set<String> ENDPOINT_EIPS = Set.of(
-            "from", "to", "toD", "enrich", "poll", "pollEnrich", "wireTap", "interceptSendToEndpoint");
-    private static final Set<String> OPAQUE_FIELDS = Set.of(
-            "parameters", "componentParameters", "endpointParameters", "additionalProperties");
+    private static final Set<String> PRIMARY_ENDPOINT_EIPS = Set.of(
+            "from", "to", "toD", "poll", "wireTap", "interceptFrom", "interceptSendToEndpoint");
+    private static final Set<String> UNPROVABLE_ENDPOINT_EIPS = Set.of(
+            "dynamicRouter", "enrich", "pollEnrich", "recipientList", "routingSlip", "serviceCall");
+    private static final Set<String> OPAQUE_FIELDS = Set.of("parameters", "additionalProperties");
     private static final Set<String> DATAFORMAT_STEP_OPTIONS = Set.of("id", "description", "disabled");
     private static final ObjectReader YAML = new com.fasterxml.jackson.databind.ObjectMapper(
             YAMLFactory.builder()
@@ -140,6 +141,11 @@ public final class CamelYamlCatalogUsageExtractor {
             Set<CatalogSubject> result,
             List<EndpointUsage> endpoints)
             throws IOException {
+        if (!stepMapping && operation != null && UNPROVABLE_ENDPOINT_EIPS.contains(operation)) {
+            throw new IOException(
+                    "Ship v1 cannot catalog-prove expression-driven or service-discovered endpoint EIP: "
+                                  + operation);
+        }
         if (node == null || node.isNull()) {
             return;
         }
@@ -150,11 +156,8 @@ public final class CamelYamlCatalogUsageExtractor {
             return;
         }
         if (node.isTextual()) {
-            if (operation != null && ENDPOINT_EIPS.contains(operation)) {
-                addComponent(node.asText(), index, result);
-                if (models != null) {
-                    endpoints.add(validateEndpoint(node.asText(), null, null, models));
-                }
+            if (isPrimaryEndpoint(operation)) {
+                addEndpoint(node.asText(), index, models, result, endpoints);
             } else if ("marshal".equals(operation) || "unmarshal".equals(operation)) {
                 addDataformat(node.asText(), index, result);
             }
@@ -167,7 +170,7 @@ public final class CamelYamlCatalogUsageExtractor {
         if (("marshal".equals(operation) || "unmarshal".equals(operation))) {
             requireSingleDataformat(node, index);
         }
-        if (models != null && !stepMapping && operation != null && ENDPOINT_EIPS.contains(operation)) {
+        if (models != null && !stepMapping && isPrimaryEndpoint(operation)) {
             endpoints.add(validateEndpointObject(node, models));
         }
         if (!stepMapping) {
@@ -210,6 +213,9 @@ public final class CamelYamlCatalogUsageExtractor {
             if (CatalogExpressionInventory.isRejectedAlias(rawKey)) {
                 throw new IOException("Ship v1 permits only the Simple expression language: " + rawKey);
             }
+            if (CatalogExpressionInventory.isNonExactAlias(rawKey)) {
+                throw new IOException("Camel expression uses an unsupported non-exact language alias: " + rawKey);
+            }
 
             String nestedEip = index.canonical(Kind.EIP, rawKey);
             if (nestedEip != null && NESTED_EIPS.contains(nestedEip)) {
@@ -218,8 +224,15 @@ public final class CamelYamlCatalogUsageExtractor {
                 continue;
             }
 
-            if ("uri".equals(rawKey) && value.isTextual()) {
+            if (isEndpointUriField(operation, rawKey)) {
+                if (!value.isTextual()) {
+                    throw new IOException("Endpoint URI field must contain one static textual URI: " + rawKey);
+                }
                 addComponent(value.asText(), index, result);
+                if (models != null
+                        && !("uri".equals(rawKey) && isPrimaryEndpoint(operation))) {
+                    endpoints.add(validateEndpoint(value.asText(), null, null, models));
+                }
                 continue;
             }
             if (operation != null && ("marshal".equals(operation) || "unmarshal".equals(operation))) {
@@ -244,8 +257,20 @@ public final class CamelYamlCatalogUsageExtractor {
             if (index.canonical(Kind.LANGUAGE, rawKey) != null) {
                 throw new IOException("Camel expression uses an unsupported or non-exact language alias: " + rawKey);
             }
-            visit(value, false, operation, index, models, result, endpoints);
+            visit(value, false, isPrimaryEndpoint(operation) ? null : operation,
+                    index, models, result, endpoints);
         }
+    }
+
+    private static boolean isPrimaryEndpoint(String operation) {
+        return operation != null && PRIMARY_ENDPOINT_EIPS.contains(operation);
+    }
+
+    private static boolean isEndpointUriField(String operation, String field) {
+        return "uri".equals(field)
+                || "deadLetterUri".equals(field)
+                || "interceptSendToEndpoint".equals(operation) && "afterUri".equals(field)
+                || "saga".equals(operation) && ("compensation".equals(field) || "completion".equals(field));
     }
 
     private static void requireSingleExpressionSelector(JsonNode node) throws IOException {
@@ -323,12 +348,7 @@ public final class CamelYamlCatalogUsageExtractor {
         if (uri == null || !uri.isTextual()) {
             throw new IOException("Endpoint definition must contain one static textual URI");
         }
-        Map<String, JsonNode> componentOptions = optionMap(node.get("componentParameters"), "componentParameters");
-        Map<String, JsonNode> endpointOptions = new HashMap<>();
-        mergeOptions(endpointOptions, optionMap(node.get("parameters"), "parameters"), "endpoint parameters");
-        mergeOptions(endpointOptions, optionMap(node.get("endpointParameters"), "endpointParameters"),
-                "endpoint parameters");
-        return validateEndpoint(uri.asText(), componentOptions, endpointOptions, models);
+        return validateEndpoint(uri.asText(), null, optionMap(node.get("parameters"), "parameters"), models);
     }
 
     private static Map<String, JsonNode> optionMap(JsonNode node, String name) throws IOException {
@@ -353,16 +373,6 @@ public final class CamelYamlCatalogUsageExtractor {
             }
         }
         return result;
-    }
-
-    private static void mergeOptions(
-            Map<String, JsonNode> target, Map<String, JsonNode> source, String label)
-            throws IOException {
-        for (Map.Entry<String, JsonNode> entry : source.entrySet()) {
-            if (target.putIfAbsent(entry.getKey(), entry.getValue()) != null) {
-                throw new IOException("Endpoint " + label + " contains duplicate option: " + entry.getKey());
-            }
-        }
     }
 
     private static EndpointUsage validateEndpoint(
@@ -544,6 +554,19 @@ public final class CamelYamlCatalogUsageExtractor {
             throw new IOException("Endpoint URI uses a component unavailable in the resolved catalog: " + scheme);
         }
         result.add(new CatalogSubject(Kind.COMPONENT, component));
+    }
+
+    private static void addEndpoint(
+            String uri,
+            CatalogIndex index,
+            ComponentModelIndex models,
+            Set<CatalogSubject> result,
+            List<EndpointUsage> endpoints)
+            throws IOException {
+        addComponent(uri, index, result);
+        if (models != null) {
+            endpoints.add(validateEndpoint(uri, null, null, models));
+        }
     }
 
     private static String safeMessage(Throwable error) {

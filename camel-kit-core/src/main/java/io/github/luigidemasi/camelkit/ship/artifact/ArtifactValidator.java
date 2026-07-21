@@ -69,7 +69,8 @@ public final class ArtifactValidator {
             "io.quarkus:quarkus-maven-plugin");
     private static final Set<String> TEST_SKIP_CONTROLS = Set.of(
             "skip", "skiptests", "skipits", "skipit", "surefire.skip", "failsafe.skip",
-            "maven.test.skip", "maven.test.skip.exec", "quarkus.test.skip");
+            "maven.test.skip", "maven.test.skip.exec", "maven.test.failure.ignore",
+            "testfailureignore", "quarkus.test.skip");
     private static final ObjectReader YAML_READER = new com.fasterxml.jackson.databind.ObjectMapper(
             YAMLFactory.builder()
                     .streamReadConstraints(StreamReadConstraints.builder()
@@ -1154,6 +1155,7 @@ public final class ArtifactValidator {
             factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
             factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
             factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+            factory.setAttribute("jdk.xml.maxElementDepth", "100");
             var builder = factory.newDocumentBuilder();
             builder.setErrorHandler(new StrictXmlErrorHandler());
             byte[] source = readPomBytes(pom);

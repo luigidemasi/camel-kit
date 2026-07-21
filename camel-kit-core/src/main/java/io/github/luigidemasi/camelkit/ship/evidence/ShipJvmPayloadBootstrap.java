@@ -44,7 +44,7 @@ public final class ShipJvmPayloadBootstrap {
 
         Path extraction = Files.createTempDirectory("camel-kit-ship-payload-");
         try {
-            List<URL> urls = extract(archive, extraction, classpath);
+            List<URL> urls = extract(extraction, classpath);
             try (URLClassLoader loader = new URLClassLoader(
                     urls.toArray(URL[]::new), ClassLoader.getPlatformClassLoader())) {
                 Class<?> launcher = Class.forName(lock.launcherClass(), true, loader);
@@ -144,20 +144,18 @@ public final class ShipJvmPayloadBootstrap {
         }
     }
 
-    private static List<URL> extract(Path archive, Path root, List<PayloadEntry> entries) throws IOException {
+    private static List<URL> extract(Path root, List<PayloadEntry> entries) throws IOException {
         List<URL> result = new ArrayList<>();
-        try (ZipFile zip = new ZipFile(archive.toFile())) {
-            for (PayloadEntry payload : entries) {
-                Path target = root.resolve(Path.of(payload.entry().path()).getFileName().toString()).normalize();
-                if (!target.getParent().equals(root)) {
-                    throw new IOException("JVM payload extraction path escaped its private directory");
-                }
-                Files.write(target, payload.bytes(), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
-                if (!payload.entry().digest().equals(digest(Files.readAllBytes(target)))) {
-                    throw new IOException("Extracted JVM payload entry failed digest verification");
-                }
-                result.add(target.toUri().toURL());
+        for (PayloadEntry payload : entries) {
+            Path target = root.resolve(Path.of(payload.entry().path()).getFileName().toString()).normalize();
+            if (!target.getParent().equals(root)) {
+                throw new IOException("JVM payload extraction path escaped its private directory");
             }
+            Files.write(target, payload.bytes(), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+            if (!payload.entry().digest().equals(digest(Files.readAllBytes(target)))) {
+                throw new IOException("Extracted JVM payload entry failed digest verification");
+            }
+            result.add(target.toUri().toURL());
         }
         return List.copyOf(result);
     }

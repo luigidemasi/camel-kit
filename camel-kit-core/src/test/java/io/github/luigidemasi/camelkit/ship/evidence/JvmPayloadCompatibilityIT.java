@@ -1,5 +1,7 @@
 package io.github.luigidemasi.camelkit.ship.evidence;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -12,6 +14,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.jar.JarFile;
 
@@ -35,6 +40,7 @@ class JvmPayloadCompatibilityIT {
     private static final String SANDBOX_ARCHIVE = JvmPayloadArchive.SANDBOX_ARCHIVE;
     private static final String SANDBOX_JAVA = "/opt/camel-kit/jdk/bin/java";
     private static final Duration PROCESS_TIMEOUT = Duration.ofMinutes(2);
+    private static final int MAX_RETAINED_OUTPUT_BYTES = 8 * 1024 * 1024;
     private static final Set<Row> FUNCTIONALLY_TESTED_ROWS = Set.of(
             new Row("4.21.0", "5.0.0-M2"),
             new Row("4.18.3", "5.0.0-M2"));
@@ -46,6 +52,8 @@ class JvmPayloadCompatibilityIT {
 
     @BeforeAll
     static void packagedResolverIsTheResolverUnderTest() throws Exception {
+        assertEquals("Linux", System.getProperty("os.name"),
+                "The linux-ship-certification profile requires Linux and Bubblewrap");
         String configured = System.getProperty("ship.resolver.jar");
         assertNotNull(configured, "Compatibility certification requires the packaged resolver path");
         Path expected = Path.of(configured).toRealPath();
@@ -233,14 +241,30 @@ class JvmPayloadCompatibilityIT {
                 workspace, workspace, "/workspace", home, temporary, java,
                 mounts, arguments, environment);
         Process process = new BubblewrapSandboxLauncher().launch(invocation);
-        boolean exited = process.waitFor(PROCESS_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
-        if (!exited) {
-            process.destroyForcibly();
-            assertTrue(process.waitFor(30, TimeUnit.SECONDS), "Timed-out payload process did not terminate");
-            fail("Timed out launching isolated " + request.kind().id() + " payload");
+        ExecutorService readers = Executors.newFixedThreadPool(2, runnable -> {
+            Thread thread = new Thread(runnable, "camel-kit-ship-compatibility-output");
+            thread.setDaemon(true);
+            return thread;
+        });
+        Future<CapturedOutput> stdout = readers.submit(() -> drain(process.getInputStream()));
+        Future<CapturedOutput> stderr = readers.submit(() -> drain(process.getErrorStream()));
+        CapturedOutput capturedStdout;
+        CapturedOutput capturedStderr;
+        try {
+            boolean exited = process.waitFor(PROCESS_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+            if (!exited) {
+                process.destroyForcibly();
+                assertTrue(process.waitFor(30, TimeUnit.SECONDS), "Timed-out payload process did not terminate");
+                fail("Timed out launching isolated " + request.kind().id() + " payload");
+            }
+            capturedStdout = stdout.get(30, TimeUnit.SECONDS);
+            capturedStderr = stderr.get(30, TimeUnit.SECONDS);
+        } finally {
+            readers.shutdownNow();
         }
-        String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8)
-                        + new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8);
+        String output = capturedStdout.text() + capturedStderr.text();
+        assertFalse(capturedStdout.truncated() || capturedStderr.truncated(),
+                "Isolated payload output exceeded " + MAX_RETAINED_OUTPUT_BYTES + " bytes per stream\n" + output);
         assertEquals(0, process.exitValue(), output);
         if (assertVersions) {
             if (request.kind() == JvmPayloadRequest.Kind.MAIN_PACKAGE_INSPECT) {
@@ -256,6 +280,21 @@ class JvmPayloadCompatibilityIT {
         }
     }
 
+    private static CapturedOutput drain(InputStream input) throws IOException {
+        ByteArrayOutputStream retained = new ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        boolean truncated = false;
+        int count;
+        while ((count = input.read(buffer)) != -1) {
+            int remaining = MAX_RETAINED_OUTPUT_BYTES - retained.size();
+            if (remaining > 0) {
+                retained.write(buffer, 0, Math.min(count, remaining));
+            }
+            truncated |= count > remaining;
+        }
+        return new CapturedOutput(retained.toByteArray(), truncated);
+    }
+
     private static String digest(Path file) throws Exception {
         return "sha256:" + java.util.HexFormat.of().formatHex(
                 java.security.MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(file)));
@@ -266,5 +305,12 @@ class JvmPayloadCompatibilityIT {
     }
 
     private record Row(String camelVersion, String citrusVersion) {
+    }
+
+    private record CapturedOutput(byte[] bytes, boolean truncated) {
+
+        private String text() {
+            return new String(bytes, StandardCharsets.UTF_8);
+        }
     }
 }

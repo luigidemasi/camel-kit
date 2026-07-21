@@ -2,6 +2,7 @@ package io.github.luigidemasi.camelkit.ship.evidence;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -118,6 +119,90 @@ class EvidenceRunnerTest {
     }
 
     @Test
+    void failedVersionQueryCannotLaunchOrPassOnStderrNoise() throws Exception {
+        Path project = Files.createDirectory(tempDir.resolve("candidate"));
+        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
+        RecordingLauncher launcher = new RecordingLauncher(fakeBubblewrap, null, null);
+        launcher.versionStdout = "misleading version\n";
+        launcher.versionExitCode = 9;
+
+        CommandEvidence result = runner(launcher).run(
+                project, tempDir.resolve("evidence"), command(project, "version-check", Duration.ofSeconds(2)));
+
+        assertFalse(result.passed());
+        assertFalse(result.launched());
+        assertNull(result.exitCode());
+        assertEquals("exit-9", result.executableVersion());
+        assertTrue(result.launchError().contains("Version query failed: exit-9"));
+        assertEquals(1, launcher.invocations.size(), "the evidence command must not launch after a failed query");
+    }
+
+    @Test
+    void zeroExitVersionQueryWithOnlyStderrCannotLaunchOrPass() throws Exception {
+        Path project = Files.createDirectory(tempDir.resolve("candidate"));
+        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
+        RecordingLauncher launcher = new RecordingLauncher(fakeBubblewrap, null, null);
+        launcher.versionStdout = " \n";
+        launcher.versionStderr = "Picked up JAVA_TOOL_OPTIONS: fixture\n";
+
+        CommandEvidence result = runner(launcher).run(
+                project, tempDir.resolve("evidence"), command(project, "version-check", Duration.ofSeconds(2)));
+
+        assertFalse(result.passed());
+        assertFalse(result.launched());
+        assertNull(result.exitCode());
+        assertEquals("unreported", result.executableVersion());
+        assertTrue(result.launchError().contains("Version query failed: unreported"));
+        assertEquals(1, launcher.invocations.size(), "stderr must not become executable version evidence");
+    }
+
+    @Test
+    void rejectsReuseOfAnotherRunsEvidenceDirectoryWithoutDeletingIt() throws Exception {
+        Path project = Files.createDirectory(tempDir.resolve("candidate"));
+        Path evidenceDirectory = tempDir.resolve("evidence");
+        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
+        EvidenceCommand command = command(project, "first-check", Duration.ofSeconds(2));
+        RecordingLauncher firstLauncher = new RecordingLauncher(fakeBubblewrap, null, null);
+        CommandEvidence first = runner(firstLauncher).run(project, evidenceDirectory, command);
+        Path firstSandbox = firstLauncher.invocations.get(1).privateHome().getParent();
+
+        IOException rejected = assertThrows(IOException.class, () -> runner(
+                new RecordingLauncher(fakeBubblewrap, null, null))
+                .run(project, evidenceDirectory, command(project, "sibling-check", Duration.ofSeconds(2))));
+
+        assertTrue(rejected.getMessage().contains("new and exclusive"));
+        assertTrue(Files.isRegularFile(Path.of(first.stdoutLog())));
+        assertTrue(Files.isRegularFile(Path.of(first.stderrLog())));
+        assertTrue(Files.isDirectory(firstSandbox));
+    }
+
+    @Test
+    void midRunAuthorityTamperAlwaysFailsClosed() throws Exception {
+        Path project = Files.createDirectory(tempDir.resolve("candidate"));
+        for (AuthorityTamper tamper : AuthorityTamper.values()) {
+            String id = tamper.name().toLowerCase(java.util.Locale.ROOT).replace('_', '-');
+            Path fakeBubblewrap = executable(
+                    tempDir.resolve("fake-bwrap-" + id), "fixture");
+            RecordingLauncher launcher = new RecordingLauncher(fakeBubblewrap, null, null);
+            launcher.executionTamper = tamper;
+
+            CommandEvidence result = runner(launcher).run(
+                    project,
+                    tempDir.resolve("evidence-" + id),
+                    command(project, "tamper-" + id, Duration.ofSeconds(2)));
+
+            assertFalse(result.passed(), tamper.name());
+            switch (tamper) {
+                case PAYLOAD_ARCHIVE -> assertNull(result.postToolchainDigest());
+                case TOOLCHAIN_EXECUTABLE ->
+                    assertNotEquals(result.executableDigest(), result.postExecutableDigest());
+                case SANDBOX_EXECUTABLE -> assertNotEquals(
+                        result.sandbox().executableDigest(), result.sandbox().postExecutableDigest());
+            }
+        }
+    }
+
+    @Test
     void interruptionStillForciblyReapsAParentThatIgnoresGracefulTermination() throws Exception {
         Path project = Files.createDirectory(tempDir.resolve("candidate"));
         Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
@@ -143,7 +228,8 @@ class EvidenceRunnerTest {
     void interruptionReportsAParentThatCannotBeReaped() throws Exception {
         Path project = Files.createDirectory(tempDir.resolve("candidate"));
         Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
-        Path evidenceDirectory = tempDir.resolve("evidence");
+        Path evidenceRoot = Files.createDirectory(tempDir.resolve("evidence"));
+        Path evidenceDirectory = evidenceRoot.resolve("unreaped-run");
         RecordingLauncher launcher = new RecordingLauncher(fakeBubblewrap, null, null);
         launcher.executionCompletes = false;
         launcher.executionInterruptsWait = true;
@@ -172,12 +258,13 @@ class EvidenceRunnerTest {
 
         RecordingLauncher nextLauncher = new RecordingLauncher(fakeBubblewrap, null, null);
         EvidenceCommand nextCommand = command(project, "next-check", Duration.ofSeconds(2));
-        CommandEvidence next = runner(nextLauncher).run(project, evidenceDirectory, nextCommand);
-        EvidenceRunner.cleanupEphemeral(evidenceDirectory, nextCommand, next);
+        Path nextEvidenceDirectory = evidenceRoot.resolve("next-run");
+        CommandEvidence next = runner(nextLauncher).run(project, nextEvidenceDirectory, nextCommand);
+        EvidenceRunner.cleanupEphemeral(nextEvidenceDirectory, nextCommand, next);
 
-        assertTrue(Files.isDirectory(retainedSandbox), "later pruning must preserve quarantined sandboxes");
-        assertTrue(Files.isRegularFile(retainedStdout), "later pruning must preserve quarantined stdout");
-        assertTrue(Files.isRegularFile(retainedStderr), "later pruning must preserve quarantined stderr");
+        assertTrue(Files.isDirectory(retainedSandbox), "a sibling run must preserve quarantined sandboxes");
+        assertTrue(Files.isRegularFile(retainedStdout), "a sibling run must preserve quarantined stdout");
+        assertTrue(Files.isRegularFile(retainedStderr), "a sibling run must preserve quarantined stderr");
     }
 
     @Test
@@ -262,9 +349,15 @@ class EvidenceRunnerTest {
         assertTrue(frozen.externalMounts().isEmpty());
     }
 
-    private EvidenceRunner runner(RecordingLauncher launcher) {
+    private EvidenceRunner runner(RecordingLauncher launcher) throws IOException {
+        Path libraries = Files.createDirectories(tempDir.resolve("fixture-system-libraries"));
+        Path lib = Files.createDirectories(libraries.resolve("lib"));
+        Path lib64 = Files.createDirectories(libraries.resolve("lib64"));
         return new EvidenceRunner(
-                Clock.systemUTC(), launcher, new FixtureToolchainResolver(), new FixtureJdkResolver());
+                Clock.systemUTC(), launcher, new FixtureToolchainResolver(), new FixtureJdkResolver(),
+                List.of(
+                        new Mount(lib, "/usr/lib", Access.READ_ONLY),
+                        new Mount(lib64, "/usr/lib64", Access.READ_ONLY)));
     }
 
     private EvidenceCommand command(Path project, String id, Duration timeout) throws Exception {
@@ -329,6 +422,9 @@ class EvidenceRunnerTest {
         private final Path controllerSentinel;
         private final List<Invocation> invocations = new ArrayList<>();
         private int executionExitCode;
+        private String versionStdout = "Camel direct YAML validator 4.21.0\n";
+        private String versionStderr = "Picked up JAVA_TOOL_OPTIONS: fixture\n";
+        private int versionExitCode;
         private boolean versionCompletes = true;
         private boolean versionInterruptsWait;
         private boolean versionRequiresForcibleTermination;
@@ -337,6 +433,7 @@ class EvidenceRunnerTest {
         private boolean executionInterruptsWait;
         private boolean executionRequiresForcibleTermination;
         private boolean executionIgnoresForcibleTermination;
+        private AuthorityTamper executionTamper;
         private FakeProcess lastProcess;
 
         private RecordingLauncher(Path executable, Path candidateSentinel, Path controllerSentinel) {
@@ -356,7 +453,7 @@ class EvidenceRunnerTest {
         }
 
         @Override
-        public Process launch(Invocation invocation) {
+        public Process launch(Invocation invocation) throws IOException {
             invocations.add(invocation);
             if (candidateSentinel != null) {
                 assertFalse(invocation.exposes(candidateSentinel));
@@ -365,13 +462,50 @@ class EvidenceRunnerTest {
                 assertFalse(invocation.exposes(controllerSentinel));
             }
             boolean version = invocation.arguments().contains("--payload-version");
+            CheckedAction completionAction = !version && executionTamper != null
+                    ? () -> executionTamper.apply(invocation, executable)
+                    : null;
+            boolean completes = version ? versionCompletes : executionCompletes;
+            if (completionAction != null) {
+                completes = false;
+            }
             lastProcess = new FakeProcess(
-                    version ? "Camel direct YAML validator 4.21.0\n" : "PASS\n",
-                    "", version ? 0 : executionExitCode, version ? versionCompletes : executionCompletes,
+                    version ? versionStdout : "PASS\n",
+                    version ? versionStderr : "", version ? versionExitCode : executionExitCode,
+                    completes,
                     version ? versionInterruptsWait : executionInterruptsWait,
                     version ? versionRequiresForcibleTermination : executionRequiresForcibleTermination,
-                    version ? versionIgnoresForcibleTermination : executionIgnoresForcibleTermination);
+                    version ? versionIgnoresForcibleTermination : executionIgnoresForcibleTermination,
+                    completionAction);
             return lastProcess;
+        }
+    }
+
+    @FunctionalInterface
+    private interface CheckedAction {
+
+        void run() throws IOException;
+    }
+
+    private enum AuthorityTamper {
+        PAYLOAD_ARCHIVE,
+        TOOLCHAIN_EXECUTABLE,
+        SANDBOX_EXECUTABLE;
+
+        private void apply(Invocation invocation, Path sandboxExecutable) throws IOException {
+            switch (this) {
+                case PAYLOAD_ARCHIVE -> {
+                    Path archive = invocation.mounts().stream()
+                            .filter(mount -> "/opt/camel-kit/payload".equals(mount.target()))
+                            .findFirst().orElseThrow()
+                            .source().resolve("payload.jar");
+                    Files.delete(archive);
+                    Files.writeString(archive, "mutated-payload");
+                }
+                case TOOLCHAIN_EXECUTABLE -> Files.writeString(
+                        invocation.toolchainExecutable(), "mutated-toolchain");
+                case SANDBOX_EXECUTABLE -> Files.writeString(sandboxExecutable, "mutated-sandbox");
+            }
         }
     }
 
@@ -385,6 +519,8 @@ class EvidenceRunnerTest {
         private boolean interruptWait;
         private final boolean requiresForcibleTermination;
         private final boolean ignoresForcibleTermination;
+        private final CheckedAction completionAction;
+        private boolean completionActionRun;
         private boolean forciblyDestroyed;
 
         private FakeProcess(
@@ -394,7 +530,8 @@ class EvidenceRunnerTest {
                             boolean completes,
                             boolean interruptWait,
                             boolean requiresForcibleTermination,
-                            boolean ignoresForcibleTermination) {
+                            boolean ignoresForcibleTermination,
+                            CheckedAction completionAction) {
             this.stdout = new ByteArrayInputStream(stdout.getBytes(StandardCharsets.UTF_8));
             this.stderr = new ByteArrayInputStream(stderr.getBytes(StandardCharsets.UTF_8));
             this.exitCode = exitCode;
@@ -402,6 +539,7 @@ class EvidenceRunnerTest {
             this.interruptWait = interruptWait;
             this.requiresForcibleTermination = requiresForcibleTermination;
             this.ignoresForcibleTermination = ignoresForcibleTermination;
+            this.completionAction = completionAction;
         }
 
         @Override
@@ -433,6 +571,15 @@ class EvidenceRunnerTest {
             }
             if (Thread.interrupted()) {
                 throw new InterruptedException("fixture observed caller interruption");
+            }
+            if (completionAction != null && !completionActionRun) {
+                completionActionRun = true;
+                try {
+                    completionAction.run();
+                } catch (IOException e) {
+                    throw new AssertionError("Could not apply execution-time authority tamper", e);
+                }
+                alive = false;
             }
             return !alive;
         }

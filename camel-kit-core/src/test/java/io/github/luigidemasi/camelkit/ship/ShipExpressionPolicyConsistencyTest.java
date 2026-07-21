@@ -2,6 +2,7 @@ package io.github.luigidemasi.camelkit.ship;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -21,6 +22,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ShipExpressionPolicyConsistencyTest {
 
+    /**
+     * Non-classpath version rows are externally reviewed exact-artifact pins. Schema digests cover the raw JAR entry
+     * bytes. Catalog-language digests cover the UTF-8 {@code languages.properties} names normalized to lexical order,
+     * one name per line, with one final LF. The default classpath schema receives the additional live content check
+     * below; historical rows intentionally do not add dependencies or network access to unit tests.
+     */
     private static final String INVENTORY = "ship/expression-policy/catalog-yaml-inventory.json";
     private static final String EXPRESSION_DEFINITION = "org.apache.camel.model.language.ExpressionDefinition";
     private static final String GENERIC_DEFINITION = "org.apache.camel.model.language.LanguageExpression";
@@ -56,8 +63,14 @@ class ShipExpressionPolicyConsistencyTest {
             assertEquals(Set.of("expression"), textSet(inventory.path("simple").path("required")), version);
             assertEquals(Set.of("beanType", "id", "method", "ref", "resultType", "scope", "trim", "validate"),
                     textSet(inventory.path("method").path("properties")), version);
+            assertEquals("org.apache.camel:camel-yaml-dsl:" + version + "!/schema/camelYamlDsl.json",
+                    inventory.path("yamlSchemaArtifact").asText(), version);
             assertTrue(ShipDigest.isSha256(inventory.path("yamlSchemaSha256").asText()), version);
-            assertTrue(ShipDigest.isSha256(inventory.path("catalogLanguagesSha256").asText()), version);
+            assertEquals("org.apache.camel:camel-catalog:" + version
+                         + "!/org/apache/camel/catalog/languages.properties",
+                    inventory.path("catalogLanguagesArtifact").asText(), version);
+            assertEquals(inventory.path("catalogLanguagesSha256").asText(),
+                    digestLines(textSet(inventory.path("catalogLanguages"))), version);
         }
     }
 
@@ -187,6 +200,11 @@ class ShipExpressionPolicyConsistencyTest {
         TreeSet<String> result = new TreeSet<>();
         array.forEach(value -> result.add(value.asText()));
         return result;
+    }
+
+    private static String digestLines(Set<String> values) {
+        return ShipDigest.sha256((String.join("\n", new TreeSet<>(values)) + '\n')
+                .getBytes(StandardCharsets.UTF_8));
     }
 
     private static Map<String, String> textMap(JsonNode object) {

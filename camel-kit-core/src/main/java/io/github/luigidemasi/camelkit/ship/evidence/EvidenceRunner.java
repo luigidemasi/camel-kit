@@ -6,6 +6,7 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -73,6 +74,7 @@ public final class EvidenceRunner {
     private final EvidenceSandboxLauncher sandboxLauncher;
     private final ToolchainResolver toolchains;
     private final JdkResolver jdks;
+    private final List<Mount> systemLibraries;
 
     public EvidenceRunner() {
         this(Clock.systemUTC(), new BubblewrapSandboxLauncher(), new ControllerToolchainResolver(),
@@ -97,10 +99,20 @@ public final class EvidenceRunner {
                    EvidenceSandboxLauncher sandboxLauncher,
                    ToolchainResolver toolchains,
                    JdkResolver jdks) {
+        this(clock, sandboxLauncher, toolchains, jdks, linuxSystemLibraries());
+    }
+
+    EvidenceRunner(
+                   Clock clock,
+                   EvidenceSandboxLauncher sandboxLauncher,
+                   ToolchainResolver toolchains,
+                   JdkResolver jdks,
+                   List<Mount> systemLibraries) {
         this.clock = Objects.requireNonNull(clock, "clock");
         this.sandboxLauncher = Objects.requireNonNull(sandboxLauncher, "sandboxLauncher");
         this.toolchains = Objects.requireNonNull(toolchains, "toolchains");
         this.jdks = Objects.requireNonNull(jdks, "jdks");
+        this.systemLibraries = List.copyOf(systemLibraries);
     }
 
     public static String expectedSandboxProfileDigest(EvidenceCommand command) throws IOException {
@@ -153,10 +165,13 @@ public final class EvidenceRunner {
         return Map.copyOf(environment);
     }
 
+    /**
+     * Runs one command with an atomically claimed, previously absent evidence directory. Each concurrent or sibling run
+     * must use its own directory.
+     */
     public CommandEvidence run(Path projectRoot, Path evidenceDirectory, EvidenceCommand command) throws IOException {
         Path candidate = realDirectory(projectRoot, "project root");
         Path logs = createEvidenceDirectory(evidenceDirectory);
-        pruneEphemeral(logs);
         Path workingDirectory = resolveWorkingDirectory(candidate, command.relativeWorkingDirectory());
         Path sandboxRoot = privateTempDirectory(logs, "." + command.id() + "-sandbox-");
         boolean handedToCollector = false;
@@ -183,7 +198,8 @@ public final class EvidenceRunner {
             String executableDigest = digest(executable);
             Map<String, String> controlledEnvironment = expectedEnvironment(command, jdk.digest());
             List<Mount> mounts = mounts(
-                    candidate, acceptedSnapshot, logs, privateHome, privateTemporaryDirectory, toolchain, jdk);
+                    candidate, acceptedSnapshot, logs, privateHome, privateTemporaryDirectory,
+                    toolchain, jdk, systemLibraries);
             String sandboxWorkingDirectory = sandboxWorkingDirectory(candidate, workingDirectory);
             Invocation invocation = new Invocation(
                     candidate,
@@ -205,17 +221,17 @@ public final class EvidenceRunner {
             boolean launched = false;
             boolean timedOut = false;
             Integer exitCode = null;
-            String launchError = versionResult.residualFailure();
+            String launchError = versionResult.failure();
             Process process = null;
             boolean processTreeReaped = versionResult.reaped();
-            boolean logPumpsQuiesced = !versionResult.reaped();
+            boolean logPumpsQuiesced = versionResult.failure() != null;
 
             ExecutorService pumps = Executors.newFixedThreadPool(2, runnable -> {
                 Thread thread = new Thread(runnable, "camel-kit-ship-evidence-log");
                 thread.setDaemon(true);
                 return thread;
             });
-            if (versionResult.reaped()) {
+            if (versionResult.failure() == null) {
                 try (FileChannel stdoutChannel = openLog(stdout.path());
                      FileChannel stderrChannel = openLog(stderr.path())) {
                     process = sandboxLauncher.launch(invocation);
@@ -369,40 +385,6 @@ public final class EvidenceRunner {
         }
     }
 
-    private static void pruneEphemeral(Path root) throws IOException {
-        List<String> directories = new ArrayList<>();
-        List<String> candidateFiles = new ArrayList<>();
-        Set<String> retainedSandboxes = new LinkedHashSet<>();
-        try (var entries = Files.newDirectoryStream(root)) {
-            for (Path entry : entries) {
-                String name = entry.getFileName().toString();
-                if (name.matches("\\.[a-z0-9][a-z0-9-]*-sandbox-[A-Za-z0-9._-]+")) {
-                    if (hasProcessRetentionMarker(entry)) {
-                        retainedSandboxes.add(name);
-                    } else {
-                        directories.add(name);
-                    }
-                } else if (name.matches("\\.[a-z0-9][a-z0-9-]*-.*\\.(stdout|stderr)\\.log")) {
-                    candidateFiles.add(name);
-                }
-            }
-        }
-        List<String> files = candidateFiles.stream()
-                .filter(file -> retainedSandboxes.stream().noneMatch(
-                        sandbox -> file.equals(sandbox + ".stdout.log")
-                                || file.equals(sandbox + ".stderr.log")))
-                .toList();
-        if (directories.isEmpty() && files.isEmpty()) {
-            return;
-        }
-        for (String file : files) {
-            deleteRelativeFile(root, file);
-        }
-        for (String directory : directories) {
-            deleteRelativeTree(root, directory);
-        }
-    }
-
     private static void deleteSandbox(Path root, Path sandbox, String commandId) throws IOException {
         Path normalizedRoot = root.toRealPath(LinkOption.NOFOLLOW_LINKS);
         Path normalizedSandbox = sandbox.toAbsolutePath().normalize();
@@ -514,39 +496,46 @@ public final class EvidenceRunner {
             Future<byte[]> errors = reader.submit(() -> readBounded(running.getErrorStream(), MAX_VERSION_BYTES));
             if (!waitForExecution(process, output, errors, VERSION_TIMEOUT)) {
                 boolean reaped = terminateAndWait(process);
-                return versionResult("version-query-timeout", reaped, process);
+                return failedVersionResult("version-query-timeout", reaped, process);
             }
             if (!terminateDescendantsAndWait(process)) {
-                return versionResult("version-query-descendants-not-reaped", false, process);
+                return failedVersionResult("version-query-descendants-not-reaped", false, process);
             }
             byte[] stdout = output.get(5, TimeUnit.SECONDS);
-            byte[] stderr = errors.get(5, TimeUnit.SECONDS);
-            ByteArrayOutputStream combined = new ByteArrayOutputStream(stdout.length + stderr.length);
-            combined.write(stdout);
-            combined.write(stderr);
-            String value = combined.toString(StandardCharsets.UTF_8).strip();
-            return new VersionResult(
-                    value.isEmpty() ? "exit-" + process.exitValue() : value.lines().findFirst().orElse("unreported"),
-                    true,
-                    null);
+            errors.get(5, TimeUnit.SECONDS);
+            int exitCode = process.exitValue();
+            if (exitCode != 0) {
+                return failedVersionResult("exit-" + exitCode, true, process);
+            }
+            String value = new String(stdout, StandardCharsets.UTF_8).strip();
+            if (value.isEmpty()) {
+                return failedVersionResult("unreported", true, process);
+            }
+            return new VersionResult(value.lines().findFirst().orElseThrow(), true, null);
         } catch (IOException e) {
             boolean reaped = process == null || terminateAndWait(process);
-            return versionResult("version-query-error:" + e.getClass().getSimpleName(), reaped, process);
+            return failedVersionResult("version-query-error:" + e.getClass().getSimpleName(), reaped, process);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             boolean reaped = process == null || terminateAndWait(process);
-            return versionResult("version-query-interrupted", reaped, process);
+            return failedVersionResult("version-query-interrupted", reaped, process);
         } catch (ExecutionException | TimeoutException e) {
             boolean reaped = process == null || terminateAndWait(process);
-            return versionResult("version-query-error:" + e.getClass().getSimpleName(), reaped, process);
+            return failedVersionResult("version-query-error:" + e.getClass().getSimpleName(), reaped, process);
         } finally {
             reader.shutdownNow();
         }
     }
 
-    private static VersionResult versionResult(String value, boolean reaped, Process process) {
+    private static VersionResult failedVersionResult(String value, boolean reaped, Process process) {
+        String failure = "Version query failed: " + value;
+        if (!reaped) {
+            failure = appendFailure(failure, residualProcessFailure("Version query", process));
+        }
         return new VersionResult(
-                value, reaped, reaped ? null : residualProcessFailure("Version query", process));
+                value,
+                reaped,
+                failure);
     }
 
     private static String residualProcessFailure(String phase, Process process) {
@@ -573,15 +562,18 @@ public final class EvidenceRunner {
             Path privateHome,
             Path privateTemporaryDirectory,
             ResolvedToolchain toolchain,
-            JdkIdentity jdk)
+            JdkIdentity jdk,
+            List<Mount> configuredSystemLibraries)
             throws IOException {
-        List<Mount> systemLibraries = List.of(
-                new Mount(
-                        realDirectory(Path.of("/usr/lib"), "system library root"),
-                        "/usr/lib", Access.READ_ONLY),
-                new Mount(
-                        realDirectory(Path.of("/usr/lib64"), "system library root"),
-                        "/usr/lib64", Access.READ_ONLY));
+        List<Mount> systemLibraries = new ArrayList<>();
+        for (Mount configured : configuredSystemLibraries) {
+            if (configured.access() != Access.READ_ONLY) {
+                throw new IOException("System library mounts must be read-only");
+            }
+            systemLibraries.add(new Mount(
+                    realDirectory(configured.source(), "system library root"),
+                    configured.target(), Access.READ_ONLY));
+        }
         for (Mount system : systemLibraries) {
             if (candidate.startsWith(system.source()) || evidenceDirectory.startsWith(system.source())) {
                 throw new IOException("Candidate and controller evidence must be outside system library mounts");
@@ -613,6 +605,12 @@ public final class EvidenceRunner {
             mounts.add(mount);
         }
         return List.copyOf(mounts);
+    }
+
+    private static List<Mount> linuxSystemLibraries() {
+        return List.of(
+                new Mount(Path.of("/usr/lib"), "/usr/lib", Access.READ_ONLY),
+                new Mount(Path.of("/usr/lib64"), "/usr/lib64", Access.READ_ONLY));
     }
 
     private static String sandboxWorkingDirectory(Path candidate, Path workingDirectory) {
@@ -666,8 +664,8 @@ public final class EvidenceRunner {
         }
         Path absolute = path.toAbsolutePath().normalize();
         Path current = absolute.getRoot();
-        for (Path part : absolute) {
-            current = current.resolve(part);
+        for (int index = 0; index < absolute.getNameCount() - 1; index++) {
+            current = current.resolve(absolute.getName(index));
             if (!Files.exists(current, LinkOption.NOFOLLOW_LINKS)) {
                 Files.createDirectory(current);
             }
@@ -675,7 +673,13 @@ public final class EvidenceRunner {
                 throw new IOException("Evidence path contains an unsafe component: " + current);
             }
         }
-        return privateDirectory(absolute.toRealPath(LinkOption.NOFOLLOW_LINKS));
+        try {
+            Files.createDirectory(absolute, PosixFilePermissions.asFileAttribute(
+                    PosixFilePermissions.fromString("rwx------")));
+        } catch (FileAlreadyExistsException e) {
+            throw new IOException("Evidence directory must be new and exclusive to one command run: " + absolute, e);
+        }
+        return privateDirectory(absolute);
     }
 
     private static Path privateTempDirectory(Path parent, String prefix) throws IOException {
@@ -1329,7 +1333,7 @@ public final class EvidenceRunner {
         }
     }
 
-    private record VersionResult(String value, boolean reaped, String residualFailure) {
+    private record VersionResult(String value, boolean reaped, String failure) {
     }
 
     private record LogFile(Path path, Object fileKey) {

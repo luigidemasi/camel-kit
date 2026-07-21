@@ -1,5 +1,10 @@
 package io.github.luigidemasi.camelkit.ship.protocol;
 
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -13,6 +18,10 @@ import io.github.luigidemasi.camelkit.ship.ShipDigest;
  * <p>
  * Principal and UI-profile values are authenticated only after the later protected controller service observes and
  * signs them. Merely constructing one of these wire records grants no controller authority.
+ *
+ * <p>
+ * Every {@code *MacFields} result is MAC input only after it is encoded by {@link #canonicalMacBytes(String[])}.
+ * Delimiter joining or any other serialization is forbidden because interaction text may contain arbitrary separators.
  */
 public final class Interaction {
 
@@ -403,6 +412,34 @@ public final class Interaction {
         DENY
     }
 
+    /**
+     * Encodes ordered MAC fields as a field count followed by signed, four-byte big-endian UTF-8 byte lengths and
+     * values. A length of {@code -1} represents null and {@code 0} represents the empty string.
+     */
+    public static byte[] canonicalMacBytes(String[] fields) {
+        if (fields == null || fields.length == 0 || fields[0] == null || fields[0].isBlank()) {
+            throw new IllegalArgumentException("Interaction MAC fields require a domain");
+        }
+        byte[][] encoded = new byte[fields.length][];
+        int size = Integer.BYTES;
+        for (int index = 0; index < fields.length; index++) {
+            encoded[index] = fields[index] == null ? null : utf8(fields[index]);
+            size = Math.addExact(size, Integer.BYTES);
+            if (encoded[index] != null) {
+                size = Math.addExact(size, encoded[index].length);
+            }
+        }
+        ByteBuffer output = ByteBuffer.allocate(size).putInt(encoded.length);
+        for (byte[] value : encoded) {
+            if (value == null) {
+                output.putInt(-1);
+            } else {
+                output.putInt(value.length).put(value);
+            }
+        }
+        return output.array();
+    }
+
     /** Canonical, type-separated fields covered by a discovery-challenge MAC. */
     public static String[] discoveryChallengeMacFields(
             String runId,
@@ -709,6 +746,20 @@ public final class Interaction {
             fields[index + 1] = value == null ? null : value instanceof Enum<?> item ? item.name() : value.toString();
         }
         return fields;
+    }
+
+    private static byte[] utf8(String value) {
+        try {
+            ByteBuffer encoded = StandardCharsets.UTF_8.newEncoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .encode(CharBuffer.wrap(value));
+            byte[] result = new byte[encoded.remaining()];
+            encoded.get(result);
+            return result;
+        } catch (CharacterCodingException e) {
+            throw new IllegalArgumentException("Interaction MAC fields must contain valid Unicode", e);
+        }
     }
 
     private static void requireCommon(
