@@ -190,6 +190,54 @@ class ShipExpressionPolicyTest {
     }
 
     @Test
+    void pinsEveryUnicode16FormatControlRange() {
+        int[][] formatControlRanges = {
+                {0x00ad, 0x00ad},
+                {0x0600, 0x0605},
+                {0x061c, 0x061c},
+                {0x06dd, 0x06dd},
+                {0x070f, 0x070f},
+                {0x0890, 0x0891},
+                {0x08e2, 0x08e2},
+                {0x180e, 0x180e},
+                {0x200b, 0x200f},
+                {0x202a, 0x202e},
+                {0x2060, 0x2064},
+                {0x2066, 0x206f},
+                {0xfeff, 0xfeff},
+                {0xfff9, 0xfffb},
+                {0x110bd, 0x110bd},
+                {0x110cd, 0x110cd},
+                {0x13430, 0x1343f},
+                {0x1bca0, 0x1bca3},
+                {0x1d173, 0x1d17a},
+                {0xe0001, 0xe0001},
+                {0xe0020, 0xe007f}
+        };
+
+        for (int[] range : formatControlRanges) {
+            for (int codePoint = range[0]; codePoint <= range[1]; codePoint++) {
+                assertFalse(
+                        ShipExpressionPolicy.isSafeSimpleTemplate(scalar(codePoint)),
+                        "U+" + Integer.toHexString(codePoint));
+            }
+
+            int before = range[0] - 1;
+            if (before == 0x2029) {
+                assertFalse(
+                        ShipExpressionPolicy.isSafeSimpleTemplate(scalar(before)),
+                        "U+2029 is independently forbidden as a paragraph separator");
+            } else {
+                assertTrue(
+                        ShipExpressionPolicy.isSafeSimpleTemplate(scalar(before)),
+                        "U+" + Integer.toHexString(before));
+            }
+            int after = range[1] + 1;
+            assertTrue(ShipExpressionPolicy.isSafeSimpleTemplate(scalar(after)), "U+" + Integer.toHexString(after));
+        }
+    }
+
+    @Test
     void enforcesStrictUnicodeAndUtf8ByteLimits() {
         String asciiAtLimit = "a".repeat(16_384);
         String twoByteAtLimit = "é".repeat(8_192);
