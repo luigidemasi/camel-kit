@@ -34,7 +34,11 @@ jobs:
           cache: maven
 
       - name: Install Bubblewrap
-        run: sudo apt-get update && sudo apt-get install --yes bubblewrap
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes apparmor-profiles bubblewrap
+          sudo apparmor_parser -r /usr/share/apparmor/extra-profiles/bwrap-userns-restrict
+          bwrap --unshare-user --unshare-net --disable-userns --ro-bind /usr /usr --symlink usr/bin /bin --proc /proc --dev /dev -- /bin/true
 
       - name: Check code formatting and imports
         run: ./mvnw -B -Psourcecheck validate
