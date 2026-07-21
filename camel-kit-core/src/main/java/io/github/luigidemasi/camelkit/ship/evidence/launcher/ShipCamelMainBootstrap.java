@@ -48,7 +48,9 @@ public final class ShipCamelMainBootstrap {
     private static final Pattern APPLICATION_CONFIGURATION = Pattern.compile(
             "application[^/]*\\.(?:properties|ya?ml)", Pattern.CASE_INSENSITIVE);
     private static final Set<String> ENDPOINT_KEYS = Set.of(
-            "from", "to", "tod", "enrich", "pollenrich", "wiretap", "interceptsendtoendpoint", "uri");
+            "from", "to", "tod", "enrich", "pollenrich", "wiretap", "uri", "afteruri");
+    private static final Set<String> ENDPOINT_SELECTOR_KEYS = Set.of(
+            "interceptfrom", "interceptsendtoendpoint");
     private static final Set<String> FORBIDDEN_KEYS = Set.of(
             "bean", "beans", "script", "scripts", "groovy", "javascript", "js", "python", "kotlin",
             "routepolicy", "routeconfiguration", "routeconfigurations", "templatedroute", "routetemplate",
@@ -380,6 +382,15 @@ public final class ShipCamelMainBootstrap {
             return;
         }
         if (node.isObject()) {
+            if (isEndpointSelector(parentKey)) {
+                JsonNode uriPattern = node.get("uri");
+                if (uriPattern == null && "interceptsendtoendpoint".equals(parentKey)) {
+                    throw new IOException("interceptSendToEndpoint requires a URI pattern");
+                }
+                if (uriPattern != null && !uriPattern.isTextual()) {
+                    throw new IOException("Endpoint selector URI pattern must be textual");
+                }
+            }
             requireSingleExpressionSelector(node);
             for (Map.Entry<String, JsonNode> field : node.properties()) {
                 String rawKey = field.getKey();
@@ -405,7 +416,9 @@ public final class ShipCamelMainBootstrap {
                 if (FORBIDDEN_KEYS.contains(key)) {
                     throw new IOException("Route YAML contains an unsafe startup construct: " + field.getKey());
                 }
-                visit(field.getValue(), key, schemes);
+                visit(field.getValue(),
+                        isEndpointSelector(parentKey) && "uri".equals(key) ? parentKey : key,
+                        schemes);
             }
             return;
         }
@@ -416,6 +429,9 @@ public final class ShipCamelMainBootstrap {
         String lower = value.toLowerCase(Locale.ROOT);
         if (FORBIDDEN_VALUES.stream().anyMatch(lower::contains)) {
             throw new IOException("Route YAML contains an unsafe startup value");
+        }
+        if (isEndpointSelector(parentKey) && value.contains("${")) {
+            throw new IOException("Endpoint selector pattern cannot be dynamic");
         }
         String resolved = rejectPlaceholders(value);
         if (parentKey != null && ENDPOINT_KEYS.contains(parentKey)) {
@@ -505,6 +521,10 @@ public final class ShipCamelMainBootstrap {
 
     private static String normalize(String value) {
         return value.replace("-", "").replace("_", "").toLowerCase(Locale.ROOT);
+    }
+
+    private static boolean isEndpointSelector(String key) {
+        return key != null && ENDPOINT_SELECTOR_KEYS.contains(key);
     }
 
     private static String camelVersion() {

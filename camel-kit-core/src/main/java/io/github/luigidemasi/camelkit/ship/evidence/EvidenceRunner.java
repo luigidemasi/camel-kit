@@ -477,7 +477,7 @@ public final class EvidenceRunner {
 
     private VersionResult readVersion(Invocation invocation, List<String> versionArguments) {
         if (versionArguments.isEmpty()) {
-            return new VersionResult("unreported", true, null);
+            return failedVersionResult("unreported", true, null);
         }
         Invocation versionInvocation = new Invocation(
                 invocation.candidate(), invocation.workingDirectory(), invocation.sandboxWorkingDirectory(),

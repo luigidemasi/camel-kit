@@ -46,7 +46,9 @@ public final class CamelYamlCatalogUsageExtractor {
     private static final Set<String> NESTED_EIPS = Set.of(
             "from", "when", "otherwise", "doCatch", "doFinally", "onException", "onCompletion", "onWhen");
     private static final Set<String> PRIMARY_ENDPOINT_EIPS = Set.of(
-            "from", "to", "toD", "poll", "wireTap", "interceptFrom", "interceptSendToEndpoint");
+            "from", "to", "toD", "poll", "wireTap");
+    private static final Set<String> ENDPOINT_SELECTOR_EIPS = Set.of(
+            "interceptFrom", "interceptSendToEndpoint");
     private static final Set<String> UNPROVABLE_ENDPOINT_EIPS = Set.of(
             "dynamicRouter", "enrich", "pollEnrich", "recipientList", "routingSlip", "serviceCall");
     private static final Set<String> OPAQUE_FIELDS = Set.of("parameters", "additionalProperties");
@@ -156,7 +158,9 @@ public final class CamelYamlCatalogUsageExtractor {
             return;
         }
         if (node.isTextual()) {
-            if (isPrimaryEndpoint(operation)) {
+            if (isEndpointSelector(operation)) {
+                requireStatic(node.asText(), operation + " URI pattern");
+            } else if (isPrimaryEndpoint(operation)) {
                 addEndpoint(node.asText(), index, models, result, endpoints);
             } else if ("marshal".equals(operation) || "unmarshal".equals(operation)) {
                 addDataformat(node.asText(), index, result);
@@ -169,6 +173,18 @@ public final class CamelYamlCatalogUsageExtractor {
 
         if (("marshal".equals(operation) || "unmarshal".equals(operation))) {
             requireSingleDataformat(node, index);
+        }
+        if (!stepMapping && isEndpointSelector(operation)) {
+            JsonNode uriPattern = node.get("uri");
+            if (uriPattern == null && "interceptSendToEndpoint".equals(operation)) {
+                throw new IOException("interceptSendToEndpoint requires a URI pattern");
+            }
+            if (uriPattern != null && !uriPattern.isTextual()) {
+                throw new IOException(operation + " URI pattern must be textual");
+            }
+            if (uriPattern != null) {
+                requireStatic(uriPattern.asText(), operation + " URI pattern");
+            }
         }
         if (models != null && !stepMapping && isPrimaryEndpoint(operation)) {
             endpoints.add(validateEndpointObject(node, models));
@@ -257,7 +273,8 @@ public final class CamelYamlCatalogUsageExtractor {
             if (index.canonical(Kind.LANGUAGE, rawKey) != null) {
                 throw new IOException("Camel expression uses an unsupported or non-exact language alias: " + rawKey);
             }
-            visit(value, false, isPrimaryEndpoint(operation) ? null : operation,
+            visit(value, false,
+                    isPrimaryEndpoint(operation) || isEndpointSelector(operation) ? null : operation,
                     index, models, result, endpoints);
         }
     }
@@ -266,8 +283,12 @@ public final class CamelYamlCatalogUsageExtractor {
         return operation != null && PRIMARY_ENDPOINT_EIPS.contains(operation);
     }
 
+    private static boolean isEndpointSelector(String operation) {
+        return operation != null && ENDPOINT_SELECTOR_EIPS.contains(operation);
+    }
+
     private static boolean isEndpointUriField(String operation, String field) {
-        return "uri".equals(field)
+        return "uri".equals(field) && !isEndpointSelector(operation)
                 || "deadLetterUri".equals(field)
                 || "interceptSendToEndpoint".equals(operation) && "afterUri".equals(field)
                 || "saga".equals(operation) && ("compensation".equals(field) || "completion".equals(field));

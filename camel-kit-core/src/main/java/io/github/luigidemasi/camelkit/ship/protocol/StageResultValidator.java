@@ -442,18 +442,35 @@ public final class StageResultValidator {
                     lexical = lexical.resolve(name);
                     String description = "Attempt output path " + lexical;
                     BasicFileAttributes basic = attributes(current, name);
-                    UnixIdentity expected = sampleUnix(lexical, basic.fileKey(), description);
-                    requireDirectory(basic, expected, null,
-                            "Attempt output path contains a non-directory or symbolic entry");
+                    boolean attemptRoot = lexical.equals(path);
+                    UnixIdentity expected = null;
+                    if (attemptRoot) {
+                        expected = sampleUnix(lexical, basic.fileKey(), description);
+                        requireDirectory(basic, expected, null,
+                                "Attempt output path contains a non-directory or symbolic entry");
+                    } else {
+                        // Shared ancestors may change contents; only their opened identity must remain stable.
+                        requireBasicDirectory(
+                                basic, "Attempt output path contains a non-directory or symbolic entry");
+                    }
 
                     SecureDirectoryStream<Path> child = null;
                     try {
                         child = current.newDirectoryStream(name, LinkOption.NOFOLLOW_LINKS);
-                        requireDirectory(attributes(child, null), expected, null,
-                                "Attempt output directory changed while it was opened");
-                        UnixIdentity rebound = sampleUnix(lexical, expected.fileKey(), description);
-                        if (!expected.equals(rebound)) {
-                            throw new IOException("Attempt output directory changed while it was opened");
+                        BasicFileAttributes childAttributes = attributes(child, null);
+                        if (attemptRoot) {
+                            requireDirectory(childAttributes, expected, null,
+                                    "Attempt output directory changed while it was opened");
+                            UnixIdentity rebound = sampleUnix(lexical, expected.fileKey(), description);
+                            if (!expected.equals(rebound)) {
+                                throw new IOException("Attempt output directory changed while it was opened");
+                            }
+                        } else {
+                            requireBasicDirectory(
+                                    childAttributes, "Attempt output directory changed while it was opened");
+                            if (!basic.fileKey().equals(childAttributes.fileKey())) {
+                                throw new IOException("Attempt output directory changed while it was opened");
+                            }
                         }
                     } catch (IOException | RuntimeException e) {
                         if (child != null) {

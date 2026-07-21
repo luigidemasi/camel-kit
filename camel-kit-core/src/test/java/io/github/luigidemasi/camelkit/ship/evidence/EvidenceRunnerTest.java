@@ -157,6 +157,28 @@ class EvidenceRunnerTest {
     }
 
     @Test
+    void missingVersionCommandCannotLaunchOrPass() throws Exception {
+        Path project = Files.createDirectory(tempDir.resolve("candidate"));
+        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
+        RecordingLauncher launcher = new RecordingLauncher(fakeBubblewrap, null, null);
+        EvidenceCommand configured = command(project, "version-check", Duration.ofSeconds(2));
+        EvidenceCommand missingVersion = new EvidenceCommand(
+                configured.id(), configured.arguments(), List.of(), configured.relativeWorkingDirectory(),
+                configured.timeout(), configured.inputDigests(), configured.environment(),
+                configured.inheritedEnvironmentKeys(), configured.requiredToolchainDigest(), configured.jvmPayload());
+
+        CommandEvidence result = runner(launcher).run(
+                project, tempDir.resolve("evidence"), missingVersion);
+
+        assertFalse(result.passed());
+        assertFalse(result.launched());
+        assertNull(result.exitCode());
+        assertEquals("unreported", result.executableVersion());
+        assertTrue(result.launchError().contains("Version query failed: unreported"));
+        assertTrue(launcher.invocations.isEmpty(), "neither a version query nor the evidence command may launch");
+    }
+
+    @Test
     void rejectsReuseOfAnotherRunsEvidenceDirectoryWithoutDeletingIt() throws Exception {
         Path project = Files.createDirectory(tempDir.resolve("candidate"));
         Path evidenceDirectory = tempDir.resolve("evidence");

@@ -274,6 +274,28 @@ class StageResultValidatorTest {
 
     @Test
     @EnabledOnOs(OS.LINUX)
+    void symbolicAttemptOutputAncestorIsRejected() throws Exception {
+        Path realParent = Files.createDirectory(temporaryDirectory.resolve("real"));
+        Path realOutput = Files.createDirectory(realParent.resolve("output"));
+        Path alias = Files.createSymbolicLink(temporaryDirectory.resolve("alias"), realParent);
+        Path aliasedOutput = alias.resolve("output");
+        byte[] content = "candidate".getBytes(StandardCharsets.UTF_8);
+        Files.write(realOutput.resolve("design.md"), content);
+        ProducedArtifact artifact = producedArtifact("design", "design.md", content);
+        StageRequest request = request(
+                ShipStage.DESIGN, aliasedOutput.toString(), stagedCapability(aliasedOutput));
+        StageResult result = result(
+                request, StageResult.Outcome.COMPLETED, null, null, List.of(artifact));
+
+        StageResultValidationException error = assertThrows(
+                StageResultValidationException.class,
+                () -> StageResultValidator.validatePreflight(request, result, aliasedOutput));
+
+        assertTrue(error.getMessage().contains("symbolic"));
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
     void hardLinkedArtifactCannotAliasContentOutsideTheAttemptOutputDirectory() throws Exception {
         byte[] content = "mutable external content".getBytes(StandardCharsets.UTF_8);
         Path outside = Files.write(temporaryDirectory.resolve("external-design.md"), content);

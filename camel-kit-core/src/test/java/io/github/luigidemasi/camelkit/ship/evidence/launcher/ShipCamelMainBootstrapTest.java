@@ -148,6 +148,62 @@ class ShipCamelMainBootstrapTest {
     }
 
     @Test
+    void acceptsEndpointSelectorPatternsWithoutTreatingThemAsEndpointUris() throws Exception {
+        Path route = write("- interceptFrom:\n    steps: []\n" + validRoute());
+        ShipCamelMainBootstrap.validatePolicy(route);
+
+        for (String operation : List.of("interceptFrom", "interceptSendToEndpoint")) {
+            for (String definition : List.of(
+                    "- " + operation + ": jms*",
+                    "- " + operation + ":\n    uri: jms*\n    steps: []")) {
+                route = write(definition + '\n' + validRoute());
+
+                ShipCamelMainBootstrap.validatePolicy(route);
+            }
+        }
+    }
+
+    @Test
+    void rejectsUnsafeOrMissingEndpointSelectorPatterns() throws Exception {
+        for (String operation : List.of("interceptFrom", "interceptSendToEndpoint")) {
+            for (String definition : List.of(
+                    "- " + operation + ": \"{{selector}}\"",
+                    "- " + operation + ":\n    uri: \"{{selector}}\"",
+                    "- " + operation + ":\n    uri: \"${body}\"",
+                    "- " + operation + ":\n    uri: \"#bean:selector\"")) {
+                Path route = write(definition + '\n' + validRoute());
+
+                assertThrows(IOException.class, () -> ShipCamelMainBootstrap.validatePolicy(route), definition);
+            }
+        }
+
+        Path missingRequiredPattern = write(
+                "- interceptSendToEndpoint:\n    steps: []\n" + validRoute());
+        assertThrows(IOException.class, () -> ShipCamelMainBootstrap.validatePolicy(missingRequiredPattern));
+    }
+
+    @Test
+    void startsEndpointSelectorsAndStubsTheConcreteAfterUri() throws Exception {
+        Path route = write("""
+                - interceptFrom:
+                    steps:
+                      - setBody:
+                          simple: intercepted
+                - interceptSendToEndpoint:
+                    uri: jms*
+                    afterUri: https://outside.example/orders
+                    steps:
+                      - setBody:
+                          simple: intercepted
+                """ + validRoute());
+
+        ShipCamelMainBootstrap.withStarted(project, List.of(route), Set.of("orders"), context -> {
+            assertInstanceOf(StubComponent.class, context.getComponent("https"));
+            assertFalse(context.getComponentNames().contains("jms"));
+        });
+    }
+
+    @Test
     void rejectsDottedSimpleLookupKeysThatCamelCouldExecuteAsOgnl() throws Exception {
         for (String expression : List.of(
                 "${header.control.stop}",

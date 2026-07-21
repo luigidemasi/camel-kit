@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogEvidenceSet.SubjectEvidence;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogSubject.Kind;
@@ -314,10 +315,72 @@ class CamelYamlCatalogUsageExtractorTest {
         CamelYamlCatalogUsageExtractor.Extraction result = extractor().extractBound(
                 route, available(), List.of(directModel()));
 
-        assertEquals(10, result.endpoints().size());
+        assertEquals(8, result.endpoints().size());
         assertEquals(List.of(subject(Kind.COMPONENT, "direct")), result.subjects().stream()
                 .filter(subject -> subject.kind() == Kind.COMPONENT)
                 .toList());
+    }
+
+    @Test
+    void endpointSelectorPatternsDoNotManufactureEndpointUsage() throws Exception {
+        Path route = write("- interceptFrom:\n    steps: []\n");
+        CamelYamlCatalogUsageExtractor.Extraction allEndpoints = extractor().extractBound(
+                route, available(), List.of(directModel()));
+        assertEquals(List.of(subject(Kind.EIP, "interceptFrom")), allEndpoints.subjects());
+        assertTrue(allEndpoints.endpoints().isEmpty());
+
+        for (String operation : List.of("interceptFrom", "interceptSendToEndpoint")) {
+            for (String definition : List.of(
+                    "- " + operation + ": jms*",
+                    "- " + operation + ":\n    uri: jms*\n    steps: []")) {
+                route = write(definition + '\n');
+
+                CamelYamlCatalogUsageExtractor.Extraction result = extractor().extractBound(
+                        route, available(), List.of(directModel()));
+
+                assertEquals(List.of(subject(Kind.EIP, operation)), result.subjects(), definition);
+                assertTrue(result.endpoints().isEmpty(), definition);
+            }
+        }
+    }
+
+    @Test
+    void endpointSelectorPatternsRemainStaticAndRequired() throws Exception {
+        for (String operation : List.of("interceptFrom", "interceptSendToEndpoint")) {
+            for (String definition : List.of(
+                    "- " + operation + ": \"{{selector}}\"",
+                    "- " + operation + ":\n    uri: \"{{selector}}\"",
+                    "- " + operation + ":\n    uri: \"${body}\"",
+                    "- " + operation + ":\n    uri: \"#bean:selector\"")) {
+                Path route = write(definition + '\n');
+
+                assertThrows(IOException.class, () -> extractor().extractBound(
+                        route, available(), List.of(directModel())), definition);
+            }
+        }
+
+        Path missingRequiredPattern = write("- interceptSendToEndpoint:\n    steps: []\n");
+        assertThrows(IOException.class, () -> extractor().extractBound(
+                missingRequiredPattern, available(), List.of(directModel())));
+    }
+
+    @Test
+    void interceptSendAfterUriRemainsAConcreteEndpoint() throws Exception {
+        Path route = write("""
+                - interceptSendToEndpoint:
+                    uri: jms*
+                    afterUri: direct:after
+                    steps: []
+                """);
+
+        CamelYamlCatalogUsageExtractor.Extraction result = extractor().extractBound(
+                route, available(), List.of(directModel()));
+
+        assertEquals(1, result.endpoints().size());
+        assertEquals(subject(Kind.COMPONENT, "direct"), result.endpoints().get(0).component());
+        assertEquals(Set.of(
+                subject(Kind.COMPONENT, "direct"),
+                subject(Kind.EIP, "interceptSendToEndpoint")), Set.copyOf(result.subjects()));
     }
 
     @Test
