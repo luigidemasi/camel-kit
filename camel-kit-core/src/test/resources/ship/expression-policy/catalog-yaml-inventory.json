@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "versions": {
+    "4.18.3": {
+      "yamlSchemaSha256": "sha256:5d86a18895db53b84e56924e1f39391afa796e11c033de9c3c7a730f702ec627",
+      "catalogLanguagesSha256": "sha256:b5a2a2ad2234cd73abe350766130fd9f00154f59f7b9adf5062d34eba83a173d",
+      "yamlAliases": {
+        "constant": "org.apache.camel.model.language.ConstantExpression",
+        "csimple": "org.apache.camel.model.language.CSimpleExpression",
+        "datasonnet": "org.apache.camel.model.language.DatasonnetExpression",
+        "exchangeProperty": "org.apache.camel.model.language.ExchangePropertyExpression",
+        "groovy": "org.apache.camel.model.language.GroovyExpression",
+        "header": "org.apache.camel.model.language.HeaderExpression",
+        "hl7terser": "org.apache.camel.model.language.Hl7TerserExpression",
+        "java": "org.apache.camel.model.language.JavaExpression",
+        "joor": "org.apache.camel.model.language.JoorExpression",
+        "jq": "org.apache.camel.model.language.JqExpression",
+        "js": "org.apache.camel.model.language.JavaScriptExpression",
+        "jsonpath": "org.apache.camel.model.language.JsonPathExpression",
+        "language": "org.apache.camel.model.language.LanguageExpression",
+        "method": "org.apache.camel.model.language.MethodCallExpression",
+        "mvel": "org.apache.camel.model.language.MvelExpression",
+        "ognl": "org.apache.camel.model.language.OgnlExpression",
+        "python": "org.apache.camel.model.language.PythonExpression",
+        "ref": "org.apache.camel.model.language.RefExpression",
+        "simple": "org.apache.camel.model.language.SimpleExpression",
+        "spel": "org.apache.camel.model.language.SpELExpression",
+        "tokenize": "org.apache.camel.model.language.TokenizerExpression",
+        "variable": "org.apache.camel.model.language.VariableExpression",
+        "wasm": "org.apache.camel.model.language.WasmExpression",
+        "xpath": "org.apache.camel.model.language.XPathExpression",
+        "xquery": "org.apache.camel.model.language.XQueryExpression",
+        "xtokenize": "org.apache.camel.model.language.XMLTokenizerExpression"
+      },
+      "catalogLanguages": [
+        "bean", "constant", "csimple", "datasonnet", "exchangeProperty", "file", "groovy",
+        "header", "hl7terser", "java", "joor", "jq", "js", "jsonpath", "mvel", "ognl",
+        "python", "ref", "simple", "spel", "tokenize", "variable", "wasm", "xpath",
+        "xquery", "xtokenize"
+      ],
+      "generic": {
+        "properties": ["expression", "id", "language", "trim"],
+        "required": ["expression", "language"]
+      },
+      "simple": {
+        "properties": ["expression", "id", "nested", "pretty", "resultType", "trim", "trimResult"],
+        "required": ["expression"]
+      },
+      "method": {
+        "properties": ["beanType", "id", "method", "ref", "resultType", "scope", "trim", "validate"]
+      }
+    },
+    "4.21.0": {
+      "yamlSchemaSha256": "sha256:76bd2fdd99098009b0c6c23b287c8e89095b79fccebb8b10570cc65db4ebafd0",
+      "catalogLanguagesSha256": "sha256:b5a2a2ad2234cd73abe350766130fd9f00154f59f7b9adf5062d34eba83a173d",
+      "yamlAliases": {
+        "constant": "org.apache.camel.model.language.ConstantExpression",
+        "csimple": "org.apache.camel.model.language.CSimpleExpression",
+        "datasonnet": "org.apache.camel.model.language.DatasonnetExpression",
+        "exchangeProperty": "org.apache.camel.model.language.ExchangePropertyExpression",
+        "groovy": "org.apache.camel.model.language.GroovyExpression",
+        "header": "org.apache.camel.model.language.HeaderExpression",
+        "hl7terser": "org.apache.camel.model.language.Hl7TerserExpression",
+        "java": "org.apache.camel.model.language.JavaExpression",
+        "joor": "org.apache.camel.model.language.JoorExpression",
+        "jq": "org.apache.camel.model.language.JqExpression",
+        "js": "org.apache.camel.model.language.JavaScriptExpression",
+        "jsonpath": "org.apache.camel.model.language.JsonPathExpression",
+        "language": "org.apache.camel.model.language.LanguageExpression",
+        "method": "org.apache.camel.model.language.MethodCallExpression",
+        "mvel": "org.apache.camel.model.language.MvelExpression",
+        "ognl": "org.apache.camel.model.language.OgnlExpression",
+        "python": "org.apache.camel.model.language.PythonExpression",
+        "ref": "org.apache.camel.model.language.RefExpression",
+        "simple": "org.apache.camel.model.language.SimpleExpression",
+        "spel": "org.apache.camel.model.language.SpELExpression",
+        "tokenize": "org.apache.camel.model.language.TokenizerExpression",
+        "variable": "org.apache.camel.model.language.VariableExpression",
+        "wasm": "org.apache.camel.model.language.WasmExpression",
+        "xpath": "org.apache.camel.model.language.XPathExpression",
+        "xquery": "org.apache.camel.model.language.XQueryExpression",
+        "xtokenize": "org.apache.camel.model.language.XMLTokenizerExpression"
+      },
+      "catalogLanguages": [
+        "bean", "constant", "csimple", "datasonnet", "exchangeProperty", "file", "groovy",
+        "header", "hl7terser", "java", "joor", "jq", "js", "jsonpath", "mvel", "ognl",
+        "python", "ref", "simple", "spel", "tokenize", "variable", "wasm", "xpath",
+        "xquery", "xtokenize"
+      ],
+      "generic": {
+        "properties": ["expression", "id", "language", "trim"],
+        "required": ["expression", "language"]
+      },
+      "simple": {
+        "properties": ["expression", "id", "nested", "pretty", "resultType", "trim", "trimResult"],
+        "required": ["expression"]
+      },
+      "method": {
+        "properties": ["beanType", "id", "method", "ref", "resultType", "scope", "trim", "validate"]
+      }
+    }
+  }
+}

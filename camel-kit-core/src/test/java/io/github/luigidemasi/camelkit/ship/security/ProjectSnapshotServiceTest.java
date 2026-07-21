@@ -651,6 +651,16 @@ class ProjectSnapshotServiceTest {
         assertFalse(Modifier.isPublic(ShipSecureFilesystem.class.getModifiers()));
         assertFalse(Modifier.isPublic(ShipSecureFilesystem.SecureRoot.class.getModifiers()));
         assertFalse(Modifier.isPublic(ProjectSnapshotService.class.getModifiers()));
+        assertTrue(Modifier.isPublic(ProjectEvidenceFiles.class.getModifiers()));
+        assertTrue(Modifier.isFinal(ProjectEvidenceFiles.class.getModifiers()));
+        assertEquals(0, ProjectEvidenceFiles.class.getConstructors().length);
+        assertEquals(
+                Set.of("capture", "captureSealed", "unchanged", "unchangedMaterialTree",
+                        "materializeMaterial", "readMaterial"),
+                Arrays.stream(ProjectEvidenceFiles.class.getDeclaredMethods())
+                        .filter(method -> Modifier.isPublic(method.getModifiers()))
+                        .map(method -> method.getName())
+                        .collect(Collectors.toSet()));
         assertTrue(Arrays.stream(ShipFilesystemException.class.getDeclaredConstructors())
                 .noneMatch(constructor -> Modifier.isPublic(constructor.getModifiers())));
     }
