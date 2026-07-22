@@ -573,11 +573,49 @@ final class ShipRunProjector {
                 ShipEventPayloads.StampRecorded value = cast(
                         data, ShipEventPayloads.StampRecorded.class);
                 verify(value.stamp(), "ship-stamp");
-                verifyOptional(value.publishedSnapshot(), "project-snapshot");
-                verifyOptional(value.validationReport(), "validation-report");
+                verify(value.publishedSnapshot(), "project-snapshot");
+                verify(value.validationReport(), "validation-report");
                 requireContent(stored.authority(), value.stamp().digest(), "stamp completion");
+                if (!value.validationReport().equals(projection.validationReport)
+                        || projection.artifactManifest == null
+                        || projection.candidateSnapshot == null
+                        || projection.catalogUsage == null
+                        || projection.candidateDirectory == null) {
+                    throw new IOException("Stamp completion differs from validated durable inputs");
+                }
+                ShipValidationReport report = read(
+                        value.validationReport(), ShipValidationReport.class);
+                ShipStamp stamp = read(value.stamp(), ShipStamp.class);
+                ShipStamp.Status expectedStatus = stored.authority().type() == ShipEventType.RUN_COMPLETED
+                        ? ShipStamp.Status.PASS : ShipStamp.Status.COMPLETED_WITH_WAIVER;
+                if (stamp.status() != expectedStatus
+                        || !successor.id().toString().equals(stamp.runId())
+                        || !projection.adapterId.equals(stamp.adapterId())
+                        || !projection.requirementsDigest.equals(stamp.requirementsDigest())
+                        || !projection.designDigest.equals(stamp.designDigest())
+                        || !projection.artifactManifest.digest().equals(stamp.artifactManifestDigest())
+                        || !projection.candidateSnapshot.digest().equals(stamp.candidateSnapshotDigest())
+                        || !projection.catalogUsage.digest().equals(stamp.catalogUsageDigest())
+                        || !report.checks().equals(stamp.checks())) {
+                    throw new IOException("Ship Stamp differs from exact controller evidence");
+                }
+                if (expectedStatus == ShipStamp.Status.COMPLETED_WITH_WAIVER
+                        && (projection.latestInteraction == null
+                                || stamp.waivers().size() != 1
+                                || !projection.latestInteraction.digest().equals(
+                                        stamp.waivers().get(0).responseDigest()))) {
+                    throw new IOException("Waiver Stamp differs from the signed waiver response");
+                }
+                ProjectSnapshot candidate = read(
+                        projection.candidateSnapshot, ProjectSnapshot.class);
+                ProjectSnapshot published = read(
+                        value.publishedSnapshot(), ProjectSnapshot.class);
+                if (!ProjectEvidenceFiles.unchangedMaterialTree(candidate, published)) {
+                    throw new IOException("Published snapshot differs from the validated candidate");
+                }
                 projection.stamp = value.stamp();
                 projection.candidateSnapshot = value.publishedSnapshot();
+                projection.candidateDirectory = null;
                 projection.validationReport = value.validationReport();
                 projection.activeRequest = null;
                 projection.activeRequestReference = null;
@@ -644,6 +682,10 @@ final class ShipRunProjector {
         verifyOptional(value.catalogEvidence(), "catalog-evidence");
         verifyOptional(value.catalogUsage(), "catalog-usage");
         verifyOptional(value.candidateSnapshot(), "project-snapshot");
+        for (BlobReference evidence : value.evidence()) {
+            verify(evidence, "ship-check-evidence");
+        }
+        verifyOptional(value.validationReport(), "validation-report");
         if ((result.ledger() == null) != (value.ledger() == null)
                 || result.ledger() != null && !result.ledger().equals(read(value.ledger(), DecisionLedger.class))) {
             throw new IOException("Accepted ledger differs from the exact worker result");
@@ -738,6 +780,7 @@ final class ShipRunProjector {
             }
             case DESIGN_READY -> {
                 requireStageOutcome(value, result, ShipStage.DESIGN, StageResult.Outcome.COMPLETED);
+                requireNoValidationEvidence(value);
                 projection.design = artifact(value, "design");
                 requireContent(authority, projection.design.digest(), "accepted design");
                 requireDigest(value.designDigest(), projection.design, "accepted design");
@@ -745,23 +788,81 @@ final class ShipRunProjector {
             }
             case PLAN_VALIDATED -> {
                 requireStageOutcome(value, result, ShipStage.PLAN, StageResult.Outcome.COMPLETED);
+                requireNoValidationEvidence(value);
                 projection.plan = artifact(value, "plan");
                 requireContent(authority, projection.plan.digest(), "accepted plan");
             }
             case EXECUTION_VALIDATED -> {
                 requireStageOutcome(value, result, ShipStage.EXECUTE, StageResult.Outcome.COMPLETED);
+                requireNoValidationEvidence(value);
+                if (value.artifactManifest() == null
+                        || value.catalogUsage() == null
+                        || value.candidateSnapshot() == null
+                        || value.candidateDirectory() == null) {
+                    throw new IOException("Accepted execution lacks its sealed controller bindings");
+                }
+                Path candidateDirectory = absolutePath(
+                        value.candidateDirectory(), "candidate directory");
+                blobs.verifyCandidateDirectory(candidateDirectory);
+                ProjectSnapshot expectedCandidate = read(
+                        value.candidateSnapshot(), ProjectSnapshot.class);
+                ProjectSnapshot observedCandidate = ProjectEvidenceFiles.captureSealed(
+                        candidateDirectory);
+                if (!expectedCandidate.equals(observedCandidate)) {
+                    throw new IOException("Accepted execution candidate changed before projection");
+                }
                 requireContent(authority, value.result().digest(), "accepted execution");
                 projection.executionResult = value.result();
                 projection.candidateSnapshot = value.candidateSnapshot();
-                projection.candidateDirectory = value.candidateDirectory() == null
-                        ? null : absolutePath(value.candidateDirectory(), "candidate directory");
+                projection.candidateDirectory = candidateDirectory;
                 projection.artifactManifest = value.artifactManifest();
                 projection.catalogUsage = value.catalogUsage();
             }
             case VALIDATION_PASSED -> {
                 requireStageOutcome(value, result, ShipStage.VALIDATE, StageResult.Outcome.COMPLETED);
-                requireContent(authority, value.result().digest(), "accepted validation");
-                projection.validationReport = value.result();
+                BlobReference workerValidation = artifact(value, "validation");
+                if (value.validationReport() == null
+                        || value.evidence().isEmpty()
+                        || projection.artifactManifest == null
+                        || projection.catalogUsage == null
+                        || projection.candidateSnapshot == null
+                        || projection.candidateDirectory == null) {
+                    throw new IOException("Accepted validation lacks controller evidence bindings");
+                }
+                ShipValidationReport report = read(
+                        value.validationReport(), ShipValidationReport.class);
+                io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest manifest = read(
+                        projection.artifactManifest,
+                        io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest.class);
+                if (projection.ledger == null) {
+                    throw new IOException(
+                            "Accepted validation has no approved requirements ledger");
+                }
+                DecisionLedger ledger = read(
+                        projection.ledger, DecisionLedger.class);
+                DecisionLedger.RequirementsPolicy policy = ledger.requirementsPolicy();
+                if (policy == null) {
+                    throw new IOException(
+                            "Accepted validation has no resolved requirements policy");
+                }
+                Map<String, BlobReference> evidenceById = ShipValidationService.verifyReport(
+                        blobs,
+                        projection.authority.id().toString(),
+                        projection.candidateDirectory,
+                        manifest,
+                        policy,
+                        projection.artifactManifest,
+                        projection.candidateSnapshot,
+                        projection.catalogUsage,
+                        workerValidation,
+                        report,
+                        value.evidence());
+                requireContent(authority, value.validationReport().digest(), "accepted validation");
+                projection.evidence.clear();
+                projection.evidence.addAll(value.evidence());
+                projection.evidenceById.clear();
+                projection.evidenceById.putAll(evidenceById);
+                projection.validationReport = value.validationReport();
             }
             default -> throw new IOException("Event is not a stage acceptance: " + event.stableId());
         }
@@ -982,6 +1083,51 @@ final class ShipRunProjector {
         verifyOptional(value.validationReport(), "validation-report");
         verifyOptional(value.stamp(), "ship-stamp");
         verifyOptional(value.interactionBundle(), "interaction-bundle");
+        for (BlobReference evidence : value.evidence()) {
+            verify(evidence, "ship-check-evidence");
+        }
+        if (value.validationReport() != null) {
+            if (projection.artifactManifest == null
+                    || projection.catalogUsage == null
+                    || projection.candidateSnapshot == null
+                    || projection.candidateDirectory == null) {
+                throw new IOException("Validation failure lacks its durable execution bindings");
+            }
+            ShipValidationReport report = read(
+                    value.validationReport(), ShipValidationReport.class);
+            io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest manifest = read(
+                    projection.artifactManifest,
+                    io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest.class);
+            if (projection.ledger == null) {
+                throw new IOException(
+                        "Validation failure has no approved requirements ledger");
+            }
+            DecisionLedger ledger = read(
+                    projection.ledger, DecisionLedger.class);
+            DecisionLedger.RequirementsPolicy policy = ledger.requirementsPolicy();
+            if (policy == null) {
+                throw new IOException(
+                        "Validation failure has no resolved requirements policy");
+            }
+            Map<String, BlobReference> evidenceById = ShipValidationService.verifyReport(
+                    blobs,
+                    projection.authority.id().toString(),
+                    projection.candidateDirectory,
+                    manifest,
+                    policy,
+                    projection.artifactManifest,
+                    projection.candidateSnapshot,
+                    projection.catalogUsage,
+                    report.workerValidation(),
+                    report,
+                    value.evidence());
+            projection.evidence.clear();
+            projection.evidence.addAll(value.evidence());
+            projection.evidenceById.clear();
+            projection.evidenceById.putAll(evidenceById);
+        } else if (!value.evidence().isEmpty()) {
+            throw new IOException("Failure evidence has no controller validation report");
+        }
         projection.failedStage = value.failedStage();
         projection.failureCode = requiredText(value.code(), "failure code");
         projection.failureMessage = requiredText(value.message(), "failure message");
@@ -992,6 +1138,13 @@ final class ShipRunProjector {
         projection.activeRequest = null;
         projection.activeRequestReference = null;
         projection.pendingInteraction = null;
+    }
+
+    private static void requireNoValidationEvidence(ShipEventPayloads.StageAccepted value)
+            throws IOException {
+        if (!value.evidence().isEmpty() || value.validationReport() != null) {
+            throw new IOException("Pre-validation stage cannot carry controller validation evidence");
+        }
     }
 
     private void applyAttemptFailure(

@@ -53,7 +53,7 @@ public final class CatalogTestVerifier {
         Map<String, String> entries = new LinkedHashMap<>();
         entries.put("META-INF/version.properties", "version=" + CAMEL_VERSION + "\n");
         entries.put(root + "components.properties", "direct\n");
-        entries.put(root + "models.properties", "to\n");
+        entries.put(root + "models.properties", "from\nroute\nto\n");
         entries.put(root + "dataformats.properties", "");
         entries.put(root + "languages.properties", "simple\n");
         entries.put(root + "components/direct.json", """
@@ -80,6 +80,12 @@ public final class CatalogTestVerifier {
                     }
                   }
                 }
+                """);
+        entries.put(root + "models/from.json", """
+                {"model":{"kind":"model","name":"from","deprecated":false}}
+                """);
+        entries.put(root + "models/route.json", """
+                {"model":{"kind":"model","name":"route","deprecated":false}}
                 """);
         entries.put(root + "models/to.json", """
                 {"model":{"kind":"model","name":"to","deprecated":false}}

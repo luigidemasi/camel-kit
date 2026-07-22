@@ -22,6 +22,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 
+import io.github.luigidemasi.camelkit.ship.catalog.ShipCatalogService;
 import io.github.luigidemasi.camelkit.ship.protocol.StageRequest;
 import io.github.luigidemasi.camelkit.ship.protocol.StageResult;
 import io.github.luigidemasi.camelkit.ship.protocol.StageResultValidator;
@@ -34,27 +35,36 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Full-reactor accidental-wiring tripwire while staged import has no production broker.
+ * Full-reactor trusted-chain tripwire for protected artifact import.
  *
  * <p>
- * This is not a security boundary. Production import still requires proof that the full worker process tree is dead
- * with protected exclusive ancestry, or a killable native nonblocking no-follow open.
+ * This is not the OS security boundary. It prevents bypassing the broker lease which must retain stopped-containment
+ * and protected exclusive ancestry through transactional import.
  */
 class ShipArtifactImportWiringIT {
 
     private static final String WORKSPACE_SERVICE
             = "io.github.luigidemasi.camelkit.ship.controller.ShipWorkspaceService";
     private static final String WORKSPACE_ACCEPT = WORKSPACE_SERVICE.replace('.', '/') + ".accept:";
+    private static final String CONTROLLER
+            = "io.github.luigidemasi.camelkit.ship.controller.ShipController";
+    private static final String BROKER
+            = "io.github.luigidemasi.camelkit.ship.controller.ShipProtectedWorkerBroker";
+    private static final String COMPLETED_ATTEMPT = BROKER + "$CompletedAttempt";
+    private static final String TRANSACTION
+            = "io.github.luigidemasi.camelkit.ship.controller.ShipBlobStore$Transaction";
+    private static final String BROKER_SUBMIT = CONTROLLER.replace('.', '/') + ".submitProtectedStageResult:";
     private static final String RESULT_PREFLIGHT
             = "io/github/luigidemasi/camelkit/ship/protocol/StageResultValidator.validatePreflight:";
-    private static final String BLOB_IMPORT
-            = "io/github/luigidemasi/camelkit/ship/controller/ShipBlobStore.importArtifacts:";
-    private static final Set<String> GUARDED_METHODS = Set.of(WORKSPACE_ACCEPT, RESULT_PREFLIGHT, BLOB_IMPORT);
+    private static final String TRANSACTION_IMPORT
+            = TRANSACTION.replace('.', '/') + ".importArtifacts:";
+    private static final Set<String> GUARDED_METHODS = Set.of(
+            WORKSPACE_ACCEPT, BROKER_SUBMIT, RESULT_PREFLIGHT, TRANSACTION_IMPORT);
     private static final Pattern METHOD_REFERENCE = Pattern.compile(
             "^\\s+#[0-9]+ = (?:Interface)?Methodref\\s+#[^\\r\\n]*//\\s+(\\S+)$", Pattern.MULTILINE);
 
     @Test
-    void stagedArtifactImportRemainsUnwiredAcrossTheCompiledReactor() throws Exception {
+    void stagedArtifactImportUsesOnlyTheTrustedBrokerChainAcrossTheCompiledReactor() throws Exception {
         Path testClasses = Path.of(ShipArtifactImportWiringIT.class.getProtectionDomain()
                 .getCodeSource().getLocation().toURI());
         Path reactor = testClasses.getParent().getParent().getParent();
@@ -69,17 +79,21 @@ class ShipArtifactImportWiringIT {
         }
 
         assertEquals(
-                Set.of(),
+                Set.of(CONTROLLER),
                 callers.getOrDefault(WORKSPACE_ACCEPT, Set.of()),
-                "Accidental-wiring tripwire: ShipWorkspaceService.accept must remain production-dead");
+                "ShipWorkspaceService.accept must be called only by ShipController");
+        assertEquals(
+                Set.of(BROKER),
+                callers.getOrDefault(BROKER_SUBMIT, Set.of()),
+                "Protected broker must be the only artifact-bearing controller entry point");
         assertEquals(
                 Set.of(),
                 callers.getOrDefault(RESULT_PREFLIGHT, Set.of()),
                 "Accidental-wiring tripwire: StageResultValidator.validatePreflight must remain production-dead");
         assertEquals(
-                Set.of(WORKSPACE_SERVICE),
-                callers.getOrDefault(BLOB_IMPORT, Set.of()),
-                "Accidental-wiring tripwire: ShipBlobStore.importArtifacts is reserved for ShipWorkspaceService");
+                Set.of(COMPLETED_ATTEMPT),
+                callers.getOrDefault(TRANSACTION_IMPORT, Set.of()),
+                "Transactional artifact import must be called only by the custody-held completed attempt");
     }
 
     @Test
@@ -205,11 +219,20 @@ class ShipArtifactImportWiringIT {
         }
 
         private static void guardedCalls(
-                StageRequest request, StageResult result, Path output, ShipBlobStore blobs)
+                StageRequest request,
+                StageResult result,
+                Path output,
+                ShipBlobStore blobs,
+                ShipBlobStore.Transaction transaction,
+                ShipProtectedWorkerBroker.CompletedAttempt completed,
+                ShipController controller,
+                ShipCatalogService.Snapshot snapshot)
                 throws IOException {
-            ShipWorkspaceService.accept(request, result, output, blobs);
+            controller.submitProtectedStageResult(
+                    request.runId(), request.inputDigest(), completed, snapshot);
+            ShipWorkspaceService.accept(request, result, completed, blobs, transaction);
             StageResultValidator.validatePreflight(request, result, output);
-            blobs.importArtifacts(output, result.artifacts());
+            transaction.importArtifacts(null, result.artifacts());
         }
     }
 }

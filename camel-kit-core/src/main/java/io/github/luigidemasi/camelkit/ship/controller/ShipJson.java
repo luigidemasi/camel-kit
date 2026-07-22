@@ -1,6 +1,7 @@
 package io.github.luigidemasi.camelkit.ship.controller;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -73,6 +74,33 @@ public final class ShipJson {
                 } catch (RuntimeException e) {
                     throw context.weirdStringException("invalid-timestamp", Instant.class,
                             "Ship timestamp is invalid or noncanonical");
+                }
+            }
+        });
+        values.addSerializer(Duration.class, new JsonSerializer<>() {
+            @Override
+            public void serialize(Duration value, JsonGenerator generator, SerializerProvider serializers)
+                    throws IOException {
+                generator.writeString(value.toString());
+            }
+        });
+        values.addDeserializer(Duration.class, new JsonDeserializer<>() {
+            @Override
+            public Duration deserialize(JsonParser parser, DeserializationContext context) throws IOException {
+                String value = parser.getValueAsString(null);
+                if (value == null) {
+                    throw context.weirdStringException("non-string", Duration.class,
+                            "Ship durations must be canonical strings");
+                }
+                try {
+                    Duration parsed = Duration.parse(value);
+                    if (!parsed.toString().equals(value)) {
+                        throw new IllegalArgumentException("duration is not canonical");
+                    }
+                    return parsed;
+                } catch (RuntimeException e) {
+                    throw context.weirdStringException("invalid-duration", Duration.class,
+                            "Ship duration is invalid or noncanonical");
                 }
             }
         });

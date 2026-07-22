@@ -1,5 +1,6 @@
 package io.github.luigidemasi.camelkit.ship.controller;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -10,12 +11,24 @@ import java.util.List;
 
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest;
+import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest.DeclaredArtifact;
+import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest.RouteArtifact;
+import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest.TestArtifact;
+import io.github.luigidemasi.camelkit.ship.catalog.CatalogEvidenceSet;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogSubject;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogTestVerifier;
+import io.github.luigidemasi.camelkit.ship.catalog.CatalogUsageRecord;
+import io.github.luigidemasi.camelkit.ship.catalog.ShipCatalogService.Snapshot;
 import io.github.luigidemasi.camelkit.ship.context.InitialContext;
 import io.github.luigidemasi.camelkit.ship.context.InitialContextRequest;
 import io.github.luigidemasi.camelkit.ship.controller.ShipAttemptFactory.AttemptInputs;
 import io.github.luigidemasi.camelkit.ship.controller.ShipBlobStore.BlobReference;
+import io.github.luigidemasi.camelkit.ship.evidence.CommandEvidence;
+import io.github.luigidemasi.camelkit.ship.evidence.CommandEvidence.SandboxIdentity;
+import io.github.luigidemasi.camelkit.ship.evidence.EvidenceCommand;
+import io.github.luigidemasi.camelkit.ship.evidence.EvidenceRunner;
+import io.github.luigidemasi.camelkit.ship.evidence.JvmPayloadRequest;
+import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipMainPackageMain;
 import io.github.luigidemasi.camelkit.ship.ledger.DecisionLedger;
 import io.github.luigidemasi.camelkit.ship.ledger.DecisionLedger.Category;
 import io.github.luigidemasi.camelkit.ship.ledger.DecisionLedger.Entry;
@@ -43,6 +56,7 @@ import io.github.luigidemasi.camelkit.ship.protocol.ShipStage;
 import io.github.luigidemasi.camelkit.ship.protocol.StageRequest;
 import io.github.luigidemasi.camelkit.ship.protocol.StageResult;
 import io.github.luigidemasi.camelkit.ship.security.ProjectEvidenceFiles;
+import io.github.luigidemasi.camelkit.ship.security.ProjectSnapshot;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
@@ -549,7 +563,7 @@ class ShipRunProjectorTest {
                 ShipEventType.VALIDATION_STARTED,
                 ShipStage.VALIDATE,
                 AttemptInputs.from(flow.view));
-        acceptValidation(flow);
+        recordValidation(flow, true);
         assertNotNull(flow.view.validationReport());
 
         BlobReference requirements = flow.view.ledger();
@@ -784,20 +798,23 @@ class ShipRunProjectorTest {
     @Test
     void stampStartAndCompletionAreReconstructedFromDurableEvents() throws Exception {
         DurableFlow flow = validationRunningFlow("stamp-replay");
-        acceptValidation(flow);
+        ValidationFixture validation = recordValidation(flow, true);
         flow.commit(
                 ShipAuthorityCommand.empty(ShipEventType.STAMP_STARTED),
                 new ShipEventPayloads.NoData());
         assertEquals(ShipState.STAMP_RUNNING, flow.view.state());
 
-        BlobReference stamp = flow.blobs.writeBytes(
-                "ship-stamp", "controller stamp".getBytes(StandardCharsets.UTF_8));
-        flow.commit(
-                ShipAuthorityCommand.value(ShipEventType.RUN_COMPLETED, stamp.digest()),
-                new ShipEventPayloads.StampRecorded(stamp, null, null));
+        BlobReference stamp = completeRun(
+                flow,
+                validation,
+                ShipStamp.Status.PASS,
+                List.of(),
+                ShipEventType.RUN_COMPLETED);
 
         assertEquals(ShipState.COMPLETED, flow.view.state());
         assertEquals(stamp, flow.view.stamp());
+        assertTrue(Files.isRegularFile(
+                flow.view.projectRoot().resolve("src/main/resources/routes/orders.camel.yaml")));
         assertEquals(flow.view, flow.projector().replay());
     }
 
@@ -814,12 +831,16 @@ class ShipRunProjectorTest {
         flow.commit(
                 ShipAuthorityCommand.empty(ShipEventType.WAIVER_STAMP_STARTED),
                 new ShipEventPayloads.NoData());
-        BlobReference stamp = flow.blobs.writeBytes(
-                "ship-stamp", "controller waiver stamp".getBytes(StandardCharsets.UTF_8));
-        flow.commit(
-                ShipAuthorityCommand.value(
-                        ShipEventType.RUN_COMPLETED_WITH_WAIVER, stamp.digest()),
-                new ShipEventPayloads.StampRecorded(stamp, null, pending.evidence()));
+        ShipStamp.Check failed = pending.validation().result().failedCheck();
+        BlobReference stamp = completeRun(
+                flow,
+                pending.validation(),
+                ShipStamp.Status.COMPLETED_WITH_WAIVER,
+                List.of(new ShipStamp.Waiver(
+                        failed.id(),
+                        failed.evidenceDigest(),
+                        approval.responseReference().digest())),
+                ShipEventType.RUN_COMPLETED_WITH_WAIVER);
 
         assertEquals(ShipState.COMPLETED_WITH_WAIVER, flow.view.state());
         assertEquals(stamp, flow.view.stamp());
@@ -861,25 +882,27 @@ class ShipRunProjectorTest {
     @Test
     void waivableFailureCannotSwapTheSignedInteractionBundle() throws Exception {
         DurableFlow flow = validationRunningFlow("waiver-bundle-swap");
-        BlobReference evidence = flow.blobs.writeBytes(
-                "validation-report", "waivable validation failure".getBytes(StandardCharsets.UTF_8));
-        String checkId = ShipDigest.sha256("waivable-check".getBytes(StandardCharsets.UTF_8));
-        String policy = flow.view.authority().authority().basis().policy().value();
+        ValidationFixture validation = validationFixture(flow, false);
+        ShipStamp.Check failed = validation.result().failedCheck();
+        String checkId = failed.id();
         BlobReference swappedBundle = flow.interactions.amend(
                 flow.blobs,
                 flow.view.interactionBundle(),
                 ShipDigest.sha256("swapped-context".getBytes(StandardCharsets.UTF_8)));
         ShipAuthorityCommand command = ShipAuthorityCommand.waiver(
-                checkId, evidence.digest(), policy);
+                checkId,
+                failed.evidenceDigest(),
+                flow.view.authority().authority().basis().policy().value());
         ShipEventPayloads.Failure payload = new ShipEventPayloads.Failure(
                 ShipStage.VALIDATE,
                 "waivable-check-failed",
                 "The validation check requires explicit waiver",
                 flow.view.activeRequestReference(),
+                validation.resultReference(),
+                validation.result().reportReference(),
                 null,
-                evidence,
-                null,
-                swappedBundle);
+                swappedBundle,
+                validation.result().evidence());
         ShipRun previous = flow.view.authority();
         ShipRun successor = command.apply(previous);
         flow.events.appendIfLatest(
@@ -961,21 +984,11 @@ class ShipRunProjectorTest {
     private PendingWaiver requestWaiver(String name) throws Exception {
         DurableFlow flow = validationRunningFlow(name);
         BlobReference originalBundle = flow.view.interactionBundle();
-        BlobReference evidence = flow.blobs.writeBytes(
-                "validation-report", "waivable validation failure".getBytes(StandardCharsets.UTF_8));
-        String checkId = ShipDigest.sha256("waivable-check".getBytes(StandardCharsets.UTF_8));
+        ValidationFixture validation = recordValidation(flow, false);
+        BlobReference evidence = validation.failedEvidence();
+        ShipStamp.Check failed = validation.result().failedCheck();
+        String checkId = failed.id();
         String policy = flow.view.authority().authority().basis().policy().value();
-        flow.commit(
-                ShipAuthorityCommand.waiver(checkId, evidence.digest(), policy),
-                new ShipEventPayloads.Failure(
-                        ShipStage.VALIDATE,
-                        "waivable-check-failed",
-                        "The validation check requires explicit waiver",
-                        flow.view.activeRequestReference(),
-                        null,
-                        evidence,
-                        null,
-                        null));
 
         assertEquals(ShipState.WAIVER_ELIGIBLE, flow.view.state());
         assertEquals(originalBundle, flow.view.interactionBundle());
@@ -989,7 +1002,7 @@ class ShipRunProjectorTest {
                 evidence.digest(),
                 policy,
                 subjectDigest,
-                "validation-report",
+                failed.id(),
                 "The failed check may affect runtime safety",
                 "The user accepts the documented risk",
                 nonce,
@@ -1011,7 +1024,7 @@ class ShipRunProjectorTest {
         flow.commit(
                 ShipAuthorityCommand.empty(ShipEventType.WAIVER_REQUESTED),
                 new ShipEventPayloads.WaiverRequested(challenge, pendingBundle));
-        return new PendingWaiver(flow, evidence, challenge);
+        return new PendingWaiver(flow, evidence, challenge, validation);
     }
 
     private static ShipEventPayloads.WaiverRecorded waiverResponse(
@@ -1110,6 +1123,7 @@ class ShipRunProjectorTest {
         DecisionLedger first = readyLedger(1, GapReviewStatus.NOT_RUN, source);
         Path catalogRoot = Files.createDirectory(
                 temporaryDirectory.resolve(name + "-catalog"));
+        Snapshot catalogSnapshot = CatalogTestVerifier.mainSnapshot(catalogRoot);
         ShipRunView continued = controller.submitStageResult(
                 discovery.runId(),
                 discovery.eventDigest(),
@@ -1117,9 +1131,14 @@ class ShipRunProjectorTest {
                         discovery.activeRequest(),
                         StageResult.Outcome.NEEDS_DISCOVERY,
                         first,
-                        List.of(new CatalogSubject(
-                                CatalogSubject.Kind.COMPONENT, "direct")))),
-                CatalogTestVerifier.mainSnapshot(catalogRoot));
+                        List.of(
+                                new CatalogSubject(
+                                        CatalogSubject.Kind.COMPONENT, "direct"),
+                                new CatalogSubject(
+                                        CatalogSubject.Kind.EIP, "from"),
+                                new CatalogSubject(
+                                        CatalogSubject.Kind.EIP, "route")))),
+                catalogSnapshot);
         ShipRunView reviewing = controller.submitStageResult(
                 continued.runId(),
                 continued.eventDigest(),
@@ -1145,6 +1164,7 @@ class ShipRunProjectorTest {
                 blobs,
                 new ShipInteractionBundleService(signer),
                 signer,
+                catalogSnapshot,
                 ready);
     }
 
@@ -1229,10 +1249,102 @@ class ShipRunProjectorTest {
 
     private static void acceptExecution(DurableFlow flow) throws Exception {
         StageRequest request = flow.view.activeRequest();
-        byte[] content = "generated route".getBytes(StandardCharsets.UTF_8);
-        BlobReference artifact = flow.blobs.writeBytes("route", content);
-        ProducedArtifact claim = new ProducedArtifact(
-                "route", "routes/generated.camel.yaml", artifact.digest(), artifact.byteSize());
+        Path candidateDirectory = Path.of(request.candidateDirectory());
+        Path route = candidateDirectory.resolve(
+                "src/main/resources/routes/orders.camel.yaml");
+        Path test = candidateDirectory.resolve("test/orders.camel.it.yaml");
+        Path pom = candidateDirectory.resolve("pom.xml");
+        Path config = candidateDirectory.resolve(".camel-kit/config.properties");
+        Files.createDirectories(route.getParent());
+        Files.createDirectories(test.getParent());
+        Files.createDirectories(config.getParent());
+        Files.writeString(route, """
+                - route:
+                    id: orders
+                    from:
+                      uri: direct:start
+                """, StandardCharsets.UTF_8);
+        Files.writeString(test, """
+                name: orders-test
+                actions:
+                  - send:
+                      endpoint: "camel:sync:direct:camel-kit-ship-test-orders"
+                      message:
+                        body:
+                          data: exercise route
+                  - receive:
+                      endpoint: "camel:sync:direct:camel-kit-ship-test-orders"
+                      message:
+                        body:
+                          data: exercise route
+                """, StandardCharsets.UTF_8);
+        Files.writeString(pom, """
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                  <modelVersion>4.0.0</modelVersion>
+                  <groupId>org.example</groupId>
+                  <artifactId>orders</artifactId>
+                  <version>1.0.0</version>
+                  <dependencies>
+                    <dependency>
+                      <groupId>org.apache.camel</groupId>
+                      <artifactId>camel-main</artifactId>
+                      <version>4.21.0</version>
+                    </dependency>
+                    <dependency>
+                      <groupId>org.apache.camel</groupId>
+                      <artifactId>camel-yaml-dsl</artifactId>
+                      <version>4.21.0</version>
+                    </dependency>
+                    <dependency>
+                      <groupId>org.apache.camel</groupId>
+                      <artifactId>camel-direct</artifactId>
+                      <version>4.21.0</version>
+                    </dependency>
+                  </dependencies>
+                </project>
+                """, StandardCharsets.UTF_8);
+        Files.writeString(config, """
+                project.runtime=main
+                project.camelVersion=4.21.0
+                project.platformBomVersion=4.21.0
+                citrus.version=5.0.0-M2
+                """, StandardCharsets.UTF_8);
+
+        BlobReference routeBlob = flow.blobs.writeBytes(
+                "route", Files.readAllBytes(route));
+        BlobReference testBlob = flow.blobs.writeBytes(
+                "citrus-test", Files.readAllBytes(test));
+        BlobReference pomBlob = flow.blobs.writeBytes(
+                "pom", Files.readAllBytes(pom));
+        BlobReference configBlob = flow.blobs.writeBytes(
+                "runtime-config", Files.readAllBytes(config));
+        List<ProducedArtifact> claims = List.of(
+                new ProducedArtifact(
+                        "route",
+                        "src/main/resources/routes/orders.camel.yaml",
+                        routeBlob.digest(),
+                        routeBlob.byteSize()),
+                new ProducedArtifact(
+                        "citrus-test",
+                        "test/orders.camel.it.yaml",
+                        testBlob.digest(),
+                        testBlob.byteSize()),
+                new ProducedArtifact(
+                        "pom", "pom.xml", pomBlob.digest(), pomBlob.byteSize()),
+                new ProducedArtifact(
+                        "runtime-config",
+                        ".camel-kit/config.properties",
+                        configBlob.digest(),
+                        configBlob.byteSize()));
+        List<ShipWorkspaceService.AcceptedArtifact> accepted = List.of(
+                new ShipWorkspaceService.AcceptedArtifact(
+                        claims.get(0), routeBlob, 0100644),
+                new ShipWorkspaceService.AcceptedArtifact(
+                        claims.get(1), testBlob, 0100644),
+                new ShipWorkspaceService.AcceptedArtifact(
+                        claims.get(2), pomBlob, 0100644),
+                new ShipWorkspaceService.AcceptedArtifact(
+                        claims.get(3), configBlob, 0100644));
         ArtifactManifest manifest = new ArtifactManifest(
                 ArtifactManifest.SCHEMA_VERSION,
                 "main",
@@ -1245,9 +1357,22 @@ class ShipRunProjectorTest {
                 CITRUS_DEPENDENCIES,
                 ArtifactManifest.JavaPolicy.FORBIDDEN,
                 List.of(),
-                List.of(),
-                List.of(),
-                List.of(),
+                List.of(new RouteArtifact(
+                        "orders",
+                        "src/main/resources/routes/orders.camel.yaml",
+                        routeBlob.digest())),
+                List.of(new TestArtifact(
+                        "orders",
+                        "test/orders.camel.it.yaml",
+                        testBlob.digest())),
+                List.of(
+                        new DeclaredArtifact(
+                                "pom", "pom.xml", pomBlob.digest(), true),
+                        new DeclaredArtifact(
+                                "runtime-config",
+                                ".camel-kit/config.properties",
+                                configBlob.digest(),
+                                true)),
                 true,
                 true);
         StageResult result = new StageResult(
@@ -1261,22 +1386,40 @@ class ShipRunProjectorTest {
                 null,
                 null,
                 List.of(),
-                List.of(claim),
+                claims,
                 manifest,
                 null,
                 null);
         BlobReference resultReference = fixtureBlob(flow.blobs, "stage-result", result);
         BlobReference manifestReference = fixtureBlob(
                 flow.blobs, "artifact-manifest", manifest);
-        BlobReference catalogUsage = fixtureBlob(
-                flow.blobs, "catalog-usage", java.util.Map.of());
-        Path candidateDirectory = Path.of(request.candidateDirectory());
-        BlobReference candidateSnapshot = fixtureBlob(
+        ProjectSnapshot candidateValue = ProjectEvidenceFiles.captureSealed(
+                candidateDirectory);
+        BlobReference candidateReference = fixtureBlob(
                 flow.blobs,
                 "project-snapshot",
-                ProjectEvidenceFiles.captureSealed(candidateDirectory));
-        ShipWorkspaceService.AcceptedArtifact accepted = new ShipWorkspaceService.AcceptedArtifact(
-                claim, artifact, 0100644);
+                candidateValue);
+        DecisionLedger ledger = ShipJson.mapper().readValue(
+                flow.blobs.readBytes(
+                        flow.view.ledger(), ShipJson.MAX_DOCUMENT_BYTES),
+                DecisionLedger.class);
+        CatalogEvidenceSet approvedEvidence = ShipJson.mapper().readValue(
+                flow.blobs.readBytes(
+                        flow.view.catalogEvidence(), ShipJson.MAX_DOCUMENT_BYTES),
+                CatalogEvidenceSet.class);
+        CatalogUsageRecord usage = CatalogEvidenceValidator.deriveUsage(
+                flow.catalogSnapshot,
+                ledger,
+                approvedEvidence,
+                manifest,
+                candidateDirectory,
+                flow.view.runId(),
+                flow.view.catalogEvidence().digest(),
+                manifestReference.digest(),
+                candidateReference.digest(),
+                candidateValue.digest());
+        BlobReference usageReference = fixtureBlob(
+                flow.blobs, "catalog-usage", usage);
         flow.commit(
                 ShipAuthorityCommand.value(
                         ShipEventType.EXECUTION_VALIDATED, resultReference.digest()),
@@ -1284,24 +1427,82 @@ class ShipRunProjectorTest {
                         request.stage(),
                         flow.view.activeRequestReference(),
                         resultReference,
-                        List.of(accepted),
+                        accepted,
                         null,
                         manifestReference,
                         null,
-                        catalogUsage,
+                        usageReference,
                         null,
                         null,
-                        candidateSnapshot,
+                        candidateReference,
                         candidateDirectory.toString(),
                         null));
     }
 
-    private static void acceptValidation(DurableFlow flow) throws Exception {
+    private static ValidationFixture recordValidation(
+            DurableFlow flow, boolean citrusPassed)
+            throws Exception {
+        ValidationFixture validation = validationFixture(flow, citrusPassed);
+        ShipValidationService.Verdict expected = citrusPassed
+                ? ShipValidationService.Verdict.PASS
+                : ShipValidationService.Verdict.WAIVABLE;
+        assertEquals(expected, validation.result().verdict());
+        if (citrusPassed) {
+            flow.commit(
+                    ShipAuthorityCommand.value(
+                            ShipEventType.VALIDATION_PASSED,
+                            validation.result().reportReference().digest()),
+                    new ShipEventPayloads.StageAccepted(
+                            flow.view.activeRequest().stage(),
+                            flow.view.activeRequestReference(),
+                            validation.resultReference(),
+                            List.of(validation.accepted()),
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            validation.result().evidence(),
+                            validation.result().reportReference(),
+                            null));
+        } else {
+            ShipStamp.Check failed = validation.result().failedCheck();
+            String stableCheckId = failed.id();
+            flow.commit(
+                    ShipAuthorityCommand.waiver(
+                            stableCheckId,
+                            failed.evidenceDigest(),
+                            flow.view.authority().authority().basis().policy().value()),
+                    new ShipEventPayloads.Failure(
+                            ShipStage.VALIDATE,
+                            "waivable-check-failed",
+                            "The validation check requires explicit waiver",
+                            flow.view.activeRequestReference(),
+                            validation.resultReference(),
+                            validation.result().reportReference(),
+                            null,
+                            null,
+                            validation.result().evidence()));
+        }
+        return validation;
+    }
+
+    private static ValidationFixture validationFixture(
+            DurableFlow flow, boolean citrusPassed)
+            throws Exception {
         StageRequest request = flow.view.activeRequest();
-        byte[] content = "validation passed".getBytes(StandardCharsets.UTF_8);
-        BlobReference artifact = flow.blobs.writeBytes("validation", content);
+        byte[] content = (citrusPassed
+                ? "validation passed"
+                : "validation requires waiver").getBytes(StandardCharsets.UTF_8);
+        BlobReference workerValidation = flow.blobs.writeBytes("validation", content);
         ProducedArtifact claim = new ProducedArtifact(
-                "validation", "validation.md", artifact.digest(), artifact.byteSize());
+                "validation",
+                "validation.md",
+                workerValidation.digest(),
+                workerValidation.byteSize());
         StageResult result = new StageResult(
                 StageResult.SCHEMA_VERSION,
                 request.runId(),
@@ -1319,24 +1520,189 @@ class ShipRunProjectorTest {
                 null);
         BlobReference resultReference = fixtureBlob(flow.blobs, "stage-result", result);
         ShipWorkspaceService.AcceptedArtifact accepted = new ShipWorkspaceService.AcceptedArtifact(
-                claim, artifact, 0100644);
-        flow.commit(
-                ShipAuthorityCommand.value(
-                        ShipEventType.VALIDATION_PASSED, resultReference.digest()),
-                new ShipEventPayloads.StageAccepted(
-                        request.stage(),
-                        flow.view.activeRequestReference(),
-                        resultReference,
-                        List.of(accepted),
+                claim, workerValidation, 0100644);
+        ArtifactManifest manifest = ShipJson.mapper().readValue(
+                flow.blobs.readBytes(
+                        flow.view.artifactManifest(), ShipJson.MAX_DOCUMENT_BYTES),
+                ArtifactManifest.class);
+        ProjectSnapshot candidateValue = ShipJson.mapper().readValue(
+                flow.blobs.readBytes(
+                        flow.view.candidateSnapshot(), ShipJson.MAX_DOCUMENT_BYTES),
+                ProjectSnapshot.class);
+        DecisionLedger ledger = ShipJson.mapper().readValue(
+                flow.blobs.readBytes(
+                        flow.view.ledger(), ShipJson.MAX_DOCUMENT_BYTES),
+                DecisionLedger.class);
+        CatalogUsageRecord usage = ShipJson.mapper().readValue(
+                flow.blobs.readBytes(
+                        flow.view.catalogUsage(), ShipJson.MAX_DOCUMENT_BYTES),
+                CatalogUsageRecord.class);
+        CatalogEvidenceSet approvedEvidence = ShipJson.mapper().readValue(
+                flow.blobs.readBytes(
+                        flow.view.catalogEvidence(), ShipJson.MAX_DOCUMENT_BYTES),
+                CatalogEvidenceSet.class);
+        ShipValidationService.Result validation;
+        try (ShipBlobStore.Transaction transaction = flow.blobs.beginTransaction()) {
+            validation = new ShipValidationService(
+                    (candidate, evidenceDirectory, command) -> deterministicEvidence(
+                            candidate,
+                            evidenceDirectory,
+                            command,
+                            citrusPassed),
+                    Clock.fixed(NOW, ZoneOffset.UTC))
+                    .validate(
+                            flow.blobs,
+                            transaction,
+                            flow.view.runId(),
+                            flow.view.candidateDirectory(),
+                            candidateValue,
+                            flow.view.candidateSnapshot(),
+                            manifest,
+                            flow.view.artifactManifest(),
+                            ledger.requirementsPolicy(),
+                            usage,
+                            flow.view.catalogUsage(),
+                            flow.catalogSnapshot,
+                            approvedEvidence,
+                            flow.view.catalogEvidence(),
+                            workerValidation);
+            transaction.commit();
+        }
+        BlobReference failedEvidence = validation.failedCheck() == null
+                ? null
+                : validation.evidence().stream()
+                        .filter(reference -> reference.digest().equals(
+                                validation.failedCheck().evidenceDigest()))
+                        .findFirst()
+                        .orElseThrow();
+        return new ValidationFixture(
+                validation,
+                resultReference,
+                accepted,
+                failedEvidence);
+    }
+
+    private static CommandEvidence deterministicEvidence(
+            Path candidate,
+            Path evidenceDirectory,
+            EvidenceCommand command,
+            boolean citrusPassed)
+            throws IOException {
+        Files.createDirectory(evidenceDirectory);
+        Path sandboxDirectory = Files.createDirectory(
+                evidenceDirectory.resolve("." + command.id() + "-sandbox-fixture"));
+        Path sandbox = Files.writeString(
+                sandboxDirectory.resolve("sandbox"), "sandbox\n", StandardCharsets.UTF_8);
+        Path toolchain = Files.writeString(
+                sandboxDirectory.resolve("toolchain"), "toolchain\n", StandardCharsets.UTF_8);
+        Path executable = Files.writeString(
+                sandboxDirectory.resolve("executable"), "executable\n", StandardCharsets.UTF_8);
+        byte[] stdoutBytes = new byte[0];
+        if (command.jvmPayload().kind() == JvmPayloadRequest.Kind.MAIN_PACKAGE_INSPECT) {
+            Path archive = sandboxDirectory.resolve("main-routes.jar");
+            try {
+                stdoutBytes = ShipMainPackageMain.packageAndInspect(
+                        candidate,
+                        archive,
+                        command.arguments().subList(4, command.arguments().size()))
+                        .encode();
+            } finally {
+                Files.deleteIfExists(archive);
+            }
+        }
+        Path stdout = Files.write(
+                evidenceDirectory.resolve("stdout.log"), stdoutBytes);
+        Path stderr = Files.write(
+                evidenceDirectory.resolve("stderr.log"), new byte[0]);
+        String sandboxDigest = ShipDigest.sha256(Files.readAllBytes(sandbox));
+        String toolchainDigest = ShipDigest.sha256(Files.readAllBytes(toolchain));
+        String executableDigest = ShipDigest.sha256(Files.readAllBytes(executable));
+        String stdoutDigest = ShipDigest.sha256(Files.readAllBytes(stdout));
+        String stderrDigest = ShipDigest.sha256(Files.readAllBytes(stderr));
+        String jdkDigest = ShipDigest.sha256(
+                "fixture-jdk".getBytes(StandardCharsets.UTF_8));
+        boolean passed = citrusPassed
+                || command.jvmPayload().kind() != JvmPayloadRequest.Kind.CITRUS_YAML;
+        String version = command.jvmPayload().kind()
+                         == JvmPayloadRequest.Kind.MAIN_PACKAGE_INSPECT
+                                 ? ShipMainPackageMain.PAYLOAD_VERSION
+                                 : command.jvmPayload().camelVersion()
+                                   + (command.jvmPayload().citrusVersion() == null
+                                           ? ""
+                                           : " " + command.jvmPayload().citrusVersion());
+        return new CommandEvidence(
+                CommandEvidence.SCHEMA_VERSION,
+                command.id(),
+                new SandboxIdentity(
+                        EvidenceRunner.SANDBOX_PROVIDER,
+                        sandbox.toString(),
+                        sandboxDigest,
+                        sandboxDigest,
                         null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null));
+                        EvidenceRunner.expectedSandboxProfileDigest(command, jdkDigest)),
+                toolchainDigest,
+                toolchainDigest,
+                toolchain.toString(),
+                toolchainDigest,
+                executable.toString(),
+                executableDigest,
+                executableDigest,
+                null,
+                version,
+                command.arguments(),
+                candidate.toAbsolutePath().normalize().toString(),
+                EvidenceRunner.expectedEnvironment(command, jdkDigest),
+                NOW,
+                NOW,
+                true,
+                false,
+                passed ? 0 : 1,
+                null,
+                stdout.toString(),
+                stdoutDigest,
+                stderr.toString(),
+                stderrDigest,
+                command.inputDigests());
+    }
+
+    private static BlobReference completeRun(
+            DurableFlow flow,
+            ValidationFixture validation,
+            ShipStamp.Status status,
+            List<ShipStamp.Waiver> waivers,
+            ShipEventType completionType)
+            throws Exception {
+        ShipStamp stampValue = new ShipStamp(
+                ShipStamp.SCHEMA_VERSION,
+                flow.view.runId(),
+                status,
+                flow.view.adapterId(),
+                flow.view.requirementsDigest(),
+                flow.view.designDigest(),
+                flow.view.artifactManifest().digest(),
+                flow.view.candidateSnapshot().digest(),
+                flow.view.catalogUsage().digest(),
+                validation.result().report().checks(),
+                waivers,
+                NOW,
+                null,
+                null);
+        BlobReference stamp = fixtureBlob(flow.blobs, "ship-stamp", stampValue);
+        try (ShipPublicationService.LivePublication publication
+                = ShipPublicationService.apply(flow.view, flow.blobs, stamp, completionType)) {
+            BlobReference publishedSnapshot = fixtureBlob(
+                    flow.blobs,
+                    "project-snapshot",
+                    publication.publishedSnapshot());
+            flow.commit(
+                    ShipAuthorityCommand.value(completionType, stamp.digest()),
+                    new ShipEventPayloads.StampRecorded(
+                            stamp,
+                            publishedSnapshot,
+                            validation.result().reportReference()));
+            publication.finish();
+        }
+        return stamp;
     }
 
     private static void failActiveAttempt(DurableFlow flow) throws Exception {
@@ -1835,7 +2201,17 @@ class ShipRunProjectorTest {
     }
 
     private record PendingWaiver(
-            DurableFlow flow, BlobReference evidence, WaiverChallenge challenge) {
+            DurableFlow flow,
+            BlobReference evidence,
+            WaiverChallenge challenge,
+            ValidationFixture validation) {
+    }
+
+    private record ValidationFixture(
+            ShipValidationService.Result result,
+            BlobReference resultReference,
+            ShipWorkspaceService.AcceptedArtifact accepted,
+            BlobReference failedEvidence) {
     }
 
     private static final class DurableFlow {
@@ -1844,6 +2220,7 @@ class ShipRunProjectorTest {
         private final ShipBlobStore blobs;
         private final ShipInteractionBundleService interactions;
         private final ShipInteractionSigner signer;
+        private final Snapshot catalogSnapshot;
         private ShipRunView view;
 
         private DurableFlow(
@@ -1851,11 +2228,13 @@ class ShipRunProjectorTest {
                             ShipBlobStore blobs,
                             ShipInteractionBundleService interactions,
                             ShipInteractionSigner signer,
+                            Snapshot catalogSnapshot,
                             ShipRunView view) {
             this.events = events;
             this.blobs = blobs;
             this.interactions = interactions;
             this.signer = signer;
+            this.catalogSnapshot = catalogSnapshot;
             this.view = view;
         }
 

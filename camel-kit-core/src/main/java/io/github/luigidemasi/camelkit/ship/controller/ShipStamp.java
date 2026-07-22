@@ -9,7 +9,7 @@ import java.util.Set;
 
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
 
-/** Controller-derived final assessment value; production issuance is deferred to orchestration. */
+/** Controller-derived final assessment value bound to retained check evidence. */
 public record ShipStamp(
         int schemaVersion,
         String runId,
@@ -52,7 +52,7 @@ public record ShipStamp(
 
         Set<String> checkIds = new HashSet<>();
         for (Check check : checks) {
-            if (check == null || !checkIds.add(check.id())) {
+            if (check == null || !checkIds.add(check.id()) || check.evidenceDigest() == null) {
                 throw new IllegalArgumentException("Ship Stamp checks require unique IDs");
             }
         }
@@ -98,8 +98,35 @@ public record ShipStamp(
                             "PASS Stamp cannot contain failed checks, waivers, or failure details");
                 }
             }
-            case COMPLETED_WITH_WAIVER -> throw new IllegalArgumentException(
-                    "Evidence-bound waiver Stamp issuance is not available in this controller slice");
+            case COMPLETED_WITH_WAIVER -> {
+                if (failureCode != null || failureMessage != null || waivers.isEmpty()) {
+                    throw new IllegalArgumentException(
+                            "Waiver Stamp requires exact waiver receipts and no failure details");
+                }
+                Set<String> failed = checks.stream()
+                        .filter(Check::mandatory)
+                        .filter(check -> !check.passed())
+                        .map(Check::id)
+                        .collect(java.util.stream.Collectors.toSet());
+                Set<String> waived = new HashSet<>();
+                for (Waiver waiver : waivers) {
+                    Check check = checks.stream()
+                            .filter(candidate -> candidate.id().equals(waiver.checkId()))
+                            .findFirst()
+                            .orElseThrow(() -> new IllegalArgumentException(
+                                    "Waiver references an unknown check"));
+                    if (check.passed()
+                            || !check.evidenceDigest().equals(waiver.evidenceDigest())
+                            || !waived.add(waiver.checkId())) {
+                        throw new IllegalArgumentException(
+                                "Waiver does not exactly bind one failed check evidence record");
+                    }
+                }
+                if (!failed.equals(waived)) {
+                    throw new IllegalArgumentException(
+                            "Waiver Stamp must cover every and only failed mandatory checks");
+                }
+            }
             case FAIL -> {
                 if (!mandatoryFailed
                         || !waivers.isEmpty()
@@ -112,10 +139,6 @@ public record ShipStamp(
                 requireText(failureMessage, "failure message");
             }
         }
-        if (!waivers.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "Waiver references require the later evidence-bound waiver policy");
-        }
     }
 
     public enum Status {
@@ -127,13 +150,11 @@ public record ShipStamp(
     public record Check(String id, boolean mandatory, boolean passed, String evidenceDigest) {
         public Check {
             requireText(id, "check ID");
-            if (evidenceDigest != null) {
-                requireDigest(evidenceDigest, "check evidence digest");
-            }
+            requireDigest(evidenceDigest, "check evidence digest");
         }
     }
 
-    /** Storage scaffold only; PR 6 owns policy eligibility and receipt verification. */
+    /** Exact evidence and signed response which authorize one failed mandatory check. */
     public record Waiver(String checkId, String evidenceDigest, String responseDigest) {
         public Waiver {
             requireText(checkId, "waiver check ID");

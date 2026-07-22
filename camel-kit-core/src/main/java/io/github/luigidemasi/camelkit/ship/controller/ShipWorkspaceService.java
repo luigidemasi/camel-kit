@@ -1,7 +1,6 @@
 package io.github.luigidemasi.camelkit.ship.controller;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,21 +19,24 @@ final class ShipWorkspaceService {
     static AcceptedWorkspace accept(
             StageRequest request,
             StageResult result,
-            Path attemptOutput,
-            ShipBlobStore blobs)
+            ShipProtectedWorkerBroker.CompletedAttempt completed,
+            ShipBlobStore blobs,
+            ShipBlobStore.Transaction transaction)
             throws IOException {
-        if (blobs == null) {
+        if (blobs == null || transaction == null || completed == null) {
             throw new IllegalArgumentException("Ship blob store is required");
         }
 
         // This deliberately performs no worker-controlled file I/O. A malformed envelope
         // is rejected before StagedArtifactSource opens even one artifact.
-        StageResultValidator.validateEnvelope(request, result, attemptOutput);
+        StageResultValidator.validateEnvelope(
+                request, result, java.nio.file.Path.of(request.outputDirectory()));
         if (!blobs.belongsToRun(request.runId())) {
             throw new ShipControllerException(
                     "blob-run-mismatch", "Ship attempt output belongs to a different controller blob store");
         }
-        List<ShipBlobStore.ImportedBlob> imported = blobs.importArtifacts(attemptOutput, result.artifacts());
+        List<ShipBlobStore.ImportedBlob> imported = completed.importArtifacts(
+                request, result.artifacts(), transaction);
         if (imported.size() != result.artifacts().size()) {
             throw new IOException("Ship artifact import returned an incomplete receipt");
         }

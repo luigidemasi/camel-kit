@@ -83,12 +83,34 @@ final class ShipEventPayloads {
             String designDigest,
             BlobReference candidateSnapshot,
             String candidateDirectory,
+            List<BlobReference> evidence,
+            BlobReference validationReport,
             StageStarted continuation)
             implements
                 Payload {
 
         StageAccepted {
             artifacts = artifacts == null ? List.of() : List.copyOf(artifacts);
+            evidence = evidence == null ? List.of() : List.copyOf(evidence);
+        }
+
+        StageAccepted(
+                      ShipStage stage,
+                      BlobReference request,
+                      BlobReference result,
+                      List<ShipWorkspaceService.AcceptedArtifact> artifacts,
+                      BlobReference ledger,
+                      BlobReference artifactManifest,
+                      BlobReference catalogEvidence,
+                      BlobReference catalogUsage,
+                      String requirementsDigest,
+                      String designDigest,
+                      BlobReference candidateSnapshot,
+                      String candidateDirectory,
+                      StageStarted continuation) {
+            this(stage, request, result, artifacts, ledger, artifactManifest, catalogEvidence,
+                 catalogUsage, requirementsDigest, designDigest, candidateSnapshot,
+                 candidateDirectory, List.of(), null, continuation);
         }
     }
 
@@ -172,19 +194,25 @@ final class ShipEventPayloads {
                 Payload {
     }
 
-    /** Storage shape only; policy eligibility and authority issuance remain PR 6 work. */
     record WaiverRequested(WaiverChallenge challenge, BlobReference interactionBundle)
             implements
                 Payload {
     }
 
-    /** Storage shape only; recording this value cannot complete a lifecycle waiver. */
     record WaiverRecorded(
             WaiverResponse response,
             BlobReference responseReference,
-            BlobReference interactionBundle)
+            BlobReference interactionBundle,
+            BlobReference stamp)
             implements
                 Payload {
+
+        WaiverRecorded(
+                       WaiverResponse response,
+                       BlobReference responseReference,
+                       BlobReference interactionBundle) {
+            this(response, responseReference, interactionBundle, null);
+        }
     }
 
     record Failure(
@@ -195,9 +223,27 @@ final class ShipEventPayloads {
             BlobReference result,
             BlobReference validationReport,
             BlobReference stamp,
-            BlobReference interactionBundle)
+            BlobReference interactionBundle,
+            List<BlobReference> evidence)
             implements
                 Payload {
+
+        Failure(
+                ShipStage failedStage,
+                String code,
+                String message,
+                BlobReference request,
+                BlobReference result,
+                BlobReference validationReport,
+                BlobReference stamp,
+                BlobReference interactionBundle) {
+            this(failedStage, code, message, request, result, validationReport, stamp,
+                 interactionBundle, List.of());
+        }
+
+        Failure {
+            evidence = evidence == null ? List.of() : List.copyOf(evidence);
+        }
     }
 
     record StampRecorded(

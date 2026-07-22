@@ -94,6 +94,10 @@ class ShipStageResultReaderTest {
                         ShipJson.mapper().writeValueAsBytes(result)));
 
         assertTrue(failure.getMessage().contains("production broker/import boundary"));
+        assertEquals(
+                result,
+                ShipStageResultReader.readBrokered(
+                        request, ShipJson.mapper().writeValueAsBytes(result)));
     }
 
     @Test
