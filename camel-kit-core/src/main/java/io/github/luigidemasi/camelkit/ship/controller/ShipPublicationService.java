@@ -5,6 +5,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.DirectoryNotEmptyException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -13,12 +14,14 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.controller.ShipBlobStore.BlobReference;
@@ -33,8 +36,16 @@ import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy.Classificatio
 /** Write-ahead, replay-recoverable material publication for one validated candidate. */
 final class ShipPublicationService {
 
-    private static final int SCHEMA_VERSION = 1;
+    private static final int SCHEMA_VERSION = 2;
     private static final String JOURNAL = "live-publication.json";
+    private static final Pattern JOURNAL_TEMP = Pattern.compile(
+            "\\.live-publication\\.json-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
+    private static final Pattern REPLACEMENT_TEMP = Pattern.compile(
+            "\\.camel-kit-publish-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.tmp");
+    private static final Set<PosixFilePermission> PRIVATE_TEMP
+            = PosixFilePermissions.fromString("rw-------");
+    private static final Set<PosixFilePermission> SEALED_JOURNAL
+            = PosixFilePermissions.fromString("r--------");
 
     private ShipPublicationService() {
     }
@@ -76,11 +87,15 @@ final class ShipPublicationService {
             throw new IOException("Live project differs from the run-start publication baseline");
         }
         StageResult execution = read(blobs, run.executionResult(), StageResult.class);
-        List<Artifact> artifacts = execution.artifacts().stream()
-                .map(artifact -> new Artifact(
-                        artifact,
-                        new BlobReference(artifact.kind(), artifact.digest(), artifact.size())))
-                .toList();
+        List<Artifact> artifacts = new ArrayList<>();
+        for (ProducedArtifact artifact : execution.artifacts()) {
+            artifacts.add(new Artifact(
+                    artifact,
+                    new BlobReference(artifact.kind(), artifact.digest(), artifact.size()),
+                    replacementTemporaryPath(artifact.relativePath())));
+        }
+        requireTemporaryBindings(
+                run.projectRoot(), baseline, candidate, artifacts, true);
         Intent intent = new Intent(
                 SCHEMA_VERSION,
                 run.runId(),
@@ -118,7 +133,9 @@ final class ShipPublicationService {
     static void recover(
             ShipRunView run, ShipBlobStore blobs, List<ShipEvent> history)
             throws IOException {
-        Path journal = blobs.runRoot().resolve("publication").resolve(JOURNAL);
+        Path publicationRoot = blobs.privateWorkDirectory("publication");
+        cleanupJournalTemporaries(publicationRoot);
+        Path journal = publicationRoot.resolve(JOURNAL);
         if (!Files.exists(journal, LinkOption.NOFOLLOW_LINKS)) {
             return;
         }
@@ -134,6 +151,8 @@ final class ShipPublicationService {
         requireIntent(run, blobs, intent);
         ProjectSnapshot baseline = read(blobs, intent.baselineSnapshot(), ProjectSnapshot.class);
         ProjectSnapshot candidate = read(blobs, intent.candidateSnapshot(), ProjectSnapshot.class);
+        requireTemporaryBindings(
+                run.projectRoot(), baseline, candidate, intent.artifacts(), false);
         Path candidateDirectory = blobs.verifyCandidateDirectory(Path.of(intent.candidateDirectory()));
         ProjectSnapshot sealed = ProjectEvidenceFiles.captureSealed(candidateDirectory);
         if (!candidate.equals(sealed)) {
@@ -142,6 +161,8 @@ final class ShipPublicationService {
         boolean completed = run.state() == ShipState.COMPLETED
                 || run.state() == ShipState.COMPLETED_WITH_WAIVER;
         if (completed) {
+            cleanupReplacementTemporaries(
+                    run.projectRoot(), baseline, candidate, intent.artifacts());
             ShipState expectedState = intent.completionType() == ShipEventType.RUN_COMPLETED
                     ? ShipState.COMPLETED : ShipState.COMPLETED_WITH_WAIVER;
             if (run.state() != expectedState
@@ -204,6 +225,18 @@ final class ShipPublicationService {
         blobs.verify(intent.candidateSnapshot());
         blobs.verify(intent.executionResult());
         blobs.verify(intent.stamp());
+        StageResult execution = read(blobs, intent.executionResult(), StageResult.class);
+        List<ProducedArtifact> recorded = intent.artifacts().stream()
+                .map(Artifact::claim)
+                .toList();
+        if (!execution.artifacts().equals(recorded)
+                || intent.artifacts().stream().anyMatch(artifact -> !artifact.blob().equals(
+                        new BlobReference(
+                                artifact.claim().kind(),
+                                artifact.claim().digest(),
+                                artifact.claim().size())))) {
+            throw new IOException("Ship publication recovery artifacts differ from execution");
+        }
     }
 
     private static void applyArtifacts(
@@ -222,9 +255,11 @@ final class ShipPublicationService {
                 throw new IOException("Publication artifact differs from the sealed candidate: " + relative);
             }
             Path target = safeTarget(projectRoot, relative);
+            Path temporary = requireBoundTemporary(projectRoot, artifact);
             createParents(projectRoot, target.getParent(), candidate);
             writeAtomically(
                     target,
+                    temporary,
                     blobs.readBytes(artifact.blob(), Math.toIntExact(artifact.blob().byteSize())),
                     expected.unixMode());
         }
@@ -236,15 +271,18 @@ final class ShipPublicationService {
             ProjectSnapshot candidate)
             throws IOException {
         Path projectRoot = Path.of(intent.projectRoot());
+        requireTemporaryBindings(
+                projectRoot, baseline, candidate, intent.artifacts(), false);
+        cleanupReplacementTemporaries(
+                projectRoot, baseline, candidate, intent.artifacts());
         ProjectSnapshot current = ProjectEvidenceFiles.capture(projectRoot);
         requireKnownMixture(current, baseline, candidate);
         Path source = Path.of(intent.sourceDirectory());
-        List<String> paths = intent.artifacts().stream()
-                .map(artifact -> artifact.claim().relativePath())
-                .distinct()
-                .sorted()
+        List<Artifact> artifacts = intent.artifacts().stream()
+                .sorted(Comparator.comparing(artifact -> artifact.claim().relativePath()))
                 .toList();
-        for (String relative : paths) {
+        for (Artifact artifact : artifacts) {
+            String relative = artifact.claim().relativePath();
             Path target = safeTarget(projectRoot, relative);
             FileEntry original = baseline.files().get(relative);
             if (original == null) {
@@ -262,7 +300,11 @@ final class ShipPublicationService {
                     throw new IOException("Immutable Ship source differs from publication baseline");
                 }
                 createParents(projectRoot, target.getParent(), baseline);
-                writeAtomically(target, content, original.unixMode());
+                writeAtomically(
+                        target,
+                        requireBoundTemporary(projectRoot, artifact),
+                        content,
+                        original.unixMode());
             }
         }
         removeCandidateOnlyDirectories(projectRoot, baseline, candidate);
@@ -382,17 +424,20 @@ final class ShipPublicationService {
         return target;
     }
 
-    private static void writeAtomically(Path target, byte[] content, int unixMode)
+    private static void writeAtomically(
+            Path target, Path temporary, byte[] content, int unixMode)
             throws IOException {
         if (Files.isSymbolicLink(target)) {
             throw new IOException("Refusing to publish through a symbolic link");
         }
-        Path temporary = target.resolveSibling(
-                ".camel-kit-publish-" + UUID.randomUUID() + ".tmp");
+        boolean created = false;
         try {
+            Files.createFile(
+                    temporary,
+                    PosixFilePermissions.asFileAttribute(PRIVATE_TEMP));
+            created = true;
             try (FileChannel channel = FileChannel.open(
                     temporary,
-                    StandardOpenOption.CREATE_NEW,
                     StandardOpenOption.WRITE,
                     LinkOption.NOFOLLOW_LINKS)) {
                 ByteBuffer bytes = ByteBuffer.wrap(content);
@@ -412,17 +457,23 @@ final class ShipPublicationService {
             }
             forceDirectory(target.getParent());
         } finally {
-            Files.deleteIfExists(temporary);
+            if (created && Files.deleteIfExists(temporary)) {
+                forceDirectory(temporary.getParent());
+            }
         }
     }
 
     private static void writeJournal(Path journal, Intent intent) throws IOException {
         byte[] encoded = ShipJson.mapper().writeValueAsBytes(intent);
         Path temporary = journal.resolveSibling("." + JOURNAL + '-' + UUID.randomUUID());
+        boolean created = false;
         try {
+            Files.createFile(
+                    temporary,
+                    PosixFilePermissions.asFileAttribute(PRIVATE_TEMP));
+            created = true;
             try (FileChannel channel = FileChannel.open(
                     temporary,
-                    StandardOpenOption.CREATE_NEW,
                     StandardOpenOption.WRITE,
                     LinkOption.NOFOLLOW_LINKS)) {
                 ByteBuffer bytes = ByteBuffer.wrap(encoded);
@@ -431,12 +482,153 @@ final class ShipPublicationService {
                 }
                 channel.force(true);
             }
-            Files.setPosixFilePermissions(temporary, PosixFilePermissions.fromString("r--------"));
+            Files.setPosixFilePermissions(temporary, SEALED_JOURNAL);
             Files.move(temporary, journal, StandardCopyOption.ATOMIC_MOVE);
             forceDirectory(journal.getParent());
         } finally {
-            Files.deleteIfExists(temporary);
+            if (created && Files.deleteIfExists(temporary)) {
+                forceDirectory(temporary.getParent());
+            }
         }
+    }
+
+    private static String replacementTemporaryPath(String relativePath) {
+        String canonical = ShipTreePolicy.requireCanonicalRelativePath(relativePath);
+        int separator = canonical.lastIndexOf('/');
+        String name = ".camel-kit-publish-" + UUID.randomUUID() + ".tmp";
+        return separator < 0 ? name : canonical.substring(0, separator + 1) + name;
+    }
+
+    private static void requireTemporaryBindings(
+            Path projectRoot,
+            ProjectSnapshot baseline,
+            ProjectSnapshot candidate,
+            List<Artifact> artifacts,
+            boolean requireAbsent)
+            throws IOException {
+        Set<String> targets = new HashSet<>();
+        Set<String> temporaries = new HashSet<>();
+        for (Artifact artifact : artifacts) {
+            String relative = artifact.claim().relativePath();
+            Path temporary = requireBoundTemporary(projectRoot, artifact);
+            String temporaryRelative = artifact.temporaryPath();
+            FileEntry expected = candidate.files().get(relative);
+            if (!targets.add(relative)
+                    || !temporaries.add(temporaryRelative)
+                    || expected == null
+                    || expected.classification() != Classification.MATERIAL
+                    || !expected.digest().equals(artifact.blob().digest())
+                    || expected.size() != artifact.blob().byteSize()
+                    || baseline.files().containsKey(temporaryRelative)
+                    || baseline.directories().containsKey(temporaryRelative)
+                    || candidate.files().containsKey(temporaryRelative)
+                    || candidate.directories().containsKey(temporaryRelative)
+                    || requireAbsent && Files.exists(temporary, LinkOption.NOFOLLOW_LINKS)) {
+                throw new IOException("Ship publication has an invalid bound replacement temporary");
+            }
+        }
+    }
+
+    private static Path requireBoundTemporary(Path projectRoot, Artifact artifact)
+            throws IOException {
+        try {
+            Path target = safeTarget(projectRoot, artifact.claim().relativePath());
+            Path temporary = safeTarget(projectRoot, artifact.temporaryPath());
+            if (!Objects.equals(target.getParent(), temporary.getParent())
+                    || temporary.getFileName() == null
+                    || !REPLACEMENT_TEMP.matcher(temporary.getFileName().toString()).matches()) {
+                throw new IOException("Ship publication replacement temporary is not bound to its target");
+            }
+            return temporary;
+        } catch (IllegalArgumentException e) {
+            throw new IOException("Ship publication replacement temporary is invalid", e);
+        }
+    }
+
+    private static void cleanupJournalTemporaries(Path publicationRoot) throws IOException {
+        boolean removed = false;
+        try (DirectoryStream<Path> entries = Files.newDirectoryStream(publicationRoot)) {
+            for (Path entry : entries) {
+                if (JOURNAL_TEMP.matcher(entry.getFileName().toString()).matches()) {
+                    deleteOwnedTemporary(
+                            entry,
+                            publicationRoot,
+                            Set.of(PRIVATE_TEMP, SEALED_JOURNAL),
+                            ShipJson.MAX_DOCUMENT_BYTES,
+                            "Ship publication journal temporary");
+                    removed = true;
+                }
+            }
+        }
+        if (removed) {
+            forceDirectory(publicationRoot);
+        }
+    }
+
+    private static void cleanupReplacementTemporaries(
+            Path projectRoot,
+            ProjectSnapshot baseline,
+            ProjectSnapshot candidate,
+            List<Artifact> artifacts)
+            throws IOException {
+        Set<Path> changedParents = new HashSet<>();
+        for (Artifact artifact : artifacts) {
+            Path temporary = requireBoundTemporary(projectRoot, artifact);
+            if (!Files.exists(temporary, LinkOption.NOFOLLOW_LINKS)) {
+                continue;
+            }
+            FileEntry expected = candidate.files().get(artifact.claim().relativePath());
+            Set<Set<PosixFilePermission>> permissions = new HashSet<>();
+            permissions.add(PRIVATE_TEMP);
+            permissions.add(permissions(expected.unixMode()));
+            FileEntry original = baseline.files().get(artifact.claim().relativePath());
+            if (original != null) {
+                permissions.add(permissions(original.unixMode()));
+            }
+            deleteOwnedTemporary(
+                    temporary,
+                    temporary.getParent(),
+                    permissions,
+                    Math.max(
+                            artifact.blob().byteSize(),
+                            original == null ? 0 : original.size()),
+                    "Ship publication replacement temporary");
+            changedParents.add(temporary.getParent());
+        }
+        for (Path parent : changedParents) {
+            forceDirectory(parent);
+        }
+    }
+
+    private static void deleteOwnedTemporary(
+            Path temporary,
+            Path parent,
+            Set<Set<PosixFilePermission>> allowedPermissions,
+            long maximumSize,
+            String description)
+            throws IOException {
+        BasicFileAttributes attributes = Files.readAttributes(
+                temporary, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+        if (!Objects.equals(temporary.getParent(), parent)
+                || !attributes.isRegularFile()
+                || attributes.isSymbolicLink()
+                || attributes.fileKey() == null
+                || attributes.size() < 0
+                || attributes.size() > maximumSize) {
+            throw new IOException(description + " has unsafe metadata");
+        }
+        Set<PosixFilePermission> actualPermissions = Files.getPosixFilePermissions(
+                temporary, LinkOption.NOFOLLOW_LINKS);
+        Object links = Files.getAttribute(
+                temporary, "unix:nlink", LinkOption.NOFOLLOW_LINKS);
+        if (!allowedPermissions.contains(actualPermissions)
+                || !Files.getOwner(temporary, LinkOption.NOFOLLOW_LINKS)
+                        .equals(Files.getOwner(parent, LinkOption.NOFOLLOW_LINKS))
+                || !(links instanceof Number count)
+                || count.longValue() != 1) {
+            throw new IOException(description + " has unsafe metadata");
+        }
+        Files.delete(temporary);
     }
 
     private static Intent readJournal(Path journal) throws IOException {
@@ -444,7 +636,6 @@ final class ShipPublicationService {
                 journal,
                 BasicFileAttributes.class,
                 LinkOption.NOFOLLOW_LINKS);
-        Set<PosixFilePermission> expectedPermissions = Set.of(PosixFilePermission.OWNER_READ);
         Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(journal, LinkOption.NOFOLLOW_LINKS);
         var owner = Files.getOwner(journal, LinkOption.NOFOLLOW_LINKS);
         var parentOwner = Files.getOwner(journal.getParent(), LinkOption.NOFOLLOW_LINKS);
@@ -454,7 +645,7 @@ final class ShipPublicationService {
                 || attributes.fileKey() == null
                 || attributes.size() <= 0
                 || attributes.size() > ShipJson.MAX_DOCUMENT_BYTES
-                || !permissions.equals(expectedPermissions)
+                || !permissions.equals(SEALED_JOURNAL)
                 || !owner.equals(parentOwner)
                 || !(links instanceof Number count)
                 || count.longValue() != 1) {
@@ -490,6 +681,10 @@ final class ShipPublicationService {
     }
 
     private static void setMode(Path path, int unixMode) throws IOException {
+        Files.setPosixFilePermissions(path, permissions(unixMode));
+    }
+
+    private static Set<PosixFilePermission> permissions(int unixMode) {
         Set<PosixFilePermission> permissions = new HashSet<>();
         PosixFilePermission[] values = {
                 PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE,
@@ -504,7 +699,7 @@ final class ShipPublicationService {
                 permissions.add(values[index]);
             }
         }
-        Files.setPosixFilePermissions(path, permissions);
+        return Set.copyOf(permissions);
     }
 
     private static void forceDirectory(Path path) throws IOException {
@@ -572,7 +767,14 @@ final class ShipPublicationService {
         }
     }
 
-    private record Artifact(ProducedArtifact claim, BlobReference blob) {
+    private record Artifact(
+            ProducedArtifact claim, BlobReference blob, String temporaryPath) {
+
+        private Artifact {
+            Objects.requireNonNull(claim, "publication artifact claim");
+            Objects.requireNonNull(blob, "publication artifact blob");
+            temporaryPath = ShipTreePolicy.requireCanonicalRelativePath(temporaryPath);
+        }
     }
 
     private record MapEntry(

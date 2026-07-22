@@ -12,6 +12,7 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.controller.ShipBlobStore.BlobReference;
@@ -181,7 +182,188 @@ class ShipPublicationServiceTest {
         assertJournalPresent(fixture);
     }
 
+    @Test
+    void recoverSweepsOwnedJournalTemporariesBeforeNoJournalReturn() throws Exception {
+        Fixture fixture = fixture("journal-temporary");
+        Path writable = fixture.publicationRoot().resolve(
+                ".live-publication.json-" + UUID.randomUUID());
+        Path sealed = fixture.publicationRoot().resolve(
+                ".live-publication.json-" + UUID.randomUUID());
+        Files.createFile(
+                writable,
+                PosixFilePermissions.asFileAttribute(
+                        PosixFilePermissions.fromString("rw-------")));
+        Files.writeString(writable, "partial", StandardOpenOption.WRITE);
+        Files.createFile(
+                sealed,
+                PosixFilePermissions.asFileAttribute(
+                        PosixFilePermissions.fromString("r--------")));
+
+        ShipPublicationService.recover(
+                fixture.predecessorView(),
+                ShipBlobStore.open(fixture.stateRoot(), fixture.runId()),
+                List.of());
+
+        assertFalse(Files.exists(writable, LinkOption.NOFOLLOW_LINKS));
+        assertFalse(Files.exists(sealed, LinkOption.NOFOLLOW_LINKS));
+        assertBaseline(fixture);
+    }
+
+    @Test
+    void recoverRejectsUnsafeJournalTemporaryMetadata() throws Exception {
+        Fixture fixture = fixture("unsafe-journal-temporary");
+        Path temporary = fixture.publicationRoot().resolve(
+                ".live-publication.json-" + UUID.randomUUID());
+        Files.createFile(
+                temporary,
+                PosixFilePermissions.asFileAttribute(
+                        PosixFilePermissions.fromString("rw-r--r--")));
+
+        IOException failure = assertThrows(
+                IOException.class,
+                () -> ShipPublicationService.recover(
+                        fixture.predecessorView(),
+                        ShipBlobStore.open(fixture.stateRoot(), fixture.runId()),
+                        List.of()));
+
+        assertTrue(failure.getMessage().contains("temporary has unsafe metadata"));
+        assertTrue(Files.exists(temporary, LinkOption.NOFOLLOW_LINKS));
+        assertBaseline(fixture);
+    }
+
+    @Test
+    void predecessorRecoveryRemovesSealedBoundTemporaryBeforeRollback() throws Exception {
+        Fixture fixture = fixture("bound-predecessor-temporary");
+        ShipPublicationService.LivePublication publication = publish(fixture);
+        publication.retainForRecovery();
+        publication.close();
+        Path temporary = boundTemporary(fixture);
+        Files.createFile(
+                temporary,
+                PosixFilePermissions.asFileAttribute(
+                        PosixFilePermissions.fromString("rw-------")));
+        Files.write(temporary, ROUTE_BYTES, StandardOpenOption.WRITE);
+        Files.setPosixFilePermissions(
+                temporary, PosixFilePermissions.fromString("rw-r--r--"));
+
+        ShipPublicationService.recover(
+                fixture.predecessorView(),
+                ShipBlobStore.open(fixture.stateRoot(), fixture.runId()),
+                List.of(fixture.predecessorEvent()));
+
+        assertFalse(Files.exists(temporary, LinkOption.NOFOLLOW_LINKS));
+        assertBaseline(fixture);
+        assertJournalRemoved(fixture);
+    }
+
+    @Test
+    void completedRecoveryRemovesPartialBoundTemporaryAndPreservesPublication() throws Exception {
+        Fixture fixture = fixture("bound-completed-temporary");
+        ShipPublicationService.LivePublication publication = publish(fixture);
+        ProjectSnapshot published = publication.publishedSnapshot();
+        BlobReference publishedReference = json(
+                fixture.blobs(), "project-snapshot", published);
+        publication.retainForRecovery();
+        publication.close();
+        Path temporary = boundTemporary(fixture);
+        Files.createFile(
+                temporary,
+                PosixFilePermissions.asFileAttribute(
+                        PosixFilePermissions.fromString("rw-------")));
+        Files.writeString(temporary, "partial", StandardOpenOption.WRITE);
+        ShipEvent predecessor = fixture.predecessorEvent();
+
+        ShipPublicationService.recover(
+                fixture.completedView(publishedReference),
+                ShipBlobStore.open(fixture.stateRoot(), fixture.runId()),
+                List.of(predecessor, fixture.completionEvent(predecessor)));
+
+        assertFalse(Files.exists(temporary, LinkOption.NOFOLLOW_LINKS));
+        assertPublished(fixture);
+        assertJournalRemoved(fixture);
+    }
+
+    @Test
+    void recoveryReusesBoundTemporaryAfterInterruptedBaselineRestoration() throws Exception {
+        byte[] replacement = "new\n".getBytes(StandardCharsets.UTF_8);
+        Fixture fixture = fixture(
+                "bound-rollback-temporary", "README.md", replacement);
+        ShipPublicationService.LivePublication publication = publish(fixture);
+        publication.retainForRecovery();
+        publication.close();
+        assertArrayEquals(replacement, Files.readAllBytes(fixture.readme()));
+        Path temporary = boundTemporary(fixture);
+        Files.createFile(
+                temporary,
+                PosixFilePermissions.asFileAttribute(
+                        PosixFilePermissions.fromString("rw-------")));
+        Files.write(temporary, BASELINE_BYTES, StandardOpenOption.WRITE);
+        Files.setPosixFilePermissions(
+                temporary, PosixFilePermissions.fromString("rw-r--r--"));
+
+        ShipPublicationService.recover(
+                fixture.predecessorView(),
+                ShipBlobStore.open(fixture.stateRoot(), fixture.runId()),
+                List.of(fixture.predecessorEvent()));
+
+        assertFalse(Files.exists(temporary, LinkOption.NOFOLLOW_LINKS));
+        assertArrayEquals(BASELINE_BYTES, Files.readAllBytes(fixture.readme()));
+        assertTrue(ProjectEvidenceFiles.unchangedMaterialTree(
+                fixture.baseline(), ProjectEvidenceFiles.capture(fixture.project())));
+        assertJournalRemoved(fixture);
+    }
+
+    @Test
+    void recoverRejectsUnsafeBoundTemporaryWithoutDeletingIt() throws Exception {
+        Fixture fixture = fixture("unsafe-bound-temporary");
+        ShipPublicationService.LivePublication publication = publish(fixture);
+        publication.retainForRecovery();
+        publication.close();
+        Path temporary = boundTemporary(fixture);
+        Files.createSymbolicLink(temporary, fixture.readme());
+
+        IOException failure = assertThrows(
+                IOException.class,
+                () -> ShipPublicationService.recover(
+                        fixture.predecessorView(),
+                        ShipBlobStore.open(fixture.stateRoot(), fixture.runId()),
+                        List.of(fixture.predecessorEvent())));
+
+        assertTrue(failure.getMessage().contains("temporary has unsafe metadata"));
+        assertTrue(Files.isSymbolicLink(temporary));
+        assertArrayEquals(BASELINE_BYTES, Files.readAllBytes(fixture.readme()));
+        assertArrayEquals(ROUTE_BYTES, Files.readAllBytes(fixture.route()));
+        assertJournalPresent(fixture);
+    }
+
+    @Test
+    void recoverNeverWildcardDeletesUnboundPublishNamedUserMaterial() throws Exception {
+        Fixture fixture = fixture("unbound-user-material");
+        ShipPublicationService.LivePublication publication = publish(fixture);
+        publication.retainForRecovery();
+        publication.close();
+        Path unbound = fixture.project().resolve(
+                ".camel-kit-publish-" + UUID.randomUUID() + ".tmp");
+        byte[] userBytes = "user material\n".getBytes(StandardCharsets.UTF_8);
+        Files.write(unbound, userBytes);
+
+        assertThrows(
+                IOException.class,
+                () -> ShipPublicationService.recover(
+                        fixture.predecessorView(),
+                        ShipBlobStore.open(fixture.stateRoot(), fixture.runId()),
+                        List.of(fixture.predecessorEvent())));
+
+        assertArrayEquals(userBytes, Files.readAllBytes(unbound));
+        assertJournalPresent(fixture);
+    }
+
     private Fixture fixture(String name) throws Exception {
+        return fixture(name, ROUTE, ROUTE_BYTES);
+    }
+
+    private Fixture fixture(String name, String artifactPath, byte[] artifactBytes)
+            throws Exception {
         AuthorityPair authority = authorityPair(name);
         String runId = authority.predecessor().id().toString();
         Path stateRoot = Files.createDirectory(
@@ -207,9 +389,9 @@ class ShipPublicationServiceTest {
                         PosixFilePermissions.fromString("rwx------")));
         ProjectEvidenceFiles.materializeMaterial(project, source);
 
-        BlobReference artifactBlob = blobs.writeBytes("route", ROUTE_BYTES);
+        BlobReference artifactBlob = blobs.writeBytes("route", artifactBytes);
         ProducedArtifact claim = new ProducedArtifact(
-                "route", ROUTE, artifactBlob.digest(), artifactBlob.byteSize());
+                "route", artifactPath, artifactBlob.digest(), artifactBlob.byteSize());
         String inputDigest = digest(name + "-execution-input");
         ShipWorkspaceService.AcceptedArtifact accepted
                 = new ShipWorkspaceService.AcceptedArtifact(claim, artifactBlob, 0100644);
@@ -446,6 +628,13 @@ class ShipPublicationServiceTest {
         return ShipDigest.sha256(value.getBytes(StandardCharsets.UTF_8));
     }
 
+    private static Path boundTemporary(Fixture fixture) throws IOException {
+        ObjectNode intent = (ObjectNode) ShipJson.mapper().readTree(
+                Files.readAllBytes(fixture.journal()));
+        String relative = intent.path("artifacts").path(0).path("temporaryPath").textValue();
+        return fixture.project().resolve(relative);
+    }
+
     private static void assertBaseline(Fixture fixture) throws IOException {
         assertTrue(ProjectEvidenceFiles.unchangedMaterialTree(
                 fixture.baseline(), ProjectEvidenceFiles.capture(fixture.project())));
@@ -499,6 +688,10 @@ class ShipPublicationServiceTest {
 
         Path journal() {
             return runRoot.resolve("publication").resolve("live-publication.json");
+        }
+
+        Path publicationRoot() {
+            return journal().getParent();
         }
 
         ShipRunView completedView(BlobReference publishedSnapshot) {

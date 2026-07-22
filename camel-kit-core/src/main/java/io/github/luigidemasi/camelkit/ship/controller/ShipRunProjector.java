@@ -14,6 +14,7 @@ import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogEvidenceSet;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogTarget;
+import io.github.luigidemasi.camelkit.ship.catalog.CatalogUsageRecord;
 import io.github.luigidemasi.camelkit.ship.context.InitialContext;
 import io.github.luigidemasi.camelkit.ship.controller.ShipBlobStore.BlobReference;
 import io.github.luigidemasi.camelkit.ship.ledger.DecisionLedger;
@@ -854,16 +855,26 @@ final class ShipRunProjector {
                     throw new IOException(
                             "Accepted validation has no resolved requirements policy");
                 }
+                ProjectSnapshot candidate = read(
+                        projection.candidateSnapshot, ProjectSnapshot.class);
+                CatalogUsageRecord usage = read(
+                        projection.catalogUsage, CatalogUsageRecord.class);
+                ShipValidationService.VerificationInputs verificationInputs
+                        = new ShipValidationService.VerificationInputs(
+                                projection.authority.id().toString(),
+                                new ShipValidationService.CandidateInput(
+                                        projection.candidateDirectory,
+                                        candidate,
+                                        projection.candidateSnapshot),
+                                new ShipValidationService.ManifestInput(
+                                        manifest, projection.artifactManifest),
+                                policy,
+                                new ShipValidationService.UsageInput(
+                                        usage, projection.catalogUsage),
+                                workerValidation);
                 Map<String, BlobReference> evidenceById = ShipValidationService.verifyReport(
                         blobs,
-                        projection.authority.id().toString(),
-                        projection.candidateDirectory,
-                        manifest,
-                        policy,
-                        projection.artifactManifest,
-                        projection.candidateSnapshot,
-                        projection.catalogUsage,
-                        workerValidation,
+                        verificationInputs,
                         report,
                         value.evidence());
                 requireContent(authority, value.validationReport().digest(), "accepted validation");
@@ -1118,16 +1129,26 @@ final class ShipRunProjector {
                 throw new IOException(
                         "Validation failure has no resolved requirements policy");
             }
+            ProjectSnapshot candidate = read(
+                    projection.candidateSnapshot, ProjectSnapshot.class);
+            CatalogUsageRecord usage = read(
+                    projection.catalogUsage, CatalogUsageRecord.class);
+            ShipValidationService.VerificationInputs verificationInputs
+                    = new ShipValidationService.VerificationInputs(
+                            projection.authority.id().toString(),
+                            new ShipValidationService.CandidateInput(
+                                    projection.candidateDirectory,
+                                    candidate,
+                                    projection.candidateSnapshot),
+                            new ShipValidationService.ManifestInput(
+                                    manifest, projection.artifactManifest),
+                            policy,
+                            new ShipValidationService.UsageInput(
+                                    usage, projection.catalogUsage),
+                            report.workerValidation());
             Map<String, BlobReference> evidenceById = ShipValidationService.verifyReport(
                     blobs,
-                    projection.authority.id().toString(),
-                    projection.candidateDirectory,
-                    manifest,
-                    policy,
-                    projection.artifactManifest,
-                    projection.candidateSnapshot,
-                    projection.catalogUsage,
-                    report.workerValidation(),
+                    verificationInputs,
                     report,
                     value.evidence());
             projection.evidence.clear();

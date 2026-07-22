@@ -25,6 +25,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
+import io.github.luigidemasi.camelkit.ship.protocol.ShipStage;
 import io.github.luigidemasi.camelkit.ship.security.ProjectEvidenceFiles;
 import io.github.luigidemasi.camelkit.ship.security.ProjectSnapshot;
 import io.github.luigidemasi.camelkit.ship.security.ProjectSnapshot.FileEntry;
@@ -561,7 +562,7 @@ final class ShipProjectPublisher {
         if (stateRoot == null || projectRoot == null || runId == null
                 || eventRevision < 0 || !ShipDigest.isSha256(eventDigest)
                 || blobs == null || workspace == null || !runId.equals(workspace.runId())
-                || workspace.stage() != io.github.luigidemasi.camelkit.ship.protocol.ShipStage.EXECUTE
+                || workspace.stage() != ShipStage.EXECUTE
                 || workspace.artifacts().isEmpty()) {
             throw new IllegalArgumentException("Invalid sealed Ship publication inputs");
         }

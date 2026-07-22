@@ -174,26 +174,22 @@ final class ShipValidationService {
 
     static Map<String, BlobReference> verifyReport(
             ShipBlobStore blobs,
-            String expectedRunId,
-            Path candidate,
-            ArtifactManifest manifest,
-            RequirementsPolicy policy,
-            BlobReference manifestReference,
-            BlobReference candidateReference,
-            BlobReference usageReference,
-            BlobReference workerValidation,
+            VerificationInputs inputs,
             ShipValidationReport report,
             List<BlobReference> evidence)
             throws IOException {
+        Objects.requireNonNull(inputs, "verification inputs");
+        String expectedRunId = inputs.runId();
+        Path candidate = inputs.candidate().directory();
+        ProjectSnapshot candidateValue = inputs.candidate().snapshot();
+        BlobReference candidateReference = inputs.candidate().reference();
+        ArtifactManifest manifest = inputs.manifest().manifest();
+        BlobReference manifestReference = inputs.manifest().reference();
+        RequirementsPolicy policy = inputs.policy();
+        CatalogUsageRecord usage = inputs.usage().usage();
+        BlobReference usageReference = inputs.usage().reference();
+        BlobReference workerValidation = inputs.workerValidation();
         Path exactCandidate = blobs.verifyCandidateDirectory(candidate);
-        ProjectSnapshot candidateValue = ShipJson.mapper().readValue(
-                blobs.readBytes(
-                        candidateReference, ShipJson.MAX_DOCUMENT_BYTES),
-                ProjectSnapshot.class);
-        CatalogUsageRecord usage = ShipJson.mapper().readValue(
-                blobs.readBytes(
-                        usageReference, ShipJson.MAX_DOCUMENT_BYTES),
-                CatalogUsageRecord.class);
 
         if (report == null
                 || !expectedRunId.equals(report.runId())
@@ -794,6 +790,27 @@ final class ShipValidationService {
             Objects.requireNonNull(manifest, "manifest input");
             Objects.requireNonNull(policy, "requirements policy");
             Objects.requireNonNull(catalog, "catalog input");
+            requireInputReference(workerValidation, "validation", "worker validation");
+        }
+    }
+
+    record VerificationInputs(
+            String runId,
+            CandidateInput candidate,
+            ManifestInput manifest,
+            RequirementsPolicy policy,
+            UsageInput usage,
+            BlobReference workerValidation) {
+
+        VerificationInputs {
+            if (runId == null || !runId.matches("ship-[0-9a-f]{32}")) {
+                throw new IllegalArgumentException(
+                        "Report verification inputs require a canonical run ID");
+            }
+            Objects.requireNonNull(candidate, "candidate input");
+            Objects.requireNonNull(manifest, "manifest input");
+            Objects.requireNonNull(policy, "requirements policy");
+            Objects.requireNonNull(usage, "catalog usage input");
             requireInputReference(workerValidation, "validation", "worker validation");
         }
     }

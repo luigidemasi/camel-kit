@@ -8,7 +8,9 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Predicate;
 
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest;
@@ -130,7 +132,7 @@ class ShipRunProjectorTest {
     }
 
     @Test
-    void protectedControllerWaivableFlowStopsAtProtectedWaiverBoundary() throws Exception {
+    void protectedControllerWaivableFlowCompletesWithResponseBoundStamp() throws Exception {
         ProtectedControllerFlow flow = executionRunningControllerFlow("protected-controller-waivable", false);
         ShipRunView executed = flow.broker().submit(
                 flow.view().runId(), flow.view().eventDigest(), flow.catalogSnapshot());
@@ -147,6 +149,78 @@ class ShipRunProjectorTest {
         assertFalse(java.util.Arrays.stream(ShipController.class.getDeclaredMethods())
                 .anyMatch(method -> method.getName().equals("requestWaiver")
                         || method.getName().equals("recordWaiver")));
+
+        ShipValidationReport report = ShipJson.mapper().readValue(
+                flow.durable().blobs.readBytes(
+                        eligible.validationReport(), ShipJson.MAX_DOCUMENT_BYTES),
+                ShipValidationReport.class);
+        ShipStamp.Check failed = report.checks().stream()
+                .filter(check -> check.mandatory() && !check.passed())
+                .findFirst()
+                .orElseThrow();
+        BlobReference evidence = eligible.evidenceById().get(failed.id());
+        assertNotNull(evidence);
+        flow.durable().view = eligible;
+        PendingWaiver pending = requestWaiver(
+                flow.durable(), evidence, failed, null, eligible.interactionBundle());
+        ShipEventPayloads.WaiverRecorded approval = waiverResponse(
+                pending, WaiverDecision.WAIVE);
+        flow.durable().commit(
+                ShipAuthorityCommand.decision(ShipEventType.WAIVER_RECORDED, null),
+                approval);
+
+        ShipRunView completed = flow.controller().complete(
+                eligible.runId(), flow.durable().view.eventDigest());
+
+        assertEquals(ShipState.COMPLETED_WITH_WAIVER, completed.state());
+        assertEquals(routeYaml(), Files.readString(
+                completed.projectRoot().resolve("src/main/resources/routes/orders.camel.yaml")));
+        assertEquals(testYaml(), Files.readString(
+                completed.projectRoot().resolve("test/orders.camel.it.yaml")));
+        ShipStamp stamp = ShipJson.mapper().readValue(
+                flow.durable().blobs.readBytes(
+                        completed.stamp(), ShipJson.MAX_DOCUMENT_BYTES),
+                ShipStamp.class);
+        assertEquals(ShipStamp.Status.COMPLETED_WITH_WAIVER, stamp.status());
+        assertEquals(
+                List.of(new ShipStamp.Waiver(
+                        failed.id(),
+                        failed.evidenceDigest(),
+                        approval.responseReference().digest())),
+                stamp.waivers());
+    }
+
+    @Test
+    void oneFailedNonCitrusMandatoryCheckIsTerminalFailure() throws Exception {
+        DurableFlow flow = validationRunningFlow("validation-non-citrus-failure");
+        AtomicBoolean failedNonCitrus = new AtomicBoolean();
+
+        ValidationFixture validation = validationFixture(
+                flow,
+                command -> command.jvmPayload().kind() == JvmPayloadRequest.Kind.CITRUS_YAML
+                        || failedNonCitrus.getAndSet(true));
+
+        List<ShipStamp.Check> failures = validation.result().report().checks().stream()
+                .filter(check -> check.mandatory() && !check.passed())
+                .toList();
+        assertEquals(ShipValidationService.Verdict.FAIL, validation.result().verdict());
+        assertEquals(1, failures.size());
+        assertFalse(failures.get(0).id().startsWith("citrus-integration-test-"));
+        assertNull(validation.result().failedCheck());
+    }
+
+    @Test
+    void multipleFailedMandatoryChecksAreTerminalFailure() throws Exception {
+        DurableFlow flow = validationRunningFlow("validation-multiple-failures");
+
+        ValidationFixture validation = validationFixture(flow, command -> false);
+
+        long failures = validation.result().report().checks().stream()
+                .filter(check -> check.mandatory() && !check.passed())
+                .count();
+        assertEquals(ShipValidationService.Verdict.FAIL, validation.result().verdict());
+        assertTrue(failures > 1);
+        assertNull(validation.result().failedCheck());
     }
 
     @Test
@@ -1127,6 +1201,16 @@ class ShipRunProjectorTest {
         ValidationFixture validation = recordValidation(flow, false);
         BlobReference evidence = validation.failedEvidence();
         ShipStamp.Check failed = validation.result().failedCheck();
+        return requestWaiver(flow, evidence, failed, validation, originalBundle);
+    }
+
+    private static PendingWaiver requestWaiver(
+            DurableFlow flow,
+            BlobReference evidence,
+            ShipStamp.Check failed,
+            ValidationFixture validation,
+            BlobReference originalBundle)
+            throws Exception {
         String checkId = failed.id();
         String policy = flow.view.authority().authority().basis().policy().value();
 
@@ -1633,10 +1717,17 @@ class ShipRunProjectorTest {
     private static ValidationFixture validationFixture(
             DurableFlow flow, boolean citrusPassed)
             throws Exception {
+        return validationFixture(
+                flow,
+                command -> citrusPassed
+                        || command.jvmPayload().kind() != JvmPayloadRequest.Kind.CITRUS_YAML);
+    }
+
+    private static ValidationFixture validationFixture(
+            DurableFlow flow, Predicate<EvidenceCommand> passes)
+            throws Exception {
         StageRequest request = flow.view.activeRequest();
-        byte[] content = (citrusPassed
-                ? "validation passed"
-                : "validation requires waiver").getBytes(StandardCharsets.UTF_8);
+        byte[] content = "validation result".getBytes(StandardCharsets.UTF_8);
         BlobReference workerValidation = flow.blobs.writeBytes("validation", content);
         ProducedArtifact claim = new ProducedArtifact(
                 "validation",
@@ -1688,7 +1779,7 @@ class ShipRunProjectorTest {
                             candidate,
                             evidenceDirectory,
                             command,
-                            citrusPassed),
+                            passes),
                     Clock.fixed(NOW, ZoneOffset.UTC))
                     .validate(
                             flow.blobs,
@@ -1734,6 +1825,20 @@ class ShipRunProjectorTest {
             EvidenceCommand command,
             boolean citrusPassed)
             throws IOException {
+        return deterministicEvidence(
+                candidate,
+                evidenceDirectory,
+                command,
+                ignored -> citrusPassed
+                        || command.jvmPayload().kind() != JvmPayloadRequest.Kind.CITRUS_YAML);
+    }
+
+    private static CommandEvidence deterministicEvidence(
+            Path candidate,
+            Path evidenceDirectory,
+            EvidenceCommand command,
+            Predicate<EvidenceCommand> passes)
+            throws IOException {
         Files.createDirectory(evidenceDirectory);
         Path sandboxDirectory = Files.createDirectory(
                 evidenceDirectory.resolve("." + command.id() + "-sandbox-fixture"));
@@ -1767,8 +1872,7 @@ class ShipRunProjectorTest {
         String stderrDigest = ShipDigest.sha256(Files.readAllBytes(stderr));
         String jdkDigest = ShipDigest.sha256(
                 "fixture-jdk".getBytes(StandardCharsets.UTF_8));
-        boolean passed = citrusPassed
-                || command.jvmPayload().kind() != JvmPayloadRequest.Kind.CITRUS_YAML;
+        boolean passed = passes.test(command);
         String version = command.jvmPayload().kind()
                          == JvmPayloadRequest.Kind.MAIN_PACKAGE_INSPECT
                                  ? ShipMainPackageMain.PAYLOAD_VERSION

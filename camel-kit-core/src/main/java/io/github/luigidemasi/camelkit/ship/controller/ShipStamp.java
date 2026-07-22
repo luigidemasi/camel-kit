@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
 
@@ -107,7 +108,7 @@ public record ShipStamp(
                         .filter(Check::mandatory)
                         .filter(check -> !check.passed())
                         .map(Check::id)
-                        .collect(java.util.stream.Collectors.toSet());
+                        .collect(Collectors.toSet());
                 Set<String> waived = new HashSet<>();
                 for (Waiver waiver : waivers) {
                     Check check = checks.stream()
