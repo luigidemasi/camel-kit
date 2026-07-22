@@ -148,6 +148,9 @@ public final class StageResultValidator {
         if (result.question() != null) {
             violations.add("A discovery continuation cannot contain a user question");
         }
+        if (result.ledger() != null && !result.ledger().openQuestions().isEmpty()) {
+            violations.add("A discovery continuation cannot carry an unpresented ledger question");
+        }
         if (!isBlank(result.failureCode()) || !isBlank(result.failureMessage())) {
             violations.add("A discovery continuation cannot contain failure details");
         }

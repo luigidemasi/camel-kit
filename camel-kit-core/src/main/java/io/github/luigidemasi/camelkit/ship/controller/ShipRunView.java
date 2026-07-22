@@ -10,7 +10,7 @@ import io.github.luigidemasi.camelkit.ship.controller.ShipBlobStore.BlobReferenc
 import io.github.luigidemasi.camelkit.ship.protocol.ShipStage;
 import io.github.luigidemasi.camelkit.ship.protocol.StageRequest;
 
-/** Immutable read-model shape; PR 5 owns reconstruction from integrity-checked event and blob records. */
+/** Immutable read model reconstructed from integrity-checked event and blob records. */
 public record ShipRunView(
         ShipRun authority,
         String eventDigest,
@@ -21,6 +21,7 @@ public record ShipRunView(
         BlobReference sourceSnapshot,
         BlobReference projectSourceManifest,
         Path sourceDirectory,
+        BlobReference contextRequest,
         BlobReference context,
         BlobReference ledger,
         BlobReference catalogEvidence,

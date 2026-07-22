@@ -14,6 +14,7 @@ public enum ShipState {
                                    "waiting-for-remote-use-consent", ShipInteractionKind.REMOTE_USE_CONSENT),
     WAITING_FOR_DISCOVERY_ANSWER(
                                  "waiting-for-discovery-answer", ShipInteractionKind.DISCOVERY_ANSWER),
+    REVIEW_RUNNING("review-running"),
     REQUIREMENTS_READY("requirements-ready"),
     DESIGN_RUNNING("design-running"),
     DESIGN_READY("design-ready"),
@@ -35,6 +36,7 @@ public enum ShipState {
     WAIVER_STAMP_RUNNING("waiver-stamp-running"),
     CONTEXT_FAILED_RETRYABLE("context-failed-retryable"),
     DISCOVERY_FAILED_RETRYABLE("discovery-failed-retryable"),
+    REVIEW_FAILED_RETRYABLE("review-failed-retryable"),
     DESIGN_FAILED_RETRYABLE("design-failed-retryable"),
     PLAN_FAILED_RETRYABLE("plan-failed-retryable"),
     EXECUTE_FAILED_RETRYABLE("execute-failed-retryable"),

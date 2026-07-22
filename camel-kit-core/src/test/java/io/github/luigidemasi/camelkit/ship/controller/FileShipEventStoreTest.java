@@ -24,6 +24,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -72,6 +73,22 @@ class FileShipEventStoreTest {
         assertTrue(stored.contains("\"authorityHead\":\"head-"));
         assertEquals(runId, ShipRunId.fromStorageId(runId.storageId()));
         assertEquals(firstHead, AuthorityHeadId.fromStorageId(firstHead.storageId()));
+    }
+
+    @Test
+    void failedCreateRemovesItsOwnedPartialRunRoot() throws Exception {
+        ShipRunId runId = ShipRunId.create();
+        // The run root fits under Linux PATH_MAX, while its "/events" child does not.
+        int runRootBytes = 4_096 - 6;
+        int stateRootBytes = runRootBytes - 1 - runId.storageId().length();
+        Path stateRoot = directoryWithAbsoluteUtf8Length(temporaryDirectory, stateRootBytes);
+        Files.setPosixFilePermissions(
+                stateRoot, PosixFilePermissions.fromString("rwx------"));
+
+        assertThrows(IOException.class, () -> FileShipEventStore.create(stateRoot, runId));
+
+        assertFalse(Files.exists(
+                stateRoot.resolve(runId.storageId()), LinkOption.NOFOLLOW_LINKS));
     }
 
     @Test
@@ -380,6 +397,26 @@ class FileShipEventStoreTest {
         if (supportsPosix(event)) {
             Files.setPosixFilePermissions(event, PosixFilePermissions.fromString("r--------"));
         }
+    }
+
+    private static Path directoryWithAbsoluteUtf8Length(Path base, int targetBytes)
+            throws IOException {
+        Path result = base.toAbsolutePath().normalize();
+        int currentBytes = result.toString().getBytes(StandardCharsets.UTF_8).length;
+        Assumptions.assumeTrue(
+                currentBytes + 2 < targetBytes,
+                "Temporary directory is too long for the partial-create regression");
+        while (currentBytes < targetBytes) {
+            int needed = targetBytes - currentBytes;
+            int componentBytes = Math.min(200, needed - 1);
+            if (needed - componentBytes - 1 == 1) {
+                componentBytes--;
+            }
+            result = result.resolve("x".repeat(componentBytes));
+            currentBytes += componentBytes + 1;
+        }
+        Files.createDirectories(result);
+        return result;
     }
 
     private static boolean supportsPosix(Path path) {

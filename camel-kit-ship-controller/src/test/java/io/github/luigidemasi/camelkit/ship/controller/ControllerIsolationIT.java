@@ -62,7 +62,9 @@ class ControllerIsolationIT {
                     signature("state", PACKAGE + "ShipState"),
                     signature("revision", "long"),
                     signature("lastEvent", PACKAGE + "ShipEventType"),
-                    signature("terminal", "boolean")),
+                    signature("terminal", "boolean"),
+                    signature("equals", "boolean", "java.lang.Object"),
+                    signature("hashCode", "int")),
             PACKAGE + "ShipRunId",
             Set.of(
                     signature("equals", "boolean", "java.lang.Object"),
@@ -92,15 +94,167 @@ class ControllerIsolationIT {
             "io.github.luigidemasi.camelkit.ship.resolver.");
     private static final Set<String> AUTHORITY_CAPABILITIES = Set.of(
             PACKAGE + "InteractionDecision",
+            PACKAGE + "DesignApprovalDecision",
+            PACKAGE + "PlanApprovalDecision",
             PACKAGE + "DiscoveryAnswer",
             PACKAGE + "PolicyWaiverEligibility",
             PACKAGE + "AcceptedContextResult",
+            PACKAGE + "AcceptedDiscoveryCandidate",
+            PACKAGE + "AcceptedDiscoveryContinuation",
+            PACKAGE + "AcceptedReviewResult",
+            PACKAGE + "AcceptedDesignGapResult",
             PACKAGE + "AcceptedRequirementsResult",
             PACKAGE + "AcceptedDesignResult",
             PACKAGE + "AcceptedPlanResult",
             PACKAGE + "AcceptedExecutionResult",
             PACKAGE + "AcceptedValidationResult",
             PACKAGE + "AcceptedStampCompletion");
+    private static final String ACCEPTED_RESULT_FACTORY = PACKAGE + "AcceptedStageResultFactory";
+    private static final String ISSUE_KEY = ACCEPTED_RESULT_FACTORY + "$IssueKey";
+    private static final Set<String> ACCEPTED_RESULT_FACTORY_METHODS = Set.of(
+            signature("context", PACKAGE + "AcceptedContextResult", PACKAGE + "Attempt", PACKAGE + "ContentId"),
+            signature(
+                    "discoveryCandidate",
+                    PACKAGE + "AcceptedDiscoveryCandidate",
+                    PACKAGE + "Attempt",
+                    PACKAGE + "ContentId"),
+            signature(
+                    "discoveryContinuation",
+                    PACKAGE + "AcceptedDiscoveryContinuation",
+                    PACKAGE + "Attempt",
+                    PACKAGE + "ContentId"),
+            signature(
+                    "review",
+                    PACKAGE + "AcceptedReviewResult",
+                    PACKAGE + "Attempt",
+                    PACKAGE + "ContentId",
+                    PACKAGE + "ContentId"),
+            signature(
+                    "designGaps",
+                    PACKAGE + "AcceptedDesignGapResult",
+                    PACKAGE + "Attempt",
+                    PACKAGE + "ContentId",
+                    PACKAGE + "ContentId"),
+            signature(
+                    "requirements",
+                    PACKAGE + "AcceptedRequirementsResult",
+                    PACKAGE + "Attempt",
+                    PACKAGE + "AuthorityBasis"),
+            signature("design", PACKAGE + "AcceptedDesignResult", PACKAGE + "Attempt", PACKAGE + "ContentId"),
+            signature("plan", PACKAGE + "AcceptedPlanResult", PACKAGE + "Attempt", PACKAGE + "ContentId"),
+            signature("execution", PACKAGE + "AcceptedExecutionResult", PACKAGE + "Attempt", PACKAGE + "ContentId"),
+            signature(
+                    "validation", PACKAGE + "AcceptedValidationResult", PACKAGE + "Attempt", PACKAGE + "ContentId"),
+            signature("stamp", PACKAGE + "AcceptedStampCompletion", PACKAGE + "Attempt", PACKAGE + "ContentId"));
+    private static final Map<String, String> CAPABILITY_ISSUE_BRIDGES = Map.ofEntries(
+            Map.entry(
+                    PACKAGE + "InteractionDecision",
+                    signature(
+                            "issue",
+                            PACKAGE + "InteractionDecision",
+                            PACKAGE + "ShipLifecycleReducer$VerifiedInputKey",
+                            PACKAGE + "PendingInteraction",
+                            PACKAGE + "InteractionDecisionValue",
+                            PACKAGE + "ContentId")),
+            Map.entry(
+                    PACKAGE + "DesignApprovalDecision",
+                    signature(
+                            "issue",
+                            PACKAGE + "DesignApprovalDecision",
+                            PACKAGE + "ShipLifecycleReducer$VerifiedInputKey",
+                            PACKAGE + "PendingInteraction",
+                            PACKAGE + "DesignApprovalDecisionValue",
+                            PACKAGE + "ContentId")),
+            Map.entry(
+                    PACKAGE + "PlanApprovalDecision",
+                    signature(
+                            "issue",
+                            PACKAGE + "PlanApprovalDecision",
+                            PACKAGE + "ShipLifecycleReducer$VerifiedInputKey",
+                            PACKAGE + "PendingInteraction",
+                            PACKAGE + "PlanApprovalDecisionValue",
+                            PACKAGE + "ContentId")),
+            Map.entry(
+                    PACKAGE + "DiscoveryAnswer",
+                    signature(
+                            "issue",
+                            PACKAGE + "DiscoveryAnswer",
+                            PACKAGE + "ShipLifecycleReducer$VerifiedInputKey",
+                            PACKAGE + "PendingInteraction",
+                            PACKAGE + "ContentId")),
+            Map.entry(
+                    PACKAGE + "PolicyWaiverEligibility",
+                    signature(
+                            "issue",
+                            PACKAGE + "PolicyWaiverEligibility",
+                            PACKAGE + "ShipLifecycleReducer$VerifiedInputKey",
+                            PACKAGE + "ShipRunId",
+                            PACKAGE + "Attempt",
+                            PACKAGE + "WaiverBinding")),
+            Map.entry(
+                    PACKAGE + "AcceptedContextResult",
+                    signature("issue", PACKAGE + "AcceptedContextResult", ISSUE_KEY, PACKAGE + "Attempt",
+                            PACKAGE + "ContentId")),
+            Map.entry(
+                    PACKAGE + "AcceptedDiscoveryCandidate",
+                    signature(
+                            "issue",
+                            PACKAGE + "AcceptedDiscoveryCandidate",
+                            ISSUE_KEY,
+                            PACKAGE + "Attempt",
+                            PACKAGE + "ContentId")),
+            Map.entry(
+                    PACKAGE + "AcceptedDiscoveryContinuation",
+                    signature(
+                            "issue",
+                            PACKAGE + "AcceptedDiscoveryContinuation",
+                            ISSUE_KEY,
+                            PACKAGE + "Attempt",
+                            PACKAGE + "ContentId")),
+            Map.entry(
+                    PACKAGE + "AcceptedReviewResult",
+                    signature(
+                            "issue",
+                            PACKAGE + "AcceptedReviewResult",
+                            ISSUE_KEY,
+                            PACKAGE + "Attempt",
+                            PACKAGE + "GapReviewResult")),
+            Map.entry(
+                    PACKAGE + "AcceptedDesignGapResult",
+                    signature(
+                            "issue",
+                            PACKAGE + "AcceptedDesignGapResult",
+                            ISSUE_KEY,
+                            PACKAGE + "Attempt",
+                            PACKAGE + "DesignGapResult")),
+            Map.entry(
+                    PACKAGE + "AcceptedRequirementsResult",
+                    signature(
+                            "issue",
+                            PACKAGE + "AcceptedRequirementsResult",
+                            ISSUE_KEY,
+                            PACKAGE + "Attempt",
+                            PACKAGE + "AuthorityBasis")),
+            Map.entry(
+                    PACKAGE + "AcceptedDesignResult",
+                    signature("issue", PACKAGE + "AcceptedDesignResult", ISSUE_KEY, PACKAGE + "Attempt",
+                            PACKAGE + "ContentId")),
+            Map.entry(
+                    PACKAGE + "AcceptedPlanResult",
+                    signature("issue", PACKAGE + "AcceptedPlanResult", ISSUE_KEY, PACKAGE + "Attempt",
+                            PACKAGE + "ContentId")),
+            Map.entry(
+                    PACKAGE + "AcceptedExecutionResult",
+                    signature("issue", PACKAGE + "AcceptedExecutionResult", ISSUE_KEY, PACKAGE + "Attempt",
+                            PACKAGE + "ContentId")),
+            Map.entry(
+                    PACKAGE + "AcceptedValidationResult",
+                    signature("issue", PACKAGE + "AcceptedValidationResult", ISSUE_KEY, PACKAGE + "Attempt",
+                            PACKAGE + "ContentId")),
+            Map.entry(
+                    PACKAGE + "AcceptedStampCompletion",
+                    signature("issue", PACKAGE + "AcceptedStampCompletion", ISSUE_KEY, PACKAGE + "Attempt",
+                            PACKAGE + "ContentId")));
 
     @Test
     void packagedControllerUsesOnlyJavaBaseAndOwnedClasses() throws Exception {
@@ -253,8 +407,9 @@ class ControllerIsolationIT {
     }
 
     @Test
-    void authorityCapabilitiesHavePrivateConstructorsAndNoPackagedIssuer() throws Exception {
+    void authorityCapabilitiesHavePrivateConstructorsAndOneExactAcceptedResultFactory() throws Exception {
         List<Class<?>> packagedClasses = new ArrayList<>();
+        Set<String> factoryMethods = new HashSet<>();
         try (JarFile archive = new JarFile(controllerJar().toFile());
              URLClassLoader isolated = new URLClassLoader(
                      new URL[]{controllerJar().toUri().toURL()},
@@ -281,9 +436,16 @@ class ControllerIsolationIT {
 
             for (Class<?> owner : packagedClasses) {
                 for (var method : owner.getDeclaredMethods()) {
-                    assertFalse(
-                            containsAuthorityCapability(method.getGenericReturnType()),
-                            method.toGenericString() + " is a packaged capability issuer");
+                    if (!containsAuthorityCapability(method.getGenericReturnType())) {
+                        continue;
+                    }
+                    if (ACCEPTED_RESULT_FACTORY.equals(owner.getName())) {
+                        factoryMethods.add(signature(method));
+                        continue;
+                    }
+                    String issueBridge = CAPABILITY_ISSUE_BRIDGES.get(owner.getName());
+                    assertEquals(issueBridge, signature(method),
+                            method.toGenericString() + " is not an accepted-result issue bridge");
                 }
                 for (var field : owner.getDeclaredFields()) {
                     assertFalse(
@@ -291,6 +453,7 @@ class ControllerIsolationIT {
                             field.toGenericString() + " stores an issuable capability");
                 }
             }
+            assertEquals(ACCEPTED_RESULT_FACTORY_METHODS, factoryMethods);
         }
     }
 

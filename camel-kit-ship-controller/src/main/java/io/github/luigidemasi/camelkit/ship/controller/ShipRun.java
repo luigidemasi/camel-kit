@@ -59,6 +59,22 @@ public final class ShipRun {
         return head;
     }
 
+    @Override
+    public boolean equals(Object other) {
+        return this == other || other instanceof ShipRun that
+                && revision == that.revision
+                && id.equals(that.id)
+                && head.equals(that.head)
+                && state == that.state
+                && lastEvent == that.lastEvent
+                && authority.equals(that.authority);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, head, state, revision, lastEvent, authority);
+    }
+
     private void requireConsistentAuthority() {
         if (!ShipTransitionPolicy.canProduce(lastEvent, state)) {
             throw new IllegalArgumentException("Last event cannot produce state " + state);
@@ -108,6 +124,11 @@ public final class ShipRun {
         if (authority.attempt() != null
                 && authority.attempt().phase() != expectedAttemptPhase) {
             throw new IllegalArgumentException("Attempt phase does not match state " + state);
+        }
+        if (state == ShipState.REVIEW_RUNNING) {
+            requireReviewAttempt(authority.attempt());
+        } else if (state == ShipState.REVIEW_FAILED_RETRYABLE) {
+            requireReviewAttempt(authority.retry().failedAttempt());
         }
         if (authority.pending() != null && authority.attempt() != null) {
             throw new IllegalArgumentException("A pending interaction cannot retain a worker attempt");
@@ -244,7 +265,9 @@ public final class ShipRun {
                     DISCOVERY_ANALYZING,
                     WAITING_FOR_REMOTE_USE_CONSENT,
                     WAITING_FOR_DISCOVERY_ANSWER,
-                    DISCOVERY_FAILED_RETRYABLE -> {
+                    DISCOVERY_FAILED_RETRYABLE,
+                    REVIEW_RUNNING,
+                    REVIEW_FAILED_RETRYABLE -> {
                 requireValue(authority.context(), "Discovery requires recorded context");
                 requireAbsent(
                         authority.basis(),
@@ -379,6 +402,15 @@ public final class ShipRun {
     private void requireBasisOnly() {
         requireValue(authority.context(), "Authority basis requires context");
         requireValue(authority.basis(), "Authority basis is missing");
+    }
+
+    private static void requireReviewAttempt(Attempt attempt) {
+        if (attempt == null
+                || attempt.phase() != ShipPhase.REVIEW
+                || attempt.input().bindings().size() != 1
+                || !(attempt.input().bindings().get(0) instanceof ContentBinding)) {
+            throw new IllegalArgumentException("Review attempt must bind one discovery candidate");
+        }
     }
 
     private void requireCurrentDesignApproval() {

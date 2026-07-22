@@ -42,7 +42,8 @@ final class ShipEventPayloads {
             WaiverRequested,
             WaiverRecorded,
             Failure,
-            StampRecorded {
+            StampRecorded,
+            NoData {
     }
 
     record RunCreated(
@@ -76,11 +77,13 @@ final class ShipEventPayloads {
             List<ShipWorkspaceService.AcceptedArtifact> artifacts,
             BlobReference ledger,
             BlobReference artifactManifest,
+            BlobReference catalogEvidence,
             BlobReference catalogUsage,
             String requirementsDigest,
             String designDigest,
             BlobReference candidateSnapshot,
-            String candidateDirectory)
+            String candidateDirectory,
+            StageStarted continuation)
             implements
                 Payload {
 
@@ -112,7 +115,8 @@ final class ShipEventPayloads {
     record RemoteProviderConsentRecorded(
             RemoteProviderConsentResponse response,
             BlobReference responseReference,
-            BlobReference interactionBundle)
+            BlobReference interactionBundle,
+            StageStarted continuation)
             implements
                 Payload {
     }
@@ -146,7 +150,8 @@ final class ShipEventPayloads {
             DesignResponse response,
             BlobReference responseReference,
             BlobReference design,
-            BlobReference interactionBundle)
+            BlobReference interactionBundle,
+            StageStarted continuation)
             implements
                 Payload {
     }
@@ -161,7 +166,8 @@ final class ShipEventPayloads {
             PlanResponse response,
             BlobReference responseReference,
             BlobReference plan,
-            BlobReference interactionBundle)
+            BlobReference interactionBundle,
+            StageStarted continuation)
             implements
                 Payload {
     }
@@ -201,4 +207,8 @@ final class ShipEventPayloads {
             implements
                 Payload {
     }
+
+    record NoData() implements Payload {
+    }
+
 }

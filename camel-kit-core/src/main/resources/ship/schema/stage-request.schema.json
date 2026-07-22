@@ -352,7 +352,7 @@
             "type": "null"
           },
           "interactionReference": {
-            "type": "null"
+            "$ref": "#/$defs/reference"
           },
           "artifactManifestReference": {
             "type": "null"
@@ -369,8 +369,8 @@
                 "const": "READ_WITH_STAGED_OUTPUT"
               },
               "readRoots": {
-                "minItems": 4,
-                "maxItems": 4
+                "minItems": 5,
+                "maxItems": 5
               },
               "writeRoots": {
                 "minItems": 1,

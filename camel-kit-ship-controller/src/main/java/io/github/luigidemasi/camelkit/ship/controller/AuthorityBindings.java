@@ -80,6 +80,7 @@ sealed interface PhaseBinding
         permits ContentBinding,
         ConsentOutcomeBinding,
         DiscoveryAnswerBinding,
+        ReviewFeedbackBinding,
         ApprovalFeedbackBinding {
 }
 
@@ -107,6 +108,15 @@ record DiscoveryAnswerBinding(ContentId question, ContentId answer) implements P
     DiscoveryAnswerBinding {
         Objects.requireNonNull(question, "question");
         Objects.requireNonNull(answer, "answer");
+    }
+}
+
+record ReviewFeedbackBinding(ContentId rejectedCandidate, ContentId feedback)
+        implements
+            PhaseBinding {
+    ReviewFeedbackBinding {
+        Objects.requireNonNull(rejectedCandidate, "rejectedCandidate");
+        Objects.requireNonNull(feedback, "feedback");
     }
 }
 
@@ -221,6 +231,15 @@ final class PolicyWaiverEligibility {
         this.waiver = Objects.requireNonNull(waiver, "waiver");
     }
 
+    static PolicyWaiverEligibility issue(
+            ShipLifecycleReducer.VerifiedInputKey key,
+            ShipRunId runId,
+            Attempt validationAttempt,
+            WaiverBinding waiver) {
+        ShipLifecycleReducer.requireVerifiedInputKey(key);
+        return new PolicyWaiverEligibility(runId, validationAttempt, waiver);
+    }
+
     ShipRunId runId() {
         return runId;
     }
@@ -256,6 +275,21 @@ enum InteractionDecisionValue {
     DENIED
 }
 
+enum DesignApprovalDecisionValue {
+    APPROVE,
+    REQUEST_DESIGN_CHANGES,
+    REQUEST_REQUIREMENTS_CHANGES,
+    ABORT
+}
+
+enum PlanApprovalDecisionValue {
+    APPROVE,
+    REQUEST_PLAN_CHANGES,
+    REQUEST_DESIGN_CHANGES,
+    REQUEST_REQUIREMENTS_CHANGES,
+    ABORT
+}
+
 /** Production issuance is deliberately absent until protected response verification is added. */
 final class InteractionDecision {
     private final PendingInteraction request;
@@ -268,14 +302,23 @@ final class InteractionDecision {
                                 ContentId feedback) {
         this.request = Objects.requireNonNull(request, "request");
         this.value = Objects.requireNonNull(value, "value");
-        boolean feedbackRequired = value == InteractionDecisionValue.DENIED
-                && (request.kind() == ShipInteractionKind.DESIGN_APPROVAL
-                        || request.kind() == ShipInteractionKind.PLAN_APPROVAL);
-        if (feedbackRequired != (feedback != null)) {
-            throw new IllegalArgumentException(
-                    "Feedback is required only for denied design or plan approval");
+        if (request.kind() == ShipInteractionKind.DESIGN_APPROVAL
+                || request.kind() == ShipInteractionKind.PLAN_APPROVAL) {
+            throw new IllegalArgumentException("Approval decisions require their typed capability");
+        }
+        if (feedback != null) {
+            throw new IllegalArgumentException("Consent and waiver decisions cannot carry feedback");
         }
         this.feedback = feedback;
+    }
+
+    static InteractionDecision issue(
+            ShipLifecycleReducer.VerifiedInputKey key,
+            PendingInteraction request,
+            InteractionDecisionValue value,
+            ContentId feedback) {
+        ShipLifecycleReducer.requireVerifiedInputKey(key);
+        return new InteractionDecision(request, value, feedback);
     }
 
     PendingInteraction request() {
@@ -292,6 +335,109 @@ final class InteractionDecision {
 }
 
 /** Production issuance is deliberately absent until protected response verification is added. */
+final class DesignApprovalDecision {
+    private final PendingInteraction request;
+    private final DesignApprovalDecisionValue value;
+    private final ContentId feedback;
+
+    private DesignApprovalDecision(
+                                   PendingInteraction request,
+                                   DesignApprovalDecisionValue value,
+                                   ContentId feedback) {
+        this.request = requireApprovalRequest(request, ShipInteractionKind.DESIGN_APPROVAL);
+        this.value = Objects.requireNonNull(value, "value");
+        boolean feedbackRequired = value == DesignApprovalDecisionValue.REQUEST_DESIGN_CHANGES
+                || value == DesignApprovalDecisionValue.REQUEST_REQUIREMENTS_CHANGES;
+        if (feedbackRequired != (feedback != null)) {
+            throw new IllegalArgumentException("Design feedback is required only for requested changes");
+        }
+        this.feedback = feedback;
+    }
+
+    static DesignApprovalDecision issue(
+            ShipLifecycleReducer.VerifiedInputKey key,
+            PendingInteraction request,
+            DesignApprovalDecisionValue value,
+            ContentId feedback) {
+        ShipLifecycleReducer.requireVerifiedInputKey(key);
+        return new DesignApprovalDecision(request, value, feedback);
+    }
+
+    PendingInteraction request() {
+        return request;
+    }
+
+    DesignApprovalDecisionValue value() {
+        return value;
+    }
+
+    ContentId feedback() {
+        return feedback;
+    }
+
+    private static PendingInteraction requireApprovalRequest(
+            PendingInteraction request, ShipInteractionKind kind) {
+        PendingInteraction checked = Objects.requireNonNull(request, "request");
+        if (checked.kind() != kind) {
+            throw new IllegalArgumentException("Decision does not match " + kind);
+        }
+        return checked;
+    }
+}
+
+/** Production issuance is deliberately absent until protected response verification is added. */
+final class PlanApprovalDecision {
+    private final PendingInteraction request;
+    private final PlanApprovalDecisionValue value;
+    private final ContentId feedback;
+
+    private PlanApprovalDecision(
+                                 PendingInteraction request,
+                                 PlanApprovalDecisionValue value,
+                                 ContentId feedback) {
+        this.request = requireApprovalRequest(request, ShipInteractionKind.PLAN_APPROVAL);
+        this.value = Objects.requireNonNull(value, "value");
+        boolean feedbackRequired = value == PlanApprovalDecisionValue.REQUEST_PLAN_CHANGES
+                || value == PlanApprovalDecisionValue.REQUEST_DESIGN_CHANGES
+                || value == PlanApprovalDecisionValue.REQUEST_REQUIREMENTS_CHANGES;
+        if (feedbackRequired != (feedback != null)) {
+            throw new IllegalArgumentException("Plan feedback is required only for requested changes");
+        }
+        this.feedback = feedback;
+    }
+
+    static PlanApprovalDecision issue(
+            ShipLifecycleReducer.VerifiedInputKey key,
+            PendingInteraction request,
+            PlanApprovalDecisionValue value,
+            ContentId feedback) {
+        ShipLifecycleReducer.requireVerifiedInputKey(key);
+        return new PlanApprovalDecision(request, value, feedback);
+    }
+
+    PendingInteraction request() {
+        return request;
+    }
+
+    PlanApprovalDecisionValue value() {
+        return value;
+    }
+
+    ContentId feedback() {
+        return feedback;
+    }
+
+    private static PendingInteraction requireApprovalRequest(
+            PendingInteraction request, ShipInteractionKind kind) {
+        PendingInteraction checked = Objects.requireNonNull(request, "request");
+        if (checked.kind() != kind) {
+            throw new IllegalArgumentException("Decision does not match " + kind);
+        }
+        return checked;
+    }
+}
+
+/** Production issuance is deliberately absent until protected response verification is added. */
 final class DiscoveryAnswer {
     private final PendingInteraction request;
     private final ContentId answer;
@@ -299,6 +445,14 @@ final class DiscoveryAnswer {
     private DiscoveryAnswer(PendingInteraction request, ContentId answer) {
         this.request = Objects.requireNonNull(request, "request");
         this.answer = Objects.requireNonNull(answer, "answer");
+    }
+
+    static DiscoveryAnswer issue(
+            ShipLifecycleReducer.VerifiedInputKey key,
+            PendingInteraction request,
+            ContentId answer) {
+        ShipLifecycleReducer.requireVerifiedInputKey(key);
+        return new DiscoveryAnswer(request, answer);
     }
 
     PendingInteraction request() {
@@ -313,6 +467,7 @@ final class DiscoveryAnswer {
 enum ShipPhase {
     CONTEXT(ShipState.CONTEXT_RESOLVING, ShipState.CONTEXT_FAILED_RETRYABLE),
     DISCOVERY(ShipState.DISCOVERY_ANALYZING, ShipState.DISCOVERY_FAILED_RETRYABLE),
+    REVIEW(ShipState.REVIEW_RUNNING, ShipState.REVIEW_FAILED_RETRYABLE),
     DESIGN(ShipState.DESIGN_RUNNING, ShipState.DESIGN_FAILED_RETRYABLE),
     PLAN(ShipState.PLAN_RUNNING, ShipState.PLAN_FAILED_RETRYABLE),
     EXECUTE(ShipState.EXECUTE_RUNNING, ShipState.EXECUTE_FAILED_RETRYABLE),

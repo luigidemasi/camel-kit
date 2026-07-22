@@ -13,6 +13,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.AbstractMap;
 import java.util.AbstractSet;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 
 import io.github.luigidemasi.camelkit.ship.context.ContextFilesystemPolicy.ProjectAccess;
 import io.github.luigidemasi.camelkit.ship.context.ContextFilesystemPolicy.ProjectRootAdmission;
+import io.github.luigidemasi.camelkit.ship.controller.ProjectSourceManifest;
 import io.github.luigidemasi.camelkit.ship.security.ProjectContextFiles.HeldRoot;
 import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy.Classification;
 
@@ -44,6 +46,48 @@ class ProjectSnapshotServiceTest {
 
     @TempDir
     Path temporaryDirectory;
+
+    @Test
+    void projectSourceManifestBindsCanonicalControllerOwnedCitationIdentities() throws Exception {
+        Path project = project();
+        write(project, "z-last.txt", "last");
+        write(project, "a-first.txt", "first");
+        write(project, ".git/HEAD", "protected");
+        Path target = Files.createDirectory(temporaryDirectory.resolve("manifest-target"));
+        ProjectSnapshotService service = new ProjectSnapshotService();
+        ProjectSnapshot snapshot = service.materializeMaterial(project, target);
+
+        ProjectSourceManifest manifest = ProjectSourceManifest.from(snapshot);
+
+        assertEquals(snapshot.digest(), manifest.sourceSnapshotDigest());
+        assertEquals(
+                List.of("a-first.txt", "z-last.txt"),
+                manifest.sources().stream()
+                        .map(ProjectSourceManifest.FileSource::relativePath)
+                        .toList());
+        assertTrue(manifest.sources().stream()
+                .allMatch(source -> source.sourceId().matches("project-file-[0-9a-f]{64}")));
+        assertTrue(manifest.sources().stream()
+                .allMatch(source -> source.locator()
+                        .equals("controller:project-source#" + source.relativePath())));
+        assertEquals(manifest, ProjectSourceManifest.from(service.captureSealed(target)));
+
+        ArrayList<ProjectSourceManifest.FileSource> escaped = new ArrayList<>(manifest.sources());
+        ProjectSourceManifest.FileSource first = escaped.get(0);
+        escaped.set(0, new ProjectSourceManifest.FileSource(
+                first.relativePath(),
+                first.sourceId(),
+                "controller:project-source#../escape",
+                first.digest(),
+                first.byteSize()));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new ProjectSourceManifest(
+                        manifest.schemaVersion(),
+                        manifest.sourceSnapshotDigest(),
+                        escaped,
+                        manifest.digest()));
+    }
 
     @Test
     void capturesMaterialProtectedAndVolatileEntriesUnderOneDigestedPolicy() throws Exception {

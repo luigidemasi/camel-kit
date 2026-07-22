@@ -80,6 +80,115 @@ public final class InitialContextResolver {
         }
     }
 
+    /** Validates the bounded, filesystem-independent request syntax before durable controller admission. */
+    public static void validateRequestSyntax(InitialContextRequest request)
+            throws InitialContextException {
+        Objects.requireNonNull(request, "initial context request");
+        long textBytes = 0;
+        for (int ordinal = 0; ordinal < request.sources().size(); ordinal++) {
+            InitialContextRequest.Source source = request.sources().get(ordinal);
+            if (source instanceof UserText text) {
+                requireNoNul(text.value(), ordinal);
+                int remaining = Math.toIntExact(InitialContext.MAX_TOTAL_BYTES - textBytes);
+                textBytes = Math.addExact(
+                        textBytes, textUtf8Length(text.value(), ordinal, remaining));
+                continue;
+            }
+
+            String reference = ((DocumentReference) source).value();
+            Path path = parseDocumentReference(reference);
+            try {
+                if (path.isAbsolute()) {
+                    if (!path.normalize().equals(path)) {
+                        throw new IllegalArgumentException("Absolute path is not normalized");
+                    }
+                    requireSafeAbsoluteComponents(path, reference);
+                } else {
+                    ShipTreePolicy.requireCanonicalRelativePath(reference);
+                }
+            } catch (IllegalArgumentException e) {
+                throw failure(
+                        Reason.DOCUMENT_PATH_ESCAPE,
+                        ContextModelSupport.safeDocumentReferenceDiagnostic(reference),
+                        "Document reference must be lexically canonical and confined",
+                        e);
+            }
+        }
+    }
+
+    /** Resolves a project-relative request from controller-protected document bytes. */
+    public static InitialContext resolveProtectedProjectRequest(
+            InitialContextRequest request, ProtectedProjectReader reader)
+            throws InitialContextException {
+        validateRequestSyntax(request);
+        Objects.requireNonNull(reader, "protected project reader");
+        List<InitialContext.Source> sources = new ArrayList<>(request.sources().size());
+        long totalBytes = 0;
+        for (int ordinal = 0; ordinal < request.sources().size(); ordinal++) {
+            InitialContextRequest.Source source = request.sources().get(ordinal);
+            if (source instanceof UserText text) {
+                requireNoNul(text.value(), ordinal);
+                int remaining = Math.toIntExact(InitialContext.MAX_TOTAL_BYTES - totalBytes);
+                int byteLength = textUtf8Length(text.value(), ordinal, remaining);
+                totalBytes += byteLength;
+                sources.add(InitialContext.userText(text.value()));
+                continue;
+            }
+
+            String relativePath = ((DocumentReference) source).value();
+            if (parseDocumentReference(relativePath).isAbsolute()) {
+                throw failure(
+                        Reason.DOCUMENT_PATH_ESCAPE,
+                        relativePath,
+                        "Protected project resolution requires a project-relative document");
+            }
+            long remaining = InitialContext.MAX_TOTAL_BYTES - totalBytes;
+            if (remaining < 1) {
+                throw failure(
+                        Reason.CONTEXT_TOO_LARGE,
+                        relativePath,
+                        "No aggregate context capacity remains for the project document");
+            }
+            int readLimit = (int) Math.min(InitialContext.MAX_DOCUMENT_BYTES, remaining);
+            byte[] bytes;
+            try {
+                bytes = reader.readDocument(relativePath, readLimit);
+            } catch (IOException e) {
+                throw mapReadFailure(
+                        relativePath, e, remaining < InitialContext.MAX_DOCUMENT_BYTES);
+            }
+            if (bytes == null) {
+                throw failure(
+                        Reason.DOCUMENT_UNREADABLE,
+                        relativePath,
+                        "Protected project reader returned no document bytes");
+            }
+            if (bytes.length == 0) {
+                throw failure(
+                        Reason.DOCUMENT_EMPTY,
+                        relativePath,
+                        "Project context document is empty");
+            }
+            if (bytes.length > InitialContext.MAX_DOCUMENT_BYTES) {
+                throw failure(
+                        Reason.DOCUMENT_TOO_LARGE,
+                        relativePath,
+                        "Project context document exceeds the document byte limit");
+            }
+            if (bytes.length > remaining) {
+                throw failure(
+                        Reason.CONTEXT_TOO_LARGE,
+                        relativePath,
+                        "Project context document exceeds remaining aggregate capacity");
+            }
+            String content = decodeStrict(bytes, relativePath);
+            requireNoNul(content, relativePath);
+            totalBytes += bytes.length;
+            sources.add(InitialContext.projectDocument(relativePath, content));
+        }
+        return InitialContext.fromSources(sources);
+    }
+
     private ContextResolution resolve(ProjectAccess access, InitialContextRequest request)
             throws InitialContextException {
         Map<Integer, PlannedDocument> documents = classifyDocuments(access, request.sources());
@@ -395,6 +504,11 @@ public final class InitialContextResolver {
     @FunctionalInterface
     interface ProjectReaderOpener {
         ProjectReader open(ProjectAccess access) throws IOException;
+    }
+
+    @FunctionalInterface
+    public interface ProtectedProjectReader {
+        byte[] readDocument(String canonicalRelativePath, int maximumBytes) throws IOException;
     }
 
     interface ProjectReader extends AutoCloseable {

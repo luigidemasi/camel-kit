@@ -63,14 +63,22 @@ final class ShipTransitionPolicy {
         put(transitions, ShipState.DISCOVERY_ANALYZING,
                 ShipEventType.DISCOVERY_QUESTION_PRESENTED,
                 ShipState.WAITING_FOR_DISCOVERY_ANSWER);
+        put(transitions, ShipState.DISCOVERY_ANALYZING,
+                ShipEventType.DISCOVERY_CONTINUED, ShipState.DISCOVERY_ANALYZING);
         put(transitions, ShipState.WAITING_FOR_DISCOVERY_ANSWER,
                 ShipEventType.DISCOVERY_ANSWER_RECORDED, ShipState.DISCOVERY_ANALYZING);
         put(transitions, ShipState.DISCOVERY_ANALYZING,
+                ShipEventType.GAP_REVIEW_STARTED, ShipState.REVIEW_RUNNING);
+        put(transitions, ShipState.REVIEW_RUNNING,
+                ShipEventType.GAP_REVIEW_REOPENED, ShipState.DISCOVERY_ANALYZING);
+        put(transitions, ShipState.REVIEW_RUNNING,
                 ShipEventType.REQUIREMENTS_READY, ShipState.REQUIREMENTS_READY);
         put(transitions, ShipState.REQUIREMENTS_READY,
                 ShipEventType.DESIGN_STARTED, ShipState.DESIGN_RUNNING);
         put(transitions, ShipState.DESIGN_RUNNING,
                 ShipEventType.DESIGN_READY, ShipState.DESIGN_READY);
+        put(transitions, ShipState.DESIGN_RUNNING,
+                ShipEventType.DESIGN_GAPS_FOUND, ShipState.DISCOVERY_ANALYZING);
         put(transitions, ShipState.DESIGN_READY,
                 ShipEventType.DESIGN_APPROVAL_REQUESTED,
                 ShipState.WAITING_FOR_DESIGN_APPROVAL);
@@ -78,6 +86,11 @@ final class ShipTransitionPolicy {
                 ShipEventType.DESIGN_APPROVED, ShipState.DESIGN_APPROVED);
         put(transitions, ShipState.WAITING_FOR_DESIGN_APPROVAL,
                 ShipEventType.DESIGN_APPROVAL_DENIED, ShipState.DESIGN_RUNNING);
+        put(transitions, ShipState.WAITING_FOR_DESIGN_APPROVAL,
+                ShipEventType.DESIGN_REQUIREMENTS_CHANGES_REQUESTED,
+                ShipState.DISCOVERY_ANALYZING);
+        put(transitions, ShipState.WAITING_FOR_DESIGN_APPROVAL,
+                ShipEventType.DESIGN_APPROVAL_ABORTED, ShipState.ABORTED);
         put(transitions, ShipState.DESIGN_APPROVED,
                 ShipEventType.PLAN_STARTED, ShipState.PLAN_RUNNING);
         put(transitions, ShipState.PLAN_RUNNING,
@@ -89,6 +102,13 @@ final class ShipTransitionPolicy {
                 ShipEventType.PLAN_APPROVED, ShipState.PLAN_APPROVED);
         put(transitions, ShipState.WAITING_FOR_PLAN_APPROVAL,
                 ShipEventType.PLAN_APPROVAL_DENIED, ShipState.PLAN_RUNNING);
+        put(transitions, ShipState.WAITING_FOR_PLAN_APPROVAL,
+                ShipEventType.PLAN_DESIGN_CHANGES_REQUESTED, ShipState.DESIGN_RUNNING);
+        put(transitions, ShipState.WAITING_FOR_PLAN_APPROVAL,
+                ShipEventType.PLAN_REQUIREMENTS_CHANGES_REQUESTED,
+                ShipState.DISCOVERY_ANALYZING);
+        put(transitions, ShipState.WAITING_FOR_PLAN_APPROVAL,
+                ShipEventType.PLAN_APPROVAL_ABORTED, ShipState.ABORTED);
         put(transitions, ShipState.PLAN_APPROVED,
                 ShipEventType.EXECUTION_STARTED, ShipState.EXECUTE_RUNNING);
         put(transitions, ShipState.EXECUTE_RUNNING,
@@ -129,12 +149,10 @@ final class ShipTransitionPolicy {
                         ShipState.REQUIREMENTS_READY,
                         ShipState.DESIGN_RUNNING,
                         ShipState.DESIGN_READY,
-                        ShipState.WAITING_FOR_DESIGN_APPROVAL,
                         ShipState.DESIGN_APPROVED,
                         ShipState.DESIGN_FAILED_RETRYABLE,
                         ShipState.PLAN_RUNNING,
                         ShipState.PLAN_VALIDATED,
-                        ShipState.WAITING_FOR_PLAN_APPROVAL,
                         ShipState.PLAN_APPROVED,
                         ShipState.PLAN_FAILED_RETRYABLE,
                         ShipState.EXECUTE_RUNNING,
@@ -144,7 +162,6 @@ final class ShipTransitionPolicy {
                         ShipState.VALIDATE_PASSED,
                         ShipState.VALIDATE_FAILED_RETRYABLE,
                         ShipState.WAIVER_ELIGIBLE,
-                        ShipState.WAITING_FOR_WAIVER,
                         ShipState.WAIVER_RECORDED,
                         ShipState.STAMP_RUNNING,
                         ShipState.STAMP_FAILED_RETRYABLE,
@@ -157,12 +174,10 @@ final class ShipTransitionPolicy {
                 EnumSet.of(
                         ShipState.DESIGN_RUNNING,
                         ShipState.DESIGN_READY,
-                        ShipState.WAITING_FOR_DESIGN_APPROVAL,
                         ShipState.DESIGN_APPROVED,
                         ShipState.DESIGN_FAILED_RETRYABLE,
                         ShipState.PLAN_RUNNING,
                         ShipState.PLAN_VALIDATED,
-                        ShipState.WAITING_FOR_PLAN_APPROVAL,
                         ShipState.PLAN_APPROVED,
                         ShipState.PLAN_FAILED_RETRYABLE,
                         ShipState.EXECUTE_RUNNING,
@@ -172,7 +187,6 @@ final class ShipTransitionPolicy {
                         ShipState.VALIDATE_PASSED,
                         ShipState.VALIDATE_FAILED_RETRYABLE,
                         ShipState.WAIVER_ELIGIBLE,
-                        ShipState.WAITING_FOR_WAIVER,
                         ShipState.WAIVER_RECORDED,
                         ShipState.STAMP_RUNNING,
                         ShipState.STAMP_FAILED_RETRYABLE,
@@ -185,7 +199,6 @@ final class ShipTransitionPolicy {
                 EnumSet.of(
                         ShipState.PLAN_RUNNING,
                         ShipState.PLAN_VALIDATED,
-                        ShipState.WAITING_FOR_PLAN_APPROVAL,
                         ShipState.PLAN_APPROVED,
                         ShipState.PLAN_FAILED_RETRYABLE,
                         ShipState.EXECUTE_RUNNING,
@@ -195,7 +208,6 @@ final class ShipTransitionPolicy {
                         ShipState.VALIDATE_PASSED,
                         ShipState.VALIDATE_FAILED_RETRYABLE,
                         ShipState.WAIVER_ELIGIBLE,
-                        ShipState.WAITING_FOR_WAIVER,
                         ShipState.WAIVER_RECORDED,
                         ShipState.STAMP_RUNNING,
                         ShipState.STAMP_FAILED_RETRYABLE,

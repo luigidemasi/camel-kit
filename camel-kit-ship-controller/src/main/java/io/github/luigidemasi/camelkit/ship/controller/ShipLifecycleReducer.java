@@ -13,6 +13,8 @@ import java.util.Objects;
  */
 final class ShipLifecycleReducer {
 
+    private static final VerifiedInputKey VERIFIED_INPUT_KEY = new VerifiedInputKey();
+
     private ShipLifecycleReducer() {
     }
 
@@ -24,6 +26,57 @@ final class ShipLifecycleReducer {
                 0,
                 ShipEventType.RUN_CREATED,
                 AuthorityData.empty());
+    }
+
+    /**
+     * Rebinds a locally reduced successor to the authority head committed by the authenticated event store.
+     *
+     * <p>
+     * The event projector must still prove predecessor continuity and event semantics. This method only replaces the
+     * reducer's provisional UUID and every successor-local copy of it, then lets {@link ShipRun} revalidate the
+     * complete authority snapshot.
+     */
+    static ShipRun rebindAuthorityHead(ShipRun successor, AuthorityHeadId authenticatedHead) {
+        ShipRun run = requireRun(successor);
+        AuthorityHeadId head = Objects.requireNonNull(authenticatedHead, "authenticatedHead");
+        AuthorityData current = run.authority();
+
+        PendingInteraction pending = current.pending();
+        if (pending != null) {
+            pending = new PendingInteraction(
+                    pending.runId(), pending.requestRevision(), head, pending.kind(), pending.binding());
+        }
+
+        Attempt attempt = current.attempt();
+        if (attempt != null) {
+            attempt = new Attempt(
+                    attempt.runId(), head, attempt.number(), attempt.phase(), attempt.input());
+        }
+
+        RetryBinding retry = current.retry();
+        if (retry != null) {
+            retry = new RetryBinding(
+                    retry.failedAttempt(), retry.failureRevision(), head, retry.resumeState());
+        }
+
+        AuthorityData rebound = new AuthorityData(
+                current.context(),
+                current.basis(),
+                current.design(),
+                current.designApproval(),
+                current.plan(),
+                current.planApproval(),
+                current.execution(),
+                current.validation(),
+                current.stampCompletion(),
+                pending,
+                attempt,
+                retry,
+                current.waiverCandidate(),
+                current.recordedWaiver(),
+                current.lastAttemptNumber());
+        return new ShipRun(
+                run.id(), head, run.state(), run.revision(), run.lastEvent(), rebound);
     }
 
     static ShipRun startContextResolution(ShipRun run, ContentId input) {
@@ -157,7 +210,41 @@ final class ShipLifecycleReducer {
                 .build();
     }
 
+    static ShipRun continueDiscovery(ShipRun run, AcceptedDiscoveryContinuation result) {
+        ContentId continuation = requireAcceptedResult(run, result);
+        return next(run, ShipEventType.DISCOVERY_CONTINUED)
+                .clearAttempt()
+                .startAttempt(ShipPhase.DISCOVERY, continuation)
+                .build();
+    }
+
+    static ShipRun startGapReview(ShipRun run, AcceptedDiscoveryCandidate result) {
+        ContentId candidate = requireAcceptedResult(run, result);
+        return next(run, ShipEventType.GAP_REVIEW_STARTED)
+                .clearAttempt()
+                .startAttempt(ShipPhase.REVIEW, candidate)
+                .build();
+    }
+
+    static ShipRun reopenGapReview(ShipRun run, AcceptedReviewResult result) {
+        GapReviewResult review = requireAcceptedResult(run, result);
+        ContentId candidate = requireReviewCandidate(result.attempt());
+        if (!candidate.equals(review.candidate())) {
+            throw new IllegalStateException("Review result does not bind the reviewed candidate");
+        }
+        ContentId context = requireValue(run.authority().context(), "Context is not recorded");
+        PhaseInput discoveryInput = new PhaseInput(
+                java.util.List.of(
+                        new ContentBinding(context),
+                        new ReviewFeedbackBinding(candidate, review.feedback())));
+        Next next = next(run, ShipEventType.GAP_REVIEW_REOPENED).clearAttempt();
+        next.basis = null;
+        next.clearDesignAndLater();
+        return next.startAttempt(ShipPhase.DISCOVERY, discoveryInput).build();
+    }
+
     static ShipRun requirementsReady(ShipRun run, AcceptedRequirementsResult result) {
+        requireReviewCandidate(ShipLifecycleReducer.attempt(run));
         AuthorityBasis basis = requireAcceptedResult(run, result);
         if (!basis.context().equals(run.authority().context())) {
             throw new IllegalStateException("Authority basis does not bind the recorded context");
@@ -184,6 +271,19 @@ final class ShipLifecycleReducer {
         return next.build();
     }
 
+    static ShipRun designGapsFound(ShipRun run, AcceptedDesignGapResult result) {
+        DesignGapResult gaps = requireAcceptedResult(run, result);
+        ContentId context = requireValue(run.authority().context(), "Context is not recorded");
+        PhaseInput discoveryInput = new PhaseInput(
+                java.util.List.of(
+                        new ContentBinding(context),
+                        new ReviewFeedbackBinding(gaps.candidate(), gaps.feedback())));
+        Next next = next(run, ShipEventType.DESIGN_GAPS_FOUND).clearAttempt();
+        next.basis = null;
+        next.clearDesignAndLater();
+        return next.startAttempt(ShipPhase.DISCOVERY, discoveryInput).build();
+    }
+
     static ShipRun requestDesignApproval(ShipRun run) {
         requireBasis(run);
         ContentId design = requireValue(run.authority().design(), "Design is not ready");
@@ -194,12 +294,11 @@ final class ShipLifecycleReducer {
                 .build();
     }
 
-    static ShipRun approveDesign(ShipRun run, InteractionDecision response) {
-        PendingInteraction request = requireDecision(
+    static ShipRun approveDesign(ShipRun run, DesignApprovalDecision response) {
+        PendingInteraction request = requireDesignDecision(
                 run,
                 response,
-                ShipInteractionKind.DESIGN_APPROVAL,
-                InteractionDecisionValue.ACCEPTED);
+                DesignApprovalDecisionValue.APPROVE);
         AuthorityBasis basis = requireBasis(run);
         ContentId design = requireValue(run.authority().design(), "Design is not ready");
         requireBinding(request, new DesignDecisionBinding(basis, design));
@@ -208,12 +307,11 @@ final class ShipLifecycleReducer {
         return next.build();
     }
 
-    static ShipRun denyDesignApproval(ShipRun run, InteractionDecision response) {
-        requireDecision(
+    static ShipRun denyDesignApproval(ShipRun run, DesignApprovalDecision response) {
+        requireDesignDecision(
                 run,
                 response,
-                ShipInteractionKind.DESIGN_APPROVAL,
-                InteractionDecisionValue.DENIED);
+                DesignApprovalDecisionValue.REQUEST_DESIGN_CHANGES);
         ContentId rejectedDesign = requireValue(run.authority().design(), "Design is not ready");
         PhaseInput retryInput = new PhaseInput(
                 java.util.List.of(
@@ -227,6 +325,31 @@ final class ShipLifecycleReducer {
         next.designApproval = null;
         next.clearPlanAndLater();
         return next.startAttempt(ShipPhase.DESIGN, retryInput).build();
+    }
+
+    static ShipRun requestRequirementsChangesFromDesign(
+            ShipRun run, DesignApprovalDecision response) {
+        requireDesignDecision(
+                run, response, DesignApprovalDecisionValue.REQUEST_REQUIREMENTS_CHANGES);
+        ContentId rejectedDesign = requireValue(run.authority().design(), "Design is not ready");
+        ContentId context = requireValue(run.authority().context(), "Context is not recorded");
+        PhaseInput discoveryInput = new PhaseInput(
+                java.util.List.of(
+                        new ContentBinding(context),
+                        new ApprovalFeedbackBinding(
+                                ShipInteractionKind.DESIGN_APPROVAL,
+                                rejectedDesign,
+                                response.feedback())));
+        Next next = next(run, ShipEventType.DESIGN_REQUIREMENTS_CHANGES_REQUESTED)
+                .clearPending();
+        next.basis = null;
+        next.clearDesignAndLater();
+        return next.startAttempt(ShipPhase.DISCOVERY, discoveryInput).build();
+    }
+
+    static ShipRun abortDesignApproval(ShipRun run, DesignApprovalDecision response) {
+        requireDesignDecision(run, response, DesignApprovalDecisionValue.ABORT);
+        return next(run, ShipEventType.DESIGN_APPROVAL_ABORTED).clearLiveAuthority().build();
     }
 
     static ShipRun startPlan(ShipRun run) {
@@ -256,12 +379,11 @@ final class ShipLifecycleReducer {
                 .build();
     }
 
-    static ShipRun approvePlan(ShipRun run, InteractionDecision response) {
-        PendingInteraction request = requireDecision(
+    static ShipRun approvePlan(ShipRun run, PlanApprovalDecision response) {
+        PendingInteraction request = requirePlanDecision(
                 run,
                 response,
-                ShipInteractionKind.PLAN_APPROVAL,
-                InteractionDecisionValue.ACCEPTED);
+                PlanApprovalDecisionValue.APPROVE);
         AuthorityBasis basis = requireBasis(run);
         DesignApproval designApproval = requireCurrentDesignApproval(run);
         ContentId plan = requireValue(run.authority().plan(), "Plan is not validated");
@@ -271,12 +393,11 @@ final class ShipLifecycleReducer {
         return next.build();
     }
 
-    static ShipRun denyPlanApproval(ShipRun run, InteractionDecision response) {
-        requireDecision(
+    static ShipRun denyPlanApproval(ShipRun run, PlanApprovalDecision response) {
+        requirePlanDecision(
                 run,
                 response,
-                ShipInteractionKind.PLAN_APPROVAL,
-                InteractionDecisionValue.DENIED);
+                PlanApprovalDecisionValue.REQUEST_PLAN_CHANGES);
         ContentId rejectedPlan = requireValue(run.authority().plan(), "Plan is not validated");
         PhaseInput retryInput = new PhaseInput(
                 java.util.List.of(
@@ -290,6 +411,49 @@ final class ShipLifecycleReducer {
         next.planApproval = null;
         next.clearWaiver();
         return next.startAttempt(ShipPhase.PLAN, retryInput).build();
+    }
+
+    static ShipRun requestDesignChangesFromPlan(
+            ShipRun run, PlanApprovalDecision response) {
+        requirePlanDecision(run, response, PlanApprovalDecisionValue.REQUEST_DESIGN_CHANGES);
+        ContentId rejectedPlan = requireValue(run.authority().plan(), "Plan is not validated");
+        AuthorityBasis basis = requireBasis(run);
+        PhaseInput designInput = new PhaseInput(
+                java.util.List.of(
+                        new ContentBinding(basis.requirements()),
+                        new ApprovalFeedbackBinding(
+                                ShipInteractionKind.PLAN_APPROVAL,
+                                rejectedPlan,
+                                response.feedback())));
+        Next next = next(run, ShipEventType.PLAN_DESIGN_CHANGES_REQUESTED).clearPending();
+        next.design = null;
+        next.designApproval = null;
+        next.clearPlanAndLater();
+        return next.startAttempt(ShipPhase.DESIGN, designInput).build();
+    }
+
+    static ShipRun requestRequirementsChangesFromPlan(
+            ShipRun run, PlanApprovalDecision response) {
+        requirePlanDecision(run, response, PlanApprovalDecisionValue.REQUEST_REQUIREMENTS_CHANGES);
+        ContentId rejectedPlan = requireValue(run.authority().plan(), "Plan is not validated");
+        ContentId context = requireValue(run.authority().context(), "Context is not recorded");
+        PhaseInput discoveryInput = new PhaseInput(
+                java.util.List.of(
+                        new ContentBinding(context),
+                        new ApprovalFeedbackBinding(
+                                ShipInteractionKind.PLAN_APPROVAL,
+                                rejectedPlan,
+                                response.feedback())));
+        Next next = next(run, ShipEventType.PLAN_REQUIREMENTS_CHANGES_REQUESTED)
+                .clearPending();
+        next.basis = null;
+        next.clearDesignAndLater();
+        return next.startAttempt(ShipPhase.DISCOVERY, discoveryInput).build();
+    }
+
+    static ShipRun abortPlanApproval(ShipRun run, PlanApprovalDecision response) {
+        requirePlanDecision(run, response, PlanApprovalDecisionValue.ABORT);
+        return next(run, ShipEventType.PLAN_APPROVAL_ABORTED).clearLiveAuthority().build();
     }
 
     static ShipRun startExecution(ShipRun run) {
@@ -458,6 +622,122 @@ final class ShipLifecycleReducer {
         return next(run, ShipEventType.RUN_ABORTED).clearLiveAuthority().build();
     }
 
+    /** Applies an interaction outcome only after the owning controller has verified its protected record. */
+    static ShipRun applyVerifiedDecision(
+            ShipRun run, ShipEventType event, ContentId feedback) {
+        if (event == ShipEventType.DESIGN_APPROVED
+                || event == ShipEventType.DESIGN_APPROVAL_DENIED
+                || event == ShipEventType.DESIGN_REQUIREMENTS_CHANGES_REQUESTED
+                || event == ShipEventType.DESIGN_APPROVAL_ABORTED) {
+            return applyVerifiedDesignDecision(run, event, feedback);
+        }
+        if (event == ShipEventType.PLAN_APPROVED
+                || event == ShipEventType.PLAN_APPROVAL_DENIED
+                || event == ShipEventType.PLAN_DESIGN_CHANGES_REQUESTED
+                || event == ShipEventType.PLAN_REQUIREMENTS_CHANGES_REQUESTED
+                || event == ShipEventType.PLAN_APPROVAL_ABORTED) {
+            return applyVerifiedPlanDecision(run, event, feedback);
+        }
+        PendingInteraction pending = pending(run);
+        InteractionDecisionValue value = switch (event) {
+            case DOCUMENT_CONSENT_ACCEPTED,
+                    REMOTE_USE_CONSENT_ACCEPTED,
+                    WAIVER_RECORDED ->
+                InteractionDecisionValue.ACCEPTED;
+            case DOCUMENT_CONSENT_DENIED,
+                    REMOTE_USE_CONSENT_DENIED,
+                    WAIVER_DENIED ->
+                InteractionDecisionValue.DENIED;
+            default -> throw new IllegalArgumentException("Event is not a verified interaction decision: " + event);
+        };
+        InteractionDecision decision = InteractionDecision.issue(
+                VERIFIED_INPUT_KEY, pending, value, feedback);
+        return switch (event) {
+            case DOCUMENT_CONSENT_ACCEPTED -> acceptDocumentConsent(run, decision);
+            case DOCUMENT_CONSENT_DENIED -> denyDocumentConsent(run, decision);
+            case REMOTE_USE_CONSENT_ACCEPTED -> acceptRemoteUseConsent(run, decision);
+            case REMOTE_USE_CONSENT_DENIED -> denyRemoteUseConsent(run, decision);
+            case WAIVER_RECORDED -> recordWaiver(run, decision);
+            case WAIVER_DENIED -> denyWaiver(run, decision);
+            default -> throw new AssertionError(event);
+        };
+    }
+
+    /** Applies a typed design outcome only after the owning controller has verified its protected record. */
+    static ShipRun applyVerifiedDesignDecision(
+            ShipRun run, ShipEventType event, ContentId feedback) {
+        DesignApprovalDecisionValue value = switch (event) {
+            case DESIGN_APPROVED -> DesignApprovalDecisionValue.APPROVE;
+            case DESIGN_APPROVAL_DENIED -> DesignApprovalDecisionValue.REQUEST_DESIGN_CHANGES;
+            case DESIGN_REQUIREMENTS_CHANGES_REQUESTED ->
+                DesignApprovalDecisionValue.REQUEST_REQUIREMENTS_CHANGES;
+            case DESIGN_APPROVAL_ABORTED -> DesignApprovalDecisionValue.ABORT;
+            default -> throw new IllegalArgumentException("Event is not a design decision: " + event);
+        };
+        DesignApprovalDecision decision = DesignApprovalDecision.issue(
+                VERIFIED_INPUT_KEY, pending(run), value, feedback);
+        return switch (value) {
+            case APPROVE -> approveDesign(run, decision);
+            case REQUEST_DESIGN_CHANGES -> denyDesignApproval(run, decision);
+            case REQUEST_REQUIREMENTS_CHANGES -> requestRequirementsChangesFromDesign(run, decision);
+            case ABORT -> abortDesignApproval(run, decision);
+        };
+    }
+
+    /** Applies a typed plan outcome only after the owning controller has verified its protected record. */
+    static ShipRun applyVerifiedPlanDecision(
+            ShipRun run, ShipEventType event, ContentId feedback) {
+        PlanApprovalDecisionValue value = switch (event) {
+            case PLAN_APPROVED -> PlanApprovalDecisionValue.APPROVE;
+            case PLAN_APPROVAL_DENIED -> PlanApprovalDecisionValue.REQUEST_PLAN_CHANGES;
+            case PLAN_DESIGN_CHANGES_REQUESTED -> PlanApprovalDecisionValue.REQUEST_DESIGN_CHANGES;
+            case PLAN_REQUIREMENTS_CHANGES_REQUESTED ->
+                PlanApprovalDecisionValue.REQUEST_REQUIREMENTS_CHANGES;
+            case PLAN_APPROVAL_ABORTED -> PlanApprovalDecisionValue.ABORT;
+            default -> throw new IllegalArgumentException("Event is not a plan decision: " + event);
+        };
+        PlanApprovalDecision decision = PlanApprovalDecision.issue(
+                VERIFIED_INPUT_KEY, pending(run), value, feedback);
+        return switch (value) {
+            case APPROVE -> approvePlan(run, decision);
+            case REQUEST_PLAN_CHANGES -> denyPlanApproval(run, decision);
+            case REQUEST_DESIGN_CHANGES -> requestDesignChangesFromPlan(run, decision);
+            case REQUEST_REQUIREMENTS_CHANGES -> requestRequirementsChangesFromPlan(run, decision);
+            case ABORT -> abortPlanApproval(run, decision);
+        };
+    }
+
+    /** Applies a discovery answer only after the owning controller has verified its protected record. */
+    static ShipRun applyVerifiedDiscoveryAnswer(ShipRun run, ContentId answer) {
+        return recordDiscoveryAnswer(
+                run,
+                DiscoveryAnswer.issue(VERIFIED_INPUT_KEY, pending(run), answer));
+    }
+
+    /** Applies waiver eligibility only after deterministic controller policy verification. */
+    static ShipRun applyVerifiedWaiverEligibility(
+            ShipRun run, ContentId stableCheckId, ContentId evidence, ContentId policy) {
+        Attempt attempt = attempt(run);
+        PolicyWaiverEligibility eligibility = PolicyWaiverEligibility.issue(
+                VERIFIED_INPUT_KEY,
+                run.id(),
+                attempt,
+                new WaiverBinding(stableCheckId, evidence, policy));
+        return recordWaivableFailure(run, attempt, eligibility);
+    }
+
+    static void requireVerifiedInputKey(VerifiedInputKey key) {
+        if (key != VERIFIED_INPUT_KEY) {
+            throw new IllegalArgumentException("Lifecycle capabilities require verified controller input");
+        }
+    }
+
+    static final class VerifiedInputKey {
+
+        private VerifiedInputKey() {
+        }
+    }
+
     static PendingInteraction pending(ShipRun run) {
         PendingInteraction pending = requireRun(run).authority().pending();
         if (pending == null) {
@@ -526,6 +806,28 @@ final class ShipLifecycleReducer {
         return response.request();
     }
 
+    private static PendingInteraction requireDesignDecision(
+            ShipRun run,
+            DesignApprovalDecision response,
+            DesignApprovalDecisionValue expectedValue) {
+        if (response == null || response.value() != expectedValue) {
+            throw new IllegalStateException("Design decision does not match " + expectedValue);
+        }
+        requirePending(run, response.request(), ShipInteractionKind.DESIGN_APPROVAL);
+        return response.request();
+    }
+
+    private static PendingInteraction requirePlanDecision(
+            ShipRun run,
+            PlanApprovalDecision response,
+            PlanApprovalDecisionValue expectedValue) {
+        if (response == null || response.value() != expectedValue) {
+            throw new IllegalStateException("Plan decision does not match " + expectedValue);
+        }
+        requirePending(run, response.request(), ShipInteractionKind.PLAN_APPROVAL);
+        return response.request();
+    }
+
     private static void requirePending(
             ShipRun run, PendingInteraction response, ShipInteractionKind expectedKind) {
         PendingInteraction pending = requireValue(run.authority().pending(), "No interaction is pending");
@@ -545,6 +847,16 @@ final class ShipLifecycleReducer {
             throw new IllegalStateException("Pending interaction is not content-bound");
         }
         return content;
+    }
+
+    private static ContentId requireReviewCandidate(Attempt attempt) {
+        if (attempt == null
+                || attempt.phase() != ShipPhase.REVIEW
+                || attempt.input().bindings().size() != 1
+                || !(attempt.input().bindings().get(0) instanceof ContentBinding candidate)) {
+            throw new IllegalStateException("Review attempt does not bind one discovery candidate");
+        }
+        return candidate.content();
     }
 
     private static void requireAttempt(ShipRun run, Attempt result) {

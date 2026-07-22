@@ -205,7 +205,18 @@
             "enum": ["DISCOVERY", "DESIGN", "REVIEW"]
           },
           "ledger": {
-            "$ref": "decision-ledger.schema.json"
+            "allOf": [
+              {
+                "$ref": "decision-ledger.schema.json"
+              },
+              {
+                "properties": {
+                  "openQuestions": {
+                    "maxItems": 0
+                  }
+                }
+              }
+            ]
           },
           "question": {
             "type": "null"

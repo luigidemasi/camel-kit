@@ -76,6 +76,7 @@ final class FileShipEventStore {
     private final Path temporaryRoot;
     private final Path secretPath;
     private final Path headPath;
+    private boolean freshRunRootCreated;
 
     private FileShipEventStore(Path requestedStateRoot, ShipRunId runId, OpenMode mode)
                                                                                         throws IOException {
@@ -86,20 +87,31 @@ final class FileShipEventStore {
         this.temporaryRoot = runRoot.resolve("tmp");
         this.secretPath = runRoot.resolve("secret.key");
         this.headPath = runRoot.resolve("current-head.json");
-        initializeDirectories(mode);
-        try (ShipOperationLock.Lease ignored
-                = ShipOperationLock.acquireRun(stateRoot, runId.storageId())) {
-            cleanTemporaryFiles();
-            byte[] key = mode == OpenMode.CREATE ? createSecret() : loadSecret();
-            try {
-                if (mode == OpenMode.CREATE) {
-                    commitHead(key, ShipEventHead.genesis(), true);
-                } else {
-                    replayLocked(key);
+        try {
+            initializeDirectories(mode);
+            try (ShipOperationLock.Lease ignored
+                    = ShipOperationLock.acquireRun(stateRoot, runId.storageId())) {
+                cleanTemporaryFiles();
+                byte[] key = mode == OpenMode.CREATE ? createSecret() : loadSecret();
+                try {
+                    if (mode == OpenMode.CREATE) {
+                        commitHead(key, ShipEventHead.genesis(), true);
+                    } else {
+                        replayLocked(key);
+                    }
+                } finally {
+                    Arrays.fill(key, (byte) 0);
                 }
-            } finally {
-                Arrays.fill(key, (byte) 0);
             }
+        } catch (IOException | RuntimeException e) {
+            if (mode == OpenMode.CREATE && freshRunRootCreated) {
+                try {
+                    ShipControllerPaths.deleteFreshRunRoot(stateRoot, runId);
+                } catch (IOException cleanupFailure) {
+                    e.addSuppressed(cleanupFailure);
+                }
+            }
+            throw e;
         }
     }
 
@@ -512,6 +524,7 @@ final class FileShipEventStore {
     private void createRunDirectory() throws IOException {
         try {
             Files.createDirectory(runRoot, fileAttributes(DIRECTORY_PERMISSIONS));
+            freshRunRootCreated = true;
             forceDirectory(stateRoot);
         } catch (FileAlreadyExistsException e) {
             throw new ShipEventStoreException("Ship run already exists: " + runId.storageId(), e);

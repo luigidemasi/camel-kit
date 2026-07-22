@@ -126,6 +126,49 @@ public final class ShipInteractionBundleService {
         return readBundle(blobs, reference);
     }
 
+    ShipInteractionSigner signer() {
+        return signer;
+    }
+
+    void preflightRecord(
+            ShipBlobStore blobs, BlobReference current, DiscoveryChallenge challenge)
+            throws IOException {
+        ShipInteractionBundle bundle = appendable(blobs, current);
+        List<ShipInteractionBundle.Exchange> exchanges = mutable(bundle);
+        exchanges.add(ShipInteractionBundle.Exchange.discovery(
+                exchanges.size() + 1, challenge));
+        ShipInteractionBundle candidate = copy(bundle, exchanges);
+        verifyMacs(candidate);
+        encoded(candidate);
+    }
+
+    void preflightRecord(
+            ShipBlobStore blobs,
+            BlobReference current,
+            DiscoveryChallenge challenge,
+            DiscoveryAnswer answer)
+            throws IOException {
+        ShipInteractionBundle bundle = appendable(blobs, current);
+        List<ShipInteractionBundle.Exchange> exchanges = mutable(bundle);
+        exchanges.add(ShipInteractionBundle.Exchange.discovery(
+                exchanges.size() + 1, challenge).answer(answer));
+        ShipInteractionBundle candidate = copy(bundle, exchanges);
+        verifyMacs(candidate);
+        encoded(candidate);
+    }
+
+    void preflightRecord(
+            ShipBlobStore blobs, BlobReference current, DiscoveryAnswer answer)
+            throws IOException {
+        ShipInteractionBundle bundle = readBundle(blobs, current);
+        List<ShipInteractionBundle.Exchange> exchanges = mutable(bundle);
+        int last = requireLast(exchanges);
+        exchanges.set(last, exchanges.get(last).answer(answer));
+        ShipInteractionBundle candidate = copy(bundle, exchanges);
+        verifyMacs(candidate);
+        encoded(candidate);
+    }
+
     private ShipInteractionBundle readBundle(ShipBlobStore blobs, BlobReference reference)
             throws IOException {
         Objects.requireNonNull(blobs, "blobs");
@@ -146,11 +189,23 @@ public final class ShipInteractionBundleService {
             BlobReference current,
             java.util.function.IntFunction<ShipInteractionBundle.Exchange> exchangeFactory)
             throws IOException {
-        ShipInteractionBundle bundle = readBundle(blobs, current);
-        requireNoPending(bundle);
+        ShipInteractionBundle bundle = appendable(blobs, current);
         List<ShipInteractionBundle.Exchange> exchanges = mutable(bundle);
         exchanges.add(exchangeFactory.apply(exchanges.size() + 1));
         return write(blobs, copy(bundle, exchanges));
+    }
+
+    private ShipInteractionBundle appendable(
+            ShipBlobStore blobs, BlobReference current)
+            throws IOException {
+        ShipInteractionBundle bundle = readBundle(blobs, current);
+        requireNoPending(bundle);
+        if (bundle.exchanges().size() >= ShipInteractionBundle.MAX_EXCHANGES) {
+            throw new IOException(
+                    "Interaction bundle reached its " + ShipInteractionBundle.MAX_EXCHANGES
+                                  + " exchange limit");
+        }
+        return bundle;
     }
 
     private BlobReference complete(
