@@ -114,6 +114,9 @@ public record DecisionLedger(
 
         public Question {
             options = immutable(options);
+            recommendation = recommendation == null || recommendation.isBlank()
+                    ? null
+                    : recommendation;
         }
     }
 

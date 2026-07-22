@@ -13,8 +13,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ShipTransitionPolicyTest {
 
-    private static final int EXPECTED_STATE_COUNT = 37;
-    private static final int EXPECTED_EVENT_COUNT = 42;
+    private static final int EXPECTED_STATE_COUNT = 39;
+    private static final int EXPECTED_EVENT_COUNT = 51;
 
     @Test
     void transitionPolicyMatchesIndependentClosedMatrix() {
@@ -117,6 +117,24 @@ class ShipTransitionPolicyTest {
     }
 
     @Test
+    void inputChangesCannotAbandonAPendingInteraction() {
+        for (ShipState pending : EnumSet.of(
+                ShipState.WAITING_FOR_DESIGN_APPROVAL,
+                ShipState.WAITING_FOR_PLAN_APPROVAL,
+                ShipState.WAITING_FOR_WAIVER)) {
+            for (ShipEventType changed : EnumSet.of(
+                    ShipEventType.REQUIREMENTS_INPUTS_CHANGED,
+                    ShipEventType.DESIGN_INPUTS_CHANGED,
+                    ShipEventType.PLAN_INPUTS_CHANGED)) {
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> ShipTransitionPolicy.requireNext(pending, changed),
+                        pending + " must not abandon its interaction via " + changed);
+            }
+        }
+    }
+
+    @Test
     void stableIdsRoundTripAndUnknownIdsFailClosed() {
         Set<String> stateIds = new HashSet<>();
         for (ShipState state : ShipState.values()) {
@@ -180,22 +198,30 @@ class ShipTransitionPolicyTest {
                 ShipState.WAITING_FOR_REMOTE_USE_CONSENT,
                 ShipEventType.DISCOVERY_QUESTION_PRESENTED,
                 ShipState.WAITING_FOR_DISCOVERY_ANSWER,
-                ShipEventType.REQUIREMENTS_READY, ShipState.REQUIREMENTS_READY);
+                ShipEventType.DISCOVERY_CONTINUED, ShipState.DISCOVERY_ANALYZING,
+                ShipEventType.GAP_REVIEW_STARTED, ShipState.REVIEW_RUNNING);
         legal(expected, ShipState.WAITING_FOR_REMOTE_USE_CONSENT,
                 ShipEventType.REMOTE_USE_CONSENT_ACCEPTED, ShipState.DISCOVERY_ANALYZING,
                 ShipEventType.REMOTE_USE_CONSENT_DENIED, ShipState.DISCOVERY_ANALYZING);
         legal(expected, ShipState.WAITING_FOR_DISCOVERY_ANSWER,
                 ShipEventType.DISCOVERY_ANSWER_RECORDED, ShipState.DISCOVERY_ANALYZING);
+        legal(expected, ShipState.REVIEW_RUNNING,
+                ShipEventType.GAP_REVIEW_REOPENED, ShipState.DISCOVERY_ANALYZING,
+                ShipEventType.REQUIREMENTS_READY, ShipState.REQUIREMENTS_READY);
         legal(expected, ShipState.REQUIREMENTS_READY,
                 ShipEventType.DESIGN_STARTED, ShipState.DESIGN_RUNNING);
         legal(expected, ShipState.DESIGN_RUNNING,
-                ShipEventType.DESIGN_READY, ShipState.DESIGN_READY);
+                ShipEventType.DESIGN_READY, ShipState.DESIGN_READY,
+                ShipEventType.DESIGN_GAPS_FOUND, ShipState.DISCOVERY_ANALYZING);
         legal(expected, ShipState.DESIGN_READY,
                 ShipEventType.DESIGN_APPROVAL_REQUESTED,
                 ShipState.WAITING_FOR_DESIGN_APPROVAL);
         legal(expected, ShipState.WAITING_FOR_DESIGN_APPROVAL,
                 ShipEventType.DESIGN_APPROVED, ShipState.DESIGN_APPROVED,
-                ShipEventType.DESIGN_APPROVAL_DENIED, ShipState.DESIGN_RUNNING);
+                ShipEventType.DESIGN_APPROVAL_DENIED, ShipState.DESIGN_RUNNING,
+                ShipEventType.DESIGN_REQUIREMENTS_CHANGES_REQUESTED,
+                ShipState.DISCOVERY_ANALYZING,
+                ShipEventType.DESIGN_APPROVAL_ABORTED, ShipState.ABORTED);
         legal(expected, ShipState.DESIGN_APPROVED,
                 ShipEventType.PLAN_STARTED, ShipState.PLAN_RUNNING);
         legal(expected, ShipState.PLAN_RUNNING,
@@ -205,7 +231,11 @@ class ShipTransitionPolicyTest {
                 ShipState.WAITING_FOR_PLAN_APPROVAL);
         legal(expected, ShipState.WAITING_FOR_PLAN_APPROVAL,
                 ShipEventType.PLAN_APPROVED, ShipState.PLAN_APPROVED,
-                ShipEventType.PLAN_APPROVAL_DENIED, ShipState.PLAN_RUNNING);
+                ShipEventType.PLAN_APPROVAL_DENIED, ShipState.PLAN_RUNNING,
+                ShipEventType.PLAN_DESIGN_CHANGES_REQUESTED, ShipState.DESIGN_RUNNING,
+                ShipEventType.PLAN_REQUIREMENTS_CHANGES_REQUESTED,
+                ShipState.DISCOVERY_ANALYZING,
+                ShipEventType.PLAN_APPROVAL_ABORTED, ShipState.ABORTED);
         legal(expected, ShipState.PLAN_APPROVED,
                 ShipEventType.EXECUTION_STARTED, ShipState.EXECUTE_RUNNING);
         legal(expected, ShipState.EXECUTE_RUNNING,
@@ -232,6 +262,7 @@ class ShipTransitionPolicyTest {
         for (RetryCase retry : Set.of(
                 new RetryCase(ShipState.CONTEXT_RESOLVING, ShipState.CONTEXT_FAILED_RETRYABLE),
                 new RetryCase(ShipState.DISCOVERY_ANALYZING, ShipState.DISCOVERY_FAILED_RETRYABLE),
+                new RetryCase(ShipState.REVIEW_RUNNING, ShipState.REVIEW_FAILED_RETRYABLE),
                 new RetryCase(ShipState.DESIGN_RUNNING, ShipState.DESIGN_FAILED_RETRYABLE),
                 new RetryCase(ShipState.PLAN_RUNNING, ShipState.PLAN_FAILED_RETRYABLE),
                 new RetryCase(ShipState.EXECUTE_RUNNING, ShipState.EXECUTE_FAILED_RETRYABLE),
@@ -252,12 +283,10 @@ class ShipTransitionPolicyTest {
                 ShipState.REQUIREMENTS_READY,
                 ShipState.DESIGN_RUNNING,
                 ShipState.DESIGN_READY,
-                ShipState.WAITING_FOR_DESIGN_APPROVAL,
                 ShipState.DESIGN_APPROVED,
                 ShipState.DESIGN_FAILED_RETRYABLE,
                 ShipState.PLAN_RUNNING,
                 ShipState.PLAN_VALIDATED,
-                ShipState.WAITING_FOR_PLAN_APPROVAL,
                 ShipState.PLAN_APPROVED,
                 ShipState.PLAN_FAILED_RETRYABLE,
                 ShipState.EXECUTE_RUNNING,
@@ -267,7 +296,6 @@ class ShipTransitionPolicyTest {
                 ShipState.VALIDATE_PASSED,
                 ShipState.VALIDATE_FAILED_RETRYABLE,
                 ShipState.WAIVER_ELIGIBLE,
-                ShipState.WAITING_FOR_WAIVER,
                 ShipState.WAIVER_RECORDED,
                 ShipState.STAMP_RUNNING,
                 ShipState.STAMP_FAILED_RETRYABLE,
@@ -279,12 +307,10 @@ class ShipTransitionPolicyTest {
                 ShipState.DESIGN_RUNNING,
                 ShipState.DESIGN_RUNNING,
                 ShipState.DESIGN_READY,
-                ShipState.WAITING_FOR_DESIGN_APPROVAL,
                 ShipState.DESIGN_APPROVED,
                 ShipState.DESIGN_FAILED_RETRYABLE,
                 ShipState.PLAN_RUNNING,
                 ShipState.PLAN_VALIDATED,
-                ShipState.WAITING_FOR_PLAN_APPROVAL,
                 ShipState.PLAN_APPROVED,
                 ShipState.PLAN_FAILED_RETRYABLE,
                 ShipState.EXECUTE_RUNNING,
@@ -294,7 +320,6 @@ class ShipTransitionPolicyTest {
                 ShipState.VALIDATE_PASSED,
                 ShipState.VALIDATE_FAILED_RETRYABLE,
                 ShipState.WAIVER_ELIGIBLE,
-                ShipState.WAITING_FOR_WAIVER,
                 ShipState.WAIVER_RECORDED,
                 ShipState.STAMP_RUNNING,
                 ShipState.STAMP_FAILED_RETRYABLE,
@@ -306,7 +331,6 @@ class ShipTransitionPolicyTest {
                 ShipState.PLAN_RUNNING,
                 ShipState.PLAN_RUNNING,
                 ShipState.PLAN_VALIDATED,
-                ShipState.WAITING_FOR_PLAN_APPROVAL,
                 ShipState.PLAN_APPROVED,
                 ShipState.PLAN_FAILED_RETRYABLE,
                 ShipState.EXECUTE_RUNNING,
@@ -316,7 +340,6 @@ class ShipTransitionPolicyTest {
                 ShipState.VALIDATE_PASSED,
                 ShipState.VALIDATE_FAILED_RETRYABLE,
                 ShipState.WAIVER_ELIGIBLE,
-                ShipState.WAITING_FOR_WAIVER,
                 ShipState.WAIVER_RECORDED,
                 ShipState.STAMP_RUNNING,
                 ShipState.STAMP_FAILED_RETRYABLE,

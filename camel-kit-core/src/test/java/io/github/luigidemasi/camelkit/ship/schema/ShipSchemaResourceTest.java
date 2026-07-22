@@ -235,7 +235,11 @@ class ShipSchemaResourceTest {
                 Stream.of(StageCapability.Operation.values()).map(Enum::name));
 
         JsonNode result = readSchema("stage-result.schema.json");
+        assertEnum(result.at("/properties/stage"), Stream.of(ShipStage.values()).map(Enum::name));
         assertEnum(result.at("/properties/outcome"), Stream.of(StageResult.Outcome.values()).map(Enum::name));
+        assertEnum(
+                result.at("/$defs/catalogSubject/properties/kind"),
+                Stream.of(CatalogSubject.Kind.values()).map(Enum::name));
 
         JsonNode interaction = readSchema("interaction.schema.json");
         assertEnum(

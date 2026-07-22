@@ -21,7 +21,7 @@ class ShipLifecycleReducerTest {
         assertEquals(
                 ShipInteractionKind.DESIGN_APPROVAL,
                 waitingDesign.state().pendingInteraction().orElseThrow());
-        ShipRun designApproved = ShipLifecycleReducer.approveDesign(waitingDesign, accepted(waitingDesign));
+        ShipRun designApproved = ShipLifecycleReducer.approveDesign(waitingDesign, approvedDesign(waitingDesign));
         assertEquals(ShipState.DESIGN_APPROVED, designApproved.state());
 
         ShipRun planRunning = ShipLifecycleReducer.startPlan(designApproved);
@@ -33,7 +33,7 @@ class ShipLifecycleReducerTest {
 
         ShipRun waitingPlan = ShipLifecycleReducer.requestPlanApproval(planValidated);
         assertEquals(ShipState.WAITING_FOR_PLAN_APPROVAL, waitingPlan.state());
-        ShipRun rejectedPlan = ShipLifecycleReducer.denyPlanApproval(waitingPlan, denied(waitingPlan));
+        ShipRun rejectedPlan = ShipLifecycleReducer.denyPlanApproval(waitingPlan, planChanges(waitingPlan));
         assertEquals(
                 java.util.List.of(
                         new ContentBinding(id("design-happy")),
@@ -42,7 +42,7 @@ class ShipLifecycleReducerTest {
                                 id("plan-v1"),
                                 id("feedback-plan-approval"))),
                 ShipLifecycleReducer.attempt(rejectedPlan).input().bindings());
-        ShipRun planApproved = ShipLifecycleReducer.approvePlan(waitingPlan, accepted(waitingPlan));
+        ShipRun planApproved = ShipLifecycleReducer.approvePlan(waitingPlan, approvedPlan(waitingPlan));
         assertEquals(ShipState.PLAN_APPROVED, planApproved.state());
 
         ShipRun execute = ShipLifecycleReducer.startExecution(planApproved);
@@ -60,6 +60,212 @@ class ShipLifecycleReducerTest {
         assertTrue(completed.terminal());
         assertSame(designReady.id(), completed.id());
         assertTrue(completed.revision() > designReady.revision());
+    }
+
+    @Test
+    void gapReviewClosesDiscoveryAndEitherAcceptsOrReopensTheExactCandidate() {
+        ShipRun resolving = ShipLifecycleReducer.startContextResolution(
+                ShipLifecycleReducer.start(), id("review-context-input"));
+        ShipRun recorded = ShipLifecycleReducer.recordContext(
+                resolving, contextResult(resolving, id("review-context")));
+        ShipRun discovery = ShipLifecycleReducer.startDiscovery(recorded);
+        Attempt discoveryAttempt = ShipLifecycleReducer.attempt(discovery);
+        AuthorityBasis basis = new AuthorityBasis(
+                id("review-context"),
+                id("review-ledger"),
+                4,
+                id("review-requirements"),
+                id("review-policy"),
+                id("review-baseline"));
+
+        assertThrows(IllegalStateException.class,
+                () -> ShipLifecycleReducer.requirementsReady(
+                        discovery, requirementsResult(discovery, basis)));
+
+        AcceptedDiscoveryCandidate candidate = AcceptedStageResultFactory.discoveryCandidate(
+                discoveryAttempt, id("requirements-candidate"));
+        ShipRun review = ShipLifecycleReducer.startGapReview(discovery, candidate);
+        Attempt reviewAttempt = ShipLifecycleReducer.attempt(review);
+        assertEquals(ShipState.REVIEW_RUNNING, review.state());
+        assertEquals(ShipPhase.REVIEW, reviewAttempt.phase());
+        assertNotEquals(discoveryAttempt, reviewAttempt);
+        assertEquals(
+                PhaseInput.initial(id("requirements-candidate")), reviewAttempt.input());
+        ShipRun reviewFailed = ShipLifecycleReducer.failRetryable(review, reviewAttempt);
+        assertEquals(ShipState.REVIEW_FAILED_RETRYABLE, reviewFailed.state());
+        ShipRun reviewRetried = ShipLifecycleReducer.retry(
+                reviewFailed, ShipLifecycleReducer.retryBinding(reviewFailed));
+        assertEquals(ShipState.REVIEW_RUNNING, reviewRetried.state());
+        assertEquals(reviewAttempt.input(), ShipLifecycleReducer.attempt(reviewRetried).input());
+
+        assertThrows(IllegalStateException.class,
+                () -> ShipLifecycleReducer.reopenGapReview(
+                        review,
+                        AcceptedStageResultFactory.review(
+                                reviewAttempt, id("other-candidate"), id("gap-feedback"))));
+        ShipRun reopened = ShipLifecycleReducer.reopenGapReview(
+                review,
+                AcceptedStageResultFactory.review(
+                        reviewAttempt, id("requirements-candidate"), id("gap-feedback")));
+        assertEquals(ShipState.DISCOVERY_ANALYZING, reopened.state());
+        assertEquals(
+                java.util.List.of(
+                        new ContentBinding(id("review-context")),
+                        new ReviewFeedbackBinding(
+                                id("requirements-candidate"), id("gap-feedback"))),
+                ShipLifecycleReducer.attempt(reopened).input().bindings());
+
+        ShipRun accepted = ShipLifecycleReducer.requirementsReady(
+                review, requirementsResult(reviewAttempt, basis));
+        assertEquals(ShipState.REQUIREMENTS_READY, accepted.state());
+        assertEquals(basis, accepted.authority().basis());
+        assertThrows(IllegalStateException.class,
+                () -> ShipLifecycleReducer.requirementsReady(
+                        ShipLifecycleReducer.startGapReview(
+                                discovery,
+                                AcceptedStageResultFactory.discoveryCandidate(
+                                        discoveryAttempt, id("other-fork"))),
+                        requirementsResult(reviewAttempt, basis)));
+    }
+
+    @Test
+    void durableContinuationsConsumeExactAttemptsAndPreserveRetryInputs() {
+        ShipRun resolving = ShipLifecycleReducer.startContextResolution(
+                ShipLifecycleReducer.start(), id("continued-context-input"));
+        ShipRun recorded = ShipLifecycleReducer.recordContext(
+                resolving, contextResult(resolving, id("continued-context")));
+        ShipRun discovery = ShipLifecycleReducer.startDiscovery(recorded);
+        Attempt firstAttempt = ShipLifecycleReducer.attempt(discovery);
+        AcceptedDiscoveryContinuation continuation = AcceptedStageResultFactory.discoveryContinuation(
+                firstAttempt, id("catalog-evidence"));
+
+        ShipRun continued = ShipLifecycleReducer.continueDiscovery(discovery, continuation);
+        Attempt continuedAttempt = ShipLifecycleReducer.attempt(continued);
+        assertEquals(ShipEventType.DISCOVERY_CONTINUED, continued.lastEvent());
+        assertEquals(ShipState.DISCOVERY_ANALYZING, continued.state());
+        assertNotEquals(firstAttempt, continuedAttempt);
+        assertEquals(PhaseInput.initial(id("catalog-evidence")), continuedAttempt.input());
+        assertThrows(IllegalStateException.class,
+                () -> ShipLifecycleReducer.continueDiscovery(continued, continuation));
+
+        ShipRun failed = ShipLifecycleReducer.failRetryable(continued, continuedAttempt);
+        ShipRun retried = ShipLifecycleReducer.retry(
+                failed, ShipLifecycleReducer.retryBinding(failed));
+        assertEquals(continuedAttempt.input(), ShipLifecycleReducer.attempt(retried).input());
+
+        ShipRun design = designRunning("design-gaps");
+        Attempt designAttempt = ShipLifecycleReducer.attempt(design);
+        AcceptedDesignGapResult gaps = AcceptedStageResultFactory.designGaps(
+                designAttempt, id("design-candidate"), id("gap-review-feedback"));
+        assertThrows(IllegalStateException.class,
+                () -> ShipLifecycleReducer.designGapsFound(
+                        designRunning("other-design-gaps"), gaps));
+
+        ShipRun reopened = ShipLifecycleReducer.designGapsFound(design, gaps);
+        assertEquals(ShipEventType.DESIGN_GAPS_FOUND, reopened.lastEvent());
+        assertEquals(ShipState.DISCOVERY_ANALYZING, reopened.state());
+        assertEquals(
+                java.util.List.of(
+                        new ContentBinding(id("context-design-gaps")),
+                        new ReviewFeedbackBinding(
+                                id("design-candidate"), id("gap-review-feedback"))),
+                ShipLifecycleReducer.attempt(reopened).input().bindings());
+        assertNull(reopened.authority().basis());
+        assertNull(reopened.authority().design());
+        assertNull(reopened.authority().plan());
+    }
+
+    @Test
+    void typedApprovalOutcomesResumeOnlyTheirRequestedAuthorityPhase() {
+        ShipRun waitingDesign = ShipLifecycleReducer.requestDesignApproval(
+                designReady("typed-design"));
+        PendingInteraction designRequest = ShipLifecycleReducer.pending(waitingDesign);
+        ContentId designFeedback = id("design-requires-new-requirements");
+
+        ShipRun discovery = ShipLifecycleReducer.requestRequirementsChangesFromDesign(
+                waitingDesign,
+                designDecision(
+                        designRequest,
+                        DesignApprovalDecisionValue.REQUEST_REQUIREMENTS_CHANGES,
+                        designFeedback));
+        assertEquals(ShipState.DISCOVERY_ANALYZING, discovery.state());
+        assertEquals(
+                java.util.List.of(
+                        new ContentBinding(id("context-typed-design")),
+                        new ApprovalFeedbackBinding(
+                                ShipInteractionKind.DESIGN_APPROVAL,
+                                id("design-typed-design"),
+                                designFeedback)),
+                ShipLifecycleReducer.attempt(discovery).input().bindings());
+        assertNull(discovery.authority().basis());
+        assertNull(discovery.authority().design());
+        assertEquals(
+                ShipState.ABORTED,
+                ShipLifecycleReducer.abortDesignApproval(
+                        waitingDesign,
+                        designDecision(
+                                designRequest,
+                                DesignApprovalDecisionValue.ABORT,
+                                null))
+                        .state());
+
+        ShipRun waitingForDesign = ShipLifecycleReducer.requestDesignApproval(
+                designReady("typed-plan"));
+        ShipRun approvedDesign = ShipLifecycleReducer.approveDesign(
+                waitingForDesign, approvedDesign(waitingForDesign));
+        ShipRun planRunning = ShipLifecycleReducer.startPlan(approvedDesign);
+        ShipRun planValidated = ShipLifecycleReducer.planValidated(
+                planRunning, planResult(planRunning, id("plan-typed-plan")));
+        ShipRun waitingPlan = ShipLifecycleReducer.requestPlanApproval(planValidated);
+        PendingInteraction planRequest = ShipLifecycleReducer.pending(waitingPlan);
+        ContentId planFeedback = id("plan-requires-design-changes");
+
+        ShipRun design = ShipLifecycleReducer.requestDesignChangesFromPlan(
+                waitingPlan,
+                planDecision(
+                        planRequest,
+                        PlanApprovalDecisionValue.REQUEST_DESIGN_CHANGES,
+                        planFeedback));
+        assertEquals(ShipState.DESIGN_RUNNING, design.state());
+        assertEquals(
+                java.util.List.of(
+                        new ContentBinding(id("requirements-typed-plan")),
+                        new ApprovalFeedbackBinding(
+                                ShipInteractionKind.PLAN_APPROVAL,
+                                id("plan-typed-plan"),
+                                planFeedback)),
+                ShipLifecycleReducer.attempt(design).input().bindings());
+        assertNull(design.authority().design());
+        assertNull(design.authority().plan());
+
+        ContentId requirementsFeedback = id("plan-requires-requirements-changes");
+        ShipRun requirements = ShipLifecycleReducer.requestRequirementsChangesFromPlan(
+                waitingPlan,
+                planDecision(
+                        planRequest,
+                        PlanApprovalDecisionValue.REQUEST_REQUIREMENTS_CHANGES,
+                        requirementsFeedback));
+        assertEquals(ShipState.DISCOVERY_ANALYZING, requirements.state());
+        assertEquals(
+                java.util.List.of(
+                        new ContentBinding(id("context-typed-plan")),
+                        new ApprovalFeedbackBinding(
+                                ShipInteractionKind.PLAN_APPROVAL,
+                                id("plan-typed-plan"),
+                                requirementsFeedback)),
+                ShipLifecycleReducer.attempt(requirements).input().bindings());
+        assertNull(requirements.authority().basis());
+        assertNull(requirements.authority().design());
+        assertNull(requirements.authority().plan());
+        assertEquals(
+                ShipState.ABORTED,
+                ShipLifecycleReducer.abortPlanApproval(
+                        waitingPlan,
+                        planDecision(
+                                planRequest,
+                                PlanApprovalDecisionValue.ABORT,
+                                null))
+                        .state());
     }
 
     @Test
@@ -259,9 +465,9 @@ class ShipLifecycleReducerTest {
                 exact.kind(),
                 new DesignDecisionBinding(basis("bindings"), id("other-design")));
         assertThrows(IllegalStateException.class,
-                () -> ShipLifecycleReducer.approveDesign(waiting, accepted(wrongDesign)));
+                () -> ShipLifecycleReducer.approveDesign(waiting, approvedDesign(wrongDesign)));
 
-        ShipRun rejected = ShipLifecycleReducer.denyDesignApproval(waiting, denied(waiting));
+        ShipRun rejected = ShipLifecycleReducer.denyDesignApproval(waiting, designChanges(waiting));
         assertEquals(
                 java.util.List.of(
                         new ContentBinding(id("requirements-bindings")),
@@ -271,13 +477,13 @@ class ShipLifecycleReducerTest {
                                 id("feedback-design-approval"))),
                 ShipLifecycleReducer.attempt(rejected).input().bindings());
 
-        ShipRun approved = ShipLifecycleReducer.approveDesign(waiting, accepted(exact));
+        ShipRun approved = ShipLifecycleReducer.approveDesign(waiting, approvedDesign(exact));
         ShipRun changed = ShipLifecycleReducer.designInputsChanged(approved);
         ShipRun newReady = ShipLifecycleReducer.designReady(
                 changed, designResult(changed, id("new-design")));
         ShipRun newWaiting = ShipLifecycleReducer.requestDesignApproval(newReady);
         assertThrows(IllegalStateException.class,
-                () -> ShipLifecycleReducer.approveDesign(newWaiting, accepted(exact)));
+                () -> ShipLifecycleReducer.approveDesign(newWaiting, approvedDesign(exact)));
         assertEquals(ShipState.WAITING_FOR_DESIGN_APPROVAL, newWaiting.state());
     }
 
@@ -289,6 +495,10 @@ class ShipLifecycleReducerTest {
                 context, contextResult(context, id("fork-context")));
         ShipRun discovery = ShipLifecycleReducer.startDiscovery(recorded);
         Attempt discoveryAttempt = ShipLifecycleReducer.attempt(discovery);
+        AcceptedDiscoveryCandidate candidate = AcceptedStageResultFactory.discoveryCandidate(
+                discoveryAttempt, id("shared-candidate"));
+        ShipRun reviewA = ShipLifecycleReducer.startGapReview(discovery, candidate);
+        ShipRun reviewB = ShipLifecycleReducer.startGapReview(discovery, candidate);
 
         AuthorityBasis basisA = new AuthorityBasis(
                 id("fork-context"),
@@ -305,9 +515,9 @@ class ShipLifecycleReducerTest {
                 id("policy-b"),
                 id("baseline-b"));
         ShipRun requirementsA = ShipLifecycleReducer.requirementsReady(
-                discovery, requirementsResult(discoveryAttempt, basisA));
+                reviewA, requirementsResult(reviewA, basisA));
         ShipRun requirementsB = ShipLifecycleReducer.requirementsReady(
-                discovery, requirementsResult(discoveryAttempt, basisB));
+                reviewB, requirementsResult(reviewB, basisB));
         ShipRun designA = ShipLifecycleReducer.startDesign(requirementsA);
         ShipRun designB = ShipLifecycleReducer.startDesign(requirementsB);
         Attempt attemptA = ShipLifecycleReducer.attempt(designA);
@@ -334,10 +544,10 @@ class ShipLifecycleReducerTest {
         assertNotEquals(waitingA.head(), waitingB.head());
         assertNotEquals(pendingA, pendingB);
         assertThrows(IllegalStateException.class,
-                () -> ShipLifecycleReducer.approveDesign(waitingB, accepted(pendingA)));
+                () -> ShipLifecycleReducer.approveDesign(waitingB, approvedDesign(pendingA)));
         assertEquals(
                 ShipState.DESIGN_APPROVED,
-                ShipLifecycleReducer.approveDesign(waitingB, accepted(pendingB)).state());
+                ShipLifecycleReducer.approveDesign(waitingB, approvedDesign(pendingB)).state());
     }
 
     @Test
@@ -627,26 +837,34 @@ class ShipLifecycleReducerTest {
     private static ShipRun planApproved(String suffix) {
         ShipRun ready = designReady(suffix);
         ShipRun waitingDesign = ShipLifecycleReducer.requestDesignApproval(ready);
-        ShipRun designApproved = ShipLifecycleReducer.approveDesign(waitingDesign, accepted(waitingDesign));
+        ShipRun designApproved = ShipLifecycleReducer.approveDesign(waitingDesign, approvedDesign(waitingDesign));
         ShipRun plan = ShipLifecycleReducer.startPlan(designApproved);
         ShipRun validated = ShipLifecycleReducer.planValidated(
                 plan, planResult(plan, id("plan-" + suffix)));
         ShipRun waitingPlan = ShipLifecycleReducer.requestPlanApproval(validated);
-        return ShipLifecycleReducer.approvePlan(waitingPlan, accepted(waitingPlan));
+        return ShipLifecycleReducer.approvePlan(waitingPlan, approvedPlan(waitingPlan));
     }
 
     private static ShipRun designReady(String suffix) {
+        ShipRun design = designRunning(suffix);
+        return ShipLifecycleReducer.designReady(
+                design, designResult(design, id("design-" + suffix)));
+    }
+
+    private static ShipRun designRunning(String suffix) {
         ShipRun context
                 = ShipLifecycleReducer.startContextResolution(ShipLifecycleReducer.start(),
                         id("context-input-" + suffix));
         ShipRun recorded = ShipLifecycleReducer.recordContext(
                 context, contextResult(context, id("context-" + suffix)));
         ShipRun discovery = ShipLifecycleReducer.startDiscovery(recorded);
+        ShipRun review = ShipLifecycleReducer.startGapReview(
+                discovery,
+                AcceptedStageResultFactory.discoveryCandidate(
+                        ShipLifecycleReducer.attempt(discovery), id("candidate-" + suffix)));
         ShipRun requirements = ShipLifecycleReducer.requirementsReady(
-                discovery, requirementsResult(discovery, basis(suffix)));
-        ShipRun design = ShipLifecycleReducer.startDesign(requirements);
-        return ShipLifecycleReducer.designReady(
-                design, designResult(design, id("design-" + suffix)));
+                review, requirementsResult(review, basis(suffix)));
+        return ShipLifecycleReducer.startDesign(requirements);
     }
 
     private static AuthorityBasis basis(String suffix) {
@@ -687,15 +905,62 @@ class ShipLifecycleReducerTest {
                 },
                 request,
                 InteractionDecisionValue.DENIED,
-                denialFeedback(request));
+                null);
     }
 
-    private static ContentId denialFeedback(PendingInteraction request) {
-        return switch (request.kind()) {
-            case DESIGN_APPROVAL -> id("feedback-design-approval");
-            case PLAN_APPROVAL -> id("feedback-plan-approval");
-            default -> null;
-        };
+    private static DesignApprovalDecision approvedDesign(ShipRun run) {
+        return approvedDesign(ShipLifecycleReducer.pending(run));
+    }
+
+    private static DesignApprovalDecision approvedDesign(PendingInteraction request) {
+        return designDecision(request, DesignApprovalDecisionValue.APPROVE, null);
+    }
+
+    private static DesignApprovalDecision designChanges(ShipRun run) {
+        return designDecision(
+                ShipLifecycleReducer.pending(run),
+                DesignApprovalDecisionValue.REQUEST_DESIGN_CHANGES,
+                id("feedback-design-approval"));
+    }
+
+    private static DesignApprovalDecision designDecision(
+            PendingInteraction request,
+            DesignApprovalDecisionValue value,
+            ContentId feedback) {
+        return construct(
+                DesignApprovalDecision.class,
+                new Class<?>[]{
+                        PendingInteraction.class, DesignApprovalDecisionValue.class, ContentId.class
+                },
+                request,
+                value,
+                feedback);
+    }
+
+    private static PlanApprovalDecision approvedPlan(ShipRun run) {
+        return planDecision(
+                ShipLifecycleReducer.pending(run), PlanApprovalDecisionValue.APPROVE, null);
+    }
+
+    private static PlanApprovalDecision planChanges(ShipRun run) {
+        return planDecision(
+                ShipLifecycleReducer.pending(run),
+                PlanApprovalDecisionValue.REQUEST_PLAN_CHANGES,
+                id("feedback-plan-approval"));
+    }
+
+    private static PlanApprovalDecision planDecision(
+            PendingInteraction request,
+            PlanApprovalDecisionValue value,
+            ContentId feedback) {
+        return construct(
+                PlanApprovalDecision.class,
+                new Class<?>[]{
+                        PendingInteraction.class, PlanApprovalDecisionValue.class, ContentId.class
+                },
+                request,
+                value,
+                feedback);
     }
 
     private static DiscoveryAnswer answer(PendingInteraction request, ContentId answer) {
@@ -707,11 +972,7 @@ class ShipLifecycleReducerTest {
     }
 
     private static AcceptedContextResult contextResult(ShipRun run, ContentId context) {
-        return acceptedStageResult(
-                AcceptedContextResult.class,
-                ShipLifecycleReducer.attempt(run),
-                ContentId.class,
-                context);
+        return AcceptedStageResultFactory.context(ShipLifecycleReducer.attempt(run), context);
     }
 
     private static AcceptedRequirementsResult requirementsResult(
@@ -721,8 +982,7 @@ class ShipLifecycleReducerTest {
 
     private static AcceptedRequirementsResult requirementsResult(
             Attempt attempt, AuthorityBasis basis) {
-        return acceptedStageResult(
-                AcceptedRequirementsResult.class, attempt, AuthorityBasis.class, basis);
+        return AcceptedStageResultFactory.requirements(attempt, basis);
     }
 
     private static AcceptedDesignResult designResult(ShipRun run, ContentId design) {
@@ -730,16 +990,11 @@ class ShipLifecycleReducerTest {
     }
 
     private static AcceptedDesignResult designResult(Attempt attempt, ContentId design) {
-        return acceptedStageResult(
-                AcceptedDesignResult.class, attempt, ContentId.class, design);
+        return AcceptedStageResultFactory.design(attempt, design);
     }
 
     private static AcceptedPlanResult planResult(ShipRun run, ContentId plan) {
-        return acceptedStageResult(
-                AcceptedPlanResult.class,
-                ShipLifecycleReducer.attempt(run),
-                ContentId.class,
-                plan);
+        return AcceptedStageResultFactory.plan(ShipLifecycleReducer.attempt(run), plan);
     }
 
     private static AcceptedExecutionResult executionResult(ShipRun run, ContentId execution) {
@@ -747,16 +1002,11 @@ class ShipLifecycleReducerTest {
     }
 
     private static AcceptedExecutionResult executionResult(Attempt attempt, ContentId execution) {
-        return acceptedStageResult(
-                AcceptedExecutionResult.class, attempt, ContentId.class, execution);
+        return AcceptedStageResultFactory.execution(attempt, execution);
     }
 
     private static AcceptedValidationResult validationResult(ShipRun run, ContentId validation) {
-        return acceptedStageResult(
-                AcceptedValidationResult.class,
-                ShipLifecycleReducer.attempt(run),
-                ContentId.class,
-                validation);
+        return AcceptedStageResultFactory.validation(ShipLifecycleReducer.attempt(run), validation);
     }
 
     private static AcceptedStampCompletion stampCompletion(ShipRun run, ContentId evidence) {
@@ -765,17 +1015,7 @@ class ShipLifecycleReducerTest {
 
     private static AcceptedStampCompletion stampCompletion(
             Attempt attempt, ContentId evidence) {
-        return acceptedStageResult(
-                AcceptedStampCompletion.class, attempt, ContentId.class, evidence);
-    }
-
-    private static <T> T acceptedStageResult(
-            Class<T> type, Attempt attempt, Class<?> valueType, Object value) {
-        return construct(
-                type,
-                new Class<?>[]{Attempt.class, valueType},
-                attempt,
-                value);
+        return AcceptedStageResultFactory.stamp(attempt, evidence);
     }
 
     private static PolicyWaiverEligibility eligibility(

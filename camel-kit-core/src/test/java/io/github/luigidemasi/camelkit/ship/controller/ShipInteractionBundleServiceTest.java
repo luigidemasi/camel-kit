@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Instant;
 import java.util.List;
+import java.util.stream.IntStream;
 
 import io.github.luigidemasi.camelkit.ship.controller.ShipBlobStore.BlobReference;
 import io.github.luigidemasi.camelkit.ship.protocol.Interaction;
@@ -201,6 +202,68 @@ class ShipInteractionBundleServiceTest {
                 () -> first.service().read(second.blobs(), secondBundle));
     }
 
+    @Test
+    void appendCapacityCanBeCheckedBeforePersistingQuestionArtifacts() throws Exception {
+        Fixture fixture = fixture("append-capacity");
+        DiscoveryChallenge challenge = discoveryChallenge(fixture.signer());
+        DiscoveryAnswer answer = discoveryAnswer(fixture.signer());
+        List<ShipInteractionBundle.Exchange> exchanges = IntStream
+                .rangeClosed(1, ShipInteractionBundle.MAX_EXCHANGES)
+                .mapToObj(ordinal -> ShipInteractionBundle.Exchange
+                        .discovery(ordinal, challenge)
+                        .answer(answer))
+                .toList();
+        ShipInteractionBundle full = new ShipInteractionBundle(
+                ShipInteractionBundle.SCHEMA_VERSION,
+                RUN_ID,
+                1,
+                DIGEST,
+                exchanges);
+        BlobReference reference = fixture.blobs().writeBytes(
+                "interaction-bundle", ShipInteractionBundleService.encoded(full));
+
+        IOException failure = assertThrows(
+                IOException.class,
+                () -> fixture.service().preflightRecord(
+                        fixture.blobs(),
+                        reference,
+                        discoveryChallenge(fixture.signer()),
+                        discoveryAnswer(fixture.signer())));
+
+        assertTrue(failure.getMessage().contains("exchange limit"));
+    }
+
+    @Test
+    void discoveryQuestionPreflightReservesWorstCaseAnswerCapacity() throws Exception {
+        Fixture fixture = fixture("answer-capacity");
+        DiscoveryChallenge challenge = discoveryChallenge(fixture.signer());
+        DiscoveryAnswer maximumAnswer = discoveryAnswer(
+                fixture.signer(),
+                "\u0001".repeat(Interaction.MAX_RESPONSE_CHARS),
+                "\u0001".repeat(Interaction.MAX_CHANNEL_CHARS),
+                Instant.MAX);
+        List<ShipInteractionBundle.Exchange> exchanges = IntStream.rangeClosed(1, 10)
+                .mapToObj(ordinal -> ShipInteractionBundle.Exchange
+                        .discovery(ordinal, challenge)
+                        .answer(maximumAnswer))
+                .toList();
+        ShipInteractionBundle nearLimit = new ShipInteractionBundle(
+                ShipInteractionBundle.SCHEMA_VERSION,
+                RUN_ID,
+                1,
+                DIGEST,
+                exchanges);
+        BlobReference reference = fixture.blobs().writeBytes(
+                "interaction-bundle", ShipInteractionBundleService.encoded(nearLimit));
+
+        IOException failure = assertThrows(
+                IOException.class,
+                () -> fixture.service().preflightRecord(
+                        fixture.blobs(), reference, challenge, maximumAnswer));
+
+        assertTrue(failure.getMessage().contains("exceeds"));
+    }
+
     private BlobReference recordChallenge(Fixture fixture, Object challenge) throws Exception {
         BlobReference current = fixture.service().create(fixture.blobs(), RUN_ID, DIGEST);
         if (challenge instanceof DiscoveryChallenge value) {
@@ -254,9 +317,18 @@ class ShipInteractionBundleServiceTest {
     }
 
     private static DiscoveryAnswer discoveryAnswer(ShipInteractionSigner signer) throws Exception {
+        return discoveryAnswer(signer, "a", "cli", Instant.EPOCH);
+    }
+
+    private static DiscoveryAnswer discoveryAnswer(
+            ShipInteractionSigner signer,
+            String response,
+            String channel,
+            Instant answeredAt)
+            throws Exception {
         DiscoveryAnswer value = new DiscoveryAnswer(
                 Interaction.SCHEMA_VERSION, RUN_ID, 1, "question-1", "open-item-1", NONCE,
-                "a", "cli", Instant.EPOCH, SYNTACTIC_MAC);
+                response, channel, answeredAt, SYNTACTIC_MAC);
         return new DiscoveryAnswer(
                 value.schemaVersion(), value.runId(), value.ledgerRevision(), value.questionId(),
                 value.openItemId(), value.nonce(), value.response(), value.channel(), value.answeredAt(),

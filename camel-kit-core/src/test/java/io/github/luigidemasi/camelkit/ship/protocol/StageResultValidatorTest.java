@@ -177,6 +177,35 @@ class StageResultValidatorTest {
     }
 
     @Test
+    void needsDiscoveryCannotCarryAnUnpresentedLedgerQuestion() {
+        DecisionLedger.Question pending = new DecisionLedger.Question(
+                "question-runtime", "decision-runtime", "Which runtime?", List.of("main"), "main",
+                LedgerStatus.OPEN);
+        DecisionLedger ledger = questionLedger(pending);
+
+        for (ShipStage stage : List.of(ShipStage.DISCOVERY, ShipStage.DESIGN, ShipStage.REVIEW)) {
+            StageRequest request = request(stage);
+            List<CatalogSubject> catalogRequests = stage == ShipStage.DISCOVERY
+                    ? CATALOG_REQUESTS
+                    : List.of();
+            StageResult result = result(
+                    request,
+                    StageResult.Outcome.NEEDS_DISCOVERY,
+                    ledger,
+                    null,
+                    catalogRequests,
+                    List.of());
+
+            StageResultValidationException error = assertThrows(
+                    StageResultValidationException.class,
+                    () -> StageResultValidator.validatePreflight(request, result, output),
+                    stage.name());
+
+            assertTrue(error.getMessage().contains("unpresented ledger question"), stage.name());
+        }
+    }
+
+    @Test
     void discoveryContinuationCannotSmuggleArtifacts() throws Exception {
         StageRequest request = request(ShipStage.DISCOVERY);
         StageResult result = result(

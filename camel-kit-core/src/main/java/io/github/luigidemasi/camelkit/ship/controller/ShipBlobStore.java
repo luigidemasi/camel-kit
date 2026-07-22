@@ -24,6 +24,7 @@ import java.util.Set;
 
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.protocol.ProducedArtifact;
+import io.github.luigidemasi.camelkit.ship.protocol.ShipStage;
 import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy;
 import io.github.luigidemasi.camelkit.ship.security.StagedArtifactSource;
 
@@ -137,6 +138,91 @@ public final class ShipBlobStore {
 
     boolean belongsToRun(String candidateRunId) {
         return runId.equals(candidateRunId);
+    }
+
+    Path expectedSourceDirectory() {
+        return runRoot.resolve("source");
+    }
+
+    Path verifiedPath(BlobReference reference) throws IOException {
+        requireReference(reference);
+        try (ShipOperationLock.Lease ignored = ShipOperationLock.acquireRun(stateRoot, runId)) {
+            verifyStore();
+            verifyBlob(reference);
+            return blobPath(reference.digest());
+        }
+    }
+
+    Path createAttemptOutput(ShipStage stage, String attemptId) throws IOException {
+        Path output = expectedAttemptOutput(stage, attemptId);
+        Path attempts = output.getParent().getParent();
+        Path attempt = output.getParent();
+        try (ShipOperationLock.Lease ignored = ShipOperationLock.acquireRun(stateRoot, runId)) {
+            verifyStore();
+            createPrivateDirectory(attempts, runRoot, "Ship attempt directory");
+            if (Files.exists(attempt, LinkOption.NOFOLLOW_LINKS)) {
+                throw new IOException("Ship attempt already exists: " + attemptId);
+            }
+            Files.createDirectory(
+                    attempt, PosixFilePermissions.asFileAttribute(DIRECTORY_PERMISSIONS));
+            forceDirectory(attempts);
+            verifyPrivateDirectory(attempt, attempts, "Ship attempt");
+            Files.createDirectory(
+                    output, PosixFilePermissions.asFileAttribute(DIRECTORY_PERMISSIONS));
+            forceDirectory(attempt);
+            verifyPrivateDirectory(output, attempt, "Ship attempt output");
+            return output;
+        } catch (UnsupportedOperationException e) {
+            throw new IOException("Ship attempts require POSIX permissions", e);
+        }
+    }
+
+    Path verifyAttemptOutput(ShipStage stage, String attemptId) throws IOException {
+        Path output = expectedAttemptOutput(stage, attemptId);
+        Path attempt = output.getParent();
+        Path attempts = attempt.getParent();
+        try (ShipOperationLock.Lease ignored = ShipOperationLock.acquireRun(stateRoot, runId)) {
+            verifyStore();
+            verifyPrivateDirectory(attempts, runRoot, "Ship attempt directory");
+            verifyPrivateDirectory(attempt, attempts, "Ship attempt");
+            verifyPrivateDirectory(output, attempt, "Ship attempt output");
+            return output;
+        }
+    }
+
+    Path verifyCandidateDirectory(Path candidate) throws IOException {
+        if (candidate == null || !candidate.isAbsolute() || !candidate.normalize().equals(candidate)) {
+            throw new IOException("Ship candidate directory must be absolute and normalized");
+        }
+        Path attempts = runRoot.resolve("attempts");
+        Path relative;
+        try {
+            relative = attempts.relativize(candidate);
+        } catch (IllegalArgumentException e) {
+            throw new IOException("Ship candidate directory belongs to another filesystem", e);
+        }
+        if (relative.getNameCount() != 2 || !"candidate".equals(relative.getName(1).toString())) {
+            throw new IOException("Ship candidate is not an exact protected execution attempt");
+        }
+        String attemptId = relative.getName(0).toString();
+        Path expected = verifyAttemptOutput(ShipStage.EXECUTE, attemptId);
+        if (!expected.equals(candidate)) {
+            throw new IOException("Ship candidate is not an exact protected execution attempt");
+        }
+        return expected;
+    }
+
+    Path expectedAttemptOutput(ShipStage stage, String attemptId) {
+        if (stage == null) {
+            throw new IllegalArgumentException("Ship attempt stage is required");
+        }
+        String prefix = stage.name().toLowerCase(java.util.Locale.ROOT);
+        if (attemptId == null
+                || !attemptId.matches(prefix + "-[1-9][0-9]*-[A-Za-z0-9_-]{16}")) {
+            throw new IllegalArgumentException("Invalid Ship attempt ID");
+        }
+        String leaf = stage == ShipStage.EXECUTE ? "candidate" : "output";
+        return runRoot.resolve("attempts").resolve(attemptId).resolve(leaf);
     }
 
     /** Imports a whole accepted result before any artifact becomes addressable. */
@@ -439,18 +525,26 @@ public final class ShipBlobStore {
     }
 
     private void createPrivateDirectory(Path path, String description) throws IOException {
+        createPrivateDirectory(path, runRoot, description);
+    }
+
+    private void createPrivateDirectory(Path path, Path parent, String description) throws IOException {
         try {
             Files.createDirectory(path, PosixFilePermissions.asFileAttribute(DIRECTORY_PERMISSIONS));
-            forceDirectory(runRoot);
+            forceDirectory(parent);
         } catch (FileAlreadyExistsException ignored) {
             // An interrupted or re-opened run may already own it; validate below.
         } catch (UnsupportedOperationException e) {
             throw new IOException(description + " requires POSIX permissions", e);
         }
-        verifyPrivateDirectory(path, description);
+        verifyPrivateDirectory(path, parent, description);
     }
 
     private void verifyPrivateDirectory(Path path, String description) throws IOException {
+        verifyPrivateDirectory(path, runRoot, description);
+    }
+
+    private void verifyPrivateDirectory(Path path, Path parent, String description) throws IOException {
         BasicFileAttributes basic = Files.readAttributes(
                 path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
         if (!basic.isDirectory() || basic.isSymbolicLink() || basic.fileKey() == null
@@ -458,7 +552,8 @@ public final class ShipBlobStore {
             throw new IOException(description + " must be a real directory");
         }
         requirePermissions(path, DIRECTORY_PERMISSIONS, description);
-        requireSameOwner(path, runRoot, description);
+        requireSameOwner(path, parent, description);
+        requireSameDevice(path, parent, description);
     }
 
     private static void setExpectedOwnerAndLinks(Path path, Path parent, String description)
@@ -490,6 +585,25 @@ public final class ShipBlobStore {
         if (!attributes.owner().equals(parentAttributes.owner())) {
             throw new IOException(description + " owner differs from its protected parent");
         }
+    }
+
+    private static void requireSameDevice(Path path, Path parent, String description) throws IOException {
+        if (device(path, description) != device(parent, description + " parent")) {
+            throw new IOException(description + " crosses its protected filesystem device");
+        }
+    }
+
+    private static long device(Path path, String description) throws IOException {
+        Object value;
+        try {
+            value = Files.getAttribute(path, "unix:dev", LinkOption.NOFOLLOW_LINKS);
+        } catch (UnsupportedOperationException e) {
+            throw new IOException(description + " filesystem lacks device identity", e);
+        }
+        if (!(value instanceof Number number)) {
+            throw new IOException(description + " lacks filesystem device identity");
+        }
+        return number.longValue();
     }
 
     private static void requirePermissions(

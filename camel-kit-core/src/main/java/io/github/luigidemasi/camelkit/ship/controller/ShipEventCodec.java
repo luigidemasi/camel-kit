@@ -1,10 +1,7 @@
 package io.github.luigidemasi.camelkit.ship.controller;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
-import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.util.ArrayDeque;
@@ -268,11 +265,7 @@ final class ShipEventCodec {
 
     private static String strictUtf8(byte[] bytes, String label) throws ShipEventStoreException {
         try {
-            return StandardCharsets.UTF_8.newDecoder()
-                    .onMalformedInput(CodingErrorAction.REPORT)
-                    .onUnmappableCharacter(CodingErrorAction.REPORT)
-                    .decode(ByteBuffer.wrap(bytes))
-                    .toString();
+            return ShipUtf8.decode(bytes);
         } catch (CharacterCodingException e) {
             throw new ShipEventStoreException(label + " is not strict UTF-8", e);
         }

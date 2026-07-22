@@ -205,7 +205,18 @@
             "enum": ["DISCOVERY", "DESIGN", "REVIEW"]
           },
           "ledger": {
-            "$ref": "decision-ledger.schema.json"
+            "allOf": [
+              {
+                "$ref": "decision-ledger.schema.json"
+              },
+              {
+                "properties": {
+                  "openQuestions": {
+                    "maxItems": 0
+                  }
+                }
+              }
+            ]
           },
           "question": {
             "type": "null"
@@ -565,11 +576,6 @@
     }
   ],
   "$defs": {
-    "nonBlank": {
-      "type": "string",
-      "minLength": 1,
-      "pattern": "\\S"
-    },
     "runId": {
       "type": "string",
       "pattern": "^ship-[0-9a-f]{32}$"
@@ -648,7 +654,7 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 4096,
-          "pattern": "^(?!/)(?!.*\\\\)(?!\\.{1,2}(?:/|$))(?!.*(?:/\\.{1,2})(?:/|$))(?!.*//)[^\\u0000/]+(?:/[^\\u0000/]+)*$"
+          "pattern": "^(?!/)(?!.*\\\\)(?!\\.{1,2}(?:/|$))(?!.*(?:/\\.{1,2})(?:/|$))(?!.*//)[^\\u0000-\\u001f\\u007f/]+(?:/[^\\u0000-\\u001f\\u007f/]+)*$"
         },
         "digest": {
           "$ref": "#/$defs/digest"
