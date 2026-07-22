@@ -8,10 +8,12 @@ import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
@@ -49,6 +51,10 @@ final class ShipAttemptFactory {
                     "authoritative-guidance", "skills/camel-brainstorm/guides/version-selection.md"),
             new ContractResource("controller-evidence-policy", "distribution.properties"),
             new ContractResource("controller-execution-override", "ship/workers/discovery.md"));
+
+    private final Map<BlobReference, Path> verifiedPaths = new HashMap<>();
+    private final Map<SourceBinding, SourceInputs> sources = new HashMap<>();
+    private final Map<CandidateBinding, CandidateInputs> candidates = new HashMap<>();
 
     /**
      * Creates a logical request only. The controller must materialize protected input references and issue a runnable
@@ -153,6 +159,7 @@ final class ShipAttemptFactory {
         }
         validateFailure(projected.failureCode(), projected.failureMessage());
 
+        resetVerification();
         SourceInputs source = sourceInputs(run, blobs);
         String attemptId = stage.name().toLowerCase(Locale.ROOT)
                            + '-' + attempt + '-' + randomToken(12);
@@ -207,6 +214,24 @@ final class ShipAttemptFactory {
 
     /** Re-derives every deterministic field of one projected controller-issued request. */
     void validateIssued(
+            ShipRunView run,
+            ShipBlobStore blobs,
+            StageRequest request,
+            ShipStage expectedStage,
+            int expectedAttempt,
+            String eventOutputDirectory)
+            throws IOException {
+        resetVerification();
+        validateIssuedDuringReplay(
+                run,
+                blobs,
+                request,
+                expectedStage,
+                expectedAttempt,
+                eventOutputDirectory);
+    }
+
+    void validateIssuedDuringReplay(
             ShipRunView run,
             ShipBlobStore blobs,
             StageRequest request,
@@ -277,7 +302,18 @@ final class ShipAttemptFactory {
         }
     }
 
-    private static RequestInputs requestInputs(
+    /** Starts one complete replay-scoped integrity verification. */
+    void beginReplay() {
+        resetVerification();
+    }
+
+    private void resetVerification() {
+        verifiedPaths.clear();
+        sources.clear();
+        candidates.clear();
+    }
+
+    private RequestInputs requestInputs(
             ShipBlobStore blobs,
             ShipStage stage,
             Path output,
@@ -404,13 +440,20 @@ final class ShipAttemptFactory {
         };
     }
 
-    private static SourceInputs sourceInputs(ShipRunView run, ShipBlobStore blobs) throws IOException {
+    private SourceInputs sourceInputs(ShipRunView run, ShipBlobStore blobs)
+            throws IOException {
         BlobReference snapshotReference = requireKind(
                 require(run.sourceSnapshot(), "project source snapshot"), "project-snapshot");
         BlobReference manifestReference = requireKind(
                 require(run.projectSourceManifest(), "project source manifest"),
                 "project-source-manifest");
         Path directory = require(run.sourceDirectory(), "project source directory");
+        SourceBinding binding = new SourceBinding(
+                directory, snapshotReference, manifestReference);
+        SourceInputs cached = sources.get(binding);
+        if (cached != null) {
+            return cached;
+        }
         if (!directory.equals(blobs.expectedSourceDirectory())) {
             throw new IOException("Ship project source is outside the protected run directory");
         }
@@ -428,16 +471,24 @@ final class ShipAttemptFactory {
         } catch (IllegalArgumentException e) {
             throw new IOException("Ship project source identity differs from its immutable snapshot", e);
         }
-        return new SourceInputs(directory, snapshotReference, snapshot, manifestReference);
+        SourceInputs result = new SourceInputs(
+                directory, snapshotReference, snapshot, manifestReference);
+        sources.put(binding, result);
+        return result;
     }
 
-    private static CandidateInputs candidate(AttemptInputs projected, ShipBlobStore blobs)
+    private CandidateInputs candidate(AttemptInputs projected, ShipBlobStore blobs)
             throws IOException {
         Path directory = blobs.verifyCandidateDirectory(
                 require(projected.candidateDirectory(), "validation candidate"));
         BlobReference reference = requireKind(
                 require(projected.candidateSnapshot(), "validation candidate snapshot"),
                 "project-snapshot");
+        CandidateBinding binding = new CandidateBinding(directory, reference);
+        CandidateInputs cached = candidates.get(binding);
+        if (cached != null) {
+            return cached;
+        }
         ProjectSnapshot snapshot = read(blobs, reference, ProjectSnapshot.class);
         if (!Path.of(snapshot.root()).equals(directory)) {
             throw new IOException("Ship validation candidate snapshot names another directory");
@@ -450,10 +501,12 @@ final class ShipAttemptFactory {
         } catch (IllegalArgumentException e) {
             throw new IOException("Ship validation candidate identity differs from its snapshot", e);
         }
-        return new CandidateInputs(directory, reference);
+        CandidateInputs result = new CandidateInputs(directory, reference);
+        candidates.put(binding, result);
+        return result;
     }
 
-    private static StageCapability capability(
+    private StageCapability capability(
             ShipBlobStore blobs,
             ShipStage stage,
             Path output,
@@ -567,12 +620,12 @@ final class ShipAttemptFactory {
         return blobs.writeBytes("worker-contract", workerContractContent(stage));
     }
 
-    private static BlobReference expectedWorkerContract(ShipBlobStore blobs, ShipStage stage)
+    private BlobReference expectedWorkerContract(ShipBlobStore blobs, ShipStage stage)
             throws IOException {
         byte[] content = workerContractContent(stage);
         BlobReference reference = new BlobReference(
                 "worker-contract", ShipDigest.sha256(content), content.length);
-        blobs.verifiedPath(reference);
+        path(blobs, reference);
         return reference;
     }
 
@@ -649,11 +702,20 @@ final class ShipAttemptFactory {
                 blobs.readBytes(reference, ShipJson.MAX_DOCUMENT_BYTES), type);
     }
 
-    private static String path(ShipBlobStore blobs, BlobReference reference) throws IOException {
-        return reference == null ? null : blobs.verifiedPath(reference).toString();
+    private String path(ShipBlobStore blobs, BlobReference reference)
+            throws IOException {
+        if (reference == null) {
+            return null;
+        }
+        Path cached = verifiedPaths.get(reference);
+        if (cached == null) {
+            cached = blobs.verifiedPath(reference);
+            verifiedPaths.put(reference, cached);
+        }
+        return cached.toString();
     }
 
-    private static void addPath(
+    private void addPath(
             List<String> paths, ShipBlobStore blobs, BlobReference reference)
             throws IOException {
         if (reference != null) {
@@ -661,7 +723,7 @@ final class ShipAttemptFactory {
         }
     }
 
-    private static List<String> evidencePaths(
+    private List<String> evidencePaths(
             ShipBlobStore blobs, List<BlobReference> references)
             throws IOException {
         if (references.size() > 20_000) {
@@ -940,6 +1002,15 @@ final class ShipAttemptFactory {
     }
 
     private record CandidateInputs(Path directory, BlobReference snapshot) {
+    }
+
+    private record SourceBinding(
+            Path directory,
+            BlobReference snapshot,
+            BlobReference manifest) {
+    }
+
+    private record CandidateBinding(Path directory, BlobReference snapshot) {
     }
 
     record Inputs(

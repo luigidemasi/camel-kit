@@ -225,7 +225,10 @@ class ShipInteractionBundleServiceTest {
         IOException failure = assertThrows(
                 IOException.class,
                 () -> fixture.service().preflightRecord(
-                        fixture.blobs(), reference, discoveryChallenge(fixture.signer())));
+                        fixture.blobs(),
+                        reference,
+                        discoveryChallenge(fixture.signer()),
+                        discoveryAnswer(fixture.signer())));
 
         assertTrue(failure.getMessage().contains("exchange limit"));
     }
@@ -253,8 +256,6 @@ class ShipInteractionBundleServiceTest {
         BlobReference reference = fixture.blobs().writeBytes(
                 "interaction-bundle", ShipInteractionBundleService.encoded(nearLimit));
 
-        assertDoesNotThrow(() -> fixture.service().preflightRecord(
-                fixture.blobs(), reference, challenge));
         IOException failure = assertThrows(
                 IOException.class,
                 () -> fixture.service().preflightRecord(

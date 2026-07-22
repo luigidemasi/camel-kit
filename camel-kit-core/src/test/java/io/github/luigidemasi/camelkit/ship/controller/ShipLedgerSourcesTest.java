@@ -9,6 +9,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
+import io.github.luigidemasi.camelkit.ship.context.InitialContext;
 import io.github.luigidemasi.camelkit.ship.context.InitialContextRequest;
 import io.github.luigidemasi.camelkit.ship.context.InitialContextRequest.DocumentReference;
 import io.github.luigidemasi.camelkit.ship.context.InitialContextRequest.UserText;
@@ -156,6 +157,102 @@ class ShipLedgerSourcesTest {
                 () -> ShipLedgerSources.load(blobs, context, interactions));
         assertTrue(failure.getMessage().contains("provenance manifest")
                 || failure.getMessage().contains("changed"));
+    }
+
+    @Test
+    void loadsNearLimitContextAfterJsonEscapingExpandsItsStoredForm() throws Exception {
+        Path project = Files.createDirectory(temporaryDirectory.resolve("escaped-project"))
+                .toAbsolutePath().normalize();
+        Path state = temporaryDirectory.resolve("escaped-state").toAbsolutePath().normalize();
+        ShipController controller = controller(state);
+        ShipRunView created = controller.start(new ShipController.PreparedRun(project, "test-adapter"));
+        String content = "\"".repeat(InitialContext.MAX_TOTAL_BYTES);
+        ShipRunView resolving = controller.beginContextResolution(
+                created.runId(), created.eventDigest(), new InitialContextRequest.Text(content));
+        ShipRunView context = controller.continueContextResolution(
+                created.runId(), resolving.eventDigest(), List.of());
+        ShipBlobStore blobs = ShipBlobStore.open(state, created.runId());
+        byte[] encoded = blobs.readBytes(context.context(), ShipJson.MAX_DOCUMENT_BYTES);
+
+        assertTrue(encoded.length > InitialContext.MAX_TOTAL_BYTES + 1024 * 1024);
+        ShipLedgerSources.Snapshot sources = ShipLedgerSources.load(
+                blobs,
+                context,
+                new ShipInteractionBundleService(
+                        ShipInteractionSigner.open(state.resolve(created.runId()))));
+
+        assertEquals(1, sources.sources().size());
+        assertEquals(InitialContext.MAX_TOTAL_BYTES, sources.sources().get(0).content().length);
+    }
+
+    @Test
+    void skipsNormalizedEmptyApprovalFeedbackSources() throws Exception {
+        Path project = Files.createDirectory(temporaryDirectory.resolve("approval-project"))
+                .toAbsolutePath().normalize();
+        Path state = temporaryDirectory.resolve("approval-state").toAbsolutePath().normalize();
+        ShipController controller = controller(state);
+        ShipRunView created = controller.start(new ShipController.PreparedRun(project, "test-adapter"));
+        ShipRunView resolving = controller.beginContextResolution(
+                created.runId(), created.eventDigest(), new InitialContextRequest.Text("context"));
+        ShipRunView context = controller.continueContextResolution(
+                created.runId(), resolving.eventDigest(), List.of());
+        ShipBlobStore blobs = ShipBlobStore.open(state, created.runId());
+        ShipInteractionSigner signer = ShipInteractionSigner.open(state.resolve(created.runId()));
+        ShipInteractionBundleService interactions = new ShipInteractionBundleService(signer);
+        String nonce = signer.nonce();
+        String contextDigest = interactions.read(blobs, context.interactionBundle()).contextDigest();
+        DesignChallenge challenge = designChallenge(
+                signer, created.runId(), contextDigest, nonce);
+        BlobReference bundle = interactions.record(blobs, context.interactionBundle(), challenge);
+        DesignResponse unsigned = new DesignResponse(
+                challenge.schemaVersion(),
+                challenge.runId(),
+                challenge.contextDigest(),
+                challenge.ledgerRevision(),
+                challenge.ledgerDigest(),
+                challenge.requirementsDigest(),
+                challenge.policyDigest(),
+                challenge.baselineDigest(),
+                challenge.designDigest(),
+                challenge.nonce(),
+                DesignDecision.APPROVE,
+                null,
+                "uid:1000",
+                "terminal-v1",
+                "cli",
+                NOW,
+                "hmac-sha256:" + "0".repeat(64));
+        DesignResponse response = new DesignResponse(
+                unsigned.schemaVersion(),
+                unsigned.runId(),
+                unsigned.contextDigest(),
+                unsigned.ledgerRevision(),
+                unsigned.ledgerDigest(),
+                unsigned.requirementsDigest(),
+                unsigned.policyDigest(),
+                unsigned.baselineDigest(),
+                unsigned.designDigest(),
+                unsigned.nonce(),
+                unsigned.decision(),
+                unsigned.requestedChanges(),
+                unsigned.controllerObservedProcessPrincipal(),
+                unsigned.declaredCliUiProfile(),
+                unsigned.channel(),
+                unsigned.answeredAt(),
+                signer.sign(Interaction.designResponseMacFields(unsigned)));
+        bundle = interactions.record(blobs, bundle, response);
+
+        ShipLedgerSources.Snapshot sources = ShipLedgerSources.load(
+                blobs,
+                context.context(),
+                context.projectSourceManifest(),
+                context.sourceDirectory(),
+                bundle,
+                interactions);
+
+        assertEquals("", response.requestedChanges());
+        assertEquals(1, sources.sources().size());
+        assertNull(sources.latestEvolutionAuthorization());
     }
 
     private static DiscoveryChallenge challenge(

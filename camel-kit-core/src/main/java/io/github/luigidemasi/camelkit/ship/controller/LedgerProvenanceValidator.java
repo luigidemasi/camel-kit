@@ -1,10 +1,6 @@
 package io.github.luigidemasi.camelkit.ship.controller;
 
-import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
-import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.util.Arrays;
 import java.util.Collections;
@@ -202,6 +198,7 @@ final class LedgerProvenanceValidator {
             }
             if (result.outcome() == StageResult.Outcome.NEEDS_DISCOVERY
                     && (request.stage() == ShipStage.DESIGN || request.stage() == ShipStage.REVIEW)) {
+                preserveGapEvolution(previous, proposed);
                 return;
             }
             preserveExistingAnalysis(previous, proposed);
@@ -227,6 +224,19 @@ final class LedgerProvenanceValidator {
         preserveCompleteness(previous.completeness(), proposed.completeness());
         preserveBlockingItems(previous.blockingOpenItemIds(), proposed.blockingOpenItemIds());
         preserveRequirementsPolicy(previous.requirementsPolicy(), proposed.requirementsPolicy());
+    }
+
+    private static void preserveGapEvolution(DecisionLedger previous, DecisionLedger proposed) {
+        preserveExistingItems("facts", previous.facts(), proposed.facts(), Entry::id);
+        preserveExistingItems("decisions", previous.decisions(), proposed.decisions(), Entry::id);
+        preserveExistingItems("conflicts", previous.conflicts(), proposed.conflicts(), Conflict::id);
+        preserveExistingItems("assumptions", previous.assumptions(), proposed.assumptions(), Assumption::id);
+        preserveGapCompleteness(previous.completeness(), proposed.completeness());
+        preserveBlockingItems(previous.blockingOpenItemIds(), proposed.blockingOpenItemIds());
+        if (!Objects.equals(previous.requirementsPolicy(), proposed.requirementsPolicy())) {
+            throw evolutionFailure(
+                    "Existing implementation policy changed while reporting discovery gaps");
+        }
     }
 
     private static <T> void preserveExistingItems(
@@ -265,6 +275,36 @@ final class LedgerProvenanceValidator {
                     "Existing completeness conclusions changed without a controller-authorized interaction: "
                                    + String.join(", ", changed));
         }
+    }
+
+    private static void preserveGapCompleteness(
+            List<Category> previous, List<Category> proposed) {
+        Map<String, Category> current = new LinkedHashMap<>();
+        proposed.forEach(category -> current.put(category.id(), category));
+        List<String> changed = previous.stream()
+                .filter(category -> {
+                    Category candidate = current.get(category.id());
+                    boolean regressed = candidate != null
+                            && isConclusive(category.status())
+                            && isOpen(candidate.status());
+                    return candidate == null
+                            || !regressed
+                                    && (category.status() != candidate.status()
+                                            || !Objects.equals(category.rationale(), candidate.rationale()));
+                })
+                .map(Category::id)
+                .toList();
+        if (!changed.isEmpty()) {
+            throw evolutionFailure(
+                    "Existing completeness conclusions improved or changed without a controller-authorized interaction: "
+                                   + String.join(", ", changed));
+        }
+    }
+
+    private static boolean isConclusive(LedgerStatus status) {
+        return status == LedgerStatus.RESOLVED
+                || status == LedgerStatus.NOT_APPLICABLE
+                || status == LedgerStatus.SUPERSEDED;
     }
 
     private static void preserveRequirementsPolicy(
@@ -567,11 +607,7 @@ final class LedgerProvenanceValidator {
 
     private static String feedbackSourceText(AllowedSource source) {
         try {
-            return StandardCharsets.UTF_8.newDecoder()
-                    .onMalformedInput(CodingErrorAction.REPORT)
-                    .onUnmappableCharacter(CodingErrorAction.REPORT)
-                    .decode(ByteBuffer.wrap(source.content()))
-                    .toString();
+            return ShipUtf8.decode(source.content());
         } catch (CharacterCodingException e) {
             throw provenanceFailure("Requirements-change feedback is not strict UTF-8");
         }
@@ -940,13 +976,7 @@ final class LedgerProvenanceValidator {
             throw provenanceFailure("A source excerpt must not be null");
         }
         try {
-            ByteBuffer encoded = StandardCharsets.UTF_8.newEncoder()
-                    .onMalformedInput(CodingErrorAction.REPORT)
-                    .onUnmappableCharacter(CodingErrorAction.REPORT)
-                    .encode(CharBuffer.wrap(value));
-            byte[] bytes = new byte[encoded.remaining()];
-            encoded.get(bytes);
-            return bytes;
+            return ShipUtf8.encode(value);
         } catch (CharacterCodingException e) {
             throw new ShipControllerException(
                     "ledger-provenance-invalid", "A source excerpt is not strict UTF-8", e);
@@ -955,12 +985,7 @@ final class LedgerProvenanceValidator {
 
     private static boolean containsNonBlankUtf8(byte[] value) {
         try {
-            return !StandardCharsets.UTF_8.newDecoder()
-                    .onMalformedInput(CodingErrorAction.REPORT)
-                    .onUnmappableCharacter(CodingErrorAction.REPORT)
-                    .decode(ByteBuffer.wrap(value))
-                    .toString()
-                    .isBlank();
+            return !ShipUtf8.decode(value).isBlank();
         } catch (CharacterCodingException e) {
             throw new ShipControllerException(
                     "ledger-provenance-invalid",

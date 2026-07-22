@@ -131,18 +131,6 @@ public final class ShipInteractionBundleService {
     }
 
     void preflightRecord(
-            ShipBlobStore blobs, BlobReference current, DiscoveryChallenge challenge)
-            throws IOException {
-        ShipInteractionBundle bundle = appendable(blobs, current);
-        List<ShipInteractionBundle.Exchange> exchanges = mutable(bundle);
-        exchanges.add(ShipInteractionBundle.Exchange.discovery(
-                exchanges.size() + 1, challenge));
-        ShipInteractionBundle candidate = copy(bundle, exchanges);
-        verifyMacs(candidate);
-        encoded(candidate);
-    }
-
-    void preflightRecord(
             ShipBlobStore blobs,
             BlobReference current,
             DiscoveryChallenge challenge,

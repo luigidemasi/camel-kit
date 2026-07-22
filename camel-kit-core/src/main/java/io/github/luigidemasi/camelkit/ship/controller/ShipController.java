@@ -206,7 +206,12 @@ final class ShipController {
     ShipRunView retryStage(String runId, String expectedEventDigest) throws IOException {
         return mutate(runId, expectedEventDigest, current -> {
             ShipAuthorityCommand command = ShipAuthorityCommand.empty(ShipEventType.RETRY_STARTED);
-            ShipRun successor = command.apply(current.view().authority());
+            ShipRun successor;
+            try {
+                successor = command.apply(current.view().authority());
+            } catch (IllegalStateException e) {
+                throw new ShipControllerException("lifecycle-boundary", e.getMessage(), e);
+            }
             Attempt attempt = ShipLifecycleReducer.attempt(successor);
             return startStage(
                     current,

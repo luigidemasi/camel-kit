@@ -14,18 +14,18 @@ import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy;
 import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy.Classification;
 
 /** Deterministic provenance identities for files in one controller-owned immutable project source. */
-public record ProjectSourceManifest(
+record ProjectSourceManifest(
         int schemaVersion,
         String sourceSnapshotDigest,
         List<FileSource> sources,
         String digest) {
 
-    public static final int SCHEMA_VERSION = 1;
+    static final int SCHEMA_VERSION = 1;
     private static final String MANIFEST_DOMAIN = "camel-kit.ship.project-source-manifest.v1";
     private static final String SOURCE_DOMAIN = "camel-kit.ship.project-file-source.v1";
     private static final String LOCATOR_PREFIX = "controller:project-source#";
 
-    public ProjectSourceManifest {
+    ProjectSourceManifest {
         if (schemaVersion != SCHEMA_VERSION || !ShipDigest.isSha256(sourceSnapshotDigest)) {
             throw new IllegalArgumentException("Invalid project-source manifest identity");
         }
@@ -54,7 +54,7 @@ public record ProjectSourceManifest(
         }
     }
 
-    public static ProjectSourceManifest from(ProjectSnapshot snapshot) {
+    static ProjectSourceManifest from(ProjectSnapshot snapshot) {
         Objects.requireNonNull(snapshot, "project snapshot");
         snapshot.directories().forEach((path, entry) -> requireMaterial(path, entry.classification()));
         List<FileSource> sources = snapshot.files().entrySet().stream()
@@ -107,14 +107,14 @@ public record ProjectSourceManifest(
         return ShipDigest.sha256(Interaction.canonicalMacBytes(fields.toArray(String[]::new)));
     }
 
-    public record FileSource(
+    record FileSource(
             String relativePath,
             String sourceId,
             String locator,
             String digest,
             long byteSize) {
 
-        public FileSource {
+        FileSource {
             relativePath = ShipTreePolicy.requireCanonicalRelativePath(relativePath);
             if (sourceId == null
                     || !sourceId.matches("project-file-[0-9a-f]{64}")

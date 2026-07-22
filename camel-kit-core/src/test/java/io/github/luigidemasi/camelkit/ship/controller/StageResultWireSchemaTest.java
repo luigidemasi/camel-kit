@@ -2,6 +2,7 @@ package io.github.luigidemasi.camelkit.ship.controller;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -59,6 +60,24 @@ class StageResultWireSchemaTest {
         }
     }
 
+    @Test
+    void producedArtifactPathRejectsControlCharacters() throws Exception {
+        ObjectNode valid = completedDesign("design.md");
+        assertDoesNotThrow(() -> StageResultWireSchema.validate(valid));
+
+        for (char control : new char[]{'\n', '\u001f', '\u007f'}) {
+            ObjectNode poisoned = valid.deepCopy();
+            ((ObjectNode) poisoned.path("artifacts").path(0))
+                    .put("relativePath", "design" + control + ".md");
+
+            assertThrows(
+                    IOException.class,
+                    () -> StageResultWireSchema.validate(poisoned),
+                    () -> "accepted control character U+"
+                          + String.format(Locale.ROOT, "%04X", (int) control));
+        }
+    }
+
     private static ObjectNode needsDiscovery(String stage) throws Exception {
         String catalogRequests = "DISCOVERY".equals(stage)
                 ? "[{\"kind\":\"COMPONENT\",\"name\":\"kafka\"}]"
@@ -112,5 +131,33 @@ class StageResultWireSchemaTest {
                 .replace("$ATTEMPT", stage.toLowerCase(java.util.Locale.ROOT) + "-1-AAAAAAAAAAAAAAAA")
                 .replace("$CATALOG_REQUESTS", catalogRequests));
         return (ObjectNode) document;
+    }
+
+    private static ObjectNode completedDesign(String relativePath) throws Exception {
+        ObjectNode document = (ObjectNode) JsonMapper.builder().build().readTree("""
+                {
+                  "schemaVersion": 1,
+                  "runId": "ship-11111111111111111111111111111111",
+                  "stage": "DESIGN",
+                  "attemptId": "design-1-AAAAAAAAAAAAAAAA",
+                  "challenge": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                  "inputDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+                  "outcome": "COMPLETED",
+                  "ledger": null,
+                  "question": null,
+                  "catalogRequests": [],
+                  "artifacts": [{
+                    "kind": "design",
+                    "relativePath": "design.md",
+                    "digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+                    "size": 1
+                  }],
+                  "artifactManifest": null,
+                  "failureCode": null,
+                  "failureMessage": null
+                }
+                """);
+        ((ObjectNode) document.path("artifacts").path(0)).put("relativePath", relativePath);
+        return document;
     }
 }

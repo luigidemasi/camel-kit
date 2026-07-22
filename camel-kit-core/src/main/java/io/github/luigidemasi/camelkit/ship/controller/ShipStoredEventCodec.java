@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 final class ShipStoredEventCodec {
 
     private static final Set<String> ENVELOPE_FIELDS = Set.of("authority", "data");
+    private static final ObjectMapper MAPPER = ShipJson.mapper();
 
     private ShipStoredEventCodec() {
     }
@@ -26,10 +27,9 @@ final class ShipStoredEventCodec {
             throw new IllegalArgumentException(
                     "Event " + authority.type().stableId() + " requires " + expected.getSimpleName());
         }
-        ObjectMapper mapper = ShipJson.mapper();
-        ObjectNode envelope = mapper.createObjectNode();
+        ObjectNode envelope = MAPPER.createObjectNode();
         envelope.set("authority", authority.toJson());
-        envelope.set("data", mapper.valueToTree(data));
+        envelope.set("data", MAPPER.valueToTree(data));
         return envelope;
     }
 
@@ -56,7 +56,7 @@ final class ShipStoredEventCodec {
             throw new IOException("Ship event data must be an object");
         }
         try {
-            ShipEventPayloads.Payload data = ShipJson.mapper().treeToValue(
+            ShipEventPayloads.Payload data = MAPPER.treeToValue(
                     dataNode, payloadType(type));
             return new StoredEvent(authority, data);
         } catch (JsonProcessingException | IllegalArgumentException e) {

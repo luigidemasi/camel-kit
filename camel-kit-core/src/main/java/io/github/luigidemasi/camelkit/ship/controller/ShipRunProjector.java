@@ -33,6 +33,7 @@ final class ShipRunProjector {
     private final FileShipEventStore events;
     private final ShipBlobStore blobs;
     private final ShipInteractionBundleService interactions;
+    private final ShipAttemptFactory attemptFactory = new ShipAttemptFactory();
 
     ShipRunProjector(
                      FileShipEventStore events,
@@ -96,6 +97,7 @@ final class ShipRunProjector {
     }
 
     private Projection replayProjection() throws IOException {
+        attemptFactory.beginReplay();
         List<ShipEvent> history = events.replay();
         if (history.isEmpty()) {
             throw new IOException("Ship run has no authoritative events");
@@ -530,8 +532,10 @@ final class ShipRunProjector {
             case ATTEMPT_FAILED_RETRYABLE ->
                 applyAttemptFailure(
                         projection, cast(data, ShipEventPayloads.Failure.class));
-            case WAIVABLE_FAILURE_RECORDED,
-                    RUN_FAILED_TERMINAL,
+            case WAIVABLE_FAILURE_RECORDED ->
+                applyWaivableFailure(
+                        projection, cast(data, ShipEventPayloads.Failure.class));
+            case RUN_FAILED_TERMINAL,
                     RUN_ABORTED ->
                 applyFailure(
                         projection, cast(data, ShipEventPayloads.Failure.class));
@@ -597,7 +601,7 @@ final class ShipRunProjector {
                         .equals(absolutePath(request.outputDirectory(), "request output directory"))) {
             throw new IOException("Stage request does not match the exact lifecycle attempt for " + event.stableId());
         }
-        new ShipAttemptFactory().validateIssued(
+        attemptFactory.validateIssuedDuringReplay(
                 projection.view(successor),
                 blobs,
                 request,
@@ -650,7 +654,9 @@ final class ShipRunProjector {
                                 io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest.class))) {
             throw new IOException("Accepted artifact manifest differs from the exact worker result");
         }
-        if (value.stage() == ShipStage.DISCOVERY || value.stage() == ShipStage.REVIEW) {
+        if (value.stage() == ShipStage.DISCOVERY
+                || value.stage() == ShipStage.REVIEW
+                || event == ShipEventType.DESIGN_GAPS_FOUND) {
             validateLedgerProvenance(projection, projection.activeRequest, result);
         }
 
@@ -733,6 +739,7 @@ final class ShipRunProjector {
                 requireStageOutcome(value, result, ShipStage.DESIGN, StageResult.Outcome.COMPLETED);
                 projection.design = artifact(value, "design");
                 requireContent(authority, projection.design.digest(), "accepted design");
+                requireDigest(value.designDigest(), projection.design, "accepted design");
                 projection.designDigest = value.designDigest();
             }
             case PLAN_VALIDATED -> {
@@ -1006,6 +1013,18 @@ final class ShipRunProjector {
             throw new IOException("Retryable failure does not bind the exact failed worker result");
         }
         BlobReference interactionBundle = projection.interactionBundle;
+        applyFailure(projection, value);
+        projection.interactionBundle = interactionBundle;
+    }
+
+    private void applyWaivableFailure(
+            Projection projection, ShipEventPayloads.Failure value)
+            throws IOException {
+        BlobReference interactionBundle = projection.interactionBundle;
+        if (value.interactionBundle() != null
+                && !value.interactionBundle().equals(interactionBundle)) {
+            throw new IOException("Waivable failure changed the signed interaction bundle");
+        }
         applyFailure(projection, value);
         projection.interactionBundle = interactionBundle;
     }

@@ -22,10 +22,9 @@ import io.github.luigidemasi.camelkit.ship.protocol.StageResultValidator;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Accidental-wiring tripwire while staged import has no production broker.
+ * Full-reactor accidental-wiring tripwire while staged import has no production broker.
  *
  * <p>
  * This is not a security boundary. Production import still requires proof that the full worker process tree is dead
@@ -33,7 +32,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class ShipArtifactImportWiringTest {
 
-    private static final String PACKAGE_PATH = "io/github/luigidemasi/camelkit/";
+    private static final List<String> REACTOR_MODULES = List.of(
+            "camel-kit-main",
+            "camel-kit-core",
+            "camel-kit-graph",
+            "camel-kit-ship-resolver",
+            "camel-kit-ship-controller",
+            "camel-jbang-plugin-kit");
     private static final String WORKSPACE_SERVICE
             = "io.github.luigidemasi.camelkit.ship.controller.ShipWorkspaceService";
     private static final String WORKSPACE_ACCEPT = WORKSPACE_SERVICE.replace('.', '/') + ".accept:";
@@ -46,13 +51,23 @@ class ShipArtifactImportWiringTest {
             "^\\s+#[0-9]+ = (?:Interface)?Methodref\\s+#[^\\r\\n]*//\\s+(\\S+)$", Pattern.MULTILINE);
 
     @Test
-    void stagedArtifactImportRemainsUnwiredUntilTheProductionBrokerExists() throws Exception {
-        Path classes = Path.of(ShipWorkspaceService.class.getProtectionDomain()
+    void stagedArtifactImportRemainsUnwiredAcrossTheCompiledReactor() throws Exception {
+        Path testClasses = Path.of(ShipArtifactImportWiringTest.class.getProtectionDomain()
                 .getCodeSource().getLocation().toURI());
-        Path production = classes.resolve(PACKAGE_PATH);
-        assertTrue(Files.isDirectory(production), "Compiled Camel Kit classes are missing: " + production);
+        Path reactor = testClasses.getParent().getParent().getParent();
+        List<Path> productionRoots = productionRoots(reactor);
+        assertEquals(
+                REACTOR_MODULES.size(),
+                productionRoots.size(),
+                "The accidental-wiring tripwire must run after every reactor module is compiled");
 
-        Map<String, Set<String>> callers = callers(classes, classes.toString(), classFiles(production));
+        String classpath = String.join(
+                File.pathSeparator,
+                productionRoots.stream().map(Path::toString).toList());
+        Map<String, Set<String>> callers = new HashMap<>();
+        for (Path root : productionRoots) {
+            collectCallers(callers, root, classpath, classFiles(root));
+        }
 
         assertEquals(
                 Set.of(),
@@ -76,8 +91,9 @@ class ShipArtifactImportWiringTest {
                 .getCodeSource().getLocation().toURI());
         Path canary = testClasses.resolve(JavapCanary.class.getName().replace('.', '/') + ".class");
         String classpath = testClasses + File.pathSeparator + productionClasses;
+        Map<String, Set<String>> callers = new HashMap<>();
 
-        Map<String, Set<String>> callers = callers(testClasses, classpath, List.of(canary));
+        collectCallers(callers, testClasses, classpath, List.of(canary));
 
         for (String guardedMethod : GUARDED_METHODS) {
             assertEquals(
@@ -87,16 +103,28 @@ class ShipArtifactImportWiringTest {
         }
     }
 
+    private static List<Path> productionRoots(Path reactor) {
+        return REACTOR_MODULES.stream()
+                .map(module -> reactor.resolve(module).resolve("target/classes"))
+                .filter(Files::isDirectory)
+                .map(Path::toAbsolutePath)
+                .map(Path::normalize)
+                .toList();
+    }
+
     private static List<Path> classFiles(Path root) throws IOException {
         try (var files = Files.walk(root)) {
             return files.filter(path -> path.toString().endsWith(".class")).toList();
         }
     }
 
-    private static Map<String, Set<String>> callers(Path root, String classpath, List<Path> classFiles) {
+    private static void collectCallers(
+            Map<String, Set<String>> callers,
+            Path root,
+            String classpath,
+            List<Path> classFiles) {
         ToolProvider javap = ToolProvider.findFirst("javap").orElseThrow(
                 () -> new AssertionError("Ship artifact import tripwire requires a JDK with javap"));
-        Map<String, Set<String>> callers = new HashMap<>();
         for (Path classFile : classFiles) {
             String className = className(root, classFile);
             Matcher references = METHOD_REFERENCE.matcher(javap(javap, classpath, className));
@@ -109,7 +137,6 @@ class ShipArtifactImportWiringTest {
                 }
             }
         }
-        return callers;
     }
 
     private static String javap(ToolProvider tool, String classpath, String className) {

@@ -215,6 +215,21 @@ class FileShipEventStoreTest {
     }
 
     @Test
+    void secretReaderRequiresTheExactKeyLength() throws Exception {
+        for (int bytes : List.of(31, 33)) {
+            ShipRunId runId = ShipRunId.create();
+            Path stateRoot = temporaryDirectory.resolve("key-length-" + bytes);
+            FileShipEventStore store = FileShipEventStore.create(stateRoot, runId);
+            Files.write(stateRoot.resolve(runId.storageId()).resolve("secret.key"), new byte[bytes]);
+
+            ShipEventStoreException failure = assertThrows(
+                    ShipEventStoreException.class, store::replay);
+
+            assertTrue(failure.getMessage().contains("exactly 32 bytes"));
+        }
+    }
+
+    @Test
     void recoversExactlyOneAuthenticatedEventForcedBeforeItsHeadUpdate() throws Exception {
         ShipRunId runId = ShipRunId.create();
         Path stateRoot = temporaryDirectory.resolve("one-tail-recovery-state");

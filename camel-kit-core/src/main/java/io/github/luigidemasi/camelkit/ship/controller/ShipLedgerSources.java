@@ -1,10 +1,7 @@
 package io.github.luigidemasi.camelkit.ship.controller;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
-import java.nio.charset.CodingErrorAction;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -76,7 +73,7 @@ final class ShipLedgerSources {
             throw new IOException("Ship context reference has the wrong protected kind");
         }
         InitialContext context = ShipJson.mapper().readValue(
-                blobs.readBytes(reference, InitialContext.MAX_TOTAL_BYTES + 1024 * 1024),
+                blobs.readBytes(reference, ShipJson.MAX_DOCUMENT_BYTES),
                 InitialContext.class);
         for (InitialContext.Source source : context.sources()) {
             target.add(new SourceMaterial(
@@ -129,7 +126,7 @@ final class ShipLedgerSources {
             } else if (exchange.design() != null
                     && exchange.design().response() != null) {
                 DesignResponse response = exchange.design().response();
-                if (response.requestedChanges() == null) {
+                if (response.requestedChanges() == null || response.requestedChanges().isBlank()) {
                     latest = null;
                     continue;
                 }
@@ -144,7 +141,7 @@ final class ShipLedgerSources {
             } else if (exchange.plan() != null
                     && exchange.plan().response() != null) {
                 PlanResponse response = exchange.plan().response();
-                if (response.requestedChanges() == null) {
+                if (response.requestedChanges() == null || response.requestedChanges().isBlank()) {
                     latest = null;
                     continue;
                 }
@@ -177,13 +174,7 @@ final class ShipLedgerSources {
 
     private static byte[] strictUtf8(String value) {
         try {
-            ByteBuffer encoded = StandardCharsets.UTF_8.newEncoder()
-                    .onMalformedInput(CodingErrorAction.REPORT)
-                    .onUnmappableCharacter(CodingErrorAction.REPORT)
-                    .encode(java.nio.CharBuffer.wrap(value));
-            byte[] bytes = new byte[encoded.remaining()];
-            encoded.get(bytes);
-            return bytes;
+            return ShipUtf8.encode(value);
         } catch (CharacterCodingException e) {
             throw new IllegalArgumentException("Ledger source is not strict UTF-8", e);
         }

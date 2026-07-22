@@ -143,7 +143,8 @@ final class FileShipEventStore {
             cleanTemporaryFiles();
             byte[] key = loadSecret();
             try {
-                List<ShipEvent> history = replayLocked(key);
+                VerifiedHistory verifiedHistory = replayLocked(key);
+                List<ShipEvent> history = verifiedHistory.events();
                 ShipEventHead actualHead = headOf(history);
                 if (!sameHead(expectedHead, actualHead)) {
                     throw new ShipEventHeadMismatchException(expectedHead, actualHead);
@@ -191,11 +192,8 @@ final class FileShipEventStore {
                             "Ship event exceeds " + MAX_EVENT_BYTES + " bytes");
                 }
                 ShipEventCodec.decode(encoded);
-                long historyBytes = 0;
-                for (ShipEvent item : history) {
-                    historyBytes = checkedAdd(historyBytes, ShipEventCodec.encode(item).length);
-                }
-                requireAppendBudget(history.size(), historyBytes, encoded.length);
+                requireAppendBudget(
+                        history.size(), verifiedHistory.byteSize(), encoded.length);
                 commitEvent(event, encoded);
                 commitHead(key, ShipEventHead.from(event), false);
                 return event;
@@ -211,7 +209,7 @@ final class FileShipEventStore {
             cleanTemporaryFiles();
             byte[] key = loadSecret();
             try {
-                return replayLocked(key);
+                return replayLocked(key).events();
             } finally {
                 Arrays.fill(key, (byte) 0);
             }
@@ -222,7 +220,7 @@ final class FileShipEventStore {
         return headOf(replay());
     }
 
-    private List<ShipEvent> replayLocked(byte[] key) throws IOException {
+    private VerifiedHistory replayLocked(byte[] key) throws IOException {
         verifyManagedDirectories();
         ShipEventHead durableHead = readHead(key);
         List<Path> files = eventFiles();
@@ -255,9 +253,11 @@ final class FileShipEventStore {
             if (size > MAX_EVENT_BYTES) {
                 throw historyBudgetExceeded();
             }
-            historyBytes = checkedAdd(historyBytes, size);
-            requireHistoryBudget(result.size() + 1, historyBytes);
+            requireHistoryBudget(
+                    result.size() + 1, checkedAdd(historyBytes, size));
             byte[] bytes = readNoFollow(file, MAX_EVENT_BYTES, EVENT_PERMISSIONS, "Ship event");
+            historyBytes = checkedAdd(historyBytes, bytes.length);
+            requireHistoryBudget(result.size() + 1, historyBytes);
             ShipEvent event = ShipEventCodec.decode(bytes);
             if (!runId.equals(event.runId())) {
                 throw new ShipEventStoreException("Ship event belongs to another run");
@@ -317,7 +317,7 @@ final class FileShipEventStore {
                                                   + "truncation, replacement, reordering, or a stale head was detected");
             }
         }
-        return List.copyOf(result);
+        return new VerifiedHistory(List.copyOf(result), historyBytes);
     }
 
     private boolean isRecoverableCommittedTail(
@@ -448,14 +448,8 @@ final class FileShipEventStore {
         if (!Files.exists(secretPath, LinkOption.NOFOLLOW_LINKS)) {
             throw new ShipEventStoreException("Ship event-store key is missing");
         }
-        byte[] key = readNoFollow(
+        return readExactNoFollow(
                 secretPath, KEY_BYTES, PRIVATE_FILE_PERMISSIONS, "Ship event-store key");
-        if (key.length != KEY_BYTES) {
-            Arrays.fill(key, (byte) 0);
-            throw new ShipEventStoreException(
-                    "Ship event-store key must contain exactly " + KEY_BYTES + " bytes");
-        }
-        return key;
     }
 
     private void commitNoReplace(
@@ -659,6 +653,41 @@ final class FileShipEventStore {
         }
     }
 
+    private byte[] readExactNoFollow(
+            Path path,
+            int exactBytes,
+            Set<PosixFilePermission> permissions,
+            String description)
+            throws IOException {
+        Object fileKey = verifyRegularFile(path, permissions, description);
+        // Fixed storage avoids the extra heap copies made by the general bounded reader.
+        byte[] value = new byte[exactBytes];
+        byte[] trailing = new byte[1];
+        boolean success = false;
+        try (FileChannel channel = FileChannel.open(
+                path, StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS)) {
+            ByteBuffer buffer = ByteBuffer.wrap(value);
+            while (buffer.hasRemaining()) {
+                if (channel.read(buffer) < 0) {
+                    throw new ShipEventStoreException(
+                            description + " must contain exactly " + exactBytes + " bytes");
+                }
+            }
+            if (channel.read(ByteBuffer.wrap(trailing)) != -1) {
+                throw new ShipEventStoreException(
+                        description + " must contain exactly " + exactBytes + " bytes");
+            }
+            requireSameEntry(path, fileKey, permissions, description);
+            success = true;
+            return value;
+        } finally {
+            Arrays.fill(trailing, (byte) 0);
+            if (!success) {
+                Arrays.fill(value, (byte) 0);
+            }
+        }
+    }
+
     private Object verifyRegularFile(
             Path path, Set<PosixFilePermission> permissions, String description)
             throws IOException {
@@ -848,6 +877,9 @@ final class FileShipEventStore {
 
     private static ShipEventStoreException historyBudgetExceeded() {
         return new ShipEventStoreException("Ship event history exceeds the controller budget");
+    }
+
+    private record VerifiedHistory(List<ShipEvent> events, long byteSize) {
     }
 
     private enum OpenMode {

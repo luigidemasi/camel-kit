@@ -6,6 +6,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /** Closed controller-authored lifecycle command persisted inside one authenticated event. */
@@ -239,7 +240,7 @@ final class ShipAuthorityCommand {
     }
 
     JsonNode toJson() {
-        ObjectNode node = ShipJson.mapper().createObjectNode();
+        ObjectNode node = JsonNodeFactory.instance.objectNode();
         if (VALUE_EVENTS.contains(type)) {
             node.put("value", value.value());
         } else if (type == ShipEventType.GAP_REVIEW_REOPENED

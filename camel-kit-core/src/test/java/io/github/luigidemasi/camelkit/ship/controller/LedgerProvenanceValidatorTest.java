@@ -11,6 +11,7 @@ import io.github.luigidemasi.camelkit.ship.controller.LedgerProvenanceValidator.
 import io.github.luigidemasi.camelkit.ship.controller.LedgerProvenanceValidator.SourceKind;
 import io.github.luigidemasi.camelkit.ship.controller.LedgerProvenanceValidator.SourceMaterial;
 import io.github.luigidemasi.camelkit.ship.ledger.DecisionLedger;
+import io.github.luigidemasi.camelkit.ship.ledger.DecisionLedger.Assumption;
 import io.github.luigidemasi.camelkit.ship.ledger.DecisionLedger.Category;
 import io.github.luigidemasi.camelkit.ship.ledger.DecisionLedger.Entry;
 import io.github.luigidemasi.camelkit.ship.ledger.DecisionLedger.GapReviewStatus;
@@ -448,16 +449,147 @@ class LedgerProvenanceValidatorTest {
         assertCode("ledger-evolution-invalid", () -> validate(
                 request(ShipStage.DISCOVERY), rewritten, List.of(source), previous));
 
+        for (ShipStage stage : List.of(ShipStage.DESIGN, ShipStage.REVIEW)) {
+            StageRequest gapRequest = request(stage);
+            assertCode("ledger-evolution-invalid", () -> LedgerProvenanceValidator.validate(
+                    gapRequest,
+                    result(
+                            gapRequest,
+                            rewritten,
+                            gapRequest.attemptId(),
+                            StageResult.Outcome.NEEDS_DISCOVERY),
+                    List.of(source),
+                    previous,
+                    null));
+        }
+    }
+
+    @Test
+    void gapStagesMayAddBlockersAndRegressCompletenessButMayNotSilentlyImproveIt() {
+        SourceMaterial source = source(
+                SourceKind.INITIAL_CONTEXT,
+                "source-security",
+                "TLS is required, but the client trust policy is unknown.");
+        SourceRef reference = reference(
+                source, source.canonicalLocator(), "TLS is required");
+        Entry decision = new Entry(
+                "decision-security",
+                "security",
+                "TLS is required",
+                LedgerStatus.RESOLVED,
+                List.of(reference),
+                null);
+        DecisionLedger previous = new DecisionLedger(
+                DecisionLedger.SCHEMA_VERSION,
+                1,
+                List.of(),
+                List.of(decision),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(),
+                List.of(new Category(
+                        "security", LedgerStatus.RESOLVED, null, List.of(reference))),
+                List.of(),
+                GapReviewStatus.NOT_RUN,
+                null);
+        Assumption gap = new Assumption(
+                "trust-policy-gap",
+                "security",
+                "Use the platform trust store",
+                LedgerStatus.NEEDS_USER_DECISION,
+                List.of(),
+                "The exact trust policy is not specified");
+        DecisionLedger reopened = new DecisionLedger(
+                DecisionLedger.SCHEMA_VERSION,
+                2,
+                previous.facts(),
+                previous.decisions(),
+                previous.conflicts(),
+                List.of(gap),
+                previous.catalogEvidence(),
+                List.of(),
+                List.of(new Category(
+                        "security", LedgerStatus.NEEDS_USER_DECISION,
+                        "The exact trust policy is not specified", List.of(reference))),
+                List.of(gap.id()),
+                GapReviewStatus.NOT_RUN,
+                null);
         StageRequest reviewRequest = request(ShipStage.REVIEW);
+
         assertDoesNotThrow(() -> LedgerProvenanceValidator.validate(
                 reviewRequest,
                 result(
                         reviewRequest,
-                        rewritten,
+                        reopened,
                         reviewRequest.attemptId(),
                         StageResult.Outcome.NEEDS_DISCOVERY),
                 List.of(source),
                 previous,
+                null));
+
+        RequirementsPolicy injectedPolicy = new RequirementsPolicy(
+                "main",
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of(),
+                null,
+                List.of("worker-injected-exception"),
+                List.of(),
+                false,
+                false);
+        DecisionLedger policyChanged = new DecisionLedger(
+                DecisionLedger.SCHEMA_VERSION,
+                3,
+                reopened.facts(),
+                reopened.decisions(),
+                reopened.conflicts(),
+                reopened.assumptions(),
+                reopened.catalogEvidence(),
+                reopened.openQuestions(),
+                reopened.completeness(),
+                reopened.blockingOpenItemIds(),
+                reopened.gapReviewStatus(),
+                injectedPolicy);
+        assertCode("ledger-evolution-invalid", () -> LedgerProvenanceValidator.validate(
+                reviewRequest,
+                result(
+                        reviewRequest,
+                        policyChanged,
+                        reviewRequest.attemptId(),
+                        StageResult.Outcome.NEEDS_DISCOVERY),
+                List.of(source),
+                reopened,
+                null));
+
+        DecisionLedger silentlyImproved = new DecisionLedger(
+                DecisionLedger.SCHEMA_VERSION,
+                3,
+                reopened.facts(),
+                reopened.decisions(),
+                reopened.conflicts(),
+                reopened.assumptions(),
+                reopened.catalogEvidence(),
+                reopened.openQuestions(),
+                List.of(new Category(
+                        "security", LedgerStatus.RESOLVED, null, List.of(reference))),
+                reopened.blockingOpenItemIds(),
+                GapReviewStatus.NOT_RUN,
+                null);
+
+        assertCode("ledger-evolution-invalid", () -> LedgerProvenanceValidator.validate(
+                reviewRequest,
+                result(
+                        reviewRequest,
+                        silentlyImproved,
+                        reviewRequest.attemptId(),
+                        StageResult.Outcome.NEEDS_DISCOVERY),
+                List.of(source),
+                reopened,
                 null));
     }
 

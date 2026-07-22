@@ -35,6 +35,9 @@ import io.github.luigidemasi.camelkit.ship.protocol.Interaction.DiscoveryChallen
 import io.github.luigidemasi.camelkit.ship.protocol.Interaction.PlanChallenge;
 import io.github.luigidemasi.camelkit.ship.protocol.Interaction.PlanDecision;
 import io.github.luigidemasi.camelkit.ship.protocol.Interaction.PlanResponse;
+import io.github.luigidemasi.camelkit.ship.protocol.Interaction.WaiverChallenge;
+import io.github.luigidemasi.camelkit.ship.protocol.Interaction.WaiverDecision;
+import io.github.luigidemasi.camelkit.ship.protocol.Interaction.WaiverResponse;
 import io.github.luigidemasi.camelkit.ship.protocol.ProducedArtifact;
 import io.github.luigidemasi.camelkit.ship.protocol.ShipStage;
 import io.github.luigidemasi.camelkit.ship.protocol.StageRequest;
@@ -640,6 +643,278 @@ class ShipRunProjectorTest {
     }
 
     @Test
+    void designReadyMustBindItsProjectedDigestToTheAcceptedArtifact() throws Exception {
+        DurableFlow flow = requirementsReadyFlow("design-digest-binding");
+        startStage(flow, ShipEventType.DESIGN_STARTED, ShipStage.DESIGN, AttemptInputs.from(flow.view));
+        StageRequest request = flow.view.activeRequest();
+        BlobReference artifact = flow.blobs.writeBytes(
+                "design", "design".getBytes(StandardCharsets.UTF_8));
+        ProducedArtifact claim = new ProducedArtifact(
+                "design", "design.md", artifact.digest(), artifact.byteSize());
+        StageResult result = new StageResult(
+                StageResult.SCHEMA_VERSION,
+                request.runId(),
+                request.stage(),
+                request.attemptId(),
+                request.challenge(),
+                request.inputDigest(),
+                StageResult.Outcome.COMPLETED,
+                null,
+                null,
+                List.of(),
+                List.of(claim),
+                null,
+                null,
+                null);
+        BlobReference resultReference = fixtureBlob(flow.blobs, "stage-result", result);
+        ShipAuthorityCommand command = ShipAuthorityCommand.value(
+                ShipEventType.DESIGN_READY, artifact.digest());
+        ShipEventHead headBefore = flow.events.currentHead();
+
+        Exception failure = assertThrows(
+                Exception.class,
+                () -> flow.projector().preflight(
+                        command,
+                        new ShipEventPayloads.StageAccepted(
+                                request.stage(),
+                                flow.view.activeRequestReference(),
+                                resultReference,
+                                List.of(new ShipWorkspaceService.AcceptedArtifact(
+                                        claim, artifact, 0100644)),
+                                null,
+                                null,
+                                null,
+                                null,
+                                null,
+                                ShipDigest.sha256("forged-design".getBytes(StandardCharsets.UTF_8)),
+                                null,
+                                null,
+                                null),
+                        command.apply(flow.view.authority())));
+
+        assertTrue(failure.getMessage().contains("accepted design digest"));
+        assertEquals(headBefore, flow.events.currentHead());
+    }
+
+    @Test
+    void designGapLedgerAuthorityIsRevalidatedDuringDurableReplay() throws Exception {
+        DurableFlow flow = requirementsReadyFlow("design-gap-provenance");
+        startStage(flow, ShipEventType.DESIGN_STARTED, ShipStage.DESIGN, AttemptInputs.from(flow.view));
+        DecisionLedger previous = ShipJson.mapper().readValue(
+                flow.blobs.readBytes(flow.view.ledger(), ShipJson.MAX_DOCUMENT_BYTES),
+                DecisionLedger.class);
+        List<Entry> rewrittenDecisions = previous.decisions().stream()
+                .map(entry -> entry.equals(previous.decisions().get(0))
+                        ? new Entry(
+                                entry.id(),
+                                entry.category(),
+                                entry.value(),
+                                entry.status(),
+                                entry.sourceRefs(),
+                                "rewritten without authority")
+                        : entry)
+                .toList();
+        DecisionLedger rewritten = new DecisionLedger(
+                previous.schemaVersion(),
+                previous.revision() + 1,
+                previous.facts(),
+                rewrittenDecisions,
+                previous.conflicts(),
+                previous.assumptions(),
+                previous.catalogEvidence(),
+                previous.openQuestions(),
+                previous.completeness(),
+                previous.blockingOpenItemIds(),
+                GapReviewStatus.NOT_RUN,
+                previous.requirementsPolicy());
+        StageRequest request = flow.view.activeRequest();
+        StageResult result = analysisResult(
+                request, StageResult.Outcome.NEEDS_DISCOVERY, rewritten, List.of());
+        BlobReference resultReference = fixtureBlob(flow.blobs, "stage-result", result);
+        BlobReference ledgerReference = fixtureBlob(flow.blobs, "decision-ledger", rewritten);
+        ShipAuthorityCommand command = ShipAuthorityCommand.designGaps(
+                request.inputDigest(), resultReference.digest());
+        ShipRun successor = command.apply(flow.view.authority());
+        Attempt attempt = ShipLifecycleReducer.attempt(successor);
+        StageRequest continuationRequest = new ShipAttemptFactory().createRunnable(
+                flow.view,
+                flow.blobs,
+                ShipStage.DISCOVERY,
+                Math.toIntExact(attempt.number()),
+                new AttemptInputs(
+                        flow.view.context(),
+                        ledgerReference,
+                        null,
+                        flow.view.design(),
+                        flow.view.plan(),
+                        flow.view.interactionBundle(),
+                        flow.view.artifactManifest(),
+                        flow.view.candidateSnapshot(),
+                        flow.view.candidateDirectory(),
+                        flow.view.evidence(),
+                        null,
+                        null));
+        BlobReference continuationReference = fixtureBlob(
+                flow.blobs, "stage-request", continuationRequest);
+        ShipEventPayloads.StageAccepted payload = new ShipEventPayloads.StageAccepted(
+                request.stage(),
+                flow.view.activeRequestReference(),
+                resultReference,
+                List.of(),
+                ledgerReference,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                new ShipEventPayloads.StageStarted(
+                        ShipStage.DISCOVERY,
+                        continuationReference,
+                        continuationRequest.outputDirectory()));
+        ShipRun previousAuthority = flow.view.authority();
+        flow.events.appendIfLatest(
+                flow.events.currentHead(), draft(command, payload, previousAuthority, successor));
+
+        Exception failure = assertThrows(Exception.class, () -> flow.projector().replay());
+        assertTrue(failure.getMessage().contains("Existing ledger decisions"));
+    }
+
+    @Test
+    void stampStartAndCompletionAreReconstructedFromDurableEvents() throws Exception {
+        DurableFlow flow = validationRunningFlow("stamp-replay");
+        acceptValidation(flow);
+        flow.commit(
+                ShipAuthorityCommand.empty(ShipEventType.STAMP_STARTED),
+                new ShipEventPayloads.NoData());
+        assertEquals(ShipState.STAMP_RUNNING, flow.view.state());
+
+        BlobReference stamp = flow.blobs.writeBytes(
+                "ship-stamp", "controller stamp".getBytes(StandardCharsets.UTF_8));
+        flow.commit(
+                ShipAuthorityCommand.value(ShipEventType.RUN_COMPLETED, stamp.digest()),
+                new ShipEventPayloads.StampRecorded(stamp, null, null));
+
+        assertEquals(ShipState.COMPLETED, flow.view.state());
+        assertEquals(stamp, flow.view.stamp());
+        assertEquals(flow.view, flow.projector().replay());
+    }
+
+    @Test
+    void waivableFailurePreservesInteractionsThroughWaiverAndStampReplay() throws Exception {
+        DurableFlow flow = validationRunningFlow("waiver-replay");
+        BlobReference originalBundle = flow.view.interactionBundle();
+        BlobReference evidence = flow.blobs.writeBytes(
+                "validation-report", "waivable validation failure".getBytes(StandardCharsets.UTF_8));
+        String checkId = ShipDigest.sha256("waivable-check".getBytes(StandardCharsets.UTF_8));
+        String policy = flow.view.authority().authority().basis().policy().value();
+        ShipAuthorityCommand failureCommand = ShipAuthorityCommand.waiver(
+                checkId, evidence.digest(), policy);
+        flow.commit(
+                failureCommand,
+                new ShipEventPayloads.Failure(
+                        ShipStage.VALIDATE,
+                        "waivable-check-failed",
+                        "The validation check requires explicit waiver",
+                        flow.view.activeRequestReference(),
+                        null,
+                        evidence,
+                        null,
+                        null));
+
+        assertEquals(ShipState.WAIVER_ELIGIBLE, flow.view.state());
+        assertEquals(originalBundle, flow.view.interactionBundle());
+
+        String subjectDigest = ShipDigest.sha256("waiver-subject".getBytes(StandardCharsets.UTF_8));
+        String nonce = flow.signer.nonce();
+        WaiverChallenge unsignedChallenge = new WaiverChallenge(
+                Interaction.SCHEMA_VERSION,
+                flow.view.runId(),
+                checkId,
+                evidence.digest(),
+                policy,
+                subjectDigest,
+                "validation-report",
+                "The failed check may affect runtime safety",
+                "The user accepts the documented risk",
+                nonce,
+                SYNTACTIC_MAC);
+        WaiverChallenge challenge = new WaiverChallenge(
+                unsignedChallenge.schemaVersion(),
+                unsignedChallenge.runId(),
+                unsignedChallenge.checkId(),
+                unsignedChallenge.evidenceDigest(),
+                unsignedChallenge.eligibilityPolicyDigest(),
+                unsignedChallenge.subjectDigest(),
+                unsignedChallenge.subjectReference(),
+                unsignedChallenge.risk(),
+                unsignedChallenge.consequence(),
+                unsignedChallenge.nonce(),
+                flow.signer.sign(Interaction.waiverChallengeMacFields(unsignedChallenge)));
+        BlobReference pendingBundle = flow.interactions.record(
+                flow.blobs, flow.view.interactionBundle(), challenge);
+        flow.commit(
+                ShipAuthorityCommand.empty(ShipEventType.WAIVER_REQUESTED),
+                new ShipEventPayloads.WaiverRequested(challenge, pendingBundle));
+
+        WaiverResponse unsignedResponse = new WaiverResponse(
+                Interaction.SCHEMA_VERSION,
+                flow.view.runId(),
+                challenge.checkId(),
+                challenge.evidenceDigest(),
+                challenge.eligibilityPolicyDigest(),
+                challenge.subjectDigest(),
+                challenge.nonce(),
+                WaiverDecision.WAIVE,
+                "Accept the bounded risk",
+                "uid:1000",
+                "terminal-v1",
+                "cli",
+                NOW,
+                SYNTACTIC_MAC);
+        WaiverResponse response = new WaiverResponse(
+                unsignedResponse.schemaVersion(),
+                unsignedResponse.runId(),
+                unsignedResponse.checkId(),
+                unsignedResponse.evidenceDigest(),
+                unsignedResponse.eligibilityPolicyDigest(),
+                unsignedResponse.subjectDigest(),
+                unsignedResponse.nonce(),
+                unsignedResponse.decision(),
+                unsignedResponse.reason(),
+                unsignedResponse.controllerObservedProcessPrincipal(),
+                unsignedResponse.declaredCliUiProfile(),
+                unsignedResponse.channel(),
+                unsignedResponse.answeredAt(),
+                flow.signer.sign(Interaction.waiverResponseMacFields(unsignedResponse)));
+        BlobReference responseReference = fixtureBlob(
+                flow.blobs, "interaction-response", response);
+        BlobReference completedBundle = flow.interactions.record(
+                flow.blobs, flow.view.interactionBundle(), response);
+        flow.commit(
+                ShipAuthorityCommand.decision(ShipEventType.WAIVER_RECORDED, null),
+                new ShipEventPayloads.WaiverRecorded(
+                        response, responseReference, completedBundle));
+        assertEquals(ShipState.WAIVER_RECORDED, flow.view.state());
+
+        flow.commit(
+                ShipAuthorityCommand.empty(ShipEventType.WAIVER_STAMP_STARTED),
+                new ShipEventPayloads.NoData());
+        BlobReference stamp = flow.blobs.writeBytes(
+                "ship-stamp", "controller waiver stamp".getBytes(StandardCharsets.UTF_8));
+        flow.commit(
+                ShipAuthorityCommand.value(
+                        ShipEventType.RUN_COMPLETED_WITH_WAIVER, stamp.digest()),
+                new ShipEventPayloads.StampRecorded(stamp, null, evidence));
+
+        assertEquals(ShipState.COMPLETED_WITH_WAIVER, flow.view.state());
+        assertEquals(stamp, flow.view.stamp());
+        assertEquals(completedBundle, flow.view.interactionBundle());
+        assertEquals(flow.view, flow.projector().replay());
+    }
+
+    @Test
     void authenticatedMalformedContextRequestFailsClosedDuringReplay() throws Exception {
         Fixture fixture = fixture("malformed-context-request");
         BlobReference malformed = fixture.blobs.writeBytes(
@@ -691,6 +966,23 @@ class ShipRunProjectorTest {
         assertTrue(failure.getMessage().contains("interaction-bundle"));
     }
 
+    @Test
+    void attemptVerificationCacheDoesNotOutliveOneReplay() throws Exception {
+        DurableFlow flow = requirementsReadyFlow("replay-cache");
+        startStage(
+                flow,
+                ShipEventType.DESIGN_STARTED,
+                ShipStage.DESIGN,
+                AttemptInputs.from(flow.view));
+        ShipRunProjector projector = flow.projector();
+        assertEquals(flow.view, projector.replay());
+
+        Files.writeString(flow.view.sourceDirectory().resolve("tampered.txt"), "tampered\n");
+
+        Exception failure = assertThrows(Exception.class, projector::replay);
+        assertTrue(failure.getMessage().contains("project source differs"));
+    }
+
     private DurableFlow planValidatedFlow(String name) throws Exception {
         DurableFlow flow = requirementsReadyFlow(name);
         startStage(flow, ShipEventType.DESIGN_STARTED, ShipStage.DESIGN, AttemptInputs.from(flow.view));
@@ -698,6 +990,23 @@ class ShipRunProjectorTest {
         approveDesign(flow);
         startStage(flow, ShipEventType.PLAN_STARTED, ShipStage.PLAN, AttemptInputs.from(flow.view));
         acceptArtifact(flow, "plan", ShipEventType.PLAN_VALIDATED);
+        return flow;
+    }
+
+    private DurableFlow validationRunningFlow(String name) throws Exception {
+        DurableFlow flow = planValidatedFlow(name);
+        approvePlan(flow);
+        startStage(
+                flow,
+                ShipEventType.EXECUTION_STARTED,
+                ShipStage.EXECUTE,
+                AttemptInputs.from(flow.view));
+        acceptExecution(flow);
+        startStage(
+                flow,
+                ShipEventType.VALIDATION_STARTED,
+                ShipStage.VALIDATE,
+                AttemptInputs.from(flow.view));
         return flow;
     }
 

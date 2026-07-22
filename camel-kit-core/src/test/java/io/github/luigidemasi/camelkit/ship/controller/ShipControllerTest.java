@@ -608,6 +608,23 @@ class ShipControllerTest {
         assertEquals(continued, controller(state).status(continued.runId()));
     }
 
+    @Test
+    void retryWithoutAFailedAttemptUsesTheCodedLifecycleBoundary() throws Exception {
+        Path project = Files.createDirectory(temporaryDirectory.resolve("invalid-retry-project"))
+                .toAbsolutePath().normalize();
+        Path state = temporaryDirectory.resolve("invalid-retry-state")
+                .toAbsolutePath().normalize();
+        ShipController controller = controller(state);
+        ShipRunView created = controller.start(prepared(project));
+
+        ShipControllerException failure = assertThrows(
+                ShipControllerException.class,
+                () -> controller.retryStage(created.runId(), created.eventDigest()));
+
+        assertEquals("lifecycle-boundary", failure.code());
+        assertEquals(created, controller.status(created.runId()));
+    }
+
     private static ShipController controller(Path state) {
         return new ShipController(
                 state,
