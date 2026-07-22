@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
+import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogEvidenceSet;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogTarget;
 import io.github.luigidemasi.camelkit.ship.context.InitialContext;
@@ -45,7 +46,12 @@ final class ShipRunProjector {
     }
 
     ShipRunView replay() throws IOException {
-        return replayProjection().view();
+        return replayResult().view();
+    }
+
+    ReplayResult replayResult() throws IOException {
+        List<ShipEvent> history = List.copyOf(events.replay());
+        return new ReplayResult(replayProjection(history).view(), history);
     }
 
     void preflightCreated(
@@ -98,8 +104,11 @@ final class ShipRunProjector {
     }
 
     private Projection replayProjection() throws IOException {
+        return replayProjection(List.copyOf(events.replay()));
+    }
+
+    private Projection replayProjection(List<ShipEvent> history) throws IOException {
         attemptFactory.beginVerificationScope();
-        List<ShipEvent> history = events.replay();
         if (history.isEmpty()) {
             throw new IOException("Ship run has no authoritative events");
         }
@@ -694,7 +703,7 @@ final class ShipRunProjector {
                 || result.artifactManifest() != null
                         && !result.artifactManifest().equals(read(
                                 value.artifactManifest(),
-                                io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest.class))) {
+                                ArtifactManifest.class))) {
             throw new IOException("Accepted artifact manifest differs from the exact worker result");
         }
         if (value.stage() == ShipStage.DISCOVERY
@@ -831,9 +840,9 @@ final class ShipRunProjector {
                 }
                 ShipValidationReport report = read(
                         value.validationReport(), ShipValidationReport.class);
-                io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest manifest = read(
+                ArtifactManifest manifest = read(
                         projection.artifactManifest,
-                        io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest.class);
+                        ArtifactManifest.class);
                 if (projection.ledger == null) {
                     throw new IOException(
                             "Accepted validation has no approved requirements ledger");
@@ -1095,9 +1104,9 @@ final class ShipRunProjector {
             }
             ShipValidationReport report = read(
                     value.validationReport(), ShipValidationReport.class);
-            io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest manifest = read(
+            ArtifactManifest manifest = read(
                     projection.artifactManifest,
-                    io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest.class);
+                    ArtifactManifest.class);
             if (projection.ledger == null) {
                 throw new IOException(
                         "Validation failure has no approved requirements ledger");
@@ -1458,6 +1467,14 @@ final class ShipRunProjector {
             throw new IOException("Ship event has the wrong typed controller payload");
         }
         return type.cast(value);
+    }
+
+    record ReplayResult(ShipRunView view, List<ShipEvent> history) {
+
+        ReplayResult {
+            Objects.requireNonNull(view, "replayed view");
+            history = List.copyOf(history);
+        }
     }
 
     private static final class Projection {

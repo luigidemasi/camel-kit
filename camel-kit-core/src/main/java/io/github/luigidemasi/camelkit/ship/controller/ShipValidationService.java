@@ -52,21 +52,23 @@ final class ShipValidationService {
     Result validate(
             ShipBlobStore blobs,
             ShipBlobStore.Transaction transaction,
-            String runId,
-            Path candidate,
-            ProjectSnapshot candidateValue,
-            BlobReference candidateReference,
-            ArtifactManifest manifest,
-            BlobReference manifestReference,
-            RequirementsPolicy policy,
-            CatalogUsageRecord usage,
-            BlobReference usageReference,
-            ShipCatalogService.Snapshot catalogSnapshot,
-            CatalogEvidenceSet approvedCatalogEvidence,
-            BlobReference approvedCatalogEvidenceReference,
-            BlobReference workerValidation)
+            Inputs inputs)
             throws IOException {
         Objects.requireNonNull(transaction, "blob transaction");
+        Objects.requireNonNull(inputs, "validation inputs");
+        String runId = inputs.runId();
+        Path candidate = inputs.candidate().directory();
+        ProjectSnapshot candidateValue = inputs.candidate().snapshot();
+        BlobReference candidateReference = inputs.candidate().reference();
+        ArtifactManifest manifest = inputs.manifest().manifest();
+        BlobReference manifestReference = inputs.manifest().reference();
+        RequirementsPolicy policy = inputs.policy();
+        CatalogUsageRecord usage = inputs.catalog().usage().usage();
+        BlobReference usageReference = inputs.catalog().usage().reference();
+        ShipCatalogService.Snapshot catalogSnapshot = inputs.catalog().snapshot();
+        CatalogEvidenceSet approvedCatalogEvidence = inputs.catalog().approval().evidence();
+        BlobReference approvedCatalogEvidenceReference = inputs.catalog().approval().reference();
+        BlobReference workerValidation = inputs.workerValidation();
         Path exactCandidate = blobs.verifyCandidateDirectory(candidate);
         CatalogEvidenceValidator.validateUsage(
                 catalogSnapshot,
@@ -418,16 +420,18 @@ final class ShipValidationService {
             pending = failure;
             throw failure;
         } finally {
-            if (collected) {
-                try {
+            try {
+                if (collected) {
                     EvidenceRunner.cleanupEphemeral(
                             directory, command, commandEvidence);
-                } catch (IOException cleanupFailure) {
-                    if (pending != null) {
-                        pending.addSuppressed(cleanupFailure);
-                    } else {
-                        throw cleanupFailure;
-                    }
+                } else {
+                    EvidenceRunner.cleanupAbandoned(directory, command);
+                }
+            } catch (IOException cleanupFailure) {
+                if (pending != null) {
+                    pending.addSuppressed(cleanupFailure);
+                } else {
+                    throw cleanupFailure;
                 }
             }
         }
@@ -772,6 +776,80 @@ final class ShipValidationService {
     private static String safeMessage(Throwable failure) {
         String message = failure.getMessage();
         return message == null || message.isBlank() ? "unreported" : message;
+    }
+
+    record Inputs(
+            String runId,
+            CandidateInput candidate,
+            ManifestInput manifest,
+            RequirementsPolicy policy,
+            CatalogInput catalog,
+            BlobReference workerValidation) {
+
+        Inputs {
+            if (runId == null || !runId.matches("ship-[0-9a-f]{32}")) {
+                throw new IllegalArgumentException("Validation inputs require a canonical run ID");
+            }
+            Objects.requireNonNull(candidate, "candidate input");
+            Objects.requireNonNull(manifest, "manifest input");
+            Objects.requireNonNull(policy, "requirements policy");
+            Objects.requireNonNull(catalog, "catalog input");
+            requireInputReference(workerValidation, "validation", "worker validation");
+        }
+    }
+
+    record CandidateInput(
+            Path directory, ProjectSnapshot snapshot, BlobReference reference) {
+
+        CandidateInput {
+            Objects.requireNonNull(directory, "candidate directory");
+            Objects.requireNonNull(snapshot, "candidate snapshot");
+            requireInputReference(reference, "project-snapshot", "candidate snapshot");
+        }
+    }
+
+    record ManifestInput(ArtifactManifest manifest, BlobReference reference) {
+
+        ManifestInput {
+            Objects.requireNonNull(manifest, "artifact manifest");
+            requireInputReference(reference, "artifact-manifest", "artifact manifest");
+        }
+    }
+
+    record UsageInput(CatalogUsageRecord usage, BlobReference reference) {
+
+        UsageInput {
+            Objects.requireNonNull(usage, "catalog usage");
+            requireInputReference(reference, "catalog-usage", "catalog usage");
+        }
+    }
+
+    record ApprovalInput(CatalogEvidenceSet evidence, BlobReference reference) {
+
+        ApprovalInput {
+            Objects.requireNonNull(evidence, "approved catalog evidence");
+            requireInputReference(reference, "catalog-evidence", "approved catalog evidence");
+        }
+    }
+
+    record CatalogInput(
+            UsageInput usage,
+            ShipCatalogService.Snapshot snapshot,
+            ApprovalInput approval) {
+
+        CatalogInput {
+            Objects.requireNonNull(usage, "catalog usage input");
+            Objects.requireNonNull(snapshot, "catalog snapshot");
+            Objects.requireNonNull(approval, "catalog approval input");
+        }
+    }
+
+    private static void requireInputReference(
+            BlobReference reference, String kind, String label) {
+        if (reference == null || !kind.equals(reference.kind())) {
+            throw new IllegalArgumentException(
+                    "Validation " + label + " reference must have kind " + kind);
+        }
     }
 
     @FunctionalInterface

@@ -10,6 +10,7 @@ import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Comparator;
@@ -19,12 +20,14 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
+import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.controller.ShipBlobStore.BlobReference;
 import io.github.luigidemasi.camelkit.ship.protocol.ProducedArtifact;
 import io.github.luigidemasi.camelkit.ship.protocol.StageResult;
 import io.github.luigidemasi.camelkit.ship.security.ProjectEvidenceFiles;
 import io.github.luigidemasi.camelkit.ship.security.ProjectSnapshot;
 import io.github.luigidemasi.camelkit.ship.security.ProjectSnapshot.FileEntry;
+import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy;
 import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy.Classification;
 
 /** Write-ahead, replay-recoverable material publication for one validated candidate. */
@@ -99,10 +102,10 @@ final class ShipPublicationService {
             if (!ProjectEvidenceFiles.unchangedMaterialTree(candidate, published)) {
                 throw new IOException("Published project differs from the validated candidate");
             }
-            return new LivePublication(journal, intent, baseline, candidate, published, blobs);
+            return new LivePublication(journal, intent, baseline, candidate, published);
         } catch (IOException | RuntimeException failure) {
             try {
-                rollback(intent, baseline, candidate, blobs);
+                rollback(intent, baseline, candidate);
                 Files.deleteIfExists(journal);
                 forceDirectory(publicationRoot);
             } catch (IOException cleanup) {
@@ -163,7 +166,7 @@ final class ShipPublicationService {
                     || run.authority().revision() != intent.expectedRevision()) {
                 throw new IOException("Ship publication head is neither its predecessor nor completion");
             }
-            rollback(intent, baseline, candidate, blobs);
+            rollback(intent, baseline, candidate);
         }
         Files.delete(journal);
         forceDirectory(journal.getParent());
@@ -181,8 +184,13 @@ final class ShipPublicationService {
                 || !run.sourceDirectory().toString().equals(intent.sourceDirectory())
                 || !Objects.equals(run.baselineSnapshot(), intent.baselineSnapshot())
                 || !Objects.equals(run.executionResult(), intent.executionResult())
-                || !Objects.equals(run.candidateDirectory() == null
-                        ? null : run.candidateDirectory().toString(), intent.candidateDirectory())
+                || (run.state() == ShipState.COMPLETED
+                        || run.state() == ShipState.COMPLETED_WITH_WAIVER
+                                ? intent.candidateDirectory() == null || run.candidateDirectory() != null
+                                : !Objects.equals(
+                                        run.candidateDirectory() == null
+                                                ? null : run.candidateDirectory().toString(),
+                                        intent.candidateDirectory()))
                 || run.candidateSnapshot() != null
                         && run.state() != ShipState.COMPLETED
                         && run.state() != ShipState.COMPLETED_WITH_WAIVER
@@ -225,8 +233,7 @@ final class ShipPublicationService {
     private static void rollback(
             Intent intent,
             ProjectSnapshot baseline,
-            ProjectSnapshot candidate,
-            ShipBlobStore blobs)
+            ProjectSnapshot candidate)
             throws IOException {
         Path projectRoot = Path.of(intent.projectRoot());
         ProjectSnapshot current = ProjectEvidenceFiles.capture(projectRoot);
@@ -246,12 +253,12 @@ final class ShipPublicationService {
                     forceDirectory(target.getParent());
                 }
             } else {
-                Path originalFile = safeTarget(source, relative);
+                // Validate the immutable-source target before the bounded no-follow read.
+                safeTarget(source, relative);
                 byte[] content = ProjectEvidenceFiles.readMaterial(
                         source, relative, Math.toIntExact(original.size()));
                 if (content.length != original.size()
-                        || !io.github.luigidemasi.camelkit.ship.ShipDigest.sha256(content)
-                                .equals(original.digest())) {
+                        || !ShipDigest.sha256(content).equals(original.digest())) {
                     throw new IOException("Immutable Ship source differs from publication baseline");
                 }
                 createParents(projectRoot, target.getParent(), baseline);
@@ -366,8 +373,7 @@ final class ShipPublicationService {
     }
 
     private static Path safeTarget(Path root, String relative) throws IOException {
-        String canonical = io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy
-                .requireCanonicalRelativePath(relative);
+        String canonical = ShipTreePolicy.requireCanonicalRelativePath(relative);
         Path target = root.resolve(canonical.replace('/', root.getFileSystem().getSeparator().charAt(0)))
                 .normalize();
         if (!target.startsWith(root) || target.equals(root)) {
@@ -436,7 +442,7 @@ final class ShipPublicationService {
     private static Intent readJournal(Path journal) throws IOException {
         var attributes = Files.readAttributes(
                 journal,
-                java.nio.file.attribute.BasicFileAttributes.class,
+                BasicFileAttributes.class,
                 LinkOption.NOFOLLOW_LINKS);
         Set<PosixFilePermission> expectedPermissions = Set.of(PosixFilePermission.OWNER_READ);
         Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(journal, LinkOption.NOFOLLOW_LINKS);
@@ -470,7 +476,7 @@ final class ShipPublicationService {
         }
         var after = Files.readAttributes(
                 journal,
-                java.nio.file.attribute.BasicFileAttributes.class,
+                BasicFileAttributes.class,
                 LinkOption.NOFOLLOW_LINKS);
         if (!attributes.fileKey().equals(after.fileKey())
                 || attributes.size() != after.size()
@@ -523,7 +529,6 @@ final class ShipPublicationService {
         private final ProjectSnapshot baseline;
         private final ProjectSnapshot candidate;
         private final ProjectSnapshot published;
-        private final ShipBlobStore blobs;
         private boolean finished;
 
         private LivePublication(
@@ -531,14 +536,12 @@ final class ShipPublicationService {
                                 Intent intent,
                                 ProjectSnapshot baseline,
                                 ProjectSnapshot candidate,
-                                ProjectSnapshot published,
-                                ShipBlobStore blobs) {
+                                ProjectSnapshot published) {
             this.journal = journal;
             this.intent = intent;
             this.baseline = baseline;
             this.candidate = candidate;
             this.published = published;
-            this.blobs = blobs;
         }
 
         ProjectSnapshot publishedSnapshot() {
@@ -561,7 +564,7 @@ final class ShipPublicationService {
         @Override
         public void close() throws IOException {
             if (!finished) {
-                rollback(intent, baseline, candidate, blobs);
+                rollback(intent, baseline, candidate);
                 Files.deleteIfExists(journal);
                 forceDirectory(journal.getParent());
                 finished = true;

@@ -12,6 +12,14 @@ import static org.junit.jupiter.api.Assertions.*;
 class ShipStampPackageEvidenceTest {
 
     @Test
+    void evidenceBoundStampUsesSchemaVersionTwo() {
+        assertEquals(2, ShipStamp.SCHEMA_VERSION);
+        assertEquals(
+                ShipStamp.SCHEMA_VERSION,
+                stamp(ShipStamp.Status.PASS, passingChecks(), List.of()).schemaVersion());
+    }
+
+    @Test
     void stampRequiresExactlyOneMandatoryPackageInspectionCheck() {
         List<ShipStamp.Check> checks = passingChecks();
 

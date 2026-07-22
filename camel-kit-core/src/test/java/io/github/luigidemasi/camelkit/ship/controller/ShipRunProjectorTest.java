@@ -8,6 +8,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest;
@@ -57,6 +58,7 @@ import io.github.luigidemasi.camelkit.ship.protocol.StageRequest;
 import io.github.luigidemasi.camelkit.ship.protocol.StageResult;
 import io.github.luigidemasi.camelkit.ship.security.ProjectEvidenceFiles;
 import io.github.luigidemasi.camelkit.ship.security.ProjectSnapshot;
+import io.github.luigidemasi.camelkit.ship.security.StagedArtifactSource;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
@@ -64,6 +66,7 @@ import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -82,6 +85,143 @@ class ShipRunProjectorTest {
 
     @TempDir
     Path temporaryDirectory;
+
+    @Test
+    void protectedControllerPassFlowPublishesEvidenceBoundCandidate() throws Exception {
+        ProtectedControllerFlow flow = executionRunningControllerFlow("protected-controller-pass", true);
+        ShipRunView executed = flow.broker().submit(
+                flow.view().runId(), flow.view().eventDigest(), flow.catalogSnapshot());
+        ShipRunView validating = flow.controller().startValidation(
+                executed.runId(), executed.eventDigest());
+        ShipRunView passed = flow.broker().submit(
+                validating.runId(), validating.eventDigest(), flow.catalogSnapshot());
+
+        ShipRunView completed = flow.controller().complete(
+                passed.runId(), passed.eventDigest());
+
+        assertEquals(ShipState.COMPLETED, completed.state());
+        assertEquals(4, flow.backend().closedCustodies());
+        assertNotNull(completed.artifactManifest());
+        assertNotNull(completed.catalogUsage());
+        assertNotNull(completed.candidateSnapshot());
+        assertNotNull(completed.validationReport());
+        assertNotNull(completed.stamp());
+        assertEquals(routeYaml(), Files.readString(
+                completed.projectRoot().resolve("src/main/resources/routes/orders.camel.yaml")));
+        assertEquals(testYaml(), Files.readString(
+                completed.projectRoot().resolve("test/orders.camel.it.yaml")));
+
+        FileShipEventStore events = FileShipEventStore.open(
+                stateRoot(flow), completed.runId());
+        ShipEvent terminal = events.replay().get(events.replay().size() - 1);
+        ShipStoredEventCodec.StoredEvent stored = ShipStoredEventCodec.decode(terminal);
+        ShipEventPayloads.StampRecorded recorded
+                = (ShipEventPayloads.StampRecorded) stored.data();
+        assertEquals(ShipEventType.RUN_COMPLETED, terminal.type());
+        assertEquals(completed.stamp(), recorded.stamp());
+        assertNotNull(recorded.publishedSnapshot());
+        ShipBlobStore blobs = ShipBlobStore.open(stateRoot(flow), completed.runId());
+        ShipStamp stamp = ShipJson.mapper().readValue(
+                blobs.readBytes(completed.stamp(), ShipJson.MAX_DOCUMENT_BYTES),
+                ShipStamp.class);
+        assertEquals(ShipStamp.Status.PASS, stamp.status());
+        assertTrue(blobs.readBytes(
+                recorded.publishedSnapshot(), ShipJson.MAX_DOCUMENT_BYTES).length > 0);
+    }
+
+    @Test
+    void protectedControllerWaivableFlowStopsAtProtectedWaiverBoundary() throws Exception {
+        ProtectedControllerFlow flow = executionRunningControllerFlow("protected-controller-waivable", false);
+        ShipRunView executed = flow.broker().submit(
+                flow.view().runId(), flow.view().eventDigest(), flow.catalogSnapshot());
+        ShipRunView validating = flow.controller().startValidation(
+                executed.runId(), executed.eventDigest());
+
+        ShipRunView eligible = flow.broker().submit(
+                validating.runId(), validating.eventDigest(), flow.catalogSnapshot());
+
+        assertEquals(ShipState.WAIVER_ELIGIBLE, eligible.state());
+        assertNotNull(eligible.validationReport());
+        assertFalse(eligible.evidenceById().get("citrus-integration-test-001") == null);
+        assertEquals(4, flow.backend().closedCustodies());
+        assertFalse(java.util.Arrays.stream(ShipController.class.getDeclaredMethods())
+                .anyMatch(method -> method.getName().equals("requestWaiver")
+                        || method.getName().equals("recordWaiver")));
+    }
+
+    @Test
+    void definiteAppendFailureRollsBackExecutionCandidate() throws Exception {
+        ProtectedControllerFlow flow = executionRunningControllerFlow("append-definite", true);
+        ShipController faulting = faultingController(flow, AppendFault.UNCHANGED_HEAD);
+        ShipProtectedWorkerBroker broker = new ShipProtectedWorkerBroker(faulting, flow.backend());
+
+        IOException failure = assertThrows(
+                IOException.class,
+                () -> broker.submit(
+                        flow.view().runId(), flow.view().eventDigest(), flow.catalogSnapshot()));
+
+        assertEquals("injected append failure", failure.getMessage());
+        assertEquals(ShipState.EXECUTE_RUNNING,
+                flow.controller().status(flow.view().runId()).state());
+        assertTrue(publicationTransactions(flow).isEmpty());
+    }
+
+    @Test
+    void committedAppendReportedAsFailureFinishesExecutionCandidate() throws Exception {
+        ProtectedControllerFlow flow = executionRunningControllerFlow("append-successor", true);
+        ShipController faulting = faultingController(flow, AppendFault.SUCCESSOR_HEAD);
+        ShipProtectedWorkerBroker broker = new ShipProtectedWorkerBroker(faulting, flow.backend());
+
+        ShipRunView accepted = broker.submit(
+                flow.view().runId(), flow.view().eventDigest(), flow.catalogSnapshot());
+
+        assertEquals(ShipState.EXECUTE_VALIDATED, accepted.state());
+        assertEquals(1, publicationTransactions(flow).size());
+        assertEquals(accepted.candidateDirectory().getParent(),
+                publicationTransactions(flow).get(0));
+    }
+
+    @Test
+    void unresolvedAppendRetainsCandidateUntilStatusReconcilesIt() throws Exception {
+        ProtectedControllerFlow flow = executionRunningControllerFlow("append-unresolved", true);
+        ShipController faulting = faultingController(flow, AppendFault.HEAD_READ_FAILURE);
+        ShipProtectedWorkerBroker broker = new ShipProtectedWorkerBroker(faulting, flow.backend());
+
+        IOException failure = assertThrows(
+                IOException.class,
+                () -> broker.submit(
+                        flow.view().runId(), flow.view().eventDigest(), flow.catalogSnapshot()));
+
+        assertEquals("injected append failure", failure.getMessage());
+        assertEquals(1, failure.getSuppressed().length);
+        assertEquals(1, publicationTransactions(flow).size());
+        ShipRunView recovered = flow.controller().status(flow.view().runId());
+        assertEquals(ShipState.EXECUTE_RUNNING, recovered.state());
+        assertTrue(publicationTransactions(flow).isEmpty());
+    }
+
+    @Test
+    void unexpectedAuthenticatedHeadRetainsCandidateForExplicitReconciliation() throws Exception {
+        ProtectedControllerFlow flow = executionRunningControllerFlow("append-unexpected", true);
+        ShipController faulting = faultingController(flow, AppendFault.UNEXPECTED_AUTHENTICATED_HEAD);
+        ShipProtectedWorkerBroker broker = new ShipProtectedWorkerBroker(faulting, flow.backend());
+
+        ShipControllerException failure = assertThrows(
+                ShipControllerException.class,
+                () -> broker.submit(
+                        flow.view().runId(), flow.view().eventDigest(), flow.catalogSnapshot()));
+
+        assertEquals("event-append-outcome-unknown", failure.code());
+        assertEquals(1, publicationTransactions(flow).size());
+        FileShipEventStore events = FileShipEventStore.open(
+                stateRoot(flow), flow.view().runId());
+        List<ShipEvent> authenticated = events.replay();
+        assertEquals(ShipEventType.STAMP_STARTED,
+                authenticated.get(authenticated.size() - 1).type());
+        ShipProjectPublisher.reconcileCandidates(
+                ShipBlobStore.open(stateRoot(flow), flow.view().runId()), authenticated);
+        assertTrue(publicationTransactions(flow).isEmpty());
+    }
 
     @Test
     void replayReconstructsTheExactPersistedAttemptHead() throws Exception {
@@ -1553,19 +1693,25 @@ class ShipRunProjectorTest {
                     .validate(
                             flow.blobs,
                             transaction,
-                            flow.view.runId(),
-                            flow.view.candidateDirectory(),
-                            candidateValue,
-                            flow.view.candidateSnapshot(),
-                            manifest,
-                            flow.view.artifactManifest(),
-                            ledger.requirementsPolicy(),
-                            usage,
-                            flow.view.catalogUsage(),
-                            flow.catalogSnapshot,
-                            approvedEvidence,
-                            flow.view.catalogEvidence(),
-                            workerValidation);
+                            new ShipValidationService.Inputs(
+                                    flow.view.runId(),
+                                    new ShipValidationService.CandidateInput(
+                                            flow.view.candidateDirectory(),
+                                            candidateValue,
+                                            flow.view.candidateSnapshot()),
+                                    new ShipValidationService.ManifestInput(
+                                            manifest,
+                                            flow.view.artifactManifest()),
+                                    ledger.requirementsPolicy(),
+                                    new ShipValidationService.CatalogInput(
+                                            new ShipValidationService.UsageInput(
+                                                    usage,
+                                                    flow.view.catalogUsage()),
+                                            flow.catalogSnapshot,
+                                            new ShipValidationService.ApprovalInput(
+                                                    approvedEvidence,
+                                                    flow.view.catalogEvidence())),
+                                    workerValidation));
             transaction.commit();
         }
         BlobReference failedEvidence = validation.failedCheck() == null
@@ -1663,6 +1809,307 @@ class ShipRunProjectorTest {
                 stderr.toString(),
                 stderrDigest,
                 command.inputDigests());
+    }
+
+    private ProtectedControllerFlow executionRunningControllerFlow(
+            String name, boolean citrusPassed)
+            throws Exception {
+        DurableFlow durable = requirementsReadyFlow(name);
+        ShipValidationService validation = new ShipValidationService(
+                (candidate, evidenceDirectory, command) -> deterministicEvidence(
+                        candidate, evidenceDirectory, command, citrusPassed),
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        ShipController controller = new ShipController(
+                durable.blobs.runRoot().getParent(),
+                Clock.fixed(NOW, ZoneOffset.UTC),
+                validation);
+        ProtectedBackend backend = new ProtectedBackend();
+        ShipProtectedWorkerBroker broker = new ShipProtectedWorkerBroker(controller, backend);
+
+        durable.view = controller.startDesign(
+                durable.view.runId(), durable.view.eventDigest());
+        durable.view = broker.submit(
+                durable.view.runId(), durable.view.eventDigest(), durable.catalogSnapshot);
+        approveDesign(durable);
+        durable.view = controller.startPlan(
+                durable.view.runId(), durable.view.eventDigest());
+        durable.view = broker.submit(
+                durable.view.runId(), durable.view.eventDigest(), durable.catalogSnapshot);
+        approvePlan(durable);
+        durable.view = controller.startExecution(
+                durable.view.runId(), durable.view.eventDigest());
+        return new ProtectedControllerFlow(
+                durable, controller, broker, backend, durable.catalogSnapshot, durable.view);
+    }
+
+    private static ShipController faultingController(
+            ProtectedControllerFlow flow, AppendFault fault) {
+        return new ShipController(
+                stateRoot(flow),
+                Clock.fixed(NOW, ZoneOffset.UTC),
+                new ShipValidationService(
+                        (candidate, evidenceDirectory, command) -> deterministicEvidence(
+                                candidate, evidenceDirectory, command, true),
+                        Clock.fixed(NOW, ZoneOffset.UTC)),
+                new FaultingEventStoreAccess(fault));
+    }
+
+    private static Path stateRoot(ProtectedControllerFlow flow) {
+        return flow.durable().blobs.runRoot().getParent();
+    }
+
+    private static List<Path> publicationTransactions(ProtectedControllerFlow flow)
+            throws IOException {
+        Path publication = flow.durable().blobs.runRoot().resolve("publication");
+        if (!Files.exists(publication)) {
+            return List.of();
+        }
+        try (var entries = Files.list(publication)) {
+            return entries.sorted().toList();
+        }
+    }
+
+    private static String routeYaml() {
+        return """
+                - route:
+                    id: orders
+                    from:
+                      uri: direct:start
+                """;
+    }
+
+    private static String testYaml() {
+        return """
+                name: orders-test
+                actions:
+                  - send:
+                      endpoint: "camel:sync:direct:camel-kit-ship-test-orders"
+                      message:
+                        body:
+                          data: exercise route
+                  - receive:
+                      endpoint: "camel:sync:direct:camel-kit-ship-test-orders"
+                      message:
+                        body:
+                          data: exercise route
+                """;
+    }
+
+    private static String pomXml() {
+        return """
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                  <modelVersion>4.0.0</modelVersion>
+                  <groupId>org.example</groupId>
+                  <artifactId>orders</artifactId>
+                  <version>1.0.0</version>
+                  <dependencies>
+                    <dependency>
+                      <groupId>org.apache.camel</groupId>
+                      <artifactId>camel-main</artifactId>
+                      <version>4.21.0</version>
+                    </dependency>
+                    <dependency>
+                      <groupId>org.apache.camel</groupId>
+                      <artifactId>camel-yaml-dsl</artifactId>
+                      <version>4.21.0</version>
+                    </dependency>
+                    <dependency>
+                      <groupId>org.apache.camel</groupId>
+                      <artifactId>camel-direct</artifactId>
+                      <version>4.21.0</version>
+                    </dependency>
+                  </dependencies>
+                </project>
+                """;
+    }
+
+    private static String runtimeConfig() {
+        return """
+                project.runtime=main
+                project.camelVersion=4.21.0
+                project.platformBomVersion=4.21.0
+                citrus.version=5.0.0-M2
+                """;
+    }
+
+    private static WorkerOutput workerOutput(StageRequest request) throws IOException {
+        Path root = Path.of(request.outputDirectory());
+        Files.createDirectories(root);
+        List<ProducedArtifact> artifacts;
+        ArtifactManifest manifest = null;
+        if (request.stage() == ShipStage.DESIGN || request.stage() == ShipStage.PLAN) {
+            String kind = request.stage() == ShipStage.DESIGN ? "design" : "plan";
+            artifacts = List.of(writeWorkerArtifact(
+                    root, kind, kind + ".md",
+                    (kind + " approved\n").getBytes(StandardCharsets.UTF_8)));
+        } else if (request.stage() == ShipStage.EXECUTE) {
+            ProducedArtifact route = writeWorkerArtifact(
+                    root, "route", "src/main/resources/routes/orders.camel.yaml",
+                    routeYaml().getBytes(StandardCharsets.UTF_8));
+            ProducedArtifact test = writeWorkerArtifact(
+                    root, "citrus-test", "test/orders.camel.it.yaml",
+                    testYaml().getBytes(StandardCharsets.UTF_8));
+            ProducedArtifact pom = writeWorkerArtifact(
+                    root, "pom", "pom.xml", pomXml().getBytes(StandardCharsets.UTF_8));
+            ProducedArtifact config = writeWorkerArtifact(
+                    root, "config", ".camel-kit/config.properties",
+                    runtimeConfig().getBytes(StandardCharsets.UTF_8));
+            artifacts = List.of(route, test, pom, config);
+            manifest = new ArtifactManifest(
+                    ArtifactManifest.SCHEMA_VERSION,
+                    "main",
+                    CatalogTestVerifier.CAMEL_VERSION,
+                    null,
+                    null,
+                    "yaml",
+                    "simple",
+                    CITRUS_VERSION,
+                    CITRUS_DEPENDENCIES,
+                    ArtifactManifest.JavaPolicy.FORBIDDEN,
+                    List.of(),
+                    List.of(new RouteArtifact("orders", route.relativePath(), route.digest())),
+                    List.of(new TestArtifact("orders", test.relativePath(), test.digest())),
+                    List.of(
+                            new DeclaredArtifact("pom", pom.relativePath(), pom.digest(), true),
+                            new DeclaredArtifact(
+                                    "config", config.relativePath(), config.digest(), true)),
+                    true,
+                    true);
+        } else if (request.stage() == ShipStage.VALIDATE) {
+            artifacts = List.of(writeWorkerArtifact(
+                    root, "validation", "validation.md",
+                    "validation complete\n".getBytes(StandardCharsets.UTF_8)));
+        } else {
+            throw new IOException("Unexpected protected test stage " + request.stage());
+        }
+        StageResult result = new StageResult(
+                StageResult.SCHEMA_VERSION,
+                request.runId(),
+                request.stage(),
+                request.attemptId(),
+                request.challenge(),
+                request.inputDigest(),
+                StageResult.Outcome.COMPLETED,
+                null,
+                null,
+                List.of(),
+                artifacts,
+                manifest,
+                null,
+                null);
+        return new WorkerOutput(root, ShipJson.mapper().writeValueAsBytes(result));
+    }
+
+    private static ProducedArtifact writeWorkerArtifact(
+            Path root, String kind, String relativePath, byte[] content)
+            throws IOException {
+        Path target = root.resolve(relativePath);
+        Files.createDirectories(target.getParent());
+        Files.write(target, content);
+        return new ProducedArtifact(
+                kind, relativePath, ShipDigest.sha256(content), content.length);
+    }
+
+    private enum AppendFault {
+        UNCHANGED_HEAD,
+        SUCCESSOR_HEAD,
+        HEAD_READ_FAILURE,
+        UNEXPECTED_AUTHENTICATED_HEAD
+    }
+
+    private static final class FaultingEventStoreAccess
+            implements ShipController.EventStoreAccess {
+
+        private final AppendFault fault;
+
+        private FaultingEventStoreAccess(AppendFault fault) {
+            this.fault = fault;
+        }
+
+        @Override
+        public ShipEvent appendIfLatest(
+                FileShipEventStore events,
+                ShipEventHead expectedHead,
+                ShipEventDraft draft)
+                throws IOException {
+            if (fault == AppendFault.SUCCESSOR_HEAD) {
+                events.appendIfLatest(expectedHead, draft);
+            } else if (fault == AppendFault.UNEXPECTED_AUTHENTICATED_HEAD) {
+                ShipAuthorityCommand alternate
+                        = ShipAuthorityCommand.empty(ShipEventType.STAMP_STARTED);
+                events.appendIfLatest(
+                        expectedHead,
+                        new ShipEventDraft(
+                                alternate.type(),
+                                draft.state(),
+                                draft.previousAuthorityHead(),
+                                AuthorityHeadId.create(),
+                                draft.occurredAt(),
+                                ShipStoredEventCodec.encode(
+                                        alternate, new ShipEventPayloads.NoData())));
+            }
+            throw new IOException("injected append failure");
+        }
+
+        @Override
+        public ShipEventHead currentHead(FileShipEventStore events) throws IOException {
+            if (fault == AppendFault.HEAD_READ_FAILURE) {
+                throw new IOException("injected current-head failure");
+            }
+            return events.currentHead();
+        }
+    }
+
+    private static final class ProtectedBackend
+            implements ShipProtectedWorkerBroker.Backend {
+
+        private final AtomicInteger closed = new AtomicInteger();
+
+        @Override
+        public ShipProtectedWorkerBroker.Custody stopAndAcquireExclusiveCustody(
+                StageRequest request)
+                throws IOException {
+            WorkerOutput output = workerOutput(request);
+            return new ShipProtectedWorkerBroker.Custody() {
+                @Override
+                public void requireExactAttempt(StageRequest expected) throws IOException {
+                    if (!request.equals(expected)) {
+                        throw new IOException("Protected test custody attempt mismatch");
+                    }
+                }
+
+                @Override
+                public byte[] readResultBytes() {
+                    return output.result();
+                }
+
+                @Override
+                public StagedArtifactSource.Session openArtifactSource() throws IOException {
+                    return StagedArtifactSource.open(output.root());
+                }
+
+                @Override
+                public void close() {
+                    closed.incrementAndGet();
+                }
+            };
+        }
+
+        private int closedCustodies() {
+            return closed.get();
+        }
+    }
+
+    private record WorkerOutput(Path root, byte[] result) {
+    }
+
+    private record ProtectedControllerFlow(
+            DurableFlow durable,
+            ShipController controller,
+            ShipProtectedWorkerBroker broker,
+            ProtectedBackend backend,
+            Snapshot catalogSnapshot,
+            ShipRunView view) {
     }
 
     private static BlobReference completeRun(

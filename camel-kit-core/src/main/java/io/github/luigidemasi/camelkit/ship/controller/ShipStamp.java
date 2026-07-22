@@ -26,7 +26,7 @@ public record ShipStamp(
         String failureCode,
         String failureMessage) {
 
-    public static final int SCHEMA_VERSION = 1;
+    public static final int SCHEMA_VERSION = 2;
 
     public ShipStamp {
         checks = checks == null ? List.of() : List.copyOf(checks);

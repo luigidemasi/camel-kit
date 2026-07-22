@@ -94,6 +94,66 @@ final class ShipEventPayloads {
             evidence = evidence == null ? List.of() : List.copyOf(evidence);
         }
 
+        static StageAccepted analysis(
+                ShipStage stage,
+                BlobReference request,
+                BlobReference result,
+                BlobReference ledger,
+                BlobReference catalogEvidence,
+                String requirementsDigest,
+                StageStarted continuation) {
+            return new StageAccepted(
+                    stage, request, result, List.of(), ledger, null, catalogEvidence, null,
+                    requirementsDigest, null, null, null, List.of(), null, continuation);
+        }
+
+        static StageAccepted design(
+                ShipStage stage,
+                BlobReference request,
+                BlobReference result,
+                List<ShipWorkspaceService.AcceptedArtifact> artifacts,
+                String designDigest) {
+            return new StageAccepted(
+                    stage, request, result, artifacts, null, null, null, null,
+                    null, designDigest, null, null, List.of(), null, null);
+        }
+
+        static StageAccepted plan(
+                ShipStage stage,
+                BlobReference request,
+                BlobReference result,
+                List<ShipWorkspaceService.AcceptedArtifact> artifacts) {
+            return new StageAccepted(
+                    stage, request, result, artifacts, null, null, null, null,
+                    null, null, null, null, List.of(), null, null);
+        }
+
+        static StageAccepted execution(
+                ShipStage stage,
+                BlobReference request,
+                BlobReference result,
+                List<ShipWorkspaceService.AcceptedArtifact> artifacts,
+                BlobReference artifactManifest,
+                BlobReference catalogUsage,
+                BlobReference candidateSnapshot,
+                String candidateDirectory) {
+            return new StageAccepted(
+                    stage, request, result, artifacts, null, artifactManifest, null, catalogUsage,
+                    null, null, candidateSnapshot, candidateDirectory, List.of(), null, null);
+        }
+
+        static StageAccepted validation(
+                ShipStage stage,
+                BlobReference request,
+                BlobReference result,
+                List<ShipWorkspaceService.AcceptedArtifact> artifacts,
+                List<BlobReference> evidence,
+                BlobReference validationReport) {
+            return new StageAccepted(
+                    stage, request, result, artifacts, null, null, null, null,
+                    null, null, null, null, evidence, validationReport, null);
+        }
+
         StageAccepted(
                       ShipStage stage,
                       BlobReference request,
@@ -243,6 +303,46 @@ final class ShipEventPayloads {
 
         Failure {
             evidence = evidence == null ? List.of() : List.copyOf(evidence);
+        }
+
+        static Failure retryable(
+                ShipStage stage,
+                String code,
+                String message,
+                BlobReference request,
+                BlobReference result,
+                BlobReference interactionBundle) {
+            return new Failure(
+                    stage, code, message, request, result, null, null,
+                    interactionBundle, List.of());
+        }
+
+        static Failure waivable(
+                String code,
+                String message,
+                BlobReference request,
+                BlobReference result,
+                BlobReference validationReport,
+                BlobReference interactionBundle,
+                List<BlobReference> evidence) {
+            return new Failure(
+                    ShipStage.VALIDATE, code, message, request, result, validationReport,
+                    null, interactionBundle, evidence);
+        }
+
+        static Failure terminal(
+                ShipStage stage,
+                String code,
+                String message,
+                BlobReference request,
+                BlobReference result,
+                BlobReference validationReport,
+                BlobReference stamp,
+                BlobReference interactionBundle,
+                List<BlobReference> evidence) {
+            return new Failure(
+                    stage, code, message, request, result, validationReport,
+                    stamp, interactionBundle, evidence);
         }
     }
 

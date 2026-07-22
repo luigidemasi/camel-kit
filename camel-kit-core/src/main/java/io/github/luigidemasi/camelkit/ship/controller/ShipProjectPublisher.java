@@ -9,6 +9,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
@@ -55,7 +56,7 @@ final class ShipProjectPublisher {
     }
 
     /** Stages and seals a candidate while leaving the live project byte-for-byte untouched. */
-    static PublicationTransaction stageSealedCandidate(
+    static StagedCandidate stageSealedCandidate(
             Path stateRoot,
             String runId,
             Path projectRoot,
@@ -76,7 +77,7 @@ final class ShipProjectPublisher {
                 });
     }
 
-    static PublicationTransaction stageSealedCandidate(
+    static StagedCandidate stageSealedCandidate(
             Path stateRoot,
             String runId,
             Path projectRoot,
@@ -155,7 +156,7 @@ final class ShipProjectPublisher {
                 writeBinding(transactionRoot.resolve("binding.bin"), binding);
                 forceDirectory(transactionRoot);
                 forceDirectory(publicationRoot);
-                PublicationTransaction result = new PublicationTransaction(
+                PublicationTransaction transaction = new PublicationTransaction(
                         transactionId,
                         runId,
                         expectedEventHeadDigest,
@@ -164,6 +165,8 @@ final class ShipProjectPublisher {
                         postimage.digest(),
                         bindingDigest,
                         artifacts);
+                StagedCandidate result = new StagedCandidate(
+                        publicationRoot, transactionRoot, transaction);
                 complete = true;
                 return result;
             } catch (IOException | RuntimeException | Error failure) {
@@ -183,6 +186,109 @@ final class ShipProjectPublisher {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Removes candidates that are not owned by any authenticated execution-acceptance event. The caller must hold the
+     * run and project operation locks and must pass the exact immutable history returned by the projector replay that
+     * produced the current view.
+     */
+    static void reconcileCandidates(
+            ShipBlobStore blobs, List<ShipEvent> authenticatedHistory)
+            throws IOException {
+        java.util.Objects.requireNonNull(blobs, "Ship blob store");
+        java.util.Objects.requireNonNull(authenticatedHistory, "authenticated Ship history");
+        Path publicationRoot = blobs.runRoot().resolve("publication");
+        Set<Path> retained = new HashSet<>();
+        for (ShipEvent event : authenticatedHistory) {
+            if (event.type() != ShipEventType.EXECUTION_VALIDATED) {
+                continue;
+            }
+            ShipStoredEventCodec.StoredEvent stored = ShipStoredEventCodec.decode(event);
+            if (!(stored.data() instanceof ShipEventPayloads.StageAccepted accepted)) {
+                throw new IOException("Execution acceptance has an invalid publication payload");
+            }
+            retained.add(requireCandidateTransaction(
+                    publicationRoot, accepted.candidateDirectory()));
+        }
+
+        if (!Files.exists(publicationRoot, LinkOption.NOFOLLOW_LINKS)) {
+            if (!retained.isEmpty()) {
+                throw new IOException("Authenticated publication candidate directory is missing");
+            }
+            return;
+        }
+        BasicFileAttributes publicationAttributes = Files.readAttributes(
+                publicationRoot, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+        if (!publicationAttributes.isDirectory() || publicationAttributes.isSymbolicLink()) {
+            throw new IOException("Ship publication directory is not a real directory");
+        }
+
+        List<Path> transactions = new ArrayList<>();
+        try (DirectoryStream<Path> entries = Files.newDirectoryStream(publicationRoot)) {
+            for (Path entry : entries) {
+                requireTransactionDirectory(publicationRoot, entry);
+                transactions.add(entry);
+            }
+        }
+        if (!transactions.containsAll(retained)) {
+            throw new IOException("Authenticated publication candidate directory is missing");
+        }
+        boolean removed = false;
+        for (Path transaction : transactions) {
+            if (!retained.contains(transaction)) {
+                deleteOwnedTree(transaction);
+                removed = true;
+            }
+        }
+        if (removed) {
+            forceDirectory(publicationRoot);
+        }
+    }
+
+    private static Path requireCandidateTransaction(
+            Path publicationRoot, String candidateDirectory)
+            throws IOException {
+        if (candidateDirectory == null) {
+            throw new IOException("Execution acceptance has no publication candidate directory");
+        }
+        Path candidate;
+        try {
+            Path supplied = Path.of(candidateDirectory);
+            candidate = supplied.toAbsolutePath().normalize();
+            if (!supplied.equals(candidate)) {
+                throw new IOException("Execution acceptance has a non-canonical candidate directory");
+            }
+        } catch (InvalidPathException e) {
+            throw new IOException("Execution acceptance has an invalid candidate directory", e);
+        }
+        Path transaction = candidate.getParent();
+        if (transaction == null
+                || candidate.getFileName() == null
+                || !candidate.getFileName().toString().equals("candidate")
+                || transaction.getParent() == null
+                || !transaction.getParent().equals(publicationRoot)) {
+            throw new IOException("Execution acceptance candidate is outside its Ship run");
+        }
+        requireTransactionDirectory(publicationRoot, transaction);
+        BasicFileAttributes candidateAttributes = Files.readAttributes(
+                candidate, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+        if (!candidateAttributes.isDirectory() || candidateAttributes.isSymbolicLink()) {
+            throw new IOException("Authenticated publication candidate is not a real directory");
+        }
+        return transaction;
+    }
+
+    private static void requireTransactionDirectory(Path publicationRoot, Path transaction)
+            throws IOException {
+        BasicFileAttributes basic = Files.readAttributes(
+                transaction, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+        String name = transaction.getFileName().toString();
+        if (!transaction.getParent().equals(publicationRoot)
+                || !name.matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+                || !basic.isDirectory() || basic.isSymbolicLink()) {
+            throw new IOException("Ship publication directory contains an unsafe transaction entry");
         }
     }
 
@@ -482,6 +588,79 @@ final class ShipProjectPublisher {
                 throw new IllegalArgumentException("Invalid Ship publication transaction");
             }
             artifacts = List.copyOf(artifacts);
+        }
+    }
+
+    /** Owns an uncommitted candidate until its accepting event is confirmed or recovery takes custody. */
+    static final class StagedCandidate implements AutoCloseable {
+
+        private final Path publicationRoot;
+        private final Path transactionRoot;
+        private final PublicationTransaction transaction;
+        private boolean retained;
+        private boolean closed;
+
+        private StagedCandidate(
+                                Path publicationRoot, Path transactionRoot, PublicationTransaction transaction) {
+            this.publicationRoot = java.util.Objects.requireNonNull(publicationRoot, "publication root");
+            this.transactionRoot = java.util.Objects.requireNonNull(transactionRoot, "transaction root");
+            this.transaction = java.util.Objects.requireNonNull(transaction, "publication transaction");
+        }
+
+        String transactionId() {
+            return transaction.transactionId();
+        }
+
+        String runId() {
+            return transaction.runId();
+        }
+
+        String expectedEventHeadDigest() {
+            return transaction.expectedEventHeadDigest();
+        }
+
+        long expectedEventHeadRevision() {
+            return transaction.expectedEventHeadRevision();
+        }
+
+        String baselineDigest() {
+            return transaction.baselineDigest();
+        }
+
+        String postimageDigest() {
+            return transaction.postimageDigest();
+        }
+
+        String bindingDigest() {
+            return transaction.bindingDigest();
+        }
+
+        List<PublicationArtifact> artifacts() {
+            return transaction.artifacts();
+        }
+
+        Path candidateDirectory() {
+            return transactionRoot.resolve("candidate");
+        }
+
+        void transferToHistory() {
+            retained = true;
+        }
+
+        void retainForRecovery() {
+            retained = true;
+        }
+
+        @Override
+        public void close() throws IOException {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            if (!retained) {
+                deleteOwnedTree(transactionRoot);
+                forceDirectory(publicationRoot);
+            }
         }
     }
 

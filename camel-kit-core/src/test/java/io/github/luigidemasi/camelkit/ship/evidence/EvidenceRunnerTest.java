@@ -90,9 +90,24 @@ class EvidenceRunnerTest {
         EvidenceRunner.cleanupEphemeral(controllerRoot.resolve("evidence"), command, result);
         assertFalse(Files.exists(rawStdout));
         assertFalse(Files.exists(rawStderr));
-        try (var entries = Files.list(controllerRoot.resolve("evidence"))) {
-            assertTrue(entries.noneMatch(path -> path.getFileName().toString().contains("-sandbox-")));
-        }
+        assertFalse(Files.exists(controllerRoot.resolve("evidence")));
+    }
+
+    @Test
+    void abandonedEvidenceCleanupDoesNotFollowLinksOutsideItsExclusiveRoot() throws Exception {
+        Path project = Files.createDirectory(tempDir.resolve("candidate"));
+        Path evidenceDirectory = Files.createDirectory(tempDir.resolve("partial-evidence"));
+        Path outside = Files.createDirectory(tempDir.resolve("outside"));
+        Path sentinel = Files.writeString(outside.resolve("sentinel"), "preserve");
+        Files.writeString(evidenceDirectory.resolve("partial.log"), "partial");
+        Files.createSymbolicLink(evidenceDirectory.resolve("outside-link"), outside);
+
+        EvidenceRunner.cleanupAbandoned(
+                evidenceDirectory,
+                command(project, "partial-check", Duration.ofSeconds(2)));
+
+        assertFalse(Files.exists(evidenceDirectory, java.nio.file.LinkOption.NOFOLLOW_LINKS));
+        assertEquals("preserve", Files.readString(sentinel));
     }
 
     @Test
@@ -327,9 +342,7 @@ class EvidenceRunnerTest {
                 new FixtureToolchainResolver(), new FixtureJdkResolver());
         assertThrows(Exception.class, () -> missingSandbox.run(
                 project, tempDir.resolve("evidence-a"), command));
-        try (var entries = Files.list(tempDir.resolve("evidence-a"))) {
-            assertTrue(entries.noneMatch(path -> path.getFileName().toString().contains("-sandbox-")));
-        }
+        assertFalse(Files.exists(tempDir.resolve("evidence-a")));
 
         Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
         RecordingLauncher launcher = new RecordingLauncher(fakeBubblewrap, null, null);
