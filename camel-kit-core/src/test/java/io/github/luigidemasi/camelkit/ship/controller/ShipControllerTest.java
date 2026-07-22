@@ -1,10 +1,14 @@
 package io.github.luigidemasi.camelkit.ship.controller;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,6 +39,7 @@ import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -461,6 +466,169 @@ class ShipControllerTest {
     }
 
     @Test
+    void validManualPipelineStateIsPreservedAndExcludedFromTheRunSource() throws Exception {
+        Path project = Files.createDirectory(temporaryDirectory.resolve("manual-pipeline-project"))
+                .toAbsolutePath().normalize();
+        Path state = temporaryDirectory.resolve("manual-pipeline-state")
+                .toAbsolutePath().normalize();
+        Path pipeline = Files.createDirectories(project.resolve(".camel-kit"))
+                .resolve("pipeline.json");
+        byte[] content = "{\"mode\":\"manual\",\"phase\":\"design\"}"
+                .getBytes(StandardCharsets.UTF_8);
+        Files.write(pipeline, content);
+
+        ShipRunView created = controller(state).start(prepared(project));
+
+        assertEquals(ShipState.CREATED, created.state());
+        assertArrayEquals(content, Files.readAllBytes(pipeline));
+        assertFalse(Files.exists(
+                created.sourceDirectory().resolve(".camel-kit/pipeline.json"),
+                LinkOption.NOFOLLOW_LINKS));
+    }
+
+    @Test
+    void preReleasePipelineStatesAreRejectedAndPreservedBeforeRunCreation() throws Exception {
+        List<String> rejected = List.of(
+                "{\"mode\":\"ship\"}",
+                "{\"mode\":\"manual\",\"mode\":\"manual\"}",
+                "{\"mode\":\"manual\"} trailing",
+                "{}",
+                "[]",
+                "{\"mode\":1}",
+                "{\"mode\":\"unknown\"}");
+        for (int index = 0; index < rejected.size(); index++) {
+            Path project = Files.createDirectory(
+                    temporaryDirectory.resolve("rejected-pipeline-project-" + index))
+                    .toAbsolutePath().normalize();
+            Path state = temporaryDirectory.resolve("rejected-pipeline-state-" + index)
+                    .toAbsolutePath().normalize();
+            Path pipeline = Files.createDirectories(project.resolve(".camel-kit"))
+                    .resolve("pipeline.json");
+            byte[] content = rejected.get(index).getBytes(StandardCharsets.UTF_8);
+            Files.write(pipeline, content);
+
+            ShipControllerException failure = assertThrows(
+                    ShipControllerException.class,
+                    () -> controller(state).start(prepared(project)));
+
+            assertEquals("pre-release-ship-state", failure.code());
+            assertTrue(failure.getMessage().contains("Archive or move it outside the project"));
+            assertArrayEquals(content, Files.readAllBytes(pipeline));
+            assertNoRunRoot(state);
+        }
+    }
+
+    @Test
+    void oversizedAndUnsafePipelineStateIsRejectedWithoutFollowingOrChangingIt() throws Exception {
+        Path oversizedProject = Files.createDirectory(temporaryDirectory.resolve("oversized-pipeline-project"))
+                .toAbsolutePath().normalize();
+        Path oversizedState = temporaryDirectory.resolve("oversized-pipeline-state")
+                .toAbsolutePath().normalize();
+        Path oversized = Files.createDirectories(oversizedProject.resolve(".camel-kit"))
+                .resolve("pipeline.json");
+        byte[] oversizedContent = ("{\"mode\":\"manual\",\"padding\":\""
+                                   + "x".repeat(ShipLegacyStateGuard.MAX_PIPELINE_BYTES) + "\"}")
+                .getBytes(StandardCharsets.UTF_8);
+        Files.write(oversized, oversizedContent);
+
+        ShipControllerException oversizedFailure = assertThrows(
+                ShipControllerException.class,
+                () -> controller(oversizedState).start(prepared(oversizedProject)));
+        assertEquals("pre-release-ship-state", oversizedFailure.code());
+        assertArrayEquals(oversizedContent, Files.readAllBytes(oversized));
+        assertNoRunRoot(oversizedState);
+
+        Path linkedProject = Files.createDirectory(temporaryDirectory.resolve("linked-pipeline-project"))
+                .toAbsolutePath().normalize();
+        Path linkedState = temporaryDirectory.resolve("linked-pipeline-state")
+                .toAbsolutePath().normalize();
+        Path external = temporaryDirectory.resolve("external-pipeline.json");
+        byte[] externalContent = "{\"mode\":\"manual\"}".getBytes(StandardCharsets.UTF_8);
+        Files.write(external, externalContent);
+        Path linked = Files.createDirectories(linkedProject.resolve(".camel-kit"))
+                .resolve("pipeline.json");
+        Files.createSymbolicLink(linked, external);
+
+        ShipControllerException linkedFailure = assertThrows(
+                ShipControllerException.class,
+                () -> controller(linkedState).start(prepared(linkedProject)));
+        assertEquals("pre-release-ship-state", linkedFailure.code());
+        assertTrue(Files.isSymbolicLink(linked));
+        assertArrayEquals(externalContent, Files.readAllBytes(external));
+        assertNoRunRoot(linkedState);
+    }
+
+    @Test
+    void anyShipStateEntryIsRejectedAndPreservedBeforeRunCreation() throws Exception {
+        Path project = Files.createDirectory(temporaryDirectory.resolve("ship-state-project"))
+                .toAbsolutePath().normalize();
+        Path state = temporaryDirectory.resolve("ship-state-controller")
+                .toAbsolutePath().normalize();
+        Path shipState = Files.createDirectories(
+                project.resolve(".camel-kit/ship-state.json"));
+        Path sentinel = Files.writeString(shipState.resolve("sentinel"), "preserve");
+
+        ShipControllerException failure = assertThrows(
+                ShipControllerException.class,
+                () -> controller(state).start(prepared(project)));
+
+        assertEquals("pre-release-ship-state", failure.code());
+        assertEquals("preserve", Files.readString(sentinel));
+        assertNoRunRoot(state);
+    }
+
+    @Test
+    void startRechecksLegacyStateImmediatelyBeforeCommitting() throws Exception {
+        Path project = Files.createDirectory(temporaryDirectory.resolve("rechecked-pipeline-project"))
+                .toAbsolutePath().normalize();
+        Path state = temporaryDirectory.resolve("rechecked-pipeline-state")
+                .toAbsolutePath().normalize();
+        Path pipeline = Files.createDirectories(project.resolve(".camel-kit"))
+                .resolve("pipeline.json");
+        byte[] manual = "{\"mode\":\"manual\"}".getBytes(StandardCharsets.UTF_8);
+        byte[] ship = "{\"mode\":\"ship\"}".getBytes(StandardCharsets.UTF_8);
+        Files.write(pipeline, manual);
+        Clock mutatingClock = new Clock() {
+            @Override
+            public ZoneId getZone() {
+                return ZoneOffset.UTC;
+            }
+
+            @Override
+            public Clock withZone(ZoneId zone) {
+                return this;
+            }
+
+            @Override
+            public Instant instant() {
+                try {
+                    Files.write(pipeline, ship);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+                return Instant.parse("2025-01-01T00:00:00Z");
+            }
+        };
+
+        ShipControllerException failure = assertThrows(
+                ShipControllerException.class,
+                () -> new ShipController(state, mutatingClock).start(prepared(project)));
+
+        assertEquals("pre-release-ship-state", failure.code());
+        assertArrayEquals(ship, Files.readAllBytes(pipeline));
+        assertNoRunRoot(state);
+    }
+
+    private static void assertNoRunRoot(Path state) throws IOException {
+        assertTrue(Files.isDirectory(state, LinkOption.NOFOLLOW_LINKS));
+        try (Stream<Path> entries = Files.list(state)) {
+            assertEquals(0, entries
+                    .filter(path -> path.getFileName().toString().startsWith("ship-"))
+                    .count());
+        }
+    }
+
+    @Test
     void controllerStateAndProjectRootsMustBeDisjointBeforeCreation() throws Exception {
         Path project = Files.createDirectory(temporaryDirectory.resolve("overlap-project"))
                 .toAbsolutePath().normalize();
@@ -470,7 +638,7 @@ class ShipControllerTest {
                 ShipControllerException.class,
                 () -> controller(stateInsideProject).start(prepared(project)));
         assertEquals("state-project-overlap", nestedState.code());
-        assertFalse(Files.exists(stateInsideProject, java.nio.file.LinkOption.NOFOLLOW_LINKS));
+        assertFalse(Files.exists(stateInsideProject, LinkOption.NOFOLLOW_LINKS));
 
         Path state = Files.createDirectory(temporaryDirectory.resolve("overlap-state"))
                 .toAbsolutePath().normalize();

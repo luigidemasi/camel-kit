@@ -94,6 +94,7 @@ final class ShipController {
                     = ShipOperationLock.acquireRun(stateRoot, authority.id().toString());
                  ShipOperationLock.Lease project
                          = ShipOperationLock.acquireProject(stateRoot, prepared.projectRoot())) {
+                ShipLegacyStateGuard.requireStartable(prepared.projectRoot());
                 Path sourceDirectory = ShipControllerPaths.requireRunRoot(
                         stateRoot, authority.id()).resolve("source");
                 Files.createDirectory(
@@ -123,15 +124,15 @@ final class ShipController {
                         manifest,
                         sourceDirectory.toString());
                 projector(events, blobs, signer).preflightCreated(authority, data);
-                events.appendIfLatest(
-                        ShipEventHead.genesis(),
-                        new ShipEventDraft(
-                                ShipEventType.RUN_CREATED,
-                                ShipState.CREATED,
-                                null,
-                                authority.head(),
-                                now(),
-                                ShipStoredEventCodec.encode(command, data)));
+                ShipEventDraft draft = new ShipEventDraft(
+                        ShipEventType.RUN_CREATED,
+                        ShipState.CREATED,
+                        null,
+                        authority.head(),
+                        now(),
+                        ShipStoredEventCodec.encode(command, data));
+                ShipLegacyStateGuard.requireStartable(prepared.projectRoot());
+                events.appendIfLatest(ShipEventHead.genesis(), draft);
                 committed = true;
             }
             return projector(events, blobs, signer).replay();

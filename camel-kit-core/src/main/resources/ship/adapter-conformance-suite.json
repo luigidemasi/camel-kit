@@ -1,0 +1,17 @@
+{
+  "suiteSchemaVersion": 1,
+  "mandatoryChecks": [
+    "native-ingress",
+    "optional-context-transport",
+    "protected-interaction-binding",
+    "immutable-launch",
+    "capability-isolation",
+    "worker-cancellation",
+    "stopped-process-tree",
+    "exclusive-output-custody",
+    "artifact-import",
+    "crash-resume-replay",
+    "adversarial-containment",
+    "live-e2e"
+  ]
+}

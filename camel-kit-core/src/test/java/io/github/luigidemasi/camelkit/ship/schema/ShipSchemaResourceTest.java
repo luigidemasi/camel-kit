@@ -53,6 +53,7 @@ class ShipSchemaResourceTest {
 
     private static final String DRAFT_2020_12 = "https://json-schema.org/draft/2020-12/schema";
     private static final String ID_BASE = "https://github.com/luigidemasi/camel-kit/schemas/ship/v1/";
+    private static final String ID_BASE_V2 = "https://github.com/luigidemasi/camel-kit/schemas/ship/v2/";
     private static final String RESOURCE_BASE = "ship/schema/";
     private static final List<String> FILES = List.of(
             "adapter-conformance-evidence.schema.json",
@@ -79,7 +80,8 @@ class ShipSchemaResourceTest {
         for (String file : FILES) {
             JsonNode schema = readSchema(file);
             assertEquals(DRAFT_2020_12, schema.path("$schema").asText(), file);
-            assertEquals(ID_BASE + file, schema.path("$id").asText(), file);
+            String idBase = file.equals("adapter-conformance-evidence.schema.json") ? ID_BASE_V2 : ID_BASE;
+            assertEquals(idBase + file, schema.path("$id").asText(), file);
             assertStrictObjectSchemas(schema, file);
         }
     }
@@ -454,19 +456,45 @@ class ShipSchemaResourceTest {
     }
 
     @Test
-    void archivalAdapterSchemaCannotBeMistakenForRuntimeAdmission() throws Exception {
+    void adapterConformanceSchemaIsAClosedRawExactTuple() throws Exception {
         JsonNode schema = readSchema("adapter-conformance-evidence.schema.json");
         assertTrue(schema.path("description").asText().contains("evidence-v2"));
         Set<String> fields = fieldNames(schema.path("properties"));
-        assertFalse(fields.stream().anyMatch(field -> field.endsWith("RealPath")));
-        assertTrue(fields.containsAll(Set.of(
-                "ingressMode",
-                "interactionProfile",
-                "launcherProfile",
-                "sandboxProfile",
-                "providerProfile",
-                "protocolProfile",
-                "evidenceProfile")));
+        assertEquals(Set.of(
+                "schemaVersion",
+                "harnessFamily",
+                "harnessVersion",
+                "adapterId",
+                "adapterVersion",
+                "protocolVersion",
+                "operatingSystem",
+                "architecture",
+                "launchProfile",
+                "runtimeProfile",
+                "runtimeArtifactDigest",
+                "driverDigest",
+                "ingressDigest",
+                "testSuiteDigest",
+                "checks"), fields);
+        assertEquals(2, schema.at("/properties/schemaVersion/const").intValue());
+        assertFalse(schema.path("additionalProperties").booleanValue());
+        assertFalse(fields.stream().anyMatch(field -> field.toLowerCase(Locale.ROOT).contains("status")));
+        assertFalse(fields.stream().anyMatch(field -> field.toLowerCase(Locale.ROOT).contains("path")));
+        assertEquals(12, schema.at("/properties/checks/minItems").intValue());
+        assertEquals(12, schema.at("/properties/checks/maxItems").intValue());
+        assertEquals(List.of(
+                "native-ingress",
+                "optional-context-transport",
+                "protected-interaction-binding",
+                "immutable-launch",
+                "capability-isolation",
+                "worker-cancellation",
+                "stopped-process-tree",
+                "exclusive-output-custody",
+                "artifact-import",
+                "crash-resume-replay",
+                "adversarial-containment",
+                "live-e2e"), schema.at("/properties/checks/prefixItems").findValuesAsText("const"));
     }
 
     @Test

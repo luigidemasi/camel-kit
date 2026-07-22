@@ -53,6 +53,7 @@ class ProjectSnapshotServiceTest {
         write(project, ".git/objects/01/object", "volatile");
         write(project, ".git/HEAD", "protected");
         write(project, ".camel-kit/pipeline.json", "protected");
+        write(project, ".camel-kit/ship-state.json", "protected");
         write(project, ".camel-kit/config.properties", "project.runtime=main");
         write(project, ".camel-kit/.cache/generated.json", "volatile");
         write(project, ".idea/workspace.xml", "protected metadata");
@@ -74,6 +75,7 @@ class ProjectSnapshotServiceTest {
         assertFalse(snapshot.files().containsKey(".git/objects/01/object"));
         assertFalse(snapshot.files().containsKey(".git/HEAD"));
         assertFalse(snapshot.files().containsKey(".camel-kit/pipeline.json"));
+        assertFalse(snapshot.files().containsKey(".camel-kit/ship-state.json"));
         assertFalse(snapshot.files().containsKey(".ssh/config"));
         assertFalse(snapshot.files().containsKey(".env"));
         assertFalse(snapshot.files().containsKey(".camel-kit/.cache/generated.json"));
@@ -161,6 +163,7 @@ class ProjectSnapshotServiceTest {
         Path project = project();
         Path material = write(project, "requirements.md", "requirements");
         write(project, ".camel-kit/pipeline.json", "private");
+        write(project, ".camel-kit/ship-state.json", "private");
         write(project, "target/generated.txt", "generated");
 
         try (ShipSecureFilesystem.SecureRoot root = ShipSecureFilesystem.open(
@@ -168,6 +171,8 @@ class ProjectSnapshotServiceTest {
             assertArrayEquals(Files.readAllBytes(material), root.readMaterialBytes("requirements.md", 1024));
             assertCode(ShipFilesystemException.UNSAFE_ENTRY,
                     () -> root.readMaterialBytes(".camel-kit/pipeline.json", 1024));
+            assertCode(ShipFilesystemException.UNSAFE_ENTRY,
+                    () -> root.readMaterialBytes(".camel-kit/ship-state.json", 1024));
             assertCode(ShipFilesystemException.UNSAFE_ENTRY,
                     () -> root.readMaterialBytes("target/generated.txt", 1024));
             assertCode(ShipFilesystemException.TREE_QUOTA_EXCEEDED,
@@ -365,11 +370,13 @@ class ProjectSnapshotServiceTest {
         ShipTreePolicy policy = ShipTreePolicy.current();
 
         assertEquals(
-                "sha256:227072c330ffc7cae2e53a3f68b697dfa4614d8963b9461ebf91db2146c63204",
+                "sha256:a54ede7e7e8598c1cf8677eb2dbf0af95fc5b1178fab8111543d049a747301c5",
                 policy.digest());
         assertEquals(Classification.MATERIAL, policy.classify(".camel-kit/config.properties"));
         assertEquals(Classification.DENIED, policy.classify(".camel-kit/pipeline.json"));
         assertEquals(Classification.DENIED, policy.classify(".CAMEL-KIT/PIPELINE.JSON"));
+        assertEquals(Classification.DENIED, policy.classify(".camel-kit/ship-state.json"));
+        assertEquals(Classification.DENIED, policy.classify(".CAMEL-KIT/SHIP-STATE.JSON"));
         assertEquals(Classification.DENIED, policy.classify(".SSH/id_rsa"));
         assertEquals(Classification.DENIED, policy.classify(".ENV"));
         assertEquals(Classification.DENIED, policy.classify("module/.m2/settings.xml"));
@@ -379,6 +386,7 @@ class ProjectSnapshotServiceTest {
         assertEquals(Classification.DENIED, policy.classify("module/.config/gh/hosts.yml/secret"));
         assertEquals(Classification.DENIED, policy.classify("module/.m2/settings.xml/secret"));
         assertEquals(Classification.DENIED, policy.classify("module/.camel-kit/pipeline.json/secret"));
+        assertEquals(Classification.DENIED, policy.classify("module/.camel-kit/ship-state.json/secret"));
         assertEquals(Classification.DENIED, policy.classify("module/.GIT/HEAD"));
         assertEquals(Classification.DENIED, policy.classify("module/.env.example/secret"));
         assertEquals(Classification.MATERIAL, policy.classify("module/.env.example"));
