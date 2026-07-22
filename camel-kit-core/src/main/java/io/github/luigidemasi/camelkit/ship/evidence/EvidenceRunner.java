@@ -172,10 +172,10 @@ public final class EvidenceRunner {
     public CommandEvidence run(Path projectRoot, Path evidenceDirectory, EvidenceCommand command) throws IOException {
         Path candidate = realDirectory(projectRoot, "project root");
         Path logs = createEvidenceDirectory(evidenceDirectory);
-        Path workingDirectory = resolveWorkingDirectory(candidate, command.relativeWorkingDirectory());
-        Path sandboxRoot = privateTempDirectory(logs, "." + command.id() + "-sandbox-");
         boolean handedToCollector = false;
         try {
+            Path workingDirectory = resolveWorkingDirectory(candidate, command.relativeWorkingDirectory());
+            Path sandboxRoot = privateTempDirectory(logs, "." + command.id() + "-sandbox-");
             Path privateHome = privateDirectory(sandboxRoot.resolve("home"));
             Path privateTemporaryDirectory = privateDirectory(sandboxRoot.resolve("tmp"));
             Path acceptedSnapshot = acceptedSnapshot(candidate, sandboxRoot, command);
@@ -353,7 +353,7 @@ public final class EvidenceRunner {
             return evidence;
         } finally {
             if (!handedToCollector) {
-                deleteSandbox(logs, sandboxRoot, command.id());
+                cleanupAbandoned(logs, command);
             }
         }
     }
@@ -383,20 +383,34 @@ public final class EvidenceRunner {
         for (String sandbox : sandboxes) {
             deleteRelativeTree(root, sandbox);
         }
+        Files.delete(root);
     }
 
-    private static void deleteSandbox(Path root, Path sandbox, String commandId) throws IOException {
-        Path normalizedRoot = root.toRealPath(LinkOption.NOFOLLOW_LINKS);
-        Path normalizedSandbox = sandbox.toAbsolutePath().normalize();
-        String expectedPrefix = "." + commandId + "-sandbox-";
-        if (!normalizedSandbox.getParent().equals(normalizedRoot)
-                || !normalizedSandbox.getFileName().toString().startsWith(expectedPrefix)) {
-            throw new IOException("Refusing to delete an unrecognized evidence sandbox");
-        }
-        if (hasProcessRetentionMarker(normalizedSandbox)) {
+    /** Removes an exclusive evidence root after a failed executor, unless process state is quarantined. */
+    public static void cleanupAbandoned(
+            Path evidenceDirectory, EvidenceCommand command)
+            throws IOException {
+        if (evidenceDirectory == null
+                || !Files.exists(evidenceDirectory, LinkOption.NOFOLLOW_LINKS)) {
             return;
         }
-        deleteRelativeTree(normalizedRoot, normalizedSandbox.getFileName().toString());
+        Path root = realDirectory(evidenceDirectory, "evidence directory");
+        String sandboxPrefix = "." + command.id() + "-sandbox-";
+        try (var entries = Files.newDirectoryStream(root)) {
+            for (Path entry : entries) {
+                if (entry.getFileName().toString().startsWith(sandboxPrefix)
+                        && hasProcessRetentionMarker(entry)) {
+                    return;
+                }
+            }
+        }
+        Path parent = root.getParent();
+        if (parent == null) {
+            throw new IOException("Evidence directory has no protected parent");
+        }
+        deleteRelativeTree(
+                realDirectory(parent, "evidence parent"),
+                root.getFileName().toString());
     }
 
     private static void createProcessRetentionMarker(Path sandbox, String commandId) throws IOException {

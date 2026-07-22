@@ -15,6 +15,7 @@ import io.github.luigidemasi.camelkit.ship.protocol.StageCapability.RepositoryAc
 import io.github.luigidemasi.camelkit.ship.protocol.StageRequest;
 import io.github.luigidemasi.camelkit.ship.protocol.StageResult;
 import io.github.luigidemasi.camelkit.ship.protocol.StageResultValidationException;
+import io.github.luigidemasi.camelkit.ship.security.StagedArtifactSource;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -74,7 +75,7 @@ class ShipWorkspaceServiceTest {
 
         StageResultValidationException error = assertThrows(
                 StageResultValidationException.class,
-                () -> ShipWorkspaceService.accept(request, forged, output, blobs));
+                () -> accept(request, forged));
 
         org.junit.jupiter.api.Assertions.assertTrue(error.getMessage().contains("challenge"));
         assertEquals(0, entryCount(runRoot.resolve("blobs")));
@@ -91,7 +92,7 @@ class ShipWorkspaceServiceTest {
         StageRequest request = request();
         StageResult result = result(request, artifact);
 
-        ShipWorkspaceService.AcceptedWorkspace workspace = ShipWorkspaceService.accept(request, result, output, blobs);
+        ShipWorkspaceService.AcceptedWorkspace workspace = accept(request, result);
         Files.writeString(output.resolve("design.md"), "mutated after acceptance");
 
         assertEquals(RUN_ID, workspace.runId());
@@ -158,6 +159,40 @@ class ShipWorkspaceServiceTest {
                 null,
                 null,
                 null);
+    }
+
+    private ShipWorkspaceService.AcceptedWorkspace accept(
+            StageRequest request, StageResult result)
+            throws Exception {
+        byte[] encoded = ShipJson.mapper().writeValueAsBytes(result);
+        ShipProtectedWorkerBroker broker = new ShipProtectedWorkerBroker(
+                new ShipController(temporaryDirectory.resolve("unused-controller")),
+                ignored -> new ShipProtectedWorkerBroker.Custody() {
+                    @Override
+                    public void requireExactAttempt(StageRequest expected) {
+                    }
+
+                    @Override
+                    public byte[] readResultBytes() {
+                        return encoded;
+                    }
+
+                    @Override
+                    public StagedArtifactSource.Session openArtifactSource() throws java.io.IOException {
+                        return StagedArtifactSource.open(output);
+                    }
+
+                    @Override
+                    public void close() {
+                    }
+                });
+        try (ShipProtectedWorkerBroker.CompletedAttempt completed = broker.acquire(request);
+             ShipBlobStore.Transaction transaction = blobs.beginTransaction()) {
+            ShipWorkspaceService.AcceptedWorkspace workspace = ShipWorkspaceService.accept(
+                    request, result, completed, blobs, transaction);
+            transaction.commit();
+            return workspace;
+        }
     }
 
     private static long entryCount(Path directory) throws Exception {

@@ -8,6 +8,7 @@ import java.util.List;
 
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.protocol.ProducedArtifact;
+import io.github.luigidemasi.camelkit.ship.security.StagedArtifactSource;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -75,7 +76,7 @@ class ShipBlobStoreTest {
 
         assertThrows(
                 ShipControllerException.class,
-                () -> store.importArtifacts(output, artifacts));
+                () -> importArtifacts(output, artifacts));
 
         assertEquals(0, entryCount(runRoot.resolve("blobs")));
         assertEquals(0, entryCount(runRoot.resolve("quarantine")));
@@ -91,7 +92,7 @@ class ShipBlobStoreTest {
 
         assertThrows(
                 java.io.IOException.class,
-                () -> store.importArtifacts(
+                () -> importArtifacts(
                         output, List.of(artifact("route", "nested/secret.txt", secret))));
         assertArrayEquals(secret, Files.readAllBytes(outside.resolve("secret.txt")));
 
@@ -100,7 +101,7 @@ class ShipBlobStoreTest {
         Files.createLink(output.resolve("linked.txt"), external);
         assertThrows(
                 java.io.IOException.class,
-                () -> store.importArtifacts(
+                () -> importArtifacts(
                         output, List.of(artifact("route", "linked.txt", secret))));
         assertEquals(0, entryCount(runRoot.resolve("blobs")));
         assertEquals(0, entryCount(runRoot.resolve("quarantine")));
@@ -136,7 +137,7 @@ class ShipBlobStoreTest {
 
         assertThrows(
                 java.io.IOException.class,
-                () -> store.importArtifacts(output, List.of(
+                () -> importArtifacts(output, List.of(
                         artifact("route", "fresh.txt", fresh),
                         artifact("route", "existing.txt", existing))));
 
@@ -145,8 +146,53 @@ class ShipBlobStoreTest {
         assertEquals(0, entryCount(runRoot.resolve("quarantine")));
     }
 
+    @Test
+    void uncommittedTransactionRemovesOnlyTheBlobsItInstalled() throws Exception {
+        byte[] existing = "existing".getBytes(StandardCharsets.UTF_8);
+        byte[] written = "transaction-write".getBytes(StandardCharsets.UTF_8);
+        byte[] imported = "transaction-import".getBytes(StandardCharsets.UTF_8);
+        ShipBlobStore.BlobReference existingReference = store.writeBytes("context", existing);
+        Path output = Files.createDirectory(temporaryDirectory.resolve("output"));
+        Files.write(output.resolve("imported.txt"), imported);
+
+        ShipBlobStore.BlobReference writtenReference;
+        ShipBlobStore.BlobReference importedReference;
+        try (ShipBlobStore.Transaction transaction = store.beginTransaction();
+             StagedArtifactSource.Session source = StagedArtifactSource.open(output)) {
+            assertEquals(existingReference, transaction.writeBytes("context", existing));
+            writtenReference = transaction.writeBytes("context", written);
+            importedReference = transaction.importArtifacts(
+                    source, List.of(artifact("route", "imported.txt", imported)))
+                    .get(0)
+                    .reference();
+
+            assertTrue(Files.exists(blobPath(existingReference)));
+            assertTrue(Files.exists(blobPath(writtenReference)));
+            assertTrue(Files.exists(blobPath(importedReference)));
+        }
+
+        store.verify(existingReference);
+        assertArrayEquals(existing, store.readBytes(existingReference, existing.length));
+        assertTrue(Files.exists(blobPath(existingReference)));
+        assertFalse(Files.exists(blobPath(writtenReference)));
+        assertFalse(Files.exists(blobPath(importedReference)));
+        assertEquals(1, entryCount(runRoot.resolve("blobs")));
+        assertEquals(0, entryCount(runRoot.resolve("quarantine")));
+    }
+
     private Path blobPath(ShipBlobStore.BlobReference reference) {
         return runRoot.resolve("blobs").resolve(reference.digest().substring(7) + ".blob");
+    }
+
+    private List<ShipBlobStore.ImportedBlob> importArtifacts(
+            Path output, List<ProducedArtifact> artifacts)
+            throws Exception {
+        try (ShipBlobStore.Transaction transaction = store.beginTransaction();
+             StagedArtifactSource.Session source = StagedArtifactSource.open(output)) {
+            List<ShipBlobStore.ImportedBlob> imported = transaction.importArtifacts(source, artifacts);
+            transaction.commit();
+            return imported;
+        }
     }
 
     private static ProducedArtifact artifact(String kind, String path, byte[] content) {

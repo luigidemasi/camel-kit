@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
@@ -77,6 +78,11 @@ public final class ShipBlobStore {
     }
 
     public BlobReference writeBytes(String kind, byte[] value) throws IOException {
+        return writeBytes(kind, value, null);
+    }
+
+    private BlobReference writeBytes(String kind, byte[] value, Set<Path> transactionBlobs)
+            throws IOException {
         requireKind(kind);
         if (value == null || value.length > ShipTreePolicy.current().maxFileBytes()) {
             throw new IllegalArgumentException("Ship blob bytes exceed the per-file limit");
@@ -100,6 +106,9 @@ public final class ShipBlobStore {
                 }
                 verifyTemporary(temporary, value.length);
                 promoted = promote(temporary, target, reference);
+                if (promoted && transactionBlobs != null) {
+                    transactionBlobs.add(target);
+                }
                 return reference;
             } finally {
                 Files.deleteIfExists(temporary);
@@ -142,6 +151,38 @@ public final class ShipBlobStore {
 
     Path expectedSourceDirectory() {
         return runRoot.resolve("source");
+    }
+
+    Path runRoot() {
+        return runRoot;
+    }
+
+    Path privateWorkDirectory(String name) throws IOException {
+        if (name == null || !name.matches("[a-z][a-z0-9-]{0,63}")) {
+            throw new IllegalArgumentException("Invalid Ship work directory name");
+        }
+        Path directory = runRoot.resolve(name);
+        try (ShipOperationLock.Lease ignored = ShipOperationLock.acquireRun(stateRoot, runId)) {
+            verifyStore();
+            createPrivateDirectory(directory, name + " Ship work directory");
+            return directory;
+        }
+    }
+
+    Transaction beginTransaction() throws IOException {
+        ShipOperationLock.Lease lease = ShipOperationLock.acquireRun(stateRoot, runId);
+        boolean opened = false;
+        try {
+            verifyStore();
+            cleanQuarantine();
+            Transaction transaction = new Transaction(lease);
+            opened = true;
+            return transaction;
+        } finally {
+            if (!opened) {
+                lease.close();
+            }
+        }
     }
 
     Path verifiedPath(BlobReference reference) throws IOException {
@@ -194,6 +235,25 @@ public final class ShipBlobStore {
         if (candidate == null || !candidate.isAbsolute() || !candidate.normalize().equals(candidate)) {
             throw new IOException("Ship candidate directory must be absolute and normalized");
         }
+        Path publication = runRoot.resolve("publication");
+        if (candidate.startsWith(publication)) {
+            Path relative = publication.relativize(candidate);
+            if (relative.getNameCount() != 2
+                    || !relative.getName(0).toString().matches(
+                            "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+                    || !"candidate".equals(relative.getName(1).toString())) {
+                throw new IOException("Ship candidate is not an exact protected publication transaction");
+            }
+            BasicFileAttributes attributes = Files.readAttributes(
+                    candidate, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+            if (!attributes.isDirectory() || attributes.isSymbolicLink()
+                    || !candidate.toRealPath(LinkOption.NOFOLLOW_LINKS).equals(candidate)) {
+                throw new IOException("Ship publication candidate is not a real sealed directory");
+            }
+            requireSameOwner(candidate, candidate.getParent(), "Ship publication candidate");
+            requireSameDevice(candidate, candidate.getParent(), "Ship publication candidate");
+            return candidate;
+        }
         Path attempts = runRoot.resolve("attempts");
         Path relative;
         try {
@@ -225,8 +285,13 @@ public final class ShipBlobStore {
         return runRoot.resolve("attempts").resolve(attemptId).resolve(leaf);
     }
 
-    /** Imports a whole accepted result before any artifact becomes addressable. */
-    List<ImportedBlob> importArtifacts(Path attemptOutput, List<ProducedArtifact> artifacts) throws IOException {
+    /** Imports a whole accepted result while its protected-custody session remains open. */
+    private List<ImportedBlob> importArtifacts(
+            StagedArtifactSource.Session source,
+            List<ProducedArtifact> artifacts,
+            Set<Path> transactionBlobs)
+            throws IOException {
+        Objects.requireNonNull(source, "protected artifact source");
         if (artifacts == null) {
             throw new IllegalArgumentException("Produced artifacts are required");
         }
@@ -239,27 +304,27 @@ public final class ShipBlobStore {
             List<PendingBlob> pending = new ArrayList<>();
             Set<Path> promoted = new HashSet<>();
             try {
-                try (StagedArtifactSource.Session source = StagedArtifactSource.open(attemptOutput)) {
-                    for (ProducedArtifact artifact : artifacts) {
-                        Path temporary = newTemporary();
+                for (ProducedArtifact artifact : artifacts) {
+                    Path temporary = newTemporary();
+                    try {
+                        pending.add(copyToQuarantine(source, artifact, temporary));
+                    } catch (IOException | RuntimeException e) {
                         try {
-                            pending.add(copyToQuarantine(source, artifact, temporary));
-                        } catch (IOException | RuntimeException e) {
-                            try {
-                                Files.deleteIfExists(temporary);
-                            } catch (IOException cleanup) {
-                                e.addSuppressed(cleanup);
-                            }
-                            throw e;
+                            Files.deleteIfExists(temporary);
+                        } catch (IOException cleanup) {
+                            e.addSuppressed(cleanup);
                         }
+                        throw e;
                     }
                 }
                 validateBatch(pending);
                 List<ImportedBlob> result = promoteBatch(pending, promoted);
+                transactionBlobs.addAll(promoted);
                 cleanPending(pending);
                 return result;
             } catch (IOException | RuntimeException e) {
                 rollbackPromoted(promoted, e);
+                transactionBlobs.removeAll(promoted);
                 try {
                     cleanPending(pending);
                 } catch (IOException cleanup) {
@@ -369,6 +434,33 @@ public final class ShipBlobStore {
             forceDirectory(blobs);
         } catch (IOException cleanup) {
             failure.addSuppressed(cleanup);
+        }
+    }
+
+    private void rollbackTransaction(Set<Path> installed) throws IOException {
+        IOException failure = null;
+        for (Path target : installed) {
+            try {
+                Files.deleteIfExists(target);
+            } catch (IOException e) {
+                if (failure == null) {
+                    failure = e;
+                } else {
+                    failure.addSuppressed(e);
+                }
+            }
+        }
+        try {
+            forceDirectory(blobs);
+        } catch (IOException e) {
+            if (failure == null) {
+                failure = e;
+            } else {
+                failure.addSuppressed(e);
+            }
+        }
+        if (failure != null) {
+            throw failure;
         }
     }
 
@@ -689,6 +781,99 @@ public final class ShipBlobStore {
             requireReference(reference);
             if (unixMode != (REGULAR_FILE_TYPE | 0644)) {
                 throw new IllegalArgumentException("Invalid imported Ship artifact mode");
+            }
+        }
+    }
+
+    /** One event-sized CAS transaction. Closing before commit removes only addresses installed by this transaction. */
+    final class Transaction implements AutoCloseable {
+
+        private final ShipOperationLock.Lease lease;
+        private final Set<Path> installed = new HashSet<>();
+        private boolean committed;
+        private boolean closed;
+
+        private Transaction(ShipOperationLock.Lease lease) {
+            this.lease = lease;
+        }
+
+        BlobReference writeBytes(String kind, byte[] value) throws IOException {
+            requireOpen();
+            return ShipBlobStore.this.writeBytes(kind, value, installed);
+        }
+
+        List<ImportedBlob> importArtifacts(
+                StagedArtifactSource.Session source, List<ProducedArtifact> artifacts)
+                throws IOException {
+            requireOpen();
+            return ShipBlobStore.this.importArtifacts(source, artifacts, installed);
+        }
+
+        BlobReference importControllerFile(String kind, Path source, String expectedDigest)
+                throws IOException {
+            requireOpen();
+            Path file = Objects.requireNonNull(source, "controller evidence file")
+                    .toAbsolutePath().normalize();
+            BasicFileAttributes before = Files.readAttributes(
+                    file, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+            if (!before.isRegularFile() || before.isSymbolicLink() || before.fileKey() == null
+                    || before.size() > ShipTreePolicy.current().maxFileBytes()
+                    || before.size() > Integer.MAX_VALUE
+                    || linkCount(file, "Controller evidence file") != 1) {
+                throw new IOException("Controller evidence file has unsafe metadata");
+            }
+            byte[] bytes = Files.readAllBytes(file);
+            BasicFileAttributes after = Files.readAttributes(
+                    file, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+            if (!before.fileKey().equals(after.fileKey())
+                    || before.size() != after.size()
+                    || !before.lastModifiedTime().equals(after.lastModifiedTime())
+                    || bytes.length != before.size()) {
+                throw new IOException("Controller evidence file changed while it was retained");
+            }
+            String digest = ShipDigest.sha256(bytes);
+            if (expectedDigest != null && !expectedDigest.equals(digest)) {
+                throw new IOException("Controller evidence file differs from its recorded digest");
+            }
+            return writeBytes(kind, bytes);
+        }
+
+        void commit() {
+            requireOpen();
+            committed = true;
+        }
+
+        private void requireOpen() {
+            if (closed) {
+                throw new IllegalStateException("Ship blob transaction is closed");
+            }
+        }
+
+        @Override
+        public void close() throws IOException {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            IOException failure = null;
+            if (!committed) {
+                try {
+                    rollbackTransaction(installed);
+                } catch (IOException e) {
+                    failure = e;
+                }
+            }
+            try {
+                lease.close();
+            } catch (IOException e) {
+                if (failure == null) {
+                    failure = e;
+                } else {
+                    failure.addSuppressed(e);
+                }
+            }
+            if (failure != null) {
+                throw failure;
             }
         }
     }

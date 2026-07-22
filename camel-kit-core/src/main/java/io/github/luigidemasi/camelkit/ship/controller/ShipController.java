@@ -13,8 +13,10 @@ import java.util.List;
 import java.util.Objects;
 
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
+import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogEvidenceSet;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogTarget;
+import io.github.luigidemasi.camelkit.ship.catalog.CatalogUsageRecord;
 import io.github.luigidemasi.camelkit.ship.catalog.ShipCatalogService;
 import io.github.luigidemasi.camelkit.ship.context.ContextFilesystemPolicy;
 import io.github.luigidemasi.camelkit.ship.context.ContextResolution;
@@ -26,6 +28,8 @@ import io.github.luigidemasi.camelkit.ship.context.InitialContextRequest.UserTex
 import io.github.luigidemasi.camelkit.ship.context.InitialContextResolver;
 import io.github.luigidemasi.camelkit.ship.controller.ShipAttemptFactory.AttemptInputs;
 import io.github.luigidemasi.camelkit.ship.controller.ShipBlobStore.BlobReference;
+import io.github.luigidemasi.camelkit.ship.controller.ShipProtectedWorkerBroker.CompletedAttempt;
+import io.github.luigidemasi.camelkit.ship.controller.ShipPublicationService.LivePublication;
 import io.github.luigidemasi.camelkit.ship.ledger.DecisionLedger;
 import io.github.luigidemasi.camelkit.ship.ledger.LedgerValidationException;
 import io.github.luigidemasi.camelkit.ship.ledger.LedgerValidator;
@@ -45,14 +49,33 @@ final class ShipController {
 
     private final Path stateRoot;
     private final Clock clock;
+    private final ShipValidationService validationService;
+    private final EventStoreAccess eventStoreAccess;
 
     ShipController(Path stateRoot) {
         this(stateRoot, Clock.systemUTC());
     }
 
     ShipController(Path stateRoot, Clock clock) {
+        this(stateRoot, clock, new ShipValidationService(), EventStoreAccess.DIRECT);
+    }
+
+    ShipController(
+                   Path stateRoot,
+                   Clock clock,
+                   ShipValidationService validationService) {
+        this(stateRoot, clock, validationService, EventStoreAccess.DIRECT);
+    }
+
+    ShipController(
+                   Path stateRoot,
+                   Clock clock,
+                   ShipValidationService validationService,
+                   EventStoreAccess eventStoreAccess) {
         this.stateRoot = Objects.requireNonNull(stateRoot, "stateRoot").toAbsolutePath().normalize();
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.validationService = Objects.requireNonNull(validationService, "validation service");
+        this.eventStoreAccess = Objects.requireNonNull(eventStoreAccess, "event store access");
     }
 
     ShipRunView start(PreparedRun prepared) throws IOException {
@@ -126,7 +149,17 @@ final class ShipController {
 
     ShipRunView status(String runId) throws IOException {
         OpenRun run = open(runId);
-        return projector(run.events(), run.blobs(), run.signer()).replay();
+        ShipRunProjector projector = projector(run.events(), run.blobs(), run.signer());
+        ShipRunView before = projector.replay();
+        try (ShipOperationLock.Lease runLease = ShipOperationLock.acquireRun(stateRoot, runId);
+             ShipOperationLock.Lease projectLease
+                     = ShipOperationLock.acquireProject(stateRoot, before.projectRoot())) {
+            ShipRunProjector.ReplayResult replay = projector.replayResult();
+            ShipRunView current = replay.view();
+            ShipPublicationService.recover(current, run.blobs(), replay.history());
+            ShipProjectPublisher.reconcileCandidates(run.blobs(), replay.history());
+            return current;
+        }
     }
 
     ShipRunView beginContextResolution(
@@ -203,6 +236,30 @@ final class ShipController {
         });
     }
 
+    ShipRunView startPlan(String runId, String expectedEventDigest) throws IOException {
+        return mutate(runId, expectedEventDigest, current -> startStage(
+                current,
+                ShipAuthorityCommand.empty(ShipEventType.PLAN_STARTED),
+                ShipStage.PLAN,
+                AttemptInputs.from(current.view())));
+    }
+
+    ShipRunView startExecution(String runId, String expectedEventDigest) throws IOException {
+        return mutate(runId, expectedEventDigest, current -> startStage(
+                current,
+                ShipAuthorityCommand.empty(ShipEventType.EXECUTION_STARTED),
+                ShipStage.EXECUTE,
+                AttemptInputs.from(current.view())));
+    }
+
+    ShipRunView startValidation(String runId, String expectedEventDigest) throws IOException {
+        return mutate(runId, expectedEventDigest, current -> startStage(
+                current,
+                ShipAuthorityCommand.empty(ShipEventType.VALIDATION_STARTED),
+                ShipStage.VALIDATE,
+                AttemptInputs.from(current.view())));
+    }
+
     ShipRunView retryStage(String runId, String expectedEventDigest) throws IOException {
         return mutate(runId, expectedEventDigest, current -> {
             ShipAuthorityCommand command = ShipAuthorityCommand.empty(ShipEventType.RETRY_STARTED);
@@ -236,6 +293,36 @@ final class ShipController {
         byte[] supplied = ShipStageResultReader.boundedCopy(encodedResult);
         return mutate(runId, expectedEventDigest, current -> acceptResult(
                 current, supplied, catalogSnapshot));
+    }
+
+    ShipRunView submitProtectedStageResult(
+            String runId,
+            String expectedEventDigest,
+            CompletedAttempt completed,
+            ShipCatalogService.Snapshot catalogSnapshot)
+            throws IOException {
+        Objects.requireNonNull(completed, "protected completed attempt");
+        return mutate(runId, expectedEventDigest, current -> acceptProtectedResult(
+                current, completed, catalogSnapshot));
+    }
+
+    ShipRunView complete(String runId, String expectedEventDigest) throws IOException {
+        ShipRunView current = status(runId);
+        if (!Objects.equals(expectedEventDigest, current.eventDigest())) {
+            throw new ShipControllerException(
+                    "stale-run-head", "Ship run changed before Stamp completion began");
+        }
+        if (current.state() == ShipState.VALIDATE_PASSED) {
+            current = mutate(runId, current.eventDigest(), context -> new Mutation(
+                    ShipAuthorityCommand.empty(ShipEventType.STAMP_STARTED),
+                    new ShipEventPayloads.NoData()));
+        } else if (current.state() == ShipState.WAIVER_RECORDED) {
+            current = mutate(runId, current.eventDigest(), context -> new Mutation(
+                    ShipAuthorityCommand.empty(ShipEventType.WAIVER_STAMP_STARTED),
+                    new ShipEventPayloads.NoData()));
+        }
+        String completionHead = current.eventDigest();
+        return mutate(runId, completionHead, context -> completeStamp(context));
     }
 
     ShipRunView answerDiscovery(
@@ -341,6 +428,284 @@ final class ShipController {
                                                     + " results require the protected artifact broker");
             };
         };
+    }
+
+    private Mutation acceptProtectedResult(
+            MutationContext current,
+            CompletedAttempt completed,
+            ShipCatalogService.Snapshot catalogSnapshot)
+            throws IOException {
+        StageRequest request = current.view().activeRequest();
+        if (request == null || current.view().activeRequestReference() == null) {
+            throw new ShipControllerException(
+                    "worker-result-unexpected", "Ship run has no active worker request");
+        }
+        StageResult result = completed.readResult(request);
+        if (result.outcome() != StageResult.Outcome.COMPLETED
+                || result.stage() == ShipStage.DISCOVERY
+                || result.stage() == ShipStage.REVIEW) {
+            throw new ShipControllerException(
+                    "worker-result-outcome-invalid",
+                    "Protected broker accepts only completed artifact-bearing stages");
+        }
+        if (result.ledger() != null) {
+            validateLedger(current, request, result);
+        }
+        ShipWorkspaceService.AcceptedWorkspace workspace = ShipWorkspaceService.accept(
+                request, result, completed, current.blobs(), current.transaction());
+        BlobReference resultReference = write(
+                current.transaction(), "stage-result", result);
+        return switch (result.stage()) {
+            case DESIGN -> acceptedDesign(current, result, resultReference, workspace);
+            case PLAN -> acceptedPlan(current, result, resultReference, workspace);
+            case EXECUTE -> acceptedExecution(
+                    current, result, resultReference, workspace, catalogSnapshot);
+            case VALIDATE -> acceptedValidation(
+                    current, result, resultReference, workspace, catalogSnapshot);
+            case DISCOVERY, REVIEW -> throw new ShipControllerException(
+                    "artifact-broker-stage-invalid", "Analysis stages cannot use artifact custody");
+        };
+    }
+
+    private static Mutation acceptedDesign(
+            MutationContext current,
+            StageResult result,
+            BlobReference resultReference,
+            ShipWorkspaceService.AcceptedWorkspace workspace) {
+        BlobReference design = onlyArtifact(workspace, "design");
+        return new Mutation(
+                ShipAuthorityCommand.value(ShipEventType.DESIGN_READY, design.digest()),
+                ShipEventPayloads.StageAccepted.design(
+                        result.stage(), current.view().activeRequestReference(), resultReference,
+                        workspace.artifacts(), design.digest()));
+    }
+
+    private static Mutation acceptedPlan(
+            MutationContext current,
+            StageResult result,
+            BlobReference resultReference,
+            ShipWorkspaceService.AcceptedWorkspace workspace) {
+        BlobReference plan = onlyArtifact(workspace, "plan");
+        return new Mutation(
+                ShipAuthorityCommand.value(ShipEventType.PLAN_VALIDATED, plan.digest()),
+                ShipEventPayloads.StageAccepted.plan(
+                        result.stage(), current.view().activeRequestReference(), resultReference,
+                        workspace.artifacts()));
+    }
+
+    private Mutation acceptedExecution(
+            MutationContext current,
+            StageResult result,
+            BlobReference resultReference,
+            ShipWorkspaceService.AcceptedWorkspace workspace,
+            ShipCatalogService.Snapshot catalogSnapshot)
+            throws IOException {
+        if (catalogSnapshot == null || result.artifactManifest() == null
+                || current.view().ledger() == null
+                || current.view().catalogEvidence() == null
+                || current.view().baselineSnapshot() == null) {
+            throw new IOException("Execution acceptance lacks frozen controller inputs");
+        }
+        ProjectSnapshot baseline = read(
+                current.blobs(), current.view().baselineSnapshot(),
+                "project-snapshot", ProjectSnapshot.class);
+        ProjectSnapshot live = ProjectEvidenceFiles.capture(current.view().projectRoot());
+        if (!ProjectEvidenceFiles.unchangedMaterialTree(baseline, live)) {
+            throw new ShipControllerException(
+                    "project-changed", "Live project changed after the Ship run started");
+        }
+        BlobReference manifestReference = write(
+                current.transaction(), "artifact-manifest", result.artifactManifest());
+        ShipProjectPublisher.StagedCandidate staged
+                = ShipProjectPublisher.stageSealedCandidate(
+                        stateRoot,
+                        current.view().runId(),
+                        current.view().projectRoot(),
+                        current.view().eventDigest(),
+                        current.view().authority().revision(),
+                        current.blobs(),
+                        workspace);
+        try {
+            Path candidateDirectory = staged.candidateDirectory();
+            ProjectSnapshot candidate = ProjectEvidenceFiles.captureSealed(candidateDirectory);
+            if (!staged.postimageDigest().equals(candidate.digest())) {
+                throw new IOException("Publication transaction differs from its sealed candidate");
+            }
+            BlobReference candidateReference = write(
+                    current.transaction(), "project-snapshot", candidate);
+            DecisionLedger ledger = read(
+                    current.blobs(), current.view().ledger(),
+                    "decision-ledger", DecisionLedger.class);
+            CatalogEvidenceSet approved = read(
+                    current.blobs(), current.view().catalogEvidence(),
+                    "catalog-evidence", CatalogEvidenceSet.class);
+            CatalogUsageRecord usage = CatalogEvidenceValidator.deriveUsage(
+                    catalogSnapshot,
+                    ledger,
+                    approved,
+                    result.artifactManifest(),
+                    candidateDirectory,
+                    current.view().runId(),
+                    current.view().catalogEvidence().digest(),
+                    manifestReference.digest(),
+                    candidateReference.digest(),
+                    candidate.digest());
+            BlobReference usageReference = write(
+                    current.transaction(), "catalog-usage", usage);
+            return Mutation.withCandidate(
+                    ShipAuthorityCommand.value(
+                            ShipEventType.EXECUTION_VALIDATED, resultReference.digest()),
+                    ShipEventPayloads.StageAccepted.execution(
+                            result.stage(), current.view().activeRequestReference(), resultReference,
+                            workspace.artifacts(), manifestReference, usageReference,
+                            candidateReference, candidateDirectory.toString()),
+                    staged);
+        } catch (IOException | RuntimeException | Error failure) {
+            try {
+                staged.close();
+            } catch (IOException cleanup) {
+                failure.addSuppressed(cleanup);
+            }
+            throw failure;
+        }
+    }
+
+    private Mutation acceptedValidation(
+            MutationContext current,
+            StageResult result,
+            BlobReference resultReference,
+            ShipWorkspaceService.AcceptedWorkspace workspace,
+            ShipCatalogService.Snapshot catalogSnapshot)
+            throws IOException {
+        if (catalogSnapshot == null
+                || current.view().artifactManifest() == null
+                || current.view().catalogUsage() == null
+                || current.view().catalogEvidence() == null
+                || current.view().candidateSnapshot() == null
+                || current.view().candidateDirectory() == null
+                || current.view().ledger() == null) {
+            throw new IOException("Validation acceptance lacks exact execution inputs");
+        }
+        BlobReference workerValidation = onlyArtifact(workspace, "validation");
+        ArtifactManifest manifest = read(
+                current.blobs(), current.view().artifactManifest(),
+                "artifact-manifest", ArtifactManifest.class);
+        CatalogUsageRecord usage = read(
+                current.blobs(), current.view().catalogUsage(),
+                "catalog-usage", CatalogUsageRecord.class);
+        CatalogEvidenceSet approved = read(
+                current.blobs(), current.view().catalogEvidence(),
+                "catalog-evidence", CatalogEvidenceSet.class);
+        DecisionLedger ledger = read(
+                current.blobs(), current.view().ledger(),
+                "decision-ledger", DecisionLedger.class);
+        ProjectSnapshot candidate = read(
+                current.blobs(), current.view().candidateSnapshot(),
+                "project-snapshot", ProjectSnapshot.class);
+        ShipValidationService.Result assessment = validationService.validate(
+                current.blobs(),
+                current.transaction(),
+                new ShipValidationService.Inputs(
+                        current.view().runId(),
+                        new ShipValidationService.CandidateInput(
+                                current.view().candidateDirectory(), candidate,
+                                current.view().candidateSnapshot()),
+                        new ShipValidationService.ManifestInput(
+                                manifest, current.view().artifactManifest()),
+                        ledger.requirementsPolicy(),
+                        new ShipValidationService.CatalogInput(
+                                new ShipValidationService.UsageInput(
+                                        usage, current.view().catalogUsage()),
+                                catalogSnapshot,
+                                new ShipValidationService.ApprovalInput(
+                                        approved, current.view().catalogEvidence())),
+                        workerValidation));
+        if (assessment.verdict() == ShipValidationService.Verdict.PASS) {
+            return new Mutation(
+                    ShipAuthorityCommand.value(
+                            ShipEventType.VALIDATION_PASSED,
+                            assessment.reportReference().digest()),
+                    ShipEventPayloads.StageAccepted.validation(
+                            result.stage(), current.view().activeRequestReference(), resultReference,
+                            workspace.artifacts(), assessment.evidence(),
+                            assessment.reportReference()));
+        }
+        if (assessment.verdict() == ShipValidationService.Verdict.WAIVABLE) {
+            ShipStamp.Check failed = assessment.failedCheck();
+            return new Mutation(
+                    ShipAuthorityCommand.waiver(
+                            failed.id(), failed.evidenceDigest(),
+                            current.view().authority().authority().basis().policy().value()),
+                    ShipEventPayloads.Failure.waivable(
+                            "validation-check-waivable",
+                            "Controller validation check requires an explicit waiver: " + failed.id(),
+                            current.view().activeRequestReference(),
+                            resultReference,
+                            assessment.reportReference(),
+                            current.view().interactionBundle(),
+                            assessment.evidence()));
+        }
+        ShipStamp stamp = ShipStampService.issue(
+                current.view(), assessment.report(), ShipStamp.Status.FAIL, null, now(),
+                "validation-check-failed", "One or more mandatory controller checks failed");
+        BlobReference stampReference = write(
+                current.transaction(), "ship-stamp", stamp);
+        return new Mutation(
+                ShipAuthorityCommand.empty(ShipEventType.RUN_FAILED_TERMINAL),
+                ShipEventPayloads.Failure.terminal(
+                        ShipStage.VALIDATE,
+                        stamp.failureCode(),
+                        stamp.failureMessage(),
+                        current.view().activeRequestReference(),
+                        resultReference,
+                        assessment.reportReference(),
+                        stampReference,
+                        current.view().interactionBundle(),
+                        assessment.evidence()));
+    }
+
+    private Mutation completeStamp(MutationContext current) throws IOException {
+        boolean waiver = current.view().state() == ShipState.WAIVER_STAMP_RUNNING;
+        if (!waiver && current.view().state() != ShipState.STAMP_RUNNING) {
+            throw new ShipControllerException(
+                    "lifecycle-boundary", "Ship run is not ready for Stamp completion");
+        }
+        ShipValidationReport report = read(
+                current.blobs(), current.view().validationReport(),
+                "validation-report", ShipValidationReport.class);
+        ShipStamp.Status status = waiver
+                ? ShipStamp.Status.COMPLETED_WITH_WAIVER : ShipStamp.Status.PASS;
+        BlobReference waiverResponse = waiver ? current.view().latestInteraction() : null;
+        ShipStamp stamp = ShipStampService.issue(
+                current.view(), report, status, waiverResponse, now(), null, null);
+        BlobReference stampReference = write(
+                current.transaction(), "ship-stamp", stamp);
+        ShipEventType event = waiver
+                ? ShipEventType.RUN_COMPLETED_WITH_WAIVER : ShipEventType.RUN_COMPLETED;
+        LivePublication publication = ShipPublicationService.apply(
+                current.view(), current.blobs(), stampReference, event);
+        BlobReference publishedSnapshot = write(
+                current.transaction(), "project-snapshot",
+                publication.publishedSnapshot());
+        return new Mutation(
+                ShipAuthorityCommand.value(event, stampReference.digest()),
+                new ShipEventPayloads.StampRecorded(
+                        stampReference, publishedSnapshot,
+                        current.view().validationReport()),
+                publication);
+    }
+
+    private static BlobReference onlyArtifact(
+            ShipWorkspaceService.AcceptedWorkspace workspace, String kind) {
+        List<BlobReference> matches = workspace.artifacts().stream()
+                .filter(artifact -> kind.equals(artifact.claim().kind()))
+                .map(ShipWorkspaceService.AcceptedArtifact::blob)
+                .toList();
+        if (matches.size() != 1 || workspace.artifacts().size() != 1) {
+            throw new ShipControllerException(
+                    "artifact-set-invalid", "Stage must produce exactly one " + kind + " artifact");
+        }
+        return matches.get(0);
     }
 
     private static void validateLedger(
@@ -608,14 +973,12 @@ final class ShipController {
             MutationContext current, StageResult result, BlobReference resultReference) {
         return new Mutation(
                 ShipAuthorityCommand.empty(ShipEventType.ATTEMPT_FAILED_RETRYABLE),
-                new ShipEventPayloads.Failure(
+                ShipEventPayloads.Failure.retryable(
                         result.stage(),
                         result.failureCode(),
                         result.failureMessage(),
                         current.view().activeRequestReference(),
                         resultReference,
-                        null,
-                        null,
                         null));
     }
 
@@ -627,20 +990,9 @@ final class ShipController {
             BlobReference catalogEvidence,
             String requirementsDigest,
             ShipEventPayloads.StageStarted continuation) {
-        return new ShipEventPayloads.StageAccepted(
-                result.stage(),
-                current.view().activeRequestReference(),
-                resultReference,
-                List.of(),
-                ledger,
-                null,
-                catalogEvidence,
-                null,
-                requirementsDigest,
-                null,
-                null,
-                null,
-                continuation);
+        return ShipEventPayloads.StageAccepted.analysis(
+                result.stage(), current.view().activeRequestReference(), resultReference,
+                ledger, catalogEvidence, requirementsDigest, continuation);
     }
 
     private static CatalogTarget catalogTarget(DecisionLedger ledger) {
@@ -722,6 +1074,12 @@ final class ShipController {
         return blobs.writeBytes(kind, ShipJson.mapper().writeValueAsBytes(value));
     }
 
+    private static <T> BlobReference write(
+            ShipBlobStore.Transaction transaction, String kind, T value)
+            throws IOException {
+        return transaction.writeBytes(kind, ShipJson.mapper().writeValueAsBytes(value));
+    }
+
     private static <T> T read(
             ShipBlobStore blobs, BlobReference reference, String kind, Class<T> type)
             throws IOException {
@@ -736,11 +1094,15 @@ final class ShipController {
             String runId, String expectedEventDigest, MutationFactory factory)
             throws IOException {
         OpenRun run = open(runId);
-        ShipRunView before = projector(run.events(), run.blobs(), run.signer()).replay();
+        ShipRunProjector projector = projector(run.events(), run.blobs(), run.signer());
+        ShipRunView before = projector.replay();
         try (ShipOperationLock.Lease runLease = ShipOperationLock.acquireRun(stateRoot, runId);
              ShipOperationLock.Lease projectLease
                      = ShipOperationLock.acquireProject(stateRoot, before.projectRoot())) {
-            ShipRunView current = projector(run.events(), run.blobs(), run.signer()).replay();
+            ShipRunProjector.ReplayResult replay = projector.replayResult();
+            ShipRunView current = replay.view();
+            ShipPublicationService.recover(current, run.blobs(), replay.history());
+            ShipProjectPublisher.reconcileCandidates(run.blobs(), replay.history());
             if (!Objects.equals(expectedEventDigest, current.eventDigest())) {
                 throw new ShipControllerException(
                         "stale-run-head", "Ship run changed before the requested operation could commit");
@@ -750,23 +1112,99 @@ final class ShipController {
                     || !expectedHead.authorityHead().equals(current.authority().head())) {
                 throw new IOException("Durable event head differs from the reconstructed lifecycle authority");
             }
-            Mutation mutation = factory.create(new MutationContext(
-                    current,
-                    run.blobs(),
-                    new ShipInteractionBundleService(run.signer())));
-            ShipRun successor = mutation.authority().apply(current.authority());
-            projector(run.events(), run.blobs(), run.signer()).preflight(
-                    mutation.authority(), mutation.data(), successor);
-            run.events().appendIfLatest(
-                    expectedHead,
-                    new ShipEventDraft(
-                            mutation.authority().type(),
-                            successor.state(),
-                            current.authority().head(),
-                            successor.head(),
-                            now(),
-                            ShipStoredEventCodec.encode(mutation.authority(), mutation.data())));
-            return projector(run.events(), run.blobs(), run.signer()).replay();
+            Mutation mutation = null;
+            boolean eventCommitted = false;
+            try (ShipBlobStore.Transaction transaction = run.blobs().beginTransaction()) {
+                mutation = factory.create(new MutationContext(
+                        current,
+                        run.blobs(),
+                        new ShipInteractionBundleService(run.signer()),
+                        transaction));
+                ShipRun successor = mutation.authority().apply(current.authority());
+                projector.preflight(
+                        mutation.authority(), mutation.data(), successor);
+                ShipEventDraft draft = new ShipEventDraft(
+                        mutation.authority().type(),
+                        successor.state(),
+                        current.authority().head(),
+                        successor.head(),
+                        now(),
+                        ShipStoredEventCodec.encode(mutation.authority(), mutation.data()));
+                try {
+                    eventStoreAccess.appendIfLatest(run.events(), expectedHead, draft);
+                    eventCommitted = true;
+                } catch (IOException | RuntimeException | Error failure) {
+                    ShipEventHead observed;
+                    try {
+                        observed = eventStoreAccess.currentHead(run.events());
+                    } catch (IOException | RuntimeException | Error resolutionFailure) {
+                        eventCommitted = true;
+                        transaction.commit();
+                        retainForRecovery(mutation);
+                        failure.addSuppressed(resolutionFailure);
+                        throw failure;
+                    }
+                    if (observed.authorityHead().equals(successor.head())) {
+                        eventCommitted = true;
+                        transaction.commit();
+                        finish(mutation);
+                        return projector.replay();
+                    }
+                    if (!observed.equals(expectedHead)) {
+                        eventCommitted = true;
+                        transaction.commit();
+                        retainForRecovery(mutation);
+                        throw new ShipControllerException(
+                                "event-append-outcome-unknown",
+                                "Ship event head changed to an unexpected authenticated value",
+                                failure);
+                    }
+                    throw failure;
+                }
+                transaction.commit();
+                finish(mutation);
+                return projector.replay();
+            } catch (IOException | RuntimeException | Error failure) {
+                if (!eventCommitted && mutation != null) {
+                    close(mutation, failure);
+                }
+                throw failure;
+            }
+        }
+    }
+
+    private static void finish(Mutation mutation) throws IOException {
+        if (mutation.publication() != null) {
+            mutation.publication().finish();
+        }
+        if (mutation.candidate() != null) {
+            mutation.candidate().transferToHistory();
+        }
+    }
+
+    private static void retainForRecovery(Mutation mutation) {
+        if (mutation.publication() != null) {
+            mutation.publication().retainForRecovery();
+        }
+        if (mutation.candidate() != null) {
+            mutation.candidate().retainForRecovery();
+        }
+    }
+
+    private static void close(Mutation mutation, Throwable failure) {
+        if (mutation.publication() != null) {
+            try {
+                mutation.publication().close();
+            } catch (IOException cleanup) {
+                failure.addSuppressed(cleanup);
+            }
+        }
+        if (mutation.candidate() != null) {
+            try {
+                mutation.candidate().close();
+            } catch (IOException cleanup) {
+                failure.addSuppressed(cleanup);
+            }
         }
     }
 
@@ -963,13 +1401,63 @@ final class ShipController {
         Mutation create(MutationContext current) throws IOException;
     }
 
+    interface EventStoreAccess {
+
+        EventStoreAccess DIRECT = new EventStoreAccess() {
+            @Override
+            public ShipEvent appendIfLatest(
+                    FileShipEventStore events,
+                    ShipEventHead expectedHead,
+                    ShipEventDraft draft)
+                    throws IOException {
+                return events.appendIfLatest(expectedHead, draft);
+            }
+
+            @Override
+            public ShipEventHead currentHead(FileShipEventStore events) throws IOException {
+                return events.currentHead();
+            }
+        };
+
+        ShipEvent appendIfLatest(
+                FileShipEventStore events,
+                ShipEventHead expectedHead,
+                ShipEventDraft draft)
+                throws IOException;
+
+        ShipEventHead currentHead(FileShipEventStore events) throws IOException;
+    }
+
     private record MutationContext(
             ShipRunView view,
             ShipBlobStore blobs,
-            ShipInteractionBundleService interactions) {
+            ShipInteractionBundleService interactions,
+            ShipBlobStore.Transaction transaction) {
     }
 
-    private record Mutation(ShipAuthorityCommand authority, ShipEventPayloads.Payload data) {
+    private record Mutation(
+            ShipAuthorityCommand authority,
+            ShipEventPayloads.Payload data,
+            LivePublication publication,
+            ShipProjectPublisher.StagedCandidate candidate) {
+
+        private Mutation(ShipAuthorityCommand authority, ShipEventPayloads.Payload data) {
+            this(authority, data, null, null);
+        }
+
+        private Mutation(
+                         ShipAuthorityCommand authority,
+                         ShipEventPayloads.Payload data,
+                         LivePublication publication) {
+            this(authority, data, publication, null);
+        }
+
+        private static Mutation withCandidate(
+                ShipAuthorityCommand authority,
+                ShipEventPayloads.Payload data,
+                ShipProjectPublisher.StagedCandidate candidate) {
+            return new Mutation(authority, data, null, candidate);
+        }
 
         private Mutation {
             Objects.requireNonNull(authority, "authority");

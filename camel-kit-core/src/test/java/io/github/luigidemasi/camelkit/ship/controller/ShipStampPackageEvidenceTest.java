@@ -12,6 +12,14 @@ import static org.junit.jupiter.api.Assertions.*;
 class ShipStampPackageEvidenceTest {
 
     @Test
+    void evidenceBoundStampUsesSchemaVersionTwo() {
+        assertEquals(2, ShipStamp.SCHEMA_VERSION);
+        assertEquals(
+                ShipStamp.SCHEMA_VERSION,
+                stamp(ShipStamp.Status.PASS, passingChecks(), List.of()).schemaVersion());
+    }
+
+    @Test
     void stampRequiresExactlyOneMandatoryPackageInspectionCheck() {
         List<ShipStamp.Check> checks = passingChecks();
 
@@ -27,17 +35,32 @@ class ShipStampPackageEvidenceTest {
     }
 
     @Test
-    void waiverStatusRemainsUnavailableUntilEvidenceBoundPolicyLands() {
+    void waiverStatusRequiresExactFailedMandatoryCheckEvidence() {
         List<ShipStamp.Check> checks = passingChecks();
-        checks.add(check("experimental-runner", false, false));
-        ShipStamp.Waiver scaffold = new ShipStamp.Waiver(
-                "experimental-runner", digest(70), digest(71));
+        ShipStamp.Check failed = check("citrus-integration-test-001", true, false);
+        checks.set(
+                checks.indexOf(checks.stream()
+                        .filter(check -> failed.id().equals(check.id()))
+                        .findFirst()
+                        .orElseThrow()),
+                failed);
 
-        IllegalArgumentException failure = assertThrows(
+        ShipStamp.Waiver waiver = new ShipStamp.Waiver(
+                failed.id(), failed.evidenceDigest(), digest(71));
+        assertDoesNotThrow(
+                () -> stamp(
+                        ShipStamp.Status.COMPLETED_WITH_WAIVER,
+                        checks,
+                        List.of(waiver)));
+
+        ShipStamp.Waiver mismatched = new ShipStamp.Waiver(
+                failed.id(), digest(70), digest(71));
+        assertThrows(
                 IllegalArgumentException.class,
-                () -> stamp(ShipStamp.Status.COMPLETED_WITH_WAIVER, checks, List.of(scaffold)));
-
-        assertTrue(failure.getMessage().contains("waiver"));
+                () -> stamp(
+                        ShipStamp.Status.COMPLETED_WITH_WAIVER,
+                        checks,
+                        List.of(mismatched)));
     }
 
     @Test

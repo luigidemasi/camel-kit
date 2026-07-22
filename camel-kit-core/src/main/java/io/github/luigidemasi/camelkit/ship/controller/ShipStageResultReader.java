@@ -26,8 +26,22 @@ final class ShipStageResultReader {
     static StageResult read(
             StageRequest request, Path attemptOutputDirectory, byte[] encoded)
             throws IOException {
-        requireBounded(encoded);
+        StageResult result = decode(request, attemptOutputDirectory, encoded);
+        if (!result.artifacts().isEmpty() || result.artifactManifest() != null) {
+            throw new IOException(
+                    "Artifact-bearing Ship results require the production broker/import boundary");
+        }
+        return result;
+    }
 
+    static StageResult readBrokered(StageRequest request, byte[] encoded) throws IOException {
+        return decode(request, Path.of(request.outputDirectory()), encoded);
+    }
+
+    private static StageResult decode(
+            StageRequest request, Path attemptOutputDirectory, byte[] encoded)
+            throws IOException {
+        requireBounded(encoded);
         ObjectMapper mapper = ShipJson.mapper();
         JsonNode document = mapper.readTree(encoded);
         if (document == null) {
@@ -36,10 +50,6 @@ final class ShipStageResultReader {
         StageResultWireSchema.validate(document);
         StageResult result = mapper.treeToValue(document, StageResult.class);
         StageResultValidator.validateEnvelope(request, result, attemptOutputDirectory);
-        if (!result.artifacts().isEmpty() || result.artifactManifest() != null) {
-            throw new IOException(
-                    "Artifact-bearing Ship results require the production broker/import boundary");
-        }
         return result;
     }
 

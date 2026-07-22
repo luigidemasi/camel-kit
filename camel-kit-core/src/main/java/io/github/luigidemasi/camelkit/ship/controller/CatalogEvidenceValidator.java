@@ -1,6 +1,7 @@
 package io.github.luigidemasi.camelkit.ship.controller;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -16,6 +17,10 @@ import java.util.regex.Pattern;
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest;
 import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest.RouteArtifact;
+import io.github.luigidemasi.camelkit.ship.artifact.ArtifactValidator;
+import io.github.luigidemasi.camelkit.ship.artifact.ArtifactValidator.CatalogDependencyBinding;
+import io.github.luigidemasi.camelkit.ship.catalog.CamelYamlCatalogUsageExtractor;
+import io.github.luigidemasi.camelkit.ship.catalog.CamelYamlCatalogUsageExtractor.Extraction;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogComponentModel;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogEvidenceSet;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogEvidenceSet.SubjectEvidence;
@@ -26,6 +31,7 @@ import io.github.luigidemasi.camelkit.ship.catalog.CatalogUsageRecord.EndpointUs
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogUsageRecord.RouteUsage;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogUsageRecord.RuntimeDependency;
 import io.github.luigidemasi.camelkit.ship.catalog.ShipCatalogService.Snapshot;
+import io.github.luigidemasi.camelkit.ship.ledger.DecisionLedger;
 
 /** Deterministically binds catalog evidence and accepted usage to one frozen catalog snapshot. */
 final class CatalogEvidenceValidator {
@@ -47,6 +53,92 @@ final class CatalogEvidenceValidator {
             .thenComparing(value -> String.join("\u0000", value.endpointOptions()));
 
     private CatalogEvidenceValidator() {
+    }
+
+    /** Derives the exact route/catalog/dependency closure from one sealed candidate. */
+    static CatalogUsageRecord deriveUsage(
+            Snapshot snapshot,
+            DecisionLedger ledger,
+            CatalogEvidenceSet approvedEvidence,
+            ArtifactManifest manifest,
+            Path candidate,
+            String runId,
+            String catalogEvidenceDigest,
+            String artifactManifestDigest,
+            String candidateSnapshotDigest,
+            String candidateContentDigest)
+            throws IOException {
+        Objects.requireNonNull(snapshot, "snapshot must not be null");
+        Objects.requireNonNull(ledger, "ledger must not be null");
+        Objects.requireNonNull(candidate, "candidate must not be null");
+        CatalogTarget target = snapshot.target();
+        validateManifestIdentity(manifest, target);
+        List<CatalogSubject> inventory = canonicalInventory(snapshot.availableSubjects());
+        String inventoryDigest = ShipDigest.sha256(
+                ShipJson.mapper().writeValueAsBytes(inventory));
+        CamelYamlCatalogUsageExtractor extractor = new CamelYamlCatalogUsageExtractor();
+        List<RouteArtifact> manifestRoutes = manifest.routes().stream()
+                .sorted(Comparator.comparing(RouteArtifact::path)
+                        .thenComparing(RouteArtifact::routeId))
+                .toList();
+        TreeSet<CatalogSubject> used = new TreeSet<>();
+        for (RouteArtifact route : manifestRoutes) {
+            Extraction extraction = extractor.extractBound(candidate.resolve(route.path()), inventory);
+            if (!route.digest().equals(extraction.digest())) {
+                reject("catalog-route-digest-mismatch",
+                        "Catalog extraction did not read the accepted route bytes: " + route.path());
+            }
+            used.addAll(extraction.subjects());
+        }
+        CatalogEvidenceSet exactUsage = resolveEvidence(snapshot, target, used);
+        List<CatalogSubject> components = used.stream()
+                .filter(subject -> subject.kind() == CatalogSubject.Kind.COMPONENT)
+                .toList();
+        List<CatalogComponentModel> models = snapshot.componentModelsFor(components).stream()
+                .sorted(Comparator.comparing(model -> model.evidence().subject()))
+                .toList();
+        List<RouteUsage> routes = new ArrayList<>();
+        for (RouteArtifact route : manifestRoutes) {
+            Extraction extraction = extractor.extractBound(
+                    candidate.resolve(route.path()), inventory, models);
+            if (!route.digest().equals(extraction.digest())) {
+                reject("catalog-route-digest-mismatch",
+                        "Catalog endpoint validation did not read the accepted route bytes: "
+                                                        + route.path());
+            }
+            routes.add(new RouteUsage(
+                    route.routeId(), route.path(), route.digest(),
+                    extraction.subjects(), extraction.endpoints()));
+        }
+        CatalogDependencyBinding dependencies = ArtifactValidator.bindCatalogDependencies(
+                candidate, ledger.requirementsPolicy(), exactUsage);
+        if (!dependencies.validation().passed() || dependencies.pomDigest() == null) {
+            reject("catalog-runtime-dependencies-invalid",
+                    "Candidate runtime dependencies do not match frozen catalog usage");
+        }
+        CatalogUsageRecord usage = new CatalogUsageRecord(
+                CatalogUsageRecord.SCHEMA_VERSION,
+                runId,
+                catalogEvidenceDigest,
+                artifactManifestDigest,
+                candidateSnapshotDigest,
+                candidateContentDigest,
+                dependencies.pomDigest(),
+                inventoryDigest,
+                routes,
+                models,
+                dependencies.runtimeDependencies(),
+                exactUsage);
+        validateUsage(
+                snapshot,
+                new UsageBinding(
+                        runId, catalogEvidenceDigest, artifactManifestDigest,
+                        candidateSnapshotDigest, candidateContentDigest,
+                        dependencies.pomDigest()),
+                approvedEvidence,
+                manifest,
+                usage);
+        return usage;
     }
 
     /** Resolves exact evidence from the already-frozen snapshot for one canonical controller request. */
