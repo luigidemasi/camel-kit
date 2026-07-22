@@ -302,8 +302,8 @@ final class ShipAttemptFactory {
         }
     }
 
-    /** Starts one complete replay-scoped integrity verification. */
-    void beginReplay() {
+    /** Starts one independent integrity-verification scope. */
+    void beginVerificationScope() {
         resetVerification();
     }
 

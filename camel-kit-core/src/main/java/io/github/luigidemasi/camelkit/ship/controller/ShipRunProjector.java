@@ -77,6 +77,7 @@ final class ShipRunProjector {
         Objects.requireNonNull(expectedSuccessor, "expected successor");
         ShipStoredEventCodec.StoredEvent stored = decodeExact(command, data);
         Projection projection = replayProjection();
+        attemptFactory.beginVerificationScope();
         ShipRun previous = projection.authority;
         try {
             ShipRun successor = stored.authority().apply(previous, expectedSuccessor.head());
@@ -97,7 +98,7 @@ final class ShipRunProjector {
     }
 
     private Projection replayProjection() throws IOException {
-        attemptFactory.beginReplay();
+        attemptFactory.beginVerificationScope();
         List<ShipEvent> history = events.replay();
         if (history.isEmpty()) {
             throw new IOException("Ship run has no authoritative events");

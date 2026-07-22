@@ -803,99 +803,12 @@ class ShipRunProjectorTest {
 
     @Test
     void waivableFailurePreservesInteractionsThroughWaiverAndStampReplay() throws Exception {
-        DurableFlow flow = validationRunningFlow("waiver-replay");
-        BlobReference originalBundle = flow.view.interactionBundle();
-        BlobReference evidence = flow.blobs.writeBytes(
-                "validation-report", "waivable validation failure".getBytes(StandardCharsets.UTF_8));
-        String checkId = ShipDigest.sha256("waivable-check".getBytes(StandardCharsets.UTF_8));
-        String policy = flow.view.authority().authority().basis().policy().value();
-        ShipAuthorityCommand failureCommand = ShipAuthorityCommand.waiver(
-                checkId, evidence.digest(), policy);
-        flow.commit(
-                failureCommand,
-                new ShipEventPayloads.Failure(
-                        ShipStage.VALIDATE,
-                        "waivable-check-failed",
-                        "The validation check requires explicit waiver",
-                        flow.view.activeRequestReference(),
-                        null,
-                        evidence,
-                        null,
-                        null));
-
-        assertEquals(ShipState.WAIVER_ELIGIBLE, flow.view.state());
-        assertEquals(originalBundle, flow.view.interactionBundle());
-
-        String subjectDigest = ShipDigest.sha256("waiver-subject".getBytes(StandardCharsets.UTF_8));
-        String nonce = flow.signer.nonce();
-        WaiverChallenge unsignedChallenge = new WaiverChallenge(
-                Interaction.SCHEMA_VERSION,
-                flow.view.runId(),
-                checkId,
-                evidence.digest(),
-                policy,
-                subjectDigest,
-                "validation-report",
-                "The failed check may affect runtime safety",
-                "The user accepts the documented risk",
-                nonce,
-                SYNTACTIC_MAC);
-        WaiverChallenge challenge = new WaiverChallenge(
-                unsignedChallenge.schemaVersion(),
-                unsignedChallenge.runId(),
-                unsignedChallenge.checkId(),
-                unsignedChallenge.evidenceDigest(),
-                unsignedChallenge.eligibilityPolicyDigest(),
-                unsignedChallenge.subjectDigest(),
-                unsignedChallenge.subjectReference(),
-                unsignedChallenge.risk(),
-                unsignedChallenge.consequence(),
-                unsignedChallenge.nonce(),
-                flow.signer.sign(Interaction.waiverChallengeMacFields(unsignedChallenge)));
-        BlobReference pendingBundle = flow.interactions.record(
-                flow.blobs, flow.view.interactionBundle(), challenge);
-        flow.commit(
-                ShipAuthorityCommand.empty(ShipEventType.WAIVER_REQUESTED),
-                new ShipEventPayloads.WaiverRequested(challenge, pendingBundle));
-
-        WaiverResponse unsignedResponse = new WaiverResponse(
-                Interaction.SCHEMA_VERSION,
-                flow.view.runId(),
-                challenge.checkId(),
-                challenge.evidenceDigest(),
-                challenge.eligibilityPolicyDigest(),
-                challenge.subjectDigest(),
-                challenge.nonce(),
-                WaiverDecision.WAIVE,
-                "Accept the bounded risk",
-                "uid:1000",
-                "terminal-v1",
-                "cli",
-                NOW,
-                SYNTACTIC_MAC);
-        WaiverResponse response = new WaiverResponse(
-                unsignedResponse.schemaVersion(),
-                unsignedResponse.runId(),
-                unsignedResponse.checkId(),
-                unsignedResponse.evidenceDigest(),
-                unsignedResponse.eligibilityPolicyDigest(),
-                unsignedResponse.subjectDigest(),
-                unsignedResponse.nonce(),
-                unsignedResponse.decision(),
-                unsignedResponse.reason(),
-                unsignedResponse.controllerObservedProcessPrincipal(),
-                unsignedResponse.declaredCliUiProfile(),
-                unsignedResponse.channel(),
-                unsignedResponse.answeredAt(),
-                flow.signer.sign(Interaction.waiverResponseMacFields(unsignedResponse)));
-        BlobReference responseReference = fixtureBlob(
-                flow.blobs, "interaction-response", response);
-        BlobReference completedBundle = flow.interactions.record(
-                flow.blobs, flow.view.interactionBundle(), response);
+        PendingWaiver pending = requestWaiver("waiver-replay");
+        DurableFlow flow = pending.flow();
+        ShipEventPayloads.WaiverRecorded approval = waiverResponse(pending, WaiverDecision.WAIVE);
         flow.commit(
                 ShipAuthorityCommand.decision(ShipEventType.WAIVER_RECORDED, null),
-                new ShipEventPayloads.WaiverRecorded(
-                        response, responseReference, completedBundle));
+                approval);
         assertEquals(ShipState.WAIVER_RECORDED, flow.view.state());
 
         flow.commit(
@@ -906,12 +819,74 @@ class ShipRunProjectorTest {
         flow.commit(
                 ShipAuthorityCommand.value(
                         ShipEventType.RUN_COMPLETED_WITH_WAIVER, stamp.digest()),
-                new ShipEventPayloads.StampRecorded(stamp, null, evidence));
+                new ShipEventPayloads.StampRecorded(stamp, null, pending.evidence()));
 
         assertEquals(ShipState.COMPLETED_WITH_WAIVER, flow.view.state());
         assertEquals(stamp, flow.view.stamp());
-        assertEquals(completedBundle, flow.view.interactionBundle());
+        assertEquals(approval.interactionBundle(), flow.view.interactionBundle());
         assertEquals(flow.view, flow.projector().replay());
+    }
+
+    @Test
+    void deniedWaiverIsReconstructedFromDurableEvents() throws Exception {
+        PendingWaiver pending = requestWaiver("waiver-denied-replay");
+        DurableFlow flow = pending.flow();
+        ShipEventPayloads.WaiverRecorded denial = waiverResponse(pending, WaiverDecision.DENY);
+
+        flow.commit(
+                ShipAuthorityCommand.decision(ShipEventType.WAIVER_DENIED, null),
+                denial);
+
+        assertEquals(ShipState.FAILED_TERMINAL, flow.view.state());
+        assertEquals(denial.interactionBundle(), flow.view.interactionBundle());
+        assertEquals(flow.view, flow.projector().replay());
+    }
+
+    @Test
+    void waiverResponseDecisionMustMatchItsLifecycleEvent() throws Exception {
+        PendingWaiver pending = requestWaiver("waiver-decision-mismatch");
+        DurableFlow flow = pending.flow();
+        ShipEventPayloads.WaiverRecorded approval = waiverResponse(pending, WaiverDecision.WAIVE);
+        ShipAuthorityCommand command = ShipAuthorityCommand.decision(
+                ShipEventType.WAIVER_DENIED, null);
+        ShipRun previous = flow.view.authority();
+        ShipRun successor = command.apply(previous);
+        flow.events.appendIfLatest(
+                flow.events.currentHead(), draft(command, approval, previous, successor));
+
+        Exception failure = assertThrows(Exception.class, () -> flow.projector().replay());
+        assertTrue(failure.getMessage().contains("Waiver response disagrees"));
+    }
+
+    @Test
+    void waivableFailureCannotSwapTheSignedInteractionBundle() throws Exception {
+        DurableFlow flow = validationRunningFlow("waiver-bundle-swap");
+        BlobReference evidence = flow.blobs.writeBytes(
+                "validation-report", "waivable validation failure".getBytes(StandardCharsets.UTF_8));
+        String checkId = ShipDigest.sha256("waivable-check".getBytes(StandardCharsets.UTF_8));
+        String policy = flow.view.authority().authority().basis().policy().value();
+        BlobReference swappedBundle = flow.interactions.amend(
+                flow.blobs,
+                flow.view.interactionBundle(),
+                ShipDigest.sha256("swapped-context".getBytes(StandardCharsets.UTF_8)));
+        ShipAuthorityCommand command = ShipAuthorityCommand.waiver(
+                checkId, evidence.digest(), policy);
+        ShipEventPayloads.Failure payload = new ShipEventPayloads.Failure(
+                ShipStage.VALIDATE,
+                "waivable-check-failed",
+                "The validation check requires explicit waiver",
+                flow.view.activeRequestReference(),
+                null,
+                evidence,
+                null,
+                swappedBundle);
+        ShipRun previous = flow.view.authority();
+        ShipRun successor = command.apply(previous);
+        flow.events.appendIfLatest(
+                flow.events.currentHead(), draft(command, payload, previous, successor));
+
+        Exception failure = assertThrows(Exception.class, () -> flow.projector().replay());
+        assertTrue(failure.getMessage().contains("changed the signed interaction bundle"));
     }
 
     @Test
@@ -981,6 +956,105 @@ class ShipRunProjectorTest {
 
         Exception failure = assertThrows(Exception.class, projector::replay);
         assertTrue(failure.getMessage().contains("project source differs"));
+    }
+
+    private PendingWaiver requestWaiver(String name) throws Exception {
+        DurableFlow flow = validationRunningFlow(name);
+        BlobReference originalBundle = flow.view.interactionBundle();
+        BlobReference evidence = flow.blobs.writeBytes(
+                "validation-report", "waivable validation failure".getBytes(StandardCharsets.UTF_8));
+        String checkId = ShipDigest.sha256("waivable-check".getBytes(StandardCharsets.UTF_8));
+        String policy = flow.view.authority().authority().basis().policy().value();
+        flow.commit(
+                ShipAuthorityCommand.waiver(checkId, evidence.digest(), policy),
+                new ShipEventPayloads.Failure(
+                        ShipStage.VALIDATE,
+                        "waivable-check-failed",
+                        "The validation check requires explicit waiver",
+                        flow.view.activeRequestReference(),
+                        null,
+                        evidence,
+                        null,
+                        null));
+
+        assertEquals(ShipState.WAIVER_ELIGIBLE, flow.view.state());
+        assertEquals(originalBundle, flow.view.interactionBundle());
+
+        String subjectDigest = ShipDigest.sha256("waiver-subject".getBytes(StandardCharsets.UTF_8));
+        String nonce = flow.signer.nonce();
+        WaiverChallenge unsigned = new WaiverChallenge(
+                Interaction.SCHEMA_VERSION,
+                flow.view.runId(),
+                checkId,
+                evidence.digest(),
+                policy,
+                subjectDigest,
+                "validation-report",
+                "The failed check may affect runtime safety",
+                "The user accepts the documented risk",
+                nonce,
+                SYNTACTIC_MAC);
+        WaiverChallenge challenge = new WaiverChallenge(
+                unsigned.schemaVersion(),
+                unsigned.runId(),
+                unsigned.checkId(),
+                unsigned.evidenceDigest(),
+                unsigned.eligibilityPolicyDigest(),
+                unsigned.subjectDigest(),
+                unsigned.subjectReference(),
+                unsigned.risk(),
+                unsigned.consequence(),
+                unsigned.nonce(),
+                flow.signer.sign(Interaction.waiverChallengeMacFields(unsigned)));
+        BlobReference pendingBundle = flow.interactions.record(
+                flow.blobs, flow.view.interactionBundle(), challenge);
+        flow.commit(
+                ShipAuthorityCommand.empty(ShipEventType.WAIVER_REQUESTED),
+                new ShipEventPayloads.WaiverRequested(challenge, pendingBundle));
+        return new PendingWaiver(flow, evidence, challenge);
+    }
+
+    private static ShipEventPayloads.WaiverRecorded waiverResponse(
+            PendingWaiver pending, WaiverDecision decision)
+            throws Exception {
+        DurableFlow flow = pending.flow();
+        WaiverChallenge challenge = pending.challenge();
+        WaiverResponse unsigned = new WaiverResponse(
+                Interaction.SCHEMA_VERSION,
+                flow.view.runId(),
+                challenge.checkId(),
+                challenge.evidenceDigest(),
+                challenge.eligibilityPolicyDigest(),
+                challenge.subjectDigest(),
+                challenge.nonce(),
+                decision,
+                decision == WaiverDecision.WAIVE ? "Accept the bounded risk" : null,
+                "uid:1000",
+                "terminal-v1",
+                "cli",
+                NOW,
+                SYNTACTIC_MAC);
+        WaiverResponse response = new WaiverResponse(
+                unsigned.schemaVersion(),
+                unsigned.runId(),
+                unsigned.checkId(),
+                unsigned.evidenceDigest(),
+                unsigned.eligibilityPolicyDigest(),
+                unsigned.subjectDigest(),
+                unsigned.nonce(),
+                unsigned.decision(),
+                unsigned.reason(),
+                unsigned.controllerObservedProcessPrincipal(),
+                unsigned.declaredCliUiProfile(),
+                unsigned.channel(),
+                unsigned.answeredAt(),
+                flow.signer.sign(Interaction.waiverResponseMacFields(unsigned)));
+        BlobReference responseReference = fixtureBlob(
+                flow.blobs, "interaction-response", response);
+        BlobReference completedBundle = flow.interactions.record(
+                flow.blobs, flow.view.interactionBundle(), response);
+        return new ShipEventPayloads.WaiverRecorded(
+                response, responseReference, completedBundle);
     }
 
     private DurableFlow planValidatedFlow(String name) throws Exception {
@@ -1758,6 +1832,10 @@ class ShipRunProjectorTest {
             String requirementsDigest,
             String policyDigest,
             String baselineDigest) {
+    }
+
+    private record PendingWaiver(
+            DurableFlow flow, BlobReference evidence, WaiverChallenge challenge) {
     }
 
     private static final class DurableFlow {

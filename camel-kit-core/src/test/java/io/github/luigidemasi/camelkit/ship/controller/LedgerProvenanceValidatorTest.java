@@ -465,6 +465,46 @@ class LedgerProvenanceValidatorTest {
     }
 
     @Test
+    void gapStagesRejectRemovalOfExistingAnalysis() {
+        SourceMaterial source = source(
+                SourceKind.INITIAL_CONTEXT,
+                "source-runtime-removal",
+                "Camel Main and YAML are required.");
+        SourceRef runtimeReference = reference(
+                source, source.canonicalLocator(), "Camel Main");
+        SourceRef dslReference = reference(
+                source, source.canonicalLocator(), "YAML");
+        DecisionLedger previousBase = ledger(
+                1, GapReviewStatus.NOT_RUN, "runtime", "main", runtimeReference);
+        Entry retained = new Entry(
+                "decision-dsl",
+                "dsl",
+                "yaml",
+                LedgerStatus.RESOLVED,
+                List.of(dslReference),
+                null);
+        DecisionLedger previous = copyLedger(
+                previousBase, List.of(previousBase.decisions().get(0), retained));
+        DecisionLedger removed = copyLedger(
+                ledger(2, GapReviewStatus.NOT_RUN, "runtime", "main", runtimeReference),
+                List.of(retained));
+
+        for (ShipStage stage : List.of(ShipStage.DESIGN, ShipStage.REVIEW)) {
+            StageRequest request = request(stage);
+            assertCode("ledger-evolution-invalid", () -> LedgerProvenanceValidator.validate(
+                    request,
+                    result(
+                            request,
+                            removed,
+                            request.attemptId(),
+                            StageResult.Outcome.NEEDS_DISCOVERY),
+                    List.of(source),
+                    previous,
+                    null));
+        }
+    }
+
+    @Test
     void gapStagesMayAddBlockersAndRegressCompletenessButMayNotSilentlyImproveIt() {
         SourceMaterial source = source(
                 SourceKind.INITIAL_CONTEXT,

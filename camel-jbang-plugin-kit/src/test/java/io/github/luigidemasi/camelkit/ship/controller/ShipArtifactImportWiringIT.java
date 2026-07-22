@@ -6,6 +6,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -15,6 +16,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.spi.ToolProvider;
 
+import javax.xml.XMLConstants;
+import javax.xml.parsers.DocumentBuilderFactory;
+
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+
 import io.github.luigidemasi.camelkit.ship.protocol.StageRequest;
 import io.github.luigidemasi.camelkit.ship.protocol.StageResult;
 import io.github.luigidemasi.camelkit.ship.protocol.StageResultValidator;
@@ -22,6 +29,9 @@ import io.github.luigidemasi.camelkit.ship.protocol.StageResultValidator;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Full-reactor accidental-wiring tripwire while staged import has no production broker.
@@ -30,15 +40,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * This is not a security boundary. Production import still requires proof that the full worker process tree is dead
  * with protected exclusive ancestry, or a killable native nonblocking no-follow open.
  */
-class ShipArtifactImportWiringTest {
+class ShipArtifactImportWiringIT {
 
-    private static final List<String> REACTOR_MODULES = List.of(
-            "camel-kit-main",
-            "camel-kit-core",
-            "camel-kit-graph",
-            "camel-kit-ship-resolver",
-            "camel-kit-ship-controller",
-            "camel-jbang-plugin-kit");
     private static final String WORKSPACE_SERVICE
             = "io.github.luigidemasi.camelkit.ship.controller.ShipWorkspaceService";
     private static final String WORKSPACE_ACCEPT = WORKSPACE_SERVICE.replace('.', '/') + ".accept:";
@@ -52,14 +55,10 @@ class ShipArtifactImportWiringTest {
 
     @Test
     void stagedArtifactImportRemainsUnwiredAcrossTheCompiledReactor() throws Exception {
-        Path testClasses = Path.of(ShipArtifactImportWiringTest.class.getProtectionDomain()
+        Path testClasses = Path.of(ShipArtifactImportWiringIT.class.getProtectionDomain()
                 .getCodeSource().getLocation().toURI());
         Path reactor = testClasses.getParent().getParent().getParent();
         List<Path> productionRoots = productionRoots(reactor);
-        assertEquals(
-                REACTOR_MODULES.size(),
-                productionRoots.size(),
-                "The accidental-wiring tripwire must run after every reactor module is compiled");
 
         String classpath = String.join(
                 File.pathSeparator,
@@ -85,7 +84,7 @@ class ShipArtifactImportWiringTest {
 
     @Test
     void compiledReferenceScannerRecognizesEveryGuardedMethod() throws Exception {
-        Path testClasses = Path.of(ShipArtifactImportWiringTest.class.getProtectionDomain()
+        Path testClasses = Path.of(ShipArtifactImportWiringIT.class.getProtectionDomain()
                 .getCodeSource().getLocation().toURI());
         Path productionClasses = Path.of(ShipWorkspaceService.class.getProtectionDomain()
                 .getCodeSource().getLocation().toURI());
@@ -103,13 +102,54 @@ class ShipArtifactImportWiringTest {
         }
     }
 
-    private static List<Path> productionRoots(Path reactor) {
-        return REACTOR_MODULES.stream()
-                .map(module -> reactor.resolve(module).resolve("target/classes"))
-                .filter(Files::isDirectory)
-                .map(Path::toAbsolutePath)
-                .map(Path::normalize)
-                .toList();
+    private static List<Path> productionRoots(Path reactor) throws Exception {
+        Element modules = directChild(parseProject(reactor.resolve("pom.xml")), "modules");
+        List<Path> roots = new ArrayList<>();
+        for (Node node = modules.getFirstChild(); node != null; node = node.getNextSibling()) {
+            if (!(node instanceof Element module) || !"module".equals(localName(module))) {
+                continue;
+            }
+            String moduleName = module.getTextContent().strip();
+            assertTrue(!moduleName.isEmpty(), "Root POM contains an empty reactor module");
+            Path root = reactor.resolve(moduleName).resolve("target/classes").toAbsolutePath().normalize();
+            assertTrue(
+                    Files.isDirectory(root),
+                    () -> "The accidental-wiring tripwire requires compiled output for reactor module " + moduleName);
+            roots.add(root);
+        }
+        assertTrue(!roots.isEmpty(), "Root POM declares no reactor modules");
+        return List.copyOf(roots);
+    }
+
+    private static Element parseProject(Path pom) throws Exception {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+        factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+        factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+        factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+        factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+        factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+        factory.setXIncludeAware(false);
+        factory.setExpandEntityReferences(false);
+        return factory.newDocumentBuilder().parse(pom.toFile()).getDocumentElement();
+    }
+
+    private static Element directChild(Element parent, String name) {
+        Element found = null;
+        for (Node node = parent.getFirstChild(); node != null; node = node.getNextSibling()) {
+            if (node instanceof Element element && name.equals(localName(element))) {
+                assertNull(found, "Root POM contains more than one direct <" + name + "> element");
+                found = element;
+            }
+        }
+        assertNotNull(found, "Root POM lacks a direct <" + name + "> element");
+        return found;
+    }
+
+    private static String localName(Node node) {
+        return node.getLocalName() == null ? node.getNodeName() : node.getLocalName();
     }
 
     private static List<Path> classFiles(Path root) throws IOException {
