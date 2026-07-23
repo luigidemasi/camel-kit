@@ -144,9 +144,12 @@ class ShipSchemaResourceTest {
         }
 
         Schema subject = compiledSchema("catalog-usage.schema.json#/$defs/catalogSubject");
-        ObjectNode invalidSubject = (ObjectNode) MAPPER.readTree("""
-                {"kind":"COMPONENT","name":"unsafe/name"}
+        ObjectNode validSubject = (ObjectNode) MAPPER.readTree("""
+                {"kind":"COMPONENT","name":"timer"}
                 """);
+        assertTrue(subject.validate(validSubject).isEmpty());
+        ObjectNode invalidSubject = validSubject.deepCopy();
+        invalidSubject.put("name", "unsafe/name");
         assertFalse(subject.validate(invalidSubject).isEmpty());
     }
 
