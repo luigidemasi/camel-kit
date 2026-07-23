@@ -22,9 +22,6 @@ import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import io.github.luigidemasi.camelkit.ship.context.ContextFilesystemPolicy.ProjectAccess;
-import io.github.luigidemasi.camelkit.ship.context.ContextFilesystemPolicy.ProjectRootAdmission;
-import io.github.luigidemasi.camelkit.ship.security.ProjectContextFiles.HeldRoot;
 import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy.Classification;
 
 import org.junit.jupiter.api.Test;
@@ -639,23 +636,7 @@ class ProjectSnapshotServiceTest {
     }
 
     @Test
-    void publicProjectFacadeRequiresAdmittedAccessAndRawBrokerTypesRemainInternal() throws Exception {
-        Set<String> publicMethods = Arrays.stream(ProjectContextFiles.class.getDeclaredMethods())
-                .filter(method -> Modifier.isPublic(method.getModifiers()))
-                .map(method -> method.getName())
-                .collect(Collectors.toSet());
-        assertEquals(Set.of("hold", "open", "readDocument", "close"), publicMethods);
-        assertEquals(
-                ProjectAccess.class,
-                ProjectContextFiles.class.getMethod("open", ProjectAccess.class).getParameterTypes()[0]);
-        assertThrows(NoSuchMethodException.class, () -> ProjectContextFiles.class.getMethod("open", Path.class));
-        assertThrows(NoSuchMethodException.class, () -> ProjectContextFiles.class.getMethod("snapshot"));
-        assertEquals(
-                ProjectRootAdmission.class,
-                ProjectContextFiles.class.getMethod("hold", ProjectRootAdmission.class)
-                        .getParameterTypes()[0]);
-        assertEquals(0, ProjectRootAdmission.class.getConstructors().length);
-        assertEquals(0, HeldRoot.class.getConstructors().length);
+    void publicEvidenceFacadeKeepsRawFilesystemTypesInternal() {
         assertFalse(Modifier.isPublic(ShipSecureFilesystem.class.getModifiers()));
         assertFalse(Modifier.isPublic(ShipSecureFilesystem.SecureRoot.class.getModifiers()));
         assertFalse(Modifier.isPublic(ProjectSnapshotService.class.getModifiers()));

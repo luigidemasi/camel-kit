@@ -11,8 +11,6 @@ import io.github.luigidemasi.camelkit.ship.catalog.CatalogEvidenceSet.ArtifactEv
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogEvidenceSet.SubjectEvidence;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogSubject;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogTarget;
-import io.github.luigidemasi.camelkit.ship.ledger.DecisionLedger;
-import io.github.luigidemasi.camelkit.ship.ledger.DecisionLedger.RequirementsPolicy;
 import io.github.luigidemasi.camelkit.ship.resolver.MavenCoordinate;
 
 import org.junit.jupiter.api.Test;
@@ -195,11 +193,11 @@ class ArtifactValidatorCatalogDependencyTest {
         Files.writeString(project.resolve("pom.xml"), pom);
     }
 
-    private static RequirementsPolicy policy() {
-        return new RequirementsPolicy(
+    private static ArtifactPolicy policy() {
+        return new ArtifactPolicy(
                 "main", "4.21.0", null, null, "yaml", "simple", "5.0.0-M2",
                 CitrusDependencyPolicy.required("5.0.0-M2"),
-                DecisionLedger.JavaPolicy.FORBIDDEN, List.of(), List.of(), true, true);
+                ArtifactManifest.JavaPolicy.FORBIDDEN, List.of(), List.of(), true, true);
     }
 
     private static CatalogEvidenceSet evidence() {

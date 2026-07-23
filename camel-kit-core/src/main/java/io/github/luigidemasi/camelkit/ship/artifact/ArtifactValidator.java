@@ -45,7 +45,6 @@ import io.github.luigidemasi.camelkit.ship.catalog.CatalogSubject.Kind;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogUsageRecord.RuntimeDependency;
 import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipCamelMainBootstrap;
 import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipCitrusYamlMain;
-import io.github.luigidemasi.camelkit.ship.ledger.DecisionLedger.RequirementsPolicy;
 import io.github.luigidemasi.camelkit.ship.security.ProjectEvidenceFiles;
 
 import com.fasterxml.jackson.core.StreamReadConstraints;
@@ -91,7 +90,7 @@ public final class ArtifactValidator {
 
     /** Validates both filesystem artifacts and their exact approved requirements policy. */
     public static ArtifactValidationResult validate(
-            Path projectRoot, ArtifactManifest manifest, RequirementsPolicy policy) {
+            Path projectRoot, ArtifactManifest manifest, ArtifactPolicy policy) {
         Path root = projectRoot.toAbsolutePath().normalize();
         List<ArtifactFinding> findings = new ArrayList<>();
         if (manifest == null) {
@@ -158,13 +157,13 @@ public final class ArtifactValidator {
 
     /** Binds every used Camel component model to an exact runtime dependency in the accepted POM. */
     public static ArtifactValidationResult validateCatalogDependencies(
-            Path projectRoot, RequirementsPolicy policy, CatalogEvidenceSet usageEvidence) {
+            Path projectRoot, ArtifactPolicy policy, CatalogEvidenceSet usageEvidence) {
         return bindCatalogDependencies(projectRoot, policy, usageEvidence).validation();
     }
 
     /** Validate and retain the exact candidate runtime dependency roots used for controller execution. */
     public static CatalogDependencyBinding bindCatalogDependencies(
-            Path projectRoot, RequirementsPolicy policy, CatalogEvidenceSet usageEvidence) {
+            Path projectRoot, ArtifactPolicy policy, CatalogEvidenceSet usageEvidence) {
         Path root = projectRoot.toAbsolutePath().normalize();
         List<ArtifactFinding> findings = new ArrayList<>();
         List<SubjectEvidence> runtimeSubjects = usageEvidence.subjects().stream()
@@ -237,7 +236,7 @@ public final class ArtifactValidator {
 
     private static List<RuntimeDependency> validateExactMainDependencies(
             MavenModel model,
-            RequirementsPolicy policy,
+            ArtifactPolicy policy,
             List<SubjectEvidence> runtimeSubjects,
             List<ArtifactFinding> findings) {
         if (model.parent() != null || model.hasProperties() || model.hasDependencyManagement()
@@ -354,7 +353,7 @@ public final class ArtifactValidator {
     }
 
     private static boolean managedByApprovedBom(
-            MavenModel model, String runtime, RequirementsPolicy policy) {
+            MavenModel model, String runtime, ArtifactPolicy policy) {
         MavenCoordinate bom = switch (runtime) {
             case "main" -> findImportedBom(model, "org.apache.camel", "camel-bom");
             case "spring-boot" ->
@@ -764,7 +763,7 @@ public final class ArtifactValidator {
     private static void validateRuntimeConsistency(
             Path root,
             ArtifactManifest manifest,
-            RequirementsPolicy policy,
+            ArtifactPolicy policy,
             List<ArtifactFinding> findings) {
         boolean approvedPolicy = policy != null;
         String runtime = normalizeRuntime(approvedPolicy ? policy.runtime() : manifest.runtime());
@@ -1650,7 +1649,7 @@ public final class ArtifactValidator {
     }
 
     private static void validateApprovedPolicy(
-            ArtifactManifest manifest, RequirementsPolicy policy, List<ArtifactFinding> findings) {
+            ArtifactManifest manifest, ArtifactPolicy policy, List<ArtifactFinding> findings) {
         requirePolicyEqual("runtime", normalizeRuntime(policy.runtime()), normalizeRuntime(manifest.runtime()),
                 findings);
         requirePolicyEqual("camel-version", policy.camelVersion(), manifest.camelVersion(), findings);
@@ -1667,9 +1666,12 @@ public final class ArtifactValidator {
             findings.add(error("approved-policy-citrus-dependencies", null,
                     "Artifact Citrus dependencies differ from the approved requirements policy"));
         }
-        String expectedJava = policy.javaPolicy() == null ? null : policy.javaPolicy().name();
-        String actualJava = manifest.javaPolicy() == null ? null : manifest.javaPolicy().name();
-        requirePolicyEqual("java-policy", expectedJava, actualJava, findings);
+        if (policy.javaPolicy() != manifest.javaPolicy()) {
+            String message = "Artifact java-policy " + manifest.javaPolicy()
+                             + " differs from approved value " + policy.javaPolicy();
+            findings.add(error("approved-policy-java-policy", null,
+                    message));
+        }
         if (!new HashSet<>(policy.approvedJavaExceptions())
                 .equals(new HashSet<>(manifest.approvedJavaExceptions()))) {
             findings.add(error("approved-policy-java-exceptions", null,

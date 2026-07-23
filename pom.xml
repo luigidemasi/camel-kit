@@ -137,7 +137,6 @@
         <module>camel-kit-core</module>
         <module>camel-kit-graph</module>
         <module>camel-kit-ship-resolver</module>
-        <module>camel-kit-ship-controller</module>
         <module>camel-jbang-plugin-kit</module>
     </modules>
 
