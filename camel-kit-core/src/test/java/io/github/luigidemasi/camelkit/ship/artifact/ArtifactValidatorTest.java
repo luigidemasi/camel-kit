@@ -9,9 +9,7 @@ import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest.DeclaredArt
 import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest.JavaPolicy;
 import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest.RouteArtifact;
 import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest.TestArtifact;
-import io.github.luigidemasi.camelkit.ship.ledger.DecisionLedger;
-import io.github.luigidemasi.camelkit.ship.ledger.DecisionLedger.RequirementsPolicy;
-import io.github.luigidemasi.camelkit.ship.ledger.DecisionLedger.RouteContract;
+import io.github.luigidemasi.camelkit.ship.artifact.ArtifactPolicy.RouteContract;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -749,15 +747,15 @@ class ArtifactValidatorTest {
                 List.of(), true, true);
     }
 
-    private static RequirementsPolicy springPolicy() {
+    private static ArtifactPolicy springPolicy() {
         return springPolicy(CITRUS_VERSION);
     }
 
-    private static RequirementsPolicy springPolicy(String citrusVersion) {
-        return new RequirementsPolicy(
+    private static ArtifactPolicy springPolicy(String citrusVersion) {
+        return new ArtifactPolicy(
                 "spring-boot", "4.21.0", "4.21.0", "4.1.0", "yaml", "simple",
                 citrusVersion, CitrusDependencyPolicy.required(citrusVersion),
-                DecisionLedger.JavaPolicy.FORBIDDEN, List.of(),
+                ArtifactPolicy.JavaPolicy.FORBIDDEN, List.of(),
                 List.of(new RouteContract(
                         "orders", "src/main/resources/routes/orders.camel.yaml",
                         "test/orders.camel.it.yaml")),
@@ -816,11 +814,11 @@ class ArtifactValidatorTest {
                 List.of(), true, true);
     }
 
-    private static RequirementsPolicy quarkusPolicy() {
-        return new RequirementsPolicy(
+    private static ArtifactPolicy quarkusPolicy() {
+        return new ArtifactPolicy(
                 "quarkus", "4.18.2", "3.33.1", null, "yaml", "simple",
                 CITRUS_VERSION, CITRUS_DEPENDENCIES,
-                DecisionLedger.JavaPolicy.FORBIDDEN, List.of(),
+                ArtifactPolicy.JavaPolicy.FORBIDDEN, List.of(),
                 List.of(new RouteContract(
                         "orders", "src/main/resources/routes/orders.camel.yaml",
                         "test/orders.camel.it.yaml")),
