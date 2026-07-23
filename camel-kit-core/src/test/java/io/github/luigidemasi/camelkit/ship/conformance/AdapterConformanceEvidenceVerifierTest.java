@@ -100,6 +100,19 @@ class AdapterConformanceEvidenceVerifierTest {
                 () -> AdapterConformanceEvidenceVerifier.verify(new byte[64 * 1024 + 1]));
     }
 
+    @Test
+    void rejectsNullAndEmptyEvidence() {
+        IllegalArgumentException nullEvidence = assertThrows(IllegalArgumentException.class,
+                () -> AdapterConformanceEvidenceVerifier.verify(null));
+        IllegalArgumentException emptyEvidence = assertThrows(IllegalArgumentException.class,
+                () -> AdapterConformanceEvidenceVerifier.verify(new byte[0]));
+
+        assertEquals("Invalid Ship adapter conformance evidence: evidence must not be empty",
+                nullEvidence.getMessage());
+        assertEquals("Invalid Ship adapter conformance evidence: evidence must not be empty",
+                emptyEvidence.getMessage());
+    }
+
     private static ParsedEvidence verify(String raw) {
         return AdapterConformanceEvidenceVerifier.verify(raw.getBytes(StandardCharsets.UTF_8));
     }
