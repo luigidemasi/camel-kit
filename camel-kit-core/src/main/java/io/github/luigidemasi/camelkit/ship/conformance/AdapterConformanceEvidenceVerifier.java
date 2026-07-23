@@ -62,6 +62,11 @@ public final class AdapterConformanceEvidenceVerifier {
                 raw.launchProfile(),
                 raw.runtimeProfile(),
                 raw.runtimeArtifactDigest(),
+                raw.languageRuntimeVersion(),
+                raw.languageRuntimeArtifactDigest(),
+                raw.packageClosureDigest(),
+                raw.abiId(),
+                raw.abiVersion(),
                 raw.driverDigest(),
                 raw.ingressDigest(),
                 raw.testSuiteDigest(),
@@ -84,6 +89,11 @@ public final class AdapterConformanceEvidenceVerifier {
         require(raw.launchProfile(), PROFILE, "launchProfile");
         require(raw.runtimeProfile(), PROFILE, "runtimeProfile");
         requireDigest(raw.runtimeArtifactDigest(), "runtimeArtifactDigest");
+        require(raw.languageRuntimeVersion(), VERSION, "languageRuntimeVersion");
+        requireDigest(raw.languageRuntimeArtifactDigest(), "languageRuntimeArtifactDigest");
+        requireDigest(raw.packageClosureDigest(), "packageClosureDigest");
+        require(raw.abiId(), ID, "abiId");
+        require(raw.abiVersion(), VERSION, "abiVersion");
         requireDigest(raw.driverDigest(), "driverDigest");
         requireDigest(raw.ingressDigest(), "ingressDigest");
         if (!suite.digest().equals(raw.testSuiteDigest())) {
@@ -184,6 +194,11 @@ public final class AdapterConformanceEvidenceVerifier {
             String launchProfile,
             String runtimeProfile,
             String runtimeArtifactDigest,
+            String languageRuntimeVersion,
+            String languageRuntimeArtifactDigest,
+            String packageClosureDigest,
+            String abiId,
+            String abiVersion,
             String driverDigest,
             String ingressDigest,
             String testSuiteDigest,
@@ -210,6 +225,11 @@ public final class AdapterConformanceEvidenceVerifier {
             String launchProfile,
             String runtimeProfile,
             String runtimeArtifactDigest,
+            String languageRuntimeVersion,
+            String languageRuntimeArtifactDigest,
+            String packageClosureDigest,
+            String abiId,
+            String abiVersion,
             String driverDigest,
             String ingressDigest,
             String testSuiteDigest,

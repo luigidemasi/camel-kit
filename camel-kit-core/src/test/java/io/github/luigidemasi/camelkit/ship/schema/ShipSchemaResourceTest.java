@@ -19,6 +19,7 @@ import io.github.luigidemasi.camelkit.ship.catalog.CatalogEvidenceSet;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogSubject;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogTarget;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogUsageRecord;
+import io.github.luigidemasi.camelkit.ship.conformance.RuntimeClosureManifest;
 import io.github.luigidemasi.camelkit.ship.context.InitialContext;
 import io.github.luigidemasi.camelkit.ship.controller.ShipEventType;
 import io.github.luigidemasi.camelkit.ship.controller.ShipInteractionBundle;
@@ -67,6 +68,7 @@ class ShipSchemaResourceTest {
             "initial-context.schema.json",
             "interaction-bundle.schema.json",
             "interaction.schema.json",
+            "runtime-closure.schema.json",
             "ship-event.schema.json",
             "ship-stamp.schema.json",
             "stage-request.schema.json",
@@ -474,6 +476,11 @@ class ShipSchemaResourceTest {
                 "launchProfile",
                 "runtimeProfile",
                 "runtimeArtifactDigest",
+                "languageRuntimeVersion",
+                "languageRuntimeArtifactDigest",
+                "packageClosureDigest",
+                "abiId",
+                "abiVersion",
                 "driverDigest",
                 "ingressDigest",
                 "testSuiteDigest",
@@ -523,13 +530,16 @@ class ShipSchemaResourceTest {
                 "protocolVersion",
                 "conformanceEvidenceDigest",
                 "components"), fieldNames(pack.path("properties")));
-        assertEquals(11, pack.at("/properties/components/minItems").intValue());
-        assertEquals(11, pack.at("/properties/components/maxItems").intValue());
+        assertEquals(14, pack.at("/properties/components/minItems").intValue());
+        assertEquals(14, pack.at("/properties/components/maxItems").intValue());
         Set<String> componentKinds = new LinkedHashSet<>();
         pack.at("/$defs/component/properties/kind/enum")
                 .forEach(value -> componentKinds.add(value.asText()));
         assertEquals(Set.of(
                 "runtime",
+                "language-runtime",
+                "package-closure",
+                "abi",
                 "adapter",
                 "ingress",
                 "interaction",
@@ -540,6 +550,21 @@ class ShipSchemaResourceTest {
                 "controller",
                 "protocol",
                 "conformance-suite"), componentKinds);
+
+        JsonNode closure = readSchema("runtime-closure.schema.json");
+        assertEquals(
+                Set.of("schemaVersion", "entryPoint", "files"),
+                fieldNames(closure.path("properties")));
+        assertEquals(
+                Set.of("rootId", "relativePath", "digest"),
+                fieldNames(closure.at("/$defs/entryPoint/properties")));
+        assertEquals(
+                Set.of("rootId", "relativePath", "digest", "byteSize", "executable"),
+                fieldNames(closure.at("/$defs/file/properties")));
+        assertRecordShape(closure, "", RuntimeClosureManifest.class);
+        assertRecordShape(closure, "/$defs/entryPoint", RuntimeClosureManifest.EntryPoint.class);
+        assertRecordShape(closure, "/$defs/file", RuntimeClosureManifest.RuntimeFile.class);
+        assertEquals(50_000, closure.at("/properties/files/maxItems").intValue());
     }
 
     @Test

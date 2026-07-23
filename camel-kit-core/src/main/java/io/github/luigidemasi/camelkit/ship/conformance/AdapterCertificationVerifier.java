@@ -40,6 +40,9 @@ public final class AdapterCertificationVerifier {
     private static final Pattern VERSION = Pattern.compile("[A-Za-z0-9][A-Za-z0-9+._-]{0,127}");
     private static final Set<String> REQUIRED_COMPONENTS = Set.of(
             "runtime",
+            "language-runtime",
+            "package-closure",
+            "abi",
             "adapter",
             "ingress",
             "interaction",
@@ -83,11 +86,12 @@ public final class AdapterCertificationVerifier {
         validate(pack, manifest);
 
         Map<String, Component> components = verifyComponents(pack.components(), blobs);
+        Set<String> closureDigests = verifyPackageClosure(components.get("package-closure"), blobs);
         ParsedEvidence evidence = AdapterConformanceEvidenceVerifier.verify(
                 resolve(blobs, pack.conformanceEvidenceDigest(), MAX_MANIFEST_BYTES, "conformance evidence"));
         bind(evidence, components, pack);
         verifyEvidenceBlobs(evidence, blobs);
-        verifyInventory(manifest, pack, evidence, components, blobs);
+        verifyInventory(manifest, pack, evidence, components, closureDigests, blobs);
 
         return new VerifiedLaunchDescriptor(
                 manifest.releaseId(),
@@ -103,6 +107,11 @@ public final class AdapterCertificationVerifier {
                 evidence.architecture(),
                 evidence.launchProfile(),
                 evidence.runtimeProfile(),
+                evidence.languageRuntimeVersion(),
+                evidence.languageRuntimeArtifactDigest(),
+                evidence.packageClosureDigest(),
+                evidence.abiId(),
+                evidence.abiVersion(),
                 Map.copyOf(components));
     }
 
@@ -187,11 +196,37 @@ public final class AdapterCertificationVerifier {
         return components;
     }
 
+    private static Set<String> verifyPackageClosure(Component component, BlobResolver blobs) {
+        byte[] encoded = resolve(
+                blobs,
+                component.digest(),
+                Math.toIntExact(component.byteSize()),
+                "package closure manifest");
+        RuntimeClosureManifest manifest = read(
+                encoded, RuntimeClosureManifest.class, "package closure manifest");
+        Set<String> digests = new LinkedHashSet<>();
+        for (RuntimeClosureManifest.RuntimeFile file : manifest.files()) {
+            byte[] content = resolveAllowEmpty(
+                    blobs,
+                    file.digest(),
+                    Math.toIntExact(file.byteSize()),
+                    "package closure file " + file.rootId() + "/" + file.relativePath());
+            if (content.length != file.byteSize()) {
+                throw invalid("package closure file byteSize does not match its blob", null);
+            }
+            digests.add(file.digest());
+        }
+        return Set.copyOf(digests);
+    }
+
     private static void bind(
             ParsedEvidence evidence,
             Map<String, Component> components,
             CertificationPack pack) {
         Component runtime = components.get("runtime");
+        Component languageRuntime = components.get("language-runtime");
+        Component packageClosure = components.get("package-closure");
+        Component abi = components.get("abi");
         Component adapter = components.get("adapter");
         Component ingress = components.get("ingress");
         Component protocol = components.get("protocol");
@@ -199,6 +234,23 @@ public final class AdapterCertificationVerifier {
         List<String> failures = new java.util.ArrayList<>();
         requireEqual(evidence.harnessVersion(), runtime.version(), "runtime version", failures);
         requireEqual(evidence.runtimeArtifactDigest(), runtime.digest(), "runtime digest", failures);
+        requireEqual(
+                evidence.languageRuntimeVersion(),
+                languageRuntime.version(),
+                "language runtime version",
+                failures);
+        requireEqual(
+                evidence.languageRuntimeArtifactDigest(),
+                languageRuntime.digest(),
+                "language runtime digest",
+                failures);
+        requireEqual(
+                evidence.packageClosureDigest(),
+                packageClosure.digest(),
+                "package closure digest",
+                failures);
+        requireEqual(evidence.abiId(), abi.id(), "ABI ID", failures);
+        requireEqual(evidence.abiVersion(), abi.version(), "ABI version", failures);
         requireEqual(evidence.adapterId(), adapter.id(), "adapter ID", failures);
         requireEqual(evidence.adapterVersion(), adapter.version(), "adapter version", failures);
         requireEqual(evidence.driverDigest(), adapter.digest(), "adapter digest", failures);
@@ -227,11 +279,13 @@ public final class AdapterCertificationVerifier {
             CertificationPack pack,
             ParsedEvidence evidence,
             Map<String, Component> components,
+            Set<String> closureDigests,
             BlobResolver blobs) {
         Set<String> expected = new LinkedHashSet<>();
         expected.add(manifest.packDigest());
         expected.add(pack.conformanceEvidenceDigest());
         components.values().stream().map(Component::digest).forEach(expected::add);
+        expected.addAll(closureDigests);
         evidence.checks().stream().map(check -> check.evidenceDigest()).forEach(expected::add);
 
         Set<String> actual;
@@ -279,13 +333,22 @@ public final class AdapterCertificationVerifier {
 
     private static byte[] resolve(
             BlobResolver blobs, String digest, int maximumBytes, String label) {
+        byte[] content = resolveAllowEmpty(blobs, digest, maximumBytes, label);
+        requireBytes(content, maximumBytes, label);
+        return content;
+    }
+
+    private static byte[] resolveAllowEmpty(
+            BlobResolver blobs, String digest, int maximumBytes, String label) {
         byte[] content;
         try {
             content = blobs.resolve(digest, maximumBytes);
         } catch (IOException | RuntimeException e) {
             throw invalid(label + " could not be resolved", e);
         }
-        requireBytes(content, maximumBytes, label);
+        if (content == null || content.length > maximumBytes) {
+            throw invalid(label + " must contain 0.." + maximumBytes + " bytes", null);
+        }
         if (!digest.equals(ShipDigest.sha256(content))) {
             throw invalid(label + " digest does not match its content", null);
         }
@@ -387,6 +450,11 @@ public final class AdapterCertificationVerifier {
             String architecture,
             String launchProfile,
             String runtimeProfile,
+            String languageRuntimeVersion,
+            String languageRuntimeArtifactDigest,
+            String packageClosureDigest,
+            String abiId,
+            String abiVersion,
             Map<String, Component> components) {
 
         public VerifiedLaunchDescriptor {
@@ -422,4 +490,5 @@ public final class AdapterCertificationVerifier {
             String conformanceEvidenceDigest,
             List<Component> components) {
     }
+
 }

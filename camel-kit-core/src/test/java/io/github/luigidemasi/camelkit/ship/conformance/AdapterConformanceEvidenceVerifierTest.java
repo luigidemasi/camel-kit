@@ -47,6 +47,9 @@ class AdapterConformanceEvidenceVerifierTest {
         assertEquals("amd64", evidence.architecture());
         assertEquals("native-v1", evidence.launchProfile());
         assertEquals("camel-main-v1", evidence.runtimeProfile());
+        assertEquals("22.22.2", evidence.languageRuntimeVersion());
+        assertEquals("glibc", evidence.abiId());
+        assertEquals("2.42", evidence.abiVersion());
         assertEquals(CHECKS, evidence.checks().stream().map(check -> check.checkId()).toList());
         assertEquals(12, evidence.checks().size());
     }
@@ -144,6 +147,11 @@ class AdapterConformanceEvidenceVerifierTest {
                   "launchProfile": "native-v1",
                   "runtimeProfile": "camel-main-v1",
                   "runtimeArtifactDigest": "%s",
+                  "languageRuntimeVersion": "22.22.2",
+                  "languageRuntimeArtifactDigest": "%s",
+                  "packageClosureDigest": "%s",
+                  "abiId": "glibc",
+                  "abiVersion": "2.42",
                   "driverDigest": "%s",
                   "ingressDigest": "%s",
                   "testSuiteDigest": "%s",
@@ -151,7 +159,7 @@ class AdapterConformanceEvidenceVerifierTest {
                 %s
                   ]
                 }
-                """, DIGEST, DIGEST, DIGEST, suiteDigest(), checkRows);
+                """, DIGEST, DIGEST, DIGEST, DIGEST, DIGEST, suiteDigest(), checkRows);
     }
 
     private static String suiteDigest() throws IOException {

@@ -56,6 +56,9 @@ class AdapterCertificationVerifierTest {
         blobs = new LinkedHashMap<>();
         components = new ArrayList<>();
         component("runtime", "pi", "0.80.6", "pi-runtime");
+        component("language-runtime", "node", "22.22.2", "node-runtime");
+        component("package-closure", "pi-package-tree", "1", packageClosure());
+        component("abi", "glibc", "2.42", "glibc-abi");
         component("adapter", "pi-native", "1.0.0", "pi-driver");
         component("ingress", "pi-ingress", "1.0.0", "pi-ingress");
         component("interaction", "gnome-polkit-fingerprint", "1.0.0", "interaction");
@@ -79,7 +82,10 @@ class AdapterCertificationVerifierTest {
         assertEquals("pi-native", descriptor.adapterId());
         assertEquals("linux", descriptor.operatingSystem());
         assertEquals("x86_64", descriptor.architecture());
-        assertEquals(11, descriptor.components().size());
+        assertEquals("22.22.2", descriptor.languageRuntimeVersion());
+        assertEquals("glibc", descriptor.abiId());
+        assertEquals("2.42", descriptor.abiVersion());
+        assertEquals(14, descriptor.components().size());
         assertFalse(descriptor.components().values().stream()
                 .map(Component::digest)
                 .anyMatch(value -> !ShipDigest.isSha256(value)));
@@ -154,6 +160,21 @@ class AdapterCertificationVerifierTest {
         bundle = bundle(7, "2", components, validEvidence(false));
         blobs.put(digest("unreferenced"), "unreferenced".getBytes(StandardCharsets.UTF_8));
         assertInvalid(bundle, policy(7, "2"));
+    }
+
+    @Test
+    void resolvesEveryPortablePackageFileAndRejectsClosureSubstitution() throws Exception {
+        Bundle bundle = bundle(7, "2", components, validEvidence(false));
+        blobs.remove(digest("package-json"));
+        assertInvalid(bundle, policy(7, "2"));
+
+        setUp();
+        List<Component> substituted = new ArrayList<>(components);
+        Component closure = substituted.get(2);
+        substituted.set(2, new Component(
+                closure.kind(), closure.id(), closure.version(), digest("different"), 9));
+        blobs.put(digest("different"), "different".getBytes(StandardCharsets.UTF_8));
+        assertInvalid(bundle(7, "2", substituted, validEvidence(false)), policy(7, "2"));
     }
 
     private VerifiedLaunchDescriptor verify(Bundle bundle, TrustPolicy policy) {
@@ -277,6 +298,11 @@ class AdapterCertificationVerifierTest {
                   "launchProfile": "systemd-bwrap-v1",
                   "runtimeProfile": "fedora-43-node-24",
                   "runtimeArtifactDigest": "%s",
+                  "languageRuntimeVersion": "%s",
+                  "languageRuntimeArtifactDigest": "%s",
+                  "packageClosureDigest": "%s",
+                  "abiId": "%s",
+                  "abiVersion": "%s",
                   "driverDigest": "%s",
                   "ingressDigest": "%s",
                   "testSuiteDigest": "%s",
@@ -290,10 +316,43 @@ class AdapterCertificationVerifierTest {
                 byKind.get("adapter").version(),
                 byKind.get("protocol").version(),
                 byKind.get("runtime").digest(),
+                byKind.get("language-runtime").version(),
+                byKind.get("language-runtime").digest(),
+                byKind.get("package-closure").digest(),
+                byKind.get("abi").id(),
+                byKind.get("abi").version(),
                 byKind.get("adapter").digest(),
                 byKind.get("ingress").digest(),
                 byKind.get("conformance-suite").digest(),
                 checks);
+    }
+
+    private String packageClosure() throws Exception {
+        byte[] packageJson = "package-json".getBytes(StandardCharsets.UTF_8);
+        byte[] empty = new byte[0];
+        blobs.put(ShipDigest.sha256(packageJson), packageJson);
+        blobs.put(ShipDigest.sha256(empty), empty);
+        return new String(
+                ShipJson.mapper().writeValueAsBytes(Map.of(
+                        "schemaVersion", 1,
+                        "entryPoint", Map.of(
+                                "rootId", "pi",
+                                "relativePath", "package.json",
+                                "digest", ShipDigest.sha256(packageJson)),
+                        "files", List.of(
+                                Map.of(
+                                        "rootId", "pi",
+                                        "relativePath", "package.json",
+                                        "digest", ShipDigest.sha256(packageJson),
+                                        "byteSize", packageJson.length,
+                                        "executable", true),
+                                Map.of(
+                                        "rootId", "pi",
+                                        "relativePath", "resources/empty",
+                                        "digest", ShipDigest.sha256(empty),
+                                        "byteSize", 0,
+                                        "executable", false)))),
+                StandardCharsets.UTF_8);
     }
 
     private static String suite() throws Exception {

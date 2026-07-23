@@ -17,6 +17,11 @@
     "launchProfile",
     "runtimeProfile",
     "runtimeArtifactDigest",
+    "languageRuntimeVersion",
+    "languageRuntimeArtifactDigest",
+    "packageClosureDigest",
+    "abiId",
+    "abiVersion",
     "driverDigest",
     "ingressDigest",
     "testSuiteDigest",
@@ -59,6 +64,21 @@
     },
     "runtimeArtifactDigest": {
       "$ref": "#/$defs/digest"
+    },
+    "languageRuntimeVersion": {
+      "$ref": "#/$defs/version"
+    },
+    "languageRuntimeArtifactDigest": {
+      "$ref": "#/$defs/digest"
+    },
+    "packageClosureDigest": {
+      "$ref": "#/$defs/digest"
+    },
+    "abiId": {
+      "$ref": "#/$defs/id"
+    },
+    "abiVersion": {
+      "$ref": "#/$defs/version"
     },
     "driverDigest": {
       "$ref": "#/$defs/digest"

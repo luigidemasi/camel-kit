@@ -21,8 +21,8 @@
     "conformanceEvidenceDigest": { "$ref": "#/$defs/digest" },
     "components": {
       "type": "array",
-      "minItems": 11,
-      "maxItems": 11,
+      "minItems": 14,
+      "maxItems": 14,
       "items": { "$ref": "#/$defs/component" }
     }
   },
@@ -41,6 +41,9 @@
         "kind": {
           "enum": [
             "runtime",
+            "language-runtime",
+            "package-closure",
+            "abi",
             "adapter",
             "ingress",
             "interaction",
