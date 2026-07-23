@@ -12,7 +12,7 @@ import java.util.Locale;
 /** One versioned classification and quota policy for every Ship project tree boundary. */
 public final class ShipTreePolicy {
 
-    private static final int SCHEMA_VERSION = 5;
+    private static final int SCHEMA_VERSION = 6;
     public static final int DEFAULT_MAX_FILE_COUNT = 20_000;
     public static final long DEFAULT_MAX_FILE_BYTES = 64L * 1024 * 1024;
     public static final long DEFAULT_MAX_AGGREGATE_BYTES = 1024L * 1024 * 1024;
@@ -25,7 +25,8 @@ public final class ShipTreePolicy {
             "denied:**/.git/**",
             "protected:**/.idea/**",
             "protected:**/.vscode/**",
-            "denied:**/.camel-kit/pipeline.json/**,**/.camel-kit/ship-projection.json/**",
+            "denied:**/.camel-kit/pipeline.json/**,**/.camel-kit/ship-state.json/**,"
+                                       + "**/.camel-kit/ship-projection.json/**",
             "volatile:**/.camel-kit/.cache/**,**/.camel-kit/mcp/**",
             "denied:credential directories .ssh,.gnupg,.aws,.azure,.kube,.docker",
             "denied:credential files .env,.env.* except final .env.example,.npmrc,.pypirc,.netrc",
@@ -111,6 +112,7 @@ public final class ShipTreePolicy {
         String folded = path.toLowerCase(Locale.ROOT);
         if (subtreeAtAnyDepth(folded, ".git")
                 || subtreeAtAnyDepth(folded, ".camel-kit/pipeline.json")
+                || subtreeAtAnyDepth(folded, ".camel-kit/ship-state.json")
                 || subtreeAtAnyDepth(folded, ".camel-kit/ship-projection.json")
                 || isCredentialPath(folded)) {
             return Classification.DENIED;
@@ -274,7 +276,7 @@ public final class ShipTreePolicy {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 is unavailable", e);
         }
-        update(hash, "camel-kit.ship.tree-policy.v5");
+        update(hash, "camel-kit.ship.tree-policy.v6");
         update(hash, Integer.toString(SCHEMA_VERSION));
         update(hash, Integer.toString(maxFileCount));
         update(hash, Long.toString(maxFileBytes));
