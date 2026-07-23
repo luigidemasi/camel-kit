@@ -755,7 +755,7 @@ class ArtifactValidatorTest {
         return new ArtifactPolicy(
                 "spring-boot", "4.21.0", "4.21.0", "4.1.0", "yaml", "simple",
                 citrusVersion, CitrusDependencyPolicy.required(citrusVersion),
-                ArtifactPolicy.JavaPolicy.FORBIDDEN, List.of(),
+                JavaPolicy.FORBIDDEN, List.of(),
                 List.of(new RouteContract(
                         "orders", "src/main/resources/routes/orders.camel.yaml",
                         "test/orders.camel.it.yaml")),
@@ -818,7 +818,7 @@ class ArtifactValidatorTest {
         return new ArtifactPolicy(
                 "quarkus", "4.18.2", "3.33.1", null, "yaml", "simple",
                 CITRUS_VERSION, CITRUS_DEPENDENCIES,
-                ArtifactPolicy.JavaPolicy.FORBIDDEN, List.of(),
+                JavaPolicy.FORBIDDEN, List.of(),
                 List.of(new RouteContract(
                         "orders", "src/main/resources/routes/orders.camel.yaml",
                         "test/orders.camel.it.yaml")),

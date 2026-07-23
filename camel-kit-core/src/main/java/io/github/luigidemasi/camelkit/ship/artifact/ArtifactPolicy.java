@@ -12,7 +12,7 @@ public record ArtifactPolicy(
         String expressionLanguage,
         String citrusVersion,
         List<String> citrusDependencies,
-        JavaPolicy javaPolicy,
+        ArtifactManifest.JavaPolicy javaPolicy,
         List<String> approvedJavaExceptions,
         List<RouteContract> routes,
         boolean citrusTestsRequired,
@@ -25,12 +25,6 @@ public record ArtifactPolicy(
     }
 
     public record RouteContract(String routeId, String routePath, String citrusTestPath) {
-    }
-
-    public enum JavaPolicy {
-        FORBIDDEN,
-        JUSTIFICATION_REQUIRED,
-        ALLOWED
     }
 
     private static <T> List<T> immutable(List<T> values) {

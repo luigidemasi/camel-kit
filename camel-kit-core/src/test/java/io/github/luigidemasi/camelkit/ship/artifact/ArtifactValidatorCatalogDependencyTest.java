@@ -197,7 +197,7 @@ class ArtifactValidatorCatalogDependencyTest {
         return new ArtifactPolicy(
                 "main", "4.21.0", null, null, "yaml", "simple", "5.0.0-M2",
                 CitrusDependencyPolicy.required("5.0.0-M2"),
-                ArtifactPolicy.JavaPolicy.FORBIDDEN, List.of(), List.of(), true, true);
+                ArtifactManifest.JavaPolicy.FORBIDDEN, List.of(), List.of(), true, true);
     }
 
     private static CatalogEvidenceSet evidence() {

@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.StreamReadFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.networknt.schema.Schema;
 import com.networknt.schema.SchemaLocation;
 import com.networknt.schema.SchemaRegistry;
@@ -86,7 +87,7 @@ class ShipSchemaResourceTest {
     }
 
     @Test
-    void everySchemaCompilesWithoutNetworkResolution() throws Exception {
+    void everySchemaAndReferenceCompilesWithoutNetworkResolution() throws Exception {
         Map<String, String> resources = resources();
         Set<String> allowed = Set.copyOf(resources.keySet());
         SchemaLoader loader = SchemaLoader.builder()
@@ -99,6 +100,7 @@ class ShipSchemaResourceTest {
         for (String id : allowed) {
             Schema schema = registry.getSchema(SchemaLocation.of(id));
             assertNotNull(schema, id);
+            assertDoesNotThrow(schema::initializeValidators, id);
             assertFalse(schema.validate(MAPPER.createObjectNode()).isEmpty(), id);
         }
     }
@@ -107,17 +109,19 @@ class ShipSchemaResourceTest {
     void retainedSchemasRejectUnsafePathsAndMutableCoordinates() throws Exception {
         Schema routePath = compiledSchema("artifact-manifest.schema.json#/$defs/routeArtifact/properties/path");
         assertTrue(routePath.validate(MAPPER.getNodeFactory().textNode("routes/orders.camel.yaml")).isEmpty());
+        assertTrue(routePath.validate(MAPPER.getNodeFactory().textNode("a".repeat(4085) + ".camel.yaml")).isEmpty());
         for (String invalid : List.of(
                 "../../outside.camel.yaml",
                 "/absolute.camel.yaml",
                 "routes\\orders.camel.yaml",
                 "routes//orders.camel.yaml",
-                "routes/orders.yaml")) {
+                "routes/orders.yaml",
+                "a".repeat(4086) + ".camel.yaml")) {
             assertFalse(routePath.validate(MAPPER.getNodeFactory().textNode(invalid)).isEmpty(), invalid);
         }
 
         Schema coordinate = compiledSchema("catalog-evidence.schema.json#/$defs/coordinate");
-        JsonNode valid = MAPPER.readTree("""
+        ObjectNode valid = (ObjectNode) MAPPER.readTree("""
                 {
                   "groupId": "org.apache.camel",
                   "artifactId": "camel-catalog",
@@ -127,11 +131,23 @@ class ShipSchemaResourceTest {
                 }
                 """);
         assertTrue(coordinate.validate(valid).isEmpty());
-        for (String version : List.of("4.21.0-SNAPSHOT", "LATEST", "RELEASE")) {
-            com.fasterxml.jackson.databind.node.ObjectNode invalid = valid.deepCopy();
+        for (String groupId : List.of(".org.apache.camel", "org.apache.camel.", "org..apache.camel")) {
+            ObjectNode invalid = valid.deepCopy();
+            invalid.put("groupId", groupId);
+            assertFalse(coordinate.validate(invalid).isEmpty(), groupId);
+        }
+        for (String version : List.of(
+                "4.21.0-SNAPSHOT", "LATEST", "RELEASE", "4.21-20260721.120000-1")) {
+            ObjectNode invalid = valid.deepCopy();
             invalid.put("version", version);
             assertFalse(coordinate.validate(invalid).isEmpty(), version);
         }
+
+        Schema subject = compiledSchema("catalog-usage.schema.json#/$defs/catalogSubject");
+        ObjectNode invalidSubject = (ObjectNode) MAPPER.readTree("""
+                {"kind":"COMPONENT","name":"unsafe/name"}
+                """);
+        assertFalse(subject.validate(invalidSubject).isEmpty());
     }
 
     private static Schema compiledSchema(String location) throws IOException {

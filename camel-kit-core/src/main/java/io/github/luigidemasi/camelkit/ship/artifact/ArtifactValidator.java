@@ -1666,9 +1666,12 @@ public final class ArtifactValidator {
             findings.add(error("approved-policy-citrus-dependencies", null,
                     "Artifact Citrus dependencies differ from the approved requirements policy"));
         }
-        String expectedJava = policy.javaPolicy() == null ? null : policy.javaPolicy().name();
-        String actualJava = manifest.javaPolicy() == null ? null : manifest.javaPolicy().name();
-        requirePolicyEqual("java-policy", expectedJava, actualJava, findings);
+        if (policy.javaPolicy() != manifest.javaPolicy()) {
+            String message = "Artifact java-policy " + manifest.javaPolicy()
+                             + " differs from approved value " + policy.javaPolicy();
+            findings.add(error("approved-policy-java-policy", null,
+                    message));
+        }
         if (!new HashSet<>(policy.approvedJavaExceptions())
                 .equals(new HashSet<>(manifest.approvedJavaExceptions()))) {
             findings.add(error("approved-policy-java-exceptions", null,
