@@ -56,6 +56,8 @@ class ShipSchemaResourceTest {
     private static final String ID_BASE_V2 = "https://github.com/luigidemasi/camel-kit/schemas/ship/v2/";
     private static final String RESOURCE_BASE = "ship/schema/";
     private static final List<String> FILES = List.of(
+            "adapter-certification-pack.schema.json",
+            "adapter-certification-release.schema.json",
             "adapter-conformance-evidence.schema.json",
             "artifact-manifest.schema.json",
             "catalog-evidence.schema.json",
@@ -495,6 +497,49 @@ class ShipSchemaResourceTest {
                 "crash-resume-replay",
                 "adversarial-containment",
                 "live-e2e"), schema.at("/properties/checks/prefixItems").findValuesAsText("const"));
+    }
+
+    @Test
+    void certificationSchemasBindOneClosedReleaseRootedComponentSet() throws Exception {
+        JsonNode release = readSchema("adapter-certification-release.schema.json");
+        assertEquals(Set.of(
+                "schemaVersion",
+                "releaseId",
+                "releaseVersion",
+                "releaseSequence",
+                "protocolVersion",
+                "keyId",
+                "issuedAt",
+                "expiresAt",
+                "packDigest"), fieldNames(release.path("properties")));
+        assertEquals(1, release.at("/properties/schemaVersion/const").intValue());
+        assertFalse(release.path("additionalProperties").booleanValue());
+
+        JsonNode pack = readSchema("adapter-certification-pack.schema.json");
+        assertEquals(Set.of(
+                "schemaVersion",
+                "releaseId",
+                "releaseVersion",
+                "protocolVersion",
+                "conformanceEvidenceDigest",
+                "components"), fieldNames(pack.path("properties")));
+        assertEquals(11, pack.at("/properties/components/minItems").intValue());
+        assertEquals(11, pack.at("/properties/components/maxItems").intValue());
+        Set<String> componentKinds = new LinkedHashSet<>();
+        pack.at("/$defs/component/properties/kind/enum")
+                .forEach(value -> componentKinds.add(value.asText()));
+        assertEquals(Set.of(
+                "runtime",
+                "adapter",
+                "ingress",
+                "interaction",
+                "launcher",
+                "runner",
+                "sandbox",
+                "provider-broker",
+                "controller",
+                "protocol",
+                "conformance-suite"), componentKinds);
     }
 
     @Test

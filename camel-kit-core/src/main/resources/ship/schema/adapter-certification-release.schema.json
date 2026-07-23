@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/luigidemasi/camel-kit/schemas/ship/v1/adapter-certification-release.schema.json",
+  "title": "Camel Ship adapter certification release manifest",
+  "description": "The exact bytes of this closed manifest are signed by a trusted release key.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "releaseId",
+    "releaseVersion",
+    "releaseSequence",
+    "protocolVersion",
+    "keyId",
+    "issuedAt",
+    "expiresAt",
+    "packDigest"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "releaseId": { "$ref": "#/$defs/id" },
+    "releaseVersion": { "$ref": "#/$defs/version" },
+    "releaseSequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "protocolVersion": { "$ref": "#/$defs/version" },
+    "keyId": { "$ref": "#/$defs/id" },
+    "issuedAt": { "$ref": "#/$defs/timestamp" },
+    "expiresAt": { "$ref": "#/$defs/timestamp" },
+    "packDigest": { "$ref": "#/$defs/digest" }
+  },
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,63}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 64
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9+._-]{0,127}$"
+    }
+  }
+}
