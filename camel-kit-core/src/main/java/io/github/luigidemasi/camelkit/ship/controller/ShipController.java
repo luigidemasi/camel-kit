@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -44,9 +45,15 @@ public final class ShipController {
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
     private final ShipRunStore store;
+    private final Clock clock;
 
     public ShipController(Path stateRoot) {
+        this(stateRoot, Clock.systemUTC());
+    }
+
+    ShipController(Path stateRoot, Clock clock) {
         this.store = new ShipRunStore(Objects.requireNonNull(stateRoot, "state root"));
+        this.clock = Objects.requireNonNull(clock, "clock");
     }
 
     /** Resolves the conventional user-owned Ship state directory. */
@@ -163,6 +170,7 @@ public final class ShipController {
                 throw failure("run-completed", "Ship run is already complete: " + runId);
             }
 
+            Path project = requireProject(Path.of(current.projectDirectory()));
             ShipContext refreshed = refreshContext(current.context());
             List<StageRecord> stages = new ArrayList<>(current.stages());
             int restart = stages.size();
@@ -176,8 +184,7 @@ public final class ShipController {
                 boolean missing = false;
                 for (ArtifactRef artifact : record.artifacts()) {
                     try {
-                        refreshedArtifacts.add(readArtifact(
-                                Path.of(current.projectDirectory()), Path.of(artifact.path())));
+                        refreshedArtifacts.add(readArtifact(project, Path.of(artifact.path())));
                     } catch (Failure e) {
                         restart = Math.min(restart, index);
                         missing = true;
@@ -204,7 +211,6 @@ public final class ShipController {
                 }
             }
 
-            String now = now();
             ShipRun resumed;
             if (restart == stages.size()) {
                 resumed = copy(
@@ -213,7 +219,6 @@ public final class ShipController {
                         Stage.VALIDATE,
                         refreshed,
                         stages,
-                        now,
                         null);
             } else {
                 for (int index = restart; index < stages.size(); index++) {
@@ -230,7 +235,6 @@ public final class ShipController {
                         stage,
                         refreshed,
                         stages,
-                        now,
                         null);
             }
             locked.write(resumed);
@@ -265,7 +269,6 @@ public final class ShipController {
                     current.currentStage(),
                     current.context(),
                     stages,
-                    now(),
                     ABORT_MESSAGE);
             locked.write(aborted);
             return aborted;
@@ -329,7 +332,6 @@ public final class ShipController {
                     currentStage,
                     current.context(),
                     stages,
-                    now(),
                     null);
             locked.write(completed);
             return completed;
@@ -360,7 +362,6 @@ public final class ShipController {
                     stage,
                     current.context(),
                     stages,
-                    now(),
                     message);
             locked.write(failed);
             return failed;
@@ -405,13 +406,12 @@ public final class ShipController {
         }
     }
 
-    private static ShipRun copy(
+    private ShipRun copy(
             ShipRun run,
             RunStatus status,
             Stage currentStage,
             ShipContext context,
             List<StageRecord> stages,
-            String updatedAt,
             String message) {
         return new ShipRun(
                 run.schemaVersion(),
@@ -424,7 +424,7 @@ public final class ShipController {
                 context,
                 stages,
                 run.createdAt(),
-                updatedAt,
+                mutationTime(run),
                 message);
     }
 
@@ -444,6 +444,7 @@ public final class ShipController {
     }
 
     private static void requireCurrentInputs(ShipRun run, StageRecord active) {
+        Path project = requireProject(Path.of(run.projectDirectory()));
         ShipContext refreshed;
         try {
             refreshed = run.context().refresh();
@@ -459,7 +460,6 @@ public final class ShipController {
                     "Ship stage context changed; resume the run");
         }
 
-        Path project = Path.of(run.projectDirectory());
         for (int index = 0; index < active.stage().ordinal(); index++) {
             StageRecord predecessor = run.stages().get(index);
             for (ArtifactRef artifact : predecessor.artifacts()) {
@@ -686,8 +686,14 @@ public final class ShipController {
         }
     }
 
-    private static String now() {
-        return Instant.now().toString();
+    private String now() {
+        return clock.instant().toString();
+    }
+
+    private String mutationTime(ShipRun run) {
+        Instant previous = Instant.parse(run.updatedAt());
+        Instant current = clock.instant();
+        return current.isBefore(previous) ? run.updatedAt() : current.toString();
     }
 
     private static String newRunId() {

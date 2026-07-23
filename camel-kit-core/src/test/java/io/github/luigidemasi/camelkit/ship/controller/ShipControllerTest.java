@@ -1,8 +1,14 @@
 package io.github.luigidemasi.camelkit.ship.controller;
 
+import java.io.RandomAccessFile;
+import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
@@ -12,7 +18,9 @@ import io.github.luigidemasi.camelkit.ship.controller.ShipRun.RunStatus;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.Stage;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.StageStatus;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -46,6 +54,58 @@ class ShipControllerTest {
         assertEquals(ShipContext.Kind.DOCUMENT, source.kind());
         assertEquals(document.toAbsolutePath().normalize().toString(), source.value());
         assertEquals(ShipDigest.sha256(Files.readAllBytes(document)), source.digest());
+    }
+
+    @Test
+    void rejectsInvalidProjectRootsWithExactCodes() throws Exception {
+        ShipController controller = controller("state");
+
+        assertFailure("project-invalid",
+                () -> controller.start(null, Oversight.NEVER, List.of()));
+        assertFailure("project-missing",
+                () -> controller.start(directory.resolve("missing"), Oversight.NEVER, List.of()));
+        Path regularFile = Files.writeString(directory.resolve("file"), "not a project");
+        assertFailure("project-invalid",
+                () -> controller.start(regularFile, Oversight.NEVER, List.of()));
+
+        Path brokenPath = (Path) Proxy.newProxyInstance(
+                getClass().getClassLoader(),
+                new Class<?>[]{Path.class},
+                (proxy, method, arguments) -> {
+                    throw new IllegalStateException("path conversion failed");
+                });
+        assertFailure("project-invalid",
+                () -> controller.start(brokenPath, Oversight.NEVER, List.of()));
+    }
+
+    @Test
+    void rejectsUnreadableProjectAndArtifact() throws Exception {
+        Assumptions.assumeTrue(
+                Files.getFileStore(directory).supportsFileAttributeView("posix"));
+        Path unreadableProject = Files.createDirectory(directory.resolve("unreadable-project"));
+        Files.setPosixFilePermissions(unreadableProject, PosixFilePermissions.fromString("---------"));
+        try {
+            Assumptions.assumeFalse(Files.isReadable(unreadableProject));
+            assertFailure("project-unreadable",
+                    () -> controller("project-state").start(
+                            unreadableProject, Oversight.NEVER, List.of()));
+        } finally {
+            Files.setPosixFilePermissions(
+                    unreadableProject, PosixFilePermissions.fromString("rwx------"));
+        }
+
+        Path project = Files.createDirectory(directory.resolve("project"));
+        Path artifact = Files.writeString(project.resolve("artifact"), "result");
+        ShipController controller = controller("artifact-state");
+        ShipRun run = controller.start(project, Oversight.NEVER, List.of());
+        Files.setPosixFilePermissions(artifact, PosixFilePermissions.fromString("---------"));
+        try {
+            Assumptions.assumeFalse(Files.isReadable(artifact));
+            assertFailure("artifact-unreadable",
+                    () -> complete(controller, run, "result", artifact));
+        } finally {
+            Files.setPosixFilePermissions(artifact, PosixFilePermissions.fromString("rw-------"));
+        }
     }
 
     @Test
@@ -226,6 +286,80 @@ class ShipControllerTest {
     }
 
     @Test
+    void rejectsInvalidMissingOversizedAndEmptyArtifacts() throws Exception {
+        Path project = Files.createDirectory(directory.resolve("project"));
+        Path outside = Files.writeString(directory.resolve("outside"), "outside");
+        Path empty = Files.createFile(project.resolve("empty"));
+        Path oversized = project.resolve("oversized");
+        try (RandomAccessFile file = new RandomAccessFile(oversized.toFile(), "rw")) {
+            file.setLength(64L * 1024 * 1024 + 1);
+        }
+        ShipController controller = controller("state");
+        ShipRun run = controller.start(project, Oversight.NEVER, List.of());
+
+        ShipController.Failure escaped = assertThrows(
+                ShipController.Failure.class,
+                () -> complete(
+                        controller,
+                        run,
+                        "outside",
+                        project.resolve("..").resolve(outside.getFileName())));
+        assertEquals("artifact-invalid", escaped.code());
+        assertTrue(escaped.getMessage().contains("outside the project"));
+        assertFailure("artifact-missing",
+                () -> complete(controller, run, "missing", project.resolve("missing")));
+        assertFailure("artifact-too-large",
+                () -> complete(controller, run, "oversized", oversized));
+        assertFailure("artifact-invalid", () -> complete(controller, run, "empty", empty));
+        assertEquals(run, controller.status(run.id()));
+    }
+
+    @Test
+    void rejectsMutationsAfterTheProjectIsDeletedWithoutChangingState() throws Exception {
+        Path project = Files.createDirectory(directory.resolve("project"));
+        ShipController controller = controller("state");
+        ShipRun run = controller.start(project, Oversight.NEVER, List.of());
+        Files.delete(project);
+
+        assertFailure("project-missing", () -> controller.resume(run.id()));
+        assertFailure("project-missing", () -> complete(controller, run, "result"));
+        assertFailure("project-missing",
+                () -> controller.failStage(
+                        run.id(),
+                        Stage.DISCOVERY,
+                        1,
+                        run.stage(Stage.DISCOVERY).inputDigest(),
+                        "worker failed"));
+        assertEquals(run, controller.status(run.id()));
+    }
+
+    @Test
+    void mutationTimeNeverMovesBackward() throws Exception {
+        Instant t0 = Instant.parse("2026-01-01T00:00:00Z");
+        Instant t2 = Instant.parse("2026-01-01T02:00:00Z");
+        Instant tMinusOne = Instant.parse("2025-12-31T23:00:00Z");
+        Path project = Files.createDirectory(directory.resolve("project"));
+        Path state = directory.resolve("state");
+
+        ShipRun created = new ShipController(state, Clock.fixed(t0, ZoneOffset.UTC))
+                .start(project, Oversight.NEVER, List.of());
+        ShipRun failed = new ShipController(state, Clock.fixed(t2, ZoneOffset.UTC))
+                .failStage(
+                        created.id(),
+                        Stage.DISCOVERY,
+                        1,
+                        created.stage(Stage.DISCOVERY).inputDigest(),
+                        "worker failed");
+        ShipRun resumed = new ShipController(state, Clock.fixed(tMinusOne, ZoneOffset.UTC))
+                .resume(created.id());
+
+        assertEquals(t0.toString(), created.createdAt());
+        assertEquals(t0.toString(), created.updatedAt());
+        assertEquals(t2.toString(), failed.updatedAt());
+        assertEquals(t2.toString(), resumed.updatedAt());
+    }
+
+    @Test
     void statusReadsAndAbortTerminatesThePersistedRun() throws Exception {
         Path project = Files.createDirectory(directory.resolve("project"));
         ShipController controller = controller("state");
@@ -236,7 +370,7 @@ class ShipControllerTest {
         assertEquals(RunStatus.ABORTED, aborted.status());
         assertEquals(StageStatus.ABORTED, aborted.stage(Stage.DISCOVERY).status());
         assertEquals(RunStatus.ABORTED, controller.status(started.id()).status());
-        assertThrows(ShipController.Failure.class, () -> controller.resume(started.id()));
+        assertFailure("run-aborted", () -> controller.resume(started.id()));
     }
 
     @Test
@@ -281,6 +415,17 @@ class ShipControllerTest {
                         project, Stage.DESIGN, Oversight.NEVER, List.of()));
 
         assertEquals("start-from-context-missing", failure.code());
+    }
+
+    @Test
+    void startFromLaterStagesRequiresAnActivePipeline() throws Exception {
+        Path project = Files.createDirectory(directory.resolve("project"));
+        ShipController controller = controller("state");
+
+        for (Stage stage : List.of(Stage.PLAN, Stage.EXECUTE, Stage.VALIDATE)) {
+            assertFailure("start-from-artifact-missing",
+                    () -> controller.startFrom(project, stage, Oversight.NEVER, List.of()));
+        }
     }
 
     @Test
@@ -391,5 +536,10 @@ class ShipControllerTest {
 
     private static String digest(String value) {
         return ShipDigest.sha256(value.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static void assertFailure(String code, Executable operation) {
+        ShipController.Failure failure = assertThrows(ShipController.Failure.class, operation);
+        assertEquals(code, failure.code());
     }
 }

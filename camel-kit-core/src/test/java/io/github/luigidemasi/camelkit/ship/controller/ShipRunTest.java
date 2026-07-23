@@ -8,6 +8,7 @@ import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.context.ShipContext;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
 
 import static io.github.luigidemasi.camelkit.ship.controller.ShipRun.Oversight.ALWAYS;
 import static io.github.luigidemasi.camelkit.ship.controller.ShipRun.Oversight.NEVER;
@@ -191,6 +192,34 @@ class ShipRunTest {
                         () -> run(RUNNING, DISCOVERY, wrongOrder, null)));
     }
 
+    @Test
+    void rejectsUnsafePipelineMessagesAndTimestamps() {
+        assertRejected(
+                "Ship pipeline ID is invalid",
+                () -> abortedRun(
+                        "149-safe/../../escape", CREATED_AT, UPDATED_AT, "cancelled"));
+        assertRejected(
+                "Ship run message is invalid",
+                () -> abortedRun(null, CREATED_AT, UPDATED_AT, " "));
+        assertRejected(
+                "Ship run message is invalid",
+                () -> abortedRun(null, CREATED_AT, UPDATED_AT, "x".repeat(1025)));
+        assertRejected(
+                "Ship run message is invalid",
+                () -> abortedRun(null, CREATED_AT, UPDATED_AT, "bad\0message"));
+        assertRejected(
+                "Ship run update precedes its creation",
+                () -> abortedRun(null, UPDATED_AT, CREATED_AT, "cancelled"));
+        assertRejected(
+                "Ship created timestamp is invalid",
+                () -> abortedRun(
+                        null, "2026-07-23T08:00:00.000Z", UPDATED_AT, "cancelled"));
+        assertRejected(
+                "Ship updated timestamp is invalid",
+                () -> abortedRun(
+                        null, CREATED_AT, "2026-07-23T08:00:01.000Z", "cancelled"));
+    }
+
     private static ShipRun run(
             ShipRun.RunStatus status,
             ShipRun.Stage currentStage,
@@ -218,6 +247,31 @@ class ShipRunTest {
                 CREATED_AT,
                 UPDATED_AT,
                 message);
+    }
+
+    private static ShipRun abortedRun(
+            String pipelineId, String createdAt, String updatedAt, String message) {
+        List<ShipRun.StageRecord> stages = ShipRun.pendingStages();
+        stages = replace(stages, DISCOVERY, stages.get(0).abort());
+        return new ShipRun(
+                ShipRun.SCHEMA_VERSION,
+                RUN_ID,
+                "/tmp/camel-kit-project",
+                pipelineId,
+                SMART,
+                ABORTED,
+                DISCOVERY,
+                ShipContext.none(),
+                stages,
+                createdAt,
+                updatedAt,
+                message);
+    }
+
+    private static void assertRejected(String message, Executable construction) {
+        assertEquals(
+                message,
+                assertThrows(IllegalArgumentException.class, construction).getMessage());
     }
 
     private static List<ShipRun.StageRecord> completedThrough(ShipRun.Stage last) {

@@ -224,6 +224,31 @@ class ShipContextTest {
                         ShipDigest.sha256("x".getBytes(StandardCharsets.UTF_8))));
     }
 
+    @Test
+    void rejectsPersistedContextsOutsideCompactBounds() throws Exception {
+        ShipContext.Source emptyText = ShipContext.resolve(
+                project, List.of(new TextInput(""))).sources().get(0);
+        ShipContext.Source maximumDocument = new ShipContext.Source(
+                Kind.DOCUMENT,
+                project.resolve("claimed-document.md").toAbsolutePath().normalize().toString(),
+                ShipContext.MAX_DOCUMENT_BYTES,
+                ShipDigest.sha256("claimed".getBytes(StandardCharsets.UTF_8)));
+
+        IllegalArgumentException tooMany = assertThrows(
+                IllegalArgumentException.class,
+                () -> new ShipContext(
+                        Collections.nCopies(ShipContext.MAX_SOURCES + 1, emptyText),
+                        ShipContext.none().digest()));
+        IllegalArgumentException tooLarge = assertThrows(
+                IllegalArgumentException.class,
+                () -> new ShipContext(
+                        List.of(maximumDocument, maximumDocument, maximumDocument),
+                        ShipContext.none().digest()));
+
+        assertEquals("Ship context exceeds the source-count limit", tooMany.getMessage());
+        assertEquals("Ship context exceeds the aggregate-byte limit", tooLarge.getMessage());
+    }
+
     private ShipContext resolveDocument(Path path) throws Failure {
         return ShipContext.resolve(project, List.of(new DocumentInput(path)));
     }
