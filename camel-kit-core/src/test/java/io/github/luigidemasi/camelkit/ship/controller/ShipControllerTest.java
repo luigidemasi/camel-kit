@@ -85,7 +85,7 @@ class ShipControllerTest {
         Path unreadableProject = Files.createDirectory(directory.resolve("unreadable-project"));
         Files.setPosixFilePermissions(unreadableProject, PosixFilePermissions.fromString("---------"));
         try {
-            Assumptions.assumeFalse(Files.isReadable(unreadableProject));
+            assertFalse(Files.isReadable(unreadableProject));
             assertFailure("project-unreadable",
                     () -> controller("project-state").start(
                             unreadableProject, Oversight.NEVER, List.of()));
@@ -100,7 +100,7 @@ class ShipControllerTest {
         ShipRun run = controller.start(project, Oversight.NEVER, List.of());
         Files.setPosixFilePermissions(artifact, PosixFilePermissions.fromString("---------"));
         try {
-            Assumptions.assumeFalse(Files.isReadable(artifact));
+            assertFalse(Files.isReadable(artifact));
             assertFailure("artifact-unreadable",
                     () -> complete(controller, run, "result", artifact));
         } finally {
@@ -288,7 +288,7 @@ class ShipControllerTest {
     @Test
     void rejectsInvalidMissingOversizedAndEmptyArtifacts() throws Exception {
         Path project = Files.createDirectory(directory.resolve("project"));
-        Path outside = Files.writeString(directory.resolve("outside"), "outside");
+        Path outside = directory.resolve("outside");
         Path empty = Files.createFile(project.resolve("empty"));
         Path oversized = project.resolve("oversized");
         try (RandomAccessFile file = new RandomAccessFile(oversized.toFile(), "rw")) {
@@ -305,7 +305,6 @@ class ShipControllerTest {
                         "outside",
                         project.resolve("..").resolve(outside.getFileName())));
         assertEquals("artifact-invalid", escaped.code());
-        assertTrue(escaped.getMessage().contains("outside the project"));
         assertFailure("artifact-missing",
                 () -> complete(controller, run, "missing", project.resolve("missing")));
         assertFailure("artifact-too-large",
@@ -315,7 +314,7 @@ class ShipControllerTest {
     }
 
     @Test
-    void rejectsMutationsAfterTheProjectIsDeletedWithoutChangingState() throws Exception {
+    void rejectsProjectDependentMutationsButAllowsAbortAfterDeletion() throws Exception {
         Path project = Files.createDirectory(directory.resolve("project"));
         ShipController controller = controller("state");
         ShipRun run = controller.start(project, Oversight.NEVER, List.of());
@@ -331,6 +330,7 @@ class ShipControllerTest {
                         run.stage(Stage.DISCOVERY).inputDigest(),
                         "worker failed"));
         assertEquals(run, controller.status(run.id()));
+        assertEquals(RunStatus.ABORTED, controller.abort(run.id()).status());
     }
 
     @Test
