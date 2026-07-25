@@ -1,0 +1,1807 @@
+package io.github.luigidemasi.camelkit.ship.worker;
+
+import java.io.IOException;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.time.Clock;
+import java.time.Duration;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+
+import io.github.luigidemasi.camelkit.ship.ShipDigest;
+import io.github.luigidemasi.camelkit.ship.controller.ShipController;
+import io.github.luigidemasi.camelkit.ship.controller.ShipRun;
+import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.io.TempDir;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+@EnabledOnOs(OS.LINUX)
+class PiWorkerTest {
+
+    private static final String RUN_ID = "ship-0123456789abcdef0123456789abcdef";
+
+    @TempDir
+    Path temporaryDirectory;
+
+    private Path executable;
+    private Path fixture;
+    private Path workingDirectory;
+    private Path sessions;
+    private Path evidence;
+
+    @BeforeEach
+    void prepareFixture() throws Exception {
+        fixture = Files.createDirectory(temporaryDirectory.resolve("fake-pi"));
+        try (var script = Objects.requireNonNull(
+                PiWorkerTest.class.getResourceAsStream(
+                        "fake-pi-0.80.6.sh"))) {
+            executable = writeExecutable(
+                    fixture.resolve("pi-rpc"),
+                    new String(script.readAllBytes(), StandardCharsets.UTF_8));
+        }
+        Files.writeString(fixture.resolve("version"), "0.80.6\n");
+        Files.writeString(fixture.resolve("mode"), "success\n");
+        Files.writeString(fixture.resolve("assistant-text"), "done");
+        workingDirectory = Files.createDirectory(temporaryDirectory.resolve("workspace"));
+        sessions = Files.createDirectory(temporaryDirectory.resolve("sessions"));
+        Files.setPosixFilePermissions(
+                sessions, PosixFilePermissions.fromString("rwx------"));
+        evidence = Files.createDirectory(temporaryDirectory.resolve("evidence"));
+    }
+
+    @Test
+    void runsReadOnlyRpcStageWithoutRetainingThePrompt() throws Exception {
+        PiWorker.Result result = worker(Duration.ofSeconds(5))
+                .run(request(ShipRun.Stage.DISCOVERY, "private prompt"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
+        assertEquals(ShipLocalStamp.Support.EXPERIMENTAL, result.support());
+        assertEquals("0.80.6", result.version());
+        assertTrue(result.warning().contains("live Pi end-to-end gate"));
+        assertEquals("done", result.assistantText());
+        assertEquals(workingDirectory.toString(), Files.readString(fixture.resolve("cwd")).trim());
+        assertEquals(
+                "{\"id\":\"prompt-1\",\"type\":\"prompt\",\"message\":\"private prompt\"}",
+                Files.readString(fixture.resolve("prompt")).trim());
+        List<String> arguments = Files.readAllLines(fixture.resolve("args"));
+        Path scratch = assertScratchArgument(
+                sessionId(ShipRun.Stage.DISCOVERY), arguments);
+        assertEquals(
+                List.of(
+                        "--mode",
+                        "rpc",
+                        "--session-id",
+                        sessionId(ShipRun.Stage.DISCOVERY),
+                        "--session-dir",
+                        scratch.toString(),
+                        "--tools",
+                        "read,grep,find,ls",
+                        "--no-approve",
+                        "--no-extensions",
+                        "--no-skills",
+                        "--no-prompt-templates",
+                        "--no-themes",
+                        "--no-context-files",
+                        "--system-prompt",
+                        "",
+                        "--append-system-prompt",
+                        "",
+                        "--offline"),
+                arguments);
+        assertFalse(Files.readString(fixture.resolve("args")).contains("private prompt"));
+        assertTrue(hasSession(sessionId(ShipRun.Stage.DISCOVERY)));
+        List<String> session = Files.readAllLines(
+                sessionFile(sessionId(ShipRun.Stage.DISCOVERY)));
+        assertEquals(5, session.size());
+        assertEquals(
+                PosixFilePermissions.fromString("rw-------"),
+                Files.getPosixFilePermissions(
+                        sessionFile(sessionId(ShipRun.Stage.DISCOVERY))));
+        assertTrue(session.get(3).contains("\"role\":\"user\""));
+        assertTrue(session.get(4).contains("\"stopReason\":\"stop\""));
+
+        String retainedStdout = Files.readString(Path.of(result.evidence().stdoutLog()));
+        String retainedStderr = Files.readString(Path.of(result.evidence().stderrLog()));
+        assertFalse(retainedStdout.contains("private prompt"));
+        assertFalse(retainedStdout.contains("done"));
+        assertTrue(retainedStdout.contains("\"content\":\"<redacted>\""));
+        assertEquals(
+                "{\"bytes\":36,\"limited\":false,\"content\":\"<redacted>\"}",
+                retainedStderr.trim());
+        assertFalse(retainedStderr.contains("private prompt"));
+        assertEquals(workingDirectory.toString(), result.evidence().workingDirectory());
+        assertEquals(List.of(inputDigest()), result.evidence().inputDigests());
+        assertEquals(
+                ShipDigest.sha256(Files.readAllBytes(Path.of(result.evidence().stdoutLog()))),
+                result.evidence().stdoutDigest());
+    }
+
+    @Test
+    void executeStageUsesTheExplicitWriteToolAllowlist() throws Exception {
+        PiWorker.Result result = worker(Duration.ofSeconds(5))
+                .run(request(ShipRun.Stage.EXECUTE, "execute"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
+        List<String> arguments = Files.readAllLines(fixture.resolve("args"));
+        Path scratch = assertScratchArgument(
+                sessionId(ShipRun.Stage.EXECUTE), arguments);
+        assertEquals(
+                List.of(
+                        "--mode",
+                        "rpc",
+                        "--session-id",
+                        sessionId(ShipRun.Stage.EXECUTE),
+                        "--session-dir",
+                        scratch.toString(),
+                        "--tools",
+                        "read,bash,edit,write,grep,find,ls",
+                        "--no-approve",
+                        "--no-extensions",
+                        "--no-skills",
+                        "--no-prompt-templates",
+                        "--no-themes",
+                        "--no-context-files",
+                        "--system-prompt",
+                        "",
+                        "--append-system-prompt",
+                        "",
+                        "--offline"),
+                arguments);
+        assertTrue(hasSession(sessionId(ShipRun.Stage.EXECUTE)));
+    }
+
+    @Test
+    void changedInputDigestUsesANewStageSession() throws Exception {
+        PiWorker worker = worker(Duration.ofSeconds(5));
+        String changedDigest = ShipDigest.sha256(
+                "changed input".getBytes(StandardCharsets.UTF_8));
+
+        worker.run(request(ShipRun.Stage.DESIGN, "first"));
+        worker.run(new PiWorker.Request(
+                RUN_ID,
+                ShipRun.Stage.DESIGN,
+                1,
+                workingDirectory,
+                sessions,
+                evidence,
+                changedDigest,
+                true,
+                "second"));
+
+        String first = sessionId(ShipRun.Stage.DESIGN);
+        String changed = sessionId(RUN_ID, ShipRun.Stage.DESIGN, changedDigest);
+        assertEquals(List.of(first, changed), Files.readAllLines(fixture.resolve("session-ids")));
+        assertTrue(hasSession(first));
+        assertTrue(hasSession(changed));
+        assertFalse(Files.exists(fixture.resolve("resumed-sessions")));
+    }
+
+    @Test
+    void requiresSettledEventAndAcceptsUnicodeJsonSeparators() throws Exception {
+        String assistant = "before\u2028middle\u2029after";
+        Files.writeString(fixture.resolve("mode"), "settled\n");
+        Files.writeString(fixture.resolve("assistant-text"), assistant);
+
+        PiWorker.Result result = worker(Duration.ofSeconds(5))
+                .run(request(ShipRun.Stage.DESIGN, "prompt"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
+        assertEquals(assistant, result.assistantText());
+        assertFalse(result.toString().contains(assistant));
+        assertFalse(result.toString().contains("live Pi end-to-end gate"));
+
+        Files.writeString(fixture.resolve("mode"), "terminal-before-response\n");
+        assertEquals(
+                PiWorker.Outcome.SUCCEEDED,
+                worker(Duration.ofSeconds(5))
+                        .run(request(ShipRun.Stage.DESIGN, "second"))
+                        .outcome());
+    }
+
+    @Test
+    void requiresExplicitExperimentalAcceptanceBeforeStartingTheStage() throws Exception {
+        PiWorker.Request rejected = request(ShipRun.Stage.DISCOVERY, "private prompt", false);
+
+        IOException failure = assertThrows(
+                IOException.class,
+                () -> worker(Duration.ofSeconds(5)).run(rejected));
+
+        assertTrue(failure.getMessage().contains("explicitly accept experimental Pi"));
+        assertFalse(Files.exists(fixture.resolve("args")));
+        assertFalse(Files.exists(fixture.resolve("session-dirs")));
+        assertFalse(Files.exists(fixture.resolve("prompt")));
+        assertFalse(hasSession(sessionId(ShipRun.Stage.DISCOVERY)));
+        assertFalse(rejected.toString().contains("private prompt"));
+    }
+
+    @Test
+    void rejectsStrictRpcProtocolViolations() throws Exception {
+        PiWorker worker = worker(Duration.ofSeconds(5));
+
+        for (String mode : List.of(
+                "malformed",
+                "invalid-utf",
+                "duplicate",
+                "response-wrong-bool",
+                "response-wrong-id",
+                "response-wrong-command",
+                "response-extra-field",
+                "missing-content",
+                "retry-wrong-bool",
+                "missing-settled",
+                "settled-extra",
+                "trailing")) {
+            Files.writeString(fixture.resolve("mode"), mode + "\n");
+
+            PiWorker.Result result = worker.run(request(ShipRun.Stage.PLAN, "prompt"));
+
+            assertEquals(PiWorker.Outcome.FAILED, result.outcome(), mode);
+            assertNull(result.assistantText(), mode);
+            assertFalse(hasSession(sessionId(ShipRun.Stage.PLAN)), mode);
+        }
+
+        Files.writeString(
+                fixture.resolve("mode"), "tool-orphan-stop\n");
+        IOException orphan = assertThrows(
+                IOException.class,
+                () -> worker.run(request(
+                        ShipRun.Stage.PLAN, "orphan")));
+        assertTrue(orphan.getMessage().contains("all tool results"));
+        assertFalse(hasSession(sessionId(ShipRun.Stage.PLAN)));
+    }
+
+    @Test
+    void persistsSemanticErrorAndLengthTurnsForResume() throws Exception {
+        PiWorker worker = worker(Duration.ofSeconds(5));
+        for (String mode : List.of("stop-error", "stop-length")) {
+            ShipRun.Stage stage = "stop-error".equals(mode)
+                    ? ShipRun.Stage.DISCOVERY
+                    : ShipRun.Stage.DESIGN;
+            Files.writeString(fixture.resolve("mode"), mode + "\n");
+
+            PiWorker.Result result = worker.run(request(stage, "prompt"));
+
+            assertEquals(PiWorker.Outcome.FAILED, result.outcome());
+            assertTrue(result.failure().contains(mode.substring("stop-".length())));
+            assertTrue(hasSession(sessionId(stage)));
+        }
+    }
+
+    @Test
+    void bindsRetryToolAndCompactionRecordsInRpcOrder() throws Exception {
+        PiWorker worker = worker(Duration.ofSeconds(5));
+        List<String> modes = List.of(
+                "retry-then-success",
+                "tool-sequence",
+                "compaction-success",
+                "compaction-failed",
+                "compaction-aborted");
+        ShipRun.Stage[] stages = ShipRun.Stage.values();
+        for (int index = 0; index < modes.size(); index++) {
+            Files.writeString(
+                    fixture.resolve("mode"), modes.get(index) + "\n");
+
+            PiWorker.Result result = worker.run(
+                    request(stages[index], "prompt-" + index));
+
+            assertEquals(
+                    PiWorker.Outcome.SUCCEEDED,
+                    result.outcome(),
+                    modes.get(index));
+            String persisted = Files.readString(
+                    sessionFile(sessionId(stages[index])));
+            assertEquals(
+                    modes.get(index).equals("retry-then-success")
+                            || modes.get(index).equals("compaction-success"),
+                    persisted.contains("\"type\":\"compaction\""),
+                    modes.get(index));
+        }
+    }
+
+    @Test
+    void acceptsProviderAutoRetryWithoutCompaction() throws Exception {
+        Files.writeString(fixture.resolve("mode"), "auto-retry-success\n");
+
+        PiWorker.Result result = worker(Duration.ofSeconds(5)).run(
+                request(ShipRun.Stage.DISCOVERY, "auto-retry"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
+        assertFalse(Files.readString(
+                sessionFile(sessionId(ShipRun.Stage.DISCOVERY)))
+                .contains("\"type\":\"compaction\""));
+    }
+
+    @Test
+    void acceptsLengthOverflowCompactionContinuation() throws Exception {
+        Files.writeString(
+                fixture.resolve("mode"), "retry-length-then-success\n");
+
+        PiWorker.Result result = worker(Duration.ofSeconds(5)).run(
+                request(ShipRun.Stage.PLAN, "length-overflow"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
+        String persisted = Files.readString(
+                sessionFile(sessionId(ShipRun.Stage.PLAN)));
+        assertTrue(persisted.contains("\"stopReason\":\"length\""));
+        assertTrue(persisted.contains("\"type\":\"compaction\""));
+        assertTrue(persisted.contains("\"stopReason\":\"stop\""));
+    }
+
+    @Test
+    void allowsResumeCompactionBeforeTheNewUserButRejectsUnrelatedAssistants()
+            throws Exception {
+        PiWorker worker = worker(Duration.ofSeconds(5));
+        worker.run(request(ShipRun.Stage.DESIGN, "baseline"));
+        Files.writeString(fixture.resolve("mode"), "pre-user-compaction\n");
+
+        PiWorker.Result resumed = worker.run(new PiWorker.Request(
+                RUN_ID,
+                ShipRun.Stage.DESIGN,
+                2,
+                workingDirectory,
+                sessions,
+                evidence,
+                inputDigest(),
+                true,
+                "current"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, resumed.outcome());
+        List<String> persisted = Files.readAllLines(
+                sessionFile(sessionId(ShipRun.Stage.DESIGN)));
+        assertEquals(8, persisted.size());
+        assertTrue(persisted.get(5).contains("\"type\":\"compaction\""));
+        assertTrue(persisted.get(6).contains("\"role\":\"user\""));
+
+        Files.writeString(fixture.resolve("mode"), "pre-user-compaction\n");
+        IOException newSessionCompaction = assertThrows(
+                IOException.class,
+                () -> worker.run(request(
+                        ShipRun.Stage.DISCOVERY, "new")));
+        assertTrue(newSessionCompaction.getMessage().contains(
+                "before its prompt"));
+        assertFalse(hasSession(sessionId(ShipRun.Stage.DISCOVERY)));
+
+        Files.writeString(fixture.resolve("mode"), "unrelated-intermediate\n");
+        IOException unrelated = assertThrows(
+                IOException.class,
+                () -> worker.run(request(
+                        ShipRun.Stage.PLAN, "unrelated")));
+        assertTrue(unrelated.getMessage().contains("intermediate assistant"));
+        assertFalse(hasSession(sessionId(ShipRun.Stage.PLAN)));
+    }
+
+    @Test
+    void discardsValidatedScratchAfterTrailingOutputExitFailureOrRetentionFailure()
+            throws Exception {
+        PiWorker worker = worker(Duration.ofSeconds(10));
+        for (String mode : List.of("trailing", "settled-nonzero", "settled-hang")) {
+            ShipRun.Stage stage = switch (mode) {
+                case "trailing" -> ShipRun.Stage.DISCOVERY;
+                case "settled-nonzero" -> ShipRun.Stage.DESIGN;
+                default -> ShipRun.Stage.PLAN;
+            };
+            Files.writeString(fixture.resolve("mode"), mode + "\n");
+
+            PiWorker.Result result = worker.run(request(stage, "prompt"));
+
+            assertEquals(PiWorker.Outcome.FAILED, result.outcome(), mode);
+            assertFalse(hasSession(sessionId(stage)), mode);
+            assertNoScratchDirectories();
+        }
+
+        Files.writeString(fixture.resolve("mode"), "success\n");
+        worker.run(request(ShipRun.Stage.VALIDATE, "baseline"));
+        Path canonical = sessionFile(sessionId(ShipRun.Stage.VALIDATE));
+        byte[] before = Files.readAllBytes(canonical);
+        Files.writeString(fixture.resolve("mode"), "settled-nonzero\n");
+        PiWorker.Result nonzero = worker.run(new PiWorker.Request(
+                RUN_ID,
+                ShipRun.Stage.VALIDATE,
+                2,
+                workingDirectory,
+                sessions,
+                evidence,
+                inputDigest(),
+                true,
+                "current"));
+        assertEquals(PiWorker.Outcome.FAILED, nonzero.outcome());
+        assertArrayEquals(before, Files.readAllBytes(canonical));
+
+        Files.writeString(fixture.resolve("mode"), "retention-failure\n");
+        try {
+            assertThrows(
+                    IOException.class,
+                    () -> worker.run(request(
+                            ShipRun.Stage.EXECUTE, "prompt")));
+        } finally {
+            Files.setPosixFilePermissions(
+                    evidence, PosixFilePermissions.fromString("rwxr-xr-x"));
+        }
+        assertFalse(hasSession(sessionId(ShipRun.Stage.EXECUTE)));
+        assertNoScratchDirectories();
+    }
+
+    @Test
+    void redactsUntrustedRpcMetadataFromRetainedOutput() throws Exception {
+        Files.writeString(fixture.resolve("mode"), "metadata-secret\n");
+
+        PiWorker.Result result = worker(Duration.ofSeconds(5))
+                .run(request(ShipRun.Stage.PLAN, "prompt"));
+
+        assertEquals(PiWorker.Outcome.FAILED, result.outcome());
+        String retained = Files.readString(Path.of(result.evidence().stdoutLog()));
+        assertFalse(retained.contains("fixture-secret-fragment"));
+        assertTrue(retained.contains("\"type\":\"event-redacted\""));
+        assertTrue(retained.contains("\"id\":\"<redacted>\""));
+        assertTrue(retained.contains("\"command\":\"<redacted>\""));
+    }
+
+    @Test
+    void rejectsSensitiveEnvironmentValuesInAssistantAndToolResults()
+            throws Exception {
+        List<String> names = List.of(
+                "OPENAI_API_KEY", "AUTH", "JWT", "PASS");
+        List<String> values = List.of(
+                "fixture-secret-123", "auth-value", "jwt-value", "xy");
+        ShipRun.Stage[] stages = ShipRun.Stage.values();
+        for (int index = 0; index < names.size(); index++) {
+            String secret = values.get(index);
+            ShipRun.Stage stage = stages[index];
+            String prompt = "prompt-" + index;
+            Files.writeString(fixture.resolve("secret"), secret);
+            Files.writeString(
+                    fixture.resolve("mode"),
+                    (index % 2 == 0 ? "leak-assistant" : "leak-tool")
+                                             + "\n");
+            PiWorker sensitiveWorker = worker(
+                    Duration.ofSeconds(5),
+                    Map.of(names.get(index), secret));
+
+            IOException failure = assertThrows(
+                    IOException.class,
+                    () -> sensitiveWorker.run(request(
+                            stage, prompt)));
+
+            assertTrue(failure.getMessage().contains(
+                    "sensitive environment value"));
+            assertFalse(hasSession(sessionId(stage)));
+            assertNoScratchDirectories();
+            assertEvidenceDoesNotContain(secret);
+        }
+
+        String cwd = workingDirectory.toString();
+        Files.writeString(fixture.resolve("secret"), cwd);
+        Files.writeString(fixture.resolve("mode"), "leak-assistant\n");
+        PiWorker.Result allowed = worker(
+                Duration.ofSeconds(5),
+                Map.of("PWD", cwd, "OLDPWD", cwd))
+                .run(request(ShipRun.Stage.VALIDATE, "pwd"));
+        assertEquals(PiWorker.Outcome.SUCCEEDED, allowed.outcome());
+        assertEquals(cwd, allowed.assistantText());
+    }
+
+    @Test
+    void rejectsSensitiveEnvironmentValuesInObjectKeysAndScalarValues()
+            throws Exception {
+        List<String> modes = List.of(
+                "leak-assistant-key", "leak-tool-number");
+        List<String> values = List.of(
+                "nested-secret-key", "8675309");
+        ShipRun.Stage[] stages = ShipRun.Stage.values();
+        for (int index = 0; index < modes.size(); index++) {
+            String secret = values.get(index);
+            ShipRun.Stage stage = stages[index];
+            String prompt = "prompt-" + index;
+            Files.writeString(fixture.resolve("secret"), secret);
+            Files.writeString(
+                    fixture.resolve("mode"), modes.get(index) + "\n");
+
+            IOException failure = assertThrows(
+                    IOException.class,
+                    () -> worker(
+                            Duration.ofSeconds(5),
+                            Map.of("API_TOKEN", secret))
+                            .run(request(stage, prompt)));
+
+            assertTrue(failure.getMessage().contains(
+                    "sensitive environment value"));
+            assertFalse(hasSession(sessionId(stage)));
+            assertNoScratchDirectories();
+            assertEvidenceDoesNotContain(secret);
+        }
+    }
+
+    @Test
+    void redactsSensitiveEnvironmentCollisionsFromLocalEvidence()
+            throws Exception {
+        List<String> secrets = List.of("rpc", "prompt", "bytes");
+        ShipRun.Stage[] stages = {
+                ShipRun.Stage.DISCOVERY,
+                ShipRun.Stage.DESIGN,
+                ShipRun.Stage.PLAN
+        };
+        for (int index = 0; index < secrets.size(); index++) {
+            String secret = secrets.get(index);
+            Files.writeString(fixture.resolve("mode"), "success\n");
+
+            PiWorker.Result result = worker(
+                    Duration.ofSeconds(5),
+                    Map.of("API_TOKEN", secret))
+                    .run(request(stages[index], "safe-input-" + index));
+
+            assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
+            assertTrue(result.evidence().redactedArguments().stream()
+                    .noneMatch(argument -> argument.contains(secret)));
+            assertFalse(Files.readString(
+                    Path.of(result.evidence().stdoutLog()))
+                    .contains(secret));
+            assertFalse(Files.readString(
+                    Path.of(result.evidence().stderrLog()))
+                    .contains(secret));
+        }
+    }
+
+    @Test
+    void ignoresCumulativeStreamingSnapshotsWithoutLosingTheTerminal()
+            throws Exception {
+        String[] modes = {
+                "cumulative-update-burst",
+                "cumulative-tool-update-burst"
+        };
+        ShipRun.Stage[] stages = {
+                ShipRun.Stage.DISCOVERY,
+                ShipRun.Stage.DESIGN
+        };
+        for (int index = 0; index < modes.length; index++) {
+            Files.writeString(
+                    fixture.resolve("mode"), modes[index] + "\n");
+
+            PiWorker.Result result = worker(Duration.ofSeconds(30))
+                    .run(request(stages[index], "streaming-" + index));
+
+            assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
+            assertEquals("done", result.assistantText());
+            assertTrue(hasSession(sessionId(stages[index])));
+            assertTrue(Files.size(Path.of(result.evidence().stdoutLog()))
+                       < 1024 * 1024);
+        }
+    }
+
+    @Test
+    void malformedSessionErrorsDoNotRetainSensitiveJson() throws Exception {
+        String secret = "malformed-secret-credential";
+        Files.writeString(fixture.resolve("secret"), secret);
+        Files.writeString(
+                fixture.resolve("mode"), "session-malformed-secret\n");
+
+        IOException failure = assertThrows(
+                IOException.class,
+                () -> worker(
+                        Duration.ofSeconds(5),
+                        Map.of("API_TOKEN", secret))
+                        .run(request(ShipRun.Stage.PLAN, "prompt")));
+
+        for (Throwable cause = failure;
+             cause != null;
+             cause = cause.getCause()) {
+            assertFalse(cause.toString().contains(secret));
+        }
+        assertFalse(hasSession(sessionId(ShipRun.Stage.PLAN)));
+        assertNoScratchDirectories();
+        assertEvidenceDoesNotContain(secret);
+    }
+
+    @Test
+    void retainsNonzeroExitAndBoundsExcessiveOutput() throws Exception {
+        Files.writeString(fixture.resolve("mode"), "nonzero\n");
+        PiWorker.Result nonzero = worker(Duration.ofSeconds(5))
+                .run(request(ShipRun.Stage.VALIDATE, "prompt"));
+
+        Files.writeString(fixture.resolve("mode"), "oversized\n");
+        PiWorker.Result oversized = worker(Duration.ofSeconds(5))
+                .run(request(ShipRun.Stage.VALIDATE, "prompt"));
+
+        assertEquals(PiWorker.Outcome.FAILED, nonzero.outcome());
+        assertEquals(7, nonzero.evidence().exitCode());
+        assertTrue(nonzero.failure().contains("status 7"));
+        assertEquals(PiWorker.Outcome.FAILED, oversized.outcome());
+        assertTrue(oversized.failure().contains("retained-output limit"));
+        assertTrue(hasSession(sessionId(ShipRun.Stage.VALIDATE)));
+        assertTrue(Files.readString(sessionFile(
+                sessionId(ShipRun.Stage.VALIDATE)))
+                .contains("\"stopReason\":\"aborted\""));
+        assertTrue(Files.size(Path.of(oversized.evidence().stderrLog())) <= 16 * 1024 * 1024);
+        assertEquals(
+                ShipDigest.sha256(Files.readAllBytes(Path.of(oversized.evidence().stderrLog()))),
+                oversized.evidence().stderrDigest());
+    }
+
+    @Test
+    void boundsCumulativeMaterialRpcOutput() throws Exception {
+        Files.writeString(
+                fixture.resolve("mode"), "material-output-burst\n");
+
+        PiWorker.Result result = worker(Duration.ofSeconds(10))
+                .run(request(ShipRun.Stage.VALIDATE, "prompt"));
+
+        assertEquals(PiWorker.Outcome.FAILED, result.outcome());
+        assertTrue(result.evidence().outputLimited());
+        assertTrue(result.failure().contains("retained-output limit"));
+        assertTrue(hasSession(sessionId(ShipRun.Stage.VALIDATE)));
+        assertTrue(Files.readString(sessionFile(
+                sessionId(ShipRun.Stage.VALIDATE)))
+                .contains("\"stopReason\":\"aborted\""));
+        assertNoScratchDirectories();
+    }
+
+    @Test
+    void rejectsUnverifiableOutputAfterAcknowledgedAbort() throws Exception {
+        Files.writeString(
+                fixture.resolve("mode"),
+                "material-output-burst-trailing\n");
+
+        PiWorker.Result result = worker(Duration.ofSeconds(10))
+                .run(request(ShipRun.Stage.EXECUTE, "prompt"));
+
+        assertEquals(PiWorker.Outcome.FAILED, result.outcome());
+        assertTrue(result.evidence().outputLimited());
+        assertFalse(hasSession(sessionId(ShipRun.Stage.EXECUTE)));
+        assertNoScratchDirectories();
+    }
+
+    @Test
+    void reportsVersionCompatibilityAndExecutableGuidance() throws Exception {
+        Files.writeString(fixture.resolve("version"), "0.81.1\n");
+
+        PiWorker.Result experimental = worker(Duration.ofSeconds(5))
+                .run(request(ShipRun.Stage.DISCOVERY, "prompt"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, experimental.outcome());
+        assertEquals(ShipLocalStamp.Support.EXPERIMENTAL, experimental.support());
+        assertEquals("0.81.1", experimental.version());
+        assertTrue(experimental.warning().contains("0.80.6"));
+        assertTrue(experimental.warning().contains("unverified"));
+
+        Files.deleteIfExists(fixture.resolve("args"));
+        Files.deleteIfExists(fixture.resolve("prompt"));
+        Files.writeString(fixture.resolve("version"), "0.80.3\n");
+        IOException incompatible = assertThrows(
+                IOException.class,
+                () -> worker(Duration.ofSeconds(5))
+                        .run(request(ShipRun.Stage.DESIGN, "prompt")));
+        assertTrue(incompatible.getMessage().contains("settled RPC event"));
+        assertFalse(Files.exists(fixture.resolve("args")));
+        assertFalse(Files.exists(fixture.resolve("prompt")));
+        assertFalse(hasSession(sessionId(ShipRun.Stage.DESIGN)));
+
+        Files.writeString(fixture.resolve("version"), "0.81.1\n");
+        IOException unaccepted = assertThrows(
+                IOException.class,
+                () -> worker(Duration.ofSeconds(5))
+                        .run(request(ShipRun.Stage.DESIGN, "prompt", false)));
+        assertTrue(unaccepted.getMessage().contains("explicitly accept"));
+        assertFalse(Files.exists(fixture.resolve("args")));
+
+        Files.writeString(fixture.resolve("version"), "not-a-version\n");
+        IOException invalid = assertThrows(
+                IOException.class,
+                () -> worker(Duration.ofSeconds(5))
+                        .run(request(ShipRun.Stage.DISCOVERY, "prompt")));
+        IllegalArgumentException missing = assertThrows(
+                IllegalArgumentException.class,
+                () -> new PiWorker(
+                        temporaryDirectory.resolve("missing-pi"),
+                        "0.80.6",
+                        Duration.ofSeconds(5)));
+
+        assertTrue(invalid.getMessage().contains("invalid version"));
+        assertTrue(missing.getMessage().contains("install Pi"));
+    }
+
+    @Test
+    void followsTheConfiguredExecutableSymlink() throws Exception {
+        Path symlink = fixture.resolve("pi-link");
+        Files.createSymbolicLink(symlink, executable.getFileName());
+
+        PiWorker.Result result = new PiWorker(
+                symlink, "0.80.6", Duration.ofSeconds(5))
+                .run(request(ShipRun.Stage.DISCOVERY, "prompt"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
+        assertEquals(executable.toString(), result.evidence().executable());
+    }
+
+    @Test
+    void rejectsAliasedOrOverlappingRuntimeDirectories() throws Exception {
+        Path realParent = Files.createDirectory(temporaryDirectory.resolve("real-parent"));
+        Path realWorking = Files.createDirectory(realParent.resolve("working"));
+        Path aliasParent = temporaryDirectory.resolve("alias-parent");
+        Files.createSymbolicLink(aliasParent, realParent.getFileName());
+        PiWorker.Request aliased = new PiWorker.Request(
+                RUN_ID,
+                ShipRun.Stage.DISCOVERY,
+                1,
+                aliasParent.resolve(realWorking.getFileName()),
+                sessions,
+                evidence,
+                inputDigest(),
+                true,
+                "prompt");
+        Path nestedEvidence = Files.createDirectory(workingDirectory.resolve("nested-evidence"));
+        PiWorker.Request overlapsWorking = new PiWorker.Request(
+                RUN_ID,
+                ShipRun.Stage.DISCOVERY,
+                1,
+                workingDirectory,
+                sessions,
+                nestedEvidence,
+                inputDigest(),
+                true,
+                "prompt");
+        PiWorker.Request sharedStateDirectory = new PiWorker.Request(
+                RUN_ID,
+                ShipRun.Stage.DISCOVERY,
+                1,
+                workingDirectory,
+                sessions,
+                sessions,
+                inputDigest(),
+                true,
+                "prompt");
+
+        IOException aliasFailure = assertThrows(
+                IOException.class,
+                () -> worker(Duration.ofSeconds(5)).run(aliased));
+        IOException workingFailure = assertThrows(
+                IOException.class,
+                () -> worker(Duration.ofSeconds(5)).run(overlapsWorking));
+        IOException stateFailure = assertThrows(
+                IOException.class,
+                () -> worker(Duration.ofSeconds(5)).run(sharedStateDirectory));
+
+        assertTrue(aliasFailure.getMessage().contains("symbolic link"));
+        assertTrue(workingFailure.getMessage().contains("disjoint"));
+        assertTrue(stateFailure.getMessage().contains("disjoint"));
+        assertFalse(Files.exists(fixture.resolve("args")));
+    }
+
+    @Test
+    void rejectsInsecureSessionDirectoryBeforeLaunchingPi() throws Exception {
+        Files.setPosixFilePermissions(
+                sessions, PosixFilePermissions.fromString("rwxr-x---"));
+
+        IOException permissions = assertThrows(
+                IOException.class,
+                () -> worker(Duration.ofSeconds(5))
+                        .run(request(ShipRun.Stage.DISCOVERY, "prompt")));
+
+        assertTrue(permissions.getMessage().contains("0700"));
+        Files.setPosixFilePermissions(
+                sessions, PosixFilePermissions.fromString("rwx------"));
+        Files.createSymbolicLink(
+                sessions.resolve("unsafe-entry"), fixture.resolve("version"));
+
+        IOException entry = assertThrows(
+                IOException.class,
+                () -> worker(Duration.ofSeconds(5))
+                        .run(request(ShipRun.Stage.DISCOVERY, "prompt")));
+
+        assertTrue(entry.getMessage().contains("unsafe entry"));
+        assertFalse(Files.exists(fixture.resolve("args")));
+    }
+
+    @Test
+    void rejectsMismatchedOrAmbiguousPersistedStageSessions() throws Exception {
+        String[] modes = {"session-mismatch", "session-cwd", "session-duplicate"};
+        ShipRun.Stage[] stages = {
+                ShipRun.Stage.DISCOVERY,
+                ShipRun.Stage.DESIGN,
+                ShipRun.Stage.PLAN
+        };
+
+        for (int index = 0; index < modes.length; index++) {
+            int caseIndex = index;
+            Files.writeString(fixture.resolve("mode"), modes[index] + "\n");
+
+            IOException failure = assertThrows(
+                    IOException.class,
+                    () -> worker(Duration.ofSeconds(5))
+                            .run(request(stages[caseIndex], "prompt")),
+                    modes[index]);
+
+            assertTrue(
+                    failure.getMessage().contains("session"),
+                    modes[index] + ": " + failure.getMessage());
+        }
+    }
+
+    @Test
+    void requiresPersistedTurnRecordsAndAppendOnlyResume() throws Exception {
+        Files.writeString(fixture.resolve("mode"), "header-only\n");
+
+        IOException headerOnly = assertThrows(
+                IOException.class,
+                () -> worker(Duration.ofSeconds(5))
+                        .run(request(ShipRun.Stage.DISCOVERY, "prompt")));
+
+        assertTrue(headerOnly.getMessage().contains("no persisted turn records"));
+
+        Files.writeString(fixture.resolve("mode"), "success\n");
+        PiWorker worker = worker(Duration.ofSeconds(5));
+        worker.run(request(ShipRun.Stage.DESIGN, "first"));
+        byte[] before = Files.readAllBytes(sessionFile(sessionId(ShipRun.Stage.DESIGN)));
+        Files.writeString(fixture.resolve("mode"), "unchanged-session\n");
+
+        IOException unchanged = assertThrows(
+                IOException.class,
+                () -> worker.run(request(ShipRun.Stage.DESIGN, "second")));
+
+        assertTrue(unchanged.getMessage().contains("did not append"));
+        assertTrue(java.util.Arrays.equals(
+                before, Files.readAllBytes(sessionFile(sessionId(ShipRun.Stage.DESIGN)))));
+
+        Files.writeString(fixture.resolve("mode"), "rewrite-session\n");
+        IOException rewritten = assertThrows(
+                IOException.class,
+                () -> worker.run(request(ShipRun.Stage.DESIGN, "third")));
+
+        assertTrue(rewritten.getMessage().contains("Pi"));
+        assertArrayEquals(
+                before,
+                Files.readAllBytes(
+                        sessionFile(sessionId(ShipRun.Stage.DESIGN))));
+    }
+
+    @Test
+    void refusesToReplayACompletedPromptBeforeLaunchingRpc() throws Exception {
+        PiWorker worker = worker(Duration.ofSeconds(5));
+        PiWorker.Request first = request(
+                ShipRun.Stage.DESIGN, "same prompt", true);
+        worker.run(first);
+        Path canonical = sessionFile(sessionId(ShipRun.Stage.DESIGN));
+        byte[] before = Files.readAllBytes(canonical);
+        Files.delete(fixture.resolve("args"));
+        Files.delete(fixture.resolve("prompt"));
+
+        IOException failure = assertThrows(
+                IOException.class,
+                () -> worker.run(new PiWorker.Request(
+                        RUN_ID,
+                        ShipRun.Stage.DESIGN,
+                        2,
+                        workingDirectory,
+                        sessions,
+                        evidence,
+                        inputDigest(),
+                        true,
+                        "same prompt")));
+
+        assertTrue(failure.getMessage().contains("controller recovery"));
+        assertFalse(Files.exists(fixture.resolve("args")));
+        assertFalse(Files.exists(fixture.resolve("prompt")));
+        assertArrayEquals(before, Files.readAllBytes(canonical));
+    }
+
+    @Test
+    void rejectsBrokenLinearSessionChainsWithoutPublishingThem() throws Exception {
+        PiWorker worker = worker(Duration.ofSeconds(5));
+        for (ShipRun.Stage stage : List.of(
+                ShipRun.Stage.DISCOVERY, ShipRun.Stage.DESIGN)) {
+            String mode = stage == ShipRun.Stage.DISCOVERY
+                    ? "session-wrong-parent"
+                    : "session-duplicate-id";
+            Files.writeString(fixture.resolve("mode"), mode + "\n");
+
+            IOException failure = assertThrows(
+                    IOException.class,
+                    () -> worker.run(request(stage, "prompt")));
+
+            assertTrue(failure.getMessage().contains("session"));
+            assertFalse(hasSession(sessionId(stage)));
+            assertNoScratchDirectories();
+        }
+    }
+
+    @Test
+    void serializesSessionsAndCleansAbandonedScratch() throws Exception {
+        String sessionId = sessionId(ShipRun.Stage.DISCOVERY);
+        Path abandoned = Files.createDirectory(
+                sessions.resolve(".ship-pi-" + sessionId + "-abandoned"));
+        Files.setPosixFilePermissions(
+                abandoned, PosixFilePermissions.fromString("rwx------"));
+        Files.writeString(abandoned.resolve("partial"), "partial");
+
+        PiWorker.Result result = worker(Duration.ofSeconds(5))
+                .run(request(ShipRun.Stage.DISCOVERY, "prompt"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
+        assertFalse(Files.exists(abandoned));
+        assertNoScratchDirectories();
+
+        String lockedSession = sessionId(ShipRun.Stage.DESIGN);
+        Path lockPath = sessions.resolve("." + lockedSession + ".lock");
+        try (FileChannel channel = FileChannel.open(
+                lockPath,
+                StandardOpenOption.CREATE,
+                StandardOpenOption.WRITE);
+             FileLock ignored = channel.lock()) {
+            Files.setPosixFilePermissions(
+                    lockPath, PosixFilePermissions.fromString("rw-------"));
+            IOException locked = assertThrows(
+                    IOException.class,
+                    () -> worker(Duration.ofSeconds(5))
+                            .run(request(ShipRun.Stage.DESIGN, "prompt")));
+            assertTrue(locked.getMessage().contains("already running"));
+            assertFalse(hasSession(lockedSession));
+        }
+    }
+
+    @Test
+    void rejectsInvalidAppendedSessionTurns() throws Exception {
+        String[] modes = {
+                "session-whitespace",
+                "session-malformed-turn",
+                "session-unrelated-prompt",
+                "session-wrong-stop",
+                "session-missing-stop"
+        };
+        ShipRun.Stage[] stages = ShipRun.Stage.values();
+        PiWorker worker = worker(Duration.ofSeconds(5));
+
+        for (int index = 0; index < modes.length; index++) {
+            ShipRun.Stage stage = stages[index];
+            Files.writeString(fixture.resolve("mode"), "success\n");
+            worker.run(request(stage, "baseline"));
+            Path canonical = sessionFile(sessionId(stage));
+            byte[] before = Files.readAllBytes(canonical);
+            Files.writeString(fixture.resolve("mode"), modes[index] + "\n");
+
+            IOException failure = assertThrows(
+                    IOException.class,
+                    () -> worker.run(request(stage, "current")),
+                    modes[index]);
+
+            assertTrue(failure.getMessage().contains("Pi"), modes[index]);
+            assertArrayEquals(
+                    before, Files.readAllBytes(canonical), modes[index]);
+        }
+    }
+
+    @Test
+    void retriesFromTheCleanCanonicalPrefixAfterDiscardingPoisonedScratch()
+            throws Exception {
+        PiWorker worker = worker(Duration.ofSeconds(5));
+        ShipRun.Stage stage = ShipRun.Stage.DESIGN;
+        worker.run(request(stage, "baseline"));
+        Path canonical = sessionFile(sessionId(stage));
+        byte[] baseline = Files.readAllBytes(canonical);
+
+        Files.writeString(
+                fixture.resolve("mode"), "session-unrelated-prompt\n");
+        assertThrows(
+                IOException.class,
+                () -> worker.run(new PiWorker.Request(
+                        RUN_ID,
+                        stage,
+                        2,
+                        workingDirectory,
+                        sessions,
+                        evidence,
+                        inputDigest(),
+                        true,
+                        "current")));
+        assertArrayEquals(baseline, Files.readAllBytes(canonical));
+
+        Files.writeString(fixture.resolve("mode"), "success\n");
+        PiWorker.Result retry = worker.run(new PiWorker.Request(
+                RUN_ID,
+                stage,
+                3,
+                workingDirectory,
+                sessions,
+                evidence,
+                inputDigest(),
+                true,
+                "current"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, retry.outcome());
+        List<String> persisted = Files.readAllLines(canonical);
+        assertEquals(7, persisted.size());
+        assertEquals(
+                1,
+                persisted.stream()
+                        .filter(line -> line.contains(
+                                "\"content\":\"current\""))
+                        .count());
+    }
+
+    @Test
+    void timeoutFailsClosedWhenPiDoesNotAcknowledgeAbort() throws Exception {
+        Files.writeString(fixture.resolve("mode"), "unacknowledged-abort\n");
+
+        IOException failure = assertThrows(
+                IOException.class,
+                () -> worker(Duration.ofMillis(200))
+                        .run(request(ShipRun.Stage.DISCOVERY, "prompt")));
+
+        assertTrue(failure.getMessage().contains("not resumable"));
+        assertEquals(
+                "{\"id\":\"abort-1\",\"type\":\"abort\"}",
+                Files.readString(fixture.resolve("abort")).trim());
+        assertFalse(hasSession(sessionId(ShipRun.Stage.DISCOVERY)));
+    }
+
+    @Test
+    void timeoutAcknowledgesAbortBeforePersistingTheStageSession() throws Exception {
+        Files.writeString(fixture.resolve("mode"), "block\n");
+
+        PiWorker.Result result = worker(Duration.ofMillis(300))
+                .run(request(ShipRun.Stage.DISCOVERY, "prompt"));
+
+        assertEquals(PiWorker.Outcome.TIMED_OUT, result.outcome());
+        assertFalse(result.evidence().succeeded());
+        assertEquals(
+                "{\"id\":\"abort-1\",\"type\":\"abort\"}",
+                Files.readString(fixture.resolve("abort")).trim());
+        assertTrue(hasSession(sessionId(ShipRun.Stage.DISCOVERY)));
+        assertTrue(Files.readString(sessionFile(sessionId(ShipRun.Stage.DISCOVERY)))
+                .contains("\"stopReason\":\"aborted\""));
+        assertProcessesGone();
+    }
+
+    @Test
+    void timeoutDuringRetryDelayPublishesOnlyTheBoundErrorTurn()
+            throws Exception {
+        Files.writeString(fixture.resolve("mode"), "retry-delay-block\n");
+
+        PiWorker.Result result = worker(Duration.ofMillis(300))
+                .run(request(ShipRun.Stage.DISCOVERY, "prompt"));
+
+        assertEquals(PiWorker.Outcome.TIMED_OUT, result.outcome());
+        assertEquals(
+                List.of("{\"id\":\"abort-1\",\"type\":\"abort\"}"),
+                Files.readAllLines(fixture.resolve("abort")));
+        List<String> persisted = Files.readAllLines(
+                sessionFile(sessionId(ShipRun.Stage.DISCOVERY)));
+        assertEquals(5, persisted.size());
+        assertTrue(persisted.get(4).contains("\"stopReason\":\"error\""));
+        assertFalse(persisted.get(4).contains("\"stopReason\":\"aborted\""));
+    }
+
+    @Test
+    void abortReconciliationUsesOneSharedDeadline() throws Exception {
+        Files.writeString(fixture.resolve("mode"), "preflight-hang\n");
+        long started = System.nanoTime();
+
+        IOException failure = assertThrows(
+                IOException.class,
+                () -> worker(Duration.ofMillis(100))
+                        .run(request(
+                                ShipRun.Stage.DISCOVERY, "prompt")));
+        Duration elapsed = Duration.ofNanos(
+                System.nanoTime() - started);
+
+        assertTrue(failure.getMessage().contains("did not acknowledge"));
+        assertTrue(elapsed.compareTo(Duration.ofSeconds(4)) >= 0);
+        assertTrue(elapsed.compareTo(Duration.ofSeconds(8)) < 0);
+        assertFalse(Files.exists(fixture.resolve("abort")));
+        assertFalse(hasSession(sessionId(ShipRun.Stage.DISCOVERY)));
+    }
+
+    @Test
+    void timeoutPreservesANaturalStopThatWinsAfterAbort() throws Exception {
+        Files.writeString(
+                fixture.resolve("mode"), "natural-stop-after-abort\n");
+
+        PiWorker.Result result = worker(Duration.ofMillis(300))
+                .run(request(ShipRun.Stage.DISCOVERY, "prompt"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
+        assertEquals("done", result.assistantText());
+        assertFalse(result.evidence().timedOut());
+        assertTrue(result.evidence().succeeded());
+        assertEquals(
+                List.of("{\"id\":\"abort-1\",\"type\":\"abort\"}"),
+                Files.readAllLines(fixture.resolve("abort")));
+        List<String> persisted = Files.readAllLines(
+                sessionFile(sessionId(ShipRun.Stage.DISCOVERY)));
+        assertEquals(6, persisted.size());
+        assertTrue(persisted.get(4).contains("\"stopReason\":\"stop\""));
+        assertTrue(persisted.get(5).contains("\"type\":\"compaction\""));
+    }
+
+    @Test
+    void interruptionDrainsAQueuedNaturalTurnAsPiExits()
+            throws Exception {
+        Files.writeString(fixture.resolve("mode"), "queued-natural-exit\n");
+        PiWorker worker = worker(Duration.ofSeconds(30));
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicBoolean interrupted = new AtomicBoolean();
+        Thread invocation = new Thread(() -> {
+            try {
+                worker.run(request(ShipRun.Stage.DESIGN, "prompt"));
+                failure.set(new AssertionError(
+                        "Pi invocation unexpectedly completed"));
+            } catch (InterruptedException expected) {
+                interrupted.set(Thread.currentThread().isInterrupted());
+                if (expected.getSuppressed().length > 0) {
+                    failure.set(expected.getSuppressed()[0]);
+                }
+            } catch (Throwable unexpected) {
+                failure.set(unexpected);
+            }
+        });
+
+        invocation.start();
+        awaitFile(fixture.resolve("ready"));
+        invocation.interrupt();
+        Thread.sleep(250);
+        Files.writeString(fixture.resolve("release"), "release\n");
+        invocation.join(Duration.ofSeconds(10).toMillis());
+
+        assertFalse(invocation.isAlive());
+        assertNull(failure.get());
+        assertTrue(interrupted.get());
+        assertFalse(Files.exists(fixture.resolve("abort")));
+        List<String> persisted = Files.readAllLines(
+                sessionFile(sessionId(ShipRun.Stage.DESIGN)));
+        assertEquals(5, persisted.size());
+        assertTrue(persisted.get(4).contains("\"stopReason\":\"stop\""));
+    }
+
+    @Test
+    void interruptionDisposesAndPublishesAPostAgentTerminalWithoutSettled()
+            throws Exception {
+        Files.writeString(
+                fixture.resolve("mode"), "terminal-no-settled\n");
+        PiWorker worker = worker(Duration.ofSeconds(30));
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicBoolean interrupted = new AtomicBoolean();
+        Thread invocation = new Thread(() -> {
+            try {
+                worker.run(request(ShipRun.Stage.DESIGN, "prompt"));
+                failure.set(new AssertionError(
+                        "Pi invocation unexpectedly completed"));
+            } catch (InterruptedException expected) {
+                interrupted.set(Thread.currentThread().isInterrupted());
+                if (expected.getSuppressed().length > 0) {
+                    failure.set(expected.getSuppressed()[0]);
+                }
+            } catch (Throwable unexpected) {
+                failure.set(unexpected);
+            }
+        });
+
+        invocation.start();
+        awaitFile(fixture.resolve("ready"));
+        invocation.interrupt();
+        invocation.join(Duration.ofSeconds(10).toMillis());
+
+        assertFalse(invocation.isAlive());
+        assertNull(failure.get());
+        assertTrue(interrupted.get());
+        assertFalse(Files.exists(fixture.resolve("unexpected-input")));
+        List<String> persisted = Files.readAllLines(
+                sessionFile(sessionId(ShipRun.Stage.DESIGN)));
+        assertEquals(5, persisted.size());
+        assertTrue(persisted.get(4).contains("\"stopReason\":\"stop\""));
+    }
+
+    @Test
+    void interruptionWaitsForPreflightCompactionAndPromptResponse()
+            throws Exception {
+        PiWorker worker = worker(Duration.ofSeconds(30));
+        worker.run(request(ShipRun.Stage.PLAN, "baseline"));
+        Files.writeString(
+                fixture.resolve("mode"), "preflight-compaction-block\n");
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicBoolean interrupted = new AtomicBoolean();
+        Thread invocation = new Thread(() -> {
+            try {
+                worker.run(new PiWorker.Request(
+                        RUN_ID,
+                        ShipRun.Stage.PLAN,
+                        2,
+                        workingDirectory,
+                        sessions,
+                        evidence,
+                        inputDigest(),
+                        true,
+                        "current"));
+                failure.set(new AssertionError(
+                        "Pi invocation unexpectedly completed"));
+            } catch (InterruptedException expected) {
+                interrupted.set(Thread.currentThread().isInterrupted());
+                if (expected.getSuppressed().length > 0) {
+                    failure.set(expected.getSuppressed()[0]);
+                }
+            } catch (Throwable unexpected) {
+                failure.set(unexpected);
+            }
+        });
+
+        invocation.start();
+        awaitFile(fixture.resolve("compaction-ready"));
+        invocation.interrupt();
+        Thread.sleep(250);
+        assertFalse(Files.exists(fixture.resolve("abort")));
+        Files.writeString(
+                fixture.resolve("release-compaction"), "release\n");
+        invocation.join(Duration.ofSeconds(10).toMillis());
+
+        assertFalse(invocation.isAlive());
+        assertNull(failure.get());
+        assertTrue(interrupted.get());
+        assertEquals(
+                List.of("{\"id\":\"abort-1\",\"type\":\"abort\"}"),
+                Files.readAllLines(fixture.resolve("abort")));
+        List<String> persisted = Files.readAllLines(
+                sessionFile(sessionId(ShipRun.Stage.PLAN)));
+        assertEquals(8, persisted.size());
+        assertTrue(persisted.get(5).contains("\"type\":\"compaction\""));
+        assertTrue(persisted.get(6).contains("\"content\":\"current\""));
+        assertTrue(persisted.get(7).contains("\"stopReason\":\"aborted\""));
+    }
+
+    @Test
+    void interruptionAbortsOnlyAfterOverflowCompactionCanContinue()
+            throws Exception {
+        Files.writeString(
+                fixture.resolve("mode"), "overflow-compaction-abort\n");
+        PiWorker worker = worker(Duration.ofSeconds(30));
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicBoolean interrupted = new AtomicBoolean();
+        Thread invocation = new Thread(() -> {
+            try {
+                worker.run(request(ShipRun.Stage.VALIDATE, "prompt"));
+                failure.set(new AssertionError(
+                        "Pi invocation unexpectedly completed"));
+            } catch (InterruptedException expected) {
+                interrupted.set(Thread.currentThread().isInterrupted());
+                if (expected.getSuppressed().length > 0) {
+                    failure.set(expected.getSuppressed()[0]);
+                }
+            } catch (Throwable unexpected) {
+                failure.set(unexpected);
+            }
+        });
+
+        invocation.start();
+        awaitFile(fixture.resolve("compaction-ready"));
+        invocation.interrupt();
+        Thread.sleep(250);
+        assertFalse(Files.exists(fixture.resolve("abort-received")));
+        Files.writeString(
+                fixture.resolve("release-compaction"), "release\n");
+        awaitFile(fixture.resolve("compaction-ended"));
+        invocation.join(Duration.ofSeconds(10).toMillis());
+
+        assertFalse(invocation.isAlive());
+        assertNull(failure.get());
+        assertTrue(interrupted.get());
+        assertFalse(Files.exists(fixture.resolve("premature-abort")));
+        assertEquals(
+                "{\"id\":\"abort-1\",\"type\":\"abort\"}",
+                Files.readString(fixture.resolve("abort")).trim());
+        List<String> persisted = Files.readAllLines(
+                sessionFile(sessionId(ShipRun.Stage.VALIDATE)));
+        assertEquals(7, persisted.size());
+        assertTrue(persisted.get(4).contains("\"stopReason\":\"error\""));
+        assertTrue(persisted.get(5).contains("\"type\":\"compaction\""));
+        assertTrue(persisted.get(6).contains("\"stopReason\":\"aborted\""));
+    }
+
+    @Test
+    void partialMultiToolAbortPublishesAndResumesWithoutRepeatingWork()
+            throws Exception {
+        Files.writeString(fixture.resolve("mode"), "partial-tool-abort\n");
+        PiWorker worker = worker(Duration.ofSeconds(30));
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicBoolean interrupted = new AtomicBoolean();
+        Thread invocation = new Thread(() -> {
+            try {
+                worker.run(request(ShipRun.Stage.EXECUTE, "prompt"));
+                failure.set(new AssertionError(
+                        "Pi invocation unexpectedly completed"));
+            } catch (InterruptedException expected) {
+                interrupted.set(Thread.currentThread().isInterrupted());
+                if (expected.getSuppressed().length > 0) {
+                    failure.set(expected.getSuppressed()[0]);
+                }
+            } catch (Throwable unexpected) {
+                failure.set(unexpected);
+            }
+        });
+
+        invocation.start();
+        awaitFile(fixture.resolve("ready"));
+        invocation.interrupt();
+        invocation.join(Duration.ofSeconds(10).toMillis());
+
+        assertFalse(invocation.isAlive());
+        assertNull(failure.get());
+        assertTrue(interrupted.get());
+        assertEquals(
+                List.of("call-a"),
+                Files.readAllLines(fixture.resolve("tool-executions")));
+        List<String> interruptedSession = Files.readAllLines(
+                sessionFile(sessionId(ShipRun.Stage.EXECUTE)));
+        assertEquals(7, interruptedSession.size());
+        assertTrue(interruptedSession.get(4).contains("\"call-b\""));
+        assertTrue(interruptedSession.get(5).contains("\"call-a\""));
+        assertTrue(interruptedSession.get(6).contains(
+                "\"stopReason\":\"aborted\""));
+
+        Files.writeString(fixture.resolve("mode"), "success\n");
+        PiWorker.Result resumed = worker.run(new PiWorker.Request(
+                RUN_ID,
+                ShipRun.Stage.EXECUTE,
+                2,
+                workingDirectory,
+                sessions,
+                evidence,
+                inputDigest(),
+                true,
+                "resume"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, resumed.outcome());
+        assertEquals(
+                List.of("call-a"),
+                Files.readAllLines(fixture.resolve("tool-executions")));
+        assertEquals(
+                9,
+                Files.readAllLines(
+                        sessionFile(sessionId(ShipRun.Stage.EXECUTE)))
+                        .size());
+    }
+
+    @Test
+    void overflowContinuationToolMessagesRemainAbortableBeforeAgentEnd()
+            throws Exception {
+        Files.writeString(
+                fixture.resolve("mode"),
+                "overflow-continuation-tool-abort\n");
+        PiWorker worker = worker(Duration.ofSeconds(30));
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicBoolean interrupted = new AtomicBoolean();
+        Thread invocation = new Thread(() -> {
+            try {
+                worker.run(request(ShipRun.Stage.EXECUTE, "prompt"));
+                failure.set(new AssertionError(
+                        "Pi invocation unexpectedly completed"));
+            } catch (InterruptedException expected) {
+                interrupted.set(Thread.currentThread().isInterrupted());
+                if (expected.getSuppressed().length > 0) {
+                    failure.set(expected.getSuppressed()[0]);
+                }
+            } catch (Throwable unexpected) {
+                failure.set(unexpected);
+            }
+        });
+
+        invocation.start();
+        awaitFile(fixture.resolve("ready"));
+        invocation.interrupt();
+        invocation.join(Duration.ofSeconds(10).toMillis());
+
+        assertFalse(invocation.isAlive());
+        assertNull(failure.get());
+        assertTrue(interrupted.get());
+        assertEquals(
+                "{\"id\":\"abort-1\",\"type\":\"abort\"}",
+                Files.readString(fixture.resolve("abort")).trim());
+        assertEquals(
+                List.of("call-a"),
+                Files.readAllLines(fixture.resolve("tool-executions")));
+        List<String> interruptedSession = Files.readAllLines(
+                sessionFile(sessionId(ShipRun.Stage.EXECUTE)));
+        assertEquals(9, interruptedSession.size());
+        assertTrue(interruptedSession.get(4).contains(
+                "\"stopReason\":\"error\""));
+        assertTrue(interruptedSession.get(5).contains(
+                "\"type\":\"compaction\""));
+        assertTrue(interruptedSession.get(6).contains("\"call-b\""));
+        assertTrue(interruptedSession.get(7).contains("\"call-a\""));
+        assertTrue(interruptedSession.get(8).contains(
+                "\"stopReason\":\"aborted\""));
+
+        Files.writeString(fixture.resolve("mode"), "success\n");
+        PiWorker.Result resumed = worker.run(new PiWorker.Request(
+                RUN_ID,
+                ShipRun.Stage.EXECUTE,
+                2,
+                workingDirectory,
+                sessions,
+                evidence,
+                inputDigest(),
+                true,
+                "resume"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, resumed.outcome());
+        assertEquals(
+                List.of("call-a"),
+                Files.readAllLines(fixture.resolve("tool-executions")));
+        assertEquals(
+                11,
+                Files.readAllLines(
+                        sessionFile(sessionId(ShipRun.Stage.EXECUTE)))
+                        .size());
+    }
+
+    @Test
+    void interruptionPersistsAbortAndResumesTheSameStageSession() throws Exception {
+        Files.writeString(fixture.resolve("mode"), "block\n");
+        PiWorker worker = worker(Duration.ofSeconds(30));
+        ShipController controller = new ShipController(temporaryDirectory.resolve("state"));
+        ShipRun run = controller.start(workingDirectory, ShipRun.Oversight.NEVER, List.of());
+        String sessionId = sessionId(
+                run.id(),
+                ShipRun.Stage.DISCOVERY,
+                run.stage(ShipRun.Stage.DISCOVERY).inputDigest());
+        PiWorker.Request request = new PiWorker.Request(
+                run.id(),
+                ShipRun.Stage.DISCOVERY,
+                1,
+                workingDirectory,
+                sessions,
+                evidence,
+                run.stage(ShipRun.Stage.DISCOVERY).inputDigest(),
+                true,
+                "prompt");
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicBoolean interrupted = new AtomicBoolean();
+        Thread invocation = new Thread(() -> {
+            try {
+                worker.run(request);
+                failure.set(new AssertionError("Pi invocation unexpectedly completed"));
+            } catch (InterruptedException expected) {
+                interrupted.set(Thread.currentThread().isInterrupted());
+                if (expected.getSuppressed().length > 0) {
+                    failure.set(expected.getSuppressed()[0]);
+                }
+            } catch (Throwable unexpected) {
+                failure.set(unexpected);
+            }
+        });
+
+        invocation.start();
+        awaitFile(fixture.resolve("ready"));
+        assertFalse(hasSession(sessionId));
+        invocation.interrupt();
+        invocation.join(Duration.ofSeconds(10).toMillis());
+
+        assertFalse(invocation.isAlive());
+        assertNull(failure.get());
+        assertTrue(interrupted.get());
+        assertEquals(
+                "{\"id\":\"abort-1\",\"type\":\"abort\"}",
+                Files.readString(fixture.resolve("abort")).trim());
+        assertTrue(hasSession(sessionId));
+        assertTrue(Files.readString(sessionFile(sessionId))
+                .contains("\"stopReason\":\"aborted\""));
+        assertProcessesGone();
+
+        ShipRun resumed = controller.resume(run.id());
+        Files.writeString(fixture.resolve("mode"), "success\n");
+        PiWorker.Result resumedResult = worker.run(new PiWorker.Request(
+                resumed.id(),
+                ShipRun.Stage.DISCOVERY,
+                2,
+                workingDirectory,
+                sessions,
+                evidence,
+                resumed.stage(ShipRun.Stage.DISCOVERY).inputDigest(),
+                true,
+                "resume"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, resumedResult.outcome());
+        assertEquals(2, resumed.stage(ShipRun.Stage.DISCOVERY).attempts());
+        assertEquals(
+                List.of(sessionId, sessionId),
+                Files.readAllLines(fixture.resolve("session-ids")));
+        assertEquals(
+                List.of(sessionId),
+                Files.readAllLines(fixture.resolve("resumed-sessions")));
+        List<String> persisted = Files.readAllLines(sessionFile(sessionId));
+        assertEquals(7, persisted.size());
+        assertTrue(persisted.get(4).contains("\"stopReason\":\"aborted\""));
+        assertTrue(persisted.get(6).contains("\"stopReason\":\"stop\""));
+    }
+
+    @Test
+    void repeatedInterruptsReuseOneAbortCommandAndDeadline() throws Exception {
+        Files.writeString(fixture.resolve("mode"), "repeated-interrupt-abort\n");
+        PiWorker worker = worker(Duration.ofSeconds(30));
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicBoolean interrupted = new AtomicBoolean();
+        Thread invocation = new Thread(() -> {
+            try {
+                worker.run(request(ShipRun.Stage.DESIGN, "prompt"));
+                failure.set(new AssertionError("Pi invocation unexpectedly completed"));
+            } catch (InterruptedException expected) {
+                interrupted.set(Thread.currentThread().isInterrupted());
+                if (expected.getSuppressed().length > 0) {
+                    failure.set(expected.getSuppressed()[0]);
+                }
+            } catch (Throwable unexpected) {
+                failure.set(unexpected);
+            }
+        });
+
+        invocation.start();
+        awaitFile(fixture.resolve("ready"));
+        invocation.interrupt();
+        awaitFile(fixture.resolve("abort-received"));
+        invocation.interrupt();
+        invocation.interrupt();
+        Files.writeString(fixture.resolve("release"), "release\n");
+        invocation.join(Duration.ofSeconds(10).toMillis());
+
+        assertFalse(invocation.isAlive());
+        assertNull(failure.get());
+        assertTrue(interrupted.get());
+        assertEquals(
+                List.of("{\"id\":\"abort-1\",\"type\":\"abort\"}"),
+                Files.readAllLines(fixture.resolve("abort")));
+        assertEquals(5, Files.readAllLines(
+                sessionFile(sessionId(ShipRun.Stage.DESIGN))).size());
+    }
+
+    @Test
+    void lateInterruptAfterTerminalResultDoesNotAbortOrRetryTheTurn() throws Exception {
+        Files.writeString(fixture.resolve("mode"), "late-terminal-exit\n");
+        PiWorker worker = worker(Duration.ofSeconds(30));
+        AtomicReference<PiWorker.Result> result = new AtomicReference<>();
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicBoolean interrupted = new AtomicBoolean();
+        Thread invocation = new Thread(() -> {
+            try {
+                result.set(worker.run(request(ShipRun.Stage.PLAN, "prompt")));
+                interrupted.set(Thread.currentThread().isInterrupted());
+            } catch (Throwable unexpected) {
+                failure.set(unexpected);
+            }
+        });
+
+        invocation.start();
+        awaitFile(fixture.resolve("ready"));
+        invocation.interrupt();
+        Files.writeString(fixture.resolve("release"), "release\n");
+        invocation.join(Duration.ofSeconds(10).toMillis());
+
+        assertFalse(invocation.isAlive());
+        assertNull(failure.get());
+        assertEquals(PiWorker.Outcome.SUCCEEDED, result.get().outcome());
+        assertTrue(interrupted.get());
+        assertFalse(Files.exists(fixture.resolve("abort")));
+        assertEquals(
+                List.of(sessionId(ShipRun.Stage.PLAN)),
+                Files.readAllLines(fixture.resolve("session-ids")));
+        assertEquals(5, Files.readAllLines(
+                sessionFile(sessionId(ShipRun.Stage.PLAN))).size());
+    }
+
+    @Test
+    void lateInterruptAfterAbortAcknowledgementKeepsThePersistedAbort() throws Exception {
+        Files.writeString(fixture.resolve("mode"), "late-abort-exit\n");
+        PiWorker worker = worker(Duration.ofMillis(300));
+        AtomicReference<PiWorker.Result> result = new AtomicReference<>();
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicBoolean interrupted = new AtomicBoolean();
+        Thread invocation = new Thread(() -> {
+            try {
+                result.set(worker.run(request(ShipRun.Stage.VALIDATE, "prompt")));
+                interrupted.set(Thread.currentThread().isInterrupted());
+            } catch (Throwable unexpected) {
+                failure.set(unexpected);
+            }
+        });
+
+        invocation.start();
+        awaitFile(fixture.resolve("ready"));
+        invocation.interrupt();
+        Files.writeString(fixture.resolve("release"), "release\n");
+        invocation.join(Duration.ofSeconds(10).toMillis());
+
+        assertFalse(invocation.isAlive());
+        assertNull(failure.get());
+        assertEquals(PiWorker.Outcome.TIMED_OUT, result.get().outcome());
+        assertTrue(interrupted.get());
+        assertEquals(
+                List.of(sessionId(ShipRun.Stage.VALIDATE)),
+                Files.readAllLines(fixture.resolve("session-ids")));
+        List<String> persisted = Files.readAllLines(
+                sessionFile(sessionId(ShipRun.Stage.VALIDATE)));
+        assertEquals(5, persisted.size());
+        assertTrue(persisted.get(4).contains("\"stopReason\":\"aborted\""));
+    }
+
+    @Test
+    void interruptionReapsPiBeforeClosingABlockedPromptWriter() throws Exception {
+        Files.writeString(fixture.resolve("mode"), "never-read\n");
+        PiWorker worker = worker(Duration.ofSeconds(30));
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicBoolean interrupted = new AtomicBoolean();
+        Thread invocation = new Thread(() -> {
+            try {
+                worker.run(request(
+                        ShipRun.Stage.DISCOVERY, "x".repeat(1024 * 1024)));
+                failure.set(new AssertionError("Pi invocation unexpectedly completed"));
+            } catch (InterruptedException expected) {
+                interrupted.set(Thread.currentThread().isInterrupted());
+            } catch (Throwable unexpected) {
+                failure.set(unexpected);
+            }
+        });
+
+        invocation.start();
+        awaitFile(fixture.resolve("ready"));
+        invocation.interrupt();
+        invocation.join(Duration.ofSeconds(10).toMillis());
+
+        assertFalse(invocation.isAlive());
+        assertNull(failure.get());
+        assertTrue(interrupted.get());
+        assertFalse(hasSession(sessionId(ShipRun.Stage.DISCOVERY)));
+        assertProcessesGone();
+    }
+
+    @Test
+    void reapsFastDetachedProcessGroupMembersBeforeReturning()
+            throws Exception {
+        Files.writeString(fixture.resolve("mode"), "fast-detach\n");
+
+        PiWorker.Result result = worker(Duration.ofSeconds(5))
+                .run(request(ShipRun.Stage.EXECUTE, "prompt"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
+        long detached = Long.parseLong(
+                Files.readString(fixture.resolve("detached-pid")).trim());
+        awaitGone(detached);
+        Thread.sleep(1200);
+        assertFalse(Files.exists(fixture.resolve("delayed-mutation")));
+    }
+
+    private PiWorker worker(Duration timeout) {
+        return new PiWorker(executable, "0.80.6", timeout);
+    }
+
+    private PiWorker worker(
+            Duration timeout, Map<String, String> environment) {
+        return new PiWorker(
+                executable,
+                "0.80.6",
+                timeout,
+                Clock.systemUTC(),
+                environment);
+    }
+
+    private PiWorker.Request request(ShipRun.Stage stage, String prompt) {
+        return request(stage, prompt, true);
+    }
+
+    private PiWorker.Request request(
+            ShipRun.Stage stage, String prompt, boolean acceptExperimental) {
+        return new PiWorker.Request(
+                RUN_ID,
+                stage,
+                1,
+                workingDirectory,
+                sessions,
+                evidence,
+                inputDigest(),
+                acceptExperimental,
+                prompt);
+    }
+
+    private static String inputDigest() {
+        return ShipDigest.sha256("input".getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static String sessionId(ShipRun.Stage stage) {
+        return sessionId(RUN_ID, stage, inputDigest());
+    }
+
+    private static String sessionId(
+            String runId, ShipRun.Stage stage, String inputDigest) {
+        return runId + "-" + stage.name().toLowerCase(java.util.Locale.ROOT) + "-"
+               + inputDigest.substring("sha256:".length());
+    }
+
+    private Path assertScratchArgument(
+            String sessionId, List<String> arguments) {
+        assertEquals("--session-dir", arguments.get(4));
+        Path scratch = Path.of(arguments.get(5));
+        assertEquals(sessions, scratch.getParent());
+        assertTrue(scratch.getFileName().toString()
+                .startsWith(".ship-pi-" + sessionId + "-"));
+        assertFalse(Files.exists(scratch));
+        return scratch;
+    }
+
+    private void assertNoScratchDirectories() throws IOException {
+        try (var entries = Files.newDirectoryStream(
+                sessions, ".ship-pi-*")) {
+            assertFalse(entries.iterator().hasNext());
+        }
+    }
+
+    private void assertEvidenceDoesNotContain(String secret)
+            throws IOException {
+        try (var paths = Files.walk(evidence)) {
+            for (Path path : paths.filter(Files::isRegularFile).toList()) {
+                assertFalse(
+                        Files.readString(path).contains(secret),
+                        path.toString());
+            }
+        }
+    }
+
+    private boolean hasSession(String sessionId) throws IOException {
+        try (var files = Files.newDirectoryStream(
+                sessions, "*_" + sessionId + ".jsonl")) {
+            return files.iterator().hasNext();
+        }
+    }
+
+    private Path sessionFile(String sessionId) throws IOException {
+        try (var files = Files.newDirectoryStream(
+                sessions, "*_" + sessionId + ".jsonl")) {
+            return files.iterator().next();
+        }
+    }
+
+    private void assertProcessesGone() throws Exception {
+        long parent = Long.parseLong(Files.readString(fixture.resolve("parent-pid")).trim());
+        long child = Long.parseLong(Files.readString(fixture.resolve("child-pid")).trim());
+        awaitGone(parent);
+        awaitGone(child);
+        assertFalse(ProcessHandle.of(parent).map(ProcessHandle::isAlive).orElse(false));
+        assertFalse(ProcessHandle.of(child).map(ProcessHandle::isAlive).orElse(false));
+    }
+
+    private static void awaitFile(Path path) throws Exception {
+        long deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
+        while (!Files.exists(path)) {
+            if (System.nanoTime() >= deadline) {
+                throw new AssertionError("Timed out waiting for " + path);
+            }
+            Thread.sleep(10);
+        }
+    }
+
+    private static void awaitGone(long pid) throws Exception {
+        long deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
+        while (ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false)) {
+            if (System.nanoTime() >= deadline) {
+                throw new AssertionError("Process is still alive: " + pid);
+            }
+            Thread.sleep(10);
+        }
+    }
+
+    private static Path writeExecutable(Path path, String script) throws IOException {
+        Files.writeString(path, script);
+        Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("rwx------"));
+        return path;
+    }
+}

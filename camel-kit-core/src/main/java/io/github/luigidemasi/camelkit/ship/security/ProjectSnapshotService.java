@@ -40,6 +40,12 @@ final class ProjectSnapshotService {
         }
     }
 
+    ProjectSnapshot captureStaged(Path stagedRoot) throws IOException {
+        try (SecureRoot root = ShipSecureFilesystem.open(stagedRoot, "Staged Ship tree", policy)) {
+            return root.snapshotStaged();
+        }
+    }
+
     /** Captures a sealed tree containing material entries only. */
     ProjectSnapshot captureSealed(Path sealedRoot) throws IOException {
         try (SecureRoot root = ShipSecureFilesystem.open(sealedRoot, "Sealed Ship tree", policy)) {
@@ -67,10 +73,12 @@ final class ProjectSnapshotService {
     Comparison compareMaterialTree(ProjectSnapshot before, ProjectSnapshot after) {
         requireCompatible(before, after);
         return combine(
-                compareMaps(material(before.files()), material(after.files())),
                 compareMaps(
-                        materialDirectories(before.directories()),
-                        materialDirectories(after.directories())));
+                        portableMaterial(before.files()),
+                        portableMaterial(after.files())),
+                compareMaps(
+                        portableMaterialDirectories(before.directories()),
+                        portableMaterialDirectories(after.directories())));
     }
 
     boolean unchanged(ProjectSnapshot before, ProjectSnapshot after) {
@@ -138,6 +146,13 @@ final class ProjectSnapshotService {
         }
     }
 
+    /** Reads one bounded volatile file through the descriptor-relative project boundary. */
+    byte[] readVolatile(Path root, String relativePath, int maximumBytes) throws IOException {
+        try (SecureRoot secure = ShipSecureFilesystem.open(root, "Ship volatile read", policy)) {
+            return secure.readVolatileBytes(relativePath, maximumBytes);
+        }
+    }
+
     private static Path requireEmptyTarget(Path targetRoot) throws IOException {
         Path target = targetRoot.toAbsolutePath().normalize();
         if (Files.isSymbolicLink(target) || !Files.isDirectory(target, LinkOption.NOFOLLOW_LINKS)
@@ -193,12 +208,24 @@ final class ProjectSnapshotService {
         return result;
     }
 
-    private static Map<String, DirectoryEntry> materialDirectories(
+    private static Map<String, PortableFile> portableMaterial(
+            Map<String, FileEntry> files) {
+        TreeMap<String, PortableFile> result = new TreeMap<>();
+        files.forEach((path, entry) -> {
+            if (entry.classification() == Classification.MATERIAL) {
+                result.put(path, new PortableFile(
+                        entry.size(), entry.digest(), entry.unixMode() & 0777));
+            }
+        });
+        return result;
+    }
+
+    private static Map<String, PortableDirectory> portableMaterialDirectories(
             Map<String, DirectoryEntry> directories) {
-        TreeMap<String, DirectoryEntry> result = new TreeMap<>();
+        TreeMap<String, PortableDirectory> result = new TreeMap<>();
         directories.forEach((path, entry) -> {
             if (entry.classification() == Classification.MATERIAL) {
-                result.put(path, entry);
+                result.put(path, new PortableDirectory(entry.unixMode() & 0777));
             }
         });
         return result;
@@ -228,5 +255,11 @@ final class ProjectSnapshotService {
             }
         }
         return new Comparison(differences);
+    }
+
+    private record PortableFile(long size, String digest, int permissions) {
+    }
+
+    private record PortableDirectory(int permissions) {
     }
 }

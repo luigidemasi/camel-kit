@@ -12,6 +12,7 @@ import java.util.regex.Pattern;
 
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.context.ShipContext;
+import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy;
 
 /** Compact authoritative state for one local Ship run. */
 public record ShipRun(
@@ -28,7 +29,7 @@ public record ShipRun(
         String updatedAt,
         String message) {
 
-    public static final int SCHEMA_VERSION = 1;
+    public static final int SCHEMA_VERSION = 2;
 
     private static final Pattern RUN_ID = Pattern.compile("ship-[0-9a-f]{32}");
     private static final Pattern PIPELINE_ID = Pattern.compile("[0-9]{3,}-[a-z0-9]+(?:-[a-z0-9]+)*");
@@ -108,6 +109,13 @@ public record ShipRun(
             framed.writeBytes(bytes);
         }
         return ShipDigest.sha256(framed.toByteArray());
+    }
+
+    static String executeOutputDigest(ArtifactRef root) {
+        return digestFields(List.of(
+                "camel-kit.ship.execute-output.v1",
+                root.path(),
+                root.digest()));
     }
 
     private static void requireCanonicalStages(List<StageRecord> stages) {
@@ -256,10 +264,16 @@ public record ShipRun(
         public StageRecord {
             Objects.requireNonNull(stage, "stage");
             Objects.requireNonNull(status, "stage status");
-            if (attempts < 0) {
-                throw new IllegalArgumentException("Ship stage attempts cannot be negative");
+            if (attempts < 0 || attempts == Integer.MAX_VALUE) {
+                throw new IllegalArgumentException("Ship stage attempts are out of range");
             }
             artifacts = List.copyOf(Objects.requireNonNull(artifacts, "artifacts"));
+            if (artifacts.size() > ShipTreePolicy.DEFAULT_MAX_FILE_COUNT
+                    || artifacts.stream().map(ArtifactRef::path).distinct().count()
+                       != artifacts.size()) {
+                throw new IllegalArgumentException(
+                        "Ship stage artifacts must be bounded and have distinct paths");
+            }
             if (inputDigest != null && !ShipDigest.isSha256(inputDigest)) {
                 throw new IllegalArgumentException("Ship stage input digest is invalid");
             }
@@ -330,10 +344,14 @@ public record ShipRun(
         }
 
         StageRecord withArtifacts(List<ArtifactRef> references) {
+            return withArtifacts(outputDigest, references);
+        }
+
+        StageRecord withArtifacts(String digest, List<ArtifactRef> references) {
             if (status != StageStatus.COMPLETED) {
                 throw new IllegalStateException("Only a completed Ship stage has artifacts");
             }
-            return new StageRecord(stage, status, attempts, inputDigest, outputDigest, references);
+            return new StageRecord(stage, status, attempts, inputDigest, digest, references);
         }
 
         private static void require(boolean condition) {

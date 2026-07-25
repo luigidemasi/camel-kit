@@ -195,6 +195,45 @@ class ProjectSnapshotServiceTest {
     }
 
     @Test
+    void readsOnlyBoundedVolatileFilesThroughTheHeldProjectDescriptor() throws Exception {
+        Path project = project();
+        Path generated = write(project, "target/generated.txt", "generated");
+        write(project, "requirements.md", "requirements");
+        write(project, ".camel-kit/pipeline.json", "private");
+
+        assertArrayEquals(
+                Files.readAllBytes(generated),
+                ProjectEvidenceFiles.readVolatile(project, "target/generated.txt", 1024));
+        assertCode(ShipFilesystemException.UNSAFE_ENTRY,
+                () -> ProjectEvidenceFiles.readVolatile(project, "requirements.md", 1024));
+        assertCode(ShipFilesystemException.UNSAFE_ENTRY,
+                () -> ProjectEvidenceFiles.readVolatile(
+                        project, ".camel-kit/pipeline.json", 1024));
+        assertCode(ShipFilesystemException.TREE_QUOTA_EXCEEDED,
+                () -> ProjectEvidenceFiles.readVolatile(project, "target/generated.txt", 4));
+    }
+
+    @Test
+    void volatileReadRejectsSymlinkedParentsFinalLinksAndHardLinks() throws Exception {
+        Path project = project();
+        Path target = Files.createDirectory(project.resolve("target"));
+        Path outside = Files.createDirectory(temporaryDirectory.resolve("outside"));
+        Path secret = write(outside, "secret.txt", "secret");
+        Files.createSymbolicLink(target.resolve("linked-parent"), outside);
+        Files.createSymbolicLink(target.resolve("linked.txt"), secret);
+        Files.createLink(target.resolve("hard-linked.txt"), secret);
+
+        assertCode(ShipFilesystemException.UNSAFE_ENTRY,
+                () -> ProjectEvidenceFiles.readVolatile(
+                        project, "target/linked-parent/secret.txt", 1024));
+        assertCode(ShipFilesystemException.UNSAFE_ENTRY,
+                () -> ProjectEvidenceFiles.readVolatile(project, "target/linked.txt", 1024));
+        assertCode(ShipFilesystemException.UNSAFE_ENTRY,
+                () -> ProjectEvidenceFiles.readVolatile(
+                        project, "target/hard-linked.txt", 1024));
+    }
+
+    @Test
     void rejectsSymbolicLinksAndHardLinksDuringSnapshot() throws Exception {
         Path symbolicProject = project();
         Path original = write(symbolicProject, "original.txt", "value");
@@ -313,7 +352,7 @@ class ProjectSnapshotServiceTest {
 
     @Test
     void rejectsHostileOnDiskNamesWithTypedDisplaySafeDiagnostics() throws Exception {
-        for (String hostile : List.of("line\nbreak", "back\\slash")) {
+        for (String hostile : List.of("line\nbreak", "control\u0001name", "back\\slash")) {
             Path project = project();
             Files.writeString(project.resolve(hostile), "content");
 
@@ -644,8 +683,9 @@ class ProjectSnapshotServiceTest {
         assertTrue(Modifier.isFinal(ProjectEvidenceFiles.class.getModifiers()));
         assertEquals(0, ProjectEvidenceFiles.class.getConstructors().length);
         assertEquals(
-                Set.of("capture", "captureSealed", "unchanged", "unchangedMaterialTree",
-                        "materializeMaterial", "readMaterial"),
+                Set.of("capture", "captureStaged", "captureSealed", "unchanged",
+                        "unchangedMaterialTree", "materializeMaterial", "readMaterial",
+                        "readVolatile"),
                 Arrays.stream(ProjectEvidenceFiles.class.getDeclaredMethods())
                         .filter(method -> Modifier.isPublic(method.getModifiers()))
                         .map(method -> method.getName())

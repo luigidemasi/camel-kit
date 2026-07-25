@@ -9,6 +9,7 @@ import java.nio.channels.OverlappingFileLockException;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
@@ -17,11 +18,17 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Objects;
 import java.util.Set;
 
+import io.github.luigidemasi.camelkit.ship.controller.ShipRun.ArtifactRef;
+import io.github.luigidemasi.camelkit.ship.controller.ShipRun.Stage;
+import io.github.luigidemasi.camelkit.ship.controller.ShipRun.StageRecord;
+import io.github.luigidemasi.camelkit.ship.controller.ShipRun.StageStatus;
+
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.StreamReadFeature;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /** Atomic local persistence and exclusive mutation leases for Ship runs. */
@@ -36,7 +43,11 @@ final class ShipRunStore {
                     .build())
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
             .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-            .enable(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES);
+            .enable(DeserializationFeature.FAIL_ON_MISSING_CREATOR_PROPERTIES)
+            .enable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
+            .enable(DeserializationFeature.FAIL_ON_NUMBERS_FOR_ENUMS)
+            .disable(DeserializationFeature.ACCEPT_FLOAT_AS_INT)
+            .disable(MapperFeature.ALLOW_COERCION_OF_SCALARS);
 
     private final Path stateRoot;
     private final boolean posix;
@@ -49,7 +60,10 @@ final class ShipRunStore {
     void create(ShipRun initial) throws IOException {
         requireCurrent(initial);
         Path runRoot = runRoot(initial.id());
+        requireDisjoint(runRoot, initial, "state-project-overlap");
+        requireLinkFreeStateRoot("state-root-invalid");
         Files.createDirectories(stateRoot, directoryAttributes());
+        requireLinkFreeStateRoot("state-root-invalid");
         try {
             Files.createDirectory(runRoot, directoryAttributes());
         } catch (FileAlreadyExistsException e) {
@@ -125,6 +139,8 @@ final class ShipRunStore {
                     "state-corrupt",
                     "Ship run state ID " + run.id() + " does not match its directory " + runId);
         }
+        requireDisjoint(runRoot, run, "state-corrupt");
+        requireWorkspaceEvidence(runRoot, run, "state-corrupt");
         return run;
     }
 
@@ -155,6 +171,14 @@ final class ShipRunStore {
 
     private void write(Path runRoot, ShipRun run) throws IOException {
         requireCurrent(run);
+        requireLinkFreeStateRoot("state-invalid");
+        if (Files.isSymbolicLink(runRoot)
+                || !Files.isDirectory(runRoot, LinkOption.NOFOLLOW_LINKS)) {
+            throw new StoreException(
+                    "state-invalid", "Ship run path is not a real directory: " + runRoot);
+        }
+        requireDisjoint(runRoot, run, "state-invalid");
+        requireWorkspaceEvidence(runRoot, run, "state-invalid");
         byte[] encoded;
         try {
             encoded = JSON.writerWithDefaultPrettyPrinter().writeValueAsBytes(run);
@@ -208,16 +232,140 @@ final class ShipRunStore {
         runRoot(run.id());
     }
 
+    private static void requireWorkspaceEvidence(
+            Path runRoot, ShipRun run, String code)
+            throws StoreException {
+        requireImportedEvidence(run, code);
+        StageRecord execute = run.stage(Stage.EXECUTE);
+        if (execute.status() != StageStatus.COMPLETED) {
+            return;
+        }
+        if (execute.attempts() == 0) {
+            return;
+        }
+        Path expected = runRoot.resolve("workspace/candidate").toAbsolutePath().normalize();
+        ArtifactRef root = null;
+        for (ArtifactRef artifact : execute.artifacts()) {
+            Path path = Path.of(artifact.path());
+            if (!path.startsWith(expected)) {
+                throw invalidWorkspaceEvidence(run, code);
+            }
+            if (path.equals(expected)) {
+                if (root != null) {
+                    throw invalidWorkspaceEvidence(run, code);
+                }
+                root = artifact;
+            }
+        }
+        if (root == null
+                || !ShipRun.executeOutputDigest(root).equals(execute.outputDigest())) {
+            throw invalidWorkspaceEvidence(run, code);
+        }
+    }
+
+    private static void requireImportedEvidence(ShipRun run, String code)
+            throws StoreException {
+        boolean attemptedStageCompleted = false;
+        Path project = Path.of(run.projectDirectory());
+        Path documents = run.pipelineId() == null
+                ? null
+                : project.resolve("docs/camel-kit").resolve(run.pipelineId());
+        for (StageRecord record : run.stages()) {
+            if (record.status() != StageStatus.COMPLETED) {
+                continue;
+            }
+            if (record.attempts() > 0) {
+                attemptedStageCompleted = true;
+                continue;
+            }
+            if (attemptedStageCompleted
+                    || !record.inputDigest().equals(
+                            ShipRun.inputDigest(run.context(), run.stages(), record.stage()))) {
+                throw invalidImportedEvidence(run, code);
+            }
+            boolean canonical = switch (record.stage()) {
+                case DISCOVERY -> record.artifacts().isEmpty()
+                        && record.outputDigest().equals(run.context().digest());
+                case DESIGN -> documents != null
+                        && isImportedFile(record, documents.resolve("design-spec.md"));
+                case PLAN -> documents != null
+                        && isImportedFile(record, documents.resolve("implementation-plan.md"));
+                case EXECUTE -> documents != null
+                        && isImportedExecute(run, record, documents);
+                case VALIDATE -> false;
+            };
+            if (!canonical) {
+                throw invalidImportedEvidence(run, code);
+            }
+        }
+    }
+
+    private static boolean isImportedExecute(
+            ShipRun run, StageRecord execute, Path documents) {
+        if (execute.artifacts().size() != 2) {
+            return false;
+        }
+        ArtifactRef report = execute.artifacts().get(0);
+        ArtifactRef snapshot = execute.artifacts().get(1);
+        Path expectedReport = documents.resolve("execution-report.md");
+        return report.path().equals(expectedReport.toString())
+                && snapshot.path().equals(run.projectDirectory())
+                && execute.outputDigest().equals(report.digest());
+    }
+
+    private static boolean isImportedFile(StageRecord stage, Path expected) {
+        return stage.artifacts().size() == 1
+                && stage.artifacts().get(0).path().equals(expected.toString())
+                && stage.outputDigest().equals(stage.artifacts().get(0).digest());
+    }
+
+    private static StoreException invalidWorkspaceEvidence(ShipRun run, String code) {
+        return new StoreException(
+                code,
+                "Completed Ship EXECUTE evidence is invalid for run " + run.id());
+    }
+
+    private static StoreException invalidImportedEvidence(ShipRun run, String code) {
+        return new StoreException(
+                code,
+                "Imported Ship stage evidence is invalid for run " + run.id());
+    }
+
     private Path existingRunRoot(String runId) throws StoreException {
+        requireLinkFreeStateRoot("state-corrupt");
         Path runRoot = runRoot(runId);
-        if (!Files.exists(runRoot)) {
+        if (!Files.exists(runRoot, LinkOption.NOFOLLOW_LINKS)) {
             throw new StoreException("run-not-found", "Ship run was not found: " + runId);
         }
-        if (!Files.isDirectory(runRoot)) {
+        if (Files.isSymbolicLink(runRoot)
+                || !Files.isDirectory(runRoot, LinkOption.NOFOLLOW_LINKS)) {
             throw new StoreException(
-                    "state-corrupt", "Ship run path is not a directory: " + runRoot);
+                    "state-corrupt", "Ship run path is not a real directory: " + runRoot);
         }
         return runRoot;
+    }
+
+    private static void requireDisjoint(
+            Path runRoot, ShipRun run, String code)
+            throws StoreException {
+        Path project = Path.of(run.projectDirectory());
+        if (runRoot.startsWith(project) || project.startsWith(runRoot)) {
+            throw new StoreException(
+                    code,
+                    "Ship run state and project directories must be disjoint");
+        }
+    }
+
+    private void requireLinkFreeStateRoot(String code) throws StoreException {
+        Path current = stateRoot.getRoot();
+        for (Path component : stateRoot) {
+            current = current == null ? component : current.resolve(component);
+            if (Files.isSymbolicLink(current)) {
+                throw new StoreException(
+                        code,
+                        "Ship state root must not cross a symbolic link");
+            }
+        }
     }
 
     private Path runRoot(String runId) throws StoreException {
@@ -298,6 +446,11 @@ final class ShipRunStore {
                         "Cannot write Ship run " + next.id() + " while " + runId + " is locked");
             }
             ShipRunStore.this.write(runRoot, next);
+        }
+
+        Path directory() throws StoreException {
+            requireOpen();
+            return runRoot;
         }
 
         @Override
