@@ -70,6 +70,11 @@ class LocalCommandRunnerTest {
                             'cookie-secret' 'compact-cookie-secret' 'carrier-auth-secret'
                           exit 0
                         fi
+                        if [ "$mode" = "known-secret" ]; then
+                          printf '%s\\n' "$@"
+                          printf '%s\\n' "$@" >&2
+                          exit 0
+                        fi
                         if [ "$mode" = "nonzero" ]; then
                           printf '%s\\n' 'failed'
                           exit 7
@@ -146,6 +151,9 @@ class LocalCommandRunnerTest {
         assertFalse(retainedStderr.contains("dXNlcjpwYXNz"));
         assertFalse(retainedStderr.contains("quoted-value"));
         assertFalse(retainedStderr.contains("log-access-key"));
+        assertFalse(retainedStderr.contains("log-private-key"));
+        assertFalse(retainedStderr.contains("log-jwt"));
+        assertFalse(retainedStderr.contains("log-pat"));
         assertEquals(
                 List.of("echo", "--token", "<redacted>"),
                 result.redactedArguments());
@@ -286,6 +294,42 @@ class LocalCommandRunnerTest {
 
         ShipLocalStamp.CommandRun evidence = stampCommand(result);
         assertEquals(result.redactedArguments(), evidence.redactedArguments());
+    }
+
+    @Test
+    void redactsCallerKnownSecretsWithoutGuessingOverloadedFlags() throws Exception {
+        String secret = "hunter2";
+        Command command = new Command(
+                executable,
+                List.of("known-secret", "-p", secret),
+                workingDirectory,
+                evidenceDirectory,
+                Duration.ofSeconds(5),
+                4096,
+                List.of(secret));
+
+        LocalCommandRunner.Result result = new LocalCommandRunner().run(command);
+        ShipLocalStamp.CommandRun evidence = stampCommand(result);
+
+        assertEquals(
+                List.of("known-secret", "-p", "<redacted>"),
+                result.redactedArguments());
+        assertFalse(Files.readString(result.stdoutLog()).contains(secret));
+        assertFalse(Files.readString(result.stderrLog()).contains(secret));
+        assertFalse(result.toString().contains(secret));
+        assertFalse(evidence.toString().contains(secret));
+    }
+
+    @Test
+    void filtersOnlyBooleanFeatureToggleEnvironmentValues() {
+        assertFalse(LocalCommandRunner.isSensitiveEnvironmentValue(
+                "AUTH_ENABLED", "true"));
+        assertFalse(LocalCommandRunner.isSensitiveEnvironmentValue(
+                "USE_JWT", "1"));
+        assertFalse(LocalCommandRunner.isSensitiveEnvironmentValue(
+                "ENABLE_COOKIE", "false"));
+        assertTrue(LocalCommandRunner.isSensitiveEnvironmentValue("PASS", "xy"));
+        assertTrue(LocalCommandRunner.isSensitiveEnvironmentValue("TOKEN", "1"));
     }
 
     @Test
@@ -464,25 +508,34 @@ class LocalCommandRunnerTest {
     }
 
     @Test
-    void rejectsWorkingDirectoryThroughAncestorSymlink() throws Exception {
+    void acceptsAncestorSymlinksButRejectsALeafDirectorySymlink() throws Exception {
         Path realParent = Files.createDirectory(temporaryDirectory.resolve("real-parent"));
         Path realWorking = Files.createDirectory(realParent.resolve("working"));
-        Path alias = temporaryDirectory.resolve("alias-parent");
-        Files.createSymbolicLink(alias, realParent.getFileName());
-        Command command = new Command(
+        Path parentAlias = temporaryDirectory.resolve("alias-parent");
+        Files.createSymbolicLink(parentAlias, realParent.getFileName());
+
+        LocalCommandRunner.Result result = new LocalCommandRunner().run(new Command(
                 executable,
                 List.of("echo"),
-                alias.resolve(realWorking.getFileName()),
+                parentAlias.resolve(realWorking.getFileName()),
                 evidenceDirectory,
                 Duration.ofSeconds(5),
-                4096);
+                4096));
 
+        assertEquals(realWorking, result.workingDirectory());
+        Path leafAlias = temporaryDirectory.resolve("working-link");
+        Files.createSymbolicLink(leafAlias, realWorking);
         IOException failure = assertThrows(
                 IOException.class,
-                () -> new LocalCommandRunner().run(command));
+                () -> new LocalCommandRunner().run(new Command(
+                        executable,
+                        List.of("echo"),
+                        leafAlias,
+                        evidenceDirectory,
+                        Duration.ofSeconds(5),
+                        4096)));
 
-        assertTrue(failure.getMessage().contains("symbolic link"));
-        assertFalse(Files.exists(fixture.resolve("input")));
+        assertTrue(failure.getMessage().contains("real directory"));
     }
 
     private void assertOverlapRejected(Path working, Path evidence) {

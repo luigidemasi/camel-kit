@@ -1,5 +1,6 @@
 package io.github.luigidemasi.camelkit.ship.security;
 
+import java.io.IOException;
 import java.lang.reflect.Modifier;
 import java.net.StandardProtocolFamily;
 import java.net.URI;
@@ -250,14 +251,52 @@ class ProjectSnapshotServiceTest {
     }
 
     @Test
-    void rejectsSymbolicRootComponents() throws Exception {
+    void acceptsSymbolicAncestorsButRejectsASymbolicRootLeaf() throws Exception {
         Path realParent = Files.createDirectory(temporaryDirectory.resolve("real-parent"));
         Path project = Files.createDirectory(realParent.resolve("project"));
-        Path alias = temporaryDirectory.resolve("parent-alias");
-        Files.createSymbolicLink(alias, realParent);
+        Path parentAlias = temporaryDirectory.resolve("parent-alias");
+        Files.createSymbolicLink(parentAlias, realParent);
+        Path rootAlias = temporaryDirectory.resolve("project-alias");
+        Files.createSymbolicLink(rootAlias, project);
+        Path deniedParent = Files.createDirectory(temporaryDirectory.resolve(".git"));
+        Path deniedAlias = deniedParent.resolve("parent-alias");
+        Files.createSymbolicLink(deniedAlias, realParent);
+        Path canonicalDeniedParent = Files.createDirectories(temporaryDirectory.resolve("canonical-denied/.git"));
+        Files.createDirectory(canonicalDeniedParent.resolve("project"));
+        Path allowedAlias = temporaryDirectory.resolve("allowed-alias");
+        Files.createSymbolicLink(allowedAlias, canonicalDeniedParent);
 
+        assertEquals(
+                project.toRealPath().toString(),
+                new ProjectSnapshotService().capture(parentAlias.resolve("project")).root());
         assertCode(ShipFilesystemException.UNSAFE_ENTRY,
-                () -> new ProjectSnapshotService().capture(alias.resolve("project")));
+                () -> new ProjectSnapshotService().capture(rootAlias));
+        assertCode(ShipFilesystemException.UNSAFE_ENTRY,
+                () -> new ProjectSnapshotService().capture(deniedAlias.resolve("project")));
+        assertCode(ShipFilesystemException.UNSAFE_ENTRY,
+                () -> new ProjectSnapshotService().capture(allowedAlias.resolve("project")));
+    }
+
+    @Test
+    void materializationAcceptsATargetUnderASymbolicAncestorButRejectsALeafAlias()
+            throws Exception {
+        Path source = project();
+        write(source, "README.md", "material");
+        Path realParent = Files.createDirectory(temporaryDirectory.resolve("real-output-parent"));
+        Path target = Files.createDirectory(realParent.resolve("candidate"));
+        Path parentAlias = temporaryDirectory.resolve("output-parent-alias");
+        Files.createSymbolicLink(parentAlias, realParent);
+        ProjectSnapshotService service = new ProjectSnapshotService();
+
+        ProjectSnapshot materialized = service.materializeMaterial(source, parentAlias.resolve("candidate"));
+
+        assertEquals(target.toRealPath().toString(), materialized.root());
+        assertEquals("material", Files.readString(target.resolve("README.md")));
+
+        Path otherTarget = Files.createDirectory(realParent.resolve("other-candidate"));
+        Path targetAlias = temporaryDirectory.resolve("candidate-alias");
+        Files.createSymbolicLink(targetAlias, otherTarget);
+        assertThrows(IOException.class, () -> service.materializeMaterial(source, targetAlias));
     }
 
     @Test

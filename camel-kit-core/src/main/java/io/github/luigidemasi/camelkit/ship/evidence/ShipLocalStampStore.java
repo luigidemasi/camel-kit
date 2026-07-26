@@ -174,11 +174,7 @@ public final class ShipLocalStampStore {
                 || !Files.isDirectory(normalized, LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException("Local Stamp directory must be a real directory");
         }
-        Path real = normalized.toRealPath();
-        if (!real.equals(normalized)) {
-            throw new IOException("Local Stamp directory must not cross a symbolic link");
-        }
-        return real;
+        return normalized.toRealPath();
     }
 
     private static UserPrincipal requirePrivateDirectory(Path directory)
@@ -259,15 +255,14 @@ public final class ShipLocalStampStore {
             throws IOException {
         Path log = Path.of(supplied).toAbsolutePath().normalize();
         String name = String.valueOf(log.getFileName());
-        if (!log.startsWith(evidenceDirectory)
-                || STAMP_FILE.equals(name)
+        if (STAMP_FILE.equals(name)
                 || name.startsWith(".stamp-")
                 || Files.isSymbolicLink(log)
                 || !Files.isRegularFile(log, LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException("Local Stamp command log is outside its evidence directory: " + log);
         }
         Path real = log.toRealPath();
-        if (!real.startsWith(evidenceDirectory) || !real.equals(log)) {
+        if (!real.startsWith(evidenceDirectory)) {
             throw new IOException("Local Stamp command log escaped its evidence directory: " + log);
         }
         BasicFileAttributes attributes = requirePrivateFile(

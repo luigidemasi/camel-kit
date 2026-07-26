@@ -125,7 +125,6 @@ public final class ShipWorkspace {
             writeBinding(
                     temporary.resolve(BINDING),
                     new Binding(1, project.toString(), runId, attempt, inputDigest, baseline));
-            makeBindingReadOnly(temporary);
             publish(temporary, workspace, staleWorkspace);
         } catch (IOException | RuntimeException preparationFailure) {
             try {
@@ -154,9 +153,7 @@ public final class ShipWorkspace {
         Path workspace = candidate.getParent();
         if (workspace == null
                 || !CANDIDATE.equals(String.valueOf(candidate.getFileName()))
-                || !WORKSPACE.equals(String.valueOf(workspace.getFileName()))
-                || Files.isSymbolicLink(workspace)
-                || !workspace.toRealPath(LinkOption.NOFOLLOW_LINKS).equals(workspace)) {
+                || !WORKSPACE.equals(String.valueOf(workspace.getFileName()))) {
             throw new IOException("Ship workspace candidate is not in a published workspace");
         }
         Binding binding = readBinding(workspace.resolve(BINDING));
@@ -189,11 +186,7 @@ public final class ShipWorkspace {
                 || !Files.isDirectory(normalized, LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException("Ship project must be a real directory");
         }
-        Path real = normalized.toRealPath();
-        if (!real.equals(normalized)) {
-            throw new IOException("Ship project must not cross a symbolic link");
-        }
-        return real;
+        return normalized.toRealPath();
     }
 
     private static Path realDirectory(Path supplied, String label) throws IOException {
@@ -205,11 +198,7 @@ public final class ShipWorkspace {
                 || !Files.isDirectory(normalized, LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException(label + " must be a real directory");
         }
-        Path real = normalized.toRealPath();
-        if (!real.equals(normalized)) {
-            throw new IOException(label + " must not cross a symbolic link");
-        }
-        return real;
+        return normalized.toRealPath();
     }
 
     private static void requireBindingFields(
@@ -406,20 +395,12 @@ public final class ShipWorkspace {
             Files.setPosixFilePermissions(
                     published, PosixFilePermissions.fromString("rwx------"));
         }
-        try {
-            deleteTree(published.resolve(BINDING_TEMPORARY));
-        } finally {
-            sealWorkspaceDirectory(published);
-        }
+        deleteTree(published.resolve(BINDING_TEMPORARY));
     }
 
     private static void advanceAttempt(Path workspace, Binding binding, int attempt)
             throws IOException {
         Path temporary = workspace.resolve(BINDING_TEMPORARY);
-        if (workspace.getFileSystem().supportedFileAttributeViews().contains("posix")) {
-            Files.setPosixFilePermissions(
-                    workspace, PosixFilePermissions.fromString("rwx------"));
-        }
         try {
             deleteTree(temporary);
             writeBinding(
@@ -431,20 +412,13 @@ public final class ShipWorkspace {
                             attempt,
                             binding.inputDigest(),
                             binding.baselineDigest()));
-            if (workspace.getFileSystem().supportedFileAttributeViews().contains("posix")) {
-                makeBindingFileReadOnly(temporary);
-            }
             Files.move(
                     temporary,
                     workspace.resolve(BINDING),
                     StandardCopyOption.ATOMIC_MOVE,
                     StandardCopyOption.REPLACE_EXISTING);
         } finally {
-            try {
-                deleteTree(temporary);
-            } finally {
-                sealWorkspaceDirectory(workspace);
-            }
+            deleteTree(temporary);
         }
     }
 
@@ -461,25 +435,6 @@ public final class ShipWorkspace {
                 channel.write(content);
             }
             channel.force(true);
-        }
-    }
-
-    private static void makeBindingReadOnly(Path workspace) throws IOException {
-        if (workspace.getFileSystem().supportedFileAttributeViews().contains("posix")) {
-            makeBindingFileReadOnly(workspace.resolve(BINDING));
-            sealWorkspaceDirectory(workspace);
-        }
-    }
-
-    private static void makeBindingFileReadOnly(Path binding) throws IOException {
-        Files.setPosixFilePermissions(
-                binding, PosixFilePermissions.fromString("r--------"));
-    }
-
-    private static void sealWorkspaceDirectory(Path workspace) throws IOException {
-        if (workspace.getFileSystem().supportedFileAttributeViews().contains("posix")) {
-            Files.setPosixFilePermissions(
-                    workspace, PosixFilePermissions.fromString("r-x------"));
         }
     }
 

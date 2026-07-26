@@ -459,9 +459,9 @@ class PiWorkerTest {
     void rejectsSensitiveEnvironmentValuesInAssistantAndToolResults()
             throws Exception {
         List<String> names = List.of(
-                "OPENAI_API_KEY", "AUTH", "JWT", "PASS");
+                "OPENAI_API_KEY", "AUTH", "JWT", "PASS", "TOKEN");
         List<String> values = List.of(
-                "fixture-secret-123", "auth-value", "jwt-value", "xy");
+                "fixture-secret-123", "auth-value", "jwt-value", "xy", "1");
         ShipRun.Stage[] stages = ShipRun.Stage.values();
         for (int index = 0; index < names.size(); index++) {
             String secret = values.get(index);
@@ -497,6 +497,20 @@ class PiWorkerTest {
                 .run(request(ShipRun.Stage.VALIDATE, "pwd"));
         assertEquals(PiWorker.Outcome.SUCCEEDED, allowed.outcome());
         assertEquals(cwd, allowed.assistantText());
+    }
+
+    @Test
+    void ignoresBooleanValuesOnlyForFeatureToggleEnvironmentNames()
+            throws Exception {
+        PiWorker.Result result = worker(
+                Duration.ofSeconds(5),
+                Map.of(
+                        "AUTH_ENABLED", "true",
+                        "USE_JWT", "1",
+                        "ENABLE_COOKIE", "false"))
+                .run(request(ShipRun.Stage.DISCOVERY, "prompt"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
     }
 
     @Test
@@ -731,7 +745,8 @@ class PiWorkerTest {
     }
 
     @Test
-    void rejectsAliasedOrOverlappingRuntimeDirectories() throws Exception {
+    void acceptsAncestorSymlinksButRejectsLeafAndOverlappingRuntimeDirectories()
+            throws Exception {
         Path realParent = Files.createDirectory(temporaryDirectory.resolve("real-parent"));
         Path realWorking = Files.createDirectory(realParent.resolve("working"));
         Path aliasParent = temporaryDirectory.resolve("alias-parent");
@@ -741,6 +756,24 @@ class PiWorkerTest {
                 ShipRun.Stage.DISCOVERY,
                 1,
                 aliasParent.resolve(realWorking.getFileName()),
+                sessions,
+                evidence,
+                inputDigest(),
+                true,
+                "prompt");
+        PiWorker.Result aliasedResult = worker(Duration.ofSeconds(5)).run(aliased);
+        assertEquals(PiWorker.Outcome.SUCCEEDED, aliasedResult.outcome());
+        assertEquals(
+                realWorking.toString(),
+                aliasedResult.evidence().workingDirectory());
+
+        Path leafAlias = temporaryDirectory.resolve("working-link");
+        Files.createSymbolicLink(leafAlias, realWorking);
+        PiWorker.Request leaf = new PiWorker.Request(
+                RUN_ID,
+                ShipRun.Stage.DESIGN,
+                1,
+                leafAlias,
                 sessions,
                 evidence,
                 inputDigest(),
@@ -768,9 +801,9 @@ class PiWorkerTest {
                 true,
                 "prompt");
 
-        IOException aliasFailure = assertThrows(
+        IOException leafFailure = assertThrows(
                 IOException.class,
-                () -> worker(Duration.ofSeconds(5)).run(aliased));
+                () -> worker(Duration.ofSeconds(5)).run(leaf));
         IOException workingFailure = assertThrows(
                 IOException.class,
                 () -> worker(Duration.ofSeconds(5)).run(overlapsWorking));
@@ -778,10 +811,9 @@ class PiWorkerTest {
                 IOException.class,
                 () -> worker(Duration.ofSeconds(5)).run(sharedStateDirectory));
 
-        assertTrue(aliasFailure.getMessage().contains("symbolic link"));
+        assertTrue(leafFailure.getMessage().contains("real directory"));
         assertTrue(workingFailure.getMessage().contains("disjoint"));
         assertTrue(stateFailure.getMessage().contains("disjoint"));
-        assertFalse(Files.exists(fixture.resolve("args")));
     }
 
     @Test
@@ -795,18 +827,44 @@ class PiWorkerTest {
                         .run(request(ShipRun.Stage.DISCOVERY, "prompt")));
 
         assertTrue(permissions.getMessage().contains("0700"));
-        Files.setPosixFilePermissions(
-                sessions, PosixFilePermissions.fromString("rwx------"));
-        Files.createSymbolicLink(
-                sessions.resolve("unsafe-entry"), fixture.resolve("version"));
+        assertFalse(Files.exists(fixture.resolve("args")));
+    }
 
-        IOException entry = assertThrows(
+    @Test
+    void ignoresUnrelatedSessionEntriesButRejectsUnsafeMatchingLeaves()
+            throws Exception {
+        Files.createSymbolicLink(
+                sessions.resolve("unrelated-entry"), fixture.resolve("version"));
+
+        PiWorker.Result result = worker(Duration.ofSeconds(5))
+                .run(request(ShipRun.Stage.DISCOVERY, "prompt"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
+        ShipRun.Stage symlinkStage = ShipRun.Stage.DESIGN;
+        Path matchingSymlink = sessions.resolve(
+                "evil_" + sessionId(symlinkStage) + ".jsonl");
+        Files.createSymbolicLink(matchingSymlink, fixture.resolve("version"));
+
+        IOException symlink = assertThrows(
                 IOException.class,
                 () -> worker(Duration.ofSeconds(5))
-                        .run(request(ShipRun.Stage.DISCOVERY, "prompt")));
+                        .run(request(symlinkStage, "prompt")));
 
-        assertTrue(entry.getMessage().contains("unsafe entry"));
-        assertFalse(Files.exists(fixture.resolve("args")));
+        assertTrue(symlink.getMessage().contains("symbolic link"));
+        Files.delete(matchingSymlink);
+        ShipRun.Stage permissionsStage = ShipRun.Stage.PLAN;
+        Path matchingFile = sessions.resolve(
+                "evil_" + sessionId(permissionsStage) + ".jsonl");
+        Files.writeString(matchingFile, "{}\n");
+        Files.setPosixFilePermissions(
+                matchingFile, PosixFilePermissions.fromString("rw-r--r--"));
+
+        IOException permissions = assertThrows(
+                IOException.class,
+                () -> worker(Duration.ofSeconds(5))
+                        .run(request(permissionsStage, "prompt")));
+
+        assertTrue(permissions.getMessage().contains("0600"));
     }
 
     @Test

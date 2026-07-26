@@ -59,11 +59,13 @@ final class ShipRunStore {
 
     void create(ShipRun initial) throws IOException {
         requireCurrent(initial);
-        Path runRoot = runRoot(initial.id());
+        Path root = resolvedStateRoot("state-root-invalid");
+        Path runRoot = runRoot(root, initial.id());
         requireDisjoint(runRoot, initial, "state-project-overlap");
-        requireLinkFreeStateRoot("state-root-invalid");
-        Files.createDirectories(stateRoot, directoryAttributes());
-        requireLinkFreeStateRoot("state-root-invalid");
+        Files.createDirectories(root, directoryAttributes());
+        root = resolvedStateRoot("state-root-invalid");
+        runRoot = runRoot(root, initial.id());
+        requireDisjoint(runRoot, initial, "state-project-overlap");
         try {
             Files.createDirectory(runRoot, directoryAttributes());
         } catch (FileAlreadyExistsException e) {
@@ -171,7 +173,6 @@ final class ShipRunStore {
 
     private void write(Path runRoot, ShipRun run) throws IOException {
         requireCurrent(run);
-        requireLinkFreeStateRoot("state-invalid");
         if (Files.isSymbolicLink(runRoot)
                 || !Files.isDirectory(runRoot, LinkOption.NOFOLLOW_LINKS)) {
             throw new StoreException(
@@ -229,7 +230,7 @@ final class ShipRunStore {
         if (run == null) {
             throw new StoreException("state-invalid", "Ship run state is required");
         }
-        runRoot(run.id());
+        runRoot(stateRoot, run.id());
     }
 
     private static void requireWorkspaceEvidence(
@@ -332,8 +333,7 @@ final class ShipRunStore {
     }
 
     private Path existingRunRoot(String runId) throws StoreException {
-        requireLinkFreeStateRoot("state-corrupt");
-        Path runRoot = runRoot(runId);
+        Path runRoot = runRoot(resolvedStateRoot("state-corrupt"), runId);
         if (!Files.exists(runRoot, LinkOption.NOFOLLOW_LINKS)) {
             throw new StoreException("run-not-found", "Ship run was not found: " + runId);
         }
@@ -348,32 +348,56 @@ final class ShipRunStore {
     private static void requireDisjoint(
             Path runRoot, ShipRun run, String code)
             throws StoreException {
-        Path project = Path.of(run.projectDirectory());
-        if (runRoot.startsWith(project) || project.startsWith(runRoot)) {
+        final Path canonicalRunRoot;
+        final Path project;
+        try {
+            canonicalRunRoot = canonicalize(runRoot);
+            project = canonicalize(Path.of(run.projectDirectory()));
+        } catch (IOException | RuntimeException e) {
+            throw new StoreException(
+                    code,
+                    "Ship run state and project directories could not be resolved",
+                    e);
+        }
+        if (canonicalRunRoot.startsWith(project) || project.startsWith(canonicalRunRoot)) {
             throw new StoreException(
                     code,
                     "Ship run state and project directories must be disjoint");
         }
     }
 
-    private void requireLinkFreeStateRoot(String code) throws StoreException {
-        Path current = stateRoot.getRoot();
-        for (Path component : stateRoot) {
-            current = current == null ? component : current.resolve(component);
-            if (Files.isSymbolicLink(current)) {
-                throw new StoreException(
-                        code,
-                        "Ship state root must not cross a symbolic link");
-            }
+    private Path resolvedStateRoot(String code) throws StoreException {
+        final Path resolved;
+        try {
+            resolved = canonicalize(stateRoot);
+        } catch (IOException | SecurityException e) {
+            throw new StoreException(code, "Ship state root could not be resolved", e);
         }
+        if (Files.exists(resolved, LinkOption.NOFOLLOW_LINKS)
+                && !Files.isDirectory(resolved, LinkOption.NOFOLLOW_LINKS)) {
+            throw new StoreException(
+                    code,
+                    "Ship state root must be a real directory");
+        }
+        return resolved;
     }
 
-    private Path runRoot(String runId) throws StoreException {
+    private static Path canonicalize(Path path) throws IOException {
+        if (Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
+            return path.toRealPath();
+        }
+        Path parent = path.getParent();
+        return parent == null
+                ? path.toRealPath()
+                : canonicalize(parent).resolve(path.getFileName()).normalize();
+    }
+
+    private static Path runRoot(Path root, String runId) throws StoreException {
         if (runId == null || !ShipRun.isRunId(runId)) {
             throw new StoreException("run-id-invalid", "Invalid Ship run ID: " + runId);
         }
-        Path runRoot = stateRoot.resolve(runId).normalize();
-        if (!stateRoot.equals(runRoot.getParent())) {
+        Path runRoot = root.resolve(runId).normalize();
+        if (!root.equals(runRoot.getParent())) {
             throw new StoreException("run-id-invalid", "Invalid Ship run ID: " + runId);
         }
         return runRoot;

@@ -2,7 +2,6 @@ package io.github.luigidemasi.camelkit.ship.worker;
 
 import java.io.IOException;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 
@@ -11,7 +10,6 @@ import io.github.luigidemasi.camelkit.ship.security.ProjectEvidenceFiles;
 import io.github.luigidemasi.camelkit.ship.security.ProjectSnapshot;
 import io.github.luigidemasi.camelkit.ship.security.ShipFilesystemException;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
@@ -30,21 +28,6 @@ class ShipWorkspaceTest {
 
     @TempDir
     Path temporaryDirectory;
-
-    @AfterEach
-    void makePublishedWorkspacesRemovable() throws Exception {
-        try (var paths = Files.walk(temporaryDirectory)) {
-            for (Path path : paths.filter(item -> {
-                String name = String.valueOf(item.getFileName());
-                return "workspace".equals(name) || name.startsWith(".workspace-");
-            })
-                    .toList()) {
-                if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
-                    Files.setPosixFilePermissions(path, PosixFilePermissions.fromString("rwx------"));
-                }
-            }
-        }
-    }
 
     @Test
     void materializesTheExactMaterialTreeWithoutChangingTheLiveProject() throws Exception {
@@ -69,8 +52,11 @@ class ShipWorkspaceTest {
                 PosixFilePermissions.fromString("rwx------"),
                 Files.getPosixFilePermissions(candidate));
         assertEquals(
-                PosixFilePermissions.fromString("r-x------"),
+                PosixFilePermissions.fromString("rwx------"),
                 Files.getPosixFilePermissions(run.resolve("workspace")));
+        assertEquals(
+                PosixFilePermissions.fromString("rw-------"),
+                Files.getPosixFilePermissions(run.resolve("workspace/workspace.json")));
     }
 
     @Test
@@ -135,6 +121,26 @@ class ShipWorkspaceTest {
     }
 
     @Test
+    void upgradesASealedWorkspaceBeforeAdvancingItsAttempt() throws Exception {
+        Path project = directory("project");
+        write(project, "README.md", "baseline");
+        Path run = directory("run");
+        Path candidate = ShipWorkspace.prepare(project, run, RUN_ID, 1, INPUT_DIGEST);
+        Path workspace = candidate.getParent();
+        Path binding = workspace.resolve("workspace.json");
+        Files.setPosixFilePermissions(binding, PosixFilePermissions.fromString("r--------"));
+        Files.setPosixFilePermissions(workspace, PosixFilePermissions.fromString("r-x------"));
+
+        assertEquals(candidate, ShipWorkspace.prepare(project, run, RUN_ID, 2, INPUT_DIGEST));
+        assertEquals(
+                PosixFilePermissions.fromString("rwx------"),
+                Files.getPosixFilePermissions(workspace));
+        assertEquals(
+                PosixFilePermissions.fromString("rw-------"),
+                Files.getPosixFilePermissions(binding));
+    }
+
+    @Test
     void recoversTheDisplacedWorkspaceAfterInterruptedPublication() throws Exception {
         Path project = directory("project");
         write(project, "README.md", "baseline");
@@ -170,14 +176,10 @@ class ShipWorkspaceTest {
         Path sourceRun = directory("source-run");
         Path currentCandidate = ShipWorkspace.prepare(project, sourceRun, RUN_ID, 2, INPUT_DIGEST);
         Files.writeString(currentCandidate.resolve("README.md"), "current edit");
-        Files.setPosixFilePermissions(
-                sourceRun.resolve("workspace"), PosixFilePermissions.fromString("rwx------"));
         Files.move(
                 sourceRun.resolve("workspace"),
                 run.resolve("workspace"),
                 java.nio.file.StandardCopyOption.ATOMIC_MOVE);
-        Files.setPosixFilePermissions(
-                run.resolve("workspace"), PosixFilePermissions.fromString("r-x------"));
 
         Path recovered = ShipWorkspace.prepare(project, run, RUN_ID, 2, INPUT_DIGEST);
 
@@ -447,24 +449,36 @@ class ShipWorkspaceTest {
     }
 
     @Test
-    void rejectsSymbolicProjectRootsAndAncestors() throws Exception {
+    void rejectsSymbolicRootLeavesButAcceptsBenignAncestorAliases() throws Exception {
         Path realParent = directory("real-parent");
         Path project = Files.createDirectory(realParent.resolve("project"));
         Path rootLink = temporaryDirectory.resolve("project-link");
         Files.createSymbolicLink(rootLink, project);
         Path parentLink = temporaryDirectory.resolve("parent-link");
         Files.createSymbolicLink(parentLink, realParent);
+        Path realRunParent = directory("real-run-parent");
+        Path run = Files.createDirectory(realRunParent.resolve("run"));
+        Path runParentLink = temporaryDirectory.resolve("run-parent-link");
+        Files.createSymbolicLink(runParentLink, realRunParent);
 
         assertThrows(IOException.class,
                 () -> ShipWorkspace.prepare(
                         rootLink, directory("root-link-run"), RUN_ID, 1, INPUT_DIGEST));
-        assertThrows(IOException.class,
-                () -> ShipWorkspace.prepare(
-                        parentLink.resolve("project"),
-                        directory("parent-link-run"),
-                        RUN_ID,
-                        1,
-                        INPUT_DIGEST));
+
+        Path candidate = ShipWorkspace.prepare(
+                parentLink.resolve("project"),
+                runParentLink.resolve("run"),
+                RUN_ID,
+                1,
+                INPUT_DIGEST);
+
+        assertEquals(run.resolve("workspace/candidate").toRealPath(), candidate);
+        assertEquals(candidate.toString(), ShipWorkspace.verify(
+                parentLink.resolve("project"),
+                runParentLink.resolve("run/workspace/candidate"),
+                RUN_ID,
+                1,
+                INPUT_DIGEST).root());
     }
 
     private Path directory(String name) throws IOException {

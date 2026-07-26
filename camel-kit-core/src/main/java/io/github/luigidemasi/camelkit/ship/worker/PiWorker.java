@@ -36,7 +36,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -145,6 +144,8 @@ public final class PiWorker {
         requireDisjoint(sessionDirectory, evidenceDirectory, "session and evidence directories");
         UserPrincipal sessionOwner = requirePrivateSessionDirectory(sessionDirectory);
         String prompt = requirePrompt(request.prompt());
+        List<String> sensitiveValues = List.copyOf(
+                sensitiveEnvironmentValues(environment));
 
         LocalCommandRunner.Result versionRun = commands.run(new Command(
                 executable,
@@ -152,7 +153,8 @@ public final class PiWorker {
                 workingDirectory,
                 evidenceDirectory,
                 VERSION_TIMEOUT.compareTo(timeout) < 0 ? VERSION_TIMEOUT : timeout,
-                MAX_LOG_BYTES));
+                MAX_LOG_BYTES,
+                sensitiveValues));
         Throwable primary = null;
         Path scratchDirectory = null;
         SessionLock sessionLock = null;
@@ -199,11 +201,9 @@ public final class PiWorker {
                     sessionDirectory, sessionId, workingDirectory, sessionOwner);
             refuseCompletedTurnReplay(previousSession.transcript(), prompt);
             ScratchSession scratch = createScratch(
-                    sessionDirectory, sessionId, sessionOwner, previousSession);
+                    sessionDirectory, sessionId, previousSession);
             scratchDirectory = scratch.directory();
             List<String> arguments = arguments(request, scratch.directory(), sessionId);
-            List<String> sensitiveValues = List.copyOf(
-                    sensitiveEnvironmentValues(environment));
             RpcRun turn = runRpc(
                     arguments,
                     workingDirectory,
@@ -273,8 +273,6 @@ public final class PiWorker {
                 publishSession(
                         turn.validatedSession(),
                         sessionDirectory,
-                        sessionId,
-                        sessionOwner,
                         previousSession);
                 published = true;
             }
@@ -362,9 +360,8 @@ public final class PiWorker {
         Process process = new ProcessBuilder(vector)
                 .directory(workingDirectory.toFile())
                 .start();
-        List<ProcessHandle> observedChildren = new CopyOnWriteArrayList<>();
         Thread shutdownHook = new Thread(
-                () -> terminateRpc(process, kill, observedChildren),
+                () -> terminateRpc(process, kill),
                 "camel-kit-pi-rpc-shutdown");
         RpcOutput stdout = new RpcOutput(MAX_LOG_BYTES);
         BoundedCapture stderr = new BoundedCapture(MAX_LOG_BYTES);
@@ -395,7 +392,7 @@ public final class PiWorker {
             acquired = true;
         } finally {
             if (!acquired) {
-                terminateRpc(process, kill, observedChildren);
+                terminateRpc(process, kill);
                 close(process.getOutputStream());
                 if (promptWriter != null) {
                     promptWriter.cancel(true);
@@ -427,7 +424,6 @@ public final class PiWorker {
         try {
             long deadline = deadline(timeout);
             while (!lifecycle.complete()) {
-                LocalCommandRunner.rememberDescendants(process, observedChildren);
                 IOException writeFailure = completedFailure(promptWriter, "Could not send the Pi prompt");
                 if (writeFailure != null) {
                     protocolFailure = writeFailure.getMessage();
@@ -488,7 +484,6 @@ public final class PiWorker {
                             process,
                             promptWriter,
                             stdout,
-                            observedChildren,
                             lifecycle);
                 }
                 if (reconciliation == null) {
@@ -508,13 +503,12 @@ public final class PiWorker {
             if (lifecycle.complete() || reconciliation != null) {
                 lateInterrupted |= Thread.interrupted();
                 if (!awaitExitUninterruptibly(process, EXIT_TIMEOUT)
-                        && !terminateRpc(process, kill, observedChildren)) {
-                    throw new IOException("Pi RPC process and observed descendants could not be reaped");
+                        && !terminateRpc(process, kill)) {
+                    throw new IOException("Pi RPC process group could not be reaped");
                 }
                 lateInterrupted |= Thread.interrupted();
-                LocalCommandRunner.rememberDescendants(process, observedChildren);
-                if (!terminateRpc(process, kill, observedChildren)) {
-                    throw new IOException("Pi RPC left an observed descendant process running");
+                if (!terminateRpc(process, kill)) {
+                    throw new IOException("Pi RPC process group could not be reaped");
                 }
                 awaitUninterruptibly(stdoutReader, "Pi RPC output did not close");
                 lateInterrupted |= Thread.interrupted();
@@ -533,12 +527,11 @@ public final class PiWorker {
                         completedTurn);
             } else {
                 if (!awaitExit(process, EXIT_TIMEOUT)
-                        && !terminateRpc(process, kill, observedChildren)) {
-                    throw new IOException("Pi RPC process and observed descendants could not be reaped");
+                        && !terminateRpc(process, kill)) {
+                    throw new IOException("Pi RPC process group could not be reaped");
                 }
-                LocalCommandRunner.rememberDescendants(process, observedChildren);
-                if (!terminateRpc(process, kill, observedChildren)) {
-                    throw new IOException("Pi RPC left an observed descendant process running");
+                if (!terminateRpc(process, kill)) {
+                    throw new IOException("Pi RPC process group could not be reaped");
                 }
                 await(stdoutReader, "Pi RPC output did not close");
                 await(stderrReader, "Pi RPC error output did not close");
@@ -623,18 +616,17 @@ public final class PiWorker {
                     process,
                     promptWriter,
                     stdout,
-                    observedChildren,
                     lifecycle);
             Thread.interrupted();
             if (reconciliation != null) {
                 close(process.getOutputStream());
             } else {
-                terminateRpc(process, kill, observedChildren);
+                terminateRpc(process, kill);
             }
             if (!awaitExitUninterruptibly(process, EXIT_TIMEOUT)
-                    && !terminateRpc(process, kill, observedChildren)) {
+                    && !terminateRpc(process, kill)) {
                 e.addSuppressed(new IOException(
-                        "Interrupted Pi RPC process and observed descendants could not be reaped"));
+                        "Interrupted Pi RPC process group could not be reaped"));
             }
             Thread.interrupted();
             if (reconciliation == null) {
@@ -646,11 +638,9 @@ public final class PiWorker {
                         throw new IOException(
                                 "Interrupted Pi RPC process did not exit after its acknowledged abort");
                     }
-                    LocalCommandRunner.rememberDescendants(
-                            process, observedChildren);
-                    if (!terminateRpc(process, kill, observedChildren)) {
+                    if (!terminateRpc(process, kill)) {
                         throw new IOException(
-                                "Interrupted Pi RPC left a descendant process running");
+                                "Interrupted Pi RPC process group could not be reaped");
                     }
                     awaitUninterruptibly(
                             stdoutReader,
@@ -675,8 +665,6 @@ public final class PiWorker {
                         publishSession(
                                 validatedSession,
                                 canonicalSessionDirectory,
-                                sessionId,
-                                sessionOwner,
                                 canonicalPreviousSession);
                     } else {
                         e.addSuppressed(new IOException(
@@ -689,9 +677,9 @@ public final class PiWorker {
             close(process.getOutputStream());
             throw e;
         } catch (IOException | RuntimeException e) {
-            if (!terminateRpc(process, kill, observedChildren)) {
+            if (!terminateRpc(process, kill)) {
                 e.addSuppressed(new IOException(
-                        "Failed Pi RPC process and observed descendants could not be reaped"));
+                        "Failed Pi RPC process group could not be reaped"));
             }
             close(process.getOutputStream());
             throw e;
@@ -719,7 +707,6 @@ public final class PiWorker {
             Process process,
             Future<?> promptWriter,
             RpcOutput stdout,
-            List<ProcessHandle> observedChildren,
             Lifecycle priorLifecycle) {
         long deadline = deadline(ABORT_TIMEOUT);
         ExecutorService writer = null;
@@ -729,7 +716,6 @@ public final class PiWorker {
         boolean inputClosed = false;
         try {
             while (true) {
-                LocalCommandRunner.rememberDescendants(process, observedChildren);
                 long abortRemaining = deadline - System.nanoTime();
                 if (abortRemaining <= 0) {
                     return null;
@@ -936,11 +922,8 @@ public final class PiWorker {
         }
     }
 
-    private static boolean terminateRpc(
-            Process process, Path kill, List<ProcessHandle> observedChildren) {
-        boolean groupReaped = LocalCommandRunner.terminateProcessGroup(process, kill);
-        boolean observedReaped = LocalCommandRunner.terminateAll(process, observedChildren);
-        return groupReaped && observedReaped;
+    private static boolean terminateRpc(Process process, Path kill) {
+        return LocalCommandRunner.terminateProcessGroup(process, kill);
     }
 
     private static IOException completedFailureUninterruptibly(
@@ -1262,11 +1245,7 @@ public final class PiWorker {
                 || !Files.isDirectory(normalized, LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException(label + " must be a real directory");
         }
-        Path real = normalized.toRealPath();
-        if (!real.equals(normalized)) {
-            throw new IOException(label + " must not cross a symbolic link");
-        }
-        return real;
+        return normalized.toRealPath();
     }
 
     private static void requireDisjoint(Path first, Path second, String label) throws IOException {
@@ -1355,7 +1334,6 @@ public final class PiWorker {
     private static ScratchSession createScratch(
             Path directory,
             String sessionId,
-            UserPrincipal owner,
             SessionState previous)
             throws IOException {
         Path scratch = Files.createTempDirectory(
@@ -1363,12 +1341,6 @@ public final class PiWorker {
                 SCRATCH_PREFIX + sessionId + "-",
                 PosixFilePermissions.asFileAttribute(PRIVATE_DIRECTORY));
         try {
-            if (!owner.equals(Files.getOwner(scratch, LinkOption.NOFOLLOW_LINKS))
-                    || !PRIVATE_DIRECTORY.equals(
-                            Files.getPosixFilePermissions(
-                                    scratch, LinkOption.NOFOLLOW_LINKS))) {
-                throw new IOException("Pi stage scratch directory must be owned by the current user and 0700");
-            }
             if (previous.file() == null) {
                 return new ScratchSession(
                         scratch,
@@ -1381,9 +1353,6 @@ public final class PiWorker {
                     copy,
                     StandardCopyOption.COPY_ATTRIBUTES,
                     LinkOption.NOFOLLOW_LINKS);
-            if (!previous.digest().equals(fileDigest(copy, previous.size()))) {
-                throw new IOException("Pi stage session changed while it was copied");
-            }
             return new ScratchSession(
                     scratch,
                     new SessionState(
@@ -1404,29 +1373,9 @@ public final class PiWorker {
     private static void publishSession(
             Path scratchFile,
             Path directory,
-            String sessionId,
-            UserPrincipal owner,
             SessionState previous)
             throws IOException {
-        List<Path> current = sessionFiles(directory, sessionId, owner, true);
-        if (previous.file() == null) {
-            if (!current.isEmpty()) {
-                throw new IOException("Pi stage session appeared while the worker was running");
-            }
-        } else if (current.size() != 1
-                || !previous.file().equals(current.get(0))
-                || Files.size(previous.file()) != previous.size()
-                || !previous.digest().equals(fileDigest(previous.file(), previous.size()))) {
-            throw new IOException("Pi stage session changed while the worker was running");
-        }
         Files.setPosixFilePermissions(scratchFile, PRIVATE_FILE);
-        if (!owner.equals(Files.getOwner(scratchFile, LinkOption.NOFOLLOW_LINKS))
-                || !PRIVATE_FILE.equals(
-                        Files.getPosixFilePermissions(
-                                scratchFile, LinkOption.NOFOLLOW_LINKS))) {
-            throw new IOException(
-                    "Pi stage session candidate must be owned by the current user and 0600");
-        }
         try (FileChannel channel = FileChannel.open(
                 scratchFile,
                 StandardOpenOption.WRITE,
@@ -1655,51 +1604,30 @@ public final class PiWorker {
         String suffix = "_" + sessionId + ".jsonl";
         try (DirectoryStream<Path> files = Files.newDirectoryStream(directory)) {
             for (Path file : files) {
-                if (Files.isSymbolicLink(file)) {
-                    throw new IOException("Pi session directory contains an unsafe entry");
-                }
                 String name = file.getFileName().toString();
-                if (Files.isDirectory(file, LinkOption.NOFOLLOW_LINKS)) {
-                    if (!name.startsWith(SCRATCH_PREFIX)
-                            || !owner.equals(
-                                    Files.getOwner(
-                                            file, LinkOption.NOFOLLOW_LINKS))
-                            || !PRIVATE_DIRECTORY.equals(
-                                    Files.getPosixFilePermissions(
-                                            file, LinkOption.NOFOLLOW_LINKS))) {
-                        throw new IOException(
-                                "Pi session directory contains an unsafe entry");
-                    }
+                if (!name.endsWith(suffix)) {
                     continue;
+                }
+                if (Files.isSymbolicLink(file)) {
+                    throw new IOException("Pi stage session must not be a symbolic link");
                 }
                 if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)
                         || !owner.equals(
                                 Files.getOwner(file, LinkOption.NOFOLLOW_LINKS))) {
                     throw new IOException(
-                            "Pi session directory contains an unsafe entry");
+                            "Pi stage session must be a regular file owned by the current user");
                 }
-                if (name.startsWith(".") && name.endsWith(".lock")) {
-                    if (!PRIVATE_FILE.equals(
-                            Files.getPosixFilePermissions(
-                                    file, LinkOption.NOFOLLOW_LINKS))) {
-                        throw new IOException(
-                                "Pi session directory contains an unsafe entry");
-                    }
-                    continue;
+                if (canonical
+                        && !PRIVATE_FILE.equals(
+                                Files.getPosixFilePermissions(
+                                        file,
+                                        LinkOption.NOFOLLOW_LINKS))) {
+                    throw new IOException(
+                            "Pi stage session permissions must be 0600");
                 }
-                if (name.endsWith(suffix)) {
-                    if (canonical
-                            && !PRIVATE_FILE.equals(
-                                    Files.getPosixFilePermissions(
-                                            file,
-                                            LinkOption.NOFOLLOW_LINKS))) {
-                        throw new IOException(
-                                "Pi stage session permissions must be 0600");
-                    }
-                    matches.add(file.toAbsolutePath().normalize());
-                    if (matches.size() > 1) {
-                        break;
-                    }
+                matches.add(file.toAbsolutePath().normalize());
+                if (matches.size() > 1) {
+                    break;
                 }
             }
         }
@@ -1956,9 +1884,7 @@ public final class PiWorker {
             Map<String, String> environment) {
         Set<String> values = new HashSet<>();
         environment.forEach((name, value) -> {
-            if (ShipLocalStamp.isSensitiveEnvironmentName(name)
-                    && value != null
-                    && !value.isEmpty()) {
+            if (LocalCommandRunner.isSensitiveEnvironmentValue(name, value)) {
                 values.add(value);
             }
         });

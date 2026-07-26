@@ -65,13 +65,13 @@ final class ShipSecureFilesystem {
         if (!policy.isAllowedAbsolutePath(absolute)) {
             throw unsafe(label + " is outside the allowed project-root lineage");
         }
-        rejectSymbolicComponents(absolute, label);
+        if (Files.isSymbolicLink(absolute)
+                || !Files.isDirectory(absolute, LinkOption.NOFOLLOW_LINKS)) {
+            throw unsafe(label + " must be a real directory: " + absolute);
+        }
         Path root = absolute.toRealPath();
-        if (!root.equals(absolute)
-                || !policy.isAllowedAbsolutePath(root)
-                || Files.isSymbolicLink(root)
-                || !Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)) {
-            throw unsafe(label + " must be an allowed, link-free real directory: " + absolute);
+        if (!policy.isAllowedAbsolutePath(root)) {
+            throw unsafe(label + " is outside the allowed project-root lineage");
         }
         return root;
     }
@@ -100,16 +100,6 @@ final class ShipSecureFilesystem {
                 e.addSuppressed(closeFailure);
             }
             throw e;
-        }
-    }
-
-    private static void rejectSymbolicComponents(Path path, String label) throws IOException {
-        Path current = path.getRoot();
-        for (Path component : path) {
-            current = current == null ? component : current.resolve(component);
-            if (Files.isSymbolicLink(current)) {
-                throw unsafe(label + " path contains a symbolic link: " + current);
-            }
         }
     }
 

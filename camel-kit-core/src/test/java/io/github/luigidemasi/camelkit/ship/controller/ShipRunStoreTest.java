@@ -57,6 +57,51 @@ class ShipRunStoreTest {
     }
 
     @Test
+    void createsAMissingStateRootBelowASymlinkedAncestor() throws Exception {
+        Path realParent = Files.createDirectory(temporaryDirectory.resolve("real-state-parent"));
+        Path linkedParent = Files.createSymbolicLink(
+                temporaryDirectory.resolve("linked-state-parent"), realParent);
+        Path state = linkedParent.resolve("nested/state");
+        ShipRunStore store = new ShipRunStore(state);
+        ShipRun initial = run(RUN_ID);
+
+        store.create(initial);
+
+        assertEquals(initial, store.read(RUN_ID));
+        assertTrue(Files.isRegularFile(
+                realParent.resolve("nested/state").resolve(RUN_ID).resolve("state.json")));
+    }
+
+    @Test
+    void acceptsADirectorySymlinkAsTheConfiguredStateRoot() throws Exception {
+        Path realState = Files.createDirectory(temporaryDirectory.resolve("real-state"));
+        Path linkedState = Files.createSymbolicLink(
+                temporaryDirectory.resolve("linked-state"), realState);
+        ShipRunStore store = new ShipRunStore(linkedState);
+        ShipRun initial = run(RUN_ID);
+
+        store.create(initial);
+
+        assertEquals(initial, store.read(RUN_ID));
+        assertTrue(Files.isRegularFile(realState.resolve(RUN_ID).resolve("state.json")));
+    }
+
+    @Test
+    void rejectsBrokenAndNonDirectoryStateRoots() throws Exception {
+        Path regularFile = Files.writeString(temporaryDirectory.resolve("state-file"), "state");
+        assertCode(
+                "state-root-invalid",
+                () -> new ShipRunStore(regularFile).create(run(RUN_ID)));
+
+        Path brokenLink = Files.createSymbolicLink(
+                temporaryDirectory.resolve("broken-state"),
+                temporaryDirectory.resolve("missing-target"));
+        assertCode(
+                "state-root-invalid",
+                () -> new ShipRunStore(brokenLink).create(run(OTHER_RUN_ID)));
+    }
+
+    @Test
     void keepsCommittedStateWhenAnInterruptedTemporaryFileRemains() throws Exception {
         ShipRunStore store = store();
         ShipRun initial = run(RUN_ID);

@@ -4,7 +4,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -144,9 +143,6 @@ final class LocalCommandRunner {
                 if (process.waitFor(
                         Math.min(remaining, TimeUnit.MILLISECONDS.toNanos(100)),
                         TimeUnit.NANOSECONDS)) {
-                    if (System.nanoTime() >= deadline) {
-                        timedOut = true;
-                    }
                     break;
                 }
             }
@@ -161,7 +157,8 @@ final class LocalCommandRunner {
             }
             byte[] capturedStdout = awaitPump(stdoutPump);
             byte[] capturedStderr = awaitPump(stderrPump);
-            List<String> argumentSecrets = secretValues(arguments);
+            List<String> argumentSecrets = secretValues(
+                    arguments, command.sensitiveValues());
             byte[] stdoutEvidence = outputLimited.get()
                     ? OUTPUT_LIMIT_LOG
                     : capturedStdout;
@@ -380,12 +377,14 @@ final class LocalCommandRunner {
                 .toList();
     }
 
-    private static List<String> secretValues(List<String> arguments) {
+    private static List<String> secretValues(
+            List<String> arguments, List<String> knownValues) {
         List<String> values = new ArrayList<>();
+        knownValues.forEach(value -> addSecretValue(values, value, true));
         System.getenv().entrySet().stream()
-                .filter(entry -> ShipLocalStamp.isSensitiveEnvironmentName(entry.getKey()))
+                .filter(entry -> isSensitiveEnvironmentValue(
+                        entry.getKey(), entry.getValue()))
                 .map(Map.Entry::getValue)
-                .filter(value -> value != null && !value.isEmpty())
                 .forEach(value -> addSecretValue(values, value, true));
         for (int index = 0; index < arguments.size(); index++) {
             String argument = arguments.get(index);
@@ -440,6 +439,27 @@ final class LocalCommandRunner {
                 .distinct()
                 .sorted(Comparator.comparingInt(String::length).reversed())
                 .toList();
+    }
+
+    static boolean isSensitiveEnvironmentValue(String name, String value) {
+        if (!ShipLocalStamp.isSensitiveEnvironmentName(name)
+                || value == null
+                || value.isEmpty()) {
+            return false;
+        }
+        String normalizedName = name.toUpperCase(Locale.ROOT);
+        boolean featureToggle = normalizedName.startsWith("ENABLE_")
+                || normalizedName.startsWith("DISABLE_")
+                || normalizedName.startsWith("USE_")
+                || normalizedName.endsWith("_ENABLED")
+                || normalizedName.endsWith("_DISABLED");
+        if (!featureToggle) {
+            return true;
+        }
+        return switch (value.trim().toLowerCase(Locale.ROOT)) {
+            case "0", "1", "false", "true", "no", "yes", "off", "on" -> false;
+            default -> true;
+        };
     }
 
     private static void addMatches(List<String> values, Matcher matcher, int group) {
@@ -581,11 +601,7 @@ final class LocalCommandRunner {
                 || !Files.isDirectory(normalized, LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException("Local command " + label + " must be a real directory");
         }
-        Path real = normalized.toRealPath();
-        if (!real.equals(normalized)) {
-            throw new IOException("Local command " + label + " must not cross a symbolic link");
-        }
-        return real;
+        return normalized.toRealPath();
     }
 
     private static long deadline(Duration duration) {
@@ -644,42 +660,7 @@ final class LocalCommandRunner {
 
     private static boolean processGroupExists(Path kill, long groupId) {
         Integer result = signalProcessGroup(kill, "0", groupId);
-        if (result != null && result == 0) {
-            return true;
-        }
-        Boolean procResult = processGroupExistsInProc(groupId);
-        return procResult == null || procResult;
-    }
-
-    private static Boolean processGroupExistsInProc(long groupId) {
-        boolean unreadable = false;
-        try (DirectoryStream<Path> entries = Files.newDirectoryStream(Path.of("/proc"))) {
-            for (Path entry : entries) {
-                String name = entry.getFileName().toString();
-                if (name.isEmpty() || name.chars().anyMatch(character -> !Character.isDigit(character))) {
-                    continue;
-                }
-                try {
-                    String stat = Files.readString(entry.resolve("stat"));
-                    int commandEnd = stat.lastIndexOf(')');
-                    String[] fields = commandEnd < 0
-                            ? new String[0]
-                            : stat.substring(commandEnd + 1).trim().split("\\s+", 4);
-                    if (fields.length < 3) {
-                        unreadable = true;
-                    } else if (Long.parseLong(fields[2]) == groupId) {
-                        return true;
-                    }
-                } catch (java.nio.file.NoSuchFileException ignored) {
-                    // The process exited while /proc was being scanned.
-                } catch (IOException | NumberFormatException e) {
-                    unreadable = true;
-                }
-            }
-            return unreadable ? null : false;
-        } catch (IOException e) {
-            return null;
-        }
+        return result == null || result == 0;
     }
 
     private static Integer signalProcessGroup(Path kill, String signal, long groupId) {
@@ -720,119 +701,6 @@ final class LocalCommandRunner {
                 Thread.currentThread().interrupt();
             }
         }
-    }
-
-    static boolean terminateAll(
-            Process process, List<ProcessHandle> observedChildren) {
-        boolean processReaped = terminateAndWait(process);
-        boolean childrenReaped = terminateHandlesAndWait(observedChildren);
-        return processReaped && childrenReaped;
-    }
-
-    private static boolean terminateAndWait(Process process) {
-        List<ProcessHandle> children = descendants(process);
-        children.forEach(ProcessHandle::destroy);
-        process.toHandle().destroy();
-        if (awaitTermination(process, children, TERMINATION_GRACE)) {
-            return true;
-        }
-        children.forEach(handle -> {
-            if (handle.isAlive()) {
-                handle.destroyForcibly();
-            }
-        });
-        if (process.isAlive()) {
-            process.toHandle().destroyForcibly();
-        }
-        return awaitTermination(process, children, TERMINATION_TIMEOUT);
-    }
-
-    private static boolean awaitTermination(
-            Process process, List<ProcessHandle> children, Duration timeout) {
-        long deadline = deadline(timeout);
-        boolean interrupted = false;
-        try {
-            while (process.isAlive()) {
-                long remaining = deadline - System.nanoTime();
-                if (remaining <= 0) {
-                    return false;
-                }
-                try {
-                    if (!process.waitFor(remaining, TimeUnit.NANOSECONDS)) {
-                        return false;
-                    }
-                } catch (InterruptedException e) {
-                    interrupted = true;
-                    Thread.interrupted();
-                }
-            }
-            return awaitHandles(
-                    children,
-                    Duration.ofNanos(Math.max(0, deadline - System.nanoTime())));
-        } finally {
-            if (interrupted) {
-                Thread.currentThread().interrupt();
-            }
-        }
-    }
-
-    private static boolean awaitHandles(List<ProcessHandle> handles, Duration timeout) {
-        long deadline = deadline(timeout);
-        boolean interrupted = false;
-        try {
-            for (ProcessHandle handle : handles) {
-                while (handle.isAlive()) {
-                    long remaining = deadline - System.nanoTime();
-                    if (remaining <= 0) {
-                        return false;
-                    }
-                    try {
-                        handle.onExit().get(remaining, TimeUnit.NANOSECONDS);
-                    } catch (InterruptedException e) {
-                        interrupted = true;
-                        Thread.interrupted();
-                    } catch (ExecutionException | TimeoutException e) {
-                        return false;
-                    }
-                }
-            }
-            return handles.stream().noneMatch(ProcessHandle::isAlive);
-        } finally {
-            if (interrupted) {
-                Thread.currentThread().interrupt();
-            }
-        }
-    }
-
-    private static List<ProcessHandle> descendants(Process process) {
-        try {
-            return process.toHandle().descendants()
-                    .sorted(Comparator.comparingLong(ProcessHandle::pid).reversed())
-                    .toList();
-        } catch (UnsupportedOperationException e) {
-            return List.of();
-        }
-    }
-
-    static void rememberDescendants(
-            Process process, List<ProcessHandle> observedChildren) {
-        for (ProcessHandle handle : descendants(process)) {
-            if (observedChildren.stream().noneMatch(existing -> existing.pid() == handle.pid())) {
-                observedChildren.add(handle);
-            }
-        }
-    }
-
-    private static boolean terminateHandlesAndWait(List<ProcessHandle> handles) {
-        List<ProcessHandle> live = handles.stream().filter(ProcessHandle::isAlive).toList();
-        live.forEach(ProcessHandle::destroy);
-        if (awaitHandles(live, TERMINATION_GRACE)) {
-            return true;
-        }
-        live.stream()
-                .filter(ProcessHandle::isAlive)
-                .forEach(ProcessHandle::destroyForcibly);
-        return awaitHandles(live, TERMINATION_TIMEOUT);
     }
 
     private static void closeProcessStreams(Process process) {
@@ -896,7 +764,25 @@ final class LocalCommandRunner {
             Path workingDirectory,
             Path evidenceDirectory,
             Duration timeout,
-            int maximumOutputBytesPerStream) {
+            int maximumOutputBytesPerStream,
+            List<String> sensitiveValues) {
+
+        Command(
+                Path executable,
+                List<String> arguments,
+                Path workingDirectory,
+                Path evidenceDirectory,
+                Duration timeout,
+                int maximumOutputBytesPerStream) {
+            this(
+                 executable,
+                 arguments,
+                 workingDirectory,
+                 evidenceDirectory,
+                 timeout,
+                 maximumOutputBytesPerStream,
+                 List.of());
+        }
 
         Command {
             Objects.requireNonNull(executable, "executable");
@@ -913,6 +799,14 @@ final class LocalCommandRunner {
             if (maximumOutputBytesPerStream <= 0) {
                 throw new IllegalArgumentException("Local command output limit must be positive");
             }
+            if (sensitiveValues != null
+                    && sensitiveValues.stream().anyMatch(value -> value == null)) {
+                throw new IllegalArgumentException(
+                        "Local command sensitive values are invalid");
+            }
+            sensitiveValues = sensitiveValues == null
+                    ? List.of()
+                    : List.copyOf(sensitiveValues);
         }
 
         @Override

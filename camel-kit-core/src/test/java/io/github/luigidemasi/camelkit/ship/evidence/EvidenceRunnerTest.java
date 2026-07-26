@@ -214,6 +214,100 @@ class EvidenceRunnerTest {
     }
 
     @Test
+    void acceptsSymlinkedEvidenceParentButRejectsSymlinkLeaf() throws Exception {
+        Path project = Files.createDirectory(tempDir.resolve("candidate"));
+        Path realParent = Files.createDirectory(tempDir.resolve("real-evidence-parent"));
+        Path parentAlias = Files.createSymbolicLink(tempDir.resolve("evidence-parent-alias"), realParent);
+        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
+        Path evidenceDirectory = parentAlias.resolve("evidence");
+        EvidenceCommand aliasCommand = command(project, "alias-check", Duration.ofSeconds(2));
+
+        CommandEvidence result = runner(new RecordingLauncher(fakeBubblewrap, null, null)).run(
+                project, evidenceDirectory, aliasCommand);
+
+        Path realEvidenceDirectory = realParent.resolve("evidence").toRealPath();
+        assertTrue(result.passed(), result::toString);
+        assertEquals(realEvidenceDirectory, Path.of(result.stdoutLog()).getParent());
+        assertEquals(
+                PosixFilePermissions.fromString("rwx------"),
+                Files.getPosixFilePermissions(realEvidenceDirectory));
+        EvidenceRunner.cleanupEphemeral(evidenceDirectory, aliasCommand, result);
+        assertFalse(Files.exists(realEvidenceDirectory));
+
+        Path target = Files.createDirectory(realParent.resolve("existing-target"));
+        Path symlinkLeaf = parentAlias.resolve("symlink-evidence");
+        Files.createSymbolicLink(symlinkLeaf, target);
+        RecordingLauncher rejectedLauncher = new RecordingLauncher(fakeBubblewrap, null, null);
+
+        IOException rejected = assertThrows(IOException.class, () -> runner(rejectedLauncher).run(
+                project, symlinkLeaf, command(project, "symlink-check", Duration.ofSeconds(2))));
+
+        assertTrue(rejected.getMessage().contains("new and exclusive"));
+        assertTrue(Files.isSymbolicLink(symlinkLeaf));
+        assertTrue(Files.isDirectory(target));
+        assertTrue(rejectedLauncher.invocations.isEmpty());
+    }
+
+    @Test
+    void createsMissingEvidenceParentDirectories() throws Exception {
+        Path project = Files.createDirectory(tempDir.resolve("candidate"));
+        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
+        Path evidenceDirectory = tempDir.resolve("missing/nested/evidence");
+        EvidenceCommand command = command(project, "nested-parent-check", Duration.ofSeconds(2));
+
+        CommandEvidence result = runner(new RecordingLauncher(fakeBubblewrap, null, null)).run(
+                project, evidenceDirectory, command);
+
+        assertTrue(result.passed(), result::toString);
+        assertEquals(evidenceDirectory.toRealPath(), Path.of(result.stdoutLog()).getParent());
+        assertEquals(
+                PosixFilePermissions.fromString("rwx------"),
+                Files.getPosixFilePermissions(evidenceDirectory));
+        EvidenceRunner.cleanupEphemeral(evidenceDirectory, command, result);
+        assertFalse(Files.exists(evidenceDirectory));
+        assertTrue(Files.isDirectory(tempDir.resolve("missing/nested")));
+    }
+
+    @Test
+    void canonicalizesProjectPathsBelowASymlinkedAncestor() throws Exception {
+        Path realParent = Files.createDirectory(tempDir.resolve("real-project-parent"));
+        Path project = Files.createDirectory(realParent.resolve("candidate"));
+        Path parentAlias = Files.createSymbolicLink(tempDir.resolve("project-parent-alias"), realParent);
+        Path projectAlias = parentAlias.resolve("candidate");
+        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
+        RecordingLauncher launcher = new RecordingLauncher(fakeBubblewrap, null, null);
+
+        CommandEvidence result = runner(launcher).run(
+                projectAlias,
+                tempDir.resolve("evidence"),
+                command(projectAlias, "project-alias-check", Duration.ofSeconds(2)));
+
+        assertTrue(result.passed(), result::toString);
+        for (Invocation invocation : launcher.invocations) {
+            assertEquals(project.toRealPath(), invocation.candidate());
+            assertEquals(project.toRealPath(), invocation.workingDirectory());
+        }
+    }
+
+    @Test
+    void rejectsEvidenceNestedInTheProjectThroughAnAlternateAlias() throws Exception {
+        Path realParent = Files.createDirectory(tempDir.resolve("real-project-parent"));
+        Path project = Files.createDirectory(realParent.resolve("candidate"));
+        Path parentAlias = Files.createSymbolicLink(tempDir.resolve("project-parent-alias"), realParent);
+        Path nestedEvidenceAlias = parentAlias.resolve("candidate/evidence");
+        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
+        RecordingLauncher launcher = new RecordingLauncher(fakeBubblewrap, null, null);
+
+        assertThrows(IOException.class, () -> runner(launcher).run(
+                project,
+                nestedEvidenceAlias,
+                command(project, "nested-evidence-check", Duration.ofSeconds(2))));
+
+        assertFalse(Files.exists(project.resolve("evidence")));
+        assertTrue(launcher.invocations.isEmpty());
+    }
+
+    @Test
     void midRunAuthorityTamperAlwaysFailsClosed() throws Exception {
         Path project = Files.createDirectory(tempDir.resolve("candidate"));
         for (AuthorityTamper tamper : AuthorityTamper.values()) {

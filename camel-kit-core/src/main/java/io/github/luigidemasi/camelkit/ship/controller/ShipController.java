@@ -903,27 +903,24 @@ public final class ShipController {
         if (supplied == null) {
             throw failure("project-invalid", "Ship project directory is required");
         }
-        final Path project;
+        final Path normalized;
         try {
-            project = supplied.toAbsolutePath().normalize();
+            normalized = supplied.toAbsolutePath().normalize();
         } catch (RuntimeException e) {
             throw failure("project-invalid", "Ship project directory is invalid", e);
         }
-        if (!Files.exists(project, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
-            throw failure("project-missing", "Ship project directory does not exist: " + project);
+        if (!Files.exists(normalized, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            throw failure("project-missing", "Ship project directory does not exist: " + normalized);
         }
-        if (Files.isSymbolicLink(project)
-                || !Files.isDirectory(project, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
-            throw failure("project-invalid", "Ship project path is not a directory: " + project);
+        if (Files.isSymbolicLink(normalized)
+                || !Files.isDirectory(normalized, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            throw failure("project-invalid", "Ship project path is not a directory: " + normalized);
         }
+        final Path project;
         try {
-            if (!project.toRealPath().equals(project)) {
-                throw failure(
-                        "project-invalid",
-                        "Ship project path must not cross a symbolic link: " + project);
-            }
+            project = normalized.toRealPath();
         } catch (IOException | SecurityException e) {
-            throw failure("project-invalid", "Ship project path cannot be resolved: " + project, e);
+            throw failure("project-invalid", "Ship project path cannot be resolved: " + normalized, e);
         }
         if (!Files.isReadable(project)) {
             throw failure("project-unreadable", "Ship project directory is not readable: " + project);
@@ -1116,9 +1113,7 @@ public final class ShipController {
             requireNoSymbolicComponents(project, normalized);
             BasicFileAttributes attributes = Files.readAttributes(
                     normalized, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
-            long linkCount = unixLinkCount(normalized);
-            if (!attributes.isRegularFile() || attributes.isSymbolicLink()
-                    || attributes.fileKey() == null || linkCount != 1) {
+            if (!attributes.isRegularFile() || attributes.isSymbolicLink()) {
                 throw failure(
                         "artifact-invalid",
                         "Ship artifact is not a stable regular file: " + normalized);
@@ -1150,22 +1145,6 @@ public final class ShipController {
             } else {
                 bytes = ProjectEvidenceFiles.readVolatile(project, relative, readLimit);
             }
-            requireNoSymbolicComponents(project, normalized);
-            BasicFileAttributes after = Files.readAttributes(
-                    normalized, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
-            long afterLinkCount = unixLinkCount(normalized);
-            if (!after.isRegularFile() || after.isSymbolicLink()
-                    || after.fileKey() == null
-                    || afterLinkCount != 1
-                    || linkCount != afterLinkCount
-                    || !attributes.fileKey().equals(after.fileKey())
-                    || attributes.size() != after.size()
-                    || !attributes.lastModifiedTime().equals(after.lastModifiedTime())
-                    || bytes.length != attributes.size()) {
-                throw failure(
-                        "artifact-unreadable",
-                        "Ship artifact changed while it was read: " + normalized);
-            }
             if (bytes.length == 0) {
                 throw failure("artifact-invalid", "Ship artifact is empty: " + normalized);
             }
@@ -1189,19 +1168,6 @@ public final class ShipController {
             throw failure(
                     "artifact-unreadable", "Ship artifact could not be read: " + normalized, e);
         }
-    }
-
-    private static long unixLinkCount(Path path) throws IOException {
-        final Object value;
-        try {
-            value = Files.getAttribute(path, "unix:nlink", LinkOption.NOFOLLOW_LINKS);
-        } catch (IllegalArgumentException | UnsupportedOperationException e) {
-            throw new IOException("Ship artifact link count is unavailable", e);
-        }
-        if (!(value instanceof Number number) || number.longValue() < 1) {
-            throw new IOException("Ship artifact link count is invalid");
-        }
-        return number.longValue();
     }
 
     private static void requireNoSymbolicComponents(Path root, Path path)

@@ -154,11 +154,12 @@ final class ProjectSnapshotService {
     }
 
     private static Path requireEmptyTarget(Path targetRoot) throws IOException {
-        Path target = targetRoot.toAbsolutePath().normalize();
-        if (Files.isSymbolicLink(target) || !Files.isDirectory(target, LinkOption.NOFOLLOW_LINKS)
-                || !target.toRealPath(LinkOption.NOFOLLOW_LINKS).equals(target)) {
+        Path supplied = targetRoot.toAbsolutePath().normalize();
+        if (Files.isSymbolicLink(supplied)
+                || !Files.isDirectory(supplied, LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException("Ship materialized workspace must be a real directory");
         }
+        Path target = supplied.toRealPath();
         try (var entries = Files.newDirectoryStream(target)) {
             if (entries.iterator().hasNext()) {
                 throw new IOException("Ship materialized workspace must be empty");

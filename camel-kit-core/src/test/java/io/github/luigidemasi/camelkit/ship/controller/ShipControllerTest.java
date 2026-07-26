@@ -101,12 +101,21 @@ class ShipControllerTest {
         Path linkedState = Files.createSymbolicLink(
                 directory.resolve("linked-state"), embeddedState);
         assertFailure(
-                "state-root-invalid",
+                "state-project-overlap",
                 () -> new ShipController(linkedState).start(
                         project, Oversight.NEVER, List.of()));
         try (var entries = Files.list(embeddedState)) {
             assertTrue(entries.findAny().isEmpty());
         }
+
+        Path linkedProject = Files.createSymbolicLink(
+                directory.resolve("linked-project"), project);
+        Path nestedState = linkedProject.resolve("nested-state");
+        assertFailure(
+                "state-project-overlap",
+                () -> new ShipController(nestedState).start(
+                        project, Oversight.NEVER, List.of()));
+        assertFalse(Files.exists(project.resolve("nested-state")));
 
         Path metadata = Files.createDirectories(project.resolve(".camel-kit"));
         Files.writeString(
@@ -140,12 +149,8 @@ class ShipControllerTest {
         Path realProject = Files.createDirectory(realParent.resolve("project"));
         Path rootLink = directory.resolve("project-link");
         Files.createSymbolicLink(rootLink, realProject);
-        Path parentLink = directory.resolve("parent-link");
-        Files.createSymbolicLink(parentLink, realParent);
         assertFailure("project-invalid",
                 () -> controller.start(rootLink, Oversight.NEVER, List.of()));
-        assertFailure("project-invalid",
-                () -> controller.start(parentLink.resolve("project"), Oversight.NEVER, List.of()));
 
         Path brokenPath = (Path) Proxy.newProxyInstance(
                 getClass().getClassLoader(),
@@ -155,6 +160,52 @@ class ShipControllerTest {
                 });
         assertFailure("project-invalid",
                 () -> controller.start(brokenPath, Oversight.NEVER, List.of()));
+    }
+
+    @Test
+    void startsAProjectBelowASymlinkedAncestorAtItsCanonicalPath() throws Exception {
+        Path realParent = Files.createDirectory(directory.resolve("real-parent"));
+        Path realProject = Files.createDirectory(realParent.resolve("project"));
+        Path parentLink = Files.createSymbolicLink(
+                directory.resolve("parent-link"), realParent);
+
+        ShipRun run = controller("state").start(
+                parentLink.resolve("project"), Oversight.NEVER, List.of());
+
+        assertEquals(realProject.toRealPath().toString(), run.projectDirectory());
+    }
+
+    @Test
+    void completesAndReadsExecuteWithStateBelowASymlinkedAncestor() throws Exception {
+        Path project = Files.createDirectory(directory.resolve("project"));
+        Path realStateParent = Files.createDirectory(directory.resolve("real-state-parent"));
+        Path linkedStateParent = Files.createSymbolicLink(
+                directory.resolve("linked-state-parent"), realStateParent);
+        Path stateRoot = linkedStateParent.resolve("state");
+        ShipController controller = new ShipController(stateRoot);
+        ShipRun run = controller.start(project, Oversight.NEVER, List.of());
+        run = complete(controller, run, "discovery");
+        run = complete(controller, run, "design");
+        run = complete(controller, run, "plan");
+
+        Path workspace = controller.prepareWorkspace(
+                run.id(),
+                run.stage(Stage.EXECUTE).attempts(),
+                run.stage(Stage.EXECUTE).inputDigest());
+        Path route = Files.writeString(
+                workspace.resolve("route.yaml"), "from:\n  uri: direct:start\n");
+        ShipRun validating = controller.completeExecuteStage(
+                run.id(),
+                run.stage(Stage.EXECUTE).attempts(),
+                run.stage(Stage.EXECUTE).inputDigest(),
+                List.of(route),
+                false);
+
+        assertEquals(validating, new ShipController(stateRoot).status(run.id()));
+        assertEquals(
+                realStateParent.resolve("state").toRealPath()
+                        .resolve(run.id()).resolve("workspace/candidate").toString(),
+                validating.stage(Stage.EXECUTE).artifacts().get(0).path());
     }
 
     @Test
@@ -786,7 +837,7 @@ class ShipControllerTest {
         ShipRun run = controller.start(project, Oversight.NEVER, List.of());
 
         assertFailure(
-                "artifact-invalid",
+                "artifact-unreadable",
                 () -> complete(controller, run, "validation", alias));
         assertEquals(run, controller.status(run.id()));
     }

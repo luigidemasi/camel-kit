@@ -492,8 +492,31 @@ class ShipLocalStampTest {
     }
 
     @Test
-    void rejectsReservedAliasedAndPhysicallySharedLogs(@TempDir Path directory)
+    void acceptsSymbolicAncestorButRejectsSymbolicDirectory(@TempDir Path directory)
             throws Exception {
+        Path realAncestor = Files.createDirectory(directory.resolve("real-ancestor"));
+        Path evidence = Files.createDirectory(realAncestor.resolve("evidence"));
+        makePrivate(evidence);
+        Path symbolicAncestor = directory.resolve("symbolic-ancestor");
+        Files.createSymbolicLink(symbolicAncestor, realAncestor.getFileName());
+        Path aliasedEvidence = symbolicAncestor.resolve("evidence");
+        ShipLocalStamp stamp = persistableStamp(aliasedEvidence, 0);
+
+        Path report = ShipLocalStampStore.write(aliasedEvidence, RUN_ID, stamp);
+
+        assertEquals(evidence.resolve("stamp.json"), report);
+        assertEquals(stamp, ShipLocalStampStore.read(aliasedEvidence, RUN_ID));
+        Path symbolicEvidence = directory.resolve("symbolic-evidence");
+        Files.createSymbolicLink(symbolicEvidence, evidence);
+        assertThrows(
+                IOException.class,
+                () -> ShipLocalStampStore.read(symbolicEvidence, RUN_ID));
+    }
+
+    @Test
+    void rejectsReservedAliasedAndPhysicallySharedLogs(@TempDir Path root)
+            throws Exception {
+        Path directory = Files.createDirectory(root.resolve("evidence"));
         makePrivate(directory);
         ShipLocalStamp passed = persistableStamp(directory, 0);
         Path report = ShipLocalStampStore.write(directory, RUN_ID, passed);
@@ -515,10 +538,10 @@ class ShipLocalStampTest {
         assertTrue(reservedFailure.getMessage().contains("outside its evidence directory"));
         assertArrayEquals(unchanged, Files.readAllBytes(report));
 
-        Path nested = Files.createDirectory(directory.resolve("nested"));
+        Path nested = Files.createDirectory(root.resolve("outside"));
         Path nestedLog = writePrivate(nested.resolve("stdout.log"), "nested");
         Path alias = directory.resolve("alias");
-        Files.createSymbolicLink(alias, nested.getFileName());
+        Files.createSymbolicLink(alias, nested);
         ShipLocalStamp.CommandRun aliased = storedCommand(
                 directory,
                 alias.resolve(nestedLog.getFileName()),
