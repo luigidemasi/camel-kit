@@ -75,6 +75,8 @@ public final class PiWorker {
     private static final int MAX_SESSION_HEADER_BYTES = 64 * 1024;
     private static final long MAX_SESSION_BYTES = 64L * 1024 * 1024;
     private static final int MAX_VERSION_LENGTH = 1024;
+    // Short values cannot be distinguished reliably from ordinary transcript text.
+    private static final int MIN_SENSITIVE_TRANSCRIPT_MATCH_LENGTH = 8;
     private static final Duration VERSION_TIMEOUT = Duration.ofSeconds(15);
     private static final Duration ABORT_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration ABORT_DRAIN_RESERVE = Duration.ofSeconds(1);
@@ -1926,7 +1928,8 @@ public final class PiWorker {
             return false;
         }
         for (String value : sensitive) {
-            if (text.contains(value)) {
+            if (value.length() >= MIN_SENSITIVE_TRANSCRIPT_MATCH_LENGTH
+                    && text.contains(value)) {
                 return true;
             }
         }

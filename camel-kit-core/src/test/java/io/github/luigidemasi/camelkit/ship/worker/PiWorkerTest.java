@@ -461,7 +461,7 @@ class PiWorkerTest {
         List<String> names = List.of(
                 "OPENAI_API_KEY", "AUTH", "JWT", "PASS", "TOKEN");
         List<String> values = List.of(
-                "fixture-secret-123", "auth-value", "jwt-value", "xy", "1");
+                "fixture-secret-123", "auth-value", "jwt-value", "password-value", "token-value");
         ShipRun.Stage[] stages = ShipRun.Stage.values();
         for (int index = 0; index < names.size(); index++) {
             String secret = values.get(index);
@@ -514,12 +514,29 @@ class PiWorkerTest {
     }
 
     @Test
+    void shortSensitiveValuesDoNotRejectAnOrdinaryPersistedTurn()
+            throws Exception {
+        ShipRun.Stage stage = ShipRun.Stage.DESIGN;
+
+        PiWorker.Result result = worker(
+                Duration.ofSeconds(5),
+                Map.of(
+                        "DB_PASSWORD", "test",
+                        "COOKIE_NAME", "session",
+                        "TOKEN", "1"))
+                .run(request(stage, "test prompt"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
+        assertTrue(hasSession(sessionId(stage)));
+    }
+
+    @Test
     void rejectsSensitiveEnvironmentValuesInObjectKeysAndScalarValues()
             throws Exception {
         List<String> modes = List.of(
                 "leak-assistant-key", "leak-tool-number");
         List<String> values = List.of(
-                "nested-secret-key", "8675309");
+                "nested-secret-key", "86753090");
         ShipRun.Stage[] stages = ShipRun.Stage.values();
         for (int index = 0; index < modes.size(); index++) {
             String secret = values.get(index);
