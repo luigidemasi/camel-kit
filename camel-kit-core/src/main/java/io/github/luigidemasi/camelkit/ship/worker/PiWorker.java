@@ -173,7 +173,7 @@ public final class PiWorker {
             String detectedVersion;
             try {
                 detectedVersion = requireVersion(
-                        firstLine(Files.readAllBytes(versionRun.stdoutLog())),
+                        firstLine(versionRun.capturedStdout()),
                         "detected Pi version");
             } catch (IllegalArgumentException | IOException e) {
                 throw new IOException(

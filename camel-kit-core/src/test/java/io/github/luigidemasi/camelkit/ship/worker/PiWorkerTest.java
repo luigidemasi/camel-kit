@@ -521,12 +521,14 @@ class PiWorkerTest {
         PiWorker.Result result = worker(
                 Duration.ofSeconds(5),
                 Map.of(
+                        "AUTH", "0",
                         "DB_PASSWORD", "test",
                         "COOKIE_NAME", "session",
                         "TOKEN", "1"))
                 .run(request(stage, "test prompt"));
 
         assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
+        assertEquals("0.80.6", result.version());
         assertTrue(hasSession(sessionId(stage)));
     }
 

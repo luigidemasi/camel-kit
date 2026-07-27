@@ -192,6 +192,7 @@ final class LocalCommandRunner {
                     timedOut,
                     outputLimited.get(),
                     exitCode,
+                    capturedStdout,
                     stdout.path(),
                     stdout.digest(),
                     stderr.path(),
@@ -829,6 +830,7 @@ final class LocalCommandRunner {
             boolean timedOut,
             boolean outputLimited,
             Integer exitCode,
+            byte[] capturedStdout,
             Path stdoutLog,
             String stdoutDigest,
             Path stderrLog,
@@ -840,6 +842,8 @@ final class LocalCommandRunner {
             Objects.requireNonNull(workingDirectory, "workingDirectory");
             Objects.requireNonNull(startedAt, "startedAt");
             Objects.requireNonNull(endedAt, "endedAt");
+            capturedStdout = Objects.requireNonNull(
+                    capturedStdout, "capturedStdout").clone();
             Objects.requireNonNull(stdoutLog, "stdoutLog");
             Objects.requireNonNull(stdoutDigest, "stdoutDigest");
             Objects.requireNonNull(stderrLog, "stderrLog");
@@ -848,6 +852,11 @@ final class LocalCommandRunner {
                 throw new IllegalArgumentException(
                         "Only a timed-out local command can omit its exit code");
             }
+        }
+
+        @Override
+        public byte[] capturedStdout() {
+            return capturedStdout.clone();
         }
 
         @Override
