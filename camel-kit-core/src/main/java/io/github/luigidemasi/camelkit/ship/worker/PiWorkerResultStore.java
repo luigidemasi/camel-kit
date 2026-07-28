@@ -7,9 +7,11 @@ import java.nio.channels.FileChannel;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Locale;
 import java.util.Objects;
@@ -52,11 +54,11 @@ final class PiWorkerResultStore {
         if (path == null) {
             return Optional.empty();
         }
-        if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
+        BasicFileAttributes attributes = attributesIfPresent(path);
+        if (attributes == null) {
             return Optional.empty();
         }
-        if (Files.isSymbolicLink(path)
-                || !Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
+        if (attributes.isSymbolicLink() || !attributes.isRegularFile()) {
             throw new IOException("Pi stage result marker is invalid");
         }
         byte[] encoded;
@@ -147,10 +149,17 @@ final class PiWorkerResultStore {
     private static Path resultPath(Request request, boolean createDirectory)
             throws IOException {
         if (!createDirectory
-                && !Files.exists(request.sessionDirectory(), LinkOption.NOFOLLOW_LINKS)) {
+                && attributesIfPresent(request.sessionDirectory()) == null) {
             return null;
         }
-        Path sessions = request.sessionDirectory().toRealPath();
+        Path sessions;
+        try {
+            sessions = request.sessionDirectory().toRealPath();
+        } catch (SecurityException e) {
+            throw new IOException(
+                    "Pi session directory could not be inspected",
+                    e);
+        }
         Path directory = sessions.resolve(DIRECTORY);
         if (createDirectory) {
             Files.createDirectories(
@@ -158,9 +167,14 @@ final class PiWorkerResultStore {
                     PosixFilePermissions.asFileAttribute(
                             PosixFilePermissions.fromString("rwx------")));
         }
-        if (Files.isSymbolicLink(directory)
-                || (Files.exists(directory, LinkOption.NOFOLLOW_LINKS)
-                        && !Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS))) {
+        BasicFileAttributes attributes = attributesIfPresent(directory);
+        if (attributes == null) {
+            if (!createDirectory) {
+                return null;
+            }
+            throw new IOException("Pi stage result directory disappeared");
+        }
+        if (attributes.isSymbolicLink() || !attributes.isDirectory()) {
             throw new IOException("Pi stage result directory is invalid");
         }
         String name = request.runId()
@@ -168,6 +182,22 @@ final class PiWorkerResultStore {
                       + '-' + request.inputDigest().substring("sha256:".length())
                       + '-' + request.attempt() + ".json";
         return directory.resolve(name);
+    }
+
+    private static BasicFileAttributes attributesIfPresent(Path path)
+            throws IOException {
+        try {
+            return Files.readAttributes(
+                    path,
+                    BasicFileAttributes.class,
+                    LinkOption.NOFOLLOW_LINKS);
+        } catch (NoSuchFileException e) {
+            return null;
+        } catch (SecurityException e) {
+            throw new IOException(
+                    "Pi stage result path could not be inspected",
+                    e);
+        }
     }
 
     private record Marker(

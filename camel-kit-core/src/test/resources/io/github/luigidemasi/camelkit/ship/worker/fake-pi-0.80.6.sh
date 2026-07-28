@@ -222,6 +222,24 @@ if [ "$mode" = "late-abort-exit" ] || [ "$mode" = "repeated-interrupt-abort" ]; 
   abort_turn
   exit 0
 fi
+if [ "$mode" = "interrupt-output-limit" ]; then
+  printf '%s\n' '{"id":"prompt-1","type":"response","command":"prompt","success":true}'
+  begin_turn
+  touch "$fixture/ready"
+  IFS= read -r abort || exit 6
+  printf '%s\n' "$abort" > "$fixture/abort"
+  if [ "$abort" != '{"id":"abort-1","type":"abort"}' ]; then
+    exit 8
+  fi
+  dd if=/dev/zero bs=1048576 count=17 >&2 2>/dev/null
+  printf '%s\n' '{"id":"abort-1","type":"response","command":"abort","success":true}'
+  aborted='{"role":"assistant","content":[],"stopReason":"aborted","timestamp":2}'
+  emit_message "$aborted" assistant
+  printf '{"type":"agent_end","messages":[%s],"willRetry":false}\n' "$aborted"
+  printf '%s\n' '{"type":"agent_settled"}'
+  cat >/dev/null
+  exit 0
+fi
 
 case "$mode" in
   unacknowledged-abort)
@@ -346,11 +364,16 @@ if [ "$mode" = "queued-natural-exit" ]; then
   exit 0
 fi
 
-if [ "$mode" = "malformed-natural-stop-after-eof" ]; then
+if [ "$mode" = "malformed-natural-stop-after-eof" ] \
+    || [ "$mode" = "duplicate-response-natural-stop-after-eof" ]; then
   printf '%s\n' '{"id":"prompt-1","type":"response","command":"prompt","success":true}'
   begin_turn
-  printf '%s\n' 'not-json'
-  cat >/dev/null
+  if [ "$mode" = "malformed-natural-stop-after-eof" ]; then
+    printf '%s\n' 'not-json'
+  else
+    printf '%s\n' '{"id":"prompt-1","type":"response","command":"prompt","success":true}'
+  fi
+  cat > "$fixture/post-prompt-input"
   natural='{"role":"assistant","content":[{"type":"text","text":"done"}],"stopReason":"stop","timestamp":2}'
   emit_message "$natural" assistant
   printf '{"type":"agent_end","messages":[%s],"willRetry":false}\n' "$natural"

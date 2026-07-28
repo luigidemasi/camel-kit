@@ -12,6 +12,8 @@ import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.CommandRun;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -45,6 +47,34 @@ class PiWorkerResultStoreTest {
     void returnsEmptyWhenTheSessionDirectoryDoesNotExist() throws Exception {
         assertTrue(PiWorkerResultStore.read(
                 request(RUN_A, directory.resolve("missing"))).isEmpty());
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    void doesNotTreatIndeterminatePathsAsMissing() throws Exception {
+        Path loop = directory.resolve("loop");
+        Files.createSymbolicLink(loop, Path.of("loop"));
+        PiWorker.Request request = request(
+                RUN_A,
+                loop.resolve("sessions"));
+
+        assertThrows(
+                IOException.class,
+                () -> PiWorkerResultStore.read(request));
+        assertThrows(
+                IOException.class,
+                () -> PiWorkerResultStore.delete(request));
+
+        Path dangling = directory.resolve("dangling");
+        Files.createSymbolicLink(dangling, Path.of("missing"));
+        PiWorker.Request danglingRequest = request(RUN_A, dangling);
+
+        assertThrows(
+                IOException.class,
+                () -> PiWorkerResultStore.read(danglingRequest));
+        assertThrows(
+                IOException.class,
+                () -> PiWorkerResultStore.delete(danglingRequest));
     }
 
     @Test

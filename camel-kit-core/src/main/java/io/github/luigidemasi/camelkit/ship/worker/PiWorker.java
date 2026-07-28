@@ -15,9 +15,11 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.nio.file.attribute.UserPrincipal;
@@ -280,16 +282,15 @@ public final class PiWorker {
                             sessionDirectory,
                             previousSession);
                 } catch (IOException publicationFailure) {
-                    // If the atomic rename did not consume the scratch file, the
-                    // result was not published and a clean retry is safe.
-                    if (Files.exists(
-                            turn.validatedSession(),
-                            LinkOption.NOFOLLOW_LINKS)) {
-                        try {
+                    // Only a remaining scratch file proves that the atomic rename
+                    // did not publish the result. Indeterminate attribute reads
+                    // retain the marker and are reported with the original failure.
+                    try {
+                        if (existsNoFollow(turn.validatedSession())) {
                             PiWorkerResultStore.delete(request);
-                        } catch (IOException cleanupFailure) {
-                            publicationFailure.addSuppressed(cleanupFailure);
                         }
+                    } catch (IOException cleanupFailure) {
+                        publicationFailure.addSuppressed(cleanupFailure);
                     }
                     throw publicationFailure;
                 }
@@ -673,9 +674,10 @@ public final class PiWorker {
                             stderrReader,
                             "Interrupted Pi RPC error output did not close");
                     Thread.interrupted();
-                    if (stdout.limited() || stderr.limited()) {
-                        throw new IOException(
-                                "Interrupted Pi RPC exceeded its retained-output limit");
+                    outputLimited = stdout.limited() || stderr.limited();
+                    if (outputLimited) {
+                        e.addSuppressed(new IOException(
+                                "Interrupted Pi RPC exceeded its retained-output limit"));
                     }
                     validatedSession = validatePersistedSession(
                             sessionDirectory,
@@ -687,6 +689,7 @@ public final class PiWorker {
                             reconciliation.turn());
                     if (process.exitValue() == 0
                             && reconciliation.naturalCompletion()
+                            && !outputLimited
                             && !stdout.protocolUnverifiable()
                             && protocolFailure == null) {
                         List<String> stdoutSecrets = new ArrayList<>(
@@ -733,15 +736,15 @@ public final class PiWorker {
                                 validatedSession,
                                 true);
                     }
-                    if (process.exitValue() == 0) {
-                        if (!stdout.protocolUnverifiable()
-                                && protocolFailure == null) {
-                            publishSession(
-                                    validatedSession,
-                                    canonicalSessionDirectory,
-                                    canonicalPreviousSession);
-                        }
-                    } else {
+                    if (process.exitValue() == 0
+                            && !reconciliation.naturalCompletion()
+                            && !stdout.protocolUnverifiable()
+                            && protocolFailure == null) {
+                        publishSession(
+                                validatedSession,
+                                canonicalSessionDirectory,
+                                canonicalPreviousSession);
+                    } else if (process.exitValue() != 0) {
                         e.addSuppressed(new IOException(
                                 "Pi abort session was not published after a nonzero process exit"));
                     }
@@ -1471,6 +1474,22 @@ public final class PiWorker {
                 target,
                 StandardCopyOption.ATOMIC_MOVE,
                 StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    private static boolean existsNoFollow(Path path) throws IOException {
+        try {
+            Files.readAttributes(
+                    path,
+                    BasicFileAttributes.class,
+                    LinkOption.NOFOLLOW_LINKS);
+            return true;
+        } catch (NoSuchFileException e) {
+            return false;
+        } catch (SecurityException e) {
+            throw new IOException(
+                    "Could not determine whether the Pi scratch session remains",
+                    e);
+        }
     }
 
     private static void deleteTree(Path path) throws IOException {

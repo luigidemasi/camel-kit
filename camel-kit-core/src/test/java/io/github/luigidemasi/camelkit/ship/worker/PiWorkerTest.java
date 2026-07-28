@@ -1240,11 +1240,12 @@ class PiWorkerTest {
     }
 
     @Test
-    void interruptionDoesNotPublishAnUnverifiableNaturalStop() throws Exception {
-        Files.writeString(fixture.resolve("mode"), "malformed-natural-stop-after-eof\n");
+    void interruptionPublishesAProtocolVerifiableOutputLimitedAbort() throws Exception {
+        Files.writeString(fixture.resolve("mode"), "interrupt-output-limit\n");
         PiWorker worker = worker(Duration.ofSeconds(30));
-        PiWorker.Request request = request(ShipRun.Stage.DESIGN, "prompt");
+        PiWorker.Request request = request(ShipRun.Stage.EXECUTE, "prompt");
         AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicReference<InterruptedException> interruption = new AtomicReference<>();
         AtomicBoolean interrupted = new AtomicBoolean();
         Thread invocation = new Thread(() -> {
             try {
@@ -1253,9 +1254,7 @@ class PiWorkerTest {
                         "Pi invocation unexpectedly completed"));
             } catch (InterruptedException expected) {
                 interrupted.set(Thread.currentThread().isInterrupted());
-                if (expected.getSuppressed().length > 0) {
-                    failure.set(expected.getSuppressed()[0]);
-                }
+                interruption.set(expected);
             } catch (Throwable unexpected) {
                 failure.set(unexpected);
             }
@@ -1264,21 +1263,43 @@ class PiWorkerTest {
         invocation.start();
         awaitFile(fixture.resolve("ready"));
         invocation.interrupt();
-        Thread.sleep(250);
-        Files.writeString(fixture.resolve("release"), "release\n");
-        invocation.join(Duration.ofSeconds(10).toMillis());
+        invocation.join(Duration.ofSeconds(15).toMillis());
 
         assertFalse(invocation.isAlive());
         assertNull(failure.get());
         assertTrue(interrupted.get());
-        assertFalse(hasSession(sessionId(ShipRun.Stage.DESIGN)));
+        assertTrue(java.util.Arrays.stream(
+                interruption.get().getSuppressed())
+                .anyMatch(cause -> cause.getMessage().contains(
+                        "retained-output limit")));
+        String sessionId = sessionId(ShipRun.Stage.EXECUTE);
+        assertTrue(hasSession(sessionId));
+        assertTrue(Files.readString(sessionFile(sessionId))
+                .contains("\"stopReason\":\"aborted\""));
         assertTrue(worker.recover(request).isEmpty());
-        assertFalse(Files.exists(fixture.resolve("abort")));
+        assertNoScratchDirectories();
 
         Files.writeString(fixture.resolve("mode"), "success\n");
         PiWorker.Result retried = worker.run(request);
         assertEquals(PiWorker.Outcome.SUCCEEDED, retried.outcome());
         assertEquals(retried, worker.recover(request).orElseThrow());
+        assertEquals(
+                List.of(sessionId),
+                Files.readAllLines(fixture.resolve("resumed-sessions")));
+    }
+
+    @Test
+    void interruptionDoesNotPublishAnUnverifiableNaturalStop() throws Exception {
+        assertInterruptedInvalidNaturalStopIsRetryable(
+                "malformed-natural-stop-after-eof",
+                ShipRun.Stage.DESIGN);
+    }
+
+    @Test
+    void interruptionDoesNotPublishAProtocolInvalidNaturalStop() throws Exception {
+        assertInterruptedInvalidNaturalStopIsRetryable(
+                "duplicate-response-natural-stop-after-eof",
+                ShipRun.Stage.PLAN);
     }
 
     @Test
@@ -1893,6 +1914,51 @@ class PiWorkerTest {
                 inputDigest(),
                 acceptExperimental,
                 prompt);
+    }
+
+    private void assertInterruptedInvalidNaturalStopIsRetryable(
+            String mode, ShipRun.Stage stage)
+            throws Exception {
+        Files.writeString(fixture.resolve("mode"), mode + "\n");
+        PiWorker worker = worker(Duration.ofSeconds(30));
+        PiWorker.Request request = request(stage, "prompt");
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicBoolean interrupted = new AtomicBoolean();
+        Thread invocation = new Thread(() -> {
+            try {
+                worker.run(request);
+                failure.set(new AssertionError(
+                        "Pi invocation unexpectedly completed"));
+            } catch (InterruptedException expected) {
+                interrupted.set(Thread.currentThread().isInterrupted());
+                if (expected.getSuppressed().length > 0) {
+                    failure.set(expected.getSuppressed()[0]);
+                }
+            } catch (Throwable unexpected) {
+                failure.set(unexpected);
+            }
+        });
+
+        invocation.start();
+        awaitFile(fixture.resolve("ready"));
+        invocation.interrupt();
+        Thread.sleep(250);
+        Files.writeString(fixture.resolve("release"), "release\n");
+        invocation.join(Duration.ofSeconds(10).toMillis());
+
+        assertFalse(invocation.isAlive());
+        assertNull(failure.get());
+        assertTrue(interrupted.get());
+        assertFalse(hasSession(sessionId(stage)));
+        assertTrue(worker.recover(request).isEmpty());
+        assertEquals(
+                "",
+                Files.readString(fixture.resolve("post-prompt-input")));
+
+        Files.writeString(fixture.resolve("mode"), "success\n");
+        PiWorker.Result retried = worker.run(request);
+        assertEquals(PiWorker.Outcome.SUCCEEDED, retried.outcome());
+        assertEquals(retried, worker.recover(request).orElseThrow());
     }
 
     private static String inputDigest() {
