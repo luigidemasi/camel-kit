@@ -65,13 +65,13 @@ final class ShipSecureFilesystem {
         if (!policy.isAllowedAbsolutePath(absolute)) {
             throw unsafe(label + " is outside the allowed project-root lineage");
         }
-        rejectSymbolicComponents(absolute, label);
+        if (Files.isSymbolicLink(absolute)
+                || !Files.isDirectory(absolute, LinkOption.NOFOLLOW_LINKS)) {
+            throw unsafe(label + " must be a real directory: " + absolute);
+        }
         Path root = absolute.toRealPath();
-        if (!root.equals(absolute)
-                || !policy.isAllowedAbsolutePath(root)
-                || Files.isSymbolicLink(root)
-                || !Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)) {
-            throw unsafe(label + " must be an allowed, link-free real directory: " + absolute);
+        if (!policy.isAllowedAbsolutePath(root)) {
+            throw unsafe(label + " is outside the allowed project-root lineage");
         }
         return root;
     }
@@ -100,16 +100,6 @@ final class ShipSecureFilesystem {
                 e.addSuppressed(closeFailure);
             }
             throw e;
-        }
-    }
-
-    private static void rejectSymbolicComponents(Path path, String label) throws IOException {
-        Path current = path.getRoot();
-        for (Path component : path) {
-            current = current == null ? component : current.resolve(component);
-            if (Files.isSymbolicLink(current)) {
-                throw unsafe(label + " path contains a symbolic link: " + current);
-            }
         }
     }
 
@@ -351,20 +341,29 @@ final class ShipSecureFilesystem {
         }
 
         ProjectSnapshot snapshot() throws IOException {
-            return snapshot(false);
+            return snapshot(false, false);
         }
 
         /** Captures a sealed tree containing material entries only. */
         ProjectSnapshot snapshotMaterialOnly() throws IOException {
-            return snapshot(true);
+            return snapshot(true, false);
         }
 
-        private ProjectSnapshot snapshot(boolean materialOnly) throws IOException {
+        /** Captures material staging content while allowing volatile build output. */
+        ProjectSnapshot snapshotStaged() throws IOException {
+            return snapshot(false, true);
+        }
+
+        private ProjectSnapshot snapshot(boolean materialOnly, boolean staged) throws IOException {
             assertRootBinding();
             ScanState state = new ScanState(policy, rootMetadata.fileKey());
             try (BoundDirectory scanRoot = openBoundDirectory(
                     root, Path.of("."), "", rootMetadata)) {
-                scan(scanRoot.stream(), "", rootMetadata, 0, state, materialOnly);
+                try {
+                    scan(scanRoot.stream(), "", rootMetadata, 0, state, materialOnly, staged);
+                } catch (IllegalArgumentException ignored) {
+                    throw unsafe("Ship tree contains an unsafe entry");
+                }
             }
             assertRootBinding();
             return ProjectSnapshot.create(
@@ -373,12 +372,25 @@ final class ShipSecureFilesystem {
 
         /** Reads one bounded material file without following links or exposing protected project metadata. */
         byte[] readMaterialBytes(String relativePath, int maximumBytes) throws IOException {
+            return readBytes(relativePath, maximumBytes, Classification.MATERIAL);
+        }
+
+        /** Reads one bounded volatile file without following links or exposing other project content. */
+        byte[] readVolatileBytes(String relativePath, int maximumBytes) throws IOException {
+            return readBytes(relativePath, maximumBytes, Classification.VOLATILE);
+        }
+
+        private byte[] readBytes(
+                String relativePath,
+                int maximumBytes,
+                Classification requiredClassification)
+                throws IOException {
             if (maximumBytes < 1) {
                 throw new IllegalArgumentException("Maximum Ship read size must be positive");
             }
             String relative = canonicalPath(relativePath);
-            if (classify(relative) != Classification.MATERIAL) {
-                throw unsafe("Only material project files may be read as Ship context: " + relative);
+            if (classify(relative) != requiredClassification) {
+                throw unsafe("Ship file does not have the required classification: " + relative);
             }
             assertRootBinding();
             byte[] result = withParent(relative, (parent, name) -> {
@@ -387,7 +399,7 @@ final class ShipSecureFilesystem {
                 requireRegularFile(basicBefore, before, rootMetadata.device(), relative);
                 long limit = Math.min((long) maximumBytes, policy.maxFileBytes());
                 if (before.size() > limit) {
-                    throw quota("Ship context file exceeds its read limit: " + relative);
+                    throw quota("Ship file exceeds its read limit: " + relative);
                 }
                 ByteArrayOutputStream output = new ByteArrayOutputStream(Math.toIntExact(before.size()));
                 // Java 17 exposes no fstat-style identity from SeekableByteChannel. These
@@ -404,10 +416,10 @@ final class ShipSecureFilesystem {
                         total = Math.addExact(total, read);
                         if (total > before.size()) {
                             throw concurrentMutation(
-                                    "Ship context file grew while it was read: " + relative);
+                                    "Ship file grew while it was read: " + relative);
                         }
                         if (total > limit) {
-                            throw quota("Ship context file exceeds its read limit: " + relative);
+                            throw quota("Ship file exceeds its read limit: " + relative);
                         }
                         output.write(buffer.array(), 0, read);
                         buffer.clear();
@@ -417,7 +429,7 @@ final class ShipSecureFilesystem {
                 UnixIdentity after = relativeIdentity(relative, before.fileKey());
                 requireRegularFile(basicAfter, after, rootMetadata.device(), relative);
                 if (!before.equals(after) || output.size() != before.size()) {
-                    throw concurrentMutation("Ship context file changed while it was read: " + relative);
+                    throw concurrentMutation("Ship file changed while it was read: " + relative);
                 }
                 return output.toByteArray();
             });
@@ -431,7 +443,8 @@ final class ShipSecureFilesystem {
                 UnixIdentity expectedDirectory,
                 int depth,
                 ScanState state,
-                boolean materialOnly)
+                boolean materialOnly,
+                boolean staged)
                 throws IOException {
             validateOpenedDirectory(directory, expectedDirectory, display(prefix));
             UnixIdentity directoryBefore = relativeIdentity(prefix, expectedDirectory.fileKey());
@@ -452,25 +465,38 @@ final class ShipSecureFilesystem {
                     UnixIdentity entryIdentity = relativeIdentity(relative, basic.fileKey());
                     requireDirectory(basic, entryIdentity, rootMetadata.device(), relative);
                     state.visitDirectory(relative, entryIdentity);
+                    if (staged && (classification == Classification.DENIED
+                            || classification == Classification.PROTECTED)) {
+                        throw unsafe("Staged Ship tree contains a non-publishable entry: " + relative);
+                    }
                     if (materialOnly && classification != Classification.MATERIAL) {
                         throw unsafe("Sealed Ship tree contains a non-material entry: " + relative);
                     }
                     if (classification == Classification.DENIED
-                            || classification == Classification.VOLATILE) {
+                            || (classification == Classification.VOLATILE && !staged)) {
                         continue;
                     }
                     int childDepth = Math.addExact(depth, 1);
                     if (childDepth > policy.maxDepth()) {
                         throw quota("Ship tree exceeds the depth quota at " + relative);
                     }
-                    state.addDirectory(relative, entryIdentity, new DirectoryEntry(
-                            classification,
-                            entryIdentity.mode(),
-                            entryIdentity.userId(),
-                            entryIdentity.groupId()));
+                    if (classification != Classification.VOLATILE) {
+                        state.addDirectory(relative, entryIdentity, new DirectoryEntry(
+                                classification,
+                                entryIdentity.mode(),
+                                entryIdentity.userId(),
+                                entryIdentity.groupId()));
+                    }
                     try (BoundDirectory child = openBoundDirectory(
                             directory, name, relative, entryIdentity)) {
-                        scan(child.stream(), relative, entryIdentity, childDepth, state, materialOnly);
+                        scan(
+                                child.stream(),
+                                relative,
+                                entryIdentity,
+                                childDepth,
+                                state,
+                                materialOnly,
+                                staged);
                     }
                     continue;
                 }
@@ -480,11 +506,20 @@ final class ShipSecureFilesystem {
                 UnixIdentity entryIdentity = relativeIdentity(relative, basic.fileKey());
                 requireRegularFile(basic, entryIdentity, rootMetadata.device(), relative);
                 state.visitFile(relative, entryIdentity);
+                if (staged && (classification == Classification.DENIED
+                        || classification == Classification.PROTECTED)) {
+                    throw unsafe("Staged Ship tree contains a non-publishable entry: " + relative);
+                }
                 if (materialOnly && classification != Classification.MATERIAL) {
                     throw unsafe("Sealed Ship tree contains a non-material entry: " + relative);
                 }
-                if (classification == Classification.DENIED
-                        || classification == Classification.VOLATILE) {
+                if (classification == Classification.DENIED) {
+                    continue;
+                }
+                if (classification == Classification.VOLATILE) {
+                    if (staged) {
+                        state.reserve(relative, entryIdentity);
+                    }
                     continue;
                 }
                 state.add(relative, readRegular(

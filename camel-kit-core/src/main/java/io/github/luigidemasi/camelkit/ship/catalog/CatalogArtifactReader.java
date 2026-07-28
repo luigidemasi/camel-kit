@@ -39,18 +39,23 @@ final class CatalogArtifactReader {
         if (maximumBytes < 1 || maximumBytes > Integer.MAX_VALUE) {
             throw new IllegalArgumentException("Catalog artifact byte limit is invalid");
         }
-        Path root = Objects.requireNonNull(requestedRoot, "requestedRoot must not be null")
+        Path requested = Objects.requireNonNull(requestedRoot, "requestedRoot must not be null")
                 .toAbsolutePath().normalize();
         Path file = Objects.requireNonNull(requestedFile, "requestedFile must not be null")
                 .toAbsolutePath().normalize();
-        if (!file.startsWith(root) || file.equals(root)) {
+        if (!file.startsWith(requested) || file.equals(requested)) {
             throw new IOException("Catalog artifact is outside its repository root");
         }
-        Path relative = root.relativize(file);
+        Path relative = requested.relativize(file);
         int count = relative.getNameCount();
         if (count < 2) {
             throw new IOException("Catalog artifact path lacks a parent directory");
         }
+        if (Files.isSymbolicLink(requested)
+                || !Files.isDirectory(requested, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("Catalog repository root is not a real directory");
+        }
+        Path root = requested.toRealPath();
         try (BoundRoot boundRoot = openRoot(root)) {
             byte[] result = readFrom(
                     boundRoot.stream(), root, relative, 0, boundRoot.identity().device(), maximumBytes);
@@ -78,10 +83,6 @@ final class CatalogArtifactReader {
     }
 
     private static BoundRoot openRoot(Path root) throws IOException {
-        rejectSymbolicComponents(root);
-        if (!root.equals(root.toRealPath())) {
-            throw new IOException("Catalog repository root is not a canonical real directory");
-        }
         DirectoryStream<Path> opened = Files.newDirectoryStream(root);
         if (!(opened instanceof SecureDirectoryStream<?>)) {
             opened.close();
@@ -312,16 +313,6 @@ final class CatalogArtifactReader {
             throw new IOException("Catalog artifact path contains an unsafe segment");
         }
         return name;
-    }
-
-    private static void rejectSymbolicComponents(Path path) throws IOException {
-        Path current = path.getRoot();
-        for (Path component : path) {
-            current = current == null ? component : current.resolve(component);
-            if (Files.isSymbolicLink(current)) {
-                throw new IOException("Catalog repository path contains a symbolic link");
-            }
-        }
     }
 
     private record UnixIdentity(

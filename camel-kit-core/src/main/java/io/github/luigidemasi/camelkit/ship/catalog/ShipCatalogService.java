@@ -93,7 +93,7 @@ public final class ShipCatalogService {
                     .build())
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
-    private final Path localRepository;
+    private Path localRepository;
     private final ResolutionMode resolutionMode;
     private final ArtifactResolver artifactResolver;
 
@@ -114,9 +114,10 @@ public final class ShipCatalogService {
     }
 
     /** Acquires one exact artifact generation and freezes its bytes for every subsequent catalog query. */
-    public Snapshot snapshot(CatalogTarget target) throws IOException {
+    public synchronized Snapshot snapshot(CatalogTarget target) throws IOException {
         Objects.requireNonNull(target, "target must not be null");
         prepareLocalRepository();
+        localRepository = localRepository.toRealPath();
         return new Snapshot(resolve(target));
     }
 
@@ -427,8 +428,8 @@ public final class ShipCatalogService {
 
     private void prepareLocalRepository() throws IOException {
         Path parent = localRepository.getParent();
-        if (parent == null || Files.isSymbolicLink(parent)
-                || !Files.isDirectory(parent, LinkOption.NOFOLLOW_LINKS)) {
+        if (parent == null
+                || !Files.isDirectory(parent.toRealPath(), LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException("Catalog repository parent must be a real directory");
         }
         if (!Files.exists(localRepository, LinkOption.NOFOLLOW_LINKS)) {

@@ -1,5 +1,6 @@
 package io.github.luigidemasi.camelkit.ship.security;
 
+import java.io.IOException;
 import java.lang.reflect.Modifier;
 import java.net.StandardProtocolFamily;
 import java.net.URI;
@@ -195,6 +196,45 @@ class ProjectSnapshotServiceTest {
     }
 
     @Test
+    void readsOnlyBoundedVolatileFilesThroughTheHeldProjectDescriptor() throws Exception {
+        Path project = project();
+        Path generated = write(project, "target/generated.txt", "generated");
+        write(project, "requirements.md", "requirements");
+        write(project, ".camel-kit/pipeline.json", "private");
+
+        assertArrayEquals(
+                Files.readAllBytes(generated),
+                ProjectEvidenceFiles.readVolatile(project, "target/generated.txt", 1024));
+        assertCode(ShipFilesystemException.UNSAFE_ENTRY,
+                () -> ProjectEvidenceFiles.readVolatile(project, "requirements.md", 1024));
+        assertCode(ShipFilesystemException.UNSAFE_ENTRY,
+                () -> ProjectEvidenceFiles.readVolatile(
+                        project, ".camel-kit/pipeline.json", 1024));
+        assertCode(ShipFilesystemException.TREE_QUOTA_EXCEEDED,
+                () -> ProjectEvidenceFiles.readVolatile(project, "target/generated.txt", 4));
+    }
+
+    @Test
+    void volatileReadRejectsSymlinkedParentsFinalLinksAndHardLinks() throws Exception {
+        Path project = project();
+        Path target = Files.createDirectory(project.resolve("target"));
+        Path outside = Files.createDirectory(temporaryDirectory.resolve("outside"));
+        Path secret = write(outside, "secret.txt", "secret");
+        Files.createSymbolicLink(target.resolve("linked-parent"), outside);
+        Files.createSymbolicLink(target.resolve("linked.txt"), secret);
+        Files.createLink(target.resolve("hard-linked.txt"), secret);
+
+        assertCode(ShipFilesystemException.UNSAFE_ENTRY,
+                () -> ProjectEvidenceFiles.readVolatile(
+                        project, "target/linked-parent/secret.txt", 1024));
+        assertCode(ShipFilesystemException.UNSAFE_ENTRY,
+                () -> ProjectEvidenceFiles.readVolatile(project, "target/linked.txt", 1024));
+        assertCode(ShipFilesystemException.UNSAFE_ENTRY,
+                () -> ProjectEvidenceFiles.readVolatile(
+                        project, "target/hard-linked.txt", 1024));
+    }
+
+    @Test
     void rejectsSymbolicLinksAndHardLinksDuringSnapshot() throws Exception {
         Path symbolicProject = project();
         Path original = write(symbolicProject, "original.txt", "value");
@@ -211,14 +251,52 @@ class ProjectSnapshotServiceTest {
     }
 
     @Test
-    void rejectsSymbolicRootComponents() throws Exception {
+    void acceptsSymbolicAncestorsButRejectsASymbolicRootLeaf() throws Exception {
         Path realParent = Files.createDirectory(temporaryDirectory.resolve("real-parent"));
         Path project = Files.createDirectory(realParent.resolve("project"));
-        Path alias = temporaryDirectory.resolve("parent-alias");
-        Files.createSymbolicLink(alias, realParent);
+        Path parentAlias = temporaryDirectory.resolve("parent-alias");
+        Files.createSymbolicLink(parentAlias, realParent);
+        Path rootAlias = temporaryDirectory.resolve("project-alias");
+        Files.createSymbolicLink(rootAlias, project);
+        Path deniedParent = Files.createDirectory(temporaryDirectory.resolve(".git"));
+        Path deniedAlias = deniedParent.resolve("parent-alias");
+        Files.createSymbolicLink(deniedAlias, realParent);
+        Path canonicalDeniedParent = Files.createDirectories(temporaryDirectory.resolve("canonical-denied/.git"));
+        Files.createDirectory(canonicalDeniedParent.resolve("project"));
+        Path allowedAlias = temporaryDirectory.resolve("allowed-alias");
+        Files.createSymbolicLink(allowedAlias, canonicalDeniedParent);
 
+        assertEquals(
+                project.toRealPath().toString(),
+                new ProjectSnapshotService().capture(parentAlias.resolve("project")).root());
         assertCode(ShipFilesystemException.UNSAFE_ENTRY,
-                () -> new ProjectSnapshotService().capture(alias.resolve("project")));
+                () -> new ProjectSnapshotService().capture(rootAlias));
+        assertCode(ShipFilesystemException.UNSAFE_ENTRY,
+                () -> new ProjectSnapshotService().capture(deniedAlias.resolve("project")));
+        assertCode(ShipFilesystemException.UNSAFE_ENTRY,
+                () -> new ProjectSnapshotService().capture(allowedAlias.resolve("project")));
+    }
+
+    @Test
+    void materializationAcceptsATargetUnderASymbolicAncestorButRejectsALeafAlias()
+            throws Exception {
+        Path source = project();
+        write(source, "README.md", "material");
+        Path realParent = Files.createDirectory(temporaryDirectory.resolve("real-output-parent"));
+        Path target = Files.createDirectory(realParent.resolve("candidate"));
+        Path parentAlias = temporaryDirectory.resolve("output-parent-alias");
+        Files.createSymbolicLink(parentAlias, realParent);
+        ProjectSnapshotService service = new ProjectSnapshotService();
+
+        ProjectSnapshot materialized = service.materializeMaterial(source, parentAlias.resolve("candidate"));
+
+        assertEquals(target.toRealPath().toString(), materialized.root());
+        assertEquals("material", Files.readString(target.resolve("README.md")));
+
+        Path otherTarget = Files.createDirectory(realParent.resolve("other-candidate"));
+        Path targetAlias = temporaryDirectory.resolve("candidate-alias");
+        Files.createSymbolicLink(targetAlias, otherTarget);
+        assertThrows(IOException.class, () -> service.materializeMaterial(source, targetAlias));
     }
 
     @Test
@@ -313,7 +391,7 @@ class ProjectSnapshotServiceTest {
 
     @Test
     void rejectsHostileOnDiskNamesWithTypedDisplaySafeDiagnostics() throws Exception {
-        for (String hostile : List.of("line\nbreak", "back\\slash")) {
+        for (String hostile : List.of("line\nbreak", "control\u0001name", "back\\slash")) {
             Path project = project();
             Files.writeString(project.resolve(hostile), "content");
 
@@ -644,8 +722,9 @@ class ProjectSnapshotServiceTest {
         assertTrue(Modifier.isFinal(ProjectEvidenceFiles.class.getModifiers()));
         assertEquals(0, ProjectEvidenceFiles.class.getConstructors().length);
         assertEquals(
-                Set.of("capture", "captureSealed", "unchanged", "unchangedMaterialTree",
-                        "materializeMaterial", "readMaterial"),
+                Set.of("capture", "captureStaged", "captureSealed", "unchanged",
+                        "unchangedMaterialTree", "materializeMaterial", "readMaterial",
+                        "readVolatile"),
                 Arrays.stream(ProjectEvidenceFiles.class.getDeclaredMethods())
                         .filter(method -> Modifier.isPublic(method.getModifiers()))
                         .map(method -> method.getName())

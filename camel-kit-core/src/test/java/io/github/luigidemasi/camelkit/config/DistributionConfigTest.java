@@ -90,7 +90,7 @@ class DistributionConfigTest {
         assertEquals("central=https://repo1.maven.org/maven2/", config.citrusMcpRepos());
         assertEquals("https://repo1.maven.org/maven2/,https://repository.apache.org/snapshots",
                 config.camelCatalogRepos());
-        assertEquals("0.80.3", config.piVersion());
+        assertEquals("0.80.6", config.piVersion());
         assertEquals("2.11.0", config.piMcpAdapterVersion());
     }
 

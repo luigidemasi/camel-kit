@@ -66,6 +66,23 @@ class ShipCatalogServiceTest {
         assertTrue(error.getMessage().contains("real directory"));
     }
 
+    @Test
+    void localRepositoryBelowSymbolicAncestorIsAccepted() throws Exception {
+        Path realParent = Files.createDirectory(repository.resolve("real-parent"));
+        Path symbolicParent = repository.resolve("symbolic-parent");
+        Files.createSymbolicLink(symbolicParent, realParent.getFileName());
+        Path localRepository = symbolicParent.resolve("repository");
+        Files.createDirectories(localRepository);
+        writeJar(localRepository, "org.apache.camel", "camel-catalog", CAMEL_VERSION,
+                mainEntries(CAMEL_VERSION, "timer"));
+
+        CatalogEvidenceSet result = offlineService(localRepository).snapshot(
+                new CatalogTarget("main", CAMEL_VERSION, null, null)).evidenceFor(
+                        List.of(subject(Kind.COMPONENT, "timer")));
+
+        assertEquals(1, result.artifacts().size());
+    }
+
     @TempDir
     Path repository;
 

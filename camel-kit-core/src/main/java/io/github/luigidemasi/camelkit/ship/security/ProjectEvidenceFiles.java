@@ -17,6 +17,11 @@ public final class ProjectEvidenceFiles {
         return new ProjectSnapshotService().captureSealed(sealedRoot);
     }
 
+    /** Captures material workspace content while rejecting denied and protected additions. */
+    public static ProjectSnapshot captureStaged(Path stagedRoot) throws IOException {
+        return new ProjectSnapshotService().captureStaged(stagedRoot);
+    }
+
     public static boolean unchanged(ProjectSnapshot before, ProjectSnapshot after) {
         return new ProjectSnapshotService().unchanged(before, after);
     }
@@ -31,5 +36,10 @@ public final class ProjectEvidenceFiles {
 
     public static byte[] readMaterial(Path root, String relativePath, int maximumBytes) throws IOException {
         return new ProjectSnapshotService().readMaterial(root, relativePath, maximumBytes);
+    }
+
+    /** Reads one bounded volatile file through the descriptor-relative project boundary. */
+    public static byte[] readVolatile(Path root, String relativePath, int maximumBytes) throws IOException {
+        return new ProjectSnapshotService().readVolatile(root, relativePath, maximumBytes);
     }
 }

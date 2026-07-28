@@ -4,12 +4,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -25,6 +27,11 @@ import io.github.luigidemasi.camelkit.ship.controller.ShipRun.Stage;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.StageRecord;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.StageStatus;
 import io.github.luigidemasi.camelkit.ship.security.ProjectEvidenceFiles;
+import io.github.luigidemasi.camelkit.ship.security.ProjectSnapshot;
+import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy;
+import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy.Classification;
+import io.github.luigidemasi.camelkit.ship.worker.ShipWorkspace;
+import io.github.luigidemasi.camelkit.ship.worker.ShipWorkspace.StaleBaselineException;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.StreamReadFeature;
@@ -37,6 +44,8 @@ public final class ShipController {
 
     private static final int MAX_PROJECT_STATE_BYTES = 1024 * 1024;
     private static final int MAX_ARTIFACT_BYTES = 64 * 1024 * 1024;
+    private static final long MAX_STAGE_ARTIFACT_BYTES
+            = ShipTreePolicy.DEFAULT_MAX_AGGREGATE_BYTES;
     private static final String ABORT_MESSAGE = "Run aborted by user";
     private static final ObjectMapper PROJECT_JSON = new ObjectMapper(
             JsonFactory.builder()
@@ -85,8 +94,9 @@ public final class ShipController {
         List<StageRecord> stages = new ArrayList<>(ShipRun.pendingStages());
         stages.set(
                 Stage.DISCOVERY.ordinal(),
-                stages.get(Stage.DISCOVERY.ordinal())
-                        .start(ShipRun.inputDigest(context, stages, Stage.DISCOVERY)));
+                startStage(
+                        stages.get(Stage.DISCOVERY.ordinal()),
+                        ShipRun.inputDigest(context, stages, Stage.DISCOVERY)));
         ShipRun run = newRun(
                 runId,
                 project,
@@ -132,8 +142,9 @@ public final class ShipController {
 
         stages.set(
                 startStage.ordinal(),
-                stages.get(startStage.ordinal())
-                        .start(ShipRun.inputDigest(context, stages, startStage)));
+                startStage(
+                        stages.get(startStage.ordinal()),
+                        ShipRun.inputDigest(context, stages, startStage)));
         ShipRun run = newRun(
                 runId,
                 project,
@@ -180,19 +191,41 @@ public final class ShipController {
                 if (record.status() != StageStatus.COMPLETED) {
                     continue;
                 }
-                List<ArtifactRef> refreshedArtifacts = new ArrayList<>(record.artifacts().size());
-                boolean missing = false;
-                for (ArtifactRef artifact : record.artifacts()) {
-                    try {
-                        refreshedArtifacts.add(readArtifact(project, Path.of(artifact.path())));
-                    } catch (Failure e) {
-                        restart = Math.min(restart, index);
-                        missing = true;
-                        break;
+                boolean stagedExecute = record.stage() == Stage.EXECUTE
+                        && record.attempts() > 0;
+                List<ArtifactRef> refreshedArtifacts;
+                try {
+                    if (stagedExecute) {
+                        requireExecuteRoot(
+                                record.artifacts(), expectedWorkspace(locked.directory()));
                     }
+                    refreshedArtifacts = readRecordedArtifacts(
+                            project,
+                            current.id(),
+                            record.stage(),
+                            record.attempts(),
+                            record.inputDigest(),
+                            locked.directory(),
+                            record.artifacts(),
+                            stagedExecute);
+                } catch (Failure e) {
+                    restart = Math.min(restart, index);
+                    break;
                 }
-                if (!missing && !refreshedArtifacts.equals(record.artifacts())) {
-                    stages.set(index, record.withArtifacts(refreshedArtifacts));
+                if (!refreshedArtifacts.equals(record.artifacts())) {
+                    String refreshedOutput = record.outputDigest();
+                    if (record.attempts() == 0 && record.stage() != Stage.DISCOVERY) {
+                        refreshedOutput = refreshedArtifacts.get(0).digest();
+                    } else if (stagedExecute) {
+                        refreshedOutput = ShipRun.executeOutputDigest(requireExecuteRoot(
+                                refreshedArtifacts, expectedWorkspace(locked.directory())));
+                    }
+                    stages.set(
+                            index,
+                            record.withArtifacts(refreshedOutput, refreshedArtifacts));
+                    if (record.stage().next() == null) {
+                        restart = Math.min(restart, index);
+                    }
                 }
             }
 
@@ -227,8 +260,9 @@ public final class ShipController {
                 Stage stage = Stage.values()[restart];
                 stages.set(
                         restart,
-                        stages.get(restart)
-                                .start(ShipRun.inputDigest(refreshed, stages, stage)));
+                        startStage(
+                                stages.get(restart),
+                                ShipRun.inputDigest(refreshed, stages, stage)));
                 resumed = copy(
                         current,
                         RunStatus.RUNNING,
@@ -290,21 +324,132 @@ public final class ShipController {
             String outputDigest,
             List<Path> artifacts,
             boolean materialAmbiguity) {
+        if (stage == Stage.EXECUTE) {
+            throw failure(
+                    "workspace-required",
+                    "Ship EXECUTE results require a workspace bound to the active stage");
+        }
+        return completeStage(
+                runId,
+                stage,
+                attempt,
+                inputDigest,
+                outputDigest,
+                artifacts,
+                false,
+                materialAmbiguity);
+    }
+
+    /**
+     * Records an EXECUTE result from the controller-owned workspace. The workspace root is always retained;
+     * {@code artifacts} contains only additional material files.
+     */
+    public ShipRun completeExecuteStage(
+            String runId,
+            int attempt,
+            String inputDigest,
+            List<Path> artifacts,
+            boolean materialAmbiguity) {
+        return completeStage(
+                runId,
+                Stage.EXECUTE,
+                attempt,
+                inputDigest,
+                null,
+                artifacts,
+                true,
+                materialAmbiguity);
+    }
+
+    /** Prepares the controller-owned workspace for the active EXECUTE attempt. */
+    public Path prepareWorkspace(String runId, int attempt, String inputDigest) {
+        try (ShipRunStore.LockedRun locked = store.lock(runId)) {
+            ShipRun current = locked.read();
+            StageRecord active = requireActiveAttempt(current, Stage.EXECUTE, attempt, inputDigest);
+            requireCurrentInputs(current, active, locked.directory());
+            return ShipWorkspace.prepare(
+                    Path.of(current.projectDirectory()),
+                    locked.directory(),
+                    current.id(),
+                    active.attempts(),
+                    active.inputDigest());
+        } catch (ShipRunStore.StoreException e) {
+            throw failure(e.code(), e.getMessage(), e);
+        } catch (StaleBaselineException e) {
+            throw failure(
+                    "stale-stage-input",
+                    "Ship workspace baseline changed; resume the run",
+                    e);
+        } catch (IOException e) {
+            throw failure(
+                    "workspace-failed",
+                    "Could not prepare the Ship EXECUTE workspace for " + runId,
+                    e);
+        }
+    }
+
+    private ShipRun completeStage(
+            String runId,
+            Stage stage,
+            int attempt,
+            String inputDigest,
+            String outputDigest,
+            List<Path> artifacts,
+            boolean execute,
+            boolean materialAmbiguity) {
         Objects.requireNonNull(stage, "stage");
         Objects.requireNonNull(artifacts, "artifacts");
-        if (!ShipDigest.isSha256(outputDigest)) {
+        if (execute != (stage == Stage.EXECUTE)) {
+            throw new IllegalStateException("Ship EXECUTE completion mode does not match its stage");
+        }
+        if (!execute && !ShipDigest.isSha256(outputDigest)) {
             throw failure("stage-result-invalid", "Ship stage output digest is invalid");
         }
         try (ShipRunStore.LockedRun locked = store.lock(runId)) {
             ShipRun current = locked.read();
             StageRecord active = requireActiveAttempt(current, stage, attempt, inputDigest);
-            requireCurrentInputs(current, active);
+            requireCurrentInputs(current, active, locked.directory());
             Path project = Path.of(current.projectDirectory());
-            List<ArtifactRef> references = artifacts.stream()
-                    .map(path -> readArtifact(project, path))
-                    .toList();
+            Path artifactRoot;
+            List<Path> normalizedArtifacts;
+            WorkspaceEvidence workspaceEvidence = null;
+            if (execute) {
+                Path expected = expectedWorkspace(locked.directory());
+                normalizedArtifacts = normalizeArtifactPaths(expected, artifacts);
+                requireExecuteArtifactPaths(normalizedArtifacts, expected);
+                workspaceEvidence = verifyWorkspace(
+                        project,
+                        expected,
+                        current.id(),
+                        active.attempts(),
+                        active.inputDigest(),
+                        locked.directory());
+                artifactRoot = workspaceEvidence.candidate();
+            } else {
+                normalizedArtifacts = normalizeArtifactPaths(project, artifacts);
+                artifactRoot = project;
+            }
+            String acceptedOutputDigest = outputDigest;
+            List<ArtifactRef> references;
+            if (execute) {
+                ArtifactRef root = workspaceArtifact(workspaceEvidence, artifactRoot);
+                references = java.util.stream.Stream
+                        .concat(
+                                java.util.stream.Stream.of(root),
+                                workspaceArtifacts(workspaceEvidence, normalizedArtifacts).stream())
+                        .sorted(Comparator.comparing(ArtifactRef::path))
+                        .toList();
+                acceptedOutputDigest = ShipRun.executeOutputDigest(root);
+            } else {
+                requireAggregateArtifactSize(normalizedArtifacts);
+                ArtifactReadBudget budget = new ArtifactReadBudget();
+                references = new ArrayList<>(normalizedArtifacts.size());
+                for (Path path : normalizedArtifacts) {
+                    references.add(readArtifact(artifactRoot, path, budget));
+                }
+            }
             List<StageRecord> stages = new ArrayList<>(current.stages());
-            stages.set(stage.ordinal(), active.complete(outputDigest, references));
+            stages.set(stage.ordinal(), active.complete(acceptedOutputDigest, references));
 
             Stage next = stage.next();
             RunStatus status;
@@ -320,8 +465,9 @@ public final class ShipController {
             } else {
                 stages.set(
                         next.ordinal(),
-                        stages.get(next.ordinal())
-                                .start(ShipRun.inputDigest(current.context(), stages, next)));
+                        startStage(
+                                stages.get(next.ordinal()),
+                                ShipRun.inputDigest(current.context(), stages, next)));
                 status = RunStatus.RUNNING;
                 currentStage = next;
             }
@@ -353,7 +499,7 @@ public final class ShipController {
         try (ShipRunStore.LockedRun locked = store.lock(runId)) {
             ShipRun current = locked.read();
             StageRecord active = requireActiveAttempt(current, stage, attempt, inputDigest);
-            requireCurrentInputs(current, active);
+            requireCurrentInputs(current, active, locked.directory());
             List<StageRecord> stages = new ArrayList<>(current.stages());
             stages.set(stage.ordinal(), active.fail());
             ShipRun failed = copy(
@@ -443,7 +589,17 @@ public final class ShipController {
         return record;
     }
 
-    private static void requireCurrentInputs(ShipRun run, StageRecord active) {
+    private static StageRecord startStage(StageRecord stage, String inputDigest) {
+        if (stage.attempts() == Integer.MAX_VALUE - 1) {
+            throw failure(
+                    "state-corrupt",
+                    "Ship stage attempt count cannot be advanced");
+        }
+        return stage.start(inputDigest);
+    }
+
+    private static void requireCurrentInputs(
+            ShipRun run, StageRecord active, Path runDirectory) {
         Path project = requireProject(Path.of(run.projectDirectory()));
         ShipContext refreshed;
         try {
@@ -462,22 +618,35 @@ public final class ShipController {
 
         for (int index = 0; index < active.stage().ordinal(); index++) {
             StageRecord predecessor = run.stages().get(index);
-            for (ArtifactRef artifact : predecessor.artifacts()) {
-                try {
-                    if (!readArtifact(project, Path.of(artifact.path())).equals(artifact)) {
-                        throw failure(
-                                "stale-stage-input",
-                                "A Ship stage artifact changed; resume the run");
-                    }
-                } catch (Failure e) {
-                    if ("stale-stage-input".equals(e.code())) {
-                        throw e;
-                    }
+            try {
+                boolean stagedExecute = predecessor.stage() == Stage.EXECUTE
+                        && predecessor.attempts() > 0;
+                if (stagedExecute) {
+                    requireExecuteRoot(
+                            predecessor.artifacts(), expectedWorkspace(runDirectory));
+                }
+                if (!readRecordedArtifacts(
+                        project,
+                        run.id(),
+                        predecessor.stage(),
+                        predecessor.attempts(),
+                        predecessor.inputDigest(),
+                        runDirectory,
+                        predecessor.artifacts(),
+                        stagedExecute)
+                        .equals(predecessor.artifacts())) {
                     throw failure(
                             "stale-stage-input",
-                            "A Ship stage artifact changed or became unavailable; resume the run",
-                            e);
+                            "A Ship stage artifact changed; resume the run");
                 }
+            } catch (Failure e) {
+                if ("stale-stage-input".equals(e.code())) {
+                    throw e;
+                }
+                throw failure(
+                        "stale-stage-input",
+                        "A Ship stage artifact changed or became unavailable; resume the run",
+                        e);
             }
         }
         String expected = ShipRun.inputDigest(refreshed, run.stages(), active.stage());
@@ -488,21 +657,270 @@ public final class ShipController {
         }
     }
 
+    private static List<ArtifactRef> readRecordedArtifacts(
+            Path project,
+            String runId,
+            Stage stage,
+            int attempt,
+            String inputDigest,
+            Path runDirectory,
+            List<ArtifactRef> artifacts,
+            boolean stagedExecute) {
+        Path expected = expectedWorkspace(runDirectory);
+        List<Path> paths = new ArrayList<>(artifacts.size());
+        boolean workspaceRequired = stagedExecute;
+        for (ArtifactRef artifact : artifacts) {
+            Path normalized;
+            try {
+                normalized = Path.of(artifact.path()).toAbsolutePath().normalize();
+            } catch (RuntimeException e) {
+                throw failure("artifact-invalid", "Ship artifact path is invalid", e);
+            }
+            if (stagedExecute && !normalized.startsWith(expected)) {
+                throw failure(
+                        "artifact-invalid",
+                        "Ship EXECUTE artifact is outside its workspace: " + normalized);
+            }
+            if (!stagedExecute && !normalized.startsWith(project)) {
+                if (!normalized.startsWith(expected)) {
+                    throw failure(
+                            "artifact-invalid",
+                            "Ship artifact is outside its project and workspace: " + normalized);
+                }
+                workspaceRequired = true;
+            }
+            paths.add(normalized);
+        }
+        if (stage == Stage.EXECUTE && attempt == 0) {
+            return importedExecuteArtifacts(project, paths);
+        }
+        WorkspaceEvidence workspace = workspaceRequired
+                ? verifyWorkspace(project, expected, runId, attempt, inputDigest, runDirectory)
+                : null;
+        if (workspace != null) {
+            return workspaceArtifacts(workspace, paths);
+        }
+        requireAggregateArtifactSize(paths);
+        ArtifactReadBudget budget = new ArtifactReadBudget();
+        List<ArtifactRef> refreshed = new ArrayList<>(paths.size());
+        for (Path path : paths) {
+            refreshed.add(readArtifact(project, path, budget));
+        }
+        return List.copyOf(refreshed);
+    }
+
+    private static List<ArtifactRef> importedExecuteArtifacts(
+            Path project, List<Path> paths) {
+        try {
+            ProjectSnapshot snapshot = ProjectEvidenceFiles.capture(project);
+            List<ArtifactRef> refreshed = new ArrayList<>(paths.size());
+            for (Path path : paths) {
+                if (path.equals(project)) {
+                    refreshed.add(new ArtifactRef(path.toString(), snapshot.digest()));
+                    continue;
+                }
+                String relative = project.relativize(path)
+                        .toString()
+                        .replace(java.io.File.separatorChar, '/');
+                ProjectSnapshot.FileEntry entry = snapshot.files().get(relative);
+                if (entry == null || entry.size() == 0
+                        || entry.classification() != Classification.MATERIAL) {
+                    throw failure(
+                            "artifact-invalid",
+                            "Imported Ship EXECUTE evidence is not material: " + path);
+                }
+                refreshed.add(new ArtifactRef(path.toString(), entry.digest()));
+            }
+            return List.copyOf(refreshed);
+        } catch (IOException | SecurityException e) {
+            throw failure(
+                    "artifact-unreadable",
+                    "Imported Ship EXECUTE evidence could not be captured",
+                    e);
+        }
+    }
+
+    private static WorkspaceEvidence verifyWorkspace(
+            Path project,
+            Path candidate,
+            String runId,
+            int attempt,
+            String inputDigest,
+            Path runDirectory) {
+        try {
+            Path expected = expectedWorkspace(runDirectory);
+            ProjectSnapshot snapshot = ShipWorkspace.verify(
+                    project, candidate, runId, attempt, inputDigest);
+            Path verified = Path.of(snapshot.root());
+            if (!verified.equals(expected)) {
+                throw new IOException(
+                        "Ship workspace is outside the controller-owned run directory");
+            }
+            return new WorkspaceEvidence(verified, snapshot);
+        } catch (StaleBaselineException e) {
+            throw failure(
+                    "stale-stage-input",
+                    "Ship workspace baseline changed; resume the run",
+                    e);
+        } catch (IOException | SecurityException e) {
+            throw failure(
+                    "artifact-invalid",
+                    "Ship workspace does not match the active stage",
+                    e);
+        }
+    }
+
+    private static List<ArtifactRef> workspaceArtifacts(
+            WorkspaceEvidence evidence, List<Path> paths) {
+        return paths.stream()
+                .map(path -> workspaceArtifact(evidence, path))
+                .toList();
+    }
+
+    private static ArtifactRef workspaceArtifact(
+            WorkspaceEvidence evidence, Path path) {
+        Path candidate = evidence.candidate();
+        if (path.equals(candidate)) {
+            return new ArtifactRef(path.toString(), evidence.snapshot().digest());
+        }
+        String relative = candidate.relativize(path)
+                .toString()
+                .replace(java.io.File.separatorChar, '/');
+        ProjectSnapshot.FileEntry entry = evidence.snapshot().files().get(relative);
+        if (entry == null || entry.size() == 0
+                || entry.classification() != Classification.MATERIAL) {
+            throw failure(
+                    "artifact-invalid",
+                    "Ship workspace artifact is not in its accepted staged snapshot: " + path);
+        }
+        return new ArtifactRef(path.toString(), entry.digest());
+    }
+
+    private static Path expectedWorkspace(Path runDirectory) {
+        return runDirectory.resolve("workspace/candidate").toAbsolutePath().normalize();
+    }
+
+    private static ArtifactRef requireExecuteRoot(
+            List<ArtifactRef> artifacts, Path expectedRoot) {
+        List<ArtifactRef> roots = artifacts.stream()
+                .filter(artifact -> artifact.path().equals(expectedRoot.toString()))
+                .toList();
+        if (roots.size() != 1) {
+            throw failure(
+                    "state-invalid",
+                    "Completed Ship EXECUTE evidence has no unique workspace root");
+        }
+        return roots.get(0);
+    }
+
+    private static List<Path> normalizeArtifactPaths(
+            Path root, List<Path> artifacts) {
+        if (artifacts.size() > ShipTreePolicy.DEFAULT_MAX_FILE_COUNT) {
+            throw failure(
+                    "artifact-invalid",
+                    "Ship stage has too many artifacts");
+        }
+        List<Path> normalized = new ArrayList<>(artifacts.size());
+        for (Path artifact : artifacts) {
+            if (artifact == null) {
+                throw failure("artifact-invalid", "Ship artifact path is required");
+            }
+            try {
+                normalized.add((artifact.isAbsolute() ? artifact : root.resolve(artifact))
+                        .toAbsolutePath()
+                        .normalize());
+            } catch (RuntimeException e) {
+                throw failure("artifact-invalid", "Ship artifact path is invalid", e);
+            }
+        }
+        if (normalized.stream().anyMatch(path -> !path.startsWith(root))) {
+            throw failure(
+                    "artifact-invalid",
+                    "Ship artifact is outside its project or workspace");
+        }
+        if (normalized.stream().distinct().count() != normalized.size()) {
+            throw failure(
+                    "artifact-invalid",
+                    "Ship stage artifacts must have distinct paths");
+        }
+        return List.copyOf(normalized);
+    }
+
+    private static void requireAggregateArtifactSize(List<Path> artifacts) {
+        long total = 0;
+        for (Path artifact : artifacts) {
+            try {
+                BasicFileAttributes attributes = Files.readAttributes(
+                        artifact, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+                if (attributes.isRegularFile()) {
+                    total = Math.addExact(total, attributes.size());
+                    if (total > MAX_STAGE_ARTIFACT_BYTES) {
+                        throw failure(
+                                "artifact-too-large",
+                                "Ship stage artifacts exceed the aggregate read limit");
+                    }
+                }
+            } catch (NoSuchFileException e) {
+                throw failure(
+                        "artifact-missing", "Ship artifact does not exist: " + artifact, e);
+            } catch (AccessDeniedException e) {
+                throw failure(
+                        "artifact-unreadable", "Ship artifact is not readable: " + artifact, e);
+            } catch (ArithmeticException e) {
+                throw failure(
+                        "artifact-too-large",
+                        "Ship stage artifacts exceed the aggregate read limit",
+                        e);
+            } catch (IOException | SecurityException e) {
+                throw failure(
+                        "artifact-unreadable", "Ship artifact could not be read: " + artifact, e);
+            }
+        }
+    }
+
+    private static void requireExecuteArtifactPaths(
+            List<Path> artifacts, Path expectedRoot) {
+        if (artifacts.size() >= ShipTreePolicy.DEFAULT_MAX_FILE_COUNT) {
+            throw failure(
+                    "artifact-invalid",
+                    "Ship EXECUTE stage has too many additional artifacts");
+        }
+        if (artifacts.stream().distinct().count() != artifacts.size()) {
+            throw failure(
+                    "artifact-invalid",
+                    "Ship EXECUTE artifacts must have distinct paths");
+        }
+        if (artifacts.stream().anyMatch(
+                artifact -> artifact.equals(expectedRoot)
+                        || !artifact.startsWith(expectedRoot))) {
+            throw failure(
+                    "artifact-invalid",
+                    "Ship EXECUTE artifacts must be additional files in its workspace");
+        }
+    }
+
     private static Path requireProject(Path supplied) {
         if (supplied == null) {
             throw failure("project-invalid", "Ship project directory is required");
         }
-        final Path project;
+        final Path normalized;
         try {
-            project = supplied.toAbsolutePath().normalize();
+            normalized = supplied.toAbsolutePath().normalize();
         } catch (RuntimeException e) {
             throw failure("project-invalid", "Ship project directory is invalid", e);
         }
-        if (!Files.exists(project)) {
-            throw failure("project-missing", "Ship project directory does not exist: " + project);
+        if (!Files.exists(normalized, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            throw failure("project-missing", "Ship project directory does not exist: " + normalized);
         }
-        if (!Files.isDirectory(project)) {
-            throw failure("project-invalid", "Ship project path is not a directory: " + project);
+        if (Files.isSymbolicLink(normalized)
+                || !Files.isDirectory(normalized, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
+            throw failure("project-invalid", "Ship project path is not a directory: " + normalized);
+        }
+        final Path project;
+        try {
+            project = normalized.toRealPath();
+        } catch (IOException | SecurityException e) {
+            throw failure("project-invalid", "Ship project path cannot be resolved: " + normalized, e);
         }
         if (!Files.isReadable(project)) {
             throw failure("project-unreadable", "Ship project directory is not readable: " + project);
@@ -615,14 +1033,41 @@ public final class ShipController {
             case DISCOVERY, VALIDATE -> throw new IllegalStateException(
                     "No imported artifact for stage " + stage);
         };
-        ArtifactRef report = readArtifact(
-                project, project.resolve("docs/camel-kit").resolve(pipelineId).resolve(filename));
-        return stage == Stage.EXECUTE
-                ? List.of(report, readArtifact(project, project))
-                : List.of(report);
+        Path reportPath = project.resolve("docs/camel-kit").resolve(pipelineId).resolve(filename);
+        if (stage != Stage.EXECUTE) {
+            return List.of(readArtifact(project, reportPath));
+        }
+        try {
+            ProjectSnapshot snapshot = ProjectEvidenceFiles.capture(project);
+            String relative = project.relativize(reportPath)
+                    .toString()
+                    .replace(java.io.File.separatorChar, '/');
+            ProjectSnapshot.FileEntry report = snapshot.files().get(relative);
+            if (report == null || report.size() == 0
+                    || report.classification() != Classification.MATERIAL) {
+                throw failure(
+                        "artifact-missing",
+                        "Ship artifact does not exist or is not material: " + reportPath);
+            }
+            return List.of(
+                    new ArtifactRef(reportPath.toString(), report.digest()),
+                    new ArtifactRef(project.toString(), snapshot.digest()));
+        } catch (IOException | SecurityException e) {
+            throw failure(
+                    "artifact-unreadable",
+                    "Ship artifact could not be captured: " + reportPath,
+                    e);
+        }
     }
 
     private static ArtifactRef readArtifact(Path project, Path supplied) {
+        return readArtifact(project, supplied, null);
+    }
+
+    private static ArtifactRef readArtifact(
+            Path project,
+            Path supplied,
+            ArtifactReadBudget budget) {
         Objects.requireNonNull(supplied, "artifact path");
         Path normalized;
         try {
@@ -647,32 +1092,71 @@ public final class ShipController {
             }
             if (normalized.equals(project)) {
                 return new ArtifactRef(
-                        normalized.toString(), ProjectEvidenceFiles.capture(project).digest());
+                        normalized.toString(),
+                        ProjectEvidenceFiles.capture(project).digest());
             }
-            BasicFileAttributes attributes = Files.readAttributes(normalized, BasicFileAttributes.class);
-            if (!attributes.isRegularFile()) {
+            String relative = project.relativize(normalized)
+                    .toString()
+                    .replace(java.io.File.separatorChar, '/');
+            Classification classification;
+            try {
+                classification = ShipTreePolicy.current().classify(relative);
+            } catch (IllegalArgumentException e) {
+                throw failure("artifact-invalid", "Ship artifact path is unsafe", e);
+            }
+            if (classification == Classification.DENIED
+                    || classification == Classification.PROTECTED) {
                 throw failure(
                         "artifact-invalid",
-                        "Ship artifact is not a regular file: " + normalized);
+                        "Ship artifact is not publishable under the project-tree policy: " + normalized);
+            }
+            requireNoSymbolicComponents(project, normalized);
+            BasicFileAttributes attributes = Files.readAttributes(
+                    normalized, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+            if (!attributes.isRegularFile() || attributes.isSymbolicLink()) {
+                throw failure(
+                        "artifact-invalid",
+                        "Ship artifact is not a stable regular file: " + normalized);
             }
             if (!Files.isReadable(normalized)) {
                 throw failure(
                         "artifact-unreadable", "Ship artifact is not readable: " + normalized);
             }
+            if (attributes.size() == 0) {
+                throw failure("artifact-invalid", "Ship artifact is empty: " + normalized);
+            }
             if (attributes.size() > MAX_ARTIFACT_BYTES) {
                 throw failure(
                         "artifact-too-large", "Ship artifact exceeds the read limit: " + normalized);
             }
+            int readLimit = MAX_ARTIFACT_BYTES;
+            if (budget != null) {
+                if (attributes.size() > budget.remaining()) {
+                    throw failure(
+                            "artifact-too-large",
+                            "Ship stage artifacts exceed the aggregate read limit");
+                }
+                readLimit = Math.toIntExact(
+                        Math.min((long) MAX_ARTIFACT_BYTES, budget.remaining()));
+            }
             byte[] bytes;
-            try (InputStream input = Files.newInputStream(normalized)) {
-                bytes = input.readNBytes(MAX_ARTIFACT_BYTES + 1);
+            if (classification == Classification.MATERIAL) {
+                bytes = ProjectEvidenceFiles.readMaterial(project, relative, readLimit);
+            } else {
+                bytes = ProjectEvidenceFiles.readVolatile(project, relative, readLimit);
             }
             if (bytes.length == 0) {
                 throw failure("artifact-invalid", "Ship artifact is empty: " + normalized);
             }
-            if (bytes.length > MAX_ARTIFACT_BYTES) {
+            if (bytes.length > readLimit) {
                 throw failure(
-                        "artifact-too-large", "Ship artifact exceeds the read limit: " + normalized);
+                        "artifact-too-large",
+                        readLimit < MAX_ARTIFACT_BYTES
+                                ? "Ship stage artifacts exceed the aggregate read limit"
+                                : "Ship artifact exceeds the read limit: " + normalized);
+            }
+            if (budget != null) {
+                budget.consume(bytes.length);
             }
             return new ArtifactRef(normalized.toString(), ShipDigest.sha256(bytes));
         } catch (NoSuchFileException e) {
@@ -683,6 +1167,25 @@ public final class ShipController {
         } catch (IOException | SecurityException e) {
             throw failure(
                     "artifact-unreadable", "Ship artifact could not be read: " + normalized, e);
+        }
+    }
+
+    private static void requireNoSymbolicComponents(Path root, Path path)
+            throws IOException {
+        Path relative = root.relativize(path);
+        Path current = root;
+        int index = 0;
+        for (Path component : relative) {
+            current = current.resolve(component);
+            BasicFileAttributes attributes = Files.readAttributes(
+                    current, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+            index++;
+            if (attributes.isSymbolicLink()
+                    || (index < relative.getNameCount() && !attributes.isDirectory())) {
+                throw failure(
+                        "artifact-invalid",
+                        "Ship artifact path crosses a symbolic link or non-directory");
+            }
         }
     }
 
@@ -706,6 +1209,22 @@ public final class ShipController {
 
     private static Failure failure(String code, String message, Throwable cause) {
         return new Failure(code, message, cause);
+    }
+
+    private static final class ArtifactReadBudget {
+
+        private long remaining = MAX_STAGE_ARTIFACT_BYTES;
+
+        private long remaining() {
+            return remaining;
+        }
+
+        private void consume(long bytes) {
+            remaining = Math.subtractExact(remaining, bytes);
+        }
+    }
+
+    private record WorkspaceEvidence(Path candidate, ProjectSnapshot snapshot) {
     }
 
     public static final class Failure extends RuntimeException {

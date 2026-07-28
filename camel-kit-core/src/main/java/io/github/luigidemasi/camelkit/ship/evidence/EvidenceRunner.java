@@ -665,11 +665,12 @@ public final class EvidenceRunner {
         if (path == null) {
             throw new IOException(label + " is required");
         }
-        Path real = path.toRealPath(LinkOption.NOFOLLOW_LINKS);
-        if (!Files.isDirectory(real, LinkOption.NOFOLLOW_LINKS) || Files.isSymbolicLink(real)) {
+        Path normalized = path.toAbsolutePath().normalize();
+        if (Files.isSymbolicLink(normalized)
+                || !Files.isDirectory(normalized, LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException(label + " must be a non-symbolic-link directory: " + path);
         }
-        return real;
+        return normalized.toRealPath();
     }
 
     private static Path createEvidenceDirectory(Path path) throws IOException {
@@ -677,23 +678,32 @@ public final class EvidenceRunner {
             throw new IOException("Evidence directory is required");
         }
         Path absolute = path.toAbsolutePath().normalize();
-        Path current = absolute.getRoot();
-        for (int index = 0; index < absolute.getNameCount() - 1; index++) {
-            current = current.resolve(absolute.getName(index));
-            if (!Files.exists(current, LinkOption.NOFOLLOW_LINKS)) {
-                Files.createDirectory(current);
-            }
-            if (Files.isSymbolicLink(current) || !Files.isDirectory(current, LinkOption.NOFOLLOW_LINKS)) {
-                throw new IOException("Evidence path contains an unsafe component: " + current);
+        Path parent = absolute.getParent();
+        if (parent == null) {
+            throw new IOException("Evidence directory has no parent");
+        }
+        Path existingParent = parent;
+        while (!Files.exists(existingParent, LinkOption.NOFOLLOW_LINKS)) {
+            existingParent = existingParent.getParent();
+            if (existingParent == null) {
+                throw new IOException("Evidence directory has no existing ancestor: " + absolute);
             }
         }
+        Path realParent = existingParent.toRealPath();
+        if (!Files.isDirectory(realParent, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("Evidence directory ancestor must be a directory: " + existingParent);
+        }
+        realParent = realParent.resolve(existingParent.relativize(parent));
+        Files.createDirectories(realParent);
+        realParent = realParent.toRealPath();
+        Path directory = realParent.resolve(absolute.getFileName());
         try {
-            Files.createDirectory(absolute, PosixFilePermissions.asFileAttribute(
+            Files.createDirectory(directory, PosixFilePermissions.asFileAttribute(
                     PosixFilePermissions.fromString("rwx------")));
         } catch (FileAlreadyExistsException e) {
             throw new IOException("Evidence directory must be new and exclusive to one command run: " + absolute, e);
         }
-        return privateDirectory(absolute);
+        return privateDirectory(directory);
     }
 
     private static Path privateTempDirectory(Path parent, String prefix) throws IOException {
@@ -804,13 +814,14 @@ public final class EvidenceRunner {
 
     private static Path resolveWorkingDirectory(Path root, String relative) throws IOException {
         Path directory = relative == null || relative.isBlank() ? root : root.resolve(relative).normalize();
-        if (!directory.startsWith(root)) {
-            throw new IOException("Evidence command working directory escapes the project root");
-        }
-        Path real = directory.toRealPath(LinkOption.NOFOLLOW_LINKS);
-        if (!real.startsWith(root) || !Files.isDirectory(real, LinkOption.NOFOLLOW_LINKS)
-                || Files.isSymbolicLink(real)) {
+        if (!directory.startsWith(root)
+                || Files.isSymbolicLink(directory)
+                || !Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException("Evidence command working directory is not a safe project directory: " + relative);
+        }
+        Path real = directory.toRealPath();
+        if (!real.startsWith(root)) {
+            throw new IOException("Evidence command working directory escapes the project root");
         }
         return real;
     }
@@ -821,7 +832,7 @@ public final class EvidenceRunner {
                 || !Files.isExecutable(path)) {
             throw new IOException(label + " executable is missing, symbolic, non-regular, or not executable: " + path);
         }
-        return path.toRealPath(LinkOption.NOFOLLOW_LINKS);
+        return path.toRealPath();
     }
 
     private static JdkIdentity controllerJdk() throws IOException {
