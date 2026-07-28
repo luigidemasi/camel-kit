@@ -1605,6 +1605,21 @@ class PiWorkerTest {
     }
 
     @Test
+    void completedAttemptReturnsItsDurableResultWithoutRunningPiAgain() throws Exception {
+        PiWorker worker = worker(Duration.ofSeconds(30));
+        PiWorker.Request request = request(ShipRun.Stage.DISCOVERY, "prompt");
+
+        PiWorker.Result first = worker.run(request);
+        Files.writeString(fixture.resolve("mode"), "fail-before-session\n");
+        PiWorker.Result recovered = worker.recover(request).orElseThrow();
+
+        assertEquals(first, recovered);
+        assertEquals(
+                1,
+                Files.readAllLines(fixture.resolve("session-ids")).size());
+    }
+
+    @Test
     void repeatedInterruptsReuseOneAbortCommandAndDeadline() throws Exception {
         Files.writeString(fixture.resolve("mode"), "repeated-interrupt-abort\n");
         PiWorker worker = worker(Duration.ofSeconds(30));

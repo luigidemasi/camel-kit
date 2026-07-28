@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
@@ -272,6 +273,7 @@ public final class PiWorker {
             versionRun.deleteLogs();
             versionLogsDeleted = true;
             if (turn.validatedSession() != null) {
+                PiWorkerResultStore.write(request, result);
                 publishSession(
                         turn.validatedSession(),
                         sessionDirectory,
@@ -332,6 +334,11 @@ public final class PiWorker {
                 Thread.currentThread().interrupt();
             }
         }
+    }
+
+    /** Returns the durable result for this exact attempt without launching Pi. */
+    public Optional<Result> recover(Request request) throws IOException {
+        return PiWorkerResultStore.read(Objects.requireNonNull(request, "request"));
     }
 
     private RpcRun runRpc(

@@ -30,6 +30,7 @@ import io.github.luigidemasi.camelkit.ship.security.ProjectEvidenceFiles;
 import io.github.luigidemasi.camelkit.ship.security.ProjectSnapshot;
 import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy;
 import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy.Classification;
+import io.github.luigidemasi.camelkit.ship.worker.ChangedWorkspaceSecretScanner;
 import io.github.luigidemasi.camelkit.ship.worker.ShipWorkspace;
 import io.github.luigidemasi.camelkit.ship.worker.ShipWorkspace.StaleBaselineException;
 
@@ -424,6 +425,7 @@ public final class ShipController {
                         active.attempts(),
                         active.inputDigest(),
                         locked.directory());
+                rejectChangedWorkspaceSecrets(project, workspaceEvidence.snapshot());
                 artifactRoot = workspaceEvidence.candidate();
             } else {
                 normalizedArtifacts = normalizeArtifactPaths(project, artifacts);
@@ -766,6 +768,29 @@ public final class ShipController {
             throw failure(
                     "artifact-invalid",
                     "Ship workspace does not match the active stage",
+                    e);
+        }
+    }
+
+    private static void rejectChangedWorkspaceSecrets(
+            Path project, ProjectSnapshot candidate) {
+        try {
+            List<String> findings = ChangedWorkspaceSecretScanner.scan(
+                    ProjectEvidenceFiles.capture(project),
+                    candidate,
+                    System.getenv());
+            if (!findings.isEmpty()) {
+                throw failure(
+                        "workspace-secret-detected",
+                        "Ship workspace contains a known secret in changed files: "
+                                                     + String.join(", ", findings));
+            }
+        } catch (Failure e) {
+            throw e;
+        } catch (IOException | SecurityException e) {
+            throw failure(
+                    "workspace-secret-scan-failed",
+                    "Could not scan changed Ship workspace files for known secrets",
                     e);
         }
     }
