@@ -1240,6 +1240,48 @@ class PiWorkerTest {
     }
 
     @Test
+    void interruptionDoesNotPublishAnUnverifiableNaturalStop() throws Exception {
+        Files.writeString(fixture.resolve("mode"), "malformed-natural-stop-after-eof\n");
+        PiWorker worker = worker(Duration.ofSeconds(30));
+        PiWorker.Request request = request(ShipRun.Stage.DESIGN, "prompt");
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicBoolean interrupted = new AtomicBoolean();
+        Thread invocation = new Thread(() -> {
+            try {
+                worker.run(request);
+                failure.set(new AssertionError(
+                        "Pi invocation unexpectedly completed"));
+            } catch (InterruptedException expected) {
+                interrupted.set(Thread.currentThread().isInterrupted());
+                if (expected.getSuppressed().length > 0) {
+                    failure.set(expected.getSuppressed()[0]);
+                }
+            } catch (Throwable unexpected) {
+                failure.set(unexpected);
+            }
+        });
+
+        invocation.start();
+        awaitFile(fixture.resolve("ready"));
+        invocation.interrupt();
+        Thread.sleep(250);
+        Files.writeString(fixture.resolve("release"), "release\n");
+        invocation.join(Duration.ofSeconds(10).toMillis());
+
+        assertFalse(invocation.isAlive());
+        assertNull(failure.get());
+        assertTrue(interrupted.get());
+        assertFalse(hasSession(sessionId(ShipRun.Stage.DESIGN)));
+        assertTrue(worker.recover(request).isEmpty());
+        assertFalse(Files.exists(fixture.resolve("abort")));
+
+        Files.writeString(fixture.resolve("mode"), "success\n");
+        PiWorker.Result retried = worker.run(request);
+        assertEquals(PiWorker.Outcome.SUCCEEDED, retried.outcome());
+        assertEquals(retried, worker.recover(request).orElseThrow());
+    }
+
+    @Test
     void interruptionDrainsAQueuedNaturalTurnAsPiExits()
             throws Exception {
         Files.writeString(fixture.resolve("mode"), "queued-natural-exit\n");
@@ -1646,6 +1688,25 @@ class PiWorkerTest {
         assertEquals(
                 1,
                 Files.readAllLines(fixture.resolve("session-ids")).size());
+    }
+
+    @Test
+    void failedSessionPublicationRemovesTheUnpublishedResult() throws Exception {
+        Files.writeString(fixture.resolve("mode"), "publication-failure\n");
+        PiWorker worker = worker(Duration.ofSeconds(5));
+        PiWorker.Request request = request(ShipRun.Stage.DISCOVERY, "prompt");
+
+        assertThrows(IOException.class, () -> worker.run(request));
+
+        assertTrue(worker.recover(request).isEmpty());
+        Path publicationTarget = Path.of(
+                Files.readString(fixture.resolve("publication-target")).trim());
+        Files.delete(publicationTarget.resolve("block"));
+        Files.delete(publicationTarget);
+        Files.writeString(fixture.resolve("mode"), "success\n");
+        PiWorker.Result retried = worker.run(request);
+        assertEquals(PiWorker.Outcome.SUCCEEDED, retried.outcome());
+        assertEquals(retried, worker.recover(request).orElseThrow());
     }
 
     @Test

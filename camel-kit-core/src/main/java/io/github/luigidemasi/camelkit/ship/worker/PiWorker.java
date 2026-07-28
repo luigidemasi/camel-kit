@@ -274,10 +274,25 @@ public final class PiWorker {
             versionLogsDeleted = true;
             if (turn.validatedSession() != null) {
                 PiWorkerResultStore.write(request, result);
-                publishSession(
-                        turn.validatedSession(),
-                        sessionDirectory,
-                        previousSession);
+                try {
+                    publishSession(
+                            turn.validatedSession(),
+                            sessionDirectory,
+                            previousSession);
+                } catch (IOException publicationFailure) {
+                    // If the atomic rename did not consume the scratch file, the
+                    // result was not published and a clean retry is safe.
+                    if (Files.exists(
+                            turn.validatedSession(),
+                            LinkOption.NOFOLLOW_LINKS)) {
+                        try {
+                            PiWorkerResultStore.delete(request);
+                        } catch (IOException cleanupFailure) {
+                            publicationFailure.addSuppressed(cleanupFailure);
+                        }
+                    }
+                    throw publicationFailure;
+                }
                 published = true;
             }
             return result;
@@ -672,7 +687,8 @@ public final class PiWorker {
                             reconciliation.turn());
                     if (process.exitValue() == 0
                             && reconciliation.naturalCompletion()
-                            && !stdout.protocolUnverifiable()) {
+                            && !stdout.protocolUnverifiable()
+                            && protocolFailure == null) {
                         List<String> stdoutSecrets = new ArrayList<>(
                                 sensitiveValues.size() + 1);
                         stdoutSecrets.add(prompt);
@@ -718,10 +734,13 @@ public final class PiWorker {
                                 true);
                     }
                     if (process.exitValue() == 0) {
-                        publishSession(
-                                validatedSession,
-                                canonicalSessionDirectory,
-                                canonicalPreviousSession);
+                        if (!stdout.protocolUnverifiable()
+                                && protocolFailure == null) {
+                            publishSession(
+                                    validatedSession,
+                                    canonicalSessionDirectory,
+                                    canonicalPreviousSession);
+                        }
                     } else {
                         e.addSuppressed(new IOException(
                                 "Pi abort session was not published after a nonzero process exit"));

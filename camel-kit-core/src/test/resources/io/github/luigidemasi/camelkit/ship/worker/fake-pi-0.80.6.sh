@@ -346,6 +346,20 @@ if [ "$mode" = "queued-natural-exit" ]; then
   exit 0
 fi
 
+if [ "$mode" = "malformed-natural-stop-after-eof" ]; then
+  printf '%s\n' '{"id":"prompt-1","type":"response","command":"prompt","success":true}'
+  begin_turn
+  printf '%s\n' 'not-json'
+  cat >/dev/null
+  natural='{"role":"assistant","content":[{"type":"text","text":"done"}],"stopReason":"stop","timestamp":2}'
+  emit_message "$natural" assistant
+  printf '{"type":"agent_end","messages":[%s],"willRetry":false}\n' "$natural"
+  printf '%s\n' '{"type":"agent_settled"}'
+  touch "$fixture/ready"
+  while [ ! -e "$fixture/release" ]; do sleep 0.01; done
+  exit 0
+fi
+
 if [ "$mode" != "terminal-before-response" ]; then
   printf '%s\n' '{"id":"prompt-1","type":"response","command":"prompt","success":true}'
 fi
@@ -631,5 +645,11 @@ if [ "$mode" = "fast-detach" ]; then
   ) >/dev/null 2>&1 &
   printf '%s\n' "$!" > "$fixture/detached-pid"
   exit 0
+fi
+if [ "$mode" = "publication-failure" ]; then
+  publication_target="$(dirname "$session_dir")/$(basename "$session_file")"
+  mkdir "$publication_target"
+  touch "$publication_target/block"
+  printf '%s\n' "$publication_target" > "$fixture/publication-target"
 fi
 cat >/dev/null

@@ -59,6 +59,16 @@ class PiWorkerResultStoreTest {
         assertTrue(assertThrows(IOException.class,
                 () -> PiWorkerResultStore.read(request)).getMessage().contains("does not match"));
 
+        Files.writeString(marker, encoded.replace(
+                "\"runId\" : \"" + RUN_A + "\"", "\"runId\" : null"));
+        assertTrue(assertThrows(IOException.class,
+                () -> PiWorkerResultStore.read(request)).getMessage().contains("does not match"));
+
+        Files.writeString(marker, encoded.replace(
+                "\"inputDigest\" : \"" + DIGEST + "\"", "\"inputDigest\" : null"));
+        assertTrue(assertThrows(IOException.class,
+                () -> PiWorkerResultStore.read(request)).getMessage().contains("does not match"));
+
         Files.writeString(marker, encoded.replace("\"schemaVersion\" : 1", "\"schemaVersion\" : 2"));
         assertTrue(assertThrows(IOException.class,
                 () -> PiWorkerResultStore.read(request)).getMessage().contains("schema version"));

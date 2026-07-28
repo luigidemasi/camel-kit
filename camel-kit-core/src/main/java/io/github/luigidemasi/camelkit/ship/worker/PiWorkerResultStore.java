@@ -12,6 +12,7 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.Stage;
@@ -136,6 +137,13 @@ final class PiWorkerResultStore {
         }
     }
 
+    static void delete(Request request) throws IOException {
+        Path path = resultPath(request, false);
+        if (path != null) {
+            Files.deleteIfExists(path);
+        }
+    }
+
     private static Path resultPath(Request request, boolean createDirectory)
             throws IOException {
         if (!createDirectory
@@ -171,10 +179,10 @@ final class PiWorkerResultStore {
             Result result) {
 
         private boolean matches(Request request) {
-            return runId.equals(request.runId())
+            return Objects.equals(runId, request.runId())
                     && stage == request.stage()
                     && attempt == request.attempt()
-                    && inputDigest.equals(request.inputDigest())
+                    && Objects.equals(inputDigest, request.inputDigest())
                     && result != null;
         }
     }
