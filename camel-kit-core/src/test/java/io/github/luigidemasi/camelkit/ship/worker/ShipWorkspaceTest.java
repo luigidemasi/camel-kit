@@ -100,7 +100,7 @@ class ShipWorkspaceTest {
         Path run = directory("run");
         Path first = ShipWorkspace.prepare(project, run, RUN_ID, 1, INPUT_DIGEST);
         assertEquals(first.toString(),
-                ShipWorkspace.verify(project, first, RUN_ID, 1, INPUT_DIGEST).root());
+                ShipWorkspace.verify(project, first, RUN_ID, 1, INPUT_DIGEST).candidate().root());
         assertThrows(IOException.class,
                 () -> ShipWorkspace.verify(project, first, RUN_ID, 2, INPUT_DIGEST));
         Files.writeString(first.resolve("README.md"), "partial edit");
@@ -113,7 +113,7 @@ class ShipWorkspaceTest {
         assertThrows(IOException.class,
                 () -> ShipWorkspace.verify(project, resumed, RUN_ID, 1, INPUT_DIGEST));
         assertEquals(resumed.toString(),
-                ShipWorkspace.verify(project, resumed, RUN_ID, 2, INPUT_DIGEST).root());
+                ShipWorkspace.verify(project, resumed, RUN_ID, 2, INPUT_DIGEST).candidate().root());
         assertEquals("partial edit", Files.readString(resumed.resolve("README.md")));
         assertEquals("partial file", Files.readString(resumed.resolve("src/new.txt")));
         assertEquals("partial build output",
@@ -478,7 +478,7 @@ class ShipWorkspaceTest {
                 runParentLink.resolve("run/workspace/candidate"),
                 RUN_ID,
                 1,
-                INPUT_DIGEST).root());
+                INPUT_DIGEST).candidate().root());
     }
 
     private Path directory(String name) throws IOException {

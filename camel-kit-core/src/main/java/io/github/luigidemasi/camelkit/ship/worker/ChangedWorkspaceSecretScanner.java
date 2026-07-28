@@ -26,6 +26,7 @@ public final class ChangedWorkspaceSecretScanner {
             ProjectSnapshot candidate,
             Map<String, String> environment)
             throws IOException {
+        // Exact UTF-8 matches are the intentional local leak floor; encoded transformations are not detected.
         Objects.requireNonNull(baseline, "baseline");
         Objects.requireNonNull(candidate, "candidate");
         Objects.requireNonNull(environment, "environment");

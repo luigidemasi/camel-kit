@@ -1207,22 +1207,51 @@ class PiWorkerTest {
     }
 
     @Test
+    void interruptionRecoversANaturalStopThatWinsAfterAbort() throws Exception {
+        Files.writeString(fixture.resolve("mode"), "natural-stop-after-abort\n");
+        PiWorker worker = worker(Duration.ofSeconds(30));
+        PiWorker.Request request = request(ShipRun.Stage.DESIGN, "prompt");
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicReference<PiWorker.Result> result = new AtomicReference<>();
+        AtomicBoolean interrupted = new AtomicBoolean();
+        Thread invocation = new Thread(() -> {
+            try {
+                result.set(worker.run(request));
+                interrupted.set(Thread.currentThread().isInterrupted());
+            } catch (Throwable unexpected) {
+                failure.set(unexpected);
+            }
+        });
+
+        invocation.start();
+        awaitFile(fixture.resolve("ready"));
+        invocation.interrupt();
+        invocation.join(Duration.ofSeconds(10).toMillis());
+
+        assertFalse(invocation.isAlive());
+        assertNull(failure.get());
+        assertTrue(interrupted.get());
+        assertEquals(PiWorker.Outcome.SUCCEEDED, result.get().outcome());
+        assertEquals("done", result.get().assistantText());
+        assertEquals(result.get(), worker.recover(request).orElseThrow());
+        assertEquals(
+                List.of("{\"id\":\"abort-1\",\"type\":\"abort\"}"),
+                Files.readAllLines(fixture.resolve("abort")));
+    }
+
+    @Test
     void interruptionDrainsAQueuedNaturalTurnAsPiExits()
             throws Exception {
         Files.writeString(fixture.resolve("mode"), "queued-natural-exit\n");
         PiWorker worker = worker(Duration.ofSeconds(30));
         AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicReference<PiWorker.Result> result = new AtomicReference<>();
         AtomicBoolean interrupted = new AtomicBoolean();
+        PiWorker.Request request = request(ShipRun.Stage.DESIGN, "prompt");
         Thread invocation = new Thread(() -> {
             try {
-                worker.run(request(ShipRun.Stage.DESIGN, "prompt"));
-                failure.set(new AssertionError(
-                        "Pi invocation unexpectedly completed"));
-            } catch (InterruptedException expected) {
+                result.set(worker.run(request));
                 interrupted.set(Thread.currentThread().isInterrupted());
-                if (expected.getSuppressed().length > 0) {
-                    failure.set(expected.getSuppressed()[0]);
-                }
             } catch (Throwable unexpected) {
                 failure.set(unexpected);
             }
@@ -1238,6 +1267,8 @@ class PiWorkerTest {
         assertFalse(invocation.isAlive());
         assertNull(failure.get());
         assertTrue(interrupted.get());
+        assertEquals(PiWorker.Outcome.SUCCEEDED, result.get().outcome());
+        assertEquals(result.get(), worker.recover(request).orElseThrow());
         assertFalse(Files.exists(fixture.resolve("abort")));
         List<String> persisted = Files.readAllLines(
                 sessionFile(sessionId(ShipRun.Stage.DESIGN)));
@@ -1252,17 +1283,13 @@ class PiWorkerTest {
                 fixture.resolve("mode"), "terminal-no-settled\n");
         PiWorker worker = worker(Duration.ofSeconds(30));
         AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicReference<PiWorker.Result> result = new AtomicReference<>();
         AtomicBoolean interrupted = new AtomicBoolean();
+        PiWorker.Request request = request(ShipRun.Stage.DESIGN, "prompt");
         Thread invocation = new Thread(() -> {
             try {
-                worker.run(request(ShipRun.Stage.DESIGN, "prompt"));
-                failure.set(new AssertionError(
-                        "Pi invocation unexpectedly completed"));
-            } catch (InterruptedException expected) {
+                result.set(worker.run(request));
                 interrupted.set(Thread.currentThread().isInterrupted());
-                if (expected.getSuppressed().length > 0) {
-                    failure.set(expected.getSuppressed()[0]);
-                }
             } catch (Throwable unexpected) {
                 failure.set(unexpected);
             }
@@ -1276,6 +1303,8 @@ class PiWorkerTest {
         assertFalse(invocation.isAlive());
         assertNull(failure.get());
         assertTrue(interrupted.get());
+        assertEquals(PiWorker.Outcome.SUCCEEDED, result.get().outcome());
+        assertEquals(result.get(), worker.recover(request).orElseThrow());
         assertFalse(Files.exists(fixture.resolve("unexpected-input")));
         List<String> persisted = Files.readAllLines(
                 sessionFile(sessionId(ShipRun.Stage.DESIGN)));

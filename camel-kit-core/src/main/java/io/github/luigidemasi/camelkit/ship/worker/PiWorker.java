@@ -670,6 +670,53 @@ public final class PiWorker {
                             previousSession,
                             prompt,
                             reconciliation.turn());
+                    if (process.exitValue() == 0
+                            && reconciliation.naturalCompletion()
+                            && !stdout.protocolUnverifiable()) {
+                        List<String> stdoutSecrets = new ArrayList<>(
+                                sensitiveValues.size() + 1);
+                        stdoutSecrets.add(prompt);
+                        stdoutSecrets.addAll(sensitiveValues);
+                        RetainedLog retainedStdout = LocalCommandRunner.retain(
+                                stdout.safeBytes(),
+                                evidenceDirectory,
+                                ".stdout.log",
+                                MAX_LOG_BYTES,
+                                stdoutSecrets);
+                        RetainedLog retainedStderr;
+                        try {
+                            retainedStderr = LocalCommandRunner.retain(
+                                    stderr.metadata(),
+                                    evidenceDirectory,
+                                    ".stderr.log",
+                                    MAX_LOG_BYTES,
+                                    sensitiveValues);
+                        } catch (IOException | RuntimeException retentionFailure) {
+                            Files.deleteIfExists(retainedStdout.path());
+                            throw retentionFailure;
+                        }
+                        Instant endedAt = clock.instant();
+                        if (endedAt.isBefore(startedAt)) {
+                            endedAt = startedAt;
+                        }
+                        interrupted = false;
+                        completedNormally = true;
+                        return new RpcRun(
+                                startedAt,
+                                endedAt,
+                                false,
+                                false,
+                                0,
+                                retainedStdout.path(),
+                                retainedStdout.digest(),
+                                retainedStderr.path(),
+                                retainedStderr.digest(),
+                                reconciliation.turn().terminal().text(),
+                                reconciliation.turn().terminal().stopReason(),
+                                null,
+                                validatedSession,
+                                true);
+                    }
                     if (process.exitValue() == 0) {
                         publishSession(
                                 validatedSession,

@@ -86,13 +86,13 @@ public final class ShipWorkspace {
                     advanceAttempt(workspace, binding, attempt);
                 }
                 try {
-                    ProjectSnapshot snapshot = verify(
+                    Verification verification = verify(
                             project,
                             workspace.resolve(CANDIDATE),
                             runId,
                             attempt,
                             inputDigest);
-                    return Path.of(snapshot.root());
+                    return Path.of(verification.candidate().root());
                 } catch (StaleBaselineException e) {
                     if (!wasLaterAttempt) {
                         throw e;
@@ -140,7 +140,7 @@ public final class ShipWorkspace {
     /**
      * Verifies one published candidate against the exact controller stage that prepared it.
      */
-    public static ProjectSnapshot verify(
+    public static Verification verify(
             Path liveProject,
             Path suppliedCandidate,
             String runId,
@@ -163,13 +163,13 @@ public final class ShipWorkspace {
                 || !inputDigest.equals(binding.inputDigest())) {
             throw new IOException("Ship workspace binding does not match the active stage");
         }
-        ProjectSnapshot snapshot = ProjectEvidenceFiles.captureStaged(candidate);
-        String currentBaseline = materialIdentity(ProjectEvidenceFiles.capture(project));
-        if (!currentBaseline.equals(binding.baselineDigest())) {
+        ProjectSnapshot candidateSnapshot = ProjectEvidenceFiles.captureStaged(candidate);
+        ProjectSnapshot baseline = ProjectEvidenceFiles.capture(project);
+        if (!materialIdentity(baseline).equals(binding.baselineDigest())) {
             throw new StaleBaselineException(
                     "Ship workspace baseline no longer matches the live project");
         }
-        return snapshot;
+        return new Verification(baseline, candidateSnapshot);
     }
 
     private static Path realProject(Path supplied) throws IOException {
@@ -491,6 +491,14 @@ public final class ShipWorkspace {
 
         private StaleBaselineException(String message) {
             super(message);
+        }
+    }
+
+    public record Verification(ProjectSnapshot baseline, ProjectSnapshot candidate) {
+
+        public Verification {
+            Objects.requireNonNull(baseline, "baseline");
+            Objects.requireNonNull(candidate, "candidate");
         }
     }
 

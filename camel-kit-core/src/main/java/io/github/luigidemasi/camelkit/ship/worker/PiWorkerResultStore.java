@@ -11,8 +11,10 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Locale;
 import java.util.Optional;
 
+import io.github.luigidemasi.camelkit.ship.controller.ShipRun.Stage;
 import io.github.luigidemasi.camelkit.ship.worker.PiWorker.Request;
 import io.github.luigidemasi.camelkit.ship.worker.PiWorker.Result;
 
@@ -46,6 +48,9 @@ final class PiWorkerResultStore {
 
     static Optional<Result> read(Request request) throws IOException {
         Path path = resultPath(request, false);
+        if (path == null) {
+            return Optional.empty();
+        }
         if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
             return Optional.empty();
         }
@@ -66,6 +71,9 @@ final class PiWorkerResultStore {
             marker = JSON.readValue(encoded, Marker.class);
         } catch (JsonProcessingException e) {
             throw new IOException("Pi stage result marker is malformed", e);
+        }
+        if (marker.schemaVersion() != SCHEMA_VERSION) {
+            throw new IOException("Pi stage result marker has an unsupported schema version");
         }
         if (!marker.matches(request)) {
             throw new IOException("Pi stage result marker does not match its attempt");
@@ -130,10 +138,14 @@ final class PiWorkerResultStore {
 
     private static Path resultPath(Request request, boolean createDirectory)
             throws IOException {
+        if (!createDirectory
+                && !Files.exists(request.sessionDirectory(), LinkOption.NOFOLLOW_LINKS)) {
+            return null;
+        }
         Path sessions = request.sessionDirectory().toRealPath();
         Path directory = sessions.resolve(DIRECTORY);
-        if (createDirectory && !Files.exists(directory, LinkOption.NOFOLLOW_LINKS)) {
-            Files.createDirectory(
+        if (createDirectory) {
+            Files.createDirectories(
                     directory,
                     PosixFilePermissions.asFileAttribute(
                             PosixFilePermissions.fromString("rwx------")));
@@ -143,7 +155,8 @@ final class PiWorkerResultStore {
                         && !Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS))) {
             throw new IOException("Pi stage result directory is invalid");
         }
-        String name = request.stage().name().toLowerCase(java.util.Locale.ROOT)
+        String name = request.runId()
+                      + '-' + request.stage().name().toLowerCase(Locale.ROOT)
                       + '-' + request.inputDigest().substring("sha256:".length())
                       + '-' + request.attempt() + ".json";
         return directory.resolve(name);
@@ -152,14 +165,13 @@ final class PiWorkerResultStore {
     private record Marker(
             int schemaVersion,
             String runId,
-            io.github.luigidemasi.camelkit.ship.controller.ShipRun.Stage stage,
+            Stage stage,
             int attempt,
             String inputDigest,
             Result result) {
 
         private boolean matches(Request request) {
-            return schemaVersion == SCHEMA_VERSION
-                    && runId.equals(request.runId())
+            return runId.equals(request.runId())
                     && stage == request.stage()
                     && attempt == request.attempt()
                     && inputDigest.equals(request.inputDigest())

@@ -33,6 +33,7 @@ import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy.Classificatio
 import io.github.luigidemasi.camelkit.ship.worker.ChangedWorkspaceSecretScanner;
 import io.github.luigidemasi.camelkit.ship.worker.ShipWorkspace;
 import io.github.luigidemasi.camelkit.ship.worker.ShipWorkspace.StaleBaselineException;
+import io.github.luigidemasi.camelkit.ship.worker.ShipWorkspace.Verification;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.StreamReadFeature;
@@ -425,7 +426,7 @@ public final class ShipController {
                         active.attempts(),
                         active.inputDigest(),
                         locked.directory());
-                rejectChangedWorkspaceSecrets(project, workspaceEvidence.snapshot());
+                rejectChangedWorkspaceSecrets(workspaceEvidence);
                 artifactRoot = workspaceEvidence.candidate();
             } else {
                 normalizedArtifacts = normalizeArtifactPaths(project, artifacts);
@@ -751,14 +752,15 @@ public final class ShipController {
             Path runDirectory) {
         try {
             Path expected = expectedWorkspace(runDirectory);
-            ProjectSnapshot snapshot = ShipWorkspace.verify(
+            Verification verification = ShipWorkspace.verify(
                     project, candidate, runId, attempt, inputDigest);
-            Path verified = Path.of(snapshot.root());
+            Path verified = Path.of(verification.candidate().root());
             if (!verified.equals(expected)) {
                 throw new IOException(
                         "Ship workspace is outside the controller-owned run directory");
             }
-            return new WorkspaceEvidence(verified, snapshot);
+            return new WorkspaceEvidence(
+                    verified, verification.baseline(), verification.candidate());
         } catch (StaleBaselineException e) {
             throw failure(
                     "stale-stage-input",
@@ -772,12 +774,11 @@ public final class ShipController {
         }
     }
 
-    private static void rejectChangedWorkspaceSecrets(
-            Path project, ProjectSnapshot candidate) {
+    private static void rejectChangedWorkspaceSecrets(WorkspaceEvidence workspace) {
         try {
             List<String> findings = ChangedWorkspaceSecretScanner.scan(
-                    ProjectEvidenceFiles.capture(project),
-                    candidate,
+                    workspace.baseline(),
+                    workspace.snapshot(),
                     System.getenv());
             if (!findings.isEmpty()) {
                 throw failure(
@@ -1249,7 +1250,8 @@ public final class ShipController {
         }
     }
 
-    private record WorkspaceEvidence(Path candidate, ProjectSnapshot snapshot) {
+    private record WorkspaceEvidence(
+            Path candidate, ProjectSnapshot baseline, ProjectSnapshot snapshot) {
     }
 
     public static final class Failure extends RuntimeException {
