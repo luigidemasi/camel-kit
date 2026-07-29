@@ -15,9 +15,11 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.nio.file.attribute.UserPrincipal;
@@ -34,6 +36,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
@@ -272,10 +275,28 @@ public final class PiWorker {
             versionRun.deleteLogs();
             versionLogsDeleted = true;
             if (turn.validatedSession() != null) {
-                publishSession(
-                        turn.validatedSession(),
-                        sessionDirectory,
-                        previousSession);
+                PiWorkerResultStore.write(request, result);
+                try {
+                    publishSession(
+                            turn.validatedSession(),
+                            sessionDirectory,
+                            previousSession);
+                } catch (IOException publicationFailure) {
+                    // Only a remaining scratch file proves that the atomic rename
+                    // did not publish the result. Indeterminate attribute reads
+                    // retain the marker and are reported with the original failure.
+                    try {
+                        if (attributesIfPresent(
+                                turn.validatedSession(),
+                                "Could not determine whether the Pi scratch session remains")
+                            != null) {
+                            PiWorkerResultStore.delete(request);
+                        }
+                    } catch (IOException cleanupFailure) {
+                        publicationFailure.addSuppressed(cleanupFailure);
+                    }
+                    throw publicationFailure;
+                }
                 published = true;
             }
             return result;
@@ -332,6 +353,11 @@ public final class PiWorker {
                 Thread.currentThread().interrupt();
             }
         }
+    }
+
+    /** Returns the durable result for this exact attempt without launching Pi. */
+    public Optional<Result> recover(Request request) throws IOException {
+        return PiWorkerResultStore.read(Objects.requireNonNull(request, "request"));
     }
 
     private RpcRun runRpc(
@@ -651,9 +677,10 @@ public final class PiWorker {
                             stderrReader,
                             "Interrupted Pi RPC error output did not close");
                     Thread.interrupted();
-                    if (stdout.limited() || stderr.limited()) {
-                        throw new IOException(
-                                "Interrupted Pi RPC exceeded its retained-output limit");
+                    outputLimited = stdout.limited() || stderr.limited();
+                    if (outputLimited) {
+                        e.addSuppressed(new IOException(
+                                "Interrupted Pi RPC exceeded its retained-output limit"));
                     }
                     validatedSession = validatePersistedSession(
                             sessionDirectory,
@@ -663,12 +690,64 @@ public final class PiWorker {
                             previousSession,
                             prompt,
                             reconciliation.turn());
-                    if (process.exitValue() == 0) {
+                    if (process.exitValue() == 0
+                            && reconciliation.naturalCompletion()
+                            && !outputLimited
+                            && !stdout.protocolUnverifiable()
+                            && protocolFailure == null) {
+                        List<String> stdoutSecrets = new ArrayList<>(
+                                sensitiveValues.size() + 1);
+                        stdoutSecrets.add(prompt);
+                        stdoutSecrets.addAll(sensitiveValues);
+                        RetainedLog retainedStdout = LocalCommandRunner.retain(
+                                stdout.safeBytes(),
+                                evidenceDirectory,
+                                ".stdout.log",
+                                MAX_LOG_BYTES,
+                                stdoutSecrets);
+                        RetainedLog retainedStderr;
+                        try {
+                            retainedStderr = LocalCommandRunner.retain(
+                                    stderr.metadata(),
+                                    evidenceDirectory,
+                                    ".stderr.log",
+                                    MAX_LOG_BYTES,
+                                    sensitiveValues);
+                        } catch (IOException | RuntimeException retentionFailure) {
+                            Files.deleteIfExists(retainedStdout.path());
+                            throw retentionFailure;
+                        }
+                        Instant endedAt = clock.instant();
+                        if (endedAt.isBefore(startedAt)) {
+                            endedAt = startedAt;
+                        }
+                        interrupted = false;
+                        completedNormally = true;
+                        return new RpcRun(
+                                startedAt,
+                                endedAt,
+                                false,
+                                false,
+                                0,
+                                retainedStdout.path(),
+                                retainedStdout.digest(),
+                                retainedStderr.path(),
+                                retainedStderr.digest(),
+                                reconciliation.turn().terminal().text(),
+                                reconciliation.turn().terminal().stopReason(),
+                                null,
+                                validatedSession,
+                                true);
+                    }
+                    if (process.exitValue() == 0
+                            && !reconciliation.naturalCompletion()
+                            && !stdout.protocolUnverifiable()
+                            && protocolFailure == null) {
                         publishSession(
                                 validatedSession,
                                 canonicalSessionDirectory,
                                 canonicalPreviousSession);
-                    } else {
+                    } else if (process.exitValue() != 0) {
                         e.addSuppressed(new IOException(
                                 "Pi abort session was not published after a nonzero process exit"));
                     }
@@ -1400,14 +1479,34 @@ public final class PiWorker {
                 StandardCopyOption.REPLACE_EXISTING);
     }
 
+    static BasicFileAttributes attributesIfPresent(
+            Path path, String inspectionFailure)
+            throws IOException {
+        try {
+            return Files.readAttributes(
+                    path,
+                    BasicFileAttributes.class,
+                    LinkOption.NOFOLLOW_LINKS);
+        } catch (NoSuchFileException e) {
+            return null;
+        } catch (SecurityException e) {
+            throw new IOException(inspectionFailure, e);
+        }
+    }
+
     private static void deleteTree(Path path) throws IOException {
-        if (path == null || !Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
+        if (path == null) {
             return;
         }
-        if (Files.isSymbolicLink(path)) {
+        BasicFileAttributes attributes = attributesIfPresent(
+                path, "Pi scratch cleanup path could not be inspected");
+        if (attributes == null) {
+            return;
+        }
+        if (attributes.isSymbolicLink()) {
             throw new IOException("Pi scratch cleanup refused a symbolic link");
         }
-        if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
+        if (attributes.isDirectory()) {
             try (DirectoryStream<Path> entries = Files.newDirectoryStream(path)) {
                 for (Path entry : entries) {
                     deleteTree(entry);
