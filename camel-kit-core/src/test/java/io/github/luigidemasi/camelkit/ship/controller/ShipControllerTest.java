@@ -12,7 +12,10 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -24,6 +27,9 @@ import io.github.luigidemasi.camelkit.ship.controller.ShipRun.Oversight;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.RunStatus;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.Stage;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.StageStatus;
+import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp;
+import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.Outcome;
+import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStampStore;
 import io.github.luigidemasi.camelkit.ship.security.ProjectEvidenceFiles;
 import io.github.luigidemasi.camelkit.ship.security.ProjectSnapshot;
 import io.github.luigidemasi.camelkit.ship.security.ShipFilesystemException;
@@ -85,6 +91,104 @@ class ShipControllerTest {
         assertEquals(ShipContext.Kind.DOCUMENT, source.kind());
         assertEquals(document.toAbsolutePath().normalize().toString(), source.value());
         assertEquals(ShipDigest.sha256(Files.readAllBytes(document)), source.digest());
+    }
+
+    @Test
+    void rejectsSensitiveInlineContextBeforeCreatingRunState() throws Exception {
+        String secret = "inline-context-secret-12345678";
+        Path project = Files.createDirectory(directory.resolve("project"));
+        Path state = directory.resolve("state");
+        ShipController controller = new ShipController(
+                state, Map.of("SHIP_TEST_TOKEN", secret));
+
+        ShipController.Failure failure = assertThrows(
+                ShipController.Failure.class,
+                () -> controller.start(
+                        project,
+                        Oversight.NEVER,
+                        List.of(new ShipContext.TextInput("requirements: " + secret))));
+
+        assertEquals("context-secret-detected", failure.code());
+        assertFalse(failure.toString().contains(secret));
+        assertNull(failure.getCause());
+        assertFalse(Files.exists(state));
+    }
+
+    @Test
+    void rejectsSensitiveDocumentContextBeforeCreatingStartFromState()
+            throws Exception {
+        String secret = "document-context-secret-12345678";
+        Path project = Files.createDirectory(directory.resolve("project"));
+        Path document = Files.writeString(
+                project.resolve("requirements.md"), "requirements: " + secret);
+        Path state = directory.resolve("state");
+        ShipController controller = new ShipController(
+                state, Map.of("SHIP_TEST_TOKEN", secret));
+
+        ShipController.Failure failure = assertThrows(
+                ShipController.Failure.class,
+                () -> controller.startFrom(
+                        project,
+                        Stage.DESIGN,
+                        Oversight.NEVER,
+                        List.of(new ShipContext.DocumentInput(document))));
+
+        assertEquals("context-secret-detected", failure.code());
+        assertFalse(failure.toString().contains(secret));
+        assertNull(failure.getCause());
+        assertFalse(Files.exists(state));
+    }
+
+    @Test
+    void rejectsSensitiveDocumentPathBeforeCreatingRunState()
+            throws Exception {
+        String secret = "document-path-secret-12345678";
+        Path project = Files.createDirectory(directory.resolve("project"));
+        Path document = Files.writeString(
+                project.resolve(secret + ".md"), "safe requirements");
+        Path state = directory.resolve("state");
+        ShipController controller = new ShipController(
+                state, Map.of("SHIP_TEST_TOKEN", secret));
+
+        ShipController.Failure failure = assertThrows(
+                ShipController.Failure.class,
+                () -> controller.start(
+                        project,
+                        Oversight.NEVER,
+                        List.of(new ShipContext.DocumentInput(document))));
+
+        assertEquals("context-secret-detected", failure.code());
+        assertFalse(failure.toString().contains(secret));
+        assertNull(failure.getCause());
+        assertFalse(Files.exists(state));
+    }
+
+    @Test
+    void rejectsSensitiveDocumentRefreshWithoutChangingRunState()
+            throws Exception {
+        String secret = "refreshed-context-secret-12345678";
+        Path project = Files.createDirectory(directory.resolve("project"));
+        Path document = Files.writeString(
+                project.resolve("requirements.md"), "safe requirements");
+        Path state = directory.resolve("state");
+        ShipController controller = new ShipController(
+                state, Map.of("SHIP_TEST_TOKEN", secret));
+        ShipRun started = controller.start(
+                project,
+                Oversight.NEVER,
+                List.of(new ShipContext.DocumentInput(document)));
+        Files.writeString(document, "requirements: " + secret);
+
+        ShipController.Failure failure = assertThrows(
+                ShipController.Failure.class,
+                () -> controller.resume(started.id()));
+
+        assertEquals("context-secret-detected", failure.code());
+        assertFalse(failure.toString().contains(secret));
+        assertNull(failure.getCause());
+        assertEquals(started, controller.status(started.id()));
+        assertFalse(Files.readString(
+                state.resolve(started.id()).resolve("state.json")).contains(secret));
     }
 
     @Test
@@ -263,11 +367,46 @@ class ShipControllerTest {
         ShipRun never = controller.start(project, Oversight.NEVER, List.of());
         for (Stage stage : Stage.values()) {
             assertEquals(stage, never.currentStage());
-            never = complete(controller, never, "never-" + stage);
+            if (stage == Stage.VALIDATE) {
+                ShipController.StageAttempt attempt
+                        = controller.prepareAttempt(never.id());
+                ShipLocalStamp stamp = localStamp(never.id(), Outcome.PASS);
+                ShipLocalStampStore.write(
+                        attempt.evidenceDirectory(), never.id(), stamp);
+                never = controller.completeValidationStage(
+                        never.id(),
+                        never.stage(stage).attempts(),
+                        never.stage(stage).inputDigest(),
+                        stamp);
+            } else {
+                never = complete(controller, never, "never-" + stage);
+            }
         }
         assertEquals(RunStatus.COMPLETED, never.status());
         assertEquals(Stage.VALIDATE, never.currentStage());
         assertTrue(never.stages().stream().allMatch(record -> record.status() == StageStatus.COMPLETED));
+    }
+
+    @Test
+    void rejectsGenericWorkerCompletionForValidation() throws Exception {
+        Path project = Files.createDirectory(directory.resolve("project"));
+        ShipController controller = controller("state");
+        ShipRun validating = advanceToValidation(
+                controller, project, Oversight.NEVER);
+
+        ShipController.Failure failure = assertThrows(
+                ShipController.Failure.class,
+                () -> controller.completeStage(
+                        validating.id(),
+                        Stage.VALIDATE,
+                        validating.stage(Stage.VALIDATE).attempts(),
+                        validating.stage(Stage.VALIDATE).inputDigest(),
+                        digest("worker-prose-pass"),
+                        List.of(),
+                        false));
+
+        assertEquals("validation-controller-owned", failure.code());
+        assertEquals(validating, controller.status(validating.id()));
     }
 
     @Test
@@ -367,6 +506,311 @@ class ShipControllerTest {
     }
 
     @Test
+    void retainsAndReloadsAPassingLocalStamp() throws Exception {
+        Path project = Files.createDirectory(directory.resolve("project"));
+        Path state = directory.resolve("state");
+        ShipController controller = new ShipController(state);
+        ShipRun validating = advanceToValidation(
+                controller, project, Oversight.ALWAYS);
+        ShipController.StageAttempt attempt = controller.prepareAttempt(validating.id());
+        ShipLocalStamp stamp = localStamp(validating.id(), Outcome.PASS);
+        Path stampPath = ShipLocalStampStore.write(
+                attempt.evidenceDirectory(), validating.id(), stamp);
+
+        ShipRun paused = controller.completeValidationStage(
+                validating.id(),
+                validating.stage(Stage.VALIDATE).attempts(),
+                validating.stage(Stage.VALIDATE).inputDigest(),
+                stamp);
+
+        ShipRun.StageRecord validation = paused.stage(Stage.VALIDATE);
+        assertEquals(RunStatus.PAUSED, paused.status());
+        assertEquals(StageStatus.COMPLETED, validation.status());
+        assertEquals(List.of(stampPath.toRealPath().toString()),
+                validation.artifacts().stream().map(ShipRun.ArtifactRef::path).toList());
+        assertEquals(
+                ShipDigest.sha256(Files.readAllBytes(stampPath)),
+                validation.outputDigest());
+        ShipController reloaded = new ShipController(state);
+        assertEquals(paused, reloaded.status(paused.id()));
+
+        ShipRun completed = reloaded.resume(paused.id());
+        assertEquals(RunStatus.COMPLETED, completed.status());
+        assertEquals(validation, completed.stage(Stage.VALIDATE));
+    }
+
+    @Test
+    void restartsValidationWhenAPassingLocalStampIsMissingOrCorrupt()
+            throws Exception {
+        for (String condition : List.of("missing", "corrupt")) {
+            Path project = Files.createDirectory(
+                    directory.resolve(condition + "-project"));
+            Path state = directory.resolve(condition + "-state");
+            ShipController controller = new ShipController(state);
+            ShipRun validating = advanceToValidation(
+                    controller, project, Oversight.ALWAYS);
+            ShipController.StageAttempt attempt
+                    = controller.prepareAttempt(validating.id());
+            ShipLocalStamp stamp = localStamp(validating.id(), Outcome.PASS);
+            Path stampPath = ShipLocalStampStore.write(
+                    attempt.evidenceDirectory(), validating.id(), stamp);
+            ShipRun paused = controller.completeValidationStage(
+                    validating.id(),
+                    validating.stage(Stage.VALIDATE).attempts(),
+                    validating.stage(Stage.VALIDATE).inputDigest(),
+                    stamp);
+
+            if ("missing".equals(condition)) {
+                Files.delete(stampPath);
+            } else {
+                Files.writeString(stampPath, "not a local Stamp");
+            }
+
+            ShipRun resumed = controller.resume(paused.id());
+
+            assertEquals(RunStatus.RUNNING, resumed.status(), condition);
+            assertEquals(Stage.VALIDATE, resumed.currentStage(), condition);
+            assertEquals(
+                    StageStatus.RUNNING,
+                    resumed.stage(Stage.VALIDATE).status(),
+                    condition);
+            assertEquals(
+                    2,
+                    resumed.stage(Stage.VALIDATE).attempts(),
+                    condition);
+            assertTrue(
+                    resumed.stage(Stage.VALIDATE).artifacts().isEmpty(),
+                    condition);
+        }
+    }
+
+    @Test
+    void completedRunRestartsOnlyWhenItsLocalStampIsMissingOrCorrupt()
+            throws Exception {
+        for (String condition : List.of(
+                "intact", "missing", "changed-bytes", "corrupt-stamp", "corrupt-log")) {
+            Path project = Files.createDirectory(
+                    directory.resolve("completed-" + condition + "-project"));
+            Path state = directory.resolve("completed-" + condition + "-state");
+            ShipController controller = new ShipController(state);
+            ShipRun validating = advanceToValidation(
+                    controller, project, Oversight.NEVER);
+            ShipController.StageAttempt attempt
+                    = controller.prepareAttempt(validating.id());
+            ShipLocalStamp stamp = "corrupt-log".equals(condition)
+                    ? localStampWithLogs(validating.id(), attempt.evidenceDirectory())
+                    : localStamp(validating.id(), Outcome.PASS);
+            Path stampPath = ShipLocalStampStore.write(
+                    attempt.evidenceDirectory(), validating.id(), stamp);
+            ShipRun completed = controller.completeValidationStage(
+                    validating.id(),
+                    validating.stage(Stage.VALIDATE).attempts(),
+                    validating.stage(Stage.VALIDATE).inputDigest(),
+                    stamp);
+            assertEquals(RunStatus.COMPLETED, completed.status(), condition);
+
+            if ("intact".equals(condition)) {
+                assertFailure(
+                        "run-completed",
+                        () -> controller.resume(completed.id()));
+                assertEquals(completed, controller.status(completed.id()));
+                continue;
+            }
+            if ("missing".equals(condition)) {
+                Files.delete(stampPath);
+            } else if ("changed-bytes".equals(condition)) {
+                Files.writeString(
+                        stampPath, Files.readString(stampPath) + "\n");
+            } else if ("corrupt-log".equals(condition)) {
+                Files.writeString(
+                        attempt.evidenceDirectory().resolve("stdout.log"),
+                        "corrupt");
+            } else {
+                Files.writeString(stampPath, "not a local Stamp");
+            }
+
+            ShipRun resumed = controller.resume(completed.id());
+
+            assertEquals(RunStatus.RUNNING, resumed.status(), condition);
+            assertEquals(Stage.VALIDATE, resumed.currentStage(), condition);
+            assertEquals(StageStatus.RUNNING,
+                    resumed.stage(Stage.VALIDATE).status(), condition);
+            assertEquals(2, resumed.stage(Stage.VALIDATE).attempts(), condition);
+            assertTrue(resumed.stage(Stage.VALIDATE).artifacts().isEmpty(), condition);
+        }
+    }
+
+    @Test
+    void completedRunRefreshesContextBeforeAcceptingItsLocalStamp()
+            throws Exception {
+        Path project = Files.createDirectory(directory.resolve("context-project"));
+        Path document = Files.writeString(
+                project.resolve("requirements.md"), "requirements-v1");
+        ShipController controller = controller("context-state");
+        ShipRun run = controller.start(
+                project,
+                Oversight.NEVER,
+                List.of(new ShipContext.DocumentInput(document)));
+        while (run.currentStage() != Stage.VALIDATE) {
+            run = complete(controller, run, run.currentStage().name().toLowerCase(Locale.ROOT));
+        }
+        ShipController.StageAttempt attempt = controller.prepareAttempt(run.id());
+        ShipLocalStamp stamp = localStamp(run.id(), Outcome.PASS);
+        ShipLocalStampStore.write(attempt.evidenceDirectory(), run.id(), stamp);
+        ShipRun completed = controller.completeValidationStage(
+                run.id(),
+                run.stage(Stage.VALIDATE).attempts(),
+                run.stage(Stage.VALIDATE).inputDigest(),
+                stamp);
+        assertEquals(RunStatus.COMPLETED, completed.status());
+
+        Files.writeString(document, "requirements-v2");
+        ShipRun resumed = controller.resume(completed.id());
+
+        assertEquals(RunStatus.RUNNING, resumed.status());
+        assertEquals(Stage.DISCOVERY, resumed.currentStage());
+        assertEquals(2, resumed.stage(Stage.DISCOVERY).attempts());
+        assertEquals(StageStatus.PENDING, resumed.stage(Stage.VALIDATE).status());
+    }
+
+    @Test
+    void completedRunRefreshesPredecessorArtifactsBeforeAcceptingItsLocalStamp()
+            throws Exception {
+        Path project = Files.createDirectory(directory.resolve("artifact-project"));
+        Path discovery = Files.writeString(project.resolve("discovery.md"), "discovery-v1");
+        Path design = Files.writeString(project.resolve("design.md"), "design-v1");
+        Path plan = Files.writeString(project.resolve("plan.md"), "plan-v1");
+        ShipController controller = controller("artifact-state");
+        ShipRun run = controller.start(project, Oversight.NEVER, List.of());
+        run = complete(controller, run, "discovery", discovery);
+        run = complete(controller, run, "design", design);
+        run = complete(controller, run, "plan", plan);
+        run = complete(controller, run, "execute");
+        ShipController.StageAttempt attempt = controller.prepareAttempt(run.id());
+        ShipLocalStamp stamp = localStamp(run.id(), Outcome.PASS);
+        ShipLocalStampStore.write(attempt.evidenceDirectory(), run.id(), stamp);
+        ShipRun completed = controller.completeValidationStage(
+                run.id(),
+                run.stage(Stage.VALIDATE).attempts(),
+                run.stage(Stage.VALIDATE).inputDigest(),
+                stamp);
+        assertEquals(RunStatus.COMPLETED, completed.status());
+
+        Files.writeString(design, "design-v2");
+        ShipRun resumed = controller.resume(completed.id());
+
+        assertEquals(RunStatus.RUNNING, resumed.status());
+        assertEquals(Stage.PLAN, resumed.currentStage());
+        assertEquals(2, resumed.stage(Stage.PLAN).attempts());
+        assertEquals(StageStatus.COMPLETED, resumed.stage(Stage.DESIGN).status());
+        assertEquals(ShipDigest.sha256(Files.readAllBytes(design)),
+                resumed.stage(Stage.DESIGN).artifacts().get(0).digest());
+        assertEquals(StageStatus.PENDING, resumed.stage(Stage.VALIDATE).status());
+    }
+
+    @Test
+    void retainsAndReloadsAFailingLocalStampBeforeRetry() throws Exception {
+        Path project = Files.createDirectory(directory.resolve("project"));
+        Path state = directory.resolve("state");
+        ShipController controller = new ShipController(state);
+        ShipRun validating = advanceToValidation(
+                controller, project, Oversight.NEVER);
+        ShipController.StageAttempt attempt = controller.prepareAttempt(validating.id());
+        ShipLocalStamp stamp = localStamp(validating.id(), Outcome.FAIL);
+        Path stampPath = ShipLocalStampStore.write(
+                attempt.evidenceDirectory(), validating.id(), stamp);
+
+        ShipRun failed = controller.completeValidationStage(
+                validating.id(),
+                validating.stage(Stage.VALIDATE).attempts(),
+                validating.stage(Stage.VALIDATE).inputDigest(),
+                stamp);
+
+        ShipRun.StageRecord validation = failed.stage(Stage.VALIDATE);
+        assertEquals(RunStatus.FAILED, failed.status());
+        assertEquals(StageStatus.FAILED, validation.status());
+        assertEquals(stampPath.toRealPath().toString(),
+                validation.artifacts().get(0).path());
+        assertEquals(
+                ShipDigest.sha256(Files.readAllBytes(stampPath)),
+                validation.outputDigest());
+        ShipController reloaded = new ShipController(state);
+        assertEquals(failed, reloaded.status(failed.id()));
+
+        ShipRun retried = reloaded.resume(failed.id());
+        assertEquals(RunStatus.RUNNING, retried.status());
+        assertEquals(StageStatus.RUNNING, retried.stage(Stage.VALIDATE).status());
+        assertEquals(2, retried.stage(Stage.VALIDATE).attempts());
+        assertTrue(retried.stage(Stage.VALIDATE).artifacts().isEmpty());
+    }
+
+    @Test
+    void usesTheInjectedEnvironmentToRejectChangedExecuteSecrets() throws Exception {
+        String secret = "correct-horse-battery-staple";
+        Map<String, String> environment = new HashMap<>();
+        environment.put("SHIP_TEST_TOKEN", secret);
+        Path project = Files.createDirectory(directory.resolve("project"));
+        ShipController controller = new ShipController(
+                directory.resolve("state"), environment);
+        environment.clear();
+        ShipRun run = controller.start(project, Oversight.NEVER, List.of());
+        run = complete(controller, run, "discovery");
+        run = complete(controller, run, "design");
+        run = complete(controller, run, "plan");
+        Path workspace = controller.prepareWorkspace(
+                run.id(),
+                run.stage(Stage.EXECUTE).attempts(),
+                run.stage(Stage.EXECUTE).inputDigest());
+        Path route = Files.writeString(
+                workspace.resolve("route.yaml"), "password: " + secret);
+        ShipRun executing = run;
+
+        assertFailure(
+                "workspace-secret-detected",
+                () -> controller.completeExecuteStage(
+                        executing.id(),
+                        executing.stage(Stage.EXECUTE).attempts(),
+                        executing.stage(Stage.EXECUTE).inputDigest(),
+                        List.of(route),
+                        false));
+        assertEquals(executing, controller.status(executing.id()));
+    }
+
+    @Test
+    void preparesPrivateWorkerDirectoriesAndReleasesTheRunLock() throws Exception {
+        Assumptions.assumeTrue(
+                Files.getFileStore(directory).supportsFileAttributeView("posix"));
+        Path project = Files.createDirectory(directory.resolve("project"));
+        Path state = directory.resolve("state");
+        ShipController controller = new ShipController(state);
+        ShipRun run = controller.start(project, Oversight.NEVER, List.of());
+
+        ShipController.StageAttempt attempt = controller.prepareAttempt(run.id());
+        Path runDirectory = state.resolve(run.id()).toRealPath();
+
+        assertEquals(runDirectory, attempt.runDirectory());
+        assertEquals(runDirectory.resolve("sessions"), attempt.sessionDirectory());
+        assertEquals(runDirectory.resolve("inputs"), attempt.inputDirectory());
+        assertEquals(
+                runDirectory.resolve("evidence/discovery-1"),
+                attempt.evidenceDirectory());
+        for (Path privateDirectory : List.of(
+                attempt.sessionDirectory(),
+                attempt.inputDirectory(),
+                attempt.evidenceDirectory().getParent(),
+                attempt.evidenceDirectory())) {
+            assertEquals(
+                    PosixFilePermissions.fromString("rwx------"),
+                    Files.getPosixFilePermissions(privateDirectory));
+            assertEquals(Files.getOwner(runDirectory), Files.getOwner(privateDirectory));
+        }
+        try (ShipRunStore.LockedRun locked = new ShipRunStore(state).lock(run.id())) {
+            assertEquals(run, locked.read());
+        }
+        assertTrue(Files.isRegularFile(runDirectory.resolve("run.lock")));
+    }
+
+    @Test
     void resumeRestartsCompletedValidateWhenItsArtifactChanges() throws Exception {
         Path project = Files.createDirectory(directory.resolve("project"));
         ShipController controller = controller("state");
@@ -378,13 +822,22 @@ class ShipControllerTest {
         run = controller.resume(run.id());
         run = complete(controller, run, "execute");
         run = controller.resume(run.id());
-        Path artifact = Files.writeString(
-                Files.createDirectories(project.resolve("target")).resolve("validation.txt"),
-                "validated");
-        ShipRun paused = complete(controller, run, "validate", artifact);
+        ShipController.StageAttempt attempt = controller.prepareAttempt(
+                run.id());
+        ShipLocalStamp stamp = localStampWithLogs(
+                run.id(), attempt.evidenceDirectory());
+        ShipLocalStampStore.write(
+                attempt.evidenceDirectory(), run.id(), stamp);
+        ShipRun paused = controller.completeValidationStage(
+                run.id(),
+                run.stage(Stage.VALIDATE).attempts(),
+                run.stage(Stage.VALIDATE).inputDigest(),
+                stamp);
         assertEquals(RunStatus.PAUSED, paused.status());
 
-        Files.writeString(artifact, "changed after validation");
+        Files.writeString(
+                attempt.evidenceDirectory().resolve("stdout.log"),
+                "changed after validation");
         ShipRun resumed = controller.resume(paused.id());
 
         assertEquals(Stage.VALIDATE, resumed.currentStage());
@@ -989,6 +1442,21 @@ class ShipControllerTest {
     }
 
     @Test
+    void startFromDesignRequiresAnActivePipeline() throws Exception {
+        Path project = Files.createDirectory(directory.resolve("project"));
+
+        ShipController.Failure failure = assertThrows(
+                ShipController.Failure.class,
+                () -> controller("state").startFrom(
+                        project,
+                        Stage.DESIGN,
+                        Oversight.NEVER,
+                        List.of(new ShipContext.TextInput("design the route"))));
+
+        assertEquals("start-from-pipeline-missing", failure.code());
+    }
+
+    @Test
     void startFromLaterStagesRequiresAnActivePipeline() throws Exception {
         Path project = Files.createDirectory(directory.resolve("project"));
         ShipController controller = controller("state");
@@ -1035,7 +1503,16 @@ class ShipControllerTest {
         String snapshotDigest = validating.stage(Stage.EXECUTE).artifacts().get(1).digest();
         String executeOutputDigest = validating.stage(Stage.EXECUTE).outputDigest();
 
-        ShipRun paused = complete(controller, validating, "validated");
+        ShipController.StageAttempt attempt = controller.prepareAttempt(
+                validating.id());
+        ShipLocalStamp stamp = localStamp(validating.id(), Outcome.PASS);
+        ShipLocalStampStore.write(
+                attempt.evidenceDirectory(), validating.id(), stamp);
+        ShipRun paused = controller.completeValidationStage(
+                validating.id(),
+                validating.stage(Stage.VALIDATE).attempts(),
+                validating.stage(Stage.VALIDATE).inputDigest(),
+                stamp);
         assertEquals(RunStatus.PAUSED, paused.status());
         Files.writeString(route, "version two");
         Files.writeString(executionReport, "execution two");
@@ -1136,6 +1613,87 @@ class ShipControllerTest {
 
     private ShipController controller(String stateDirectory) {
         return new ShipController(directory.resolve(stateDirectory));
+    }
+
+    private ShipRun advanceToValidation(
+            ShipController controller, Path project, Oversight oversight) {
+        ShipRun run = controller.start(project, oversight, List.of());
+        while (run.currentStage() != Stage.VALIDATE) {
+            if (run.status() == RunStatus.PAUSED) {
+                run = controller.resume(run.id());
+            }
+            run = complete(
+                    controller,
+                    run,
+                    run.currentStage().name().toLowerCase(Locale.ROOT));
+        }
+        return run.status() == RunStatus.PAUSED
+                ? controller.resume(run.id())
+                : run;
+    }
+
+    private static ShipLocalStamp localStamp(String runId, Outcome outcome) {
+        return ShipLocalStamp.create(
+                runId,
+                List.of(new ShipLocalStamp.ToolVersion(
+                        "pi",
+                        null,
+                        "0.80.6",
+                        ShipLocalStamp.Support.SUPPORTED,
+                        null)),
+                List.of(new ShipLocalStamp.Check(
+                        "artifact-policy",
+                        true,
+                        outcome,
+                        "Artifact policy result",
+                        null,
+                        null)),
+                Instant.parse("2026-07-29T12:00:00Z"));
+    }
+
+    private static ShipLocalStamp localStampWithLogs(
+            String runId, Path evidenceDirectory)
+            throws Exception {
+        Path stdout = Files.writeString(
+                evidenceDirectory.resolve("stdout.log"), "stdout");
+        Path stderr = Files.writeString(
+                evidenceDirectory.resolve("stderr.log"), "stderr");
+        Files.setPosixFilePermissions(
+                stdout, PosixFilePermissions.fromString("rw-------"));
+        Files.setPosixFilePermissions(
+                stderr, PosixFilePermissions.fromString("rw-------"));
+        ShipLocalStamp.CommandRun command = new ShipLocalStamp.CommandRun(
+                "/usr/bin/java",
+                "17",
+                List.of("-version"),
+                evidenceDirectory.toString(),
+                List.of(digest("input")),
+                true,
+                false,
+                false,
+                0,
+                "2026-07-29T11:59:58Z",
+                "2026-07-29T11:59:59Z",
+                stdout.toString(),
+                ShipDigest.sha256(Files.readAllBytes(stdout)),
+                stderr.toString(),
+                ShipDigest.sha256(Files.readAllBytes(stderr)));
+        return ShipLocalStamp.create(
+                runId,
+                List.of(new ShipLocalStamp.ToolVersion(
+                        "pi",
+                        null,
+                        "0.80.6",
+                        ShipLocalStamp.Support.SUPPORTED,
+                        null)),
+                List.of(new ShipLocalStamp.Check(
+                        "artifact-policy",
+                        true,
+                        Outcome.PASS,
+                        "Artifact policy result",
+                        null,
+                        command)),
+                Instant.parse("2026-07-29T12:00:00Z"));
     }
 
     private void assertConcurrentArtifactMutationRejected(String name, boolean replace)

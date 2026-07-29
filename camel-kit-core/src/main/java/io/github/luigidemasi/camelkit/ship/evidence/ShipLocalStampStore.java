@@ -126,6 +126,12 @@ public final class ShipLocalStampStore {
 
     public static ShipLocalStamp read(Path evidenceDirectory, String expectedRunId)
             throws IOException {
+        return readVerified(evidenceDirectory, expectedRunId).stamp();
+    }
+
+    public static VerifiedStamp readVerified(
+            Path evidenceDirectory, String expectedRunId)
+            throws IOException {
         if (!ShipRun.isRunId(expectedRunId)) {
             throw new IOException("Expected local Stamp run ID is invalid");
         }
@@ -151,10 +157,14 @@ public final class ShipLocalStampStore {
             }
             requireRun(expectedRunId, stamp);
             verifyCommandLogs(directory, owner, stamp);
-            return stamp;
+            return new VerifiedStamp(stamp, file, ShipDigest.sha256(encoded));
         } catch (JsonProcessingException | IllegalArgumentException e) {
             throw new IOException("Local Stamp is invalid: " + file, e);
         }
+    }
+
+    public record VerifiedStamp(
+            ShipLocalStamp stamp, Path path, String digest) {
     }
 
     private static void requireRun(String expectedRunId, ShipLocalStamp stamp)

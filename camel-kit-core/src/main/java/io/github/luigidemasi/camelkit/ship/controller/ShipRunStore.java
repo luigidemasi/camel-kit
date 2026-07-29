@@ -143,6 +143,7 @@ final class ShipRunStore {
         }
         requireDisjoint(runRoot, run, "state-corrupt");
         requireWorkspaceEvidence(runRoot, run, "state-corrupt");
+        requireLocalStampEvidence(runRoot, run, "state-corrupt");
         return run;
     }
 
@@ -180,6 +181,7 @@ final class ShipRunStore {
         }
         requireDisjoint(runRoot, run, "state-invalid");
         requireWorkspaceEvidence(runRoot, run, "state-invalid");
+        requireLocalStampEvidence(runRoot, run, "state-invalid");
         byte[] encoded;
         try {
             encoded = JSON.writerWithDefaultPrettyPrinter().writeValueAsBytes(run);
@@ -262,6 +264,35 @@ final class ShipRunStore {
                 || !ShipRun.executeOutputDigest(root).equals(execute.outputDigest())) {
             throw invalidWorkspaceEvidence(run, code);
         }
+    }
+
+    private static void requireLocalStampEvidence(
+            Path runRoot, ShipRun run, String code)
+            throws StoreException {
+        StageRecord validation = run.stage(Stage.VALIDATE);
+        if (validation.attempts() <= 0) {
+            return;
+        }
+        if (validation.artifacts().isEmpty()
+                && validation.status() != StageStatus.COMPLETED) {
+            return;
+        }
+        Path expected = runRoot.resolve("evidence")
+                .resolve("validate-" + validation.attempts())
+                .resolve("stamp.json")
+                .toAbsolutePath()
+                .normalize();
+        boolean localStamp = validation.artifacts().size() == 1
+                && expected.toString().equals(
+                        validation.artifacts().get(0).path())
+                && validation.outputDigest().equals(
+                        validation.artifacts().get(0).digest());
+        if (localStamp) {
+            return;
+        }
+        throw new StoreException(
+                code,
+                "Completed Ship validation evidence is invalid for run " + run.id());
     }
 
     private static void requireImportedEvidence(ShipRun run, String code)

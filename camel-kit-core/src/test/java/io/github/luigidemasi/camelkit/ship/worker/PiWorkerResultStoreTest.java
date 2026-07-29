@@ -36,8 +36,16 @@ class PiWorkerResultStoreTest {
         PiWorkerResultStore.write(first, result("first"));
         PiWorkerResultStore.write(second, result("second"));
 
-        assertEquals("first", PiWorkerResultStore.read(first).orElseThrow().assistantText());
-        assertEquals("second", PiWorkerResultStore.read(second).orElseThrow().assistantText());
+        assertEquals(
+                "first",
+                PiWorkerResultStore.read(first)
+                        .orElseThrow()
+                        .assistantText());
+        assertEquals(
+                "second",
+                PiWorkerResultStore.read(second)
+                        .orElseThrow()
+                        .assistantText());
         try (var files = Files.list(sessions.resolve(".camel-kit-results"))) {
             assertEquals(2, files.count());
         }
@@ -89,21 +97,25 @@ class PiWorkerResultStoreTest {
 
         Files.writeString(marker, encoded.replace(RUN_A, RUN_B));
         assertTrue(assertThrows(IOException.class,
-                () -> PiWorkerResultStore.read(request)).getMessage().contains("does not match"));
+                () -> PiWorkerResultStore.read(request))
+                .getMessage().contains("does not match"));
 
         Files.writeString(marker, encoded.replace(
                 "\"runId\" : \"" + RUN_A + "\"", "\"runId\" : null"));
         assertTrue(assertThrows(IOException.class,
-                () -> PiWorkerResultStore.read(request)).getMessage().contains("does not match"));
+                () -> PiWorkerResultStore.read(request))
+                .getMessage().contains("does not match"));
 
         Files.writeString(marker, encoded.replace(
                 "\"inputDigest\" : \"" + DIGEST + "\"", "\"inputDigest\" : null"));
         assertTrue(assertThrows(IOException.class,
-                () -> PiWorkerResultStore.read(request)).getMessage().contains("does not match"));
+                () -> PiWorkerResultStore.read(request))
+                .getMessage().contains("does not match"));
 
         Files.writeString(marker, encoded.replace("\"schemaVersion\" : 1", "\"schemaVersion\" : 2"));
         assertTrue(assertThrows(IOException.class,
-                () -> PiWorkerResultStore.read(request)).getMessage().contains("schema version"));
+                () -> PiWorkerResultStore.read(request))
+                .getMessage().contains("schema version"));
     }
 
     @Test
@@ -115,39 +127,210 @@ class PiWorkerResultStoreTest {
 
         Files.write(marker, new byte[0]);
         assertTrue(assertThrows(IOException.class,
-                () -> PiWorkerResultStore.read(request)).getMessage().contains("size"));
+                () -> PiWorkerResultStore.read(request))
+                .getMessage().contains("size"));
 
         Files.writeString(marker, "{");
         assertTrue(assertThrows(IOException.class,
-                () -> PiWorkerResultStore.read(request)).getMessage().contains("malformed"));
+                () -> PiWorkerResultStore.read(request))
+                .getMessage().contains("malformed"));
 
         try (RandomAccessFile file = new RandomAccessFile(marker.toFile(), "rw")) {
             file.setLength(20L * 1024 * 1024 + 1);
         }
         assertTrue(assertThrows(IOException.class,
-                () -> PiWorkerResultStore.read(request)).getMessage().contains("size"));
+                () -> PiWorkerResultStore.read(request))
+                .getMessage().contains("size"));
     }
 
-    private PiWorker.Request request(String runId, Path sessions) {
+    @Test
+    void rejectsDeletedTamperedAndOversizedEvidenceLogs() throws Exception {
+        Path sessions = Files.createDirectory(directory.resolve("sessions"));
+        PiWorker.Request request = request(RUN_A, sessions);
+
+        PiWorker.Result deleted = result("deleted");
+        PiWorkerResultStore.write(request, deleted);
+        Files.delete(Path.of(deleted.evidence().stdoutLog()));
+        assertTrue(assertThrows(
+                IOException.class,
+                () -> PiWorkerResultStore.read(request))
+                .getMessage().contains("missing or invalid"));
+
+        PiWorker.Result tampered = result("tampered");
+        PiWorkerResultStore.write(request, tampered);
+        Files.writeString(
+                Path.of(tampered.evidence().stderrLog()),
+                "changed");
+        assertTrue(assertThrows(
+                IOException.class,
+                () -> PiWorkerResultStore.read(request))
+                .getMessage().contains("recorded digest"));
+
+        PiWorker.Result oversized = result("oversized");
+        PiWorkerResultStore.write(request, oversized);
+        try (RandomAccessFile file = new RandomAccessFile(
+                Path.of(oversized.evidence().stdoutLog()).toFile(),
+                "rw")) {
+            file.setLength((long) PiWorker.MAX_LOG_BYTES + 1);
+        }
+        assertTrue(assertThrows(
+                IOException.class,
+                () -> PiWorkerResultStore.read(request))
+                .getMessage().contains("size limit"));
+    }
+
+    @Test
+    void rejectsEvidenceLogsOutsideTheirDirectory() throws Exception {
+        Path sessions = Files.createDirectory(directory.resolve("sessions"));
+        PiWorker.Request request = request(RUN_A, sessions);
+        PiWorker.Result original = result("escaped");
+        Path outside = Files.writeString(
+                directory.resolve("outside.stdout.log"),
+                "outside");
+        PiWorker.Result escaped = withEvidence(
+                original,
+                original.evidence().executable(),
+                original.evidence().workingDirectory(),
+                original.evidence().inputDigests(),
+                outside,
+                ShipDigest.sha256(Files.readAllBytes(outside)),
+                Path.of(original.evidence().stderrLog()),
+                original.evidence().stderrDigest(),
+                original.evidence().version());
+
+        PiWorkerResultStore.write(request, escaped);
+
+        assertTrue(assertThrows(
+                IOException.class,
+                () -> PiWorkerResultStore.read(request))
+                .getMessage().contains("escaped"));
+    }
+
+    @Test
+    void validatesCommandEvidenceAgainstItsHistoricalRequest() throws Exception {
+        Path sessions = Files.createDirectory(directory.resolve("sessions"));
+        PiWorker.Request request = request(RUN_A, sessions);
+        PiWorker.Result original = result("mismatch");
+        Path stdout = Path.of(original.evidence().stdoutLog());
+        Path stderr = Path.of(original.evidence().stderrLog());
+
+        Path otherWorking = Files.createDirectory(
+                directory.resolve("other-working"));
+        PiWorkerResultStore.write(
+                request,
+                withEvidence(
+                        original,
+                        original.evidence().executable(),
+                        otherWorking.toString(),
+                        original.evidence().inputDigests(),
+                        stdout,
+                        original.evidence().stdoutDigest(),
+                        stderr,
+                        original.evidence().stderrDigest(),
+                        original.evidence().version()));
+        assertTrue(assertThrows(
+                IOException.class,
+                () -> PiWorkerResultStore.read(request))
+                .getMessage().contains("does not match its request"));
+
+        String otherDigest = ShipDigest.sha256(
+                "other input".getBytes(
+                        java.nio.charset.StandardCharsets.UTF_8));
+        PiWorkerResultStore.write(
+                request,
+                withEvidence(
+                        original,
+                        original.evidence().executable(),
+                        original.evidence().workingDirectory(),
+                        List.of(otherDigest),
+                        stdout,
+                        original.evidence().stdoutDigest(),
+                        stderr,
+                        original.evidence().stderrDigest(),
+                        original.evidence().version()));
+        assertTrue(assertThrows(
+                IOException.class,
+                () -> PiWorkerResultStore.read(request))
+                .getMessage().contains("does not match its request"));
+
+        String historicalExecutable = directory.resolve("retired-pi")
+                .toAbsolutePath()
+                .normalize()
+                .toString();
+        PiWorkerResultStore.write(
+                request,
+                withEvidence(
+                        original,
+                        historicalExecutable,
+                        original.evidence().workingDirectory(),
+                        original.evidence().inputDigests(),
+                        stdout,
+                        original.evidence().stdoutDigest(),
+                        stderr,
+                        original.evidence().stderrDigest(),
+                        original.evidence().version()));
+        assertEquals(
+                historicalExecutable,
+                PiWorkerResultStore.read(request)
+                        .orElseThrow()
+                        .evidence()
+                        .executable());
+
+        PiWorkerResultStore.write(request, original);
+        Path marker = marker(sessions);
+        String encoded = Files.readString(marker);
+        String version = "\"version\" : \"0.80.6\"";
+        int evidenceVersion = encoded.indexOf(
+                version, encoded.indexOf(version) + version.length());
+        assertTrue(evidenceVersion >= 0);
+        Files.writeString(
+                marker,
+                encoded.substring(0, evidenceVersion)
+                        + "\"version\" : \"0.81.1\""
+                        + encoded.substring(evidenceVersion + version.length()));
+        assertTrue(assertThrows(
+                IOException.class,
+                () -> PiWorkerResultStore.read(request))
+                .getMessage().contains("malformed"));
+    }
+
+    private PiWorker.Request request(String runId, Path sessions)
+            throws IOException {
         return new PiWorker.Request(
                 runId,
                 ShipRun.Stage.DISCOVERY,
                 1,
-                directory.toAbsolutePath(),
+                Files.createDirectories(
+                        directory.resolve("working")),
                 sessions,
-                directory.resolve("evidence"),
+                Files.createDirectories(
+                        directory.resolve("evidence")),
                 DIGEST,
                 true,
                 "prompt");
     }
 
-    private PiWorker.Result result(String text) {
+    private PiWorker.Result result(String text) throws IOException {
         String timestamp = "2026-07-28T08:00:00Z";
+        Path evidence = Files.createDirectories(
+                directory.resolve("evidence"));
+        Path stdout = Files.createTempFile(
+                evidence, "pi-", ".stdout.log");
+        Path stderr = Files.createTempFile(
+                evidence, "pi-", ".stderr.log");
+        byte[] stdoutBytes = "stdout".getBytes(
+                java.nio.charset.StandardCharsets.UTF_8);
+        byte[] stderrBytes = "stderr".getBytes(
+                java.nio.charset.StandardCharsets.UTF_8);
+        Files.write(stdout, stdoutBytes);
+        Files.write(stderr, stderrBytes);
         CommandRun command = new CommandRun(
-                directory.resolve("pi").toAbsolutePath().toString(),
+                executable().toString(),
                 "0.80.6",
                 List.of("--mode", "rpc"),
-                directory.toAbsolutePath().toString(),
+                directory.resolve("working")
+                        .toAbsolutePath()
+                        .toString(),
                 List.of(DIGEST),
                 true,
                 false,
@@ -155,10 +338,10 @@ class PiWorkerResultStoreTest {
                 0,
                 timestamp,
                 timestamp,
-                directory.resolve("stdout.log").toAbsolutePath().toString(),
-                ShipDigest.sha256(new byte[0]),
-                directory.resolve("stderr.log").toAbsolutePath().toString(),
-                ShipDigest.sha256(new byte[0]));
+                stdout.toAbsolutePath().toString(),
+                ShipDigest.sha256(stdoutBytes),
+                stderr.toAbsolutePath().toString(),
+                ShipDigest.sha256(stderrBytes));
         return new PiWorker.Result(
                 PiWorker.Outcome.SUCCEEDED,
                 ShipLocalStamp.Support.EXPERIMENTAL,
@@ -167,6 +350,47 @@ class PiWorkerResultStoreTest {
                 text,
                 null,
                 command);
+    }
+
+    private static PiWorker.Result withEvidence(
+            PiWorker.Result result,
+            String executable,
+            String workingDirectory,
+            List<String> inputDigests,
+            Path stdout,
+            String stdoutDigest,
+            Path stderr,
+            String stderrDigest,
+            String version) {
+        CommandRun previous = result.evidence();
+        CommandRun evidence = new CommandRun(
+                executable,
+                version,
+                previous.redactedArguments(),
+                workingDirectory,
+                inputDigests,
+                previous.launched(),
+                previous.timedOut(),
+                previous.outputLimited(),
+                previous.exitCode(),
+                previous.startedAt(),
+                previous.endedAt(),
+                stdout.toAbsolutePath().normalize().toString(),
+                stdoutDigest,
+                stderr.toAbsolutePath().normalize().toString(),
+                stderrDigest);
+        return new PiWorker.Result(
+                result.outcome(),
+                result.support(),
+                version,
+                result.warning(),
+                result.assistantText(),
+                result.failure(),
+                evidence);
+    }
+
+    private Path executable() {
+        return directory.resolve("pi").toAbsolutePath().normalize();
     }
 
     private static Path marker(Path sessions) throws IOException {

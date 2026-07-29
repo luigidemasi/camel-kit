@@ -2,18 +2,21 @@ package io.github.luigidemasi.camelkit.ship.controller;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -26,6 +29,9 @@ import io.github.luigidemasi.camelkit.ship.controller.ShipRun.RunStatus;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.Stage;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.StageRecord;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.StageStatus;
+import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp;
+import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStampStore;
+import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStampStore.VerifiedStamp;
 import io.github.luigidemasi.camelkit.ship.security.ProjectEvidenceFiles;
 import io.github.luigidemasi.camelkit.ship.security.ProjectSnapshot;
 import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy;
@@ -57,14 +63,26 @@ public final class ShipController {
 
     private final ShipRunStore store;
     private final Clock clock;
+    private final Map<String, String> environment;
 
     public ShipController(Path stateRoot) {
-        this(stateRoot, Clock.systemUTC());
+        this(stateRoot, Clock.systemUTC(), System.getenv());
+    }
+
+    public ShipController(Path stateRoot, Map<String, String> environment) {
+        this(stateRoot, Clock.systemUTC(), environment);
     }
 
     ShipController(Path stateRoot, Clock clock) {
+        this(stateRoot, clock, System.getenv());
+    }
+
+    ShipController(
+                   Path stateRoot, Clock clock, Map<String, String> environment) {
         this.store = new ShipRunStore(Objects.requireNonNull(stateRoot, "state root"));
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.environment = Map.copyOf(
+                Objects.requireNonNull(environment, "environment"));
     }
 
     /** Resolves the conventional user-owned Ship state directory. */
@@ -93,6 +111,7 @@ public final class ShipController {
         Path project = requireProject(projectDirectory);
         String pipelineId = inspectProjectState(project);
         ShipContext context = resolveContext(project, inputs);
+        rejectContextSecrets(context);
         List<StageRecord> stages = new ArrayList<>(ShipRun.pendingStages());
         stages.set(
                 Stage.DISCOVERY.ordinal(),
@@ -121,10 +140,16 @@ public final class ShipController {
         Stage startStage = Objects.requireNonNull(target, "start stage");
         String pipelineId = inspectProjectState(project);
         ShipContext context = resolveContext(project, inputs);
+        rejectContextSecrets(context);
         if (startStage == Stage.DESIGN && context.sources().isEmpty()) {
             throw failure(
                     "start-from-context-missing",
                     "Starting from DESIGN requires text or document context");
+        }
+        if (startStage == Stage.DESIGN && pipelineId == null) {
+            throw failure(
+                    "start-from-pipeline-missing",
+                    "Starting from DESIGN requires a controller-bound active pipeline");
         }
         List<StageRecord> stages = new ArrayList<>(ShipRun.pendingStages());
 
@@ -179,12 +204,19 @@ public final class ShipController {
             if (current.status() == RunStatus.ABORTED) {
                 throw failure("run-aborted", "Ship run is aborted and cannot resume: " + runId);
             }
-            if (current.status() == RunStatus.COMPLETED) {
-                throw failure("run-completed", "Ship run is already complete: " + runId);
+            boolean completedWithLocalStamp = current.status() == RunStatus.COMPLETED;
+            if (completedWithLocalStamp) {
+                StageRecord validation = current.stage(Stage.VALIDATE);
+                if (validation.attempts() <= 0
+                        || !isLocalStampEvidence(locked.directory(), validation)) {
+                    throw failure(
+                            "run-completed", "Ship run is already complete: " + runId);
+                }
             }
 
             Path project = requireProject(Path.of(current.projectDirectory()));
             ShipContext refreshed = refreshContext(current.context());
+            rejectContextSecrets(refreshed);
             List<StageRecord> stages = new ArrayList<>(current.stages());
             int restart = stages.size();
 
@@ -201,16 +233,28 @@ public final class ShipController {
                         requireExecuteRoot(
                                 record.artifacts(), expectedWorkspace(locked.directory()));
                     }
-                    refreshedArtifacts = readRecordedArtifacts(
-                            project,
-                            current.id(),
-                            record.stage(),
-                            record.attempts(),
-                            record.inputDigest(),
-                            locked.directory(),
-                            record.artifacts(),
-                            stagedExecute);
-                } catch (Failure e) {
+                    if (record.stage() == Stage.VALIDATE
+                            && record.attempts() > 0
+                            && isLocalStampEvidence(
+                                    locked.directory(), record)) {
+                        Path evidence = validationEvidenceDirectory(
+                                locked.directory(), record.attempts());
+                        VerifiedStamp stamp = ShipLocalStampStore.readVerified(
+                                evidence, current.id());
+                        refreshedArtifacts = List.of(new ArtifactRef(
+                                stamp.path().toString(), stamp.digest()));
+                    } else {
+                        refreshedArtifacts = readRecordedArtifacts(
+                                project,
+                                current.id(),
+                                record.stage(),
+                                record.attempts(),
+                                record.inputDigest(),
+                                locked.directory(),
+                                record.artifacts(),
+                                stagedExecute);
+                    }
+                } catch (Failure | IOException e) {
                     restart = Math.min(restart, index);
                     break;
                 }
@@ -248,6 +292,10 @@ public final class ShipController {
 
             ShipRun resumed;
             if (restart == stages.size()) {
+                if (completedWithLocalStamp) {
+                    throw failure(
+                            "run-completed", "Ship run is already complete: " + runId);
+                }
                 resumed = copy(
                         current,
                         RunStatus.COMPLETED,
@@ -279,6 +327,72 @@ public final class ShipController {
             throw failure(e.code(), e.getMessage(), e);
         } catch (IOException e) {
             throw failure("state-write-failed", "Could not resume Ship run " + runId, e);
+        }
+    }
+
+    /**
+     * Restarts a completed generated predecessor whose controller-consumed Pi result is no longer recoverable.
+     */
+    ShipRun restartGeneratedStage(
+            StageAttempt currentAttempt, StageRecord unavailable) {
+        Objects.requireNonNull(currentAttempt, "current attempt");
+        Objects.requireNonNull(unavailable, "unavailable stage");
+        if (unavailable.stage() == Stage.VALIDATE
+                || unavailable.attempts() <= 0) {
+            throw failure(
+                    "stage-result-invalid",
+                    "Only a generated Pi predecessor can be restarted");
+        }
+        String runId = currentAttempt.run().id();
+        try (ShipRunStore.LockedRun locked = store.lock(runId)) {
+            ShipRun current = locked.read();
+            StageRecord active = requireActiveAttempt(
+                    current,
+                    currentAttempt.stage().stage(),
+                    currentAttempt.stage().attempts(),
+                    currentAttempt.stage().inputDigest());
+            requireCurrentInputs(current, active, locked.directory());
+            StageRecord recorded = current.stage(unavailable.stage());
+            if (recorded.stage().ordinal() >= active.stage().ordinal()
+                    || recorded.status() != StageStatus.COMPLETED
+                    || recorded.attempts() != unavailable.attempts()
+                    || !recorded.inputDigest().equals(
+                            unavailable.inputDigest())) {
+                throw failure(
+                        "stale-stage-attempt",
+                        "Unavailable Pi result no longer matches the completed predecessor");
+            }
+
+            List<StageRecord> stages = new ArrayList<>(current.stages());
+            int restart = recorded.stage().ordinal();
+            for (int index = restart; index < stages.size(); index++) {
+                stages.set(index, stages.get(index).reset());
+            }
+            stages.set(
+                    restart,
+                    startStage(
+                            stages.get(restart),
+                            ShipRun.inputDigest(
+                                    current.context(),
+                                    stages,
+                                    recorded.stage())));
+            ShipRun resumed = copy(
+                    current,
+                    RunStatus.RUNNING,
+                    recorded.stage(),
+                    current.context(),
+                    stages,
+                    null);
+            locked.write(resumed);
+            return resumed;
+        } catch (ShipRunStore.StoreException e) {
+            throw failure(e.code(), e.getMessage(), e);
+        } catch (IOException e) {
+            throw failure(
+                    "state-write-failed",
+                    "Could not restart Ship stage " + unavailable.stage()
+                                          + " for " + runId,
+                    e);
         }
     }
 
@@ -331,6 +445,11 @@ public final class ShipController {
                     "workspace-required",
                     "Ship EXECUTE results require a workspace bound to the active stage");
         }
+        if (stage == Stage.VALIDATE) {
+            throw failure(
+                    "validation-controller-owned",
+                    "Ship VALIDATE results require a controller-derived local Stamp");
+        }
         return completeStage(
                 runId,
                 stage,
@@ -339,7 +458,33 @@ public final class ShipController {
                 outputDigest,
                 artifacts,
                 false,
-                materialAmbiguity);
+                materialAmbiguity,
+                null);
+    }
+
+    /** Records a typed DISCOVERY result and binds its controller-approved pipeline ID. */
+    ShipRun completeDiscoveryStage(
+            String runId,
+            int attempt,
+            String inputDigest,
+            String outputDigest,
+            String pipelineId,
+            boolean materialAmbiguity) {
+        if (!ShipRun.isPipelineId(pipelineId)) {
+            throw failure(
+                    "stage-result-invalid",
+                    "Ship discovery result has an invalid pipeline ID");
+        }
+        return completeStage(
+                runId,
+                Stage.DISCOVERY,
+                attempt,
+                inputDigest,
+                outputDigest,
+                List.of(),
+                false,
+                materialAmbiguity,
+                pipelineId);
     }
 
     /**
@@ -360,7 +505,8 @@ public final class ShipController {
                 null,
                 artifacts,
                 true,
-                materialAmbiguity);
+                materialAmbiguity,
+                null);
     }
 
     /** Prepares the controller-owned workspace for the active EXECUTE attempt. */
@@ -390,6 +536,59 @@ public final class ShipController {
         }
     }
 
+    /**
+     * Resolves one authoritative stage attempt and prepares its private worker directories.
+     *
+     * <p>
+     * The run lock is released before worker execution.
+     */
+    StageAttempt prepareAttempt(String runId) {
+        try (ShipRunStore.LockedRun locked = store.lock(runId)) {
+            ShipRun current = locked.read();
+            StageRecord active = requireActiveAttempt(
+                    current,
+                    current.currentStage(),
+                    current.stage(current.currentStage()).attempts(),
+                    current.stage(current.currentStage()).inputDigest());
+            requireCurrentInputs(current, active, locked.directory());
+            Path runDirectory = locked.directory().toRealPath();
+            Path sessions = privateDirectory(runDirectory, "sessions");
+            Path inputs = privateDirectory(runDirectory, "inputs");
+            Path evidenceRoot = privateDirectory(runDirectory, "evidence");
+            Path evidence = privateDirectory(
+                    evidenceRoot,
+                    active.stage().name().toLowerCase(Locale.ROOT)
+                                  + "-" + active.attempts());
+            Path workingDirectory = active.stage() == Stage.EXECUTE
+                    ? ShipWorkspace.prepare(
+                            Path.of(current.projectDirectory()),
+                            runDirectory,
+                            current.id(),
+                            active.attempts(),
+                            active.inputDigest())
+                    : Path.of(current.projectDirectory());
+            return new StageAttempt(
+                    current,
+                    workingDirectory,
+                    sessions,
+                    evidence,
+                    inputs,
+                    runDirectory);
+        } catch (ShipRunStore.StoreException e) {
+            throw failure(e.code(), e.getMessage(), e);
+        } catch (StaleBaselineException e) {
+            throw failure(
+                    "stale-stage-input",
+                    "Ship workspace baseline changed; resume the run",
+                    e);
+        } catch (IOException | SecurityException | UnsupportedOperationException e) {
+            throw failure(
+                    "worker-preparation-failed",
+                    "Could not prepare the Ship worker attempt for " + runId,
+                    e);
+        }
+    }
+
     private ShipRun completeStage(
             String runId,
             Stage stage,
@@ -398,7 +597,8 @@ public final class ShipController {
             String outputDigest,
             List<Path> artifacts,
             boolean execute,
-            boolean materialAmbiguity) {
+            boolean materialAmbiguity,
+            String discoveredPipelineId) {
         Objects.requireNonNull(stage, "stage");
         Objects.requireNonNull(artifacts, "artifacts");
         if (execute != (stage == Stage.EXECUTE)) {
@@ -410,6 +610,14 @@ public final class ShipController {
         try (ShipRunStore.LockedRun locked = store.lock(runId)) {
             ShipRun current = locked.read();
             StageRecord active = requireActiveAttempt(current, stage, attempt, inputDigest);
+            if (discoveredPipelineId != null
+                    && (stage != Stage.DISCOVERY
+                            || current.pipelineId() != null
+                                    && !current.pipelineId().equals(discoveredPipelineId))) {
+                throw failure(
+                        "stage-result-invalid",
+                        "Ship discovery result conflicts with the active pipeline");
+            }
             requireCurrentInputs(current, active, locked.directory());
             Path project = Path.of(current.projectDirectory());
             Path artifactRoot;
@@ -477,6 +685,9 @@ public final class ShipController {
 
             ShipRun completed = copy(
                     current,
+                    discoveredPipelineId == null
+                            ? current.pipelineId()
+                            : discoveredPipelineId,
                     status,
                     currentStage,
                     current.context(),
@@ -521,6 +732,65 @@ public final class ShipController {
         }
     }
 
+    /** Commits a controller-derived local Stamp and lets its status decide validation. */
+    ShipRun completeValidationStage(
+            String runId,
+            int attempt,
+            String inputDigest,
+            ShipLocalStamp suppliedStamp) {
+        try (ShipRunStore.LockedRun locked = store.lock(runId)) {
+            ShipRun current = locked.read();
+            StageRecord active = requireActiveAttempt(
+                    current, Stage.VALIDATE, attempt, inputDigest);
+            requireCurrentInputs(current, active, locked.directory());
+            Path evidenceDirectory = validationEvidenceDirectory(
+                    locked.directory(), attempt);
+            VerifiedStamp verified = ShipLocalStampStore.readVerified(
+                    evidenceDirectory, runId);
+            ShipLocalStamp stamp = verified.stamp();
+            if (!stamp.equals(Objects.requireNonNull(suppliedStamp, "local Stamp"))) {
+                throw failure(
+                        "validation-stamp-invalid",
+                        "Persisted local Stamp differs from the validation result");
+            }
+            ArtifactRef reference = new ArtifactRef(
+                    verified.path().toString(), verified.digest());
+            List<StageRecord> stages = new ArrayList<>(current.stages());
+            RunStatus status;
+            String message = null;
+            if (stamp.status() == ShipLocalStamp.Status.FAIL) {
+                stages.set(
+                        Stage.VALIDATE.ordinal(),
+                        active.fail(reference.digest(), List.of(reference)));
+                status = RunStatus.FAILED;
+                message = "Mandatory validation checks failed; inspect the retained local Stamp";
+            } else {
+                stages.set(
+                        Stage.VALIDATE.ordinal(),
+                        active.complete(reference.digest(), List.of(reference)));
+                status = current.oversight().pausesAfter(Stage.VALIDATE, false)
+                        ? RunStatus.PAUSED
+                        : RunStatus.COMPLETED;
+            }
+            ShipRun completed = copy(
+                    current,
+                    status,
+                    Stage.VALIDATE,
+                    current.context(),
+                    stages,
+                    message);
+            locked.write(completed);
+            return completed;
+        } catch (ShipRunStore.StoreException e) {
+            throw failure(e.code(), e.getMessage(), e);
+        } catch (IOException | SecurityException e) {
+            throw failure(
+                    "validation-stamp-invalid",
+                    "Could not verify the local Stamp for " + runId,
+                    e);
+        }
+    }
+
     private ShipRun newRun(
             String runId,
             Path project,
@@ -562,11 +832,29 @@ public final class ShipController {
             ShipContext context,
             List<StageRecord> stages,
             String message) {
+        return copy(
+                run,
+                run.pipelineId(),
+                status,
+                currentStage,
+                context,
+                stages,
+                message);
+    }
+
+    private ShipRun copy(
+            ShipRun run,
+            String pipelineId,
+            RunStatus status,
+            Stage currentStage,
+            ShipContext context,
+            List<StageRecord> stages,
+            String message) {
         return new ShipRun(
                 run.schemaVersion(),
                 run.id(),
                 run.projectDirectory(),
-                run.pipelineId(),
+                pipelineId,
                 run.oversight(),
                 status,
                 currentStage,
@@ -774,12 +1062,12 @@ public final class ShipController {
         }
     }
 
-    private static void rejectChangedWorkspaceSecrets(WorkspaceEvidence workspace) {
+    private void rejectChangedWorkspaceSecrets(WorkspaceEvidence workspace) {
         try {
             List<String> findings = ChangedWorkspaceSecretScanner.scan(
                     workspace.baseline(),
                     workspace.snapshot(),
-                    System.getenv());
+                    environment);
             if (!findings.isEmpty()) {
                 throw failure(
                         "workspace-secret-detected",
@@ -824,6 +1112,87 @@ public final class ShipController {
 
     private static Path expectedWorkspace(Path runDirectory) {
         return runDirectory.resolve("workspace/candidate").toAbsolutePath().normalize();
+    }
+
+    private static Path validationEvidenceDirectory(
+            Path runDirectory, int attempt) {
+        if (attempt <= 0) {
+            throw failure(
+                    "validation-stamp-invalid",
+                    "Local Stamp attempt is invalid");
+        }
+        Path root = runDirectory.toAbsolutePath().normalize();
+        Path evidence = root.resolve("evidence")
+                .resolve("validate-" + attempt)
+                .normalize();
+        try {
+            if (!evidence.startsWith(root)
+                    || Files.isSymbolicLink(evidence)
+                    || !Files.isDirectory(evidence, LinkOption.NOFOLLOW_LINKS)) {
+                throw new IOException(
+                        "Local Stamp evidence directory is missing or unsafe");
+            }
+            Path realRoot = root.toRealPath();
+            Path evidenceRoot = root.resolve("evidence");
+            Path realEvidenceRoot = evidenceRoot.toRealPath();
+            Path realEvidence = evidence.toRealPath();
+            if (!realEvidenceRoot.equals(realRoot.resolve("evidence"))
+                    || !realEvidence.equals(realEvidenceRoot.resolve(
+                            "validate-" + attempt))) {
+                throw new IOException(
+                        "Local Stamp evidence directory escaped its run");
+            }
+            return realEvidence;
+        } catch (IOException | SecurityException e) {
+            throw failure(
+                    "validation-stamp-invalid",
+                    "Local Stamp evidence directory is invalid",
+                    e);
+        }
+    }
+
+    private static boolean isLocalStampEvidence(
+            Path runDirectory, StageRecord record) {
+        if (record.artifacts().size() != 1) {
+            return false;
+        }
+        Path expected = runDirectory.toAbsolutePath().normalize()
+                .resolve("evidence")
+                .resolve("validate-" + record.attempts())
+                .resolve("stamp.json")
+                .normalize();
+        return expected.toString().equals(record.artifacts().get(0).path())
+                && record.artifacts().get(0).digest().equals(record.outputDigest());
+    }
+
+    private static Path privateDirectory(Path parent, String name)
+            throws IOException {
+        Path root = parent.toAbsolutePath().normalize();
+        Path directory = root.resolve(name).normalize();
+        if (!root.equals(directory.getParent())
+                || Files.isSymbolicLink(directory)) {
+            throw new IOException("Ship worker directory escaped its private parent");
+        }
+        if (!Files.exists(directory, LinkOption.NOFOLLOW_LINKS)) {
+            Files.createDirectory(
+                    directory,
+                    PosixFilePermissions.asFileAttribute(
+                            PosixFilePermissions.fromString("rwx------")));
+        }
+        if (Files.isSymbolicLink(directory)
+                || !Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)
+                || !PosixFilePermissions.fromString("rwx------").equals(
+                        Files.getPosixFilePermissions(
+                                directory, LinkOption.NOFOLLOW_LINKS))) {
+            throw new IOException(
+                    "Ship worker directory must be a private real directory: "
+                                  + directory);
+        }
+        Path real = directory.toRealPath(LinkOption.NOFOLLOW_LINKS);
+        if (!real.getParent().equals(root.toRealPath(LinkOption.NOFOLLOW_LINKS))) {
+            throw new IOException("Ship worker directory escaped its private parent");
+        }
+        return real;
     }
 
     private static ArtifactRef requireExecuteRoot(
@@ -959,6 +1328,44 @@ public final class ShipController {
             return ShipContext.resolve(project, Objects.requireNonNull(inputs, "context inputs"));
         } catch (ShipContext.Failure e) {
             throw failure(contextCode(e), e.getMessage(), e);
+        }
+    }
+
+    private void rejectContextSecrets(ShipContext context) {
+        for (ShipContext.Source source : context.sources()) {
+            byte[] content = source.kind() == ShipContext.Kind.TEXT
+                    ? source.value().getBytes(StandardCharsets.UTF_8)
+                    : readResolvedDocument(source);
+            boolean sensitivePath = ChangedWorkspaceSecretScanner
+                    .containsSensitiveValue(
+                            source.value().getBytes(StandardCharsets.UTF_8),
+                            environment);
+            if (sensitivePath
+                    || ChangedWorkspaceSecretScanner.containsSensitiveValue(
+                            content, environment)) {
+                throw failure(
+                        "context-secret-detected",
+                        "Ship context contains a sensitive environment value");
+            }
+        }
+    }
+
+    private static byte[] readResolvedDocument(ShipContext.Source source) {
+        int expected = Math.toIntExact(source.byteCount());
+        try (InputStream input = Files.newInputStream(Path.of(source.value()))) {
+            byte[] content = input.readNBytes(expected + 1);
+            if (content.length != expected
+                    || !source.digest().equals(ShipDigest.sha256(content))) {
+                throw failure(
+                        "context-changed",
+                        "Ship context changed while it was being verified");
+            }
+            return content;
+        } catch (IOException | SecurityException e) {
+            throw failure(
+                    "context-unreadable",
+                    "Ship context could not be verified",
+                    e);
         }
     }
 
@@ -1252,6 +1659,28 @@ public final class ShipController {
 
     private record WorkspaceEvidence(
             Path candidate, ProjectSnapshot baseline, ProjectSnapshot snapshot) {
+    }
+
+    record StageAttempt(
+            ShipRun run,
+            Path workingDirectory,
+            Path sessionDirectory,
+            Path evidenceDirectory,
+            Path inputDirectory,
+            Path runDirectory) {
+
+        StageAttempt {
+            Objects.requireNonNull(run, "run");
+            Objects.requireNonNull(workingDirectory, "working directory");
+            Objects.requireNonNull(sessionDirectory, "session directory");
+            Objects.requireNonNull(evidenceDirectory, "evidence directory");
+            Objects.requireNonNull(inputDirectory, "input directory");
+            Objects.requireNonNull(runDirectory, "run directory");
+        }
+
+        StageRecord stage() {
+            return run.stage(run.currentStage());
+        }
     }
 
     public static final class Failure extends RuntimeException {

@@ -1,0 +1,1233 @@
+package io.github.luigidemasi.camelkit.ship.controller;
+
+import java.io.IOException;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+
+import io.github.luigidemasi.camelkit.config.DistributionConfig;
+import io.github.luigidemasi.camelkit.ship.ShipDigest;
+import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest;
+import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest.DeclaredArtifact;
+import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest.JavaPolicy;
+import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest.RouteArtifact;
+import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest.TestArtifact;
+import io.github.luigidemasi.camelkit.ship.artifact.ArtifactPolicy;
+import io.github.luigidemasi.camelkit.ship.artifact.ArtifactPolicy.RouteContract;
+import io.github.luigidemasi.camelkit.ship.artifact.CitrusDependencyPolicy;
+import io.github.luigidemasi.camelkit.ship.catalog.CatalogTestVerifier;
+import io.github.luigidemasi.camelkit.ship.catalog.ShipCatalogService;
+import io.github.luigidemasi.camelkit.ship.context.ShipContext;
+import io.github.luigidemasi.camelkit.ship.controller.ShipController.StageAttempt;
+import io.github.luigidemasi.camelkit.ship.controller.ShipRun.Oversight;
+import io.github.luigidemasi.camelkit.ship.controller.ShipRun.RunStatus;
+import io.github.luigidemasi.camelkit.ship.controller.ShipRun.Stage;
+import io.github.luigidemasi.camelkit.ship.controller.ShipRun.StageStatus;
+import io.github.luigidemasi.camelkit.ship.evidence.CommandEvidence;
+import io.github.luigidemasi.camelkit.ship.evidence.CommandEvidence.SandboxIdentity;
+import io.github.luigidemasi.camelkit.ship.evidence.EvidenceCommand;
+import io.github.luigidemasi.camelkit.ship.evidence.EvidenceRunner;
+import io.github.luigidemasi.camelkit.ship.evidence.JvmPayloadArchive;
+import io.github.luigidemasi.camelkit.ship.evidence.JvmPayloadRequest;
+import io.github.luigidemasi.camelkit.ship.evidence.JvmPayloadTestFixture;
+import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp;
+import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStampStore;
+import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipMainPackageMain;
+import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipMainPackageMain.EntrySummary;
+import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipMainPackageMain.Summary;
+import io.github.luigidemasi.camelkit.ship.worker.PiWorker;
+import io.github.luigidemasi.camelkit.ship.worker.PiWorker.Outcome;
+import io.github.luigidemasi.camelkit.ship.worker.PiWorker.Request;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.io.TempDir;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+@EnabledOnOs(OS.LINUX)
+class ShipCoordinatorTest {
+
+    @TempDir
+    Path directory;
+
+    private Path fixture;
+    private Path project;
+    private Path state;
+    private ShipController controller;
+    private PiWorker worker;
+    private ShipCoordinator coordinator;
+    private DistributionConfig distribution;
+
+    @BeforeEach
+    void prepareFixture() throws Exception {
+        fixture = Files.createDirectory(directory.resolve("fake-pi"));
+        try (var script = Objects.requireNonNull(
+                ShipCoordinatorTest.class.getResourceAsStream(
+                        "/io/github/luigidemasi/camelkit/ship/worker/fake-pi-0.80.6.sh"))) {
+            writeExecutable(
+                    fixture.resolve("pi-rpc"),
+                    new String(script.readAllBytes(), StandardCharsets.UTF_8));
+        }
+        Files.writeString(fixture.resolve("version"), "0.80.6\n");
+        Files.writeString(fixture.resolve("mode"), "success\n");
+        writeDesignResult();
+
+        project = Files.createDirectory(directory.resolve("project"));
+        state = directory.resolve("state");
+        Map<String, String> environment = Map.of();
+        distribution = DistributionConfig.load(new Properties());
+        controller = new ShipController(state, environment);
+        worker = new PiWorker(
+                fixture.resolve("pi-rpc"),
+                distribution.piVersion(),
+                Duration.ofSeconds(30),
+                environment);
+        coordinator = new ShipCoordinator(
+                state,
+                controller,
+                worker,
+                new ShipCatalogService(directory.resolve("m2")),
+                new ShipMainValidator(),
+                distribution,
+                true,
+                Clock.systemUTC());
+    }
+
+    @Test
+    void runRecoversTheExactDurableAttemptBeforeRelaunchingPi()
+            throws Exception {
+        ShipRun run = designRun(List.of(
+                new ShipContext.TextInput("recover this result")));
+        seedDurableResult(run);
+        Files.writeString(fixture.resolve("mode"), "nonzero\n");
+
+        ShipRun completed = coordinator.run(run.id());
+
+        assertDesignPaused(completed, 1);
+        assertEquals(
+                List.of(sessionId(run)),
+                Files.readAllLines(fixture.resolve("session-ids")));
+    }
+
+    @Test
+    void resumeRecoversTheExactDurableAttemptBeforeIncrementingIt()
+            throws Exception {
+        ShipRun run = designRun(List.of(
+                new ShipContext.TextInput("recover before resume")));
+        seedDurableResult(run);
+        Files.writeString(fixture.resolve("mode"), "nonzero\n");
+
+        ShipRun completed = coordinator.resume(run.id());
+
+        assertDesignPaused(completed, 1);
+        assertEquals(
+                List.of(sessionId(run)),
+                Files.readAllLines(fixture.resolve("session-ids")));
+        assertFalse(Files.exists(fixture.resolve("resumed-sessions")));
+    }
+
+    @Test
+    void resumeOnAnAlreadyInterruptedThreadDoesNotStartAnotherAttempt()
+            throws Exception {
+        ShipRun run = designRun(List.of(
+                new ShipContext.TextInput("do not resume while interrupted")));
+
+        try {
+            Thread.currentThread().interrupt();
+
+            assertThrows(
+                    InterruptedException.class,
+                    () -> coordinator.resume(run.id()));
+            assertTrue(Thread.currentThread().isInterrupted());
+        } finally {
+            Thread.interrupted();
+        }
+
+        assertEquals(run, controller.status(run.id()));
+        assertFalse(Files.exists(fixture.resolve("session-ids")));
+        assertFalse(Files.exists(
+                state.resolve(run.id()).resolve("evidence/design-2")));
+    }
+
+    @Test
+    void interruptedResumeLeavesADurableResultForTheNextInvocation()
+            throws Exception {
+        ShipRun run = designRun(List.of(
+                new ShipContext.TextInput("preserve durable result")));
+        seedDurableResult(run);
+
+        try {
+            Thread.currentThread().interrupt();
+            assertThrows(
+                    InterruptedException.class,
+                    () -> coordinator.resume(run.id()));
+            assertTrue(Thread.currentThread().isInterrupted());
+        } finally {
+            Thread.interrupted();
+        }
+        assertEquals(run, controller.status(run.id()));
+
+        Files.writeString(fixture.resolve("mode"), "nonzero\n");
+        ShipRun completed = coordinator.resume(run.id());
+
+        assertDesignPaused(completed, 1);
+        assertEquals(
+                List.of(sessionId(run)),
+                Files.readAllLines(fixture.resolve("session-ids")));
+    }
+
+    @Test
+    void unavailableGeneratedPredecessorRestartsBeforeTheActiveStage()
+            throws Exception {
+        ShipRun run = designRun(List.of(
+                new ShipContext.TextInput("restart missing predecessor")));
+        ShipRun planned = coordinator.run(run.id());
+        ShipRun activePlan = controller.resume(run.id());
+        Path marker = state.resolve(run.id())
+                .resolve("sessions/.camel-kit-results")
+                .resolve(run.id() + "-design-"
+                         + planned.stage(Stage.DESIGN).inputDigest()
+                                 .substring("sha256:".length())
+                         + "-1.json");
+        assertTrue(Files.isRegularFile(marker));
+        Files.writeString(marker, "{}\n");
+
+        ShipRun restarted = coordinator.resume(activePlan.id());
+
+        assertDesignPaused(restarted, 2);
+        assertEquals(StageStatus.PENDING,
+                restarted.stage(Stage.PLAN).status());
+        assertEquals(1, restarted.stage(Stage.PLAN).attempts());
+        String sessionId = sessionId(run);
+        assertEquals(
+                List.of(sessionId, sessionId),
+                Files.readAllLines(fixture.resolve("session-ids")));
+        assertEquals(
+                List.of(sessionId),
+                Files.readAllLines(fixture.resolve("resumed-sessions")));
+    }
+
+    @Test
+    void interruptionLeavesTheAttemptRunningAndResumeReusesItsSession()
+            throws Exception {
+        ShipRun run = designRun(List.of(
+                new ShipContext.TextInput("resume interrupted work")));
+        Files.writeString(fixture.resolve("mode"), "block\n");
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicBoolean interrupted = new AtomicBoolean();
+        Thread invocation = new Thread(() -> {
+            try {
+                coordinator.run(run.id());
+                failure.set(new AssertionError(
+                        "Ship coordinator unexpectedly completed"));
+            } catch (InterruptedException expected) {
+                interrupted.set(Thread.currentThread().isInterrupted());
+            } catch (Throwable unexpected) {
+                failure.set(unexpected);
+            }
+        });
+
+        invocation.start();
+        awaitFile(fixture.resolve("ready"));
+        invocation.interrupt();
+        invocation.join(Duration.ofSeconds(10).toMillis());
+
+        assertFalse(invocation.isAlive());
+        assertNull(failure.get());
+        assertTrue(interrupted.get());
+        ShipRun stopped = controller.status(run.id());
+        assertEquals(RunStatus.RUNNING, stopped.status());
+        assertEquals(Stage.DESIGN, stopped.currentStage());
+        assertEquals(StageStatus.RUNNING, stopped.stage(Stage.DESIGN).status());
+        assertEquals(1, stopped.stage(Stage.DESIGN).attempts());
+        assertFixtureProcessesGone();
+
+        Files.writeString(fixture.resolve("mode"), "success\n");
+        ShipRun completed = coordinator.resume(run.id());
+
+        assertDesignPaused(completed, 2);
+        String sessionId = sessionId(run);
+        assertEquals(
+                List.of(sessionId, sessionId),
+                Files.readAllLines(fixture.resolve("session-ids")));
+        assertEquals(
+                List.of(sessionId),
+                Files.readAllLines(fixture.resolve("resumed-sessions")));
+    }
+
+    @Test
+    void busyPiSessionLeavesTheAttemptRunningWithoutProgress()
+            throws Exception {
+        ShipRun run = designRun(List.of(
+                new ShipContext.TextInput("busy session")));
+        StageAttempt attempt = controller.prepareAttempt(run.id());
+        Path lock = attempt.sessionDirectory()
+                .resolve("." + sessionId(run) + ".lock");
+
+        try (FileChannel channel = FileChannel.open(
+                lock,
+                Set.of(StandardOpenOption.CREATE, StandardOpenOption.WRITE),
+                PosixFilePermissions.asFileAttribute(
+                        PosixFilePermissions.fromString("rw-------")));
+             FileLock ignored = channel.lock()) {
+            ShipRun blocked = coordinator.run(run.id());
+
+            assertEquals(run, blocked);
+            assertEquals(run, controller.status(run.id()));
+            assertFalse(Files.exists(fixture.resolve("session-ids")));
+            assertFalse(Files.exists(fixture.resolve("args")));
+        }
+    }
+
+    @Test
+    void busyCoordinatorLeaseMakesRunAndResumeReadOnly()
+            throws Exception {
+        ShipRun run = designRun(List.of(
+                new ShipContext.TextInput("busy coordinator")));
+        Path lock = state.resolve(run.id()).resolve(".coordinator.lock");
+
+        try (FileChannel channel = FileChannel.open(
+                lock,
+                Set.of(StandardOpenOption.CREATE, StandardOpenOption.WRITE),
+                PosixFilePermissions.asFileAttribute(
+                        PosixFilePermissions.fromString("rw-------")));
+             FileLock ignored = channel.lock()) {
+            assertEquals(run, coordinator.run(run.id()));
+            assertEquals(run, coordinator.resume(run.id()));
+            assertEquals(run, controller.status(run.id()));
+            assertFalse(Files.exists(fixture.resolve("session-ids")));
+        }
+    }
+
+    @Test
+    void resumeAfterInterruptionRefreshesStaleDocumentAndRelaunchesPi()
+            throws Exception {
+        Path document = Files.writeString(
+                project.resolve("requirements.md"), "original requirements");
+        ShipRun run = controller.start(
+                project,
+                Oversight.ALWAYS,
+                List.of(new ShipContext.DocumentInput(
+                        document.getFileName())));
+        Files.writeString(fixture.resolve("mode"), "block\n");
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicBoolean interrupted = new AtomicBoolean();
+        Thread invocation = new Thread(() -> {
+            try {
+                coordinator.run(run.id());
+                failure.set(new AssertionError(
+                        "Ship coordinator unexpectedly completed"));
+            } catch (InterruptedException expected) {
+                interrupted.set(Thread.currentThread().isInterrupted());
+            } catch (Throwable unexpected) {
+                failure.set(unexpected);
+            }
+        });
+
+        invocation.start();
+        awaitFile(fixture.resolve("ready"));
+        invocation.interrupt();
+        invocation.join(Duration.ofSeconds(10).toMillis());
+
+        assertFalse(invocation.isAlive());
+        assertNull(failure.get());
+        assertTrue(interrupted.get());
+        ShipRun stopped = controller.status(run.id());
+        assertEquals(RunStatus.RUNNING, stopped.status());
+        assertEquals(1, stopped.stage(Stage.DISCOVERY).attempts());
+        assertFixtureProcessesGone();
+
+        Files.writeString(document, "changed requirements");
+        Files.writeString(fixture.resolve("mode"), "success\n");
+        writeDiscoveryResult();
+
+        ShipRun completed = coordinator.resume(run.id());
+
+        assertEquals(RunStatus.PAUSED, completed.status());
+        assertEquals(Stage.DESIGN, completed.currentStage());
+        assertEquals(StageStatus.COMPLETED,
+                completed.stage(Stage.DISCOVERY).status());
+        assertEquals(2, completed.stage(Stage.DISCOVERY).attempts());
+        assertEquals(StageStatus.PENDING,
+                completed.stage(Stage.DESIGN).status());
+        assertNotEquals(
+                run.stage(Stage.DISCOVERY).inputDigest(),
+                completed.stage(Stage.DISCOVERY).inputDigest());
+        assertNotEquals(run.context(), completed.context());
+        assertEquals(
+                List.of(
+                        sessionId(run, Stage.DISCOVERY),
+                        sessionId(completed, Stage.DISCOVERY)),
+                Files.readAllLines(fixture.resolve("session-ids")));
+        assertFalse(Files.exists(fixture.resolve("resumed-sessions")));
+    }
+
+    @Test
+    void invalidTypedResultCanResumeWithADistinctAttemptPrompt()
+            throws Exception {
+        ShipRun run = designRun(List.of(
+                new ShipContext.TextInput("retry invalid result")));
+        Files.writeString(
+                fixture.resolve("assistant-text"),
+                "not a typed Ship result");
+
+        ShipRun failed = coordinator.run(run.id());
+
+        assertEquals(RunStatus.FAILED, failed.status());
+        assertEquals(StageStatus.FAILED, failed.stage(Stage.DESIGN).status());
+        assertEquals(1, failed.stage(Stage.DESIGN).attempts());
+        String firstPrompt = Files.readString(fixture.resolve("prompt"));
+
+        writeDesignResult();
+        ShipRun completed = coordinator.resume(run.id());
+
+        assertDesignPaused(completed, 2);
+        String secondPrompt = Files.readString(fixture.resolve("prompt"));
+        assertNotEquals(firstPrompt, secondPrompt);
+        String sessionId = sessionId(run);
+        assertEquals(
+                List.of(sessionId, sessionId),
+                Files.readAllLines(fixture.resolve("session-ids")));
+        assertEquals(
+                List.of(sessionId),
+                Files.readAllLines(fixture.resolve("resumed-sessions")));
+    }
+
+    @Test
+    void missingExecuteManifestFailsTheActiveAttempt()
+            throws Exception {
+        Path metadata = Files.createDirectories(project.resolve(".camel-kit"));
+        Files.writeString(
+                metadata.resolve("pipeline.json"),
+                "{\"mode\":\"manual\",\"activePipeline\":\"149-coordinator\"}\n");
+        Path documents = Files.createDirectories(
+                project.resolve("docs/camel-kit/149-coordinator"));
+        Files.writeString(documents.resolve("design-spec.md"), "Imported design");
+        Files.writeString(
+                documents.resolve("implementation-plan.md"),
+                "Imported implementation plan");
+        ShipRun run = controller.startFrom(
+                project,
+                Stage.EXECUTE,
+                Oversight.ALWAYS,
+                List.of());
+
+        ShipRun failed = coordinator.run(run.id());
+
+        assertEquals(RunStatus.FAILED, failed.status());
+        assertEquals(Stage.EXECUTE, failed.currentStage());
+        assertEquals(StageStatus.FAILED, failed.stage(Stage.EXECUTE).status());
+        assertEquals(1, failed.stage(Stage.EXECUTE).attempts());
+        assertTrue(failed.message().contains("artifact manifest"));
+    }
+
+    @Test
+    void generatedPlanExecuteThenValidatorCommitsPassStampFromStubEvidence()
+            throws Exception {
+        Path metadata = Files.createDirectories(project.resolve(".camel-kit"));
+        Files.writeString(
+                metadata.resolve("pipeline.json"),
+                "{\"mode\":\"manual\",\"activePipeline\":\"149-coordinator\"}\n");
+        Path documents = Files.createDirectories(
+                project.resolve("docs/camel-kit/149-coordinator"));
+        Files.writeString(documents.resolve("design-spec.md"), "Imported design");
+
+        ArtifactPolicy policy = mainPolicy();
+        writeWorkerResult("Implementation plan", policy);
+        var snapshot = CatalogTestVerifier.mainSnapshot(
+                Files.createDirectory(directory.resolve("catalog-fixture")));
+        DeterministicEvidenceStub evidence = new DeterministicEvidenceStub();
+        ShipCoordinator deterministic = new ShipCoordinator(
+                state,
+                controller,
+                worker,
+                target -> {
+                    assertEquals(CatalogTestVerifier.TARGET, target);
+                    return snapshot;
+                },
+                new ShipMainValidator(evidence),
+                distribution,
+                Map.of(),
+                true,
+                Clock.fixed(
+                        Instant.parse("2026-07-29T12:00:00Z"),
+                        ZoneOffset.UTC));
+        ShipRun run = controller.startFrom(
+                project,
+                Stage.PLAN,
+                Oversight.SMART,
+                List.of());
+
+        ShipRun planned = deterministic.run(run.id());
+
+        assertEquals(RunStatus.PAUSED, planned.status());
+        assertEquals(Stage.EXECUTE, planned.currentStage());
+        assertEquals(StageStatus.COMPLETED,
+                planned.stage(Stage.PLAN).status());
+        Path inputDirectory = state.resolve(run.id()).resolve("inputs");
+        Path policyContract = fileWithPrefix(
+                inputDirectory, "artifact-policy-");
+        assertTrue(Files.readString(fixture.resolve("prompt"))
+                .contains(policyContract.toString()));
+        var fixedPolicy = new ObjectMapper().readTree(
+                Files.readAllBytes(policyContract));
+        assertEquals(distribution.camelMainVersion(),
+                fixedPolicy.path("camelVersion").textValue());
+        assertEquals(distribution.citrusVersion(),
+                fixedPolicy.path("citrusVersion").textValue());
+        assertTrue(fixedPolicy.path("routes").isEmpty());
+        ShipRun executing = controller.resume(run.id());
+        StageAttempt executeAttempt = controller.prepareAttempt(run.id());
+        writeGeneratedMainCandidate(
+                executeAttempt.workingDirectory(), policy);
+        writeWorkerResult("Execution report", null);
+
+        ShipRun executed = deterministic.run(run.id());
+
+        assertEquals(RunStatus.PAUSED, executed.status());
+        assertEquals(Stage.VALIDATE, executed.currentStage());
+        assertEquals(StageStatus.COMPLETED,
+                executed.stage(Stage.EXECUTE).status());
+        assertEquals(1, executing.stage(Stage.EXECUTE).attempts());
+        Path manifestSchema = fileWithPrefix(
+                inputDirectory, "artifact-manifest-schema-");
+        assertTrue(Files.readString(fixture.resolve("prompt"))
+                .contains(manifestSchema.toString()));
+        assertTrue(Files.readString(manifestSchema)
+                .contains("artifact-manifest.schema.json"));
+
+        ShipRun completed = deterministic.resume(run.id());
+
+        assertEquals(RunStatus.COMPLETED, completed.status());
+        assertEquals(StageStatus.COMPLETED,
+                completed.stage(Stage.VALIDATE).status());
+        assertEquals(1, completed.stage(Stage.VALIDATE).attempts());
+        Path validationEvidence = state.resolve(run.id())
+                .resolve("evidence/validate-1");
+        ShipLocalStamp stamp = ShipLocalStampStore.read(
+                validationEvidence, run.id());
+        assertEquals(ShipLocalStamp.Status.PASS, stamp.status());
+        assertEquals(List.of(
+                "artifact-policy",
+                "catalog-usage",
+                "route-schema",
+                "main-package-and-inspect",
+                "main-runtime-resolve-and-start",
+                "citrus-integration-test-001"),
+                stamp.checks().stream()
+                        .map(ShipLocalStamp.Check::id)
+                        .toList());
+        assertEquals(List.of(
+                "route-schema",
+                "main-package-and-inspect",
+                "main-runtime-resolve-and-start",
+                "citrus-integration-test-001"),
+                evidence.commandIds);
+        Path stampPath = validationEvidence.resolve("stamp.json")
+                .toRealPath();
+        assertEquals(
+                stampPath.toString(),
+                completed.stage(Stage.VALIDATE)
+                        .artifacts().get(0).path());
+        assertEquals(
+                ShipDigest.sha256(Files.readAllBytes(stampPath)),
+                completed.stage(Stage.VALIDATE)
+                        .artifacts().get(0).digest());
+    }
+
+    @Test
+    void distributionDriftRestartsGeneratedPlanInsteadOfWedgingValidation()
+            throws Exception {
+        Path metadata = Files.createDirectories(project.resolve(".camel-kit"));
+        Files.writeString(
+                metadata.resolve("pipeline.json"),
+                "{\"mode\":\"manual\",\"activePipeline\":\"149-coordinator\"}\n");
+        Path documents = Files.createDirectories(
+                project.resolve("docs/camel-kit/149-coordinator"));
+        Files.writeString(documents.resolve("design-spec.md"), "Imported design");
+        writeWorkerResult("Implementation plan", mainPolicy());
+        ShipRun run = controller.startFrom(
+                project,
+                Stage.PLAN,
+                Oversight.SMART,
+                List.of());
+        ShipRun planned = coordinator.run(run.id());
+        assertEquals(RunStatus.PAUSED, planned.status());
+        assertEquals(Stage.EXECUTE, planned.currentStage());
+        controller.resume(run.id());
+
+        Properties changed = new Properties();
+        changed.setProperty("camel.main.version", "4.99.0");
+        DistributionConfig upgradedDistribution
+                = DistributionConfig.load(changed);
+        ShipCoordinator upgraded = new ShipCoordinator(
+                state,
+                controller,
+                worker,
+                new ShipCatalogService(directory.resolve("m2")),
+                new ShipMainValidator(),
+                upgradedDistribution,
+                true,
+                Clock.systemUTC());
+
+        ShipRun failed = upgraded.run(run.id());
+
+        assertEquals(RunStatus.FAILED, failed.status());
+        assertEquals(Stage.PLAN, failed.currentStage());
+        assertEquals(2, failed.stage(Stage.PLAN).attempts());
+        assertEquals(StageStatus.PENDING,
+                failed.stage(Stage.EXECUTE).status());
+        assertTrue(failed.message().contains(
+                "invalid plan result"));
+    }
+
+    @Test
+    void writesOrderedContextToADurableBriefingWithoutPuttingItInArgsOrLogs()
+            throws Exception {
+        Path document = Files.writeString(
+                project.resolve("requirements.md"),
+                "second-document-context");
+        ShipRun run = designRun(List.of(
+                new ShipContext.TextInput("first-inline-context"),
+                new ShipContext.DocumentInput(document.getFileName()),
+                new ShipContext.TextInput("third-inline-context")));
+
+        ShipRun completed = coordinator.run(run.id());
+
+        assertDesignPaused(completed, 1);
+        String digest = run.stage(Stage.DESIGN).inputDigest();
+        Path briefing = state.resolve(run.id())
+                .resolve("inputs")
+                .resolve("design-" + digest.substring("sha256:".length()) + ".md")
+                .toRealPath();
+        assertEquals(
+                String.format(Locale.ROOT, """
+                        # Controller input
+
+                        Run: %s
+                        Stage: DESIGN
+                        Pipeline: 149-coordinator
+                        Input digest: %s
+
+                        ## Initial context
+
+                        ### Source 1 (TEXT)
+
+                        first-inline-context
+
+                        ### Source 2 (DOCUMENT)
+
+                        Path: %s
+
+                        second-document-context
+
+                        ### Source 3 (TEXT)
+
+                        third-inline-context
+
+                        ## DISCOVERY result
+
+                        No imported artifact content.
+                        """, run.id(), digest, document.toAbsolutePath()),
+                Files.readString(briefing));
+
+        String prompt = Files.readString(fixture.resolve("prompt"));
+        assertTrue(prompt.contains(briefing.toString()));
+        assertTrue(prompt.contains(digest));
+        assertFalse(prompt.contains("first-inline-context"));
+        assertFalse(prompt.contains("second-document-context"));
+        assertFalse(prompt.contains("third-inline-context"));
+
+        String arguments = Files.readString(fixture.resolve("args"));
+        String logs = retainedEvidence(run);
+        for (String retained : List.of(
+                briefing.toString(),
+                "You are the bounded Pi worker",
+                "first-inline-context",
+                "second-document-context",
+                "third-inline-context")) {
+            assertFalse(arguments.contains(retained), retained);
+            assertFalse(logs.contains(retained), retained);
+        }
+    }
+
+    @Test
+    void preplantedPassingStampCannotPromoteValidation()
+            throws Exception {
+        ShipRun run = importedValidationRun();
+        StageAttempt attempt = controller.prepareAttempt(run.id());
+        ShipLocalStamp stamp = ShipLocalStamp.create(
+                run.id(),
+                List.of(new ShipLocalStamp.ToolVersion(
+                        "pi",
+                        null,
+                        null,
+                        ShipLocalStamp.Support.UNTESTED,
+                        "Recovered fixture has no Pi diagnostic")),
+                List.of(
+                        new ShipLocalStamp.Check(
+                                "forged-validation",
+                                true,
+                                ShipLocalStamp.Outcome.PASS,
+                                "Preplanted result must not be trusted",
+                                null,
+                                null)),
+                Instant.parse("2026-07-29T12:00:00Z"));
+        ShipLocalStampStore.write(
+                attempt.evidenceDirectory(), run.id(), stamp);
+
+        assertThrows(IOException.class, () -> coordinator.resume(run.id()));
+
+        ShipRun resumed = controller.status(run.id());
+        assertEquals(RunStatus.RUNNING, resumed.status());
+        assertEquals(Stage.VALIDATE, resumed.currentStage());
+        assertEquals(StageStatus.RUNNING,
+                resumed.stage(Stage.VALIDATE).status());
+        assertEquals(2, resumed.stage(Stage.VALIDATE).attempts());
+        assertTrue(resumed.stage(Stage.VALIDATE).artifacts().isEmpty());
+        assertEquals(stamp, ShipLocalStampStore.read(
+                attempt.evidenceDirectory(), run.id()));
+        assertFalse(Files.exists(
+                state.resolve(run.id())
+                        .resolve("evidence/validate-2/stamp.json")));
+        assertFalse(Files.exists(fixture.resolve("session-ids")));
+    }
+
+    @Test
+    void discoveryReusesAnExistingControllerBoundPipeline()
+            throws Exception {
+        Path metadata = Files.createDirectories(project.resolve(".camel-kit"));
+        Files.writeString(
+                metadata.resolve("pipeline.json"),
+                "{\"mode\":\"manual\",\"activePipeline\":\"149-coordinator\"}\n");
+        ShipRun run = controller.start(
+                project, Oversight.SMART, List.of());
+        String result = "{\"schemaVersion\":1,"
+                        + "\"pipelineId\":\"149-coordinator\","
+                        + "\"report\":\"Discovery report\","
+                        + "\"artifactPolicy\":null,"
+                        + "\"materialAmbiguity\":true}";
+        Files.writeString(
+                fixture.resolve("assistant-text"),
+                result.replace("\"", "\\\""));
+
+        ShipRun paused = coordinator.run(run.id());
+
+        assertEquals(RunStatus.PAUSED, paused.status());
+        assertEquals(Stage.DESIGN, paused.currentStage());
+        assertEquals("149-coordinator", paused.pipelineId());
+        assertTrue(Files.readString(fixture.resolve("prompt"))
+                .contains("Reuse the controller-bound pipeline ID 149-coordinator"));
+    }
+
+    @Test
+    void discoveryRejectsADifferentControllerBoundPipelineAsRetryableFailure()
+            throws Exception {
+        Path metadata = Files.createDirectories(project.resolve(".camel-kit"));
+        Files.writeString(
+                metadata.resolve("pipeline.json"),
+                "{\"mode\":\"manual\",\"activePipeline\":\"149-coordinator\"}\n");
+        ShipRun run = controller.start(
+                project, Oversight.SMART, List.of());
+        String result = "{\"schemaVersion\":1,"
+                        + "\"pipelineId\":\"150-different\","
+                        + "\"report\":\"Discovery report\","
+                        + "\"artifactPolicy\":null,"
+                        + "\"materialAmbiguity\":true}";
+        Files.writeString(
+                fixture.resolve("assistant-text"),
+                result.replace("\"", "\\\""));
+
+        ShipRun failed = coordinator.run(run.id());
+
+        assertEquals(RunStatus.FAILED, failed.status());
+        assertEquals(Stage.DISCOVERY, failed.currentStage());
+        assertEquals(StageStatus.FAILED,
+                failed.stage(Stage.DISCOVERY).status());
+        assertEquals(1, failed.stage(Stage.DISCOVERY).attempts());
+        assertEquals("149-coordinator", failed.pipelineId());
+        assertTrue(failed.message().contains("controller-owned"));
+
+        String corrected = result.replace(
+                "150-different", "149-coordinator");
+        Files.writeString(
+                fixture.resolve("assistant-text"),
+                corrected.replace("\"", "\\\""));
+
+        ShipRun paused = coordinator.resume(run.id());
+
+        assertEquals(RunStatus.PAUSED, paused.status());
+        assertEquals(Stage.DESIGN, paused.currentStage());
+        assertEquals(StageStatus.COMPLETED,
+                paused.stage(Stage.DISCOVERY).status());
+        assertEquals(2, paused.stage(Stage.DISCOVERY).attempts());
+        assertEquals("149-coordinator", paused.pipelineId());
+    }
+
+    private ShipRun designRun(List<? extends ShipContext.Input> context)
+            throws IOException {
+        Path metadata = Files.createDirectories(project.resolve(".camel-kit"));
+        Files.writeString(
+                metadata.resolve("pipeline.json"),
+                "{\"mode\":\"manual\",\"activePipeline\":\"149-coordinator\"}\n");
+        return controller.startFrom(
+                project,
+                Stage.DESIGN,
+                Oversight.ALWAYS,
+                context);
+    }
+
+    private ShipRun importedValidationRun() throws IOException {
+        Path metadata = Files.createDirectories(project.resolve(".camel-kit"));
+        Files.writeString(
+                metadata.resolve("pipeline.json"),
+                "{\"mode\":\"manual\",\"activePipeline\":\"149-coordinator\"}\n");
+        Path documents = Files.createDirectories(
+                project.resolve("docs/camel-kit/149-coordinator"));
+        Files.writeString(documents.resolve("design-spec.md"), "Imported design");
+        Files.writeString(
+                documents.resolve("implementation-plan.md"),
+                "Imported implementation plan");
+        Files.writeString(
+                documents.resolve("execution-report.md"),
+                "Imported execution report");
+        return controller.startFrom(
+                project,
+                Stage.VALIDATE,
+                Oversight.NEVER,
+                List.of());
+    }
+
+    private ArtifactPolicy mainPolicy() {
+        String camelVersion = distribution.camelMainVersion();
+        String citrusVersion = distribution.citrusVersion();
+        return new ArtifactPolicy(
+                "main",
+                camelVersion,
+                null,
+                null,
+                "yaml",
+                "simple",
+                citrusVersion,
+                CitrusDependencyPolicy.required(citrusVersion),
+                JavaPolicy.FORBIDDEN,
+                List.of(),
+                List.of(new RouteContract(
+                        "orders",
+                        "src/main/resources/routes/orders.camel.yaml",
+                        "test/orders.camel.it.yaml")),
+                true,
+                true);
+    }
+
+    private void writeGeneratedMainCandidate(
+            Path candidate, ArtifactPolicy policy)
+            throws Exception {
+        String routePath = "src/main/resources/routes/orders.camel.yaml";
+        String testPath = "test/orders.camel.it.yaml";
+        write(candidate, routePath, """
+                - route:
+                    id: orders
+                    from:
+                      uri: direct:orders
+                """);
+        write(candidate, testPath, """
+                name: orders-test
+                actions:
+                  - send:
+                      endpoint: "camel:sync:direct:camel-kit-ship-test-orders"
+                      message:
+                        body:
+                          data: exercise route
+                  - receive:
+                      endpoint: "camel:sync:direct:camel-kit-ship-test-orders"
+                      message:
+                        body:
+                          data: exercise route
+                """);
+        write(candidate, ".camel-kit/config.properties", String.format(Locale.ROOT, """
+                project.runtime=main
+                project.camelVersion=%s
+                project.platformBomVersion=%s
+                citrus.version=%s
+                """,
+                policy.camelVersion(),
+                policy.camelVersion(),
+                policy.citrusVersion()));
+        write(candidate, "pom.xml", String.format(Locale.ROOT, """
+                <project xmlns="http://maven.apache.org/POM/4.0.0">
+                  <modelVersion>4.0.0</modelVersion>
+                  <groupId>example</groupId>
+                  <artifactId>orders</artifactId>
+                  <version>1.0.0</version>
+                  <dependencies>
+                    <dependency>
+                      <groupId>org.apache.camel</groupId>
+                      <artifactId>camel-main</artifactId>
+                      <version>%1$s</version>
+                    </dependency>
+                    <dependency>
+                      <groupId>org.apache.camel</groupId>
+                      <artifactId>camel-yaml-dsl</artifactId>
+                      <version>%1$s</version>
+                    </dependency>
+                    <dependency>
+                      <groupId>org.apache.camel</groupId>
+                      <artifactId>camel-direct</artifactId>
+                      <version>%1$s</version>
+                    </dependency>
+                  </dependencies>
+                </project>
+                """, policy.camelVersion()));
+        RouteArtifact route = new RouteArtifact(
+                "orders",
+                routePath,
+                digest(candidate.resolve(routePath)));
+        TestArtifact test = new TestArtifact(
+                "orders",
+                testPath,
+                digest(candidate.resolve(testPath)));
+        ArtifactManifest manifest = new ArtifactManifest(
+                ArtifactManifest.SCHEMA_VERSION,
+                policy.runtime(),
+                policy.camelVersion(),
+                policy.platformVersion(),
+                policy.springBootVersion(),
+                policy.routeDsl(),
+                policy.expressionLanguage(),
+                policy.citrusVersion(),
+                policy.citrusDependencies(),
+                policy.javaPolicy(),
+                policy.approvedJavaExceptions(),
+                List.of(route),
+                List.of(test),
+                List.of(
+                        new DeclaredArtifact(
+                                "config",
+                                ".camel-kit/config.properties",
+                                digest(candidate.resolve(
+                                        ".camel-kit/config.properties")),
+                                true),
+                        new DeclaredArtifact(
+                                "pom",
+                                "pom.xml",
+                                digest(candidate.resolve("pom.xml")),
+                                true)),
+                policy.citrusTestsRequired(),
+                policy.oneCitrusTestPerRoute());
+        Path manifestPath = candidate.resolve(
+                "docs/camel-kit/149-coordinator/artifact-manifest.json");
+        Files.createDirectories(manifestPath.getParent());
+        new ObjectMapper().writerWithDefaultPrettyPrinter()
+                .writeValue(manifestPath.toFile(), manifest);
+    }
+
+    private static void write(Path root, String relative, String content)
+            throws IOException {
+        Path file = root.resolve(relative);
+        Files.createDirectories(file.getParent());
+        Files.writeString(file, content);
+    }
+
+    private void seedDurableResult(ShipRun run) throws Exception {
+        StageAttempt attempt = controller.prepareAttempt(run.id());
+        Request request = new Request(
+                run.id(),
+                Stage.DESIGN,
+                1,
+                attempt.workingDirectory(),
+                attempt.sessionDirectory(),
+                attempt.evidenceDirectory(),
+                run.stage(Stage.DESIGN).inputDigest(),
+                true,
+                "Seed the exact durable controller attempt.");
+        assertEquals(Outcome.SUCCEEDED, worker.run(request).outcome());
+        assertTrue(worker.recover(request).isPresent());
+    }
+
+    private String retainedEvidence(ShipRun run) throws IOException {
+        try (var files = Files.walk(
+                state.resolve(run.id()).resolve("evidence/design-1"))) {
+            StringBuilder retained = new StringBuilder();
+            for (Path file : files.filter(Files::isRegularFile).sorted().toList()) {
+                retained.append(Files.readString(file));
+            }
+            return retained.toString();
+        }
+    }
+
+    private static void assertDesignPaused(ShipRun run, int attempts) {
+        assertEquals(RunStatus.PAUSED, run.status());
+        assertEquals(Stage.PLAN, run.currentStage());
+        assertEquals(StageStatus.COMPLETED, run.stage(Stage.DESIGN).status());
+        assertEquals(attempts, run.stage(Stage.DESIGN).attempts());
+    }
+
+    private static String sessionId(ShipRun run) {
+        return sessionId(run, Stage.DESIGN);
+    }
+
+    private static String sessionId(ShipRun run, Stage stage) {
+        return run.id() + '-'
+               + stage.name().toLowerCase(java.util.Locale.ROOT) + '-'
+               + run.stage(stage).inputDigest()
+                       .substring("sha256:".length());
+    }
+
+    private void writeDiscoveryResult() throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        var result = mapper.createObjectNode();
+        result.put("schemaVersion", 1);
+        result.put("pipelineId", "149-coordinator");
+        result.put("report", "Discovery report");
+        result.putNull("artifactPolicy");
+        result.put("materialAmbiguity", true);
+        Files.writeString(
+                fixture.resolve("assistant-text"),
+                mapper.writeValueAsString(result).replace("\"", "\\\""));
+    }
+
+    private void writeDesignResult() throws IOException {
+        writeWorkerResult("Design report", null);
+    }
+
+    private void writeWorkerResult(
+            String report, ArtifactPolicy policy)
+            throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        var result = mapper.createObjectNode();
+        result.put("schemaVersion", 1);
+        result.putNull("pipelineId");
+        result.put("report", report);
+        if (policy == null) {
+            result.putNull("artifactPolicy");
+        } else {
+            result.set("artifactPolicy", mapper.valueToTree(policy));
+        }
+        result.put("materialAmbiguity", false);
+        Files.writeString(
+                fixture.resolve("assistant-text"),
+                mapper.writeValueAsString(result)
+                        .replace("\"", "\\\""));
+    }
+
+    private final class DeterministicEvidenceStub
+            implements ShipMainValidator.EvidenceExecutor {
+
+        private final List<String> commandIds = new ArrayList<>();
+
+        @Override
+        public CommandEvidence run(
+                Path candidate, Path evidence, EvidenceCommand command)
+                throws IOException {
+            commandIds.add(command.id());
+            Files.createDirectory(evidence);
+            Files.setPosixFilePermissions(
+                    evidence,
+                    PosixFilePermissions.fromString("rwx------"));
+            String jdkDigest = digest("jdk");
+            JvmPayloadArchive.Identity toolchain
+                    = JvmPayloadTestFixture.create(
+                            evidence.resolve("toolchain"),
+                            command.jvmPayload(),
+                            jdkDigest);
+            Path sandbox = writeExecutable(
+                    evidence.resolve("bwrap"), "sandbox");
+            Path java = writeExecutable(
+                    evidence.resolve("java"), "java");
+            byte[] stdout = command.jvmPayload().kind()
+                            == JvmPayloadRequest.Kind.MAIN_PACKAGE_INSPECT
+                                    ? packageSummary(candidate, command)
+                                    : "PASS\n".getBytes(StandardCharsets.UTF_8);
+            Path stdoutPath = writePrivateFile(
+                    evidence.resolve("raw.stdout.log"), stdout);
+            Path stderrPath = writePrivateFile(
+                    evidence.resolve("raw.stderr.log"), new byte[0]);
+            String sandboxDigest = digest(sandbox);
+            String javaDigest = digest(java);
+            Instant started = Instant.parse("2026-07-29T11:59:58Z");
+            Instant ended = Instant.parse("2026-07-29T11:59:59Z");
+            return new CommandEvidence(
+                    CommandEvidence.SCHEMA_VERSION,
+                    command.id(),
+                    new SandboxIdentity(
+                            EvidenceRunner.SANDBOX_PROVIDER,
+                            sandbox.toString(),
+                            sandboxDigest,
+                            sandboxDigest,
+                            null,
+                            EvidenceRunner.expectedSandboxProfileDigest(
+                                    command, jdkDigest)),
+                    toolchain.aggregateDigest(),
+                    toolchain.aggregateDigest(),
+                    toolchain.archive().toString(),
+                    toolchain.archiveDigest(),
+                    java.toString(),
+                    javaDigest,
+                    javaDigest,
+                    null,
+                    payloadVersion(command.jvmPayload()),
+                    command.arguments(),
+                    candidate.toString(),
+                    EvidenceRunner.expectedEnvironment(
+                            command, jdkDigest),
+                    started,
+                    ended,
+                    true,
+                    false,
+                    0,
+                    null,
+                    stdoutPath.toString(),
+                    ShipDigest.sha256(stdout),
+                    stderrPath.toString(),
+                    ShipDigest.sha256(new byte[0]),
+                    command.inputDigests());
+        }
+    }
+
+    private static byte[] packageSummary(
+            Path candidate, EvidenceCommand command)
+            throws IOException {
+        List<EntrySummary> entries = new ArrayList<>();
+        for (int index = 0;
+             index < command.arguments().size();
+             index++) {
+            String argument = command.arguments().get(index);
+            if (!argument.startsWith("--route=")) {
+                continue;
+            }
+            String path = argument.substring("--route=".length());
+            String routeDigest = command.arguments().get(++index)
+                    .substring("--route-digest=".length());
+            entries.add(new EntrySummary(
+                    path,
+                    Files.size(candidate.resolve(path)),
+                    routeDigest));
+        }
+        return new Summary(
+                1,
+                argument(command, "--candidate-digest="),
+                argument(command, "--manifest-digest="),
+                argument(command, "--catalog-usage-digest="),
+                argument(command, "--pom-digest="),
+                argument(command, "--main-payload-digest="),
+                digest("stub-package"),
+                1,
+                entries).encode();
+    }
+
+    private static String argument(
+            EvidenceCommand command, String prefix) {
+        return command.arguments().stream()
+                .filter(argument -> argument.startsWith(prefix))
+                .map(argument -> argument.substring(prefix.length()))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private static String payloadVersion(JvmPayloadRequest payload) {
+        return switch (payload.kind()) {
+            case CAMEL_YAML_VALIDATE ->
+                "Camel direct YAML validator " + payload.camelVersion();
+            case MAIN_PACKAGE_INSPECT ->
+                ShipMainPackageMain.PAYLOAD_VERSION;
+            case CAMEL_MAIN_START ->
+                "Camel direct Main bootstrap " + payload.camelVersion();
+            case CITRUS_YAML ->
+                "Citrus direct YAML " + payload.citrusVersion()
+                                + " with Camel " + payload.camelVersion();
+            default -> throw new IllegalArgumentException(
+                    "Unexpected deterministic evidence stub payload");
+        };
+    }
+
+    private static String digest(Path file) throws IOException {
+        return ShipDigest.sha256(Files.readAllBytes(file));
+    }
+
+    private static String digest(String value) {
+        return ShipDigest.sha256(
+                value.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static Path writePrivateFile(
+            Path path, byte[] content)
+            throws IOException {
+        Files.write(path, content);
+        Files.setPosixFilePermissions(
+                path, PosixFilePermissions.fromString("rw-------"));
+        return path;
+    }
+
+    private static void awaitFile(Path path) throws Exception {
+        long deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
+        while (!Files.exists(path)) {
+            if (System.nanoTime() >= deadline) {
+                throw new AssertionError("Timed out waiting for " + path);
+            }
+            Thread.sleep(10);
+        }
+    }
+
+    private static Path fileWithPrefix(Path directory, String prefix)
+            throws IOException {
+        try (var files = Files.list(directory)) {
+            return files.filter(path -> path.getFileName().toString()
+                    .startsWith(prefix))
+                    .findFirst()
+                    .orElseThrow();
+        }
+    }
+
+    private void assertFixtureProcessesGone() throws Exception {
+        for (String file : List.of("parent-pid", "child-pid")) {
+            long pid = Long.parseLong(
+                    Files.readString(fixture.resolve(file)).strip());
+            long deadline = System.nanoTime()
+                            + Duration.ofSeconds(5).toNanos();
+            while (ProcessHandle.of(pid)
+                    .map(ProcessHandle::isAlive)
+                    .orElse(false)) {
+                if (System.nanoTime() >= deadline) {
+                    throw new AssertionError(
+                            "Fake Pi process is still alive: " + pid);
+                }
+                Thread.sleep(10);
+            }
+        }
+    }
+
+    private static Path writeExecutable(Path path, String script)
+            throws IOException {
+        Files.writeString(path, script);
+        Files.setPosixFilePermissions(
+                path, PosixFilePermissions.fromString("rwx------"));
+        return path;
+    }
+}

@@ -85,6 +85,11 @@ class ShipCommandTest {
     @Test
     void supportsStartFromResumeStatusAndAbort() throws Exception {
         Path project = Files.createDirectory(tempDir.resolve("project"));
+        Path metadata = Files.createDirectories(
+                project.resolve(".camel-kit"));
+        Files.writeString(
+                metadata.resolve("pipeline.json"),
+                "{\"mode\":\"manual\",\"activePipeline\":\"149-command\"}\n");
         ShipController controller = controller("state");
 
         RunResult started = run(

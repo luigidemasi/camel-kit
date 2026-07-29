@@ -167,10 +167,12 @@ class ShipRunStoreTest {
                 state, valid.substring(0, closingBrace) + ",\"unexpected\":true}");
         assertCode("state-corrupt", () -> store.read(THIRD_RUN_ID));
 
-        Files.writeString(state, "{\"schemaVersion\":2}");
+        Files.writeString(
+                state,
+                "{\"schemaVersion\":" + ShipRun.SCHEMA_VERSION + "}");
         assertCode("state-corrupt", () -> store.read(THIRD_RUN_ID));
 
-        Files.writeString(state, "{\"schemaVersion\":1}");
+        Files.writeString(state, "{\"schemaVersion\":2}");
         assertCode("state-version-unsupported", () -> store.read(THIRD_RUN_ID));
 
         Files.writeString(state, valid.replace(THIRD_RUN_ID, OTHER_RUN_ID));
@@ -265,6 +267,40 @@ class ShipRunStoreTest {
 
         assertEquals(0, imported.stage(ShipRun.Stage.EXECUTE).attempts());
         assertEquals(imported, store().read(imported.id()));
+    }
+
+    @Test
+    void rejectsExternalOrAbsentReferencesForAttemptedCompletedValidation()
+            throws Exception {
+        ShipRunStore store = store();
+        ShipRun completed = completedRun(RUN_ID);
+        store.create(completed);
+        Path state = stateRoot().resolve(RUN_ID).resolve("state.json");
+        byte[] valid = Files.readAllBytes(state);
+        ObjectMapper json = new ObjectMapper();
+
+        ObjectNode document = (ObjectNode) json.readTree(valid);
+        ObjectNode validation = stage(document, ShipRun.Stage.VALIDATE);
+        ((ObjectNode) validation.withArray("artifacts").get(0))
+                .put("path", temporaryDirectory.resolve("external-stamp.json").toString());
+        Files.write(state, json.writeValueAsBytes(document));
+        assertCode("state-corrupt", () -> store.read(RUN_ID));
+
+        document = (ObjectNode) json.readTree(valid);
+        validation = stage(document, ShipRun.Stage.VALIDATE);
+        ((ObjectNode) validation.withArray("artifacts").get(0))
+                .put(
+                        "path",
+                        Path.of(completed.projectDirectory())
+                                .resolve("generic-validation.txt")
+                                .toString());
+        Files.write(state, json.writeValueAsBytes(document));
+        assertCode("state-corrupt", () -> store.read(RUN_ID));
+
+        document = (ObjectNode) json.readTree(valid);
+        stage(document, ShipRun.Stage.VALIDATE).putArray("artifacts");
+        Files.write(state, json.writeValueAsBytes(document));
+        assertCode("state-corrupt", () -> store.read(RUN_ID));
     }
 
     @Test
@@ -401,6 +437,12 @@ class ShipRunStoreTest {
                         ShipDigest.sha256("workspace".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
                 artifacts = List.of(root);
                 output = ShipRun.executeOutputDigest(root);
+            } else if (stage == ShipRun.Stage.VALIDATE) {
+                ShipRun.ArtifactRef stamp = new ShipRun.ArtifactRef(
+                        stateRoot().resolve(runId).resolve("evidence/validate-1/stamp.json")
+                                .toAbsolutePath().normalize().toString(),
+                        output);
+                artifacts = List.of(stamp);
             }
             stages.set(
                     stage.ordinal(),

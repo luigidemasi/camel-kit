@@ -74,7 +74,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 public final class PiWorker {
 
     private static final int MAX_PROMPT_BYTES = 1024 * 1024;
-    private static final int MAX_LOG_BYTES = 16 * 1024 * 1024;
+    static final int MAX_LOG_BYTES = 16 * 1024 * 1024;
     private static final int MAX_SESSION_HEADER_BYTES = 64 * 1024;
     private static final long MAX_SESSION_BYTES = 64L * 1024 * 1024;
     private static final int MAX_VERSION_LENGTH = 1024;
@@ -112,6 +112,19 @@ public final class PiWorker {
         this(executable, supportedVersion, timeout, Clock.systemUTC());
     }
 
+    public PiWorker(
+                    Path executable,
+                    String supportedVersion,
+                    Duration timeout,
+                    Map<String, String> environment) {
+        this(
+             executable,
+             supportedVersion,
+             timeout,
+             Clock.systemUTC(),
+             environment);
+    }
+
     PiWorker(Path executable, String supportedVersion, Duration timeout, Clock clock) {
         this(executable, supportedVersion, timeout, clock, System.getenv());
     }
@@ -126,8 +139,8 @@ public final class PiWorker {
         this.supportedVersion = requireVersion(supportedVersion, "supported Pi version");
         this.timeout = requireDuration(timeout);
         this.clock = Objects.requireNonNull(clock, "clock");
-        this.commands = new LocalCommandRunner(clock);
         this.environment = Map.copyOf(Objects.requireNonNull(environment, "environment"));
+        this.commands = new LocalCommandRunner(clock, this.environment);
     }
 
     /**
@@ -152,14 +165,7 @@ public final class PiWorker {
         List<String> sensitiveValues = List.copyOf(
                 sensitiveEnvironmentValues(environment));
 
-        LocalCommandRunner.Result versionRun = commands.run(new Command(
-                executable,
-                List.of("--version"),
-                workingDirectory,
-                evidenceDirectory,
-                VERSION_TIMEOUT.compareTo(timeout) < 0 ? VERSION_TIMEOUT : timeout,
-                MAX_LOG_BYTES,
-                sensitiveValues));
+        LocalCommandRunner.Result versionRun = null;
         Throwable primary = null;
         Path scratchDirectory = null;
         SessionLock sessionLock = null;
@@ -167,6 +173,19 @@ public final class PiWorker {
         boolean published = false;
         boolean restoreInterrupt = false;
         try {
+            String sessionId = sessionId(request);
+            sessionLock = lockSession(
+                    sessionDirectory, sessionId, sessionOwner);
+            versionRun = commands.run(new Command(
+                    executable,
+                    List.of("--version"),
+                    workingDirectory,
+                    evidenceDirectory,
+                    VERSION_TIMEOUT.compareTo(timeout) < 0
+                            ? VERSION_TIMEOUT
+                            : timeout,
+                    MAX_LOG_BYTES,
+                    sensitiveValues));
             if (versionRun.timedOut()
                     || versionRun.outputLimited()
                     || versionRun.exitCode() != 0) {
@@ -199,8 +218,6 @@ public final class PiWorker {
                         warning + "; explicitly accept experimental Pi before starting the stage");
             }
 
-            String sessionId = sessionId(request);
-            sessionLock = lockSession(sessionDirectory, sessionId, sessionOwner);
             cleanupAbandonedScratch(sessionDirectory, sessionId, sessionOwner);
             SessionState previousSession = snapshotExistingSession(
                     sessionDirectory, sessionId, workingDirectory, sessionOwner);
@@ -328,7 +345,7 @@ public final class PiWorker {
                     primary.addSuppressed(cleanup);
                 }
             }
-            if (!versionLogsDeleted) {
+            if (!versionLogsDeleted && versionRun != null) {
                 try {
                     versionRun.deleteLogs();
                 } catch (IOException cleanup) {
@@ -355,9 +372,41 @@ public final class PiWorker {
         }
     }
 
-    /** Returns the durable result for this exact attempt without launching Pi. */
+    /**
+     * Returns the durable result for this exact attempt without launching Pi.
+     *
+     * <p>
+     * Recovery shares the stage-session lock with publication, so a marker cannot be observed before its matching
+     * session publication either commits or rolls back.
+     */
     public Optional<Result> recover(Request request) throws IOException {
-        return PiWorkerResultStore.read(Objects.requireNonNull(request, "request"));
+        try (Recovery recovery = lockRecovery(request)) {
+            return recovery.result();
+        }
+    }
+
+    /**
+     * Holds the stage-session lock while a caller atomically decides how to handle a recovered or absent result.
+     */
+    public Recovery lockRecovery(Request request) throws IOException {
+        Request requested = Objects.requireNonNull(request, "request");
+        Path sessionDirectory = realDirectory(
+                requested.sessionDirectory(), "Pi session directory");
+        UserPrincipal owner = requirePrivateSessionDirectory(sessionDirectory);
+        SessionLock lock = lockSession(
+                sessionDirectory, sessionId(requested), owner);
+        try {
+            return new Recovery(
+                    PiWorkerResultStore.read(requested),
+                    lock);
+        } catch (IOException | RuntimeException | Error e) {
+            try {
+                lock.close();
+            } catch (IOException cleanup) {
+                e.addSuppressed(cleanup);
+            }
+            throw e;
+        }
     }
 
     private RpcRun runRpc(
@@ -385,9 +434,11 @@ public final class PiWorker {
         vector.add(executable.toString());
         vector.addAll(arguments);
         Instant startedAt = clock.instant();
-        Process process = new ProcessBuilder(vector)
-                .directory(workingDirectory.toFile())
-                .start();
+        ProcessBuilder builder = new ProcessBuilder(vector)
+                .directory(workingDirectory.toFile());
+        builder.environment().clear();
+        builder.environment().putAll(environment);
+        Process process = builder.start();
         Thread shutdownHook = new Thread(
                 () -> terminateRpc(process, kill),
                 "camel-kit-pi-rpc-shutdown");
@@ -1378,10 +1429,10 @@ public final class PiWorker {
             try {
                 lock = channel.tryLock();
             } catch (OverlappingFileLockException e) {
-                throw new IOException("Pi stage session is already running", e);
+                throw new SessionBusyException(e);
             }
             if (lock == null) {
-                throw new IOException("Pi stage session is already running");
+                throw new SessionBusyException();
             }
             return new SessionLock(channel, lock);
         } catch (IOException | RuntimeException e) {
@@ -2099,6 +2150,41 @@ public final class PiWorker {
         SUCCEEDED,
         FAILED,
         TIMED_OUT
+    }
+
+    /** A concurrent coordinator owns the same durable Pi stage session. */
+    public static final class SessionBusyException extends IOException {
+
+        private static final long serialVersionUID = 1L;
+
+        private SessionBusyException() {
+            super("Pi stage session is already running");
+        }
+
+        private SessionBusyException(Throwable cause) {
+            super("Pi stage session is already running", cause);
+        }
+    }
+
+    /** One exact-attempt recovery observation protected by the Pi session lock. */
+    public static final class Recovery implements AutoCloseable {
+
+        private final Optional<Result> result;
+        private final SessionLock lock;
+
+        private Recovery(Optional<Result> result, SessionLock lock) {
+            this.result = Objects.requireNonNull(result, "result");
+            this.lock = Objects.requireNonNull(lock, "lock");
+        }
+
+        public Optional<Result> result() {
+            return result;
+        }
+
+        @Override
+        public void close() throws IOException {
+            lock.close();
+        }
     }
 
     public record Request(

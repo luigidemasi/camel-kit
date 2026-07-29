@@ -492,6 +492,26 @@ class ShipLocalStampTest {
     }
 
     @Test
+    void verifiedReadBindsTheStampAndDigestToTheSameBytes(@TempDir Path directory)
+            throws Exception {
+        makePrivate(directory);
+        ShipLocalStamp stamp = persistableStamp(directory, 0);
+        Path report = ShipLocalStampStore.write(directory, RUN_ID, stamp);
+        byte[] encoded = Files.readAllBytes(report);
+
+        ShipLocalStampStore.VerifiedStamp verified
+                = ShipLocalStampStore.readVerified(directory, RUN_ID);
+        Files.writeString(report, "changed after the verified read");
+
+        assertAll(
+                () -> assertEquals(stamp, verified.stamp()),
+                () -> assertEquals(report, verified.path()),
+                () -> assertEquals(ShipDigest.sha256(encoded), verified.digest()),
+                () -> assertFalse(verified.digest().equals(
+                        ShipDigest.sha256(Files.readAllBytes(report)))));
+    }
+
+    @Test
     void acceptsSymbolicAncestorButRejectsSymbolicDirectory(@TempDir Path directory)
             throws Exception {
         Path realAncestor = Files.createDirectory(directory.resolve("real-ancestor"));
