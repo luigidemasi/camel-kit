@@ -65,6 +65,8 @@ class PiWorkerResultStoreTest {
                 IOException.class,
                 () -> PiWorkerResultStore.delete(request));
 
+        // Companion coverage: dangling final symlinks fail in toRealPath(),
+        // while the loop above pins checked indeterminate-path probing.
         Path dangling = directory.resolve("dangling");
         Files.createSymbolicLink(dangling, Path.of("missing"));
         PiWorker.Request danglingRequest = request(RUN_A, dangling);

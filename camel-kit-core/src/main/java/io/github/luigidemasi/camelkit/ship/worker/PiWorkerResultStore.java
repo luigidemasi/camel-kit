@@ -7,7 +7,6 @@ import java.nio.channels.FileChannel;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
@@ -186,18 +185,8 @@ final class PiWorkerResultStore {
 
     private static BasicFileAttributes attributesIfPresent(Path path)
             throws IOException {
-        try {
-            return Files.readAttributes(
-                    path,
-                    BasicFileAttributes.class,
-                    LinkOption.NOFOLLOW_LINKS);
-        } catch (NoSuchFileException e) {
-            return null;
-        } catch (SecurityException e) {
-            throw new IOException(
-                    "Pi stage result path could not be inspected",
-                    e);
-        }
+        return PiWorker.attributesIfPresent(
+                path, "Pi stage result path could not be inspected");
     }
 
     private record Marker(

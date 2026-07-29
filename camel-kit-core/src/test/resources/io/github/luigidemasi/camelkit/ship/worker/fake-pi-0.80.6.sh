@@ -48,6 +48,12 @@ if [ "$mode" = "never-read" ]; then
   wait "$child"
   exit 0
 fi
+if [ "$mode" = "duplicate-response-abort-after-blocked-prompt" ]; then
+  printf '%s\n' '{"id":"prompt-1","type":"response","command":"prompt","success":true}'
+  printf '%s\n' '{"id":"prompt-1","type":"response","command":"prompt","success":true}'
+  touch "$fixture/ready"
+  while [ ! -e "$fixture/release-prompt" ]; do sleep 0.01; done
+fi
 
 IFS= read -r prompt || exit 6
 printf '%s\n' "$prompt" > "$fixture/prompt"
@@ -198,6 +204,11 @@ abort_turn() {
   cat >/dev/null
 }
 
+if [ "$mode" = "duplicate-response-abort-after-blocked-prompt" ]; then
+  abort_turn
+  exit 0
+fi
+
 if [ "$mode" = "block" ]; then
   sleep 300 &
   child=$!
@@ -222,7 +233,8 @@ if [ "$mode" = "late-abort-exit" ] || [ "$mode" = "repeated-interrupt-abort" ]; 
   abort_turn
   exit 0
 fi
-if [ "$mode" = "interrupt-output-limit" ]; then
+if [ "$mode" = "interrupt-output-limit" ] \
+    || [ "$mode" = "interrupt-output-limit-natural-stop" ]; then
   printf '%s\n' '{"id":"prompt-1","type":"response","command":"prompt","success":true}'
   begin_turn
   touch "$fixture/ready"
@@ -233,9 +245,13 @@ if [ "$mode" = "interrupt-output-limit" ]; then
   fi
   dd if=/dev/zero bs=1048576 count=17 >&2 2>/dev/null
   printf '%s\n' '{"id":"abort-1","type":"response","command":"abort","success":true}'
-  aborted='{"role":"assistant","content":[],"stopReason":"aborted","timestamp":2}'
-  emit_message "$aborted" assistant
-  printf '{"type":"agent_end","messages":[%s],"willRetry":false}\n' "$aborted"
+  if [ "$mode" = "interrupt-output-limit-natural-stop" ]; then
+    terminal='{"role":"assistant","content":[{"type":"text","text":"done"}],"stopReason":"stop","timestamp":2}'
+  else
+    terminal='{"role":"assistant","content":[],"stopReason":"aborted","timestamp":2}'
+  fi
+  emit_message "$terminal" assistant
+  printf '{"type":"agent_end","messages":[%s],"willRetry":false}\n' "$terminal"
   printf '%s\n' '{"type":"agent_settled"}'
   cat >/dev/null
   exit 0

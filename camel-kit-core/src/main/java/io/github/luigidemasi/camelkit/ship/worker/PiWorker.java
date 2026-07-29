@@ -286,7 +286,10 @@ public final class PiWorker {
                     // did not publish the result. Indeterminate attribute reads
                     // retain the marker and are reported with the original failure.
                     try {
-                        if (existsNoFollow(turn.validatedSession())) {
+                        if (attributesIfPresent(
+                                turn.validatedSession(),
+                                "Could not determine whether the Pi scratch session remains")
+                            != null) {
                             PiWorkerResultStore.delete(request);
                         }
                     } catch (IOException cleanupFailure) {
@@ -1476,30 +1479,34 @@ public final class PiWorker {
                 StandardCopyOption.REPLACE_EXISTING);
     }
 
-    private static boolean existsNoFollow(Path path) throws IOException {
+    static BasicFileAttributes attributesIfPresent(
+            Path path, String inspectionFailure)
+            throws IOException {
         try {
-            Files.readAttributes(
+            return Files.readAttributes(
                     path,
                     BasicFileAttributes.class,
                     LinkOption.NOFOLLOW_LINKS);
-            return true;
         } catch (NoSuchFileException e) {
-            return false;
+            return null;
         } catch (SecurityException e) {
-            throw new IOException(
-                    "Could not determine whether the Pi scratch session remains",
-                    e);
+            throw new IOException(inspectionFailure, e);
         }
     }
 
     private static void deleteTree(Path path) throws IOException {
-        if (path == null || !Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
+        if (path == null) {
             return;
         }
-        if (Files.isSymbolicLink(path)) {
+        BasicFileAttributes attributes = attributesIfPresent(
+                path, "Pi scratch cleanup path could not be inspected");
+        if (attributes == null) {
+            return;
+        }
+        if (attributes.isSymbolicLink()) {
             throw new IOException("Pi scratch cleanup refused a symbolic link");
         }
-        if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
+        if (attributes.isDirectory()) {
             try (DirectoryStream<Path> entries = Files.newDirectoryStream(path)) {
                 for (Path entry : entries) {
                     deleteTree(entry);
