@@ -66,9 +66,10 @@ class PiWorkerResultStoreTest {
                 RUN_A,
                 loop.resolve("sessions"));
 
-        assertThrows(
+        IOException indeterminate = assertThrows(
                 IOException.class,
                 () -> PiWorkerResultStore.read(request));
+        assertFalse(indeterminate instanceof PiWorker.UntrustedResultException);
         assertThrows(
                 IOException.class,
                 () -> PiWorkerResultStore.delete(request));
@@ -79,9 +80,10 @@ class PiWorkerResultStoreTest {
         Files.createSymbolicLink(dangling, Path.of("missing"));
         PiWorker.Request danglingRequest = request(RUN_A, dangling);
 
-        assertThrows(
+        IOException danglingFailure = assertThrows(
                 IOException.class,
                 () -> PiWorkerResultStore.read(danglingRequest));
+        assertFalse(danglingFailure instanceof PiWorker.UntrustedResultException);
         assertThrows(
                 IOException.class,
                 () -> PiWorkerResultStore.delete(danglingRequest));
@@ -96,7 +98,7 @@ class PiWorkerResultStoreTest {
         String encoded = Files.readString(marker);
 
         Files.writeString(marker, encoded.replace(RUN_A, RUN_B));
-        assertTrue(assertThrows(IOException.class,
+        assertTrue(assertThrows(PiWorker.UntrustedResultException.class,
                 () -> PiWorkerResultStore.read(request))
                 .getMessage().contains("does not match"));
 

@@ -162,8 +162,8 @@ public final class PiWorker {
         requireDisjoint(sessionDirectory, evidenceDirectory, "session and evidence directories");
         UserPrincipal sessionOwner = requirePrivateSessionDirectory(sessionDirectory);
         String prompt = requirePrompt(request.prompt());
-        List<String> sensitiveValues = List.copyOf(
-                sensitiveEnvironmentValues(environment));
+        Set<String> sensitive = sensitiveEnvironmentValues(environment);
+        List<String> sensitiveValues = List.copyOf(sensitive);
 
         LocalCommandRunner.Result versionRun = null;
         Throwable primary = null;
@@ -213,6 +213,9 @@ public final class PiWorker {
                       + " is experimental until the live Pi end-to-end gate passes"
                     : "Pi " + detectedVersion + " is unverified; the maintained Pi "
                       + supportedVersion + " is also experimental until the live end-to-end gate passes";
+            if (containsSensitiveValue(warning, sensitive)) {
+                throw sensitiveOutput();
+            }
             if (!request.acceptExperimental()) {
                 throw new IOException(
                         warning + "; explicitly accept experimental Pi before starting the stage");
@@ -280,6 +283,9 @@ public final class PiWorker {
                 outcome = Outcome.FAILED;
                 assistantText = null;
                 failure = "Pi assistant settled with stop reason " + turn.stopReason();
+            }
+            if (containsSensitiveValue(failure, sensitive)) {
+                failure = "Failed";
             }
             Result result = new Result(
                     outcome,
@@ -2150,6 +2156,20 @@ public final class PiWorker {
         SUCCEEDED,
         FAILED,
         TIMED_OUT
+    }
+
+    /** A durable Pi result exists but cannot be trusted as controller evidence. */
+    public static final class UntrustedResultException extends IOException {
+
+        private static final long serialVersionUID = 1L;
+
+        UntrustedResultException(String message) {
+            super(message);
+        }
+
+        UntrustedResultException(String message, Throwable cause) {
+            super(message, cause);
+        }
     }
 
     /** A concurrent coordinator owns the same durable Pi stage session. */

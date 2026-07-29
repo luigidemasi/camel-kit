@@ -57,6 +57,13 @@ final class ShipRunStore {
         this.posix = this.stateRoot.getFileSystem().supportedFileAttributeViews().contains("posix");
     }
 
+    static Path validationStampPath(Path runDirectory, int attempt) {
+        return runDirectory.toAbsolutePath().normalize()
+                .resolve("evidence")
+                .resolve("validate-" + attempt)
+                .resolve("stamp.json");
+    }
+
     void create(ShipRun initial) throws IOException {
         requireCurrent(initial);
         Path root = resolvedStateRoot("state-root-invalid");
@@ -277,11 +284,7 @@ final class ShipRunStore {
                 && validation.status() != StageStatus.COMPLETED) {
             return;
         }
-        Path expected = runRoot.resolve("evidence")
-                .resolve("validate-" + validation.attempts())
-                .resolve("stamp.json")
-                .toAbsolutePath()
-                .normalize();
+        Path expected = validationStampPath(runRoot, validation.attempts());
         boolean localStamp = validation.artifacts().size() == 1
                 && expected.toString().equals(
                         validation.artifacts().get(0).path())

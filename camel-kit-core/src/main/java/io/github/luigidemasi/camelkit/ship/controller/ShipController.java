@@ -1122,9 +1122,7 @@ public final class ShipController {
                     "Local Stamp attempt is invalid");
         }
         Path root = runDirectory.toAbsolutePath().normalize();
-        Path evidence = root.resolve("evidence")
-                .resolve("validate-" + attempt)
-                .normalize();
+        Path evidence = ShipRunStore.validationStampPath(root, attempt).getParent();
         try {
             if (!evidence.startsWith(root)
                     || Files.isSymbolicLink(evidence)
@@ -1136,9 +1134,10 @@ public final class ShipController {
             Path evidenceRoot = root.resolve("evidence");
             Path realEvidenceRoot = evidenceRoot.toRealPath();
             Path realEvidence = evidence.toRealPath();
-            if (!realEvidenceRoot.equals(realRoot.resolve("evidence"))
-                    || !realEvidence.equals(realEvidenceRoot.resolve(
-                            "validate-" + attempt))) {
+            Path expectedEvidence = ShipRunStore.validationStampPath(
+                    realRoot, attempt).getParent();
+            if (!realEvidenceRoot.equals(expectedEvidence.getParent())
+                    || !realEvidence.equals(expectedEvidence)) {
                 throw new IOException(
                         "Local Stamp evidence directory escaped its run");
             }
@@ -1156,11 +1155,8 @@ public final class ShipController {
         if (record.artifacts().size() != 1) {
             return false;
         }
-        Path expected = runDirectory.toAbsolutePath().normalize()
-                .resolve("evidence")
-                .resolve("validate-" + record.attempts())
-                .resolve("stamp.json")
-                .normalize();
+        Path expected = ShipRunStore.validationStampPath(
+                runDirectory, record.attempts());
         return expected.toString().equals(record.artifacts().get(0).path())
                 && record.artifacts().get(0).digest().equals(record.outputDigest());
     }

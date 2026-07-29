@@ -205,8 +205,48 @@ class ShipCoordinatorTest {
     @Test
     void unavailableGeneratedPredecessorRestartsBeforeTheActiveStage()
             throws Exception {
+        for (String condition : List.of("missing", "corrupt")) {
+            Files.deleteIfExists(fixture.resolve("session-ids"));
+            Files.deleteIfExists(fixture.resolve("resumed-sessions"));
+            ShipRun run = designRun(List.of(
+                    new ShipContext.TextInput(
+                            "restart " + condition + " predecessor")));
+            ShipRun planned = coordinator.run(run.id());
+            ShipRun activePlan = controller.resume(run.id());
+            Path marker = state.resolve(run.id())
+                    .resolve("sessions/.camel-kit-results")
+                    .resolve(run.id() + "-design-"
+                             + planned.stage(Stage.DESIGN).inputDigest()
+                                     .substring("sha256:".length())
+                             + "-1.json");
+            assertTrue(Files.isRegularFile(marker));
+            if ("missing".equals(condition)) {
+                Files.delete(marker);
+            } else {
+                Files.writeString(marker, "{}\n");
+            }
+
+            ShipRun restarted = coordinator.resume(activePlan.id());
+
+            assertDesignPaused(restarted, 2);
+            assertEquals(StageStatus.PENDING,
+                    restarted.stage(Stage.PLAN).status());
+            assertEquals(1, restarted.stage(Stage.PLAN).attempts());
+            String sessionId = sessionId(run);
+            assertEquals(
+                    List.of(sessionId, sessionId),
+                    Files.readAllLines(fixture.resolve("session-ids")));
+            assertEquals(
+                    List.of(sessionId),
+                    Files.readAllLines(fixture.resolve("resumed-sessions")));
+        }
+    }
+
+    @Test
+    void unreadableGeneratedPredecessorDoesNotResetTheRun()
+            throws Exception {
         ShipRun run = designRun(List.of(
-                new ShipContext.TextInput("restart missing predecessor")));
+                new ShipContext.TextInput("retry unreadable predecessor")));
         ShipRun planned = coordinator.run(run.id());
         ShipRun activePlan = controller.resume(run.id());
         Path marker = state.resolve(run.id())
@@ -215,22 +255,20 @@ class ShipCoordinatorTest {
                          + planned.stage(Stage.DESIGN).inputDigest()
                                  .substring("sha256:".length())
                          + "-1.json");
-        assertTrue(Files.isRegularFile(marker));
-        Files.writeString(marker, "{}\n");
+        Files.setPosixFilePermissions(
+                marker, PosixFilePermissions.fromString("---------"));
 
-        ShipRun restarted = coordinator.resume(activePlan.id());
+        try {
+            IOException failure = assertThrows(
+                    IOException.class,
+                    () -> coordinator.resume(activePlan.id()));
 
-        assertDesignPaused(restarted, 2);
-        assertEquals(StageStatus.PENDING,
-                restarted.stage(Stage.PLAN).status());
-        assertEquals(1, restarted.stage(Stage.PLAN).attempts());
-        String sessionId = sessionId(run);
-        assertEquals(
-                List.of(sessionId, sessionId),
-                Files.readAllLines(fixture.resolve("session-ids")));
-        assertEquals(
-                List.of(sessionId),
-                Files.readAllLines(fixture.resolve("resumed-sessions")));
+            assertFalse(failure instanceof PiWorker.UntrustedResultException);
+            assertEquals(activePlan, controller.status(run.id()));
+        } finally {
+            Files.setPosixFilePermissions(
+                    marker, PosixFilePermissions.fromString("rw-------"));
+        }
     }
 
     @Test
@@ -303,6 +341,33 @@ class ShipCoordinatorTest {
             assertFalse(Files.exists(fixture.resolve("session-ids")));
             assertFalse(Files.exists(fixture.resolve("args")));
         }
+    }
+
+    @Test
+    void redactsSensitivePiFailureBeforeWritingRunState()
+            throws Exception {
+        String secret = "Pi assistant settled with stop reason error";
+        Files.writeString(fixture.resolve("mode"), "stop-error\n");
+        ShipRun run = designRun(List.of(
+                new ShipContext.TextInput("redact failure")));
+        ShipCoordinator screened = new ShipCoordinator(
+                state,
+                controller,
+                worker,
+                new ShipCatalogService(directory.resolve("m2"))::snapshot,
+                new ShipMainValidator(),
+                distribution,
+                Map.of("API_TOKEN", secret),
+                true,
+                Clock.systemUTC());
+
+        ShipRun failed = screened.run(run.id());
+
+        assertEquals(RunStatus.FAILED, failed.status());
+        assertEquals("Failed", failed.message());
+        assertFalse(Files.readString(
+                state.resolve(run.id()).resolve("state.json"))
+                .contains(secret));
     }
 
     @Test
@@ -448,6 +513,44 @@ class ShipCoordinatorTest {
     }
 
     @Test
+    void importedExecuteFailsValidationWithoutAGeneratedPolicy()
+            throws Exception {
+        Path metadata = Files.createDirectories(project.resolve(".camel-kit"));
+        Files.writeString(
+                metadata.resolve("pipeline.json"),
+                "{\"mode\":\"manual\",\"activePipeline\":\"149-coordinator\"}\n");
+        Path documents = Files.createDirectories(
+                project.resolve("docs/camel-kit/149-coordinator"));
+        Files.writeString(documents.resolve("design-spec.md"), "Imported design");
+        Files.writeString(
+                documents.resolve("implementation-plan.md"),
+                "Imported implementation plan");
+        ShipRun run = controller.startFrom(
+                project,
+                Stage.EXECUTE,
+                Oversight.NEVER,
+                List.of());
+        StageAttempt execute = controller.prepareAttempt(run.id());
+        writeGeneratedMainCandidate(
+                execute.workingDirectory(), mainPolicy());
+        writeWorkerResult("Execution report", null);
+
+        ShipRun failed = coordinator.run(run.id());
+
+        assertEquals(RunStatus.FAILED, failed.status());
+        assertEquals(StageStatus.COMPLETED,
+                failed.stage(Stage.EXECUTE).status());
+        assertEquals(Stage.VALIDATE, failed.currentStage());
+        assertEquals(StageStatus.FAILED,
+                failed.stage(Stage.VALIDATE).status());
+        assertEquals(1, failed.stage(Stage.VALIDATE).attempts());
+        assertEquals("Ship validation could not run", failed.message());
+        assertFalse(Files.exists(
+                state.resolve(run.id())
+                        .resolve("evidence/validate-1/stamp.json")));
+    }
+
+    @Test
     void generatedPlanExecuteThenValidatorCommitsPassStampFromStubEvidence()
             throws Exception {
         Path metadata = Files.createDirectories(project.resolve(".camel-kit"));
@@ -522,14 +625,60 @@ class ShipCoordinatorTest {
         assertTrue(Files.readString(manifestSchema)
                 .contains("artifact-manifest.schema.json"));
 
+        ShipCoordinator unavailableCatalog = new ShipCoordinator(
+                state,
+                controller,
+                worker,
+                target -> {
+                    throw new IOException("Catalog unavailable");
+                },
+                new ShipMainValidator(evidence),
+                distribution,
+                Map.of(),
+                true,
+                Clock.systemUTC());
+        ShipRun validating = controller.resume(run.id());
+        List<String> sessionIds = Files.readAllLines(
+                fixture.resolve("session-ids"));
+        String executeSessionId = sessionIds.get(sessionIds.size() - 1);
+        Path sessionLock = state.resolve(run.id())
+                .resolve("sessions")
+                .resolve("." + executeSessionId + ".lock");
+        try (FileChannel channel = FileChannel.open(
+                sessionLock,
+                Set.of(StandardOpenOption.CREATE, StandardOpenOption.WRITE),
+                PosixFilePermissions.asFileAttribute(
+                        PosixFilePermissions.fromString("rw-------")));
+             FileLock ignored = channel.lock()) {
+            ShipRun blocked = deterministic.run(run.id());
+
+            assertEquals(validating, blocked);
+            assertNull(blocked.message());
+            assertFalse(Files.exists(
+                    state.resolve(run.id())
+                            .resolve("evidence/validate-1/stamp.json")));
+        }
+
+        ShipRun failed = unavailableCatalog.run(run.id());
+
+        assertEquals(RunStatus.FAILED, failed.status());
+        assertEquals(Stage.VALIDATE, failed.currentStage());
+        assertEquals(StageStatus.FAILED,
+                failed.stage(Stage.VALIDATE).status());
+        assertEquals(1, failed.stage(Stage.VALIDATE).attempts());
+        assertEquals("Ship validation could not run", failed.message());
+        assertFalse(Files.exists(
+                state.resolve(run.id())
+                        .resolve("evidence/validate-1/stamp.json")));
+
         ShipRun completed = deterministic.resume(run.id());
 
         assertEquals(RunStatus.COMPLETED, completed.status());
         assertEquals(StageStatus.COMPLETED,
                 completed.stage(Stage.VALIDATE).status());
-        assertEquals(1, completed.stage(Stage.VALIDATE).attempts());
+        assertEquals(2, completed.stage(Stage.VALIDATE).attempts());
         Path validationEvidence = state.resolve(run.id())
-                .resolve("evidence/validate-1");
+                .resolve("evidence/validate-2");
         ShipLocalStamp stamp = ShipLocalStampStore.read(
                 validationEvidence, run.id());
         assertEquals(ShipLocalStamp.Status.PASS, stamp.status());
@@ -702,15 +851,15 @@ class ShipCoordinatorTest {
         ShipLocalStampStore.write(
                 attempt.evidenceDirectory(), run.id(), stamp);
 
-        assertThrows(IOException.class, () -> coordinator.resume(run.id()));
+        ShipRun failed = coordinator.resume(run.id());
 
-        ShipRun resumed = controller.status(run.id());
-        assertEquals(RunStatus.RUNNING, resumed.status());
-        assertEquals(Stage.VALIDATE, resumed.currentStage());
-        assertEquals(StageStatus.RUNNING,
-                resumed.stage(Stage.VALIDATE).status());
-        assertEquals(2, resumed.stage(Stage.VALIDATE).attempts());
-        assertTrue(resumed.stage(Stage.VALIDATE).artifacts().isEmpty());
+        assertEquals(RunStatus.FAILED, failed.status());
+        assertEquals(Stage.VALIDATE, failed.currentStage());
+        assertEquals(StageStatus.FAILED,
+                failed.stage(Stage.VALIDATE).status());
+        assertEquals(2, failed.stage(Stage.VALIDATE).attempts());
+        assertEquals("Ship validation could not run", failed.message());
+        assertTrue(failed.stage(Stage.VALIDATE).artifacts().isEmpty());
         assertEquals(stamp, ShipLocalStampStore.read(
                 attempt.evidenceDirectory(), run.id()));
         assertFalse(Files.exists(

@@ -10,8 +10,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFileAttributes;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.nio.file.attribute.UserPrincipal;
@@ -45,6 +47,7 @@ import io.github.luigidemasi.camelkit.ship.worker.PiWorker.Recovery;
 import io.github.luigidemasi.camelkit.ship.worker.PiWorker.Request;
 import io.github.luigidemasi.camelkit.ship.worker.PiWorker.Result;
 import io.github.luigidemasi.camelkit.ship.worker.PiWorker.SessionBusyException;
+import io.github.luigidemasi.camelkit.ship.worker.PiWorker.UntrustedResultException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -304,7 +307,7 @@ public final class ShipCoordinator {
 
     private Optional<ShipRun> restartStalePredecessor(
             StageAttempt attempt)
-            throws InterruptedException, SessionBusyException {
+            throws IOException, InterruptedException {
         for (Stage stage : Stage.values()) {
             if (stage.ordinal() >= attempt.stage().stage().ordinal()) {
                 break;
@@ -313,15 +316,21 @@ public final class ShipCoordinator {
             if (predecessor.attempts() <= 0) {
                 continue;
             }
+            final Result result;
             try {
-                Result result = completedPiResult(attempt, predecessor);
+                result = completedPiResult(attempt, predecessor);
+            } catch (UntrustedResultException
+                     | StalePredecessorException e) {
+                requireNotInterrupted();
+                return Optional.of(controller.restartGeneratedStage(
+                        attempt, predecessor));
+            }
+            try {
                 ShipStageResult typed = ShipStageResult.parse(
                         stage, result.assistantText());
                 if (stage == Stage.PLAN) {
                     requireDistributionPolicy(typed.artifactPolicy());
                 }
-            } catch (SessionBusyException e) {
-                throw e;
             } catch (IOException | IllegalArgumentException e) {
                 requireNotInterrupted();
                 return Optional.of(controller.restartGeneratedStage(
@@ -431,36 +440,46 @@ public final class ShipCoordinator {
 
     private Step validate(StageAttempt attempt)
             throws IOException, InterruptedException {
-        ArtifactPolicy policy = acceptedPolicy(attempt);
-        requireDistributionPolicy(policy);
-        Path workspace = executeWorkspace(attempt.run());
-        Path manifest = manifestPath(attempt.run(), workspace);
-        CatalogTarget target = new CatalogTarget(
-                policy.runtime(),
-                policy.camelVersion(),
-                policy.platformVersion(),
-                policy.springBootVersion());
-        Result executeResult = completedPiResult(
-                attempt, attempt.run().stage(Stage.EXECUTE));
-        ShipLocalStamp.ToolVersion pi = new ShipLocalStamp.ToolVersion(
-                "pi",
-                executeResult.evidence().executable(),
-                executeResult.version(),
-                executeResult.support(),
-                executeResult.warning());
-        ShipMainValidator.Result validated = validator.validate(
-                attempt.run().id(),
-                workspace,
-                manifest,
-                policy,
-                catalogs.snapshot(target),
-                attempt.evidenceDirectory(),
-                pi,
-                clock);
-        requireNotInterrupted();
-        return new Step(
-                commitValidation(attempt, validated.stamp()),
-                true);
+        try {
+            ArtifactPolicy policy = acceptedPolicy(attempt);
+            requireDistributionPolicy(policy);
+            Path workspace = executeWorkspace(attempt.run());
+            Path manifest = manifestPath(attempt.run(), workspace);
+            CatalogTarget target = new CatalogTarget(
+                    policy.runtime(),
+                    policy.camelVersion(),
+                    policy.platformVersion(),
+                    policy.springBootVersion());
+            Result executeResult = completedPiResult(
+                    attempt, attempt.run().stage(Stage.EXECUTE));
+            ShipLocalStamp.ToolVersion pi = new ShipLocalStamp.ToolVersion(
+                    "pi",
+                    executeResult.evidence().executable(),
+                    executeResult.version(),
+                    executeResult.support(),
+                    executeResult.warning());
+            ShipMainValidator.Result validated = validator.validate(
+                    attempt.run().id(),
+                    workspace,
+                    manifest,
+                    policy,
+                    catalogs.snapshot(target),
+                    attempt.evidenceDirectory(),
+                    pi,
+                    clock);
+            return new Step(
+                    commitValidation(attempt, validated.stamp()),
+                    true);
+        } catch (SessionBusyException e) {
+            throw e;
+        } catch (IOException e) {
+            requireNotInterrupted();
+            return new Step(
+                    optimisticFailure(
+                            attempt,
+                            "Ship validation could not run"),
+                    true);
+        }
     }
 
     private Request request(StageAttempt attempt) throws IOException {
@@ -664,19 +683,20 @@ public final class ShipCoordinator {
                 workerInputDigest(completed),
                 true,
                 "Recover the controller-owned completed Ship stage result.");
-        Result result = worker.recover(request).orElseThrow(() -> new IOException(
-                "Durable Pi result is missing for completed stage "
-                                                                                  + completed.stage()));
+        Result result = worker.recover(request).orElseThrow(
+                () -> new StalePredecessorException(
+                        "Durable Pi result is missing for completed stage "
+                                                    + completed.stage()));
         if (result.outcome() != Outcome.SUCCEEDED) {
-            throw new IOException(
+            throw new StalePredecessorException(
                     "Completed Ship stage has a non-successful Pi result");
         }
         if (completed.stage() != Stage.EXECUTE
                 && !completed.outputDigest().equals(ShipDigest.sha256(
                         result.assistantText().getBytes(StandardCharsets.UTF_8)))) {
-            throw new IOException(
+            throw new StalePredecessorException(
                     "Durable Pi result differs from the committed "
-                                  + completed.stage() + " output");
+                                                + completed.stage() + " output");
         }
         return result;
     }
@@ -799,13 +819,23 @@ public final class ShipCoordinator {
     }
 
     private static Path executeWorkspace(ShipRun run) throws IOException {
-        return run.stage(Stage.EXECUTE).artifacts().stream()
-                .map(ShipRun.ArtifactRef::path)
-                .map(Path::of)
-                .filter(Files::isDirectory)
-                .findFirst()
-                .orElseThrow(() -> new IOException(
-                        "Ship EXECUTE workspace evidence is missing"));
+        for (ShipRun.ArtifactRef artifact : run.stage(Stage.EXECUTE).artifacts()) {
+            Path candidate = Path.of(artifact.path());
+            final BasicFileAttributes attributes;
+            try {
+                attributes = Files.readAttributes(
+                        candidate,
+                        BasicFileAttributes.class,
+                        LinkOption.NOFOLLOW_LINKS);
+            } catch (NoSuchFileException e) {
+                continue;
+            }
+            if (attributes.isDirectory()) {
+                return candidate;
+            }
+        }
+        throw new StalePredecessorException(
+                "Ship EXECUTE workspace evidence is missing");
     }
 
     private static void appendImportedArtifacts(
@@ -1023,10 +1053,14 @@ public final class ShipCoordinator {
         }
     }
 
-    private static String truncate(String value) {
+    private String truncate(String value) {
         String message = value == null || value.isBlank()
                 ? "Ship stage failed"
                 : value.replace('\0', ' ').strip();
+        if (ChangedWorkspaceSecretScanner.containsSensitiveValue(
+                message.getBytes(StandardCharsets.UTF_8), environment)) {
+            return "Failed";
+        }
         return message.length() <= 1024
                 ? message
                 : message.substring(0, 1024);
@@ -1044,6 +1078,15 @@ public final class ShipCoordinator {
         if (Thread.currentThread().isInterrupted()) {
             throw new InterruptedException(
                     "Interrupted before advancing the Ship run");
+        }
+    }
+
+    private static final class StalePredecessorException extends IOException {
+
+        private static final long serialVersionUID = 1L;
+
+        private StalePredecessorException(String message) {
+            super(message);
         }
     }
 
