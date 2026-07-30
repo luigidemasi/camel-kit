@@ -90,6 +90,7 @@ public final class ShipCoordinator {
                 .normalize();
         this.controller = new ShipController(this.stateRoot, environment);
         this.distribution = Objects.requireNonNull(distribution, "distribution");
+        // Only bundled pins may mark Pi/Node supported; injected config still drives artifact policy.
         DistributionConfig maintained = DistributionConfig.loadBundled();
         this.worker = new PiWorker(
                 piExecutable,
@@ -1154,19 +1155,21 @@ public final class ShipCoordinator {
         private void watch(ShipController controller, String runId) {
             try {
                 while (!closed) {
-                    if (controller.status(runId).status()
-                        == RunStatus.ABORTED) {
-                        if (!closed) {
-                            owner.interrupt();
+                    try {
+                        if (controller.status(runId).status()
+                            == RunStatus.ABORTED) {
+                            if (!closed) {
+                                owner.interrupt();
+                            }
+                            return;
                         }
-                        return;
+                    } catch (ShipController.Failure ignored) {
+                        // Retry transient reads; the lease owner remains authoritative.
                     }
                     Thread.sleep(ABORT_POLL_MILLIS);
                 }
             } catch (InterruptedException ignored) {
                 // Closing the watcher.
-            } catch (ShipController.Failure ignored) {
-                // The lease owner remains authoritative for state failures.
             }
         }
 

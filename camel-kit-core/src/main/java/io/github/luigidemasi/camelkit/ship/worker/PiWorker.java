@@ -123,7 +123,7 @@ public final class PiWorker {
              nodeExecutable,
              supportedNodeVersion,
              timeout,
-             Clock.systemUTC());
+             System.getenv());
     }
 
     public PiWorker(
@@ -141,23 +141,6 @@ public final class PiWorker {
              timeout,
              Clock.systemUTC(),
              environment);
-    }
-
-    PiWorker(
-             Path executable,
-             String supportedVersion,
-             Path nodeExecutable,
-             String supportedNodeVersion,
-             Duration timeout,
-             Clock clock) {
-        this(
-             executable,
-             supportedVersion,
-             nodeExecutable,
-             supportedNodeVersion,
-             timeout,
-             clock,
-             System.getenv());
     }
 
     PiWorker(

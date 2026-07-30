@@ -6,6 +6,7 @@ import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Clock;
@@ -375,7 +376,7 @@ class ShipCoordinatorTest {
     }
 
     @Test
-    void abortInterruptsAndReapsTheActiveWorkerAcrossControllers()
+    void abortWatcherSurvivesTransientReadAndReapsActiveWorker()
             throws Exception {
         ShipRun run = designRun(List.of(
                 new ShipContext.TextInput("abort active work")));
@@ -397,6 +398,23 @@ class ShipCoordinatorTest {
         invocation.start();
         try {
             awaitFile(fixture.resolve("ready"));
+            Thread watcher = awaitThread(
+                    "camel-kit-ship-abort-" + run.id(),
+                    Thread.State.TIMED_WAITING);
+            Path stateFile = state.resolve(run.id()).resolve("state.json");
+            Path unavailable = stateFile.resolveSibling(
+                    "state.json.transient");
+            Files.move(
+                    stateFile, unavailable, StandardCopyOption.ATOMIC_MOVE);
+            try {
+                watcher.join(Duration.ofSeconds(1).toMillis());
+                assertTrue(watcher.isAlive());
+            } finally {
+                Files.move(
+                        unavailable,
+                        stateFile,
+                        StandardCopyOption.ATOMIC_MOVE);
+            }
             ShipRun aborted = new ShipController(state, Map.of())
                     .abort(run.id());
             invocation.join(Duration.ofSeconds(10).toMillis());
@@ -1444,6 +1462,27 @@ class ShipCoordinatorTest {
         while (!Files.exists(path)) {
             if (System.nanoTime() >= deadline) {
                 throw new AssertionError("Timed out waiting for " + path);
+            }
+            Thread.sleep(10);
+        }
+    }
+
+    private static Thread awaitThread(
+            String name, Thread.State state)
+            throws Exception {
+        long deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
+        while (true) {
+            Thread thread = Thread.getAllStackTraces().keySet().stream()
+                    .filter(candidate -> name.equals(candidate.getName())
+                            && candidate.getState() == state)
+                    .findFirst()
+                    .orElse(null);
+            if (thread != null) {
+                return thread;
+            }
+            if (System.nanoTime() >= deadline) {
+                throw new AssertionError(
+                        "Timed out waiting for " + name + " to enter " + state);
             }
             Thread.sleep(10);
         }
