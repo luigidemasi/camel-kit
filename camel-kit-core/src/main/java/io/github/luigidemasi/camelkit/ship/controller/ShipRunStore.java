@@ -250,9 +250,6 @@ final class ShipRunStore {
         if (execute.status() != StageStatus.COMPLETED) {
             return;
         }
-        if (execute.attempts() == 0) {
-            return;
-        }
         Path expected = runRoot.resolve("workspace/candidate").toAbsolutePath().normalize();
         ArtifactRef root = null;
         for (ArtifactRef artifact : execute.artifacts()) {
@@ -323,29 +320,12 @@ final class ShipRunStore {
                         && record.outputDigest().equals(run.context().digest());
                 case DESIGN -> documents != null
                         && isImportedFile(record, documents.resolve("design-spec.md"));
-                case PLAN -> documents != null
-                        && isImportedFile(record, documents.resolve("implementation-plan.md"));
-                case EXECUTE -> documents != null
-                        && isImportedExecute(run, record, documents);
-                case VALIDATE -> false;
+                case PLAN, EXECUTE, VALIDATE -> false;
             };
             if (!canonical) {
                 throw invalidImportedEvidence(run, code);
             }
         }
-    }
-
-    private static boolean isImportedExecute(
-            ShipRun run, StageRecord execute, Path documents) {
-        if (execute.artifacts().size() != 2) {
-            return false;
-        }
-        ArtifactRef report = execute.artifacts().get(0);
-        ArtifactRef snapshot = execute.artifacts().get(1);
-        Path expectedReport = documents.resolve("execution-report.md");
-        return report.path().equals(expectedReport.toString())
-                && snapshot.path().equals(run.projectDirectory())
-                && execute.outputDigest().equals(report.digest());
     }
 
     private static boolean isImportedFile(StageRecord stage, Path expected) {

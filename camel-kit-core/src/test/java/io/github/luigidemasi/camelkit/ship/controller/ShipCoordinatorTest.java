@@ -6,6 +6,7 @@ import java.nio.channels.FileLock;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Clock;
@@ -77,6 +78,7 @@ class ShipCoordinatorTest {
     Path directory;
 
     private Path fixture;
+    private Path nodeExecutable;
     private Path project;
     private Path state;
     private ShipController controller;
@@ -89,12 +91,23 @@ class ShipCoordinatorTest {
         fixture = Files.createDirectory(directory.resolve("fake-pi"));
         try (var script = Objects.requireNonNull(
                 ShipCoordinatorTest.class.getResourceAsStream(
-                        "/io/github/luigidemasi/camelkit/ship/worker/fake-pi-0.80.6.sh"))) {
+                        "/io/github/luigidemasi/camelkit/ship/worker/fake-pi-rpc.sh"))) {
             writeExecutable(
                     fixture.resolve("pi-rpc"),
                     new String(script.readAllBytes(), StandardCharsets.UTF_8));
         }
-        Files.writeString(fixture.resolve("version"), "0.80.6\n");
+        nodeExecutable = writeExecutable(
+                fixture.resolve("node"),
+                """
+                        #!/bin/sh
+                        if [ "${1:-}" = "--version" ]; then
+                          cat "$(dirname "$0")/node-version"
+                        else
+                          exec "$@"
+                        fi
+                        """);
+        Files.writeString(fixture.resolve("node-version"), "v22.22.2\n");
+        Files.writeString(fixture.resolve("version"), "0.83.0\n");
         Files.writeString(fixture.resolve("mode"), "success\n");
         writeDesignResult();
 
@@ -106,6 +119,8 @@ class ShipCoordinatorTest {
         worker = new PiWorker(
                 fixture.resolve("pi-rpc"),
                 distribution.piVersion(),
+                nodeExecutable,
+                distribution.nodeVersion(),
                 Duration.ofSeconds(30),
                 environment);
         coordinator = new ShipCoordinator(
@@ -117,6 +132,47 @@ class ShipCoordinatorTest {
                 distribution,
                 true,
                 Clock.systemUTC());
+    }
+
+    @Test
+    void configuredOverridesCannotPromoteUnmaintainedWorkerTools()
+            throws Exception {
+        Properties overrides = new Properties();
+        overrides.setProperty("pi.version", "0.81.1");
+        overrides.setProperty("node.version", "23.0.0");
+        ShipCoordinator publicCoordinator = new ShipCoordinator(
+                state,
+                fixture.resolve("pi-rpc"),
+                nodeExecutable,
+                Files.createDirectory(directory.resolve("override-m2")),
+                DistributionConfig.load(overrides),
+                Duration.ofSeconds(5),
+                false);
+
+        Files.writeString(fixture.resolve("version"), "0.81.1\n");
+        ShipRun unmaintainedPi = controller.start(
+                project,
+                Oversight.NEVER,
+                List.of(new ShipContext.TextInput("unmaintained Pi")));
+        ShipRun piFailed = publicCoordinator.run(unmaintainedPi.id());
+
+        assertEquals(RunStatus.FAILED, piFailed.status());
+        assertTrue(piFailed.message().contains(
+                "Pi 0.81.1 is unverified; install maintained Pi 0.83.0"));
+        assertFalse(Files.exists(fixture.resolve("args")));
+
+        Files.writeString(fixture.resolve("version"), "0.83.0\n");
+        Files.writeString(fixture.resolve("node-version"), "v23.0.0\n");
+        ShipRun unmaintainedNode = controller.start(
+                project,
+                Oversight.NEVER,
+                List.of(new ShipContext.TextInput("unmaintained Node")));
+        ShipRun nodeFailed = publicCoordinator.run(unmaintainedNode.id());
+
+        assertEquals(RunStatus.FAILED, nodeFailed.status());
+        assertTrue(nodeFailed.message().contains(
+                "Node 23.0.0 is unverified; install maintained Node 22.22.2"));
+        assertFalse(Files.exists(fixture.resolve("args")));
     }
 
     @Test
@@ -320,6 +376,76 @@ class ShipCoordinatorTest {
     }
 
     @Test
+    void abortWatcherSurvivesTransientReadAndReapsActiveWorker()
+            throws Exception {
+        ShipRun run = designRun(List.of(
+                new ShipContext.TextInput("abort active work")));
+        Files.writeString(fixture.resolve("mode"), "block\n");
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicBoolean interrupted = new AtomicBoolean();
+        Thread invocation = new Thread(() -> {
+            try {
+                coordinator.run(run.id());
+                failure.set(new AssertionError(
+                        "Ship coordinator unexpectedly completed"));
+            } catch (InterruptedException expected) {
+                interrupted.set(Thread.currentThread().isInterrupted());
+            } catch (Throwable unexpected) {
+                failure.set(unexpected);
+            }
+        });
+
+        invocation.start();
+        try {
+            awaitFile(fixture.resolve("ready"));
+            Thread watcher = awaitThread(
+                    "camel-kit-ship-abort-" + run.id(),
+                    Thread.State.TIMED_WAITING);
+            Path stateFile = state.resolve(run.id()).resolve("state.json");
+            Path unavailable = stateFile.resolveSibling(
+                    "state.json.transient");
+            Files.move(
+                    stateFile, unavailable, StandardCopyOption.ATOMIC_MOVE);
+            try {
+                watcher.join(Duration.ofSeconds(1).toMillis());
+                assertTrue(watcher.isAlive());
+            } finally {
+                Files.move(
+                        unavailable,
+                        stateFile,
+                        StandardCopyOption.ATOMIC_MOVE);
+            }
+            ShipRun aborted = new ShipController(state, Map.of())
+                    .abort(run.id());
+            invocation.join(Duration.ofSeconds(10).toMillis());
+
+            assertFalse(invocation.isAlive());
+            assertNull(failure.get());
+            assertTrue(interrupted.get());
+            assertEquals(aborted, controller.status(run.id()));
+            assertEquals(RunStatus.ABORTED, aborted.status());
+            assertEquals(StageStatus.ABORTED,
+                    aborted.stage(Stage.DESIGN).status());
+            assertEquals(
+                    "{\"id\":\"abort-1\",\"type\":\"abort\"}",
+                    Files.readString(fixture.resolve("abort")).trim());
+            assertFixtureProcessesGone();
+
+            assertEquals(aborted, coordinator.run(run.id()));
+            ShipController.Failure cannotResume = assertThrows(
+                    ShipController.Failure.class,
+                    () -> coordinator.resume(run.id()));
+            assertEquals("run-aborted", cannotResume.code());
+            assertFalse(Thread.currentThread().isInterrupted());
+        } finally {
+            if (invocation.isAlive()) {
+                invocation.interrupt();
+                invocation.join(Duration.ofSeconds(10).toMillis());
+            }
+        }
+    }
+
+    @Test
     void busyPiSessionLeavesTheAttemptRunningWithoutProgress()
             throws Exception {
         ShipRun run = designRun(List.of(
@@ -494,14 +620,17 @@ class ShipCoordinatorTest {
         Path documents = Files.createDirectories(
                 project.resolve("docs/camel-kit/149-coordinator"));
         Files.writeString(documents.resolve("design-spec.md"), "Imported design");
-        Files.writeString(
-                documents.resolve("implementation-plan.md"),
-                "Imported implementation plan");
+        writeWorkerResult("Implementation plan", mainPolicy());
         ShipRun run = controller.startFrom(
                 project,
-                Stage.EXECUTE,
+                Stage.PLAN,
                 Oversight.ALWAYS,
                 List.of());
+        ShipRun planned = coordinator.run(run.id());
+        assertEquals(RunStatus.PAUSED, planned.status());
+        assertEquals(Stage.EXECUTE, planned.currentStage());
+        controller.resume(run.id());
+        writeWorkerResult("Execution report", null);
 
         ShipRun failed = coordinator.run(run.id());
 
@@ -510,44 +639,6 @@ class ShipCoordinatorTest {
         assertEquals(StageStatus.FAILED, failed.stage(Stage.EXECUTE).status());
         assertEquals(1, failed.stage(Stage.EXECUTE).attempts());
         assertTrue(failed.message().contains("artifact manifest"));
-    }
-
-    @Test
-    void importedExecuteFailsValidationWithoutAGeneratedPolicy()
-            throws Exception {
-        Path metadata = Files.createDirectories(project.resolve(".camel-kit"));
-        Files.writeString(
-                metadata.resolve("pipeline.json"),
-                "{\"mode\":\"manual\",\"activePipeline\":\"149-coordinator\"}\n");
-        Path documents = Files.createDirectories(
-                project.resolve("docs/camel-kit/149-coordinator"));
-        Files.writeString(documents.resolve("design-spec.md"), "Imported design");
-        Files.writeString(
-                documents.resolve("implementation-plan.md"),
-                "Imported implementation plan");
-        ShipRun run = controller.startFrom(
-                project,
-                Stage.EXECUTE,
-                Oversight.NEVER,
-                List.of());
-        StageAttempt execute = controller.prepareAttempt(run.id());
-        writeGeneratedMainCandidate(
-                execute.workingDirectory(), mainPolicy());
-        writeWorkerResult("Execution report", null);
-
-        ShipRun failed = coordinator.run(run.id());
-
-        assertEquals(RunStatus.FAILED, failed.status());
-        assertEquals(StageStatus.COMPLETED,
-                failed.stage(Stage.EXECUTE).status());
-        assertEquals(Stage.VALIDATE, failed.currentStage());
-        assertEquals(StageStatus.FAILED,
-                failed.stage(Stage.VALIDATE).status());
-        assertEquals(1, failed.stage(Stage.VALIDATE).attempts());
-        assertEquals("Ship validation could not run", failed.message());
-        assertFalse(Files.exists(
-                state.resolve(run.id())
-                        .resolve("evidence/validate-1/stamp.json")));
     }
 
     @Test
@@ -809,6 +900,14 @@ class ShipCoordinatorTest {
         String prompt = Files.readString(fixture.resolve("prompt"));
         assertTrue(prompt.contains(briefing.toString()));
         assertTrue(prompt.contains(digest));
+        assertTrue(prompt.contains(
+                "pipelineId is a JSON string only for DISCOVERY and JSON null otherwise"));
+        assertTrue(prompt.contains(
+                "report is one non-empty JSON string, never an object or array"));
+        assertTrue(prompt.contains(
+                "artifactPolicy is the policy object only for PLAN and JSON null otherwise"));
+        assertTrue(prompt.contains(
+                "materialAmbiguity is one JSON boolean, never an object or array"));
         assertFalse(prompt.contains("first-inline-context"));
         assertFalse(prompt.contains("second-document-context"));
         assertFalse(prompt.contains("third-inline-context"));
@@ -829,7 +928,7 @@ class ShipCoordinatorTest {
     @Test
     void preplantedPassingStampCannotPromoteValidation()
             throws Exception {
-        ShipRun run = importedValidationRun();
+        ShipRun run = generatedValidationRun();
         StageAttempt attempt = controller.prepareAttempt(run.id());
         ShipLocalStamp stamp = ShipLocalStamp.create(
                 run.id(),
@@ -850,8 +949,22 @@ class ShipCoordinatorTest {
                 Instant.parse("2026-07-29T12:00:00Z"));
         ShipLocalStampStore.write(
                 attempt.evidenceDirectory(), run.id(), stamp);
+        int piSessions = Files.readAllLines(
+                fixture.resolve("session-ids")).size();
+        ShipCoordinator unavailableCatalog = new ShipCoordinator(
+                state,
+                controller,
+                worker,
+                target -> {
+                    throw new IOException("Catalog unavailable");
+                },
+                new ShipMainValidator(),
+                distribution,
+                Map.of(),
+                true,
+                Clock.systemUTC());
 
-        ShipRun failed = coordinator.resume(run.id());
+        ShipRun failed = unavailableCatalog.resume(run.id());
 
         assertEquals(RunStatus.FAILED, failed.status());
         assertEquals(Stage.VALIDATE, failed.currentStage());
@@ -865,7 +978,9 @@ class ShipCoordinatorTest {
         assertFalse(Files.exists(
                 state.resolve(run.id())
                         .resolve("evidence/validate-2/stamp.json")));
-        assertFalse(Files.exists(fixture.resolve("session-ids")));
+        assertEquals(
+                piSessions,
+                Files.readAllLines(fixture.resolve("session-ids")).size());
     }
 
     @Test
@@ -952,7 +1067,7 @@ class ShipCoordinatorTest {
                 context);
     }
 
-    private ShipRun importedValidationRun() throws IOException {
+    private ShipRun generatedValidationRun() throws Exception {
         Path metadata = Files.createDirectories(project.resolve(".camel-kit"));
         Files.writeString(
                 metadata.resolve("pipeline.json"),
@@ -960,17 +1075,25 @@ class ShipCoordinatorTest {
         Path documents = Files.createDirectories(
                 project.resolve("docs/camel-kit/149-coordinator"));
         Files.writeString(documents.resolve("design-spec.md"), "Imported design");
-        Files.writeString(
-                documents.resolve("implementation-plan.md"),
-                "Imported implementation plan");
-        Files.writeString(
-                documents.resolve("execution-report.md"),
-                "Imported execution report");
-        return controller.startFrom(
+        ArtifactPolicy policy = mainPolicy();
+        writeWorkerResult("Implementation plan", policy);
+        ShipRun run = controller.startFrom(
                 project,
-                Stage.VALIDATE,
-                Oversight.NEVER,
+                Stage.PLAN,
+                Oversight.ALWAYS,
                 List.of());
+        ShipRun planned = coordinator.run(run.id());
+        assertEquals(RunStatus.PAUSED, planned.status());
+        assertEquals(Stage.EXECUTE, planned.currentStage());
+        controller.resume(run.id());
+        StageAttempt execute = controller.prepareAttempt(run.id());
+        writeGeneratedMainCandidate(
+                execute.workingDirectory(), policy);
+        writeWorkerResult("Execution report", null);
+        ShipRun executed = coordinator.run(run.id());
+        assertEquals(RunStatus.PAUSED, executed.status());
+        assertEquals(Stage.VALIDATE, executed.currentStage());
+        return controller.resume(run.id());
     }
 
     private ArtifactPolicy mainPolicy() {
@@ -1339,6 +1462,27 @@ class ShipCoordinatorTest {
         while (!Files.exists(path)) {
             if (System.nanoTime() >= deadline) {
                 throw new AssertionError("Timed out waiting for " + path);
+            }
+            Thread.sleep(10);
+        }
+    }
+
+    private static Thread awaitThread(
+            String name, Thread.State state)
+            throws Exception {
+        long deadline = System.nanoTime() + Duration.ofSeconds(5).toNanos();
+        while (true) {
+            Thread thread = Thread.getAllStackTraces().keySet().stream()
+                    .filter(candidate -> name.equals(candidate.getName())
+                            && candidate.getState() == state)
+                    .findFirst()
+                    .orElse(null);
+            if (thread != null) {
+                return thread;
+            }
+            if (System.nanoTime() >= deadline) {
+                throw new AssertionError(
+                        "Timed out waiting for " + name + " to enter " + state);
             }
             Thread.sleep(10);
         }

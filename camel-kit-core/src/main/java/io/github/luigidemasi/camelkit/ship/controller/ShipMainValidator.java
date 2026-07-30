@@ -49,6 +49,7 @@ import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.Check;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.CommandRun;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.Outcome;
+import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.Support;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.ToolVersion;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStampStore;
 import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipMainPackageMain;
@@ -100,13 +101,16 @@ final class ShipMainValidator {
             ShipCatalogService.Snapshot catalog,
             Path evidenceRoot,
             ToolVersion pi,
+            ToolVersion node,
             Clock clock)
             throws IOException, InterruptedException {
         requireNotInterrupted();
         Objects.requireNonNull(policy, "artifact policy must not be null");
         Objects.requireNonNull(catalog, "catalog snapshot must not be null");
         Objects.requireNonNull(pi, "Pi tool version must not be null");
+        Objects.requireNonNull(node, "Node tool version must not be null");
         Objects.requireNonNull(clock, "clock must not be null");
+        List<ToolVersion> tools = toolVersions(pi, node, policy);
         Path evidence = privateDirectory(evidenceRoot);
         Path candidate = realDirectory(candidateRoot, "candidate root");
         List<Check> checks = new ArrayList<>();
@@ -122,7 +126,7 @@ final class ShipMainValidator {
             checks.add(check("artifact-policy", Outcome.FAIL,
                     summary("Artifact manifest was rejected", e), null));
             checks.add(skipped("catalog-usage", "Catalog validation requires an accepted artifact manifest"));
-            return persist(runId, pi, checks, evidence, clock);
+            return persist(runId, tools, checks, evidence, clock);
         }
 
         ArtifactValidationResult artifacts;
@@ -134,7 +138,7 @@ final class ShipMainValidator {
             checks.add(check("artifact-policy", Outcome.FAIL,
                     summary("Artifact validation failed", e), null));
             checks.add(skipped("catalog-usage", "Catalog validation requires accepted artifacts"));
-            return persist(runId, pi, checks, evidence, clock);
+            return persist(runId, tools, checks, evidence, clock);
         }
         if (!artifacts.passed() || !main) {
             String detail = !main
@@ -142,7 +146,7 @@ final class ShipMainValidator {
                     : finding("Artifact validation failed", artifacts);
             checks.add(check("artifact-policy", Outcome.FAIL, detail, null));
             checks.add(skipped("catalog-usage", "Catalog validation requires accepted artifacts"));
-            return persist(runId, pi, checks, evidence, clock);
+            return persist(runId, tools, checks, evidence, clock);
         }
         checks.add(check("artifact-policy", Outcome.PASS,
                 "Artifacts match the independent Camel Main policy", null));
@@ -153,12 +157,12 @@ final class ShipMainValidator {
         } catch (IOException | RuntimeException e) {
             checks.add(check("catalog-usage", Outcome.FAIL,
                     summary("Catalog validation failed", e), null));
-            return persist(runId, pi, checks, evidence, clock);
+            return persist(runId, tools, checks, evidence, clock);
         }
         if (!closure.binding().validation().passed() || closure.binding().pomDigest() == null) {
             checks.add(check("catalog-usage", Outcome.FAIL,
                     finding("Catalog dependency validation failed", closure.binding().validation()), null));
-            return persist(runId, pi, checks, evidence, clock);
+            return persist(runId, tools, checks, evidence, clock);
         }
         checks.add(check("catalog-usage", Outcome.PASS,
                 "Route usage and runtime dependencies match the frozen catalog", null));
@@ -176,13 +180,13 @@ final class ShipMainValidator {
         } catch (IOException | RuntimeException e) {
             checks.add(check("evidence-plan", Outcome.FAIL,
                     summary("Evidence plan was rejected", e), null));
-            return persist(runId, pi, checks, evidence, clock);
+            return persist(runId, tools, checks, evidence, clock);
         }
 
         for (EvidenceCommand command : commands) {
             checks.add(execute(candidate, evidence, manifest, command));
         }
-        return persist(runId, pi, checks, evidence, clock);
+        return persist(runId, tools, checks, evidence, clock);
     }
 
     private Check execute(
@@ -609,13 +613,14 @@ final class ShipMainValidator {
 
     private static Result persist(
             String runId,
-            ToolVersion pi,
+            List<ToolVersion> tools,
             List<Check> checks,
             Path evidence,
             Clock clock)
             throws IOException, InterruptedException {
         requireNotInterrupted();
-        ShipLocalStamp stamp = ShipLocalStamp.create(runId, List.of(pi), checks, clock.instant());
+        ShipLocalStamp stamp = ShipLocalStamp.create(
+                runId, tools, checks, clock.instant());
         requireNotInterrupted();
         Path published = ShipLocalStampStore.write(evidence, runId, stamp);
         try {
@@ -629,6 +634,58 @@ final class ShipMainValidator {
             throw e;
         }
         return new Result(stamp);
+    }
+
+    private static List<ToolVersion> toolVersions(
+            ToolVersion pi, ToolVersion node, ArtifactPolicy policy) {
+        if (!"pi".equals(pi.tool()) || !"node".equals(node.tool())) {
+            throw new IllegalArgumentException(
+                    "Ship worker tool diagnostics must be ordered Pi then Node");
+        }
+        return List.of(
+                pi,
+                node,
+                new ToolVersion(
+                        "java",
+                        null,
+                        Runtime.version().toString(),
+                        Support.UNTESTED,
+                        "Recorded for diagnostics; exact Java-version certification is not claimed"),
+                new ToolVersion(
+                        "camel",
+                        null,
+                        policy.camelVersion(),
+                        Support.UNTESTED,
+                        "Recorded for diagnostics; support follows the selected artifact policy"),
+                diagnostic(
+                        "os",
+                        diagnosticProperty("os.name") + " "
+                              + diagnosticProperty("os.version"),
+                        "Recorded for diagnostics; exact OS-version certification is not claimed"),
+                diagnostic(
+                        "architecture",
+                        diagnosticProperty("os.arch"),
+                        "Recorded for diagnostics; exact architecture certification is not claimed"));
+    }
+
+    private static ToolVersion diagnostic(
+            String tool, String version, String message) {
+        try {
+            return new ToolVersion(
+                    tool, null, version, Support.UNTESTED, message);
+        } catch (IllegalArgumentException ignored) {
+            return new ToolVersion(
+                    tool, null, "unknown", Support.UNTESTED, message);
+        }
+    }
+
+    private static String diagnosticProperty(String name) {
+        try {
+            String value = System.getProperty(name);
+            return value == null || value.isBlank() ? "unknown" : value;
+        } catch (SecurityException ignored) {
+            return "unknown";
+        }
     }
 
     private static void requireNotInterrupted()

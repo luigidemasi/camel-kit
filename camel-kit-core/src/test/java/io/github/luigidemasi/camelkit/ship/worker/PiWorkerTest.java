@@ -43,6 +43,7 @@ class PiWorkerTest {
     Path temporaryDirectory;
 
     private Path executable;
+    private Path nodeExecutable;
     private Path fixture;
     private Path workingDirectory;
     private Path sessions;
@@ -53,12 +54,24 @@ class PiWorkerTest {
         fixture = Files.createDirectory(temporaryDirectory.resolve("fake-pi"));
         try (var script = Objects.requireNonNull(
                 PiWorkerTest.class.getResourceAsStream(
-                        "fake-pi-0.80.6.sh"))) {
+                        "fake-pi-rpc.sh"))) {
             executable = writeExecutable(
                     fixture.resolve("pi-rpc"),
                     new String(script.readAllBytes(), StandardCharsets.UTF_8));
         }
-        Files.writeString(fixture.resolve("version"), "0.80.6\n");
+        nodeExecutable = writeExecutable(
+                fixture.resolve("node"),
+                """
+                        #!/bin/sh
+                        if [ "${1:-}" = "--version" ]; then
+                          cat "$(dirname "$0")/node-version"
+                        else
+                          printf '%s\\n' "$*" >> "$(dirname "$0")/node-invocations"
+                          exec "$@"
+                        fi
+                        """);
+        Files.writeString(fixture.resolve("node-version"), "v22.22.2\n");
+        Files.writeString(fixture.resolve("version"), "0.83.0\n");
         Files.writeString(fixture.resolve("mode"), "success\n");
         Files.writeString(fixture.resolve("assistant-text"), "done");
         workingDirectory = Files.createDirectory(temporaryDirectory.resolve("workspace"));
@@ -74,10 +87,26 @@ class PiWorkerTest {
                 .run(request(ShipRun.Stage.DISCOVERY, "private prompt"));
 
         assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
-        assertEquals(ShipLocalStamp.Support.EXPERIMENTAL, result.support());
-        assertEquals("0.80.6", result.version());
-        assertTrue(result.warning().contains("live Pi end-to-end gate"));
+        assertEquals(ShipLocalStamp.Support.SUPPORTED, result.support());
+        assertEquals("0.83.0", result.version());
+        assertNull(result.warning());
+        assertEquals(
+                new ShipLocalStamp.ToolVersion(
+                        "node",
+                        nodeExecutable.toString(),
+                        "22.22.2",
+                        ShipLocalStamp.Support.SUPPORTED,
+                        null),
+                result.node());
         assertEquals("done", result.assistantText());
+        List<String> nodeInvocations = Files.readAllLines(
+                fixture.resolve("node-invocations"));
+        assertEquals(2, nodeInvocations.size());
+        assertEquals(
+                executable + " --version",
+                nodeInvocations.get(0));
+        assertTrue(nodeInvocations.get(1).startsWith(
+                executable + " --mode rpc"));
         assertEquals(workingDirectory.toString(), Files.readString(fixture.resolve("cwd")).trim());
         assertEquals(
                 "{\"id\":\"prompt-1\",\"type\":\"prompt\",\"message\":\"private prompt\"}",
@@ -133,6 +162,103 @@ class PiWorkerTest {
         assertEquals(
                 ShipDigest.sha256(Files.readAllBytes(Path.of(result.evidence().stdoutLog()))),
                 result.evidence().stdoutDigest());
+    }
+
+    @Test
+    void requiresOptInOnlyForUnverifiedPiOrNode() throws Exception {
+        PiWorker.Result maintained = worker(Duration.ofSeconds(5))
+                .run(request(
+                        ShipRun.Stage.DISCOVERY,
+                        "maintained tools",
+                        false));
+
+        assertEquals(ShipLocalStamp.Support.SUPPORTED, maintained.support());
+        assertNull(maintained.warning());
+        assertEquals(
+                ShipLocalStamp.Support.SUPPORTED,
+                maintained.node().support());
+        assertNull(maintained.node().message());
+
+        Files.deleteIfExists(fixture.resolve("args"));
+        Files.writeString(
+                fixture.resolve("node-version"), "v23.0.0\n");
+        IOException unaccepted = assertThrows(
+                IOException.class,
+                () -> worker(Duration.ofSeconds(5))
+                        .run(request(
+                                ShipRun.Stage.DESIGN,
+                                "unverified Node",
+                                false)));
+
+        assertTrue(unaccepted.getMessage().contains("Node 23.0.0"));
+        assertTrue(unaccepted.getMessage().contains("22.22.2"));
+        assertTrue(unaccepted.getMessage().contains("explicitly accept"));
+        assertFalse(Files.exists(fixture.resolve("args")));
+
+        PiWorker.Result accepted = worker(Duration.ofSeconds(5))
+                .run(request(
+                        ShipRun.Stage.DESIGN,
+                        "unverified Node",
+                        true));
+        assertEquals(
+                ShipLocalStamp.Support.EXPERIMENTAL,
+                accepted.node().support());
+        assertTrue(accepted.node().message().contains("22.22.2"));
+    }
+
+    @Test
+    void interruptionReapsTheNodeVersionProbeBeforePiStarts()
+            throws Exception {
+        Path blockingNode = writeExecutable(
+                fixture.resolve("blocking-node"),
+                """
+                        #!/bin/sh
+                        if [ "${1:-}" = "--version" ]; then
+                          printf '%s\\n' "$$" > "$(dirname "$0")/node-parent-pid"
+                          sleep 300 &
+                          printf '%s\\n' "$!" > "$(dirname "$0")/node-child-pid"
+                          touch "$(dirname "$0")/node-ready"
+                          wait
+                        else
+                          exec "$@"
+                        fi
+                        """);
+        PiWorker blocked = new PiWorker(
+                executable,
+                "0.83.0",
+                blockingNode,
+                "22.22.2",
+                Duration.ofSeconds(30));
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        AtomicBoolean interrupted = new AtomicBoolean();
+        Thread invocation = new Thread(() -> {
+            try {
+                blocked.run(request(
+                        ShipRun.Stage.DISCOVERY, "blocked Node probe"));
+                failure.set(new AssertionError(
+                        "Node version probe unexpectedly completed"));
+            } catch (InterruptedException expected) {
+                interrupted.set(Thread.currentThread().isInterrupted());
+            } catch (Throwable unexpected) {
+                failure.set(unexpected);
+            }
+        });
+
+        invocation.start();
+        awaitFile(fixture.resolve("node-ready"));
+        invocation.interrupt();
+        invocation.join(Duration.ofSeconds(10).toMillis());
+
+        assertFalse(invocation.isAlive());
+        assertNull(failure.get());
+        assertTrue(interrupted.get());
+        assertFalse(Files.exists(fixture.resolve("args")));
+        awaitGone(Long.parseLong(
+                Files.readString(
+                        fixture.resolve("node-parent-pid")).trim()));
+        awaitGone(Long.parseLong(
+                Files.readString(
+                        fixture.resolve("node-child-pid")).trim()));
     }
 
     @Test
@@ -219,6 +345,7 @@ class PiWorkerTest {
 
     @Test
     void requiresExplicitExperimentalAcceptanceBeforeStartingTheStage() throws Exception {
+        Files.writeString(fixture.resolve("version"), "0.81.1\n");
         PiWorker.Request rejected = request(ShipRun.Stage.DISCOVERY, "private prompt", false);
 
         IOException failure = assertThrows(
@@ -311,7 +438,8 @@ class PiWorkerTest {
     @Test
     void rejectsSensitiveVersionDiagnosticsBeforePublication()
             throws Exception {
-        String secret = "Pi 0.80.6 is experimental until the live Pi end-to-end gate passes";
+        Files.writeString(fixture.resolve("version"), "0.81.1\n");
+        String secret = "Pi 0.81.1 is unverified; install maintained Pi 0.83.0";
         PiWorker.Request request = request(
                 ShipRun.Stage.DISCOVERY, "prompt");
         PiWorker worker = worker(
@@ -570,7 +698,7 @@ class PiWorkerTest {
                 .run(request(stage, "test prompt"));
 
         assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
-        assertEquals("0.80.6", result.version());
+        assertEquals("0.83.0", result.version());
         assertTrue(hasSession(sessionId(stage)));
     }
 
@@ -597,7 +725,9 @@ class PiWorkerTest {
 
         PiWorker.Result result = new PiWorker(
                 wrapper,
-                "0.80.6",
+                "0.83.0",
+                nodeExecutable,
+                "22.22.2",
                 Duration.ofSeconds(5),
                 environment)
                 .run(request(ShipRun.Stage.DISCOVERY, "prompt"));
@@ -792,7 +922,7 @@ class PiWorkerTest {
         assertEquals(PiWorker.Outcome.SUCCEEDED, experimental.outcome());
         assertEquals(ShipLocalStamp.Support.EXPERIMENTAL, experimental.support());
         assertEquals("0.81.1", experimental.version());
-        assertTrue(experimental.warning().contains("0.80.6"));
+        assertTrue(experimental.warning().contains("0.83.0"));
         assertTrue(experimental.warning().contains("unverified"));
 
         Files.deleteIfExists(fixture.resolve("args"));
@@ -824,7 +954,9 @@ class PiWorkerTest {
                 IllegalArgumentException.class,
                 () -> new PiWorker(
                         temporaryDirectory.resolve("missing-pi"),
-                        "0.80.6",
+                        "0.83.0",
+                        nodeExecutable,
+                        "22.22.2",
                         Duration.ofSeconds(5)));
 
         assertTrue(invalid.getMessage().contains("invalid version"));
@@ -837,7 +969,11 @@ class PiWorkerTest {
         Files.createSymbolicLink(symlink, executable.getFileName());
 
         PiWorker.Result result = new PiWorker(
-                symlink, "0.80.6", Duration.ofSeconds(5))
+                symlink,
+                "0.83.0",
+                nodeExecutable,
+                "22.22.2",
+                Duration.ofSeconds(5))
                 .run(request(ShipRun.Stage.DISCOVERY, "prompt"));
 
         assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
@@ -1908,7 +2044,9 @@ class PiWorkerTest {
                 result,
                 new PiWorker(
                         otherExecutable,
-                        "0.80.6",
+                        "0.83.0",
+                        nodeExecutable,
+                        "22.22.2",
                         Duration.ofSeconds(5))
                         .recover(request)
                         .orElseThrow());
@@ -2102,14 +2240,21 @@ class PiWorkerTest {
     }
 
     private PiWorker worker(Duration timeout) {
-        return new PiWorker(executable, "0.80.6", timeout);
+        return new PiWorker(
+                executable,
+                "0.83.0",
+                nodeExecutable,
+                "22.22.2",
+                timeout);
     }
 
     private PiWorker worker(
             Duration timeout, Map<String, String> environment) {
         return new PiWorker(
                 executable,
-                "0.80.6",
+                "0.83.0",
+                nodeExecutable,
+                "22.22.2",
                 timeout,
                 Clock.systemUTC(),
                 environment);

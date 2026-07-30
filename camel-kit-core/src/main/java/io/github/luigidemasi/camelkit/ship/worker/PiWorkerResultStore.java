@@ -35,7 +35,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 /** Atomic recovery marker for a completed Pi stage attempt. */
 final class PiWorkerResultStore {
 
-    private static final int SCHEMA_VERSION = 1;
+    private static final int SCHEMA_VERSION = 2;
     private static final int MAX_RESULT_BYTES = 20 * 1024 * 1024;
     private static final String DIRECTORY = ".camel-kit-results";
     private static final ObjectMapper JSON = new ObjectMapper(

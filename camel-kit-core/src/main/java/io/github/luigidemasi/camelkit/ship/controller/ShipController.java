@@ -138,6 +138,12 @@ public final class ShipController {
         String runId = newRunId();
         Path project = requireProject(projectDirectory);
         Stage startStage = Objects.requireNonNull(target, "start stage");
+        if (startStage == Stage.EXECUTE || startStage == Stage.VALIDATE) {
+            throw failure(
+                    "start-from-stage-unsupported",
+                    "Starting from EXECUTE or VALIDATE requires controller-owned "
+                                                    + "generated PLAN/Pi evidence; start from PLAN instead");
+        }
         String pipelineId = inspectProjectState(project);
         ShipContext context = resolveContext(project, inputs);
         rejectContextSecrets(context);
@@ -983,7 +989,9 @@ public final class ShipController {
             paths.add(normalized);
         }
         if (stage == Stage.EXECUTE && attempt == 0) {
-            return importedExecuteArtifacts(project, paths);
+            throw failure(
+                    "artifact-invalid",
+                    "Imported Ship EXECUTE evidence is unsupported; start from PLAN instead");
         }
         WorkspaceEvidence workspace = workspaceRequired
                 ? verifyWorkspace(project, expected, runId, attempt, inputDigest, runDirectory)
@@ -998,37 +1006,6 @@ public final class ShipController {
             refreshed.add(readArtifact(project, path, budget));
         }
         return List.copyOf(refreshed);
-    }
-
-    private static List<ArtifactRef> importedExecuteArtifacts(
-            Path project, List<Path> paths) {
-        try {
-            ProjectSnapshot snapshot = ProjectEvidenceFiles.capture(project);
-            List<ArtifactRef> refreshed = new ArrayList<>(paths.size());
-            for (Path path : paths) {
-                if (path.equals(project)) {
-                    refreshed.add(new ArtifactRef(path.toString(), snapshot.digest()));
-                    continue;
-                }
-                String relative = project.relativize(path)
-                        .toString()
-                        .replace(java.io.File.separatorChar, '/');
-                ProjectSnapshot.FileEntry entry = snapshot.files().get(relative);
-                if (entry == null || entry.size() == 0
-                        || entry.classification() != Classification.MATERIAL) {
-                    throw failure(
-                            "artifact-invalid",
-                            "Imported Ship EXECUTE evidence is not material: " + path);
-                }
-                refreshed.add(new ArtifactRef(path.toString(), entry.digest()));
-            }
-            return List.copyOf(refreshed);
-        } catch (IOException | SecurityException e) {
-            throw failure(
-                    "artifact-unreadable",
-                    "Imported Ship EXECUTE evidence could not be captured",
-                    e);
-        }
     }
 
     private static WorkspaceEvidence verifyWorkspace(
@@ -1455,38 +1432,14 @@ public final class ShipController {
                     "Starting from " + stage.next()
                                                    + " requires a manual activePipeline in .camel-kit/pipeline.json");
         }
-        String filename = switch (stage) {
-            case DESIGN -> "design-spec.md";
-            case PLAN -> "implementation-plan.md";
-            case EXECUTE -> "execution-report.md";
-            case DISCOVERY, VALIDATE -> throw new IllegalStateException(
-                    "No imported artifact for stage " + stage);
-        };
-        Path reportPath = project.resolve("docs/camel-kit").resolve(pipelineId).resolve(filename);
-        if (stage != Stage.EXECUTE) {
-            return List.of(readArtifact(project, reportPath));
+        if (stage != Stage.DESIGN) {
+            throw new IllegalStateException(
+                    "No supported imported artifact for stage " + stage);
         }
-        try {
-            ProjectSnapshot snapshot = ProjectEvidenceFiles.capture(project);
-            String relative = project.relativize(reportPath)
-                    .toString()
-                    .replace(java.io.File.separatorChar, '/');
-            ProjectSnapshot.FileEntry report = snapshot.files().get(relative);
-            if (report == null || report.size() == 0
-                    || report.classification() != Classification.MATERIAL) {
-                throw failure(
-                        "artifact-missing",
-                        "Ship artifact does not exist or is not material: " + reportPath);
-            }
-            return List.of(
-                    new ArtifactRef(reportPath.toString(), report.digest()),
-                    new ArtifactRef(project.toString(), snapshot.digest()));
-        } catch (IOException | SecurityException e) {
-            throw failure(
-                    "artifact-unreadable",
-                    "Ship artifact could not be captured: " + reportPath,
-                    e);
-        }
+        Path reportPath = project.resolve("docs/camel-kit")
+                .resolve(pipelineId)
+                .resolve("design-spec.md");
+        return List.of(readArtifact(project, reportPath));
     }
 
     private static ArtifactRef readArtifact(Path project, Path supplied) {

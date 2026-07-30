@@ -122,6 +122,38 @@ class ShipCommandTest {
     }
 
     @Test
+    void startFromAdvertisesSupportedStagesAndReportsTheDomainBoundary() throws Exception {
+        Path project = Files.createDirectory(tempDir.resolve("project"));
+        ShipController controller = controller("state");
+
+        RunResult help = run(controller, "--help");
+        assertEquals(0, help.exitCode(), help.error());
+        assertTrue(help.output().contains("Start at discovery, design, or plan"), help.output());
+
+        RunResult unknown = run(
+                controller,
+                "--project-dir", project.toString(),
+                "--start-from", "unknown");
+        assertEquals(CommandLine.ExitCode.USAGE, unknown.exitCode());
+        assertTrue(unknown.error().contains(
+                "expected discovery, design, or plan"), unknown.error());
+
+        for (String stage : List.of("execute", "validate")) {
+            RunResult result = run(
+                    controller,
+                    "--project-dir", project.toString(),
+                    "--start-from", stage);
+
+            assertEquals(1, result.exitCode(), result.error());
+            assertEquals("", result.output());
+            assertTrue(result.error().startsWith(
+                    "Error [start-from-stage-unsupported]: Starting from EXECUTE or VALIDATE"),
+                    result.error());
+            assertTrue(result.error().contains("start from PLAN instead"), result.error());
+        }
+    }
+
+    @Test
     void rejectsExclusiveOperationsAndContextOnNonStartingOperations() throws Exception {
         ShipController controller = controller("state");
         String id = "ship-0123456789abcdef0123456789abcdef";

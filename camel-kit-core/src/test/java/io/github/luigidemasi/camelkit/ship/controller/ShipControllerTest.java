@@ -234,7 +234,7 @@ class ShipControllerTest {
         assertFailure(
                 "state-project-overlap",
                 () -> new ShipController(importedState).startFrom(
-                        project, Stage.VALIDATE, Oversight.NEVER, List.of()));
+                        project, Stage.PLAN, Oversight.NEVER, List.of()));
         assertFalse(Files.exists(importedState));
     }
 
@@ -1362,45 +1362,21 @@ class ShipControllerTest {
     }
 
     @Test
-    void startFromImportsExistingArtifactsAtTheirCurrentDigests() throws Exception {
+    void startFromRejectsExecuteAndValidateBeforeCreatingState() throws Exception {
         Path project = Files.createDirectory(directory.resolve("project"));
-        Path metadata = Files.createDirectories(project.resolve(".camel-kit"));
-        byte[] pipeline = """
-                {"mode":"manual","activePipeline":"149-local-controller"}
-                """.getBytes(StandardCharsets.UTF_8);
-        Files.write(metadata.resolve("pipeline.json"), pipeline);
-        Path documents = Files.createDirectories(
-                project.resolve("docs/camel-kit/149-local-controller"));
-        Path design = Files.writeString(documents.resolve("design-spec.md"), "design");
-        Path plan = Files.writeString(documents.resolve("implementation-plan.md"), "plan");
-        ShipController controller = controller("state");
+        Path state = directory.resolve("state");
+        ShipController controller = new ShipController(state);
 
-        ShipRun run = controller.startFrom(
-                project,
-                Stage.EXECUTE,
-                Oversight.NEVER,
-                List.of(new ShipContext.TextInput("build the route")));
+        for (Stage stage : List.of(Stage.EXECUTE, Stage.VALIDATE)) {
+            ShipController.Failure failure = assertThrows(
+                    ShipController.Failure.class,
+                    () -> controller.startFrom(
+                            project, stage, Oversight.NEVER, List.of()));
 
-        assertEquals("149-local-controller", run.pipelineId());
-        assertEquals(Stage.EXECUTE, run.currentStage());
-        assertEquals(StageStatus.RUNNING, run.stage(Stage.EXECUTE).status());
-        assertEquals(StageStatus.COMPLETED, run.stage(Stage.DISCOVERY).status());
-        assertEquals(StageStatus.COMPLETED, run.stage(Stage.DESIGN).status());
-        assertEquals(StageStatus.COMPLETED, run.stage(Stage.PLAN).status());
-        assertEquals(design.toAbsolutePath().normalize().toString(),
-                run.stage(Stage.DESIGN).artifacts().get(0).path());
-        assertEquals(ShipDigest.sha256(Files.readAllBytes(plan)),
-                run.stage(Stage.PLAN).artifacts().get(0).digest());
-        assertArrayEquals(pipeline, Files.readAllBytes(metadata.resolve("pipeline.json")));
-
-        Files.writeString(plan, "plan two");
-        ShipRun resumed = controller.resume(run.id());
-
-        assertEquals(Stage.EXECUTE, resumed.currentStage());
-        assertEquals(2, resumed.stage(Stage.EXECUTE).attempts());
-        assertEquals(
-                ShipDigest.sha256(Files.readAllBytes(plan)),
-                resumed.stage(Stage.PLAN).outputDigest());
+            assertEquals("start-from-stage-unsupported", failure.code());
+            assertTrue(failure.getMessage().contains("start from PLAN instead"));
+            assertFalse(Files.exists(state));
+        }
     }
 
     @Test
@@ -1457,83 +1433,14 @@ class ShipControllerTest {
     }
 
     @Test
-    void startFromLaterStagesRequiresAnActivePipeline() throws Exception {
+    void startFromPlanRequiresAnActivePipeline() throws Exception {
         Path project = Files.createDirectory(directory.resolve("project"));
         ShipController controller = controller("state");
 
-        for (Stage stage : List.of(Stage.PLAN, Stage.EXECUTE, Stage.VALIDATE)) {
-            assertFailure("start-from-artifact-missing",
-                    () -> controller.startFrom(project, stage, Oversight.NEVER, List.of()));
-        }
-    }
-
-    @Test
-    void startFromValidateRecordsAndRechecksTheProjectSnapshot() throws Exception {
-        Path project = Files.createDirectory(directory.resolve("project"));
-        Path metadata = Files.createDirectories(project.resolve(".camel-kit"));
-        Files.writeString(
-                metadata.resolve("pipeline.json"),
-                "{\"mode\":\"manual\",\"activePipeline\":\"149-local-controller\"}\n");
-        Path documents = Files.createDirectories(
-                project.resolve("docs/camel-kit/149-local-controller"));
-        Files.writeString(documents.resolve("design-spec.md"), "design");
-        Files.writeString(documents.resolve("implementation-plan.md"), "plan");
-        Path executionReport = Files.writeString(
-                documents.resolve("execution-report.md"), "execution");
-        Path route = Files.writeString(project.resolve("route.yaml"), "version one");
-        ProjectSnapshot importedSnapshot = ProjectEvidenceFiles.capture(project);
-        ShipController controller = controller("state");
-
-        ShipRun validating = controller.startFrom(
-                project,
-                Stage.VALIDATE,
-                Oversight.ALWAYS,
-                List.of(new ShipContext.TextInput("build the route")));
-        assertEquals(2, validating.stage(Stage.EXECUTE).artifacts().size());
-        assertEquals(project.toAbsolutePath().normalize().toString(),
-                validating.stage(Stage.EXECUTE).artifacts().get(1).path());
-        assertEquals(
-                importedSnapshot.files()
-                        .get("docs/camel-kit/149-local-controller/execution-report.md")
-                        .digest(),
-                validating.stage(Stage.EXECUTE).artifacts().get(0).digest());
-        assertEquals(
-                importedSnapshot.digest(),
-                validating.stage(Stage.EXECUTE).artifacts().get(1).digest());
-        String snapshotDigest = validating.stage(Stage.EXECUTE).artifacts().get(1).digest();
-        String executeOutputDigest = validating.stage(Stage.EXECUTE).outputDigest();
-
-        ShipController.StageAttempt attempt = controller.prepareAttempt(
-                validating.id());
-        ShipLocalStamp stamp = localStamp(validating.id(), Outcome.PASS);
-        ShipLocalStampStore.write(
-                attempt.evidenceDirectory(), validating.id(), stamp);
-        ShipRun paused = controller.completeValidationStage(
-                validating.id(),
-                validating.stage(Stage.VALIDATE).attempts(),
-                validating.stage(Stage.VALIDATE).inputDigest(),
-                stamp);
-        assertEquals(RunStatus.PAUSED, paused.status());
-        Files.writeString(route, "version two");
-        Files.writeString(executionReport, "execution two");
-        ProjectSnapshot changedSnapshot = ProjectEvidenceFiles.capture(project);
-
-        ShipRun resumed = controller.resume(paused.id());
-        assertEquals(Stage.VALIDATE, resumed.currentStage());
-        assertEquals(StageStatus.RUNNING, resumed.stage(Stage.VALIDATE).status());
-        assertEquals(2, resumed.stage(Stage.VALIDATE).attempts());
-        assertNotEquals(
-                snapshotDigest, resumed.stage(Stage.EXECUTE).artifacts().get(1).digest());
-        assertNotEquals(
-                executeOutputDigest, resumed.stage(Stage.EXECUTE).outputDigest());
-        assertEquals(
-                changedSnapshot.files()
-                        .get("docs/camel-kit/149-local-controller/execution-report.md")
-                        .digest(),
-                resumed.stage(Stage.EXECUTE).artifacts().get(0).digest());
-        assertEquals(
-                changedSnapshot.digest(),
-                resumed.stage(Stage.EXECUTE).artifacts().get(1).digest());
+        assertFailure(
+                "start-from-artifact-missing",
+                () -> controller.startFrom(
+                        project, Stage.PLAN, Oversight.NEVER, List.of()));
     }
 
     @Test
@@ -1638,7 +1545,7 @@ class ShipControllerTest {
                 List.of(new ShipLocalStamp.ToolVersion(
                         "pi",
                         null,
-                        "0.80.6",
+                        "0.83.0",
                         ShipLocalStamp.Support.SUPPORTED,
                         null)),
                 List.of(new ShipLocalStamp.Check(
@@ -1683,7 +1590,7 @@ class ShipControllerTest {
                 List.of(new ShipLocalStamp.ToolVersion(
                         "pi",
                         null,
-                        "0.80.6",
+                        "0.83.0",
                         ShipLocalStamp.Support.SUPPORTED,
                         null)),
                 List.of(new ShipLocalStamp.Check(

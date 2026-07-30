@@ -114,7 +114,7 @@ class PiWorkerResultStoreTest {
                 () -> PiWorkerResultStore.read(request))
                 .getMessage().contains("does not match"));
 
-        Files.writeString(marker, encoded.replace("\"schemaVersion\" : 1", "\"schemaVersion\" : 2"));
+        Files.writeString(marker, encoded.replace("\"schemaVersion\" : 2", "\"schemaVersion\" : 3"));
         assertTrue(assertThrows(IOException.class,
                 () -> PiWorkerResultStore.read(request))
                 .getMessage().contains("schema version"));
@@ -281,7 +281,7 @@ class PiWorkerResultStoreTest {
         PiWorkerResultStore.write(request, original);
         Path marker = marker(sessions);
         String encoded = Files.readString(marker);
-        String version = "\"version\" : \"0.80.6\"";
+        String version = "\"version\" : \"0.83.0\"";
         int evidenceVersion = encoded.indexOf(
                 version, encoded.indexOf(version) + version.length());
         assertTrue(evidenceVersion >= 0);
@@ -328,7 +328,7 @@ class PiWorkerResultStoreTest {
         Files.write(stderr, stderrBytes);
         CommandRun command = new CommandRun(
                 executable().toString(),
-                "0.80.6",
+                "0.83.0",
                 List.of("--mode", "rpc"),
                 directory.resolve("working")
                         .toAbsolutePath()
@@ -346,9 +346,18 @@ class PiWorkerResultStoreTest {
                 ShipDigest.sha256(stderrBytes));
         return new PiWorker.Result(
                 PiWorker.Outcome.SUCCEEDED,
-                ShipLocalStamp.Support.EXPERIMENTAL,
-                "0.80.6",
-                "experimental",
+                ShipLocalStamp.Support.SUPPORTED,
+                "0.83.0",
+                null,
+                new ShipLocalStamp.ToolVersion(
+                        "node",
+                        directory.resolve("node")
+                                .toAbsolutePath()
+                                .normalize()
+                                .toString(),
+                        "22.22.2",
+                        ShipLocalStamp.Support.SUPPORTED,
+                        null),
                 text,
                 null,
                 command);
@@ -386,6 +395,7 @@ class PiWorkerResultStoreTest {
                 result.support(),
                 version,
                 result.warning(),
+                result.node(),
                 result.assistantText(),
                 result.failure(),
                 evidence);

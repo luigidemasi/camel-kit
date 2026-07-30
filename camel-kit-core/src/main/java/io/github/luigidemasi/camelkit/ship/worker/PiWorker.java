@@ -54,6 +54,7 @@ import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.CommandRun;
+import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.ToolVersion;
 import io.github.luigidemasi.camelkit.ship.worker.LocalCommandRunner.Command;
 import io.github.luigidemasi.camelkit.ship.worker.LocalCommandRunner.RetainedLog;
 
@@ -103,40 +104,58 @@ public final class PiWorker {
 
     private final Path executable;
     private final String supportedVersion;
+    private final Path nodeExecutable;
+    private final String supportedNodeVersion;
     private final Duration timeout;
     private final Clock clock;
     private final LocalCommandRunner commands;
     private final Map<String, String> environment;
 
-    public PiWorker(Path executable, String supportedVersion, Duration timeout) {
-        this(executable, supportedVersion, timeout, Clock.systemUTC());
+    public PiWorker(
+                    Path executable,
+                    String supportedVersion,
+                    Path nodeExecutable,
+                    String supportedNodeVersion,
+                    Duration timeout) {
+        this(
+             executable,
+             supportedVersion,
+             nodeExecutable,
+             supportedNodeVersion,
+             timeout,
+             System.getenv());
     }
 
     public PiWorker(
                     Path executable,
                     String supportedVersion,
+                    Path nodeExecutable,
+                    String supportedNodeVersion,
                     Duration timeout,
                     Map<String, String> environment) {
         this(
              executable,
              supportedVersion,
+             nodeExecutable,
+             supportedNodeVersion,
              timeout,
              Clock.systemUTC(),
              environment);
     }
 
-    PiWorker(Path executable, String supportedVersion, Duration timeout, Clock clock) {
-        this(executable, supportedVersion, timeout, clock, System.getenv());
-    }
-
     PiWorker(
              Path executable,
              String supportedVersion,
+             Path nodeExecutable,
+             String supportedNodeVersion,
              Duration timeout,
              Clock clock,
              Map<String, String> environment) {
-        this.executable = requireExecutable(executable);
+        this.executable = requireExecutable(executable, "Pi");
         this.supportedVersion = requireVersion(supportedVersion, "supported Pi version");
+        this.nodeExecutable = requireExecutable(nodeExecutable, "Node");
+        this.supportedNodeVersion = requireVersion(
+                supportedNodeVersion, "supported Node version");
         this.timeout = requireDuration(timeout);
         this.clock = Objects.requireNonNull(clock, "clock");
         this.environment = Map.copyOf(Objects.requireNonNull(environment, "environment"));
@@ -165,10 +184,12 @@ public final class PiWorker {
         Set<String> sensitive = sensitiveEnvironmentValues(environment);
         List<String> sensitiveValues = List.copyOf(sensitive);
 
+        LocalCommandRunner.Result nodeVersionRun = null;
         LocalCommandRunner.Result versionRun = null;
         Throwable primary = null;
         Path scratchDirectory = null;
         SessionLock sessionLock = null;
+        boolean nodeVersionLogsDeleted = false;
         boolean versionLogsDeleted = false;
         boolean published = false;
         boolean restoreInterrupt = false;
@@ -176,9 +197,56 @@ public final class PiWorker {
             String sessionId = sessionId(request);
             sessionLock = lockSession(
                     sessionDirectory, sessionId, sessionOwner);
-            versionRun = commands.run(new Command(
-                    executable,
+            nodeVersionRun = commands.run(new Command(
+                    nodeExecutable,
                     List.of("--version"),
+                    workingDirectory,
+                    evidenceDirectory,
+                    VERSION_TIMEOUT.compareTo(timeout) < 0
+                            ? VERSION_TIMEOUT
+                            : timeout,
+                    MAX_LOG_BYTES,
+                    sensitiveValues));
+            if (nodeVersionRun.timedOut()
+                    || nodeVersionRun.outputLimited()
+                    || nodeVersionRun.exitCode() != 0) {
+                throw new IOException(
+                        "Node is installed but `node --version` failed; reinstall Node and verify the configured executable");
+            }
+            String detectedNodeVersion;
+            try {
+                String reported = firstLine(
+                        nodeVersionRun.capturedStdout(), "Node");
+                detectedNodeVersion = requireVersion(
+                        reported.startsWith("v")
+                                ? reported.substring(1)
+                                : reported,
+                        "detected Node version");
+            } catch (IllegalArgumentException | IOException e) {
+                throw new IOException(
+                        "Node reported an invalid version; reinstall Node and verify `node --version`",
+                        e);
+            }
+            ShipLocalStamp.Support nodeSupport
+                    = detectedNodeVersion.equals(supportedNodeVersion)
+                            ? ShipLocalStamp.Support.SUPPORTED
+                            : ShipLocalStamp.Support.EXPERIMENTAL;
+            String nodeWarning = nodeSupport
+                                 == ShipLocalStamp.Support.SUPPORTED
+                                         ? null
+                                         : "Node " + detectedNodeVersion
+                                           + " is unverified; install maintained Node "
+                                           + supportedNodeVersion;
+            ToolVersion node = new ToolVersion(
+                    "node",
+                    nodeExecutable.toString(),
+                    detectedNodeVersion,
+                    nodeSupport,
+                    nodeWarning);
+
+            versionRun = commands.run(new Command(
+                    nodeExecutable,
+                    List.of(executable.toString(), "--version"),
                     workingDirectory,
                     evidenceDirectory,
                     VERSION_TIMEOUT.compareTo(timeout) < 0
@@ -195,7 +263,7 @@ public final class PiWorker {
             String detectedVersion;
             try {
                 detectedVersion = requireVersion(
-                        firstLine(versionRun.capturedStdout()),
+                        firstLine(versionRun.capturedStdout(), "Pi"),
                         "detected Pi version");
             } catch (IllegalArgumentException | IOException e) {
                 throw new IOException(
@@ -207,18 +275,28 @@ public final class PiWorker {
                         "Pi 0.80.3 lacks the required settled RPC event; install the maintained Pi "
                                       + supportedVersion);
             }
-            ShipLocalStamp.Support support = ShipLocalStamp.Support.EXPERIMENTAL;
-            String warning = detectedVersion.equals(supportedVersion)
-                    ? "Pi " + detectedVersion
-                      + " is experimental until the live Pi end-to-end gate passes"
-                    : "Pi " + detectedVersion + " is unverified; the maintained Pi "
-                      + supportedVersion + " is also experimental until the live end-to-end gate passes";
-            if (containsSensitiveValue(warning, sensitive)) {
+            ShipLocalStamp.Support support
+                    = detectedVersion.equals(supportedVersion)
+                            ? ShipLocalStamp.Support.SUPPORTED
+                            : ShipLocalStamp.Support.EXPERIMENTAL;
+            String warning = support == ShipLocalStamp.Support.SUPPORTED
+                    ? null
+                    : "Pi " + detectedVersion
+                      + " is unverified; install maintained Pi "
+                      + supportedVersion;
+            String experimentalWarning = warning == null
+                    ? nodeWarning
+                    : nodeWarning == null
+                            ? warning
+                    : warning + "; " + nodeWarning;
+            if (containsSensitiveValue(experimentalWarning, sensitive)) {
                 throw sensitiveOutput();
             }
-            if (!request.acceptExperimental()) {
+            if (experimentalWarning != null
+                    && !request.acceptExperimental()) {
                 throw new IOException(
-                        warning + "; explicitly accept experimental Pi before starting the stage");
+                        experimentalWarning
+                                      + "; explicitly accept experimental Pi or Node before starting the stage");
             }
 
             cleanupAbandonedScratch(sessionDirectory, sessionId, sessionOwner);
@@ -292,9 +370,12 @@ public final class PiWorker {
                     support,
                     detectedVersion,
                     warning,
+                    node,
                     assistantText,
                     failure,
                     evidence);
+            nodeVersionRun.deleteLogs();
+            nodeVersionLogsDeleted = true;
             versionRun.deleteLogs();
             versionLogsDeleted = true;
             if (turn.validatedSession() != null) {
@@ -354,6 +435,20 @@ public final class PiWorker {
             if (!versionLogsDeleted && versionRun != null) {
                 try {
                     versionRun.deleteLogs();
+                } catch (IOException cleanup) {
+                    if (cleanupFailure == null) {
+                        cleanupFailure = cleanup;
+                    } else {
+                        cleanupFailure.addSuppressed(cleanup);
+                    }
+                    if (primary != null) {
+                        primary.addSuppressed(cleanup);
+                    }
+                }
+            }
+            if (!nodeVersionLogsDeleted && nodeVersionRun != null) {
+                try {
+                    nodeVersionRun.deleteLogs();
                 } catch (IOException cleanup) {
                     if (cleanupFailure == null) {
                         cleanupFailure = cleanup;
@@ -437,6 +532,7 @@ public final class PiWorker {
         vector.add(setsid.toString());
         vector.add("--wait");
         vector.add("--");
+        vector.add(nodeExecutable.toString());
         vector.add(executable.toString());
         vector.addAll(arguments);
         Instant startedAt = clock.instant();
@@ -1308,17 +1404,23 @@ public final class PiWorker {
         }
     }
 
-    private static String firstLine(byte[] value) throws IOException {
-        String text = decodeStrict(value).trim();
+    private static String firstLine(byte[] value, String tool)
+            throws IOException {
+        String text = decodeStrict(value, tool).trim();
         int newline = text.indexOf('\n');
         String first = (newline < 0 ? text : text.substring(0, newline)).trim();
         if (first.isEmpty()) {
-            throw new IOException("Pi did not report its version");
+            throw new IOException(tool + " did not report its version");
         }
         return first;
     }
 
     private static String decodeStrict(byte[] value) throws IOException {
+        return decodeStrict(value, "Pi");
+    }
+
+    private static String decodeStrict(byte[] value, String source)
+            throws IOException {
         try {
             return StandardCharsets.UTF_8.newDecoder()
                     .onMalformedInput(CodingErrorAction.REPORT)
@@ -1326,7 +1428,7 @@ public final class PiWorker {
                     .decode(ByteBuffer.wrap(value))
                     .toString();
         } catch (CharacterCodingException e) {
-            throw new IOException("Pi emitted invalid UTF-8", e);
+            throw new IOException(source + " emitted invalid UTF-8", e);
         }
     }
 
@@ -1341,19 +1443,21 @@ public final class PiWorker {
         return prompt;
     }
 
-    private static Path requireExecutable(Path supplied) {
-        Objects.requireNonNull(supplied, "Pi executable");
+    private static Path requireExecutable(Path supplied, String tool) {
+        Objects.requireNonNull(supplied, tool + " executable");
         try {
             Path executable = supplied.toRealPath();
             if (!Files.isRegularFile(executable, LinkOption.NOFOLLOW_LINKS)
                     || !Files.isExecutable(executable)) {
                 throw new IllegalArgumentException(
-                        "Pi is missing or not executable; install Pi and configure its executable path");
+                        tool + " is missing or not executable; install "
+                                                   + tool + " and configure its executable path");
             }
             return executable;
         } catch (IOException e) {
             throw new IllegalArgumentException(
-                    "Pi is missing or not executable; install Pi and configure its executable path",
+                    tool + " is missing or not executable; install "
+                                               + tool + " and configure its executable path",
                     e);
         }
     }
@@ -2254,6 +2358,7 @@ public final class PiWorker {
             ShipLocalStamp.Support support,
             String version,
             String warning,
+            ToolVersion node,
             String assistantText,
             String failure,
             CommandRun evidence) {
@@ -2262,16 +2367,25 @@ public final class PiWorker {
             Objects.requireNonNull(outcome, "outcome");
             Objects.requireNonNull(support, "support");
             version = requireVersion(version, "Pi result version");
+            Objects.requireNonNull(node, "Node result version");
             Objects.requireNonNull(evidence, "evidence");
-            if (support != ShipLocalStamp.Support.EXPERIMENTAL) {
+            if (support != ShipLocalStamp.Support.SUPPORTED
+                    && support != ShipLocalStamp.Support.EXPERIMENTAL) {
                 throw new IllegalArgumentException(
-                        "Pi worker results remain experimental until the live end-to-end gate passes");
+                        "Pi result support must be supported or experimental");
             }
             if (!version.equals(evidence.version())) {
                 throw new IllegalArgumentException("Pi result version does not match its evidence");
             }
-            if (warning == null || warning.isBlank()) {
-                throw new IllegalArgumentException("Experimental Pi results require a warning");
+            new ToolVersion(
+                    "pi", evidence.executable(), version, support, warning);
+            if (!"node".equals(node.tool())
+                    || node.executable() == null
+                    || (node.support() != ShipLocalStamp.Support.SUPPORTED
+                            && node.support()
+                               != ShipLocalStamp.Support.EXPERIMENTAL)) {
+                throw new IllegalArgumentException(
+                        "Node result support must be supported or experimental");
             }
             if (outcome == Outcome.SUCCEEDED) {
                 if (assistantText == null || failure != null || !evidence.succeeded()) {
@@ -2293,6 +2407,8 @@ public final class PiWorker {
                    + ", support=" + support
                    + ", version=" + version
                    + ", warning=<redacted>"
+                   + ", nodeVersion=" + node.version()
+                   + ", nodeWarning=<redacted>"
                    + ", assistantText=<redacted>"
                    + ", failure=<redacted>"
                    + ", evidence=" + evidence + "]";
