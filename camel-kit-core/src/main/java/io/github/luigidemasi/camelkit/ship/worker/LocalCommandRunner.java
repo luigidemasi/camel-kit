@@ -58,6 +58,7 @@ final class LocalCommandRunner {
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private final Clock clock;
+    private final Map<String, String> environment;
 
     LocalCommandRunner() {
         this(Clock.systemUTC());
@@ -65,6 +66,13 @@ final class LocalCommandRunner {
 
     LocalCommandRunner(Clock clock) {
         this.clock = Objects.requireNonNull(clock, "clock");
+        this.environment = null;
+    }
+
+    LocalCommandRunner(Clock clock, Map<String, String> environment) {
+        this.clock = Objects.requireNonNull(clock, "clock");
+        this.environment = Map.copyOf(
+                Objects.requireNonNull(environment, "environment"));
     }
 
     Result run(Command command) throws IOException, InterruptedException {
@@ -104,9 +112,13 @@ final class LocalCommandRunner {
         boolean interrupted = false;
         AtomicBoolean outputLimited = new AtomicBoolean();
         try {
-            process = new ProcessBuilder(vector)
-                    .directory(workingDirectory.toFile())
-                    .start();
+            ProcessBuilder builder = new ProcessBuilder(vector)
+                    .directory(workingDirectory.toFile());
+            if (environment != null) {
+                builder.environment().clear();
+                builder.environment().putAll(environment);
+            }
+            process = builder.start();
             Process launched = process;
             launched.getOutputStream().close();
             stdoutPump = pumps.submit(() -> readBounded(

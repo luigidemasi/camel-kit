@@ -7,18 +7,23 @@ import java.nio.channels.FileChannel;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 
+import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.Stage;
+import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.CommandRun;
 import io.github.luigidemasi.camelkit.ship.worker.PiWorker.Request;
 import io.github.luigidemasi.camelkit.ship.worker.PiWorker.Result;
+import io.github.luigidemasi.camelkit.ship.worker.PiWorker.UntrustedResultException;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -48,7 +53,8 @@ final class PiWorkerResultStore {
     private PiWorkerResultStore() {
     }
 
-    static Optional<Result> read(Request request) throws IOException {
+    static Optional<Result> read(Request request)
+            throws IOException {
         Path path = resultPath(request, false);
         if (path == null) {
             return Optional.empty();
@@ -58,28 +64,39 @@ final class PiWorkerResultStore {
             return Optional.empty();
         }
         if (attributes.isSymbolicLink() || !attributes.isRegularFile()) {
-            throw new IOException("Pi stage result marker is invalid");
+            throw new UntrustedResultException(
+                    "Pi stage result marker is invalid");
         }
         byte[] encoded;
         try (InputStream input = Files.newInputStream(
                 path, StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS)) {
             encoded = input.readNBytes(MAX_RESULT_BYTES + 1);
+        } catch (NoSuchFileException e) {
+            throw new UntrustedResultException(
+                    "Pi stage result marker is missing",
+                    e);
         }
         if (encoded.length == 0 || encoded.length > MAX_RESULT_BYTES) {
-            throw new IOException("Pi stage result marker has an invalid size");
+            throw new UntrustedResultException(
+                    "Pi stage result marker has an invalid size");
         }
         final Marker marker;
         try {
             marker = JSON.readValue(encoded, Marker.class);
         } catch (JsonProcessingException e) {
-            throw new IOException("Pi stage result marker is malformed", e);
+            throw new UntrustedResultException(
+                    "Pi stage result marker is malformed",
+                    e);
         }
         if (marker.schemaVersion() != SCHEMA_VERSION) {
-            throw new IOException("Pi stage result marker has an unsupported schema version");
+            throw new UntrustedResultException(
+                    "Pi stage result marker has an unsupported schema version");
         }
         if (!marker.matches(request)) {
-            throw new IOException("Pi stage result marker does not match its attempt");
+            throw new UntrustedResultException(
+                    "Pi stage result marker does not match its attempt");
         }
+        verifyEvidence(request, marker.result());
         return Optional.of(marker.result());
     }
 
@@ -174,7 +191,8 @@ final class PiWorkerResultStore {
             throw new IOException("Pi stage result directory disappeared");
         }
         if (attributes.isSymbolicLink() || !attributes.isDirectory()) {
-            throw new IOException("Pi stage result directory is invalid");
+            throw new UntrustedResultException(
+                    "Pi stage result directory is invalid");
         }
         String name = request.runId()
                       + '-' + request.stage().name().toLowerCase(Locale.ROOT)
@@ -187,6 +205,156 @@ final class PiWorkerResultStore {
             throws IOException {
         return PiWorker.attributesIfPresent(
                 path, "Pi stage result path could not be inspected");
+    }
+
+    private static void verifyEvidence(
+            Request request, Result result)
+            throws IOException {
+        CommandRun evidence = result.evidence();
+        Path workingDirectory = realDirectory(
+                request.workingDirectory(), "Pi working directory");
+        Path evidenceDirectory = realDirectory(
+                request.evidenceDirectory(), "Pi evidence directory");
+        Path historicalExecutable = normalizedAbsolute(
+                evidence.executable(), "Pi evidence executable");
+        if (!historicalExecutable.toString().equals(evidence.executable())
+                || !Path.of(evidence.workingDirectory()).equals(workingDirectory)
+                || !evidence.inputDigests().equals(List.of(request.inputDigest()))
+                || !evidence.version().equals(result.version())) {
+            throw new UntrustedResultException(
+                    "Pi stage result evidence does not match its request");
+        }
+
+        VerifiedLog stdout = resolveLog(
+                evidenceDirectory,
+                evidence.stdoutLog(),
+                evidence.stdoutDigest());
+        VerifiedLog stderr = resolveLog(
+                evidenceDirectory,
+                evidence.stderrLog(),
+                evidence.stderrDigest());
+        final boolean sameFile;
+        try {
+            sameFile = Files.isSameFile(stdout.path(), stderr.path());
+        } catch (NoSuchFileException e) {
+            throw new UntrustedResultException(
+                    "Pi stage result log is missing",
+                    e);
+        }
+        if (stdout.identity().equals(stderr.identity()) || sameFile) {
+            throw new UntrustedResultException(
+                    "Pi stage result stdout and stderr must be distinct files");
+        }
+        verifyLog(stdout);
+        verifyLog(stderr);
+    }
+
+    private static Path normalizedAbsolute(String supplied, String label)
+            throws IOException {
+        try {
+            Path path = Path.of(Objects.requireNonNull(supplied, label));
+            if (!path.isAbsolute() || !path.normalize().equals(path)) {
+                throw new UntrustedResultException(label + " is invalid");
+            }
+            return path;
+        } catch (RuntimeException e) {
+            throw new UntrustedResultException(label + " is invalid", e);
+        }
+    }
+
+    private static Path realDirectory(Path supplied, String label)
+            throws IOException {
+        Path normalized = Objects.requireNonNull(supplied, label)
+                .toAbsolutePath()
+                .normalize();
+        BasicFileAttributes attributes = attributesIfPresent(normalized);
+        if (attributes == null
+                || attributes.isSymbolicLink()
+                || !attributes.isDirectory()) {
+            throw new UntrustedResultException(
+                    label + " must be a real directory");
+        }
+        try {
+            return normalized.toRealPath();
+        } catch (NoSuchFileException e) {
+            throw new UntrustedResultException(
+                    label + " must be a real directory",
+                    e);
+        }
+    }
+
+    private static VerifiedLog resolveLog(
+            Path evidenceDirectory, String supplied, String digest)
+            throws IOException {
+        Path log = Path.of(supplied).toAbsolutePath().normalize();
+        BasicFileAttributes attributes = attributesIfPresent(log);
+        if (attributes == null
+                || attributes.isSymbolicLink()
+                || !attributes.isRegularFile()) {
+            throw new UntrustedResultException(
+                    "Pi stage result log is missing or invalid: " + log);
+        }
+        Path real;
+        try {
+            real = log.toRealPath();
+        } catch (NoSuchFileException e) {
+            throw new UntrustedResultException(
+                    "Pi stage result log is missing or invalid: " + log,
+                    e);
+        }
+        if (!real.startsWith(evidenceDirectory)) {
+            throw new UntrustedResultException(
+                    "Pi stage result log escaped its evidence directory: " + log);
+        }
+        if (attributes.size() > PiWorker.MAX_LOG_BYTES) {
+            throw new UntrustedResultException(
+                    "Pi stage result log exceeds its size limit: " + log);
+        }
+        Object identity = attributes.fileKey() == null
+                ? real
+                : attributes.fileKey();
+        return new VerifiedLog(identity, real, attributes.size(), digest);
+    }
+
+    private static void verifyLog(VerifiedLog log) throws IOException {
+        byte[] content;
+        try (InputStream input = Files.newInputStream(
+                log.path(), StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS)) {
+            content = input.readNBytes(PiWorker.MAX_LOG_BYTES + 1);
+        } catch (NoSuchFileException e) {
+            throw new UntrustedResultException(
+                    "Pi stage result log is missing: " + log.path(),
+                    e);
+        }
+        BasicFileAttributes after;
+        try {
+            after = Files.readAttributes(
+                    log.path(),
+                    BasicFileAttributes.class,
+                    LinkOption.NOFOLLOW_LINKS);
+        } catch (NoSuchFileException e) {
+            throw new UntrustedResultException(
+                    "Pi stage result log is missing: " + log.path(),
+                    e);
+        }
+        Object identity = after.fileKey() == null
+                ? log.path()
+                : after.fileKey();
+        if (!after.isRegularFile()
+                || after.isSymbolicLink()
+                || !identity.equals(log.identity())
+                || content.length > PiWorker.MAX_LOG_BYTES
+                || content.length != log.size()
+                || after.size() != log.size()
+                || !ShipDigest.sha256(content).equals(log.digest())) {
+            throw new UntrustedResultException(
+                    "Pi stage result log does not match its recorded digest: "
+                                               + log.path());
+        }
+    }
+
+    private record VerifiedLog(
+            Object identity, Path path, long size, String digest) {
     }
 
     private record Marker(

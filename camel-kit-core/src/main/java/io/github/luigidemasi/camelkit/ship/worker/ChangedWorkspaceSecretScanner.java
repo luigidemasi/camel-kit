@@ -29,15 +29,7 @@ public final class ChangedWorkspaceSecretScanner {
         // Exact UTF-8 matches are the intentional local leak floor; encoded transformations are not detected.
         Objects.requireNonNull(baseline, "baseline");
         Objects.requireNonNull(candidate, "candidate");
-        Objects.requireNonNull(environment, "environment");
-        List<byte[]> secrets = environment.entrySet().stream()
-                .filter(entry -> LocalCommandRunner.isSensitiveEnvironmentValue(
-                        entry.getKey(), entry.getValue()))
-                .map(Map.Entry::getValue)
-                .filter(value -> value.length() >= MIN_SECRET_LENGTH)
-                .distinct()
-                .map(value -> value.getBytes(StandardCharsets.UTF_8))
-                .toList();
+        List<byte[]> secrets = sensitiveValues(environment);
         if (secrets.isEmpty()) {
             return List.of();
         }
@@ -60,6 +52,26 @@ public final class ChangedWorkspaceSecretScanner {
             }
         }
         return List.copyOf(findings);
+    }
+
+    /** Checks exact UTF-8 content with the same environment policy as workspace promotion. */
+    public static boolean containsSensitiveValue(
+            byte[] content, Map<String, String> environment) {
+        Objects.requireNonNull(content, "content");
+        return sensitiveValues(environment).stream()
+                .anyMatch(secret -> contains(content, secret));
+    }
+
+    private static List<byte[]> sensitiveValues(Map<String, String> environment) {
+        Objects.requireNonNull(environment, "environment");
+        return environment.entrySet().stream()
+                .filter(entry -> LocalCommandRunner.isSensitiveEnvironmentValue(
+                        entry.getKey(), entry.getValue()))
+                .map(Map.Entry::getValue)
+                .filter(value -> value.length() >= MIN_SECRET_LENGTH)
+                .distinct()
+                .map(value -> value.getBytes(StandardCharsets.UTF_8))
+                .toList();
     }
 
     private static boolean contains(byte[] content, byte[] secret) {

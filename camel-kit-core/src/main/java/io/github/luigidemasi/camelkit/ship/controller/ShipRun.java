@@ -29,7 +29,7 @@ public record ShipRun(
         String updatedAt,
         String message) {
 
-    public static final int SCHEMA_VERSION = 2;
+    public static final int SCHEMA_VERSION = 3;
 
     private static final Pattern RUN_ID = Pattern.compile("ship-[0-9a-f]{32}");
     private static final Pattern PIPELINE_ID = Pattern.compile("[0-9]{3,}-[a-z0-9]+(?:-[a-z0-9]+)*");
@@ -286,8 +286,13 @@ public record ShipRun(
                 case RUNNING -> require(attempts > 0 && inputDigest != null && outputDigest == null
                         && artifacts.isEmpty());
                 case COMPLETED -> require(inputDigest != null && outputDigest != null);
-                case FAILED -> require(attempts > 0 && inputDigest != null && outputDigest == null
-                        && artifacts.isEmpty());
+                case FAILED -> require(
+                        attempts > 0
+                                && inputDigest != null
+                                && (outputDigest == null && artifacts.isEmpty()
+                                        || stage == Stage.VALIDATE
+                                                && outputDigest != null
+                                                && !artifacts.isEmpty()));
                 case ABORTED -> require(outputDigest == null && artifacts.isEmpty());
             }
         }
@@ -328,6 +333,21 @@ public record ShipRun(
             return new StageRecord(
                     stage, StageStatus.FAILED, attempts,
                     inputDigest, null, List.of());
+        }
+
+        StageRecord fail(String digest, List<ArtifactRef> references) {
+            if (status != StageStatus.RUNNING || references == null
+                    || references.isEmpty()) {
+                throw new IllegalStateException(
+                        "Only a running Ship stage can fail with evidence");
+            }
+            return new StageRecord(
+                    stage,
+                    StageStatus.FAILED,
+                    attempts,
+                    inputDigest,
+                    digest,
+                    references);
         }
 
         StageRecord abort() {

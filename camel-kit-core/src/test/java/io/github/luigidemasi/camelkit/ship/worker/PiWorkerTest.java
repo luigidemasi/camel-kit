@@ -287,6 +287,48 @@ class PiWorkerTest {
     }
 
     @Test
+    void redactsSensitiveFailureComposedAfterSessionValidation()
+            throws Exception {
+        String secret = "Pi assistant settled with stop reason error";
+        Files.writeString(fixture.resolve("mode"), "stop-error\n");
+        PiWorker.Request request = request(
+                ShipRun.Stage.DISCOVERY, "prompt");
+        PiWorker worker = worker(
+                Duration.ofSeconds(5), Map.of("API_TOKEN", secret));
+
+        PiWorker.Result result = worker.run(request);
+
+        assertEquals(PiWorker.Outcome.FAILED, result.outcome());
+        assertEquals("Failed", result.failure());
+        assertEquals(result, worker.recover(request).orElseThrow());
+        try (var markers = Files.list(
+                sessions.resolve(".camel-kit-results"))) {
+            assertFalse(Files.readString(
+                    markers.findFirst().orElseThrow()).contains(secret));
+        }
+    }
+
+    @Test
+    void rejectsSensitiveVersionDiagnosticsBeforePublication()
+            throws Exception {
+        String secret = "Pi 0.80.6 is experimental until the live Pi end-to-end gate passes";
+        PiWorker.Request request = request(
+                ShipRun.Stage.DISCOVERY, "prompt");
+        PiWorker worker = worker(
+                Duration.ofSeconds(5), Map.of("API_TOKEN", secret));
+
+        IOException failure = assertThrows(
+                IOException.class,
+                () -> worker.run(request));
+
+        assertEquals(
+                "Pi output contained a sensitive environment value",
+                failure.getMessage());
+        assertTrue(worker.recover(request).isEmpty());
+        assertFalse(Files.exists(fixture.resolve("session-ids")));
+    }
+
+    @Test
     void bindsRetryToolAndCompactionRecordsInRpcOrder() throws Exception {
         PiWorker worker = worker(Duration.ofSeconds(5));
         List<String> modes = List.of(
@@ -530,6 +572,45 @@ class PiWorkerTest {
         assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
         assertEquals("0.80.6", result.version());
         assertTrue(hasSession(sessionId(stage)));
+    }
+
+    @Test
+    void usesTheInjectedEnvironmentForVersionAndRpcProcesses()
+            throws Exception {
+        Path wrapper = writeExecutable(
+                fixture.resolve("pi-env"),
+                """
+                        #!/bin/sh
+                        fixture=$(dirname "$0")
+                        if [ "${1:-}" = "--version" ]; then
+                          /usr/bin/env > "$fixture/version-env"
+                        else
+                          /usr/bin/env > "$fixture/rpc-env"
+                        fi
+                        exec "$fixture/pi-rpc" "$@"
+                        """);
+        String path = Objects.requireNonNull(
+                System.getenv("PATH"), "test PATH");
+        Map<String, String> environment = Map.of(
+                "PATH", path,
+                "PI_WORKER_SENTINEL", "injected");
+
+        PiWorker.Result result = new PiWorker(
+                wrapper,
+                "0.80.6",
+                Duration.ofSeconds(5),
+                environment)
+                .run(request(ShipRun.Stage.DISCOVERY, "prompt"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
+        for (String phase : List.of("version-env", "rpc-env")) {
+            List<String> observed = Files.readAllLines(
+                    fixture.resolve(phase));
+            assertTrue(observed.contains("PI_WORKER_SENTINEL=injected"));
+            assertTrue(observed.contains("PATH=" + path));
+            assertTrue(observed.stream()
+                    .noneMatch(value -> value.startsWith("HOME=")));
+        }
     }
 
     @Test
@@ -1807,6 +1888,44 @@ class PiWorkerTest {
         assertEquals(
                 1,
                 Files.readAllLines(fixture.resolve("session-ids")).size());
+    }
+
+    @Test
+    void recoveryPreservesHistoricalExecutableAndRejectsDeletedOrTamperedEvidence()
+            throws Exception {
+        PiWorker worker = worker(Duration.ofSeconds(5));
+        PiWorker.Request request = request(
+                ShipRun.Stage.DISCOVERY, "prompt");
+        PiWorker.Result result = worker.run(request);
+        Path stdout = Path.of(result.evidence().stdoutLog());
+        Path stderr = Path.of(result.evidence().stderrLog());
+        byte[] stdoutBytes = Files.readAllBytes(stdout);
+
+        Path otherExecutable = writeExecutable(
+                fixture.resolve("pi-other"),
+                Files.readString(executable));
+        assertEquals(
+                result,
+                new PiWorker(
+                        otherExecutable,
+                        "0.80.6",
+                        Duration.ofSeconds(5))
+                        .recover(request)
+                        .orElseThrow());
+        assertEquals(result, worker.recover(request).orElseThrow());
+
+        Files.writeString(stdout, "tampered");
+        PiWorker.UntrustedResultException tampered = assertThrows(
+                PiWorker.UntrustedResultException.class,
+                () -> worker.recover(request));
+        assertTrue(tampered.getMessage().contains("recorded digest"));
+
+        Files.write(stdout, stdoutBytes);
+        Files.delete(stderr);
+        PiWorker.UntrustedResultException deleted = assertThrows(
+                PiWorker.UntrustedResultException.class,
+                () -> worker.recover(request));
+        assertTrue(deleted.getMessage().contains("missing or invalid"));
     }
 
     @Test
