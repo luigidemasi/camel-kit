@@ -124,7 +124,7 @@ public final class ShipCommand implements Callable<Integer> {
                 names = "--start-from",
                 paramLabel = "STAGE",
                 converter = StageConverter.class,
-                description = "Start at discovery, design, plan, execute, or validate")
+                description = "Start at discovery, design, or plan")
         Stage startFrom;
 
         @Option(names = "--status", paramLabel = "RUN_ID", description = "Show an existing run")
@@ -169,7 +169,7 @@ public final class ShipCommand implements Callable<Integer> {
                 return Stage.valueOf(value.toUpperCase(Locale.ROOT));
             } catch (IllegalArgumentException e) {
                 throw new TypeConversionException(
-                        "expected discovery, design, plan, execute, or validate");
+                        "expected discovery, design, or plan");
             }
         }
     }

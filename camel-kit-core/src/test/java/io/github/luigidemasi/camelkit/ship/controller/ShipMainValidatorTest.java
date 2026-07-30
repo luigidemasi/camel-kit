@@ -42,6 +42,7 @@ import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipMainPackageMain
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.parallel.ResourceLock;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -62,9 +63,15 @@ class ShipMainValidatorTest {
     private static final ToolVersion PI = new ToolVersion(
             "pi",
             "/usr/bin/pi",
-            "0.80.6",
-            Support.EXPERIMENTAL,
-            "Pi support remains experimental until the live fixture passes");
+            "0.83.0",
+            Support.SUPPORTED,
+            null);
+    private static final ToolVersion NODE = new ToolVersion(
+            "node",
+            "/usr/bin/node",
+            "22.22.2",
+            Support.SUPPORTED,
+            null);
 
     @TempDir
     Path tempDir;
@@ -82,9 +89,30 @@ class ShipMainValidatorTest {
                 snapshot(),
                 tempDir.resolve("evidence"),
                 PI,
+                NODE,
                 CLOCK);
 
         assertEquals(ShipLocalStamp.Status.PASS, result.stamp().status());
+        assertEquals(
+                List.of(
+                        "pi",
+                        "node",
+                        "java",
+                        "camel",
+                        "os",
+                        "architecture"),
+                result.stamp().toolVersions().stream()
+                        .map(ToolVersion::tool)
+                        .toList());
+        assertTrue(result.stamp().toolVersions().subList(0, 2).stream()
+                .allMatch(tool -> tool.support() == Support.SUPPORTED
+                        && tool.message() == null));
+        assertTrue(result.stamp().toolVersions().subList(2, 6).stream()
+                .allMatch(tool -> tool.support() == Support.UNTESTED
+                        && tool.message() != null));
+        assertEquals(
+                "4.21.0",
+                result.stamp().toolVersions().get(3).version());
         assertEquals(List.of(
                 "artifact-policy",
                 "catalog-usage",
@@ -119,6 +147,50 @@ class ShipMainValidatorTest {
     }
 
     @Test
+    @ResourceLock("systemProperties")
+    void diagnosticOnlyPlatformMetadataCannotFailValidation()
+            throws Exception {
+        Project project = project("orders");
+        RecordingExecutor executor = new RecordingExecutor();
+        ShipCatalogService.Snapshot catalog = snapshot();
+        String osVersion = System.getProperty("os.version");
+        String architecture = System.getProperty("os.arch");
+        ShipMainValidator.Result result;
+        try {
+            System.setProperty("os.version", " ");
+            System.setProperty("os.arch", "\u202e");
+            result = validator(executor).validate(
+                    RUN_ID,
+                    project.root(),
+                    project.manifest(),
+                    project.policy(),
+                    catalog,
+                    tempDir.resolve("diagnostic-evidence"),
+                    PI,
+                    NODE,
+                    CLOCK);
+        } finally {
+            restoreProperty("os.version", osVersion);
+            restoreProperty("os.arch", architecture);
+        }
+
+        assertEquals(ShipLocalStamp.Status.PASS, result.stamp().status());
+        assertTrue(result.stamp().toolVersions().stream()
+                .filter(tool -> "os".equals(tool.tool()))
+                .findFirst()
+                .orElseThrow()
+                .version()
+                .endsWith(" unknown"));
+        assertEquals(
+                "unknown",
+                result.stamp().toolVersions().stream()
+                        .filter(tool -> "architecture".equals(tool.tool()))
+                        .findFirst()
+                        .orElseThrow()
+                        .version());
+    }
+
+    @Test
     void invalidArtifactsAndEmptyRequiredTestsLaunchNothing() throws Exception {
         Project invalid = project("orders");
         Files.writeString(invalid.root().resolve(".camel-kit/config.properties"), "\nchanged=true\n",
@@ -133,6 +205,7 @@ class ShipMainValidatorTest {
                 snapshot(),
                 tempDir.resolve("invalid-evidence"),
                 PI,
+                NODE,
                 CLOCK);
 
         Project empty = project();
@@ -145,6 +218,7 @@ class ShipMainValidatorTest {
                 snapshot(),
                 tempDir.resolve("empty-evidence"),
                 PI,
+                NODE,
                 CLOCK);
 
         assertEquals(ShipLocalStamp.Status.FAIL, invalidResult.stamp().status());
@@ -173,6 +247,7 @@ class ShipMainValidatorTest {
                 snapshot(),
                 tempDir.resolve("evidence"),
                 PI,
+                NODE,
                 CLOCK);
 
         assertEquals(ShipLocalStamp.Status.FAIL, result.stamp().status());
@@ -196,6 +271,7 @@ class ShipMainValidatorTest {
                 snapshot(),
                 tempDir.resolve("nonzero-evidence"),
                 PI,
+                NODE,
                 CLOCK);
 
         Project packageProject = project("payments");
@@ -209,6 +285,7 @@ class ShipMainValidatorTest {
                 snapshot(),
                 tempDir.resolve("package-evidence"),
                 PI,
+                NODE,
                 CLOCK);
 
         assertEquals(ShipLocalStamp.Status.FAIL, nonzeroResult.stamp().status());
@@ -240,6 +317,7 @@ class ShipMainValidatorTest {
                             snapshot(),
                             evidence,
                             PI,
+                            NODE,
                             CLOCK));
 
             assertTrue(Thread.currentThread().isInterrupted());
@@ -285,6 +363,7 @@ class ShipMainValidatorTest {
                             snapshot(),
                             evidence,
                             PI,
+                            NODE,
                             interruptingClock));
 
             assertTrue(Thread.currentThread().isInterrupted());
@@ -320,6 +399,7 @@ class ShipMainValidatorTest {
                 snapshot(),
                 evidence,
                 PI,
+                NODE,
                 CLOCK);
 
         ShipLocalStamp.Check route = result.stamp().checks().stream()
@@ -353,6 +433,7 @@ class ShipMainValidatorTest {
                 snapshot(),
                 evidence,
                 PI,
+                NODE,
                 CLOCK);
 
         assertEquals(ShipLocalStamp.Status.PASS, result.stamp().status());
@@ -491,6 +572,14 @@ class ShipMainValidatorTest {
 
     private static String digest(String value) {
         return ShipDigest.sha256(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    private static void restoreProperty(String name, String value) {
+        if (value == null) {
+            System.clearProperty(name);
+        } else {
+            System.setProperty(name, value);
+        }
     }
 
     private static String argument(EvidenceCommand command, String prefix) {

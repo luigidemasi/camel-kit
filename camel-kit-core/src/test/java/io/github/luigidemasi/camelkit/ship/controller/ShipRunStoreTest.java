@@ -248,25 +248,67 @@ class ShipRunStoreTest {
     }
 
     @Test
-    void preservesCanonicalImportedExecuteEvidence() throws Exception {
-        Path project = Files.createDirectory(temporaryDirectory.resolve("project"));
-        Files.createDirectories(project.resolve(".camel-kit"));
-        Files.writeString(
-                project.resolve(".camel-kit/pipeline.json"),
-                "{\"mode\":\"manual\",\"activePipeline\":\"149-import\"}");
-        Path documents = Files.createDirectories(project.resolve("docs/camel-kit/149-import"));
-        Files.writeString(documents.resolve("design-spec.md"), "design");
-        Files.writeString(documents.resolve("implementation-plan.md"), "plan");
-        Files.writeString(documents.resolve("execution-report.md"), "execution");
+    void rejectsLegacyPlanImportWithoutGeneratedWorkerEvidence()
+            throws Exception {
+        Path project = Files.createDirectory(
+                temporaryDirectory.resolve("legacy-project"));
+        Path documents = Files.createDirectories(
+                project.resolve("docs/camel-kit/149-import"));
+        Path design = Files.writeString(
+                documents.resolve("design-spec.md"), "design");
+        Path plan = Files.writeString(
+                documents.resolve("implementation-plan.md"), "plan");
+        ShipContext context = ShipContext.none();
+        List<ShipRun.StageRecord> stages = new ArrayList<>(
+                ShipRun.pendingStages());
 
-        ShipRun imported = new ShipController(stateRoot()).startFrom(
-                project,
-                ShipRun.Stage.VALIDATE,
+        stages.set(
+                ShipRun.Stage.DISCOVERY.ordinal(),
+                stages.get(ShipRun.Stage.DISCOVERY.ordinal()).imported(
+                        ShipRun.inputDigest(
+                                context, stages, ShipRun.Stage.DISCOVERY),
+                        context.digest(),
+                        List.of()));
+        ShipRun.ArtifactRef designArtifact = new ShipRun.ArtifactRef(
+                design.toString(),
+                ShipDigest.sha256(Files.readAllBytes(design)));
+        stages.set(
+                ShipRun.Stage.DESIGN.ordinal(),
+                stages.get(ShipRun.Stage.DESIGN.ordinal()).imported(
+                        ShipRun.inputDigest(
+                                context, stages, ShipRun.Stage.DESIGN),
+                        designArtifact.digest(),
+                        List.of(designArtifact)));
+        ShipRun.ArtifactRef planArtifact = new ShipRun.ArtifactRef(
+                plan.toString(),
+                ShipDigest.sha256(Files.readAllBytes(plan)));
+        stages.set(
+                ShipRun.Stage.PLAN.ordinal(),
+                stages.get(ShipRun.Stage.PLAN.ordinal()).imported(
+                        ShipRun.inputDigest(
+                                context, stages, ShipRun.Stage.PLAN),
+                        planArtifact.digest(),
+                        List.of(planArtifact)));
+        stages.set(
+                ShipRun.Stage.EXECUTE.ordinal(),
+                stages.get(ShipRun.Stage.EXECUTE.ordinal()).start(
+                        ShipRun.inputDigest(
+                                context, stages, ShipRun.Stage.EXECUTE)));
+        ShipRun legacy = new ShipRun(
+                ShipRun.SCHEMA_VERSION,
+                RUN_ID,
+                project.toString(),
+                "149-import",
                 ShipRun.Oversight.NEVER,
-                List.of());
+                ShipRun.RunStatus.RUNNING,
+                ShipRun.Stage.EXECUTE,
+                context,
+                stages,
+                CREATED_AT,
+                UPDATED_AT,
+                null);
 
-        assertEquals(0, imported.stage(ShipRun.Stage.EXECUTE).attempts());
-        assertEquals(imported, store().read(imported.id()));
+        assertCode("state-invalid", () -> store().create(legacy));
     }
 
     @Test
@@ -312,10 +354,9 @@ class ShipRunStoreTest {
                 "{\"mode\":\"manual\",\"activePipeline\":\"149-import\"}");
         Path documents = Files.createDirectories(project.resolve("docs/camel-kit/149-import"));
         Files.writeString(documents.resolve("design-spec.md"), "design");
-        Files.writeString(documents.resolve("implementation-plan.md"), "plan");
         ShipRun imported = new ShipController(stateRoot()).startFrom(
                 project,
-                ShipRun.Stage.EXECUTE,
+                ShipRun.Stage.PLAN,
                 ShipRun.Oversight.NEVER,
                 List.of());
         assertEquals(imported, store().read(imported.id()));

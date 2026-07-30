@@ -59,6 +59,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 public final class ShipCoordinator {
 
+    private static final long ABORT_POLL_MILLIS = 50;
     private static final int MAX_BRIEFING_BYTES = 16 * 1024 * 1024;
     private static final int PLAN_CONTRACT_VERSION = 1;
     private static final String MANIFEST_SCHEMA_RESOURCE
@@ -78,6 +79,7 @@ public final class ShipCoordinator {
     public ShipCoordinator(
                            Path stateRoot,
                            Path piExecutable,
+                           Path nodeExecutable,
                            Path localMavenRepository,
                            DistributionConfig distribution,
                            Duration timeout,
@@ -88,9 +90,12 @@ public final class ShipCoordinator {
                 .normalize();
         this.controller = new ShipController(this.stateRoot, environment);
         this.distribution = Objects.requireNonNull(distribution, "distribution");
+        DistributionConfig maintained = DistributionConfig.loadBundled();
         this.worker = new PiWorker(
                 piExecutable,
-                distribution.piVersion(),
+                maintained.piVersion(),
+                nodeExecutable,
+                maintained.nodeVersion(),
                 timeout,
                 environment);
         this.catalogs = new ShipCatalogService(localMavenRepository)::snapshot;
@@ -148,11 +153,18 @@ public final class ShipCoordinator {
     /** Runs authoritative stages until an oversight gate or terminal outcome is reached. */
     public ShipRun run(String runId) throws IOException, InterruptedException {
         try {
-            controller.status(runId);
+            ShipRun initial = controller.status(runId);
             try (AttemptLease lease = tryCoordinatorLease(runId)) {
-                return lease == null
-                        ? controller.status(runId)
-                        : runAvailable(runId);
+                if (lease == null) {
+                    return controller.status(runId);
+                }
+                if (initial.status() == RunStatus.ABORTED) {
+                    return initial;
+                }
+                try (AbortWatcher ignored = new AbortWatcher(
+                        controller, runId)) {
+                    return runAvailable(runId);
+                }
             }
         } catch (SessionBusyException e) {
             return controller.status(runId);
@@ -180,11 +192,16 @@ public final class ShipCoordinator {
                     ? validate(attempt)
                     : advancePi(attempt);
             current = step.run();
-            if (!step.progressed() || Thread.currentThread().isInterrupted()) {
+            if (Thread.currentThread().isInterrupted()) {
+                return controller.status(runId);
+            }
+            if (!step.progressed()) {
                 return current;
             }
         }
-        return current;
+        return Thread.currentThread().isInterrupted()
+                ? controller.status(runId)
+                : current;
     }
 
     /**
@@ -192,11 +209,18 @@ public final class ShipCoordinator {
      */
     public ShipRun resume(String runId) throws IOException, InterruptedException {
         try {
-            controller.status(runId);
+            ShipRun initial = controller.status(runId);
             try (AttemptLease lease = tryCoordinatorLease(runId)) {
-                return lease == null
-                        ? controller.status(runId)
-                        : resumeAvailable(runId);
+                if (lease == null) {
+                    return controller.status(runId);
+                }
+                if (initial.status() == RunStatus.ABORTED) {
+                    return resumeAvailable(runId);
+                }
+                try (AbortWatcher ignored = new AbortWatcher(
+                        controller, runId)) {
+                    return resumeAvailable(runId);
+                }
             }
         } catch (SessionBusyException e) {
             return controller.status(runId);
@@ -222,14 +246,13 @@ public final class ShipCoordinator {
                 }
                 requireNotInterrupted();
                 current = controller.resume(runId);
-                return current.status() == RunStatus.RUNNING
-                        ? runAvailable(runId)
-                        : current;
+                return continueAvailable(runId, current);
             }
             Optional<ShipRun> restarted = restartStalePredecessor(
                     attempt);
             if (restarted.isPresent()) {
-                return runAvailable(runId);
+                return continueAvailable(
+                        runId, restarted.orElseThrow());
             }
             if (attempt.stage().stage() == Stage.VALIDATE) {
                 requireNotInterrupted();
@@ -258,6 +281,14 @@ public final class ShipCoordinator {
         } else {
             requireNotInterrupted();
             current = controller.resume(runId);
+        }
+        return continueAvailable(runId, current);
+    }
+
+    private ShipRun continueAvailable(String runId, ShipRun current)
+            throws IOException, InterruptedException {
+        if (Thread.currentThread().isInterrupted()) {
+            return controller.status(runId);
         }
         return current.status() == RunStatus.RUNNING
                 ? runAvailable(runId)
@@ -466,6 +497,7 @@ public final class ShipCoordinator {
                     catalogs.snapshot(target),
                     attempt.evidenceDirectory(),
                     pi,
+                    executeResult.node(),
                     clock);
             return new Step(
                     commitValidation(attempt, validated.stamp()),
@@ -800,6 +832,11 @@ public final class ShipCoordinator {
                 "Return only one JSON object with exactly these fields: "
                       + "schemaVersion, pipelineId, report, artifactPolicy, "
                       + "materialAmbiguity. Use schemaVersion 1. "
+                      + "Wire types are strict: schemaVersion is integer 1; "
+                      + "pipelineId is a JSON string only for DISCOVERY and JSON null otherwise; "
+                      + "report is one non-empty JSON string, never an object or array; "
+                      + "artifactPolicy is the policy object only for PLAN and JSON null otherwise; "
+                      + "materialAmbiguity is one JSON boolean, never an object or array. "
                       + "Use JSON null for fields not allowed by this stage; "
                       + "do not use Markdown fences or surrounding prose.");
         return prompt.toString();
@@ -1097,6 +1134,58 @@ public final class ShipCoordinator {
     interface CatalogProvider {
 
         Snapshot snapshot(CatalogTarget target) throws IOException;
+    }
+
+    private static final class AbortWatcher implements AutoCloseable {
+
+        private final Thread owner;
+        private final Thread watcher;
+        private volatile boolean closed;
+
+        private AbortWatcher(ShipController controller, String runId) {
+            owner = Thread.currentThread();
+            watcher = new Thread(
+                    () -> watch(controller, runId),
+                    "camel-kit-ship-abort-" + runId);
+            watcher.setDaemon(true);
+            watcher.start();
+        }
+
+        private void watch(ShipController controller, String runId) {
+            try {
+                while (!closed) {
+                    if (controller.status(runId).status()
+                        == RunStatus.ABORTED) {
+                        if (!closed) {
+                            owner.interrupt();
+                        }
+                        return;
+                    }
+                    Thread.sleep(ABORT_POLL_MILLIS);
+                }
+            } catch (InterruptedException ignored) {
+                // Closing the watcher.
+            } catch (ShipController.Failure ignored) {
+                // The lease owner remains authoritative for state failures.
+            }
+        }
+
+        @Override
+        public void close() {
+            closed = true;
+            watcher.interrupt();
+            boolean restoreInterrupt = Thread.interrupted();
+            while (watcher.isAlive()) {
+                try {
+                    watcher.join();
+                } catch (InterruptedException e) {
+                    restoreInterrupt = true;
+                }
+            }
+            if (restoreInterrupt) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     private record AttemptLease(FileChannel channel, FileLock lock)

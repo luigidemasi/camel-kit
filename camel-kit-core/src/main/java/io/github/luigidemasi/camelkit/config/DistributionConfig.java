@@ -25,7 +25,8 @@ public class DistributionConfig {
 
     private static final String DEFAULT_CITRUS_VERSION = "5.0.0-M2";
     private static final String DEFAULT_CITRUS_MCP_VERSION = "5.0.0-M1";
-    private static final String DEFAULT_PI_VERSION = "0.80.6";
+    private static final String DEFAULT_PI_VERSION = "0.83.0";
+    private static final String DEFAULT_NODE_VERSION = "22.22.2";
     private static final String DEFAULT_PI_MCP_ADAPTER_VERSION = "2.11.0";
 
     private static final Path DEFAULT_USER_CONFIG = Path.of(
@@ -50,6 +51,7 @@ public class DistributionConfig {
     private final String citrusMcpRepos;
     private final String camelCatalogRepos;
     private final String piVersion;
+    private final String nodeVersion;
     private final String piMcpAdapterVersion;
     private final int overrideCount;
 
@@ -75,6 +77,7 @@ public class DistributionConfig {
         this.camelCatalogRepos = props.getProperty("camel.catalog.repos",
                 "https://repo1.maven.org/maven2/,https://repository.apache.org/snapshots");
         this.piVersion = props.getProperty("pi.version", DEFAULT_PI_VERSION);
+        this.nodeVersion = props.getProperty("node.version", DEFAULT_NODE_VERSION);
         this.piMcpAdapterVersion = props.getProperty("pi.mcp.adapter.version", DEFAULT_PI_MCP_ADAPTER_VERSION);
         this.overrideCount = overrideCount;
     }
@@ -160,6 +163,23 @@ public class DistributionConfig {
 
     public static DistributionConfig loadFromClasspathOrDefaults() {
         return loadWithOverrides(null, null);
+    }
+
+    /** Loads the packaged distribution baseline without user or CLI overrides. */
+    public static DistributionConfig loadBundled() {
+        Properties props = new Properties();
+        try (InputStream in = DistributionConfig.class.getClassLoader()
+                .getResourceAsStream("distribution.properties")) {
+            if (in == null) {
+                throw new IllegalStateException(
+                        "Packaged distribution.properties is unavailable");
+            }
+            props.load(in);
+            return new DistributionConfig(props, 0);
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException(
+                    "Packaged distribution.properties could not be loaded", e);
+        }
     }
 
     /**
@@ -313,6 +333,10 @@ public class DistributionConfig {
 
     public String piVersion() {
         return piVersion;
+    }
+
+    public String nodeVersion() {
+        return nodeVersion;
     }
 
     public String piMcpAdapterVersion() {
