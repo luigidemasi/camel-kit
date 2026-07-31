@@ -170,9 +170,11 @@ public final class ShipCommand implements Callable<Integer> {
     }
 
     /**
-     * Reports the latest durable state like --abort does instead of surfacing a stack trace. The interrupt flag may
-     * still be set (PiWorker restores it before rethrowing), so it is stashed around the status read — interruptible
-     * channels would fail it otherwise — and restored before returning, mirroring the coordinator's own commit pattern.
+     * Reports the latest durable state like --abort does instead of surfacing a stack trace. Reaching this method
+     * proves an interruption occurred, so the flag is re-asserted unconditionally on exit — restoring it only when
+     * still set would lose the interruption, because a caught InterruptedException usually arrives with the flag
+     * already cleared. The initial clear exists for the ClosedByInterruptException caller, which arrives with the flag
+     * still set and would otherwise fail the interruptible status read.
      */
     private ShipRun statusAfterInterrupt(String runId) {
         Thread.interrupted();
