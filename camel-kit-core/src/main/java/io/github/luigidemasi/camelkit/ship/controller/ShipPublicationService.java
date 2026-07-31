@@ -563,17 +563,22 @@ final class ShipPublicationService {
         // Replay is bound to the policy in force now, not the one that planned the journal: a
         // path that became protected or denied meanwhile must never be restored or removed.
         ShipTreePolicy policy = ShipTreePolicy.current();
-        for (Entry entry : decoded.entries()) {
+        List<Entry> entries = decoded.entries();
+        for (int index = 0; index < entries.size(); index++) {
             Classification classification;
             try {
-                classification = policy.classify(entry.path());
+                classification = policy.classify(entries.get(index).path());
             } catch (RuntimeException e) {
+                // The rejected path is the one input proven unsafe to display, so it is located
+                // by position instead of echoed.
                 throw new RecoveryBlockedException(
-                        "Ship publication journal has an invalid entry path: " + journal);
+                        "Ship publication journal entry " + index
+                                                   + " has an invalid path in " + journal);
             }
             if (classification != Classification.MATERIAL) {
                 throw new RecoveryBlockedException(
-                        "Ship publication journal entry is no longer publishable: " + entry.path());
+                        "Ship publication journal entry is no longer publishable: "
+                                                   + entries.get(index).path());
             }
         }
         return decoded;
