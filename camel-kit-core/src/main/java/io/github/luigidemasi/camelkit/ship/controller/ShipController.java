@@ -221,6 +221,9 @@ public final class ShipController {
             }
 
             Path project = requireProject(Path.of(current.projectDirectory()));
+            recoverTornPublication(current, project, locked.directory());
+            String publishedIdentity = publishedCandidateIdentity(
+                    current, locked.directory());
             ShipContext refreshed = refreshContext(current.context());
             rejectContextSecrets(refreshed);
             List<StageRecord> stages = new ArrayList<>(current.stages());
@@ -258,7 +261,8 @@ public final class ShipController {
                                 record.inputDigest(),
                                 locked.directory(),
                                 record.artifacts(),
-                                stagedExecute);
+                                stagedExecute,
+                                publishedIdentity);
                     }
                 } catch (Failure | IOException e) {
                     restart = Math.min(restart, index);
@@ -302,13 +306,16 @@ public final class ShipController {
                     throw failure(
                             "run-completed", "Ship run is already complete: " + runId);
                 }
+                // Every stage is verified complete; guarded publication is the remaining step.
                 resumed = copy(
                         current,
-                        RunStatus.COMPLETED,
+                        current.pipelineId(),
+                        RunStatus.RUNNING,
                         Stage.VALIDATE,
                         refreshed,
                         stages,
-                        null);
+                        null,
+                        current.publication());
             } else {
                 for (int index = restart; index < stages.size(); index++) {
                     stages.set(index, stages.get(index).reset());
@@ -319,13 +326,22 @@ public final class ShipController {
                         startStage(
                                 stages.get(restart),
                                 ShipRun.inputDigest(refreshed, stages, stage)));
+                // A restarted EXECUTE produces a new candidate, so the published claim is void.
+                ArtifactRef publication = restart <= Stage.EXECUTE.ordinal()
+                        ? null
+                        : current.publication();
+                if (publication == null && current.publication() != null) {
+                    discardPublicationScratch(current.id(), locked.directory());
+                }
                 resumed = copy(
                         current,
+                        current.pipelineId(),
                         RunStatus.RUNNING,
                         stage,
                         refreshed,
                         stages,
-                        null);
+                        null,
+                        publication);
             }
             locked.write(resumed);
             return resumed;
@@ -382,12 +398,18 @@ public final class ShipController {
                                     current.context(),
                                     stages,
                                     recorded.stage())));
+            // Restarting a generated predecessor always resets EXECUTE, so the published claim is void.
+            if (current.publication() != null) {
+                discardPublicationScratch(current.id(), locked.directory());
+            }
             ShipRun resumed = copy(
                     current,
+                    current.pipelineId(),
                     RunStatus.RUNNING,
                     recorded.stage(),
                     current.context(),
                     stages,
+                    null,
                     null);
             locked.write(resumed);
             return resumed;
@@ -411,6 +433,15 @@ public final class ShipController {
             if (current.status() == RunStatus.COMPLETED) {
                 throw failure("run-completed", "Completed Ship run cannot be aborted: " + runId);
             }
+            // Aborting must stay possible when the project is gone; only a torn uncommitted
+            // publication needs the live project resolved for its rollback.
+            if (current.publication() == null
+                    && ShipPublicationService.journalExists(locked.directory())) {
+                recoverTornPublication(
+                        current,
+                        requireProject(Path.of(current.projectDirectory())),
+                        locked.directory());
+            }
 
             List<StageRecord> stages = new ArrayList<>(current.stages());
             boolean allCompleted = stages.stream()
@@ -433,6 +464,256 @@ public final class ShipController {
         } catch (IOException e) {
             throw failure("state-write-failed", "Could not abort Ship run " + runId, e);
         }
+    }
+
+    /**
+     * Publishes the validated workspace candidate into the live project under the oversight and validation gates, and
+     * commits the run COMPLETED in the same locked operation.
+     *
+     * <p>
+     * The per-run mutation lock is held for the whole guarded apply, so aborts and resumes observe
+     * {@code operation-in-progress} instead of racing the file writes; a torn publication left by process death is
+     * rolled back from its write-ahead journal by the next locked operation.
+     */
+    ShipRun publish(String runId) {
+        try (ShipRunStore.LockedRun locked = store.lock(runId)) {
+            ShipRun current = locked.read();
+            if (!current.publicationPending()) {
+                throw failure(
+                        "stale-stage-attempt",
+                        "Ship publication requires a validated run awaiting publication");
+            }
+            Path project = requireProject(Path.of(current.projectDirectory()));
+            Path runDirectory = locked.directory();
+            recoverTornPublication(current, project, runDirectory);
+            ShipContext refreshed = refreshContext(current.context());
+            if (!refreshed.equals(current.context())) {
+                throw failure(
+                        "stale-stage-input", "Ship stage context changed; resume the run");
+            }
+            WorkspaceEvidence evidence = verifyCompletedStages(current, project, runDirectory);
+
+            StageRecord execute = current.stage(Stage.EXECUTE);
+            final ShipPublicationService.Journal journal;
+            try {
+                journal = ShipPublicationService.plan(
+                        current.id(),
+                        execute.attempts(),
+                        now(),
+                        new Verification(evidence.baseline(), evidence.snapshot()));
+                ShipPublicationService.begin(runDirectory, journal);
+                ShipPublicationService.apply(
+                        project, evidence.candidate(), runDirectory, journal);
+            } catch (ShipPublicationService.StaleLiveTreeException e) {
+                throw failure(
+                        "stale-stage-input",
+                        "Live project changed before Ship publication; resume the run",
+                        e);
+            } catch (IOException e) {
+                // A candidate this protocol cannot publish must fail the run once; retrying it
+                // would loop forever because nothing about the run or the project is stale.
+                return commitPublicationFailure(locked, current, e);
+            }
+            final ArtifactRef record;
+            try {
+                record = ShipPublicationService.commitRecord(runDirectory, journal, now());
+            } catch (IOException e) {
+                try {
+                    ShipPublicationService.rollbackApplied(project, runDirectory, journal);
+                } catch (IOException rollbackFailure) {
+                    e.addSuppressed(rollbackFailure);
+                }
+                return commitPublicationFailure(locked, current, e);
+            }
+            ShipRun published = copy(
+                    current,
+                    current.pipelineId(),
+                    RunStatus.COMPLETED,
+                    Stage.VALIDATE,
+                    current.context(),
+                    current.stages(),
+                    null,
+                    record);
+            locked.write(published);
+            return published;
+        } catch (ShipRunStore.StoreException e) {
+            throw failure(e.code(), e.getMessage(), e);
+        } catch (IOException e) {
+            throw failure(
+                    "publication-failed", "Could not publish Ship run " + runId, e);
+        }
+    }
+
+    /** Verifies every completed stage exactly as recorded before the guarded apply. */
+    private WorkspaceEvidence verifyCompletedStages(
+            ShipRun run, Path project, Path runDirectory) {
+        WorkspaceEvidence evidence = null;
+        for (StageRecord record : run.stages()) {
+            try {
+                if (record.stage() == Stage.VALIDATE) {
+                    if (!isLocalStampEvidence(runDirectory, record)) {
+                        throw failure(
+                                "stale-stage-input",
+                                "Ship validation evidence is not the controller's local Stamp");
+                    }
+                    Path evidenceDirectory = validationEvidenceDirectory(
+                            runDirectory, record.attempts());
+                    VerifiedStamp stamp = ShipLocalStampStore.readVerified(
+                            evidenceDirectory, run.id());
+                    if (!stamp.digest().equals(record.outputDigest())) {
+                        throw failure(
+                                "stale-stage-input",
+                                "Ship local Stamp changed; resume the run");
+                    }
+                } else if (record.stage() == Stage.EXECUTE && record.attempts() > 0) {
+                    ArtifactRef root = requireExecuteRoot(
+                            record.artifacts(), expectedWorkspace(runDirectory));
+                    evidence = verifyWorkspace(
+                            project,
+                            Path.of(root.path()),
+                            run.id(),
+                            record.attempts(),
+                            record.inputDigest(),
+                            runDirectory,
+                            null);
+                    if (!workspaceArtifacts(
+                            evidence,
+                            record.artifacts().stream()
+                                    .map(artifact -> Path.of(artifact.path()))
+                                    .toList())
+                            .equals(record.artifacts())) {
+                        throw failure(
+                                "stale-stage-input",
+                                "A Ship stage artifact changed; resume the run");
+                    }
+                } else if (!readRecordedArtifacts(
+                        project,
+                        run.id(),
+                        record.stage(),
+                        record.attempts(),
+                        record.inputDigest(),
+                        runDirectory,
+                        record.artifacts(),
+                        false,
+                        null)
+                        .equals(record.artifacts())) {
+                    throw failure(
+                            "stale-stage-input",
+                            "A Ship stage artifact changed; resume the run");
+                }
+            } catch (Failure e) {
+                if ("stale-stage-input".equals(e.code())) {
+                    throw e;
+                }
+                throw failure(
+                        "stale-stage-input",
+                        "A Ship stage artifact changed or became unavailable; resume the run",
+                        e);
+            } catch (IOException | SecurityException e) {
+                throw failure(
+                        "stale-stage-input",
+                        "A Ship stage artifact changed or became unavailable; resume the run",
+                        e);
+            }
+        }
+        if (evidence == null) {
+            throw failure(
+                    "state-invalid", "Ship publication requires a staged EXECUTE candidate");
+        }
+        return evidence;
+    }
+
+    /** Rolls back an uncommitted torn publication before any other locked mutation proceeds. */
+    private static void recoverTornPublication(
+            ShipRun current, Path project, Path runDirectory) {
+        if (current.publication() != null
+                || !ShipPublicationService.journalExists(runDirectory)) {
+            return;
+        }
+        try {
+            ShipPublicationService.recover(
+                    project, runDirectory, current.stage(Stage.EXECUTE).attempts());
+        } catch (ShipPublicationService.RecoveryBlockedException e) {
+            throw failure(
+                    "publication-recovery-blocked",
+                    "Ship publication recovery stopped: the live project no longer matches the "
+                                                    + "journalled baseline or candidate; resolve it manually and retry",
+                    e);
+        } catch (IOException e) {
+            throw failure(
+                    "publication-failed",
+                    "Could not recover the torn Ship publication for " + current.id(),
+                    e);
+        }
+    }
+
+    /**
+     * Drops the retained publication scratch of a run that is voiding its published claim.
+     *
+     * <p>
+     * Once the claim is gone, a retained journal would otherwise read as a torn write-ahead log to the next locked
+     * operation, which would roll a committed publication out of the live project.
+     */
+    private static void discardPublicationScratch(String runId, Path runDirectory) {
+        try {
+            ShipPublicationService.discard(runDirectory);
+        } catch (IOException e) {
+            throw failure(
+                    "publication-failed",
+                    "Could not discard the superseded Ship publication record for " + runId,
+                    e);
+        }
+    }
+
+    /** Reads the published candidate identity accepted as a legitimate live baseline. */
+    private static String publishedCandidateIdentity(
+            ShipRun current, Path runDirectory) {
+        if (current.publication() == null) {
+            return null;
+        }
+        try {
+            return ShipPublicationService.readVerifiedRecord(
+                    runDirectory, current.publication(), current.id())
+                    .candidateIdentity();
+        } catch (IOException e) {
+            throw failure(
+                    "state-corrupt",
+                    "Ship publication record is invalid for " + current.id(),
+                    e);
+        }
+    }
+
+    /**
+     * Records why publication failed. A rollback that failed too leaves a partly published project, so the message must
+     * say so rather than claim the live project was restored.
+     */
+    private ShipRun commitPublicationFailure(
+            ShipRunStore.LockedRun locked, ShipRun current, IOException cause)
+            throws IOException {
+        // A retained journal is exactly the evidence that rollback did not finish.
+        String outcome = ShipPublicationService.journalExists(locked.directory())
+                ? "Ship publication failed and its rollback did not finish, so the project may be "
+                  + "partly published; resume to retry recovery"
+                : "Ship publication failed and the live project is unchanged; resume to retry";
+        ShipRun failed = copy(
+                current,
+                RunStatus.FAILED,
+                Stage.VALIDATE,
+                current.context(),
+                current.stages(),
+                publicationMessage(outcome, cause));
+        locked.write(failed);
+        return failed;
+    }
+
+    /** Appends the concrete cause, stripped of control characters and bounded to the run-message limit. */
+    private static String publicationMessage(String outcome, IOException cause) {
+        String detail = cause.getMessage();
+        if (detail == null || detail.isBlank()) {
+            return outcome;
+        }
+        String combined = outcome + ": " + detail.replaceAll("\\p{Cntrl}", " ").trim();
+        return combined.length() > 1024 ? combined.substring(0, 1024) : combined;
     }
 
     /**
@@ -639,7 +920,8 @@ public final class ShipController {
                         current.id(),
                         active.attempts(),
                         active.inputDigest(),
-                        locked.directory());
+                        locked.directory(),
+                        null);
                 rejectChangedWorkspaceSecrets(workspaceEvidence);
                 artifactRoot = workspaceEvidence.candidate();
             } else {
@@ -672,10 +954,9 @@ public final class ShipController {
             RunStatus status;
             Stage currentStage;
             if (next == null) {
-                status = current.oversight().pausesAfter(stage, materialAmbiguity)
-                        ? RunStatus.PAUSED
-                        : RunStatus.COMPLETED;
-                currentStage = Stage.VALIDATE;
+                // VALIDATE completes through completeValidationStage, which owns the publication gate.
+                throw new IllegalStateException(
+                        "Ship final-stage completion is owned by the validation path");
             } else if (current.oversight().pausesAfter(stage, materialAmbiguity)) {
                 status = RunStatus.PAUSED;
                 currentStage = next;
@@ -774,9 +1055,16 @@ public final class ShipController {
                 stages.set(
                         Stage.VALIDATE.ordinal(),
                         active.complete(reference.digest(), List.of(reference)));
-                status = current.oversight().pausesAfter(Stage.VALIDATE, false)
-                        ? RunStatus.PAUSED
-                        : RunStatus.COMPLETED;
+                if (current.publication() != null) {
+                    // A re-validated run keeps its published candidate; nothing is left to gate.
+                    status = RunStatus.COMPLETED;
+                } else {
+                    // A waiver is decision-relevant information the oversight gate has not seen.
+                    boolean waived = stamp.status() == ShipLocalStamp.Status.COMPLETED_WITH_WAIVER;
+                    status = current.oversight().pausesAfter(Stage.VALIDATE, waived)
+                            ? RunStatus.PAUSED
+                            : RunStatus.RUNNING;
+                }
             }
             ShipRun completed = copy(
                     current,
@@ -816,6 +1104,7 @@ public final class ShipController {
                 stage,
                 context,
                 stages,
+                null,
                 timestamp,
                 timestamp,
                 null);
@@ -856,6 +1145,18 @@ public final class ShipController {
             ShipContext context,
             List<StageRecord> stages,
             String message) {
+        return copy(run, pipelineId, status, currentStage, context, stages, message, run.publication());
+    }
+
+    private ShipRun copy(
+            ShipRun run,
+            String pipelineId,
+            RunStatus status,
+            Stage currentStage,
+            ShipContext context,
+            List<StageRecord> stages,
+            String message,
+            ArtifactRef publication) {
         return new ShipRun(
                 run.schemaVersion(),
                 run.id(),
@@ -866,6 +1167,7 @@ public final class ShipController {
                 currentStage,
                 context,
                 stages,
+                publication,
                 run.createdAt(),
                 mutationTime(run),
                 message);
@@ -913,6 +1215,7 @@ public final class ShipController {
                     "Ship stage context changed; resume the run");
         }
 
+        String publishedIdentity = publishedCandidateIdentity(run, runDirectory);
         for (int index = 0; index < active.stage().ordinal(); index++) {
             StageRecord predecessor = run.stages().get(index);
             try {
@@ -930,7 +1233,8 @@ public final class ShipController {
                         predecessor.inputDigest(),
                         runDirectory,
                         predecessor.artifacts(),
-                        stagedExecute)
+                        stagedExecute,
+                        publishedIdentity)
                         .equals(predecessor.artifacts())) {
                     throw failure(
                             "stale-stage-input",
@@ -962,7 +1266,8 @@ public final class ShipController {
             String inputDigest,
             Path runDirectory,
             List<ArtifactRef> artifacts,
-            boolean stagedExecute) {
+            boolean stagedExecute,
+            String publishedIdentity) {
         Path expected = expectedWorkspace(runDirectory);
         List<Path> paths = new ArrayList<>(artifacts.size());
         boolean workspaceRequired = stagedExecute;
@@ -994,7 +1299,9 @@ public final class ShipController {
                     "Imported Ship EXECUTE evidence is unsupported; start from PLAN instead");
         }
         WorkspaceEvidence workspace = workspaceRequired
-                ? verifyWorkspace(project, expected, runId, attempt, inputDigest, runDirectory)
+                ? verifyWorkspace(
+                        project, expected, runId, attempt, inputDigest, runDirectory,
+                        publishedIdentity)
                 : null;
         if (workspace != null) {
             return workspaceArtifacts(workspace, paths);
@@ -1014,11 +1321,12 @@ public final class ShipController {
             String runId,
             int attempt,
             String inputDigest,
-            Path runDirectory) {
+            Path runDirectory,
+            String publishedIdentity) {
         try {
             Path expected = expectedWorkspace(runDirectory);
             Verification verification = ShipWorkspace.verify(
-                    project, candidate, runId, attempt, inputDigest);
+                    project, candidate, runId, attempt, inputDigest, publishedIdentity);
             Path verified = Path.of(verification.candidate().root());
             if (!verified.equals(expected)) {
                 throw new IOException(

@@ -304,11 +304,28 @@ class ShipRunStoreTest {
                 ShipRun.Stage.EXECUTE,
                 context,
                 stages,
+                null,
                 CREATED_AT,
                 UPDATED_AT,
                 null);
 
         assertCode("state-invalid", () -> store().create(legacy));
+    }
+
+    @Test
+    void rejectsAPublicationRecordOutsideItsRunDirectory() throws Exception {
+        ShipRunStore store = store();
+        ShipRun completed = completedRun(RUN_ID);
+        store.create(completed);
+        Path state = stateRoot().resolve(RUN_ID).resolve("state.json");
+        ObjectMapper json = new ObjectMapper();
+
+        ObjectNode document = (ObjectNode) json.readTree(Files.readAllBytes(state));
+        ((ObjectNode) document.get("publication")).put(
+                "path", temporaryDirectory.resolve("external-publication.json").toString());
+        Files.write(state, json.writeValueAsBytes(document));
+
+        assertCode("state-corrupt", () -> store.read(RUN_ID));
     }
 
     @Test
@@ -459,6 +476,7 @@ class ShipRunStoreTest {
                 ShipRun.Stage.DISCOVERY,
                 ShipContext.none(),
                 ShipRun.pendingStages(),
+                null,
                 CREATED_AT,
                 CREATED_AT,
                 null);
@@ -505,6 +523,11 @@ class ShipRunStoreTest {
                 ShipRun.Stage.VALIDATE,
                 context,
                 stages,
+                new ShipRun.ArtifactRef(
+                        stateRoot().resolve(runId).resolve("publication/publication.json")
+                                .toAbsolutePath().normalize().toString(),
+                        ShipDigest.sha256(
+                                "publication".getBytes(java.nio.charset.StandardCharsets.UTF_8))),
                 CREATED_AT,
                 UPDATED_AT,
                 null);
@@ -521,6 +544,7 @@ class ShipRunStoreTest {
                 run.currentStage(),
                 run.context(),
                 run.stages(),
+                run.publication(),
                 run.createdAt(),
                 UPDATED_AT,
                 run.message());
@@ -537,6 +561,7 @@ class ShipRunStoreTest {
                 run.currentStage(),
                 run.context(),
                 run.stages(),
+                run.publication(),
                 run.createdAt(),
                 run.updatedAt(),
                 run.message());

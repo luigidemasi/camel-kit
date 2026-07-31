@@ -41,6 +41,8 @@ class ShipRunTest {
     private static final String UPDATED_AT = "2026-07-23T08:00:01Z";
     private static final String INPUT = digest("input");
     private static final String OUTPUT = digest("output");
+    private static final ShipRun.ArtifactRef PUBLICATION = new ShipRun.ArtifactRef(
+            "/tmp/camel-kit-state/publication/publication.json", digest("publication"));
 
     @Test
     void parsesCanonicalEnumsAndAdvancesStages() {
@@ -101,11 +103,32 @@ class ShipRunTest {
                 () -> assertDoesNotThrow(() -> run(FAILED, DISCOVERY, failedStages, "stage failed")),
                 () -> assertDoesNotThrow(() -> run(ABORTED, DISCOVERY, abortedStages, "cancelled")),
                 () -> assertDoesNotThrow(() -> run(COMPLETED, VALIDATE,
-                        completedThrough(VALIDATE), null)),
+                        completedThrough(VALIDATE), null, PUBLICATION)),
                 () -> assertDoesNotThrow(() -> run(PAUSED, VALIDATE,
                         completedThrough(VALIDATE), null)),
+                () -> assertDoesNotThrow(() -> run(RUNNING, VALIDATE,
+                        completedThrough(VALIDATE), null)),
+                () -> assertDoesNotThrow(() -> run(FAILED, VALIDATE,
+                        completedThrough(VALIDATE), "publication rolled back")),
                 () -> assertDoesNotThrow(() -> run(ABORTED, VALIDATE,
                         completedThrough(VALIDATE), "cancelled after final approval")));
+    }
+
+    @Test
+    void publicationPendingCoversExactlyTheValidatedUnpublishedRun() {
+        List<ShipRun.StageRecord> running = ShipRun.pendingStages();
+        List<ShipRun.StageRecord> runningStages = replace(
+                running, DISCOVERY, running.get(0).start(INPUT));
+
+        assertAll(
+                () -> assertTrue(run(RUNNING, VALIDATE, completedThrough(VALIDATE), null)
+                        .publicationPending()),
+                () -> assertFalse(run(RUNNING, DISCOVERY, runningStages, null)
+                        .publicationPending()),
+                () -> assertFalse(run(PAUSED, VALIDATE, completedThrough(VALIDATE), null)
+                        .publicationPending()),
+                () -> assertFalse(run(COMPLETED, VALIDATE, completedThrough(VALIDATE), null, PUBLICATION)
+                        .publicationPending()));
     }
 
     @Test
@@ -193,6 +216,33 @@ class ShipRunTest {
     }
 
     @Test
+    void bindsThePublicationRecordToItsCompletedPublishedRun() {
+        List<ShipRun.StageRecord> allComplete = completedThrough(VALIDATE);
+        List<ShipRun.StageRecord> revalidating = replace(
+                allComplete, VALIDATE,
+                allComplete.get(VALIDATE.ordinal()).reset().start(INPUT));
+        List<ShipRun.StageRecord> discovering = ShipRun.pendingStages();
+
+        assertAll(
+                () -> assertRejected(
+                        "Completed Ship run has no publication record",
+                        () -> run(COMPLETED, VALIDATE, allComplete, null)),
+                () -> assertRejected(
+                        "Only a completed Ship run retains a publication record with all stages complete",
+                        () -> run(RUNNING, VALIDATE, allComplete, null, PUBLICATION)),
+                () -> assertRejected(
+                        "Only a completed Ship run retains a publication record with all stages complete",
+                        () -> run(PAUSED, VALIDATE, allComplete, null, PUBLICATION)),
+                () -> assertDoesNotThrow(
+                        () -> run(RUNNING, VALIDATE, revalidating, null, PUBLICATION)),
+                () -> assertRejected(
+                        "A Ship publication record requires its published EXECUTE candidate",
+                        () -> run(RUNNING, DISCOVERY,
+                                replace(discovering, DISCOVERY, discovering.get(0).start(INPUT)),
+                                null, PUBLICATION)));
+    }
+
+    @Test
     void rejectsUnsafePipelineMessagesAndTimestamps() {
         assertRejected(
                 "Ship pipeline ID is invalid",
@@ -233,6 +283,28 @@ class ShipRunTest {
             ShipRun.Stage currentStage,
             List<ShipRun.StageRecord> stages,
             String message,
+            ShipRun.ArtifactRef publication) {
+        return new ShipRun(
+                ShipRun.SCHEMA_VERSION,
+                RUN_ID,
+                "/tmp/camel-kit-project",
+                null,
+                SMART,
+                status,
+                currentStage,
+                ShipContext.none(),
+                stages,
+                publication,
+                CREATED_AT,
+                UPDATED_AT,
+                message);
+    }
+
+    private static ShipRun run(
+            ShipRun.RunStatus status,
+            ShipRun.Stage currentStage,
+            List<ShipRun.StageRecord> stages,
+            String message,
             String id) {
         return new ShipRun(
                 ShipRun.SCHEMA_VERSION,
@@ -244,6 +316,7 @@ class ShipRunTest {
                 currentStage,
                 ShipContext.none(),
                 stages,
+                null,
                 CREATED_AT,
                 UPDATED_AT,
                 message);
@@ -263,6 +336,7 @@ class ShipRunTest {
                 DISCOVERY,
                 ShipContext.none(),
                 stages,
+                null,
                 createdAt,
                 updatedAt,
                 message);

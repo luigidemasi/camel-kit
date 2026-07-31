@@ -151,6 +151,7 @@ final class ShipRunStore {
         requireDisjoint(runRoot, run, "state-corrupt");
         requireWorkspaceEvidence(runRoot, run, "state-corrupt");
         requireLocalStampEvidence(runRoot, run, "state-corrupt");
+        requirePublicationEvidence(runRoot, run, "state-corrupt");
         return run;
     }
 
@@ -189,6 +190,7 @@ final class ShipRunStore {
         requireDisjoint(runRoot, run, "state-invalid");
         requireWorkspaceEvidence(runRoot, run, "state-invalid");
         requireLocalStampEvidence(runRoot, run, "state-invalid");
+        requirePublicationEvidence(runRoot, run, "state-invalid");
         byte[] encoded;
         try {
             encoded = JSON.writerWithDefaultPrettyPrinter().writeValueAsBytes(run);
@@ -293,6 +295,24 @@ final class ShipRunStore {
         throw new StoreException(
                 code,
                 "Completed Ship validation evidence is invalid for run " + run.id());
+    }
+
+    private static void requirePublicationEvidence(
+            Path runRoot, ShipRun run, String code)
+            throws StoreException {
+        if (run.publication() == null) {
+            return;
+        }
+        Path expected = runRoot
+                .resolve(ShipPublicationService.DIRECTORY)
+                .resolve(ShipPublicationService.RECORD)
+                .toAbsolutePath()
+                .normalize();
+        if (!expected.toString().equals(run.publication().path())) {
+            throw new StoreException(
+                    code,
+                    "Ship publication evidence is invalid for run " + run.id());
+        }
     }
 
     private static void requireImportedEvidence(ShipRun run, String code)

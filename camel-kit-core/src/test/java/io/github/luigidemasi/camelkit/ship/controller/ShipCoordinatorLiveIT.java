@@ -29,6 +29,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Opt-in authenticated Pi/Linux certification for the complete local Ship workflow. */
@@ -121,6 +122,23 @@ class ShipCoordinatorLiveIT {
             assertTrue(Files.isRegularFile(candidate.resolve(relative)), relative);
         }
         ArtifactManifestReader.read(candidate, manifest);
+
+        assertNotNull(completed.publication());
+        Path publicationRecord = Path.of(completed.publication().path());
+        assertEquals(
+                ShipDigest.sha256(Files.readAllBytes(publicationRecord)),
+                completed.publication().digest());
+        for (String relative : List.of(
+                "src/main/resources/routes/orders.camel.yaml",
+                "test/orders.camel.it.yaml",
+                ".camel-kit/config.properties",
+                "pom.xml",
+                "docs/camel-kit/" + PIPELINE + "/artifact-manifest.json")) {
+            assertEquals(
+                    Files.readString(candidate.resolve(relative)),
+                    Files.readString(project.resolve(relative)),
+                    "published " + relative);
+        }
 
         Path evidence = state.resolve(completed.id())
                 .resolve("evidence/validate-1");
