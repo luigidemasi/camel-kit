@@ -26,7 +26,7 @@ import io.github.luigidemasi.camelkit.ship.controller.ShipRun;
  */
 final class ShipRuntime implements ShipCommand.WorkflowLauncher {
 
-    // Mirrored by the --stage-timeout help text in ShipCommand; keep the two in sync.
+    // Mirrored by the --stage-timeout help text in ShipCommand; ShipCommandTest pins the two together.
     static final Duration DEFAULT_STAGE_TIMEOUT = Duration.ofMinutes(10);
     static final String CATALOG_REPOSITORY = "catalog-repository";
 

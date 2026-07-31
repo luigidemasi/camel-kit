@@ -429,6 +429,17 @@ class ShipCommandTest {
     }
 
     @Test
+    void advertisesTheStageTimeoutDefaultInHelp() throws Exception {
+        ShipController controller = controller("state");
+
+        RunResult help = run(controller, RecordingLauncher.passThrough(controller), "--help");
+
+        assertEquals(0, help.exitCode(), help.error());
+        assertTrue(help.output().contains("(default: " + ShipRuntime.DEFAULT_STAGE_TIMEOUT.toMinutes() + "m)"),
+                help.output());
+    }
+
+    @Test
     void startFromAdvertisesSupportedStagesAndReportsTheDomainBoundary() throws Exception {
         Path project = Files.createDirectory(tempDir.resolve("project"));
         ShipController controller = controller("state");
