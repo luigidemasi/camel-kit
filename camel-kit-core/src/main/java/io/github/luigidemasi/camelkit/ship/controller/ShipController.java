@@ -219,10 +219,23 @@ public final class ShipController {
      * Re-reads mutable inputs and restarts the earliest stale or incomplete stage with a fresh attempt.
      */
     public ShipRun resume(String runId) {
+        return resume(runId, List.of());
+    }
+
+    /**
+     * Appends context to a paused run, then applies the same stale-input restart used by ordinary resume.
+     */
+    public ShipRun resume(String runId, List<? extends Input> additions) {
+        List<Input> added = new ArrayList<>(Objects.requireNonNull(additions, "context additions"));
         try (ShipRunStore.LockedRun locked = store.lock(runId)) {
             ShipRun current = locked.read();
             if (current.status() == RunStatus.ABORTED) {
                 throw failure("run-aborted", "Ship run is aborted and cannot resume: " + runId);
+            }
+            if (!added.isEmpty() && current.status() != RunStatus.PAUSED) {
+                throw failure(
+                        "run-not-paused",
+                        "Ship context can only be added while a run is paused: " + runId);
             }
             boolean completedWithLocalStamp = current.status() == RunStatus.COMPLETED;
             if (completedWithLocalStamp) {
@@ -241,7 +254,7 @@ public final class ShipController {
             }
             String publishedIdentity = publishedCandidateIdentity(
                     current, locked.directory());
-            ShipContext refreshed = refreshContext(current.context());
+            ShipContext refreshed = resumeContext(project, current.context(), added);
             rejectContextSecrets(refreshed);
             List<StageRecord> stages = new ArrayList<>(current.stages());
             int restart = stages.size();
@@ -737,7 +750,27 @@ public final class ShipController {
             return outcome;
         }
         String combined = outcome + ": " + detail.replaceAll("\\p{Cntrl}", " ").trim();
-        return combined.length() > 1024 ? combined.substring(0, 1024) : combined;
+        return combined.length() > ShipRun.MAX_MESSAGE_LENGTH
+                ? combined.substring(0, ShipRun.MAX_MESSAGE_LENGTH)
+                : combined;
+    }
+
+    private static String pauseMessage(Stage stage, String report) {
+        String message = report == null
+                ? ""
+                : report.replaceAll("[\\p{Cntrl}&&[^\\n]]", " ").strip();
+        if (message.isBlank()) {
+            message = "Approval required after " + stage;
+        }
+        if (message.length() <= ShipRun.MAX_MESSAGE_LENGTH) {
+            return message;
+        }
+        int start = message.length() - (ShipRun.MAX_MESSAGE_LENGTH - 4);
+        if (Character.isLowSurrogate(message.charAt(start))
+                && Character.isHighSurrogate(message.charAt(start - 1))) {
+            start++;
+        }
+        return "...\n" + message.substring(start);
     }
 
     /**
@@ -751,6 +784,26 @@ public final class ShipController {
             String outputDigest,
             List<Path> artifacts,
             boolean materialAmbiguity) {
+        return completeStage(
+                runId,
+                stage,
+                attempt,
+                inputDigest,
+                outputDigest,
+                artifacts,
+                materialAmbiguity,
+                null);
+    }
+
+    ShipRun completeStage(
+            String runId,
+            Stage stage,
+            int attempt,
+            String inputDigest,
+            String outputDigest,
+            List<Path> artifacts,
+            boolean materialAmbiguity,
+            String report) {
         if (stage == Stage.EXECUTE) {
             throw failure(
                     "workspace-required",
@@ -770,6 +823,7 @@ public final class ShipController {
                 artifacts,
                 false,
                 materialAmbiguity,
+                report,
                 null);
     }
 
@@ -780,7 +834,8 @@ public final class ShipController {
             String inputDigest,
             String outputDigest,
             String pipelineId,
-            boolean materialAmbiguity) {
+            boolean materialAmbiguity,
+            String report) {
         if (!ShipRun.isPipelineId(pipelineId)) {
             throw failure(
                     "stage-result-invalid",
@@ -795,6 +850,7 @@ public final class ShipController {
                 List.of(),
                 false,
                 materialAmbiguity,
+                report,
                 pipelineId);
     }
 
@@ -808,6 +864,22 @@ public final class ShipController {
             String inputDigest,
             List<Path> artifacts,
             boolean materialAmbiguity) {
+        return completeExecuteStage(
+                runId,
+                attempt,
+                inputDigest,
+                artifacts,
+                materialAmbiguity,
+                null);
+    }
+
+    ShipRun completeExecuteStage(
+            String runId,
+            int attempt,
+            String inputDigest,
+            List<Path> artifacts,
+            boolean materialAmbiguity,
+            String report) {
         return completeStage(
                 runId,
                 Stage.EXECUTE,
@@ -817,6 +889,7 @@ public final class ShipController {
                 artifacts,
                 true,
                 materialAmbiguity,
+                report,
                 null);
     }
 
@@ -909,6 +982,7 @@ public final class ShipController {
             List<Path> artifacts,
             boolean execute,
             boolean materialAmbiguity,
+            String report,
             String discoveredPipelineId) {
         Objects.requireNonNull(stage, "stage");
         Objects.requireNonNull(artifacts, "artifacts");
@@ -977,6 +1051,7 @@ public final class ShipController {
             Stage next = stage.next();
             RunStatus status;
             Stage currentStage;
+            String message = null;
             if (next == null) {
                 // VALIDATE completes through completeValidationStage, which owns the publication gate.
                 throw new IllegalStateException(
@@ -984,6 +1059,7 @@ public final class ShipController {
             } else if (current.oversight().pausesAfter(stage, materialAmbiguity)) {
                 status = RunStatus.PAUSED;
                 currentStage = next;
+                message = pauseMessage(stage, report);
             } else {
                 stages.set(
                         next.ordinal(),
@@ -1003,7 +1079,7 @@ public final class ShipController {
                     currentStage,
                     current.context(),
                     stages,
-                    null);
+                    message);
             locked.write(completed);
             return completed;
         } catch (ShipRunStore.StoreException e) {
@@ -1017,7 +1093,8 @@ public final class ShipController {
     public ShipRun failStage(
             String runId, Stage stage, int attempt, String inputDigest, String message) {
         Objects.requireNonNull(stage, "stage");
-        if (message == null || message.isBlank() || message.length() > 1024
+        if (message == null || message.isBlank()
+                || message.length() > ShipRun.MAX_MESSAGE_LENGTH
                 || message.indexOf('\0') >= 0) {
             throw failure("stage-result-invalid", "Ship stage failure message is invalid");
         }
@@ -1088,6 +1165,11 @@ public final class ShipController {
                     status = current.oversight().pausesAfter(Stage.VALIDATE, waived)
                             ? RunStatus.PAUSED
                             : RunStatus.RUNNING;
+                    if (status == RunStatus.PAUSED) {
+                        message = waived
+                                ? "Validation completed with a waiver; approval is required before publication"
+                                : "Validation passed; approval is required before publication";
+                    }
                 }
             }
             ShipRun completed = copy(
@@ -1682,6 +1764,21 @@ public final class ShipController {
         }
     }
 
+    private static ShipContext resumeContext(
+            Path project, ShipContext existing, List<? extends Input> additions) {
+        if (additions.isEmpty()) {
+            return refreshContext(existing);
+        }
+        List<Input> combined = new ArrayList<>(existing.sources().size() + additions.size());
+        for (ShipContext.Source source : existing.sources()) {
+            combined.add(source.kind() == ShipContext.Kind.TEXT
+                    ? new ShipContext.TextInput(source.value())
+                    : new ShipContext.DocumentInput(source.value()));
+        }
+        combined.addAll(additions);
+        return resolveContext(project, combined);
+    }
+
     private static String contextCode(ShipContext.Failure failure) {
         return "context-" + failure.code().name().toLowerCase(Locale.ROOT).replace('_', '-');
     }
@@ -1982,6 +2079,10 @@ public final class ShipController {
 
         public String code() {
             return code;
+        }
+
+        Failure withMessage(String message) {
+            return new Failure(code, message, this);
         }
     }
 }

@@ -123,7 +123,9 @@ public final class ShipCommand implements Callable<Integer> {
         }
         Workflow workflow = launchWorkflow();
         if (operation != null && operation.resume != null) {
-            return awaitWorkflow(workflow::resume, operation.resume);
+            List<ShipContext.Input> additions = inputs();
+            return awaitWorkflow(
+                    runId -> workflow.resume(runId, additions), operation.resume);
         }
         ShipRun run = operation == null
                 ? controller.start(projectDirectory, selectedOversight(), inputs())
@@ -190,11 +192,16 @@ public final class ShipCommand implements Callable<Integer> {
     }
 
     private void validateArguments() {
-        if (operation != null && operation.startFrom == null
-                && (oversight != null || !contextArguments.isEmpty())) {
+        if (operation != null && operation.startFrom == null && oversight != null) {
             throw new ParameterException(
                     spec.commandLine(),
-                    "--ask, --text, and --document are only valid when starting a run");
+                    "--ask is only valid when starting a run");
+        }
+        if (operation != null && (operation.status != null || operation.abort != null)
+                && !contextArguments.isEmpty()) {
+            throw new ParameterException(
+                    spec.commandLine(),
+                    "--text and --document are only valid when starting or resuming a run");
         }
         if (operation != null && (operation.status != null || operation.abort != null)
                 && (piExecutable != null || nodeExecutable != null || mavenRepository != null
@@ -220,12 +227,73 @@ public final class ShipCommand implements Callable<Integer> {
         writer.println("Status: " + run.status());
         writer.println("Stage: " + run.currentStage());
         writer.println("Oversight: " + run.oversight());
+        if (run.status() == ShipRun.RunStatus.PAUSED) {
+            writer.println("Paused after: " + pausedAfter(run));
+            if (run.message() != null) {
+                writer.println("Report:");
+                for (String line : safeDisplay(run.message(), true).split("\n", -1)) {
+                    writer.println("  " + line);
+                }
+            }
+        } else if (run.message() != null) {
+            writer.println("Message: " + safeDisplay(run.message(), false));
+        }
+        List<ShipRun.ArtifactRef> validation = run.stage(Stage.VALIDATE).artifacts();
+        if (!validation.isEmpty()) {
+            writer.println("Stamp: " + safeDisplay(validation.get(0).path(), false));
+        }
+        if (run.publication() != null) {
+            writer.println("Publication: " + safeDisplay(run.publication().path(), false));
+        }
+        if (run.status() == ShipRun.RunStatus.PAUSED) {
+            if (pausedAfter(run) == Stage.VALIDATE) {
+                writer.println("Warning: Adding context restarts from DISCOVERY and discards the validation Stamp.");
+            }
+            writer.println("Next: camel-kit ship --resume " + run.id()
+                           + " [--text TEXT | --document PATH]");
+        } else if (run.status() == ShipRun.RunStatus.RUNNING
+                || run.status() == ShipRun.RunStatus.FAILED) {
+            writer.println("Next: camel-kit ship --resume " + run.id());
+        }
         writer.flush();
+    }
+
+    private static Stage pausedAfter(ShipRun run) {
+        Stage completed = run.currentStage();
+        for (ShipRun.StageRecord stage : run.stages()) {
+            if (stage.status() == ShipRun.StageStatus.COMPLETED) {
+                completed = stage.stage();
+            }
+        }
+        return completed;
+    }
+
+    private static String safeDisplay(String value, boolean multiline) {
+        StringBuilder safe = new StringBuilder(value.length());
+        for (int offset = 0; offset < value.length();) {
+            int codePoint = value.codePointAt(offset);
+            int type = Character.getType(codePoint);
+            if (codePoint == '\n' && multiline) {
+                safe.append('\n');
+            } else if (Character.isISOControl(codePoint)
+                    || type == Character.FORMAT
+                    || type == Character.LINE_SEPARATOR
+                    || type == Character.PARAGRAPH_SEPARATOR
+                    || type == Character.SURROGATE) {
+                safe.append(' ');
+            } else {
+                safe.appendCodePoint(codePoint);
+            }
+            offset += Character.charCount(codePoint);
+        }
+        String display = safe.toString().strip();
+        return display.isEmpty() ? "[unprintable]" : display;
     }
 
     private Integer failure(String code, String message) {
         PrintWriter writer = spec.commandLine().getErr();
-        writer.println("Error [" + code + "]: " + message);
+        writer.println("Error [" + code + "]: "
+                       + (message == null ? "[unprintable]" : safeDisplay(message, false)));
         writer.flush();
         return 1;
     }
@@ -235,7 +303,8 @@ public final class ShipCommand implements Callable<Integer> {
 
         ShipRun run(String runId) throws IOException, InterruptedException;
 
-        ShipRun resume(String runId) throws IOException, InterruptedException;
+        ShipRun resume(String runId, List<? extends ShipContext.Input> additions)
+                throws IOException, InterruptedException;
     }
 
     /** Builds the runtime-backed workflow, failing fast before any run state exists. */

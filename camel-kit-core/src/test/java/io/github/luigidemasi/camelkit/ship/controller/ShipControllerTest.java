@@ -192,6 +192,113 @@ class ShipControllerTest {
     }
 
     @Test
+    void addedResumeContextIsAtomicAndRestartsTheEarliestStage() throws Exception {
+        String secret = "resume-context-secret-12345678";
+        Path project = Files.createDirectory(directory.resolve("project"));
+        Path document = Files.writeString(project.resolve("answer.md"), "document answer");
+        Path state = directory.resolve("state");
+        ShipController controller = new ShipController(
+                state, Map.of("SHIP_TEST_TOKEN", secret));
+        ShipRun started = controller.start(
+                project,
+                Oversight.SMART,
+                List.of(new ShipContext.TextInput("original context")));
+        ShipRun paused = controller.completeStage(
+                started.id(),
+                Stage.DISCOVERY,
+                started.stage(Stage.DISCOVERY).attempts(),
+                started.stage(Stage.DISCOVERY).inputDigest(),
+                digest("discovery result"),
+                List.of(),
+                true,
+                "Which deployment region should be used?");
+        assertEquals(RunStatus.PAUSED, paused.status());
+        assertEquals("Which deployment region should be used?", paused.message());
+
+        ShipController.Failure rejected = assertThrows(
+                ShipController.Failure.class,
+                () -> controller.resume(
+                        paused.id(),
+                        List.of(new ShipContext.TextInput("answer: " + secret))));
+
+        assertEquals("context-secret-detected", rejected.code());
+        assertFalse(rejected.toString().contains(secret));
+        assertEquals(paused, controller.status(paused.id()));
+        assertFalse(Files.readString(state.resolve(paused.id()).resolve("state.json"))
+                .contains(secret));
+
+        ShipRun resumed = controller.resume(
+                paused.id(),
+                List.of(
+                        new ShipContext.TextInput("Use eu-west"),
+                        new ShipContext.DocumentInput(document.getFileName())));
+
+        assertEquals(RunStatus.RUNNING, resumed.status());
+        assertEquals(Stage.DISCOVERY, resumed.currentStage());
+        assertEquals(2, resumed.stage(Stage.DISCOVERY).attempts());
+        assertNotEquals(
+                paused.stage(Stage.DISCOVERY).inputDigest(),
+                resumed.stage(Stage.DISCOVERY).inputDigest());
+        assertEquals(StageStatus.PENDING, resumed.stage(Stage.DESIGN).status());
+        assertEquals(
+                List.of(
+                        ShipContext.Kind.TEXT,
+                        ShipContext.Kind.TEXT,
+                        ShipContext.Kind.DOCUMENT),
+                resumed.context().sources().stream().map(ShipContext.Source::kind).toList());
+        assertEquals(document.toAbsolutePath().normalize().toString(),
+                resumed.context().sources().get(2).value());
+        assertNull(resumed.message());
+        assertEquals(resumed, controller.status(resumed.id()));
+
+        ShipController.Failure duplicate = assertThrows(
+                ShipController.Failure.class,
+                () -> controller.resume(
+                        resumed.id(),
+                        List.of(new ShipContext.TextInput("duplicate answer"))));
+        assertEquals("run-not-paused", duplicate.code());
+        assertEquals(resumed, controller.status(resumed.id()));
+
+        ShipController.Failure stale = assertThrows(
+                ShipController.Failure.class,
+                () -> controller.completeStage(
+                        paused.id(),
+                        Stage.DISCOVERY,
+                        paused.stage(Stage.DISCOVERY).attempts(),
+                        paused.stage(Stage.DISCOVERY).inputDigest(),
+                        digest("late result"),
+                        List.of(),
+                        false));
+        assertEquals("stale-stage-attempt", stale.code());
+    }
+
+    @Test
+    void pauseReportsKeepTheirQuestionTailWithinTheRunMessageBound() throws Exception {
+        Path project = Files.createDirectory(directory.resolve("project"));
+        ShipController controller = controller("state");
+        ShipRun started = controller.start(project, Oversight.SMART, List.of());
+        String unsafeQuestion = "Question:\tWhich deployment\rregion\u001bshould be used\u007f?";
+        String question = "Question: Which deployment region should be used ?";
+        String report = "Analysis:\n" + "x".repeat(ShipRun.MAX_MESSAGE_LENGTH) + '\n' + unsafeQuestion;
+
+        ShipRun paused = controller.completeStage(
+                started.id(),
+                Stage.DISCOVERY,
+                started.stage(Stage.DISCOVERY).attempts(),
+                started.stage(Stage.DISCOVERY).inputDigest(),
+                digest("discovery result"),
+                List.of(),
+                true,
+                report);
+
+        assertEquals(RunStatus.PAUSED, paused.status());
+        assertEquals(ShipRun.MAX_MESSAGE_LENGTH, paused.message().length());
+        assertTrue(paused.message().startsWith("...\n"), paused.message());
+        assertTrue(paused.message().endsWith("\n" + question), paused.message());
+        assertEquals(paused, controller.status(paused.id()));
+    }
+
+    @Test
     void rejectsControllerStateInsideTheProjectBeforeCreatingIt() throws Exception {
         Path project = Files.createDirectory(directory.resolve("project"));
         Path state = project.resolve("ship-state");
@@ -529,6 +636,9 @@ class ShipControllerTest {
 
         ShipRun.StageRecord validation = paused.stage(Stage.VALIDATE);
         assertEquals(RunStatus.PAUSED, paused.status());
+        assertEquals(
+                "Validation passed; approval is required before publication",
+                paused.message());
         assertEquals(StageStatus.COMPLETED, validation.status());
         assertEquals(List.of(stampPath.toRealPath().toString()),
                 validation.artifacts().stream().map(ShipRun.ArtifactRef::path).toList());
@@ -540,6 +650,7 @@ class ShipControllerTest {
 
         ShipRun pending = reloaded.resume(paused.id());
         assertEquals(RunStatus.RUNNING, pending.status());
+        assertNull(pending.message());
         assertTrue(pending.publicationPending());
 
         ShipRun completed = reloaded.publish(pending.id());
@@ -1814,6 +1925,9 @@ class ShipControllerTest {
                 waived);
         assertEquals(RunStatus.PAUSED, gated.status(),
                 "SMART pauses before publishing a waived validation");
+        assertEquals(
+                "Validation completed with a waiver; approval is required before publication",
+                gated.message());
 
         ShipController neverController = controller("waiver-never-state");
         ShipRun never = advanceToValidation(neverController, project, Oversight.NEVER);
@@ -1826,6 +1940,7 @@ class ShipControllerTest {
                 never.stage(Stage.VALIDATE).inputDigest(),
                 neverWaived);
         assertEquals(RunStatus.RUNNING, proceeding.status());
+        assertNull(proceeding.message());
         assertTrue(proceeding.publicationPending());
     }
 

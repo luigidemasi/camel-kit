@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
+import io.github.luigidemasi.camelkit.ship.ShipDigest;
+import io.github.luigidemasi.camelkit.ship.context.ShipContext;
 import io.github.luigidemasi.camelkit.ship.context.ShipContext.Kind;
 import io.github.luigidemasi.camelkit.ship.controller.ShipController;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun;
@@ -67,7 +69,7 @@ class ShipCommandTest {
                     "--ask", policy);
 
             assertEquals(0, result.exitCode(), result.error());
-            assertTrue(result.output().endsWith(
+            assertTrue(result.output().contains(
                     "Oversight: " + policy.toUpperCase(Locale.ROOT) + System.lineSeparator()));
         }
     }
@@ -94,6 +96,46 @@ class ShipCommandTest {
         assertEquals(document.toAbsolutePath().normalize().toString(),
                 run.context().sources().get(1).value());
         assertEquals("last", run.context().sources().get(2).value());
+    }
+
+    @Test
+    void resumeAppendsMixedContextAgainstThePersistedProject() throws Exception {
+        Path project = Files.createDirectory(tempDir.resolve("project"));
+        Path document = Files.writeString(project.resolve("answer.md"), "document answer");
+        ShipController controller = controller("state");
+        ShipRun started = controller.start(
+                project,
+                ShipRun.Oversight.SMART,
+                List.of(new ShipContext.TextInput("original context")));
+        ShipRun paused = controller.completeStage(
+                started.id(),
+                ShipRun.Stage.DISCOVERY,
+                started.stage(ShipRun.Stage.DISCOVERY).attempts(),
+                started.stage(ShipRun.Stage.DISCOVERY).inputDigest(),
+                ShipDigest.sha256("discovery result".getBytes(StandardCharsets.UTF_8)),
+                List.of(),
+                true);
+        RecordingLauncher launcher = RecordingLauncher.passThrough(controller);
+
+        RunResult result = run(
+                controller,
+                launcher,
+                "--resume", paused.id(),
+                "--text", "inline answer",
+                "--document", document.getFileName().toString());
+
+        assertEquals(0, result.exitCode(), result.error());
+        ShipRun resumed = controller.status(paused.id());
+        assertEquals(List.of(Kind.TEXT, Kind.TEXT, Kind.DOCUMENT),
+                resumed.context().sources().stream().map(source -> source.kind()).toList());
+        assertEquals("original context", resumed.context().sources().get(0).value());
+        assertEquals("inline answer", resumed.context().sources().get(1).value());
+        assertEquals(document.toAbsolutePath().normalize().toString(),
+                resumed.context().sources().get(2).value());
+        assertEquals(2, resumed.stage(ShipRun.Stage.DISCOVERY).attempts(),
+                "adding context must restart the stage exactly once");
+        assertEquals(List.of("resume:" + paused.id()), launcher.invocations);
+        assertEquals(summary(paused.id(), "RUNNING", "DISCOVERY", "SMART"), result.output());
     }
 
     @Test
@@ -129,7 +171,9 @@ class ShipCommandTest {
 
         RunResult aborted = run(controller, launcher, "--abort", id);
         assertEquals(0, aborted.exitCode(), aborted.error());
-        assertEquals(summary(id, "ABORTED", "DESIGN", "SMART"), aborted.output());
+        assertEquals(summary(
+                id, "ABORTED", "DESIGN", "SMART", "Message: Run aborted by user"),
+                aborted.output());
         assertEquals(List.of("run:" + id, "resume:" + id), launcher.invocations);
 
         RunResult rejected = run(controller, launcher, "--resume", id);
@@ -155,6 +199,143 @@ class ShipCommandTest {
 
         RunResult aborted = run(controller, rejecting, "--abort", id);
         assertEquals(0, aborted.exitCode(), aborted.error());
+    }
+
+    @Test
+    void pausedStatusShowsTheDurableReportAndResumeChoicesWithoutLaunchingRuntime()
+            throws Exception {
+        Path project = Files.createDirectory(tempDir.resolve("project"));
+        ShipController controller = controller("state");
+        ShipRun started = controller.start(project, ShipRun.Oversight.SMART, List.of());
+        ShipRun paused = controller.completeStage(
+                started.id(),
+                ShipRun.Stage.DISCOVERY,
+                started.stage(ShipRun.Stage.DISCOVERY).attempts(),
+                started.stage(ShipRun.Stage.DISCOVERY).inputDigest(),
+                ShipDigest.sha256("discovery result".getBytes(StandardCharsets.UTF_8)),
+                List.of(),
+                true);
+        ShipCommand.WorkflowLauncher rejecting = settings -> {
+            throw new AssertionError("status must not launch the runtime");
+        };
+
+        RunResult status = run(controller, rejecting, "--status", paused.id());
+
+        assertEquals(0, status.exitCode(), status.error());
+        assertEquals(summary(
+                paused.id(),
+                "PAUSED",
+                "DESIGN",
+                "SMART",
+                "Paused after: DISCOVERY",
+                "Report:",
+                "  Approval required after DISCOVERY"), status.output());
+    }
+
+    @Test
+    void pausedReportKeepsSafeLinesIndentedAndCannotSpoofTheSummary()
+            throws Exception {
+        Path project = Files.createDirectory(tempDir.resolve("project"));
+        ShipController controller = controller("state");
+        String report = "Question one?\n\u001b[31mStatus: SPOOFED\u202e\r\nQuestion two?";
+        RecordingLauncher launcher = new RecordingLauncher(new ShipCommand.Workflow() {
+
+            @Override
+            public ShipRun run(String runId) {
+                ShipRun running = controller.status(runId);
+                ShipRun paused = controller.completeStage(
+                        runId,
+                        ShipRun.Stage.DISCOVERY,
+                        running.stage(ShipRun.Stage.DISCOVERY).attempts(),
+                        running.stage(ShipRun.Stage.DISCOVERY).inputDigest(),
+                        ShipDigest.sha256("discovery result".getBytes(StandardCharsets.UTF_8)),
+                        List.of(),
+                        true);
+                return withMessage(paused, report);
+            }
+
+            @Override
+            public ShipRun resume(
+                    String runId, List<? extends ShipContext.Input> additions) {
+                throw new AssertionError("not resumed");
+            }
+        });
+
+        RunResult result = run(
+                controller, launcher, "--project-dir", project.toString());
+
+        assertEquals(0, result.exitCode(), result.error());
+        assertFalse(result.output().contains("\u001b"), result.output());
+        assertFalse(result.output().contains("\u202e"), result.output());
+        assertFalse(result.output().contains("\r"), result.output());
+        assertFalse(result.output().contains("\nStatus: SPOOFED"), result.output());
+        List<String> lines = result.output().lines().toList();
+        int reportLine = lines.indexOf("Report:");
+        int nextLine = lines.indexOf("Next: camel-kit ship --resume "
+                                     + runId(result.output())
+                                     + " [--text TEXT | --document PATH]");
+        assertEquals(3, nextLine - reportLine - 1);
+        assertTrue(lines.subList(reportLine + 1, nextLine).stream()
+                .allMatch(line -> line.startsWith("  ")),
+                result.output());
+        assertTrue(lines.stream().anyMatch(line -> line.contains("Status: SPOOFED")),
+                result.output());
+    }
+
+    @Test
+    void summaryNamesRetainedValidationAndPublicationEvidence()
+            throws Exception {
+        Path project = Files.createDirectory(tempDir.resolve("project"));
+        Path stamp = project.resolve("stamp.json");
+        Path publication = project.resolve("publication.json");
+        ShipController controller = controller("state");
+
+        RunResult failed = run(
+                controller,
+                evidenceLauncher(
+                        controller, ShipRun.RunStatus.FAILED, stamp, publication),
+                "--project-dir", project.toString());
+
+        String id = runId(failed.output());
+        assertEquals(1, failed.exitCode(), failed.error());
+        assertEquals(summary(
+                id,
+                "FAILED",
+                "VALIDATE",
+                "SMART",
+                "Message: Validation failed",
+                "Stamp: " + stamp), failed.output());
+
+        RunResult paused = run(
+                controller,
+                evidenceLauncher(
+                        controller, ShipRun.RunStatus.PAUSED, stamp, publication),
+                "--resume", id);
+
+        assertEquals(0, paused.exitCode(), paused.error());
+        assertEquals(summary(
+                id,
+                "PAUSED",
+                "VALIDATE",
+                "SMART",
+                "Paused after: VALIDATE",
+                "Stamp: " + stamp,
+                "Warning: Adding context restarts from DISCOVERY and discards the validation Stamp."), paused.output());
+
+        RunResult completed = run(
+                controller,
+                evidenceLauncher(
+                        controller, ShipRun.RunStatus.COMPLETED, stamp, publication),
+                "--resume", id);
+
+        assertEquals(0, completed.exitCode(), completed.error());
+        assertEquals(summary(
+                id,
+                "COMPLETED",
+                "VALIDATE",
+                "SMART",
+                "Stamp: " + stamp,
+                "Publication: " + publication), completed.output());
     }
 
     @Test
@@ -219,13 +400,11 @@ class ShipCommandTest {
 
             @Override
             public ShipRun run(String runId) throws IOException {
-                throw new IOException(
-                        "Node is installed but `node --version` failed;"
-                                      + " reinstall Node and verify the configured executable");
+                throw new IOException("Node failed\u001b[31m\nStatus: SPOOFED\u202e");
             }
 
             @Override
-            public ShipRun resume(String runId) {
+            public ShipRun resume(String runId, List<? extends ShipContext.Input> additions) {
                 throw new AssertionError("not resumed");
             }
         });
@@ -234,8 +413,13 @@ class ShipCommandTest {
 
         assertEquals(1, result.exitCode());
         assertEquals("", result.output());
+        assertEquals(1, result.error().lines().count(), result.error());
+        assertFalse(result.error().contains("\u001b"), result.error());
+        assertFalse(result.error().contains("\u202e"), result.error());
+        assertFalse(result.error().contains("\nStatus: SPOOFED"), result.error());
         assertTrue(result.error().matches(
-                "(?s)Error \\[workflow-failed]: Node is installed.*\\(run ship-[0-9a-f]{32}\\)\\R"),
+                "Error \\[workflow-failed]: Node failed \\[31m Status: SPOOFED +"
+                                          + "\\(run ship-[0-9a-f]{32}\\)\\R"),
                 result.error());
         String id = result.error().replaceAll("(?s).*\\(run (ship-[0-9a-f]{32})\\).*", "$1");
         assertEquals(id, controller.status(id).id(), "the reported run must be recoverable");
@@ -253,7 +437,7 @@ class ShipCommandTest {
             }
 
             @Override
-            public ShipRun resume(String runId) {
+            public ShipRun resume(String runId, List<? extends ShipContext.Input> additions) {
                 throw new AssertionError("not resumed");
             }
         });
@@ -277,7 +461,7 @@ class ShipCommandTest {
             }
 
             @Override
-            public ShipRun resume(String runId) {
+            public ShipRun resume(String runId, List<? extends ShipContext.Input> additions) {
                 throw new AssertionError("not resumed");
             }
         });
@@ -310,7 +494,9 @@ class ShipCommandTest {
             }
 
             @Override
-            public ShipRun resume(String runId) throws IOException {
+            public ShipRun resume(
+                    String runId, List<? extends ShipContext.Input> additions)
+                    throws IOException {
                 throw new IOException("Pi stage session is already running");
             }
         });
@@ -335,7 +521,7 @@ class ShipCommandTest {
             }
 
             @Override
-            public ShipRun resume(String runId) {
+            public ShipRun resume(String runId, List<? extends ShipContext.Input> additions) {
                 throw new AssertionError("not resumed");
             }
         });
@@ -475,7 +661,7 @@ class ShipCommandTest {
     }
 
     @Test
-    void rejectsExclusiveOperationsAndContextOnNonStartingOperations() throws Exception {
+    void rejectsExclusiveOperationsAndArgumentsOutsideTheirLifecycle() throws Exception {
         ShipController controller = controller("state");
         String id = "ship-0123456789abcdef0123456789abcdef";
 
@@ -486,14 +672,20 @@ class ShipCommandTest {
         RunResult context = run(controller, rejectingLauncher(), "--status", id, "--text", "not allowed");
         assertEquals(CommandLine.ExitCode.USAGE, context.exitCode());
         assertTrue(context.error().contains(
-                "--ask, --text, and --document are only valid when starting a run"),
+                "--text and --document are only valid when starting or resuming a run"),
                 context.error());
 
         RunResult oversight = run(controller, rejectingLauncher(), "--abort", id, "--ask", "never");
         assertEquals(CommandLine.ExitCode.USAGE, oversight.exitCode());
         assertTrue(oversight.error().contains(
-                "--ask, --text, and --document are only valid when starting a run"),
+                "--ask is only valid when starting a run"),
                 oversight.error());
+
+        RunResult resumedOversight = run(
+                controller, rejectingLauncher(), "--resume", id, "--ask", "always");
+        assertEquals(CommandLine.ExitCode.USAGE, resumedOversight.exitCode());
+        assertTrue(resumedOversight.error().contains(
+                "--ask is only valid when starting a run"), resumedOversight.error());
     }
 
     @Test
@@ -572,13 +764,17 @@ class ShipCommandTest {
 
         assertEquals(1, result.exitCode(), result.error());
         String id = runId(result.output());
-        assertEquals(summary(id, "FAILED", "DISCOVERY", "SMART"), result.output());
+        String message = "Pi stage could not run: Pi 0.81.1 is unverified; "
+                         + "install maintained Pi 0.83.0; explicitly accept experimental Pi "
+                         + "or Node before starting the stage";
+        assertEquals(summary(
+                id, "FAILED", "DISCOVERY", "SMART", "Message: " + message),
+                result.output());
         RunResult failedStatus = run(controller, new ShipRuntime(state), "--status", id);
         assertEquals(0, failedStatus.exitCode(),
                 "status queries report failed runs without a failing exit code");
-        assertTrue(controller.status(id).message().contains(
-                "Pi 0.81.1 is unverified; install maintained Pi"),
-                controller.status(id).message());
+        assertEquals(result.output(), failedStatus.output());
+        assertEquals(message, controller.status(id).message());
         assertFalse(Files.exists(fixture.resolve("args")),
                 "the gate must fire before any Pi process starts");
     }
@@ -632,13 +828,109 @@ class ShipCommandTest {
         return output.lines().findFirst().orElseThrow().substring("Run: ".length());
     }
 
-    private static String summary(String id, String status, String stage, String oversight) {
-        return String.join(System.lineSeparator(),
-                "Run: " + id,
-                "Status: " + status,
-                "Stage: " + stage,
-                "Oversight: " + oversight,
-                "");
+    private static ShipRun withMessage(ShipRun run, String message) {
+        return new ShipRun(
+                run.schemaVersion(),
+                run.id(),
+                run.projectDirectory(),
+                run.pipelineId(),
+                run.oversight(),
+                run.status(),
+                run.currentStage(),
+                run.context(),
+                run.stages(),
+                run.publication(),
+                run.createdAt(),
+                run.updatedAt(),
+                message);
+    }
+
+    private static RecordingLauncher evidenceLauncher(
+            ShipController controller,
+            ShipRun.RunStatus status,
+            Path stamp,
+            Path publication) {
+        return new RecordingLauncher(new ShipCommand.Workflow() {
+
+            @Override
+            public ShipRun run(String runId) {
+                return evidenceSnapshot(
+                        controller.status(runId), status, stamp, publication);
+            }
+
+            @Override
+            public ShipRun resume(
+                    String runId, List<? extends ShipContext.Input> additions) {
+                return evidenceSnapshot(
+                        controller.status(runId), status, stamp, publication);
+            }
+        });
+    }
+
+    private static ShipRun evidenceSnapshot(
+            ShipRun run,
+            ShipRun.RunStatus status,
+            Path stamp,
+            Path publication) {
+        String stampDigest = ShipDigest.sha256("stamp".getBytes(StandardCharsets.UTF_8));
+        List<ShipRun.StageRecord> stages = java.util.Arrays.stream(ShipRun.Stage.values())
+                .map(stage -> {
+                    boolean validation = stage == ShipRun.Stage.VALIDATE;
+                    return new ShipRun.StageRecord(
+                            stage,
+                            validation && status == ShipRun.RunStatus.FAILED
+                                    ? ShipRun.StageStatus.FAILED
+                                    : ShipRun.StageStatus.COMPLETED,
+                            1,
+                            ShipDigest.sha256(
+                                    (stage + " input").getBytes(StandardCharsets.UTF_8)),
+                            validation
+                                    ? stampDigest
+                                    : ShipDigest.sha256(
+                                            (stage + " output")
+                                                    .getBytes(StandardCharsets.UTF_8)),
+                            validation
+                                    ? List.of(new ShipRun.ArtifactRef(
+                                            stamp.toString(), stampDigest))
+                                    : List.of());
+                })
+                .toList();
+        ShipRun.ArtifactRef publicationRef = status == ShipRun.RunStatus.COMPLETED
+                ? new ShipRun.ArtifactRef(publication.toString(), stampDigest)
+                : null;
+        return new ShipRun(
+                run.schemaVersion(),
+                run.id(),
+                run.projectDirectory(),
+                run.pipelineId(),
+                run.oversight(),
+                status,
+                ShipRun.Stage.VALIDATE,
+                run.context(),
+                stages,
+                publicationRef,
+                run.createdAt(),
+                run.updatedAt(),
+                status == ShipRun.RunStatus.FAILED ? "Validation failed" : null);
+    }
+
+    private static String summary(
+            String id, String status, String stage, String oversight, String... details) {
+        List<String> lines = new ArrayList<>(
+                List.of(
+                        "Run: " + id,
+                        "Status: " + status,
+                        "Stage: " + stage,
+                        "Oversight: " + oversight));
+        lines.addAll(List.of(details));
+        if ("PAUSED".equals(status)) {
+            lines.add("Next: camel-kit ship --resume " + id
+                      + " [--text TEXT | --document PATH]");
+        } else if ("RUNNING".equals(status) || "FAILED".equals(status)) {
+            lines.add("Next: camel-kit ship --resume " + id);
+        }
+        lines.add("");
+        return String.join(System.lineSeparator(), lines);
     }
 
     /** Records launches and workflow invocations; the pass-through variant mirrors today's state. */
@@ -662,8 +954,9 @@ class ShipCommandTest {
                 }
 
                 @Override
-                public ShipRun resume(String runId) {
-                    return controller.resume(runId);
+                public ShipRun resume(
+                        String runId, List<? extends ShipContext.Input> additions) {
+                    return controller.resume(runId, additions);
                 }
             });
         }
@@ -681,9 +974,11 @@ class ShipCommandTest {
                 }
 
                 @Override
-                public ShipRun resume(String runId) throws IOException, InterruptedException {
+                public ShipRun resume(
+                        String runId, List<? extends ShipContext.Input> additions)
+                        throws IOException, InterruptedException {
                     invocations.add("resume:" + runId);
-                    return delegate.resume(runId);
+                    return delegate.resume(runId, additions);
                 }
             };
         }
