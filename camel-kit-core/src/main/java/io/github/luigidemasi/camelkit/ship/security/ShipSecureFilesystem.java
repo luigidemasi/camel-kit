@@ -265,6 +265,13 @@ final class ShipSecureFilesystem {
                 .getBytes(StandardCharsets.UTF_8));
     }
 
+    private static String projectIdentity(UnixIdentity identity) {
+        return digestBytes(("camel-kit.ship.project.v1\0"
+                            + Long.toUnsignedString(identity.device()) + "\0"
+                            + Long.toUnsignedString(identity.inode()))
+                .getBytes(StandardCharsets.UTF_8));
+    }
+
     private static String digestBytes(byte[] value) {
         return "sha256:" + HexFormat.of().formatHex(messageDigest().digest(value));
     }
@@ -338,6 +345,16 @@ final class ShipSecureFilesystem {
 
         void validateBinding() throws IOException {
             assertRootBinding();
+        }
+
+        String rootIdentity() throws IOException {
+            assertRootBinding();
+            return identity;
+        }
+
+        String projectIdentity() throws IOException {
+            assertRootBinding();
+            return ShipSecureFilesystem.projectIdentity(rootMetadata);
         }
 
         ProjectSnapshot snapshot() throws IOException {
@@ -606,7 +623,7 @@ final class ShipSecureFilesystem {
         private void assertLexicalRootStillNamesHandle() throws IOException {
             UnixIdentity named = sampleUnixIdentity(path, rootMetadata.fileKey(), label + " root");
             if (!rootMetadata.equals(named)
-                    || !identity.equals(rootIdentity(path, named))) {
+                    || !identity.equals(ShipSecureFilesystem.rootIdentity(path, named))) {
                 throw concurrentMutation(
                         label + " root path no longer names its original directory: " + path);
             }

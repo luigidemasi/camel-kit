@@ -79,7 +79,21 @@ public final class ShipController {
 
     ShipController(
                    Path stateRoot, Clock clock, Map<String, String> environment) {
-        this.store = new ShipRunStore(Objects.requireNonNull(stateRoot, "state root"));
+        this(
+             stateRoot,
+             ShipRunStore.defaultProjectRegistryRoot(),
+             clock,
+             environment);
+    }
+
+    ShipController(
+                   Path stateRoot,
+                   Path projectRegistryRoot,
+                   Clock clock,
+                   Map<String, String> environment) {
+        this.store = new ShipRunStore(
+                Objects.requireNonNull(stateRoot, "state root"),
+                Objects.requireNonNull(projectRegistryRoot, "project registry root"));
         this.clock = Objects.requireNonNull(clock, "clock");
         this.environment = Map.copyOf(
                 Objects.requireNonNull(environment, "environment"));
@@ -221,7 +235,10 @@ public final class ShipController {
             }
 
             Path project = requireProject(Path.of(current.projectDirectory()));
-            recoverTornPublication(current, project, locked.directory());
+            try (ShipRunStore.LockedProject projectLock = store.lockProject(project)) {
+                projectLock.requireNoForeignTornPublication(current.id());
+                recoverTornPublication(current, project, locked.directory());
+            }
             String publishedIdentity = publishedCandidateIdentity(
                     current, locked.directory());
             ShipContext refreshed = refreshContext(current.context());
@@ -437,10 +454,11 @@ public final class ShipController {
             // publication needs the live project resolved for its rollback.
             if (current.publication() == null
                     && ShipPublicationService.journalExists(locked.directory())) {
-                recoverTornPublication(
-                        current,
-                        requireProject(Path.of(current.projectDirectory())),
-                        locked.directory());
+                Path project = requireProject(Path.of(current.projectDirectory()));
+                try (ShipRunStore.LockedProject projectLock = store.lockProject(project)) {
+                    projectLock.requireNoForeignTornPublication(current.id());
+                    recoverTornPublication(current, project, locked.directory());
+                }
             }
 
             List<StageRecord> stages = new ArrayList<>(current.stages());
@@ -471,9 +489,9 @@ public final class ShipController {
      * commits the run COMPLETED in the same locked operation.
      *
      * <p>
-     * The per-run mutation lock is held for the whole guarded apply, so aborts and resumes observe
-     * {@code operation-in-progress} instead of racing the file writes; a torn publication left by process death is
-     * rolled back from its write-ahead journal by the next locked operation.
+     * The per-run and project mutation locks are held for the whole guarded apply, so other runs, aborts, and resumes
+     * observe {@code operation-in-progress} instead of racing the file writes; a torn publication left by process death
+     * is rolled back from its write-ahead journal by the next locked operation.
      */
     ShipRun publish(String runId) {
         try (ShipRunStore.LockedRun locked = store.lock(runId)) {
@@ -484,58 +502,61 @@ public final class ShipController {
                         "Ship publication requires a validated run awaiting publication");
             }
             Path project = requireProject(Path.of(current.projectDirectory()));
-            Path runDirectory = locked.directory();
-            recoverTornPublication(current, project, runDirectory);
-            ShipContext refreshed = refreshContext(current.context());
-            if (!refreshed.equals(current.context())) {
-                throw failure(
-                        "stale-stage-input", "Ship stage context changed; resume the run");
-            }
-            WorkspaceEvidence evidence = verifyCompletedStages(current, project, runDirectory);
-
-            StageRecord execute = current.stage(Stage.EXECUTE);
-            final ShipPublicationService.Journal journal;
-            try {
-                journal = ShipPublicationService.plan(
-                        current.id(),
-                        execute.attempts(),
-                        now(),
-                        new Verification(evidence.baseline(), evidence.snapshot()));
-                ShipPublicationService.begin(runDirectory, journal);
-                ShipPublicationService.apply(
-                        project, evidence.candidate(), runDirectory, journal);
-            } catch (ShipPublicationService.StaleLiveTreeException e) {
-                throw failure(
-                        "stale-stage-input",
-                        "Live project changed before Ship publication; resume the run",
-                        e);
-            } catch (IOException e) {
-                // A candidate this protocol cannot publish must fail the run once; retrying it
-                // would loop forever because nothing about the run or the project is stale.
-                return commitPublicationFailure(locked, current, e);
-            }
-            final ArtifactRef record;
-            try {
-                record = ShipPublicationService.commitRecord(runDirectory, journal, now());
-            } catch (IOException e) {
-                try {
-                    ShipPublicationService.rollbackApplied(project, runDirectory, journal);
-                } catch (IOException rollbackFailure) {
-                    e.addSuppressed(rollbackFailure);
+            try (ShipRunStore.LockedProject projectLock = store.lockProject(project)) {
+                projectLock.requireNoForeignTornPublication(current.id());
+                Path runDirectory = locked.directory();
+                recoverTornPublication(current, project, runDirectory);
+                ShipContext refreshed = refreshContext(current.context());
+                if (!refreshed.equals(current.context())) {
+                    throw failure(
+                            "stale-stage-input", "Ship stage context changed; resume the run");
                 }
-                return commitPublicationFailure(locked, current, e);
+                WorkspaceEvidence evidence = verifyCompletedStages(current, project, runDirectory);
+
+                StageRecord execute = current.stage(Stage.EXECUTE);
+                final ShipPublicationService.Journal journal;
+                try {
+                    journal = ShipPublicationService.plan(
+                            current.id(),
+                            execute.attempts(),
+                            now(),
+                            new Verification(evidence.baseline(), evidence.snapshot()));
+                    ShipPublicationService.begin(runDirectory, journal);
+                    ShipPublicationService.apply(
+                            project, evidence.candidate(), runDirectory, journal);
+                } catch (ShipPublicationService.StaleLiveTreeException e) {
+                    throw failure(
+                            "stale-stage-input",
+                            "Live project changed before Ship publication; resume the run",
+                            e);
+                } catch (IOException e) {
+                    // A candidate this protocol cannot publish must fail the run once; retrying it
+                    // would loop forever because nothing about the run or the project is stale.
+                    return commitPublicationFailure(locked, current, e);
+                }
+                final ArtifactRef record;
+                try {
+                    record = ShipPublicationService.commitRecord(runDirectory, journal, now());
+                } catch (IOException e) {
+                    try {
+                        ShipPublicationService.rollbackApplied(project, runDirectory, journal);
+                    } catch (IOException rollbackFailure) {
+                        e.addSuppressed(rollbackFailure);
+                    }
+                    return commitPublicationFailure(locked, current, e);
+                }
+                ShipRun published = copy(
+                        current,
+                        current.pipelineId(),
+                        RunStatus.COMPLETED,
+                        Stage.VALIDATE,
+                        current.context(),
+                        current.stages(),
+                        null,
+                        record);
+                locked.write(published);
+                return published;
             }
-            ShipRun published = copy(
-                    current,
-                    current.pipelineId(),
-                    RunStatus.COMPLETED,
-                    Stage.VALIDATE,
-                    current.context(),
-                    current.stages(),
-                    null,
-                    record);
-            locked.write(published);
-            return published;
         } catch (ShipRunStore.StoreException e) {
             throw failure(e.code(), e.getMessage(), e);
         } catch (IOException e) {
@@ -632,7 +653,10 @@ public final class ShipController {
         }
         try {
             ShipPublicationService.recover(
-                    project, runDirectory, current.stage(Stage.EXECUTE).attempts());
+                    project,
+                    runDirectory,
+                    current.id(),
+                    current.stage(Stage.EXECUTE).attempts());
         } catch (ShipPublicationService.RecoveryBlockedException e) {
             throw failure(
                     "publication-recovery-blocked",

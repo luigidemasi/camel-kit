@@ -116,7 +116,11 @@ class ShipCoordinatorTest {
         state = directory.resolve("state");
         Map<String, String> environment = Map.of();
         distribution = DistributionConfig.load(new Properties());
-        controller = new ShipController(state, environment);
+        controller = new ShipController(
+                state,
+                directory.resolve("project-registry/projects"),
+                Clock.systemUTC(),
+                environment);
         worker = new PiWorker(
                 fixture.resolve("pi-rpc"),
                 distribution.piVersion(),
@@ -416,7 +420,11 @@ class ShipCoordinatorTest {
                         stateFile,
                         StandardCopyOption.ATOMIC_MOVE);
             }
-            ShipRun aborted = new ShipController(state, Map.of())
+            ShipRun aborted = new ShipController(
+                    state,
+                    directory.resolve("project-registry/projects"),
+                    Clock.systemUTC(),
+                    Map.of())
                     .abort(run.id());
             invocation.join(Duration.ofSeconds(10).toMillis());
 

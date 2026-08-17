@@ -1572,6 +1572,91 @@ class ShipControllerTest {
     }
 
     @Test
+    void foreignUncommittedJournalBlocksPublication() throws Exception {
+        Path project = publishableProject("foreign-journal-project");
+        Path registry = directory.resolve("foreign-journal-registry/projects");
+        Path state = directory.resolve("foreign-journal-state");
+        ShipController controller = new ShipController(
+                state, registry, Clock.systemUTC(), System.getenv());
+        ShipRun interrupted = pendingWithCandidateChanges(controller, project);
+        ShipRun competing = pendingWithCandidateChanges(controller, project);
+        Path interruptedDirectory = state.resolve(interrupted.id());
+        ShipRunStore store = new ShipRunStore(state, registry);
+        try (ShipRunStore.LockedProject owner = store.lockProject(project)) {
+            owner.requireNoForeignTornPublication(interrupted.id());
+            tornJournal(project, interrupted, interruptedDirectory);
+        }
+
+        assertFailure(
+                "project-publication-in-progress",
+                () -> controller.publish(competing.id()));
+
+        assertEquals(competing, controller.status(competing.id()));
+        assertTrue(Files.isRegularFile(
+                interruptedDirectory.resolve("publication/journal.json")));
+        assertEquals("original", Files.readString(project.resolve("src/replace.txt")));
+        assertTrue(Files.exists(project.resolve("old.txt")));
+        assertFalse(Files.exists(project.resolve("routes")));
+    }
+
+    @Test
+    void foreignUncommittedJournalBlocksPublicationAcrossStateRoots() throws Exception {
+        Path project = publishableProject("cross-root-foreign-journal-project");
+        Path registry = directory.resolve("project-registry/projects");
+        Path firstState = directory.resolve("cross-root-state-one");
+        Path secondState = directory.resolve("cross-root-state-two");
+        ShipController first = new ShipController(
+                firstState, registry, Clock.systemUTC(), System.getenv());
+        ShipController second = new ShipController(
+                secondState, registry, Clock.systemUTC(), System.getenv());
+        ShipRun interrupted = pendingWithCandidateChanges(first, project);
+        ShipRun competing = pendingWithCandidateChanges(second, project);
+        Path interruptedDirectory = firstState.resolve(interrupted.id());
+
+        ShipRunStore firstStore = new ShipRunStore(firstState, registry);
+        try (ShipRunStore.LockedProject owner = firstStore.lockProject(project)) {
+            owner.requireNoForeignTornPublication(interrupted.id());
+            tornJournal(project, interrupted, interruptedDirectory);
+        }
+
+        assertFailure(
+                "project-publication-in-progress",
+                () -> second.publish(competing.id()));
+
+        assertEquals(competing, second.status(competing.id()));
+        assertTrue(Files.isRegularFile(
+                interruptedDirectory.resolve("publication/journal.json")));
+        assertEquals("original", Files.readString(project.resolve("src/replace.txt")));
+        assertTrue(Files.exists(project.resolve("old.txt")));
+        assertFalse(Files.exists(project.resolve("routes")));
+    }
+
+    @Test
+    void committedJournalDoesNotHideAStaleBaselineFromALaterRun() throws Exception {
+        Path project = publishableProject("committed-journal-project");
+        ShipController controller = controller("committed-journal-state");
+        ShipRun first = pendingWithCandidateChanges(controller, project);
+        ShipRun later = pendingWithCandidateChanges(controller, project);
+
+        ShipRun published = controller.publish(first.id());
+        Path committedJournal = directory.resolve("committed-journal-state")
+                .resolve(first.id())
+                .resolve("publication/journal.json");
+        assertTrue(Files.isRegularFile(committedJournal));
+
+        assertFailure("stale-stage-input", () -> controller.publish(later.id()));
+
+        assertEquals(RunStatus.COMPLETED, published.status());
+        assertEquals(later, controller.status(later.id()));
+        assertTrue(Files.isRegularFile(committedJournal));
+        assertEquals("replaced", Files.readString(project.resolve("src/replace.txt")));
+        assertFalse(Files.exists(project.resolve("old.txt")));
+        assertEquals(
+                "route: order",
+                Files.readString(project.resolve("routes/order-route.yaml")));
+    }
+
+    @Test
     void abortsAPendingRunWithoutTouchingTheLiveProject() throws Exception {
         Path project = publishableProject("abort-pending-project");
         ShipController controller = controller("abort-pending-state");
@@ -1876,6 +1961,7 @@ class ShipControllerTest {
                 "2026-07-31T12:00:00Z",
                 verification);
         ShipPublicationService.begin(runDirectory, journal);
+        ShipPublicationService.startApplication(runDirectory, journal);
         return journal;
     }
 
@@ -1885,7 +1971,11 @@ class ShipControllerTest {
     }
 
     private ShipController controller(String stateDirectory) {
-        return new ShipController(directory.resolve(stateDirectory));
+        return new ShipController(
+                directory.resolve(stateDirectory),
+                directory.resolve("project-registry/projects"),
+                Clock.systemUTC(),
+                System.getenv());
     }
 
     private ShipRun advanceToValidation(

@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -14,14 +15,17 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Objects;
 import java.util.Set;
 
+import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.ArtifactRef;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.Stage;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.StageRecord;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.StageStatus;
+import io.github.luigidemasi.camelkit.ship.security.ProjectEvidenceFiles;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -35,8 +39,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 final class ShipRunStore {
 
     private static final int MAX_STATE_BYTES = 64 * 1024 * 1024;
+    private static final int MAX_PROJECT_OWNER_BYTES = 64 * 1024;
+    private static final int MAX_PROCESS_STATUS_BYTES = 64 * 1024;
     private static final String STATE_FILE = "state.json";
     private static final String LOCK_FILE = "run.lock";
+    private static final int PROJECT_OWNER_SCHEMA_VERSION = 1;
     private static final ObjectMapper JSON = new ObjectMapper(
             JsonFactory.builder()
                     .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
@@ -50,11 +57,30 @@ final class ShipRunStore {
             .disable(MapperFeature.ALLOW_COERCION_OF_SCALARS);
 
     private final Path stateRoot;
+    private final Path projectRegistryRoot;
     private final boolean posix;
 
     ShipRunStore(Path stateRoot) {
+        this(stateRoot, defaultProjectRegistryRoot());
+    }
+
+    ShipRunStore(Path stateRoot, Path projectRegistryRoot) {
         this.stateRoot = Objects.requireNonNull(stateRoot, "stateRoot").toAbsolutePath().normalize();
+        this.projectRegistryRoot = Objects.requireNonNull(
+                projectRegistryRoot, "projectRegistryRoot").toAbsolutePath().normalize();
         this.posix = this.stateRoot.getFileSystem().supportedFileAttributeViews().contains("posix");
+    }
+
+    static Path defaultProjectRegistryRoot() {
+        final long uid;
+        try {
+            uid = effectiveUserId();
+        } catch (IOException e) {
+            throw new IllegalStateException("Could not resolve the effective Unix user ID", e);
+        }
+        return Path.of("/var/tmp")
+                .resolve("camel-kit-ship-" + Long.toUnsignedString(uid))
+                .resolve("projects");
     }
 
     static Path validationStampPath(Path runDirectory, int attempt) {
@@ -178,6 +204,51 @@ final class ShipRunStore {
             throw busy;
         }
         return new LockedRun(runId, runRoot, channel, fileLock);
+    }
+
+    LockedProject lockProject(Path projectDirectory) throws IOException {
+        Path project = canonicalize(Objects.requireNonNull(
+                projectDirectory, "projectDirectory"));
+        Path registry = resolvedProjectRegistryRoot();
+        if (registry.startsWith(project) || project.startsWith(registry)) {
+            throw new StoreException(
+                    "state-project-overlap",
+                    "Ship project and publication registry directories must be disjoint");
+        }
+        String projectIdentity = ProjectEvidenceFiles.projectIdentity(project);
+        String key = projectIdentity.substring("sha256:".length());
+        Path lockFile = registry.resolve(key + ".lock");
+        Path ownerFile = registry.resolve(key + ".owner.json");
+        FileChannel channel = FileChannel.open(
+                lockFile,
+                Set.of(
+                        StandardOpenOption.CREATE,
+                        StandardOpenOption.WRITE,
+                        LinkOption.NOFOLLOW_LINKS),
+                fileAttributes());
+        if (!Files.isRegularFile(lockFile, LinkOption.NOFOLLOW_LINKS)) {
+            StoreException invalid = new StoreException(
+                    "state-corrupt", "Ship project lock is not a real file");
+            closeAfterFailure(channel, invalid);
+            throw invalid;
+        }
+        FileLock fileLock;
+        try {
+            fileLock = channel.tryLock();
+        } catch (OverlappingFileLockException e) {
+            closeAfterFailure(channel, e);
+            throw projectBusy(project, e);
+        } catch (IOException e) {
+            closeAfterFailure(channel, e);
+            throw e;
+        }
+        if (fileLock == null) {
+            StoreException busy = projectBusy(project, null);
+            closeAfterFailure(channel, busy);
+            throw busy;
+        }
+        return new LockedProject(
+                project, projectIdentity, ownerFile, channel, fileLock);
     }
 
     private void write(Path runRoot, ShipRun run) throws IOException {
@@ -416,6 +487,82 @@ final class ShipRunStore {
         return resolved;
     }
 
+    private Path resolvedProjectRegistryRoot() throws StoreException {
+        if (!projectRegistryRoot.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+            throw new StoreException(
+                    "state-corrupt", "Ship project publication ownership requires a POSIX filesystem");
+        }
+        Path parent = projectRegistryRoot.getParent();
+        if (parent == null) {
+            throw new StoreException(
+                    "state-corrupt", "Ship project publication registry has no parent directory");
+        }
+        try {
+            ensurePrivateDirectory(parent);
+            ensurePrivateDirectory(projectRegistryRoot);
+            return canonicalize(projectRegistryRoot);
+        } catch (IOException | SecurityException e) {
+            throw new StoreException(
+                    "state-corrupt", "Ship project publication registry is unsafe", e);
+        }
+    }
+
+    private static void ensurePrivateDirectory(Path directory) throws IOException {
+        try {
+            Files.createDirectory(
+                    directory,
+                    PosixFilePermissions.asFileAttribute(
+                            PosixFilePermissions.fromString("rwx------")));
+        } catch (FileAlreadyExistsException ignored) {
+            // Validate the existing per-user rendezvous below.
+        }
+        if (Files.isSymbolicLink(directory)
+                || !Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("Ship private state path is not a real directory: " + directory);
+        }
+        long owner = ((Number) Files.getAttribute(
+                directory, "unix:uid", LinkOption.NOFOLLOW_LINKS)).longValue();
+        long current = effectiveUserId();
+        if (owner != current) {
+            throw new IOException("Ship private state path is owned by another user: " + directory);
+        }
+        Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(
+                directory, LinkOption.NOFOLLOW_LINKS);
+        if (!permissions.equals(PosixFilePermissions.fromString("rwx------"))) {
+            throw new IOException("Ship private state path is not private: " + directory);
+        }
+    }
+
+    private static long effectiveUserId() throws IOException {
+        Path status = Path.of("/proc/self/status");
+        byte[] encoded;
+        try (InputStream input = Files.newInputStream(status)) {
+            encoded = input.readNBytes(MAX_PROCESS_STATUS_BYTES + 1);
+        }
+        if (encoded.length == 0 || encoded.length > MAX_PROCESS_STATUS_BYTES) {
+            throw new IOException("Linux process status has an invalid size");
+        }
+        for (String line : new String(encoded, StandardCharsets.UTF_8).split("\\R")) {
+            if (!line.startsWith("Uid:")) {
+                continue;
+            }
+            String[] fields = line.trim().split("\\s+");
+            if (fields.length != 5) {
+                break;
+            }
+            try {
+                long uid = Long.parseLong(fields[2]);
+                if (uid >= 0) {
+                    return uid;
+                }
+            } catch (NumberFormatException ignored) {
+                // Report one stable error below.
+            }
+            break;
+        }
+        throw new IOException("Linux process status does not contain an effective user ID");
+    }
+
     private static Path canonicalize(Path path) throws IOException {
         if (Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
             return path.toRealPath();
@@ -465,6 +612,163 @@ final class ShipRunStore {
         return cause == null
                 ? new StoreException("operation-in-progress", message)
                 : new StoreException("operation-in-progress", message, cause);
+    }
+
+    private static StoreException projectBusy(Path project, Throwable cause) {
+        String message = "Ship project already has an in-progress publication: " + project;
+        return cause == null
+                ? new StoreException("operation-in-progress", message)
+                : new StoreException("operation-in-progress", message, cause);
+    }
+
+    private static StoreException projectOwned(ProjectOwner owner, Throwable cause) {
+        String message = "Ship run " + owner.runId()
+                         + " has an unfinished publication for this project in "
+                         + owner.stateRoot() + "; resume or abort it first";
+        return cause == null
+                ? new StoreException("project-publication-in-progress", message)
+                : new StoreException("project-publication-in-progress", message, cause);
+    }
+
+    private ProjectOwner readProjectOwner(Path ownerFile) throws IOException {
+        if (Files.notExists(ownerFile, LinkOption.NOFOLLOW_LINKS)) {
+            return null;
+        }
+        if (Files.isSymbolicLink(ownerFile)
+                || !Files.isRegularFile(ownerFile, LinkOption.NOFOLLOW_LINKS)
+                || Files.size(ownerFile) > MAX_PROJECT_OWNER_BYTES) {
+            throw new StoreException(
+                    "state-corrupt", "Ship project publication owner is invalid: " + ownerFile);
+        }
+        byte[] encoded;
+        try (InputStream input = Files.newInputStream(ownerFile)) {
+            encoded = input.readNBytes(MAX_PROJECT_OWNER_BYTES + 1);
+        }
+        if (encoded.length == 0 || encoded.length > MAX_PROJECT_OWNER_BYTES) {
+            throw new StoreException(
+                    "state-corrupt", "Ship project publication owner is invalid: " + ownerFile);
+        }
+        try {
+            return JSON.readValue(encoded, ProjectOwner.class);
+        } catch (IOException | RuntimeException e) {
+            throw new StoreException(
+                    "state-corrupt", "Ship project publication owner is corrupt: " + ownerFile, e);
+        }
+    }
+
+    private void writeProjectOwner(Path ownerFile, ProjectOwner owner) throws IOException {
+        final byte[] encoded;
+        try {
+            encoded = JSON.writerWithDefaultPrettyPrinter().writeValueAsBytes(owner);
+        } catch (JsonProcessingException e) {
+            throw new StoreException(
+                    "state-corrupt", "Ship project publication owner cannot be encoded", e);
+        }
+        if (encoded.length == 0 || encoded.length > MAX_PROJECT_OWNER_BYTES) {
+            throw new StoreException(
+                    "state-corrupt", "Ship project publication owner exceeds its size limit");
+        }
+        Path temporary = Files.createTempFile(
+                ownerFile.getParent(), ".project-owner-", ".tmp",
+                PosixFilePermissions.asFileAttribute(
+                        PosixFilePermissions.fromString("rw-------")));
+        boolean moved = false;
+        try {
+            Files.setPosixFilePermissions(
+                    temporary, PosixFilePermissions.fromString("rw-------"));
+            try (FileChannel output = FileChannel.open(
+                    temporary,
+                    StandardOpenOption.WRITE,
+                    StandardOpenOption.TRUNCATE_EXISTING)) {
+                ByteBuffer content = ByteBuffer.wrap(encoded);
+                while (content.hasRemaining()) {
+                    output.write(content);
+                }
+                output.force(true);
+            }
+            try {
+                Files.move(
+                        temporary,
+                        ownerFile,
+                        StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException e) {
+                throw new StoreException(
+                        "atomic-write-unsupported",
+                        "Filesystem does not support atomic Ship project ownership",
+                        e);
+            }
+            moved = true;
+        } finally {
+            if (!moved) {
+                Files.deleteIfExists(temporary);
+            }
+        }
+    }
+
+    private boolean foreignOwnerBlocks(ProjectOwner owner) throws IOException {
+        final Path ownerRoot;
+        final Path ownerRun;
+        try {
+            Path suppliedRoot = Path.of(owner.stateRoot());
+            ownerRoot = canonicalize(suppliedRoot);
+            if (!ownerRoot.toString().equals(owner.stateRoot())) {
+                throw new IOException("Ship publication owner state root was rebound");
+            }
+            ownerRun = runRoot(ownerRoot, owner.runId());
+            if (Files.isSymbolicLink(ownerRun)
+                    || !Files.isDirectory(ownerRun, LinkOption.NOFOLLOW_LINKS)) {
+                throw new IOException("Ship publication owner run directory is unavailable");
+            }
+        } catch (IOException | RuntimeException e) {
+            throw projectOwned(owner, e);
+        }
+        if (!ShipPublicationService.journalExists(ownerRun)) {
+            return false;
+        }
+        final ShipRun run;
+        try {
+            run = new ShipRunStore(ownerRoot, projectRegistryRoot).read(owner.runId());
+        } catch (IOException | RuntimeException e) {
+            throw projectOwned(owner, e);
+        }
+        final String runProjectIdentity;
+        try {
+            runProjectIdentity = ProjectEvidenceFiles.projectIdentity(
+                    Path.of(run.projectDirectory()));
+        } catch (IOException | RuntimeException e) {
+            throw projectOwned(owner, e);
+        }
+        if (!owner.projectIdentity().equals(runProjectIdentity)) {
+            throw projectOwned(owner, null);
+        }
+        if (run.publication() == null) {
+            return true;
+        }
+        try {
+            ShipPublicationService.readVerifiedRecord(
+                    ownerRun, run.publication(), run.id());
+        } catch (IOException | RuntimeException e) {
+            throw projectOwned(owner, e);
+        }
+        return false;
+    }
+
+    private ProjectOwner currentProjectOwner(
+            String projectIdentity, String runId)
+            throws IOException {
+        Path root = resolvedStateRoot("state-corrupt");
+        Path run = runRoot(root, runId);
+        if (Files.isSymbolicLink(run)
+                || !Files.isDirectory(run, LinkOption.NOFOLLOW_LINKS)) {
+            throw new StoreException(
+                    "state-corrupt", "Ship publication owner run directory is unavailable");
+        }
+        return new ProjectOwner(
+                PROJECT_OWNER_SCHEMA_VERSION,
+                projectIdentity,
+                root.toString(),
+                runId);
     }
 
     private static void closeAfterFailure(FileChannel channel, Throwable failure) {
@@ -542,6 +846,153 @@ final class ShipRunStore {
         private void requireOpen() throws StoreException {
             if (fileLock == null) {
                 throw new StoreException("lock-closed", "Ship run lock is already closed: " + runId);
+            }
+        }
+    }
+
+    final class LockedProject implements AutoCloseable {
+
+        private final Path project;
+        private final String projectIdentity;
+        private final Path ownerFile;
+        private FileChannel channel;
+        private FileLock fileLock;
+        private String claimedRunId;
+
+        private LockedProject(
+                              Path project,
+                              String projectIdentity,
+                              Path ownerFile,
+                              FileChannel channel,
+                              FileLock fileLock) {
+            this.project = project;
+            this.projectIdentity = projectIdentity;
+            this.ownerFile = ownerFile;
+            this.channel = channel;
+            this.fileLock = fileLock;
+        }
+
+        void requireNoForeignTornPublication(String runId) throws IOException {
+            requireOpen();
+            if (claimedRunId != null && !claimedRunId.equals(runId)) {
+                throw new StoreException(
+                        "state-corrupt", "Ship project lease already belongs to " + claimedRunId);
+            }
+            ProjectOwner current = currentProjectOwner(
+                    projectIdentity, runId);
+            ProjectOwner prior = readProjectOwner(ownerFile);
+            if (prior != null) {
+                if (!projectIdentity.equals(prior.projectIdentity())) {
+                    throw new StoreException(
+                            "state-corrupt",
+                            "Ship project publication owner does not match its registry key");
+                }
+                if (!prior.equals(current) && foreignOwnerBlocks(prior)) {
+                    throw projectOwned(prior, null);
+                }
+            }
+            writeProjectOwner(ownerFile, current);
+            claimedRunId = runId;
+        }
+
+        @Override
+        public void close() throws IOException {
+            if (fileLock == null) {
+                return;
+            }
+            IOException failure = null;
+            try {
+                clearResolvedClaim();
+            } catch (IOException e) {
+                failure = e;
+            }
+            try {
+                fileLock.release();
+            } catch (IOException e) {
+                if (failure == null) {
+                    failure = e;
+                } else {
+                    failure.addSuppressed(e);
+                }
+            }
+            try {
+                channel.close();
+            } catch (IOException e) {
+                if (failure == null) {
+                    failure = e;
+                } else {
+                    failure.addSuppressed(e);
+                }
+            } finally {
+                fileLock = null;
+                channel = null;
+            }
+            if (failure != null) {
+                throw failure;
+            }
+        }
+
+        private void clearResolvedClaim() throws IOException {
+            if (claimedRunId == null) {
+                return;
+            }
+            ProjectOwner expected = currentProjectOwner(
+                    projectIdentity, claimedRunId);
+            ProjectOwner recorded = readProjectOwner(ownerFile);
+            if (recorded == null) {
+                return;
+            }
+            if (!expected.equals(recorded)) {
+                throw new StoreException(
+                        "state-corrupt", "Ship project publication owner changed while locked");
+            }
+            Path root = Path.of(expected.stateRoot());
+            Path runDirectory = runRoot(root, claimedRunId);
+            boolean resolved = !ShipPublicationService.journalExists(runDirectory);
+            if (!resolved) {
+                try {
+                    ShipRun run = ShipRunStore.this.read(claimedRunId);
+                    if (run.publication() != null) {
+                        ShipPublicationService.readVerifiedRecord(
+                                runDirectory, run.publication(), run.id());
+                        resolved = true;
+                    }
+                } catch (IOException | RuntimeException ignored) {
+                    // An unreadable commit marker cannot authorize clearing a live owner.
+                }
+            }
+            if (resolved) {
+                Files.delete(ownerFile);
+            }
+        }
+
+        private void requireOpen() throws StoreException {
+            if (fileLock == null) {
+                throw new StoreException(
+                        "lock-closed", "Ship project lock is already closed: " + project);
+            }
+        }
+    }
+
+    private record ProjectOwner(
+            int schemaVersion,
+            String projectIdentity,
+            String stateRoot,
+            String runId) {
+
+        private ProjectOwner {
+            if (schemaVersion != PROJECT_OWNER_SCHEMA_VERSION
+                    || !ShipDigest.isSha256(projectIdentity)
+                    || !ShipRun.isRunId(runId)) {
+                throw new IllegalArgumentException("Invalid Ship project publication owner");
+            }
+            requireCanonicalAbsolute(stateRoot);
+        }
+
+        private static void requireCanonicalAbsolute(String value) {
+            Path path = Path.of(Objects.requireNonNull(value, "owner path"));
+            if (!path.isAbsolute() || !path.normalize().equals(path)) {
+                throw new IllegalArgumentException("Invalid Ship project publication owner path");
             }
         }
     }

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.Files;
@@ -14,9 +15,11 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
 
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
@@ -38,19 +41,24 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * Write-ahead, journal-recoverable publication of one validated workspace candidate into the live project.
  *
  * <p>
- * The caller holds the per-run mutation lock for the whole operation, so exactly one process can publish, recover, or
- * roll back at a time; a torn publication left by process death is recovered from the journal by the next locked
- * operation. The run-state write recording the publication is the commit point: a journal without a recorded
- * publication is always uncommitted and rolls back to the exact baseline.
+ * The caller holds both the run and project mutation locks for the whole live-tree operation. A torn publication left
+ * by process death is recovered from the journal by the next locked operation. The run-state write recording the
+ * publication is the commit point: a journal without a recorded publication is always uncommitted and rolls back to the
+ * exact baseline.
  */
 final class ShipPublicationService {
 
-    static final int SCHEMA_VERSION = 1;
+    static final int SCHEMA_VERSION = 2;
+    private static final int RECORD_SCHEMA_VERSION = 1;
     static final String DIRECTORY = "publication";
     static final String JOURNAL = "journal.json";
     static final String RECORD = "publication.json";
     static final String BACKUP = "backup";
-    private static final String STAGING_SUFFIX = ".camel-kit-publish.tmp";
+    private static final String APPLICATION = "application.marker";
+    private static final String RECOVERY = "recovery.marker";
+    private static final String STAGING_PREFIX = ".ckp-";
+    private static final String STAGING_SUFFIX = ".tmp";
+    private static final int PRIVATE_STAGING_MODE = 0600;
     private static final int MAX_DOCUMENT_BYTES = 64 * 1024 * 1024;
     private static final ObjectMapper JSON = new ObjectMapper(
             JsonFactory.builder()
@@ -84,7 +92,8 @@ final class ShipPublicationService {
     }
 
     static boolean journalExists(Path runDirectory) {
-        return Files.exists(journalPath(runDirectory), LinkOption.NOFOLLOW_LINKS);
+        // notExists is true only for confirmed absence; an indeterminate lookup must fail closed.
+        return !Files.notExists(journalPath(runDirectory), LinkOption.NOFOLLOW_LINKS);
     }
 
     /** Computes the material publication set from the verified baseline and candidate snapshots. */
@@ -132,14 +141,17 @@ final class ShipPublicationService {
             }
         });
         entries.sort(Comparator.comparing(Entry::path));
-        return new Journal(
+        Journal journal = new Journal(
                 SCHEMA_VERSION,
                 runId,
                 attempt,
+                baseline.rootIdentity(),
                 ShipWorkspace.materialIdentity(baseline),
                 ShipWorkspace.materialIdentity(candidate),
                 createdAt,
                 List.copyOf(entries));
+        requireStagingBindings(journal, baseline, candidate);
+        return journal;
     }
 
     /**
@@ -168,10 +180,16 @@ final class ShipPublicationService {
         if (Files.exists(directory, LinkOption.NOFOLLOW_LINKS)) {
             deleteTree(backupDirectory(runDirectory));
             Files.deleteIfExists(recordPath(runDirectory));
+            Files.deleteIfExists(applicationPath(runDirectory));
+            Files.deleteIfExists(recoveryPath(runDirectory));
         } else {
             Files.createDirectory(directory, PosixFilePermissions.asFileAttribute(
                     PosixFilePermissions.fromString("rwx------")));
         }
+        Files.setPosixFilePermissions(
+                directory, PosixFilePermissions.fromString("rwx------"));
+        deletePermissionProbes(directory);
+        requireOwnerPermissionMask(directory);
         writeAtomically(journalPath(runDirectory), encode(journal));
     }
 
@@ -184,11 +202,15 @@ final class ShipPublicationService {
         Path backup = backupDirectory(runDirectory);
         try {
             backupPhase(project, backup, journal);
+            startApplication(runDirectory, journal);
+            probeStagingPaths(project, journal);
         } catch (IOException | RuntimeException e) {
-            // The backup phase only reads the live project, so nothing was mutated: clear the
-            // scratch instead of leaving a journal that later reads as a torn publication.
             try {
-                clean(runDirectory);
+                // Backup has not touched a target. Only a probe whose own cleanup failed can
+                // leave Ship-owned live-tree scratch that still needs the journal.
+                if (!(e instanceof StagingCleanupException)) {
+                    clean(runDirectory);
+                }
             } catch (IOException cleanupFailure) {
                 e.addSuppressed(cleanupFailure);
             }
@@ -196,9 +218,10 @@ final class ShipPublicationService {
         }
         try {
             applyPhase(project, candidate, journal);
-            String liveIdentity = ShipWorkspace.materialIdentity(
-                    ProjectEvidenceFiles.capture(project));
-            if (!liveIdentity.equals(journal.candidateIdentity())) {
+            ProjectSnapshot published = ProjectEvidenceFiles.capture(project);
+            if (!journal.baselineRootIdentity().equals(published.rootIdentity())
+                    || !ShipWorkspace.materialIdentity(published).equals(
+                            journal.candidateIdentity())) {
                 throw new IOException(
                         "Published Ship project differs from the validated candidate");
             }
@@ -217,7 +240,7 @@ final class ShipPublicationService {
     static ArtifactRef commitRecord(Path runDirectory, Journal journal, String appliedAt)
             throws IOException {
         byte[] encoded = encode(new PublicationRecord(
-                journal.schemaVersion(),
+                RECORD_SCHEMA_VERSION,
                 journal.runId(),
                 journal.attempt(),
                 journal.baselineIdentity(),
@@ -245,12 +268,24 @@ final class ShipPublicationService {
      * A journal describes exactly one Execute candidate. When {@code executeAttempt} no longer matches, that candidate
      * was superseded, the journal can no longer describe the live project, and it is discarded instead of applied.
      */
-    static void recover(Path project, Path runDirectory, int executeAttempt) throws IOException {
+    static void recover(
+            Path project, Path runDirectory, String runId, int executeAttempt)
+            throws IOException {
         if (!journalExists(runDirectory)) {
             return;
         }
         Journal journal = readJournal(runDirectory);
+        if (!runId.equals(journal.runId())) {
+            throw new RecoveryBlockedException(
+                    "Ship publication journal belongs to another run");
+        }
         if (journal.attempt() != executeAttempt) {
+            if (Files.exists(applicationPath(runDirectory), LinkOption.NOFOLLOW_LINKS)
+                    || Files.exists(recoveryPath(runDirectory), LinkOption.NOFOLLOW_LINKS)
+                    || hasStaging(project, journal)) {
+                throw new RecoveryBlockedException(
+                        "Superseded Ship publication journal still owns live recovery scratch");
+            }
             discard(runDirectory);
             return;
         }
@@ -267,6 +302,8 @@ final class ShipPublicationService {
      * publication clears it in {@link #begin}.
      */
     static void discard(Path runDirectory) throws IOException {
+        Files.deleteIfExists(applicationPath(runDirectory));
+        Files.deleteIfExists(recoveryPath(runDirectory));
         Files.deleteIfExists(journalPath(runDirectory));
         deleteTree(backupDirectory(runDirectory));
     }
@@ -285,7 +322,7 @@ final class ShipPublicationService {
             throw new IOException("Ship publication record does not match its recorded digest");
         }
         PublicationRecord record = decode(encoded, PublicationRecord.class, expected);
-        if (record.schemaVersion() != SCHEMA_VERSION || !runId.equals(record.runId())) {
+        if (record.schemaVersion() != RECORD_SCHEMA_VERSION || !runId.equals(record.runId())) {
             throw new IOException("Ship publication record does not match its run");
         }
         return record;
@@ -293,6 +330,22 @@ final class ShipPublicationService {
 
     private static void backupPhase(Path project, Path backup, Journal journal)
             throws IOException {
+        ProjectSnapshot observed = ProjectEvidenceFiles.capture(project);
+        if (!journal.baselineRootIdentity().equals(observed.rootIdentity())
+                || !ShipWorkspace.materialIdentity(observed).equals(journal.baselineIdentity())) {
+            throw new StaleLiveTreeException(
+                    "Live project changed since the publication baseline");
+        }
+        for (int index = 0; index < journal.entries().size(); index++) {
+            Entry entry = journal.entries().get(index);
+            if (entry.kind() == Kind.FILE
+                    && Files.exists(
+                            stagingPath(journal, index, target(project, entry.path())),
+                            LinkOption.NOFOLLOW_LINKS)) {
+                throw new StaleLiveTreeException(
+                        "Live project gained Ship publication scratch since the baseline");
+            }
+        }
         for (Entry entry : journal.entries()) {
             Path live = target(project, entry.path());
             if (entry.kind() == Kind.DIRECTORY) {
@@ -310,9 +363,11 @@ final class ShipPublicationService {
                 case REPLACE, DELETE -> {
                     Path copy = target(backup, entry.path());
                     Files.createDirectories(copy.getParent());
-                    byte[] content = Files.readAllBytes(live);
+                    byte[] content = ProjectEvidenceFiles.readMaterial(
+                            project, entry.path(), maximumBytes(entry.baselineSize()));
                     if (content.length != entry.baselineSize()
-                            || !ShipDigest.sha256(content).equals(entry.baselineDigest())) {
+                            || !ShipDigest.sha256(content).equals(entry.baselineDigest())
+                            || liveMode(live) != entry.baselineMode()) {
                         throw new StaleLiveTreeException(
                                 "Live project file changed since the publication baseline: "
                                                          + entry.path());
@@ -323,6 +378,8 @@ final class ShipPublicationService {
                             copy,
                             PosixFilePermissions.asFileAttribute(
                                     PosixFilePermissions.fromString("rw-------")));
+                    Files.setPosixFilePermissions(
+                            copy, PosixFilePermissions.fromString("rw-------"));
                     writeFully(copy, content);
                 }
             }
@@ -331,47 +388,56 @@ final class ShipPublicationService {
 
     private static void requireDirectoryBaseline(Entry entry, Path live)
             throws IOException {
-        boolean exists = Files.isDirectory(live, LinkOption.NOFOLLOW_LINKS);
+        boolean present = Files.exists(live, LinkOption.NOFOLLOW_LINKS);
         boolean expected = entry.action() != Action.ADD;
-        if (exists != expected) {
+        if (present != expected
+                || present && (!Files.isDirectory(live, LinkOption.NOFOLLOW_LINKS)
+                        || liveMode(live) != entry.baselineMode())) {
             throw new StaleLiveTreeException(
                     "Live project directory changed since the publication baseline: "
                                              + entry.path());
         }
     }
 
-    private static void applyPhase(Path project, Path candidate, Journal journal)
-            throws IOException {
-        for (Entry entry : directories(journal, Action.ADD)) {
-            Files.createDirectory(target(project, entry.path()),
+    private static void requireOwnerPermissionMask(Path publication) throws IOException {
+        Path file = publication.resolve(".permission-probe-file");
+        Path directory = publication.resolve(".permission-probe-directory");
+        boolean fileCreated = false;
+        boolean directoryCreated = false;
+        try {
+            Files.createFile(
+                    file,
+                    PosixFilePermissions.asFileAttribute(
+                            PosixFilePermissions.fromString("rw-------")));
+            fileCreated = true;
+            Files.createDirectory(
+                    directory,
                     PosixFilePermissions.asFileAttribute(
                             PosixFilePermissions.fromString("rwx------")));
-        }
-        for (Entry entry : journal.entries()) {
-            if (entry.kind() != Kind.FILE || entry.action() == Action.DELETE) {
-                continue;
-            }
-            byte[] content = Files.readAllBytes(target(candidate, entry.path()));
-            if (content.length != entry.candidateSize()
-                    || !ShipDigest.sha256(content).equals(entry.candidateDigest())) {
+            directoryCreated = true;
+            if ((liveMode(file) & 0600) != 0600 || (liveMode(directory) & 0700) != 0700) {
                 throw new IOException(
-                        "Ship candidate file changed during publication: " + entry.path());
+                        "Ship publication requires a POSIX umask that preserves owner permissions");
             }
-            Path live = target(project, entry.path());
-            Path temporary = stagingPath(live);
-            boolean moved = false;
-            try {
-                createStagingFile(temporary);
-                writeFully(temporary, content);
-                Files.setPosixFilePermissions(temporary, permissions(entry.candidateMode()));
-                move(temporary, live);
-                moved = true;
-            } finally {
-                if (!moved) {
-                    Files.deleteIfExists(temporary);
-                }
+        } finally {
+            if (fileCreated) {
+                Files.deleteIfExists(file);
+            }
+            if (directoryCreated) {
+                Files.deleteIfExists(directory);
             }
         }
+    }
+
+    private static void deletePermissionProbes(Path publication) throws IOException {
+        Files.deleteIfExists(publication.resolve(".permission-probe-file"));
+        Files.deleteIfExists(publication.resolve(".permission-probe-directory"));
+    }
+
+    private static void applyPhase(Path project, Path candidate, Journal journal)
+            throws IOException {
+        // Release entry-count and byte quota before consuming it on the candidate side. This
+        // keeps every crash-reachable live mixture within the ordinary snapshot limits.
         for (Entry entry : journal.entries()) {
             if (entry.kind() == Kind.FILE && entry.action() == Action.DELETE) {
                 Files.delete(target(project, entry.path()));
@@ -382,8 +448,6 @@ final class ShipPublicationService {
             try {
                 Files.delete(live);
             } catch (DirectoryNotEmptyException e) {
-                // Build output and other non-publishable content is invisible to the snapshots,
-                // so retrying cannot help until the user clears it.
                 throw new IOException(
                         "Ship cannot remove " + entry.path()
                                       + " because the live project still holds content outside the "
@@ -391,12 +455,59 @@ final class ShipPublicationService {
                         e);
             }
         }
-        for (Entry entry : journal.entries()) {
+        for (int index = 0; index < journal.entries().size(); index++) {
+            Entry entry = journal.entries().get(index);
+            if (shrinksOnApply(entry)) {
+                publishFile(project, candidate, journal, index, entry);
+            }
+        }
+        for (Entry entry : directories(journal, Action.ADD)) {
+            Path live = target(project, entry.path());
+            Files.createDirectory(live,
+                    PosixFilePermissions.asFileAttribute(
+                            permissions(workMode(entry))));
+            Files.setPosixFilePermissions(live, permissions(workMode(entry)));
+        }
+        for (int index = 0; index < journal.entries().size(); index++) {
+            Entry entry = journal.entries().get(index);
+            if (entry.kind() != Kind.FILE
+                    || entry.action() == Action.DELETE
+                    || shrinksOnApply(entry)) {
+                continue;
+            }
+            publishFile(project, candidate, journal, index, entry);
+        }
+        for (Entry entry : reversed(journal.entries())) {
             if (entry.kind() == Kind.DIRECTORY && entry.action() != Action.DELETE) {
                 Files.setPosixFilePermissions(
                         target(project, entry.path()), permissions(entry.candidateMode()));
             }
         }
+    }
+
+    private static void publishFile(
+            Path project, Path candidate, Journal journal, int index, Entry entry)
+            throws IOException {
+        byte[] content = ProjectEvidenceFiles.readMaterial(
+                candidate, entry.path(), maximumBytes(entry.candidateSize()));
+        if (content.length != entry.candidateSize()
+                || !ShipDigest.sha256(content).equals(entry.candidateDigest())
+                || liveMode(target(candidate, entry.path())) != entry.candidateMode()) {
+            throw new IOException(
+                    "Ship candidate file changed during publication: " + entry.path());
+        }
+        Path live = target(project, entry.path());
+        replaceAtomically(
+                live,
+                stagingPath(journal, index, live),
+                content,
+                entry.candidateMode());
+    }
+
+    private static boolean shrinksOnApply(Entry entry) {
+        return entry.kind() == Kind.FILE
+                && entry.action() == Action.REPLACE
+                && entry.candidateSize() < entry.baselineSize();
     }
 
     /**
@@ -407,107 +518,288 @@ final class ShipPublicationService {
     private static void rollback(Path project, Path runDirectory, Journal journal)
             throws IOException {
         Path backup = backupDirectory(runDirectory);
-        List<Runnable2> restores = new ArrayList<>();
-        for (Entry entry : journal.entries()) {
-            Runnable2 restore = classify(project, backup, entry);
-            if (restore != null) {
-                restores.add(restore);
+        if (!journal.baselineRootIdentity().equals(ProjectEvidenceFiles.rootIdentity(project))) {
+            throw new RecoveryBlockedException(
+                    "Ship project root no longer matches the publication journal");
+        }
+        boolean applicationStarted = applicationStarted(runDirectory, journal);
+        boolean recoveryStarted = recoveryStarted(runDirectory, journal);
+        cleanupStaging(
+                project,
+                runDirectory.resolve("workspace/candidate"),
+                backup,
+                journal,
+                applicationStarted,
+                recoveryStarted);
+        final ProjectSnapshot observed;
+        try {
+            observed = ProjectEvidenceFiles.capture(project);
+        } catch (IOException | RuntimeException e) {
+            throw recoveryBlocked(
+                    "Live project cannot be safely inspected for publication recovery", e);
+        }
+        if (!journal.baselineRootIdentity().equals(observed.rootIdentity())) {
+            throw new RecoveryBlockedException(
+                    "Ship project root no longer matches the publication journal");
+        }
+        final ProjectSnapshot candidate;
+        try {
+            candidate = ProjectEvidenceFiles.captureStaged(
+                    runDirectory.resolve("workspace/candidate"));
+        } catch (IOException | RuntimeException e) {
+            throw recoveryBlocked(
+                    "Ship candidate cannot be safely inspected for publication recovery", e);
+        }
+        if (!journal.candidateIdentity().equals(ShipWorkspace.materialIdentity(candidate))) {
+            throw new RecoveryBlockedException(
+                    "Ship candidate no longer matches the publication journal");
+        }
+        requireUnchangedMaterialEntries(observed, candidate, journal);
+        List<Classified> classified = new ArrayList<>();
+        for (int index = 0; index < journal.entries().size(); index++) {
+            Entry entry = journal.entries().get(index);
+            Side side = classify(observed, entry, recoveryStarted);
+            if (!applicationStarted && side != Side.BASELINE) {
+                throw new RecoveryBlockedException(
+                        "Live project changed before Ship publication started: " + entry.path());
+            }
+            classified.add(new Classified(index, entry, side));
+            if (side == Side.CANDIDATE
+                    && entry.kind() == Kind.FILE
+                    && entry.action() != Action.ADD) {
+                readBackup(backup, entry);
             }
         }
-        // Remove staging files an interrupted apply left beside their targets; they are material
-        // to the tree policy, so a leftover would otherwise drift the live project's identity.
-        for (Entry entry : journal.entries()) {
-            if (entry.kind() == Kind.FILE) {
-                Files.deleteIfExists(stagingPath(target(project, entry.path())));
+        requireNoForeignAddedDirectoryContent(project, classified);
+        startRecovery(runDirectory, journal, recoveryStarted);
+
+        // Make candidate-side directories writable before removing candidate additions. The
+        // marker makes this private work mode an explicit crash-recoverable journal state.
+        for (Classified item : classified) {
+            Entry entry = item.entry();
+            if (item.side() != Side.CANDIDATE
+                    || entry.kind() != Kind.DIRECTORY
+                    || entry.action() == Action.DELETE) {
+                continue;
             }
+            Files.setPosixFilePermissions(
+                    target(project, entry.path()), permissions(workMode(entry)));
         }
-        // Restoration mutates directory contents, so every touched directory is made owner-writable
-        // first; the exact baseline modes are re-applied as the final step.
-        for (Entry entry : journal.entries()) {
-            if (entry.kind() != Kind.DIRECTORY) {
+
+        // First release candidate-only quota and shrink growing replacements.
+        for (Classified item : classified) {
+            Entry entry = item.entry();
+            if (item.side() != Side.CANDIDATE || entry.kind() != Kind.FILE) {
                 continue;
             }
             Path live = target(project, entry.path());
-            if (entry.action() == Action.DELETE
-                    && !Files.isDirectory(live, LinkOption.NOFOLLOW_LINKS)) {
-                Files.createDirectories(live);
+            switch (entry.action()) {
+                case ADD -> Files.delete(live);
+                case REPLACE -> {
+                    if (entry.baselineSize() < entry.candidateSize()) {
+                        restoreBackup(backup, journal, item, live);
+                    }
+                }
+                case DELETE -> {
+                    // Restored after candidate-only directories release their quota.
+                }
             }
-            if (Files.isDirectory(live, LinkOption.NOFOLLOW_LINKS)) {
+        }
+
+        for (Classified item : reversed(classified)) {
+            Entry entry = item.entry();
+            if (item.side() != Side.CANDIDATE
+                    || entry.kind() != Kind.DIRECTORY
+                    || entry.action() != Action.ADD) {
+                continue;
+            }
+            Path live = target(project, entry.path());
+            try {
+                Files.delete(live);
+            } catch (DirectoryNotEmptyException e) {
+                throw new RecoveryBlockedException(
+                        "Ship publication-created directory contains foreign content: "
+                                                   + entry.path());
+            }
+        }
+
+        // Recreate baseline-only directory shape in a writable mode, then restore the remaining
+        // files one at a time so recovery never retains the aggregate backup in heap.
+        for (Classified item : classified) {
+            Entry entry = item.entry();
+            if (item.side() == Side.CANDIDATE
+                    && entry.kind() == Kind.DIRECTORY
+                    && entry.action() == Action.DELETE) {
+                Path live = target(project, entry.path());
+                if (!Files.exists(live, LinkOption.NOFOLLOW_LINKS)) {
+                    Files.createDirectory(
+                            live,
+                            PosixFilePermissions.asFileAttribute(permissions(workMode(entry))));
+                    Files.setPosixFilePermissions(live, permissions(workMode(entry)));
+                }
+            }
+        }
+        for (Classified item : classified) {
+            Entry entry = item.entry();
+            if (item.side() != Side.CANDIDATE
+                    || entry.kind() != Kind.FILE
+                    || entry.action() == Action.ADD
+                    || entry.action() == Action.REPLACE
+                            && entry.baselineSize() < entry.candidateSize()) {
+                continue;
+            }
+            restoreBackup(backup, journal, item, target(project, entry.path()));
+        }
+        for (Classified item : reversed(classified)) {
+            Entry entry = item.entry();
+            if (item.side() == Side.CANDIDATE
+                    && entry.kind() == Kind.DIRECTORY
+                    && entry.action() != Action.ADD) {
                 Files.setPosixFilePermissions(
-                        live, PosixFilePermissions.fromString("rwx------"));
+                        target(project, entry.path()), permissions(entry.baselineMode()));
             }
         }
-        for (Runnable2 restore : restores) {
-            restore.run();
+
+        ProjectSnapshot restored = ProjectEvidenceFiles.capture(project);
+        if (!journal.baselineRootIdentity().equals(restored.rootIdentity())
+                || !journal.baselineIdentity().equals(
+                        ShipWorkspace.materialIdentity(restored))) {
+            throw new RecoveryBlockedException(
+                    "Ship publication rollback did not restore the exact baseline");
         }
-        for (Entry entry : reversed(directories(journal, Action.ADD))) {
-            Path live = target(project, entry.path());
-            if (Files.isDirectory(live, LinkOption.NOFOLLOW_LINKS)) {
-                try {
-                    Files.delete(live);
-                } catch (DirectoryNotEmptyException e) {
-                    // Something outside the publication landed here while it was torn. Leaving the
-                    // directory keeps that content; failing here would block resume and abort alike.
-                    Files.setPosixFilePermissions(live, permissions(entry.candidateMode()));
-                }
-            }
-        }
-        for (Entry entry : journal.entries()) {
-            if (entry.kind() != Kind.DIRECTORY || entry.action() == Action.ADD) {
+    }
+
+    private static void requireUnchangedMaterialEntries(
+            ProjectSnapshot observed, ProjectSnapshot candidate, Journal journal)
+            throws RecoveryBlockedException {
+        Set<String> changed = new HashSet<>();
+        journal.entries().forEach(entry -> changed.add(entry.path()));
+        for (var item : observed.directories().entrySet()) {
+            if (item.getValue().classification() != Classification.MATERIAL
+                    || changed.contains(item.getKey())) {
                 continue;
             }
-            Path live = target(project, entry.path());
-            if (Files.isDirectory(live, LinkOption.NOFOLLOW_LINKS)) {
-                Files.setPosixFilePermissions(live, permissions(entry.baselineMode()));
+            ProjectSnapshot.DirectoryEntry expected = candidate.directories().get(item.getKey());
+            if (expected == null
+                    || mode(item.getValue().unixMode()) != mode(expected.unixMode())) {
+                throw changedOutsidePublication(item.getKey());
+            }
+        }
+        for (var item : candidate.directories().entrySet()) {
+            if (item.getValue().classification() == Classification.MATERIAL
+                    && !changed.contains(item.getKey())
+                    && !observed.directories().containsKey(item.getKey())) {
+                throw changedOutsidePublication(item.getKey());
+            }
+        }
+        for (var item : observed.files().entrySet()) {
+            if (item.getValue().classification() != Classification.MATERIAL
+                    || changed.contains(item.getKey())) {
+                continue;
+            }
+            ProjectSnapshot.FileEntry expected = candidate.files().get(item.getKey());
+            if (expected == null
+                    || item.getValue().size() != expected.size()
+                    || !item.getValue().digest().equals(expected.digest())
+                    || mode(item.getValue().unixMode()) != mode(expected.unixMode())) {
+                throw changedOutsidePublication(item.getKey());
+            }
+        }
+        for (var item : candidate.files().entrySet()) {
+            if (item.getValue().classification() == Classification.MATERIAL
+                    && !changed.contains(item.getKey())
+                    && !observed.files().containsKey(item.getKey())) {
+                throw changedOutsidePublication(item.getKey());
             }
         }
     }
 
-    private static Runnable2 classify(Path project, Path backup, Entry entry)
+    private static RecoveryBlockedException changedOutsidePublication(String path) {
+        return new RecoveryBlockedException(
+                "Live project changed outside the Ship publication set: " + path);
+    }
+
+    private static void restoreBackup(
+            Path backup, Journal journal, Classified item, Path live)
             throws IOException {
-        if (entry.kind() == Kind.DIRECTORY) {
-            return null;
-        }
-        Path live = target(project, entry.path());
-        boolean exists = Files.exists(live, LinkOption.NOFOLLOW_LINKS);
-        String liveDigest = exists && Files.isRegularFile(live, LinkOption.NOFOLLOW_LINKS)
-                ? ShipDigest.sha256(Files.readAllBytes(live))
-                : null;
-        switch (entry.action()) {
-            case ADD -> {
-                if (!exists) {
-                    return null;
-                }
-                if (entry.candidateDigest().equals(liveDigest)) {
-                    return () -> Files.delete(live);
-                }
-            }
-            case REPLACE -> {
-                // A mode-only replace leaves both digests equal, so the mode is the only evidence
-                // of whether it was applied; restoring re-stamps the baseline mode.
-                if (entry.baselineDigest().equals(liveDigest)
-                        && (!exists || liveMode(live) == entry.baselineMode())) {
-                    return null;
-                }
-                if (entry.candidateDigest().equals(liveDigest)) {
-                    return () -> restoreBackup(backup, live, entry);
-                }
-            }
-            case DELETE -> {
-                if (entry.baselineDigest().equals(liveDigest)) {
-                    return null;
-                }
-                if (!exists) {
-                    return () -> restoreBackup(backup, live, entry);
-                }
-            }
-        }
-        throw new RecoveryBlockedException(
-                "Live project file matches neither the publication baseline nor its candidate: "
-                                           + entry.path());
+        Entry entry = item.entry();
+        replaceAtomically(
+                live,
+                stagingPath(journal, item.index(), live),
+                readBackup(backup, entry),
+                entry.baselineMode());
     }
 
-    private static void restoreBackup(Path backup, Path live, Entry entry)
+    private static Side classify(
+            ProjectSnapshot observed, Entry entry, boolean recoveryStarted)
+            throws RecoveryBlockedException {
+        boolean baseline = matches(observed, entry, Side.BASELINE);
+        boolean candidate = matches(observed, entry, Side.CANDIDATE);
+        boolean working = matchesWorking(observed, entry)
+                && (entry.action() == Action.ADD || recoveryStarted);
+        if (baseline && candidate || !baseline && !candidate && !working) {
+            throw new RecoveryBlockedException(
+                    "Live project entry matches neither one exact publication side: "
+                                               + entry.path());
+        }
+        if (baseline) {
+            return Side.BASELINE;
+        }
+        return Side.CANDIDATE;
+    }
+
+    private static boolean matchesWorking(ProjectSnapshot observed, Entry entry) {
+        if (entry.kind() != Kind.DIRECTORY) {
+            return false;
+        }
+        ProjectSnapshot.DirectoryEntry directory = observed.directories().get(entry.path());
+        if (observed.files().get(entry.path()) != null || directory == null) {
+            return false;
+        }
+        int actual = mode(directory.unixMode());
+        int working = workMode(entry);
+        if (entry.action() == Action.REPLACE) {
+            return actual == working;
+        }
+        // ADD and DELETE directories are created by this protocol, so their initial mode can be
+        // filtered through umask before the explicit chmod closes that crash window.
+        return (actual & 0700) == 0700 && (actual & ~working) == 0;
+    }
+
+    private static int workMode(Entry entry) {
+        int desired = entry.action() == Action.ADD
+                ? entry.candidateMode() : entry.baselineMode();
+        return desired | 0700;
+    }
+
+    private static boolean matches(ProjectSnapshot observed, Entry entry, Side side) {
+        boolean expected = side == Side.BASELINE
+                ? entry.action() != Action.ADD
+                : entry.action() != Action.DELETE;
+        ProjectSnapshot.FileEntry file = observed.files().get(entry.path());
+        ProjectSnapshot.DirectoryEntry directory = observed.directories().get(entry.path());
+        if (!expected) {
+            return file == null && directory == null;
+        }
+        Integer expectedMode = side == Side.BASELINE
+                ? entry.baselineMode() : entry.candidateMode();
+        if (entry.kind() == Kind.DIRECTORY) {
+            return file == null
+                    && directory != null
+                    && mode(directory.unixMode()) == expectedMode;
+        }
+        String expectedDigest = side == Side.BASELINE
+                ? entry.baselineDigest() : entry.candidateDigest();
+        Long expectedSize = side == Side.BASELINE
+                ? entry.baselineSize() : entry.candidateSize();
+        return directory == null
+                && file != null
+                && file.size() == expectedSize
+                && file.digest().equals(expectedDigest)
+                && mode(file.unixMode()) == expectedMode;
+    }
+
+    private static byte[] readBackup(Path backup, Entry entry)
             throws IOException {
         byte[] content = Files.readAllBytes(target(backup, entry.path()));
         if (content.length != entry.baselineSize()
@@ -515,42 +807,313 @@ final class ShipPublicationService {
             throw new RecoveryBlockedException(
                     "Ship publication backup does not match its journal entry: " + entry.path());
         }
-        Files.createDirectories(live.getParent());
-        Path temporary = stagingPath(live);
-        boolean moved = false;
-        try {
-            createStagingFile(temporary);
-            writeFully(temporary, content);
-            Files.setPosixFilePermissions(temporary, permissions(entry.baselineMode()));
-            move(temporary, live);
-            moved = true;
-        } finally {
-            if (!moved) {
-                Files.deleteIfExists(temporary);
+        return content;
+    }
+
+    private static void requireNoForeignAddedDirectoryContent(
+            Path project, List<Classified> classified)
+            throws IOException {
+        Set<String> expected = new HashSet<>();
+        for (Classified item : classified) {
+            if (item.side() == Side.CANDIDATE && item.entry().action() != Action.DELETE) {
+                expected.add(item.entry().path());
+            }
+        }
+        for (Classified item : classified) {
+            Entry entry = item.entry();
+            if (item.side() != Side.CANDIDATE
+                    || entry.kind() != Kind.DIRECTORY
+                    || entry.action() != Action.ADD) {
+                continue;
+            }
+            Path live = target(project, entry.path());
+            try (var paths = Files.walk(live)) {
+                for (Path path : paths.toList()) {
+                    if (path.equals(live)) {
+                        continue;
+                    }
+                    String relative = project.relativize(path).toString()
+                            .replace(project.getFileSystem().getSeparator(), "/");
+                    if (!expected.contains(relative)) {
+                        throw new RecoveryBlockedException(
+                                "Ship publication-created directory contains foreign content: "
+                                                           + entry.path());
+                    }
+                }
             }
         }
     }
 
-    /**
-     * Names the staging file deterministically beside its target so a publication torn by process death leaves debris
-     * the journal can still find; a random name would survive every rollback and pollute the live project.
-     */
-    private static Path stagingPath(Path live) {
-        return live.resolveSibling("." + live.getFileName() + STAGING_SUFFIX);
+    private static boolean applicationStarted(Path runDirectory, Journal journal)
+            throws IOException {
+        return validMarker(
+                applicationPath(runDirectory), journal, "application");
     }
 
-    private static void createStagingFile(Path staging) throws IOException {
-        Files.deleteIfExists(staging);
-        Files.createFile(
-                staging,
-                PosixFilePermissions.asFileAttribute(
-                        PosixFilePermissions.fromString("rw-------")));
+    static void startApplication(Path runDirectory, Journal journal) throws IOException {
+        writeAtomically(applicationPath(runDirectory), markerPayload(journal));
+    }
+
+    private static boolean recoveryStarted(Path runDirectory, Journal journal)
+            throws IOException {
+        return validMarker(recoveryPath(runDirectory), journal, "recovery");
+    }
+
+    private static boolean validMarker(Path marker, Journal journal, String phase)
+            throws IOException {
+        if (!Files.exists(marker, LinkOption.NOFOLLOW_LINKS)) {
+            return false;
+        }
+        if (!Files.isRegularFile(marker, LinkOption.NOFOLLOW_LINKS)
+                || !java.util.Arrays.equals(readBounded(marker), markerPayload(journal))) {
+            throw new RecoveryBlockedException(
+                    "Ship publication " + phase + " marker is invalid");
+        }
+        return true;
+    }
+
+    static void startRecovery(
+            Path runDirectory, Journal journal, boolean alreadyStarted)
+            throws IOException {
+        if (!alreadyStarted) {
+            writeAtomically(recoveryPath(runDirectory), markerPayload(journal));
+        }
+    }
+
+    private static byte[] markerPayload(Journal journal) {
+        return (journal.runId() + '\n'
+                + journal.attempt() + '\n'
+                + journal.baselineRootIdentity() + '\n'
+                + journal.baselineIdentity() + '\n')
+                .getBytes(StandardCharsets.UTF_8);
+    }
+
+    private static void cleanupStaging(
+            Path project,
+            Path candidate,
+            Path backup,
+            Journal journal,
+            boolean applicationStarted,
+            boolean recoveryStarted)
+            throws IOException {
+        List<Path> owned = new ArrayList<>();
+        for (int index = 0; index < journal.entries().size(); index++) {
+            Entry entry = journal.entries().get(index);
+            if (entry.kind() != Kind.FILE) {
+                continue;
+            }
+            Path live = target(project, entry.path());
+            Path staging = stagingPath(journal, index, live);
+            if (!Files.exists(staging, LinkOption.NOFOLLOW_LINKS)) {
+                continue;
+            }
+            String relative = stagingRelativePath(journal, index, entry);
+            long maximum = Math.max(
+                    entry.baselineSize() == null ? 0 : entry.baselineSize(),
+                    entry.candidateSize() == null ? 0 : entry.candidateSize());
+            final byte[] actual;
+            final int actualMode;
+            try {
+                actual = ProjectEvidenceFiles.readMaterial(
+                        project, relative, maximumBytes(maximum));
+                actualMode = liveMode(staging);
+            } catch (IOException | RuntimeException e) {
+                throw recoveryBlocked(
+                        "Ship publication staging file is not safely recoverable: " + relative,
+                        e);
+            }
+            boolean matches = false;
+            if (applicationStarted
+                    && !recoveryStarted
+                    && entry.action() != Action.DELETE) {
+                byte[] expected = verifiedCandidate(candidate, entry);
+                matches = expected != null
+                        && stagingPrefix(
+                                actual, actualMode, expected, entry.candidateMode());
+            }
+            if (!matches && recoveryStarted && entry.action() != Action.ADD) {
+                Path source = target(backup, entry.path());
+                if (Files.isRegularFile(source, LinkOption.NOFOLLOW_LINKS)) {
+                    byte[] expected = readBackup(backup, entry);
+                    matches = stagingPrefix(
+                            actual, actualMode, expected, entry.baselineMode());
+                }
+            }
+            if (!matches
+                    && applicationStarted
+                    && !recoveryStarted
+                    && entry.action() == Action.DELETE
+                    && actual.length == 0) {
+                Path source = target(backup, entry.path());
+                if (Files.isRegularFile(source, LinkOption.NOFOLLOW_LINKS)) {
+                    byte[] expected = readBackup(backup, entry);
+                    matches = stagingPrefix(
+                            actual, actualMode, expected, entry.baselineMode());
+                }
+            }
+            if (!matches) {
+                throw new RecoveryBlockedException(
+                        "Ship publication staging path is occupied by foreign content: "
+                                                   + relative);
+            }
+            owned.add(staging);
+        }
+        for (Path staging : owned) {
+            Files.delete(staging);
+        }
+    }
+
+    private static boolean stagingPrefix(
+            byte[] actual, int actualMode, byte[] expected, int expectedMode) {
+        if (actual.length > expected.length) {
+            return false;
+        }
+        for (int index = 0; index < actual.length; index++) {
+            if (actual[index] != expected[index]) {
+                return false;
+            }
+        }
+        return actual.length < expected.length
+                ? actualMode == PRIVATE_STAGING_MODE
+                : actualMode == PRIVATE_STAGING_MODE || actualMode == expectedMode;
+    }
+
+    private static byte[] verifiedCandidate(Path candidate, Entry entry) {
+        try {
+            byte[] expected = ProjectEvidenceFiles.readMaterial(
+                    candidate, entry.path(), maximumBytes(entry.candidateSize()));
+            return expected.length == entry.candidateSize()
+                    && ShipDigest.sha256(expected).equals(entry.candidateDigest())
+                    && liveMode(target(candidate, entry.path())) == entry.candidateMode()
+                            ? expected : null;
+        } catch (IOException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    private static void replaceAtomically(
+            Path live, Path staging, byte[] content, int targetMode)
+            throws IOException {
+        boolean created = false;
+        boolean moved = false;
+        try {
+            try (FileChannel channel = FileChannel.open(
+                    staging,
+                    Set.of(StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE),
+                    PosixFilePermissions.asFileAttribute(
+                            permissions(PRIVATE_STAGING_MODE)))) {
+                created = true;
+                Files.setPosixFilePermissions(staging, permissions(PRIVATE_STAGING_MODE));
+                ByteBuffer buffer = ByteBuffer.wrap(content);
+                while (buffer.hasRemaining()) {
+                    channel.write(buffer);
+                }
+                channel.force(true);
+            }
+            Files.setPosixFilePermissions(staging, permissions(targetMode));
+            move(staging, live);
+            moved = true;
+        } finally {
+            if (created && !moved) {
+                Files.deleteIfExists(staging);
+            }
+        }
+    }
+
+    static Path stagingPath(Journal journal, int index, Path live) {
+        Entry entry = journal.entries().get(index);
+        if (entry.kind() != Kind.FILE || live.getParent() == null) {
+            throw new IllegalArgumentException("Ship file publication staging target is invalid");
+        }
+        return live.resolveSibling(stagingFileName(journal, index));
+    }
+
+    private static String stagingRelativePath(Journal journal, int index, Entry entry) {
+        int separator = entry.path().lastIndexOf('/');
+        String name = stagingFileName(journal, index);
+        return separator < 0 ? name : entry.path().substring(0, separator + 1) + name;
+    }
+
+    private static String stagingFileName(Journal journal, int index) {
+        return STAGING_PREFIX
+               + journal.runId().substring("ship-".length())
+               + '-' + Integer.toString(journal.attempt(), Character.MAX_RADIX)
+               + '-' + Integer.toString(index, Character.MAX_RADIX)
+               + STAGING_SUFFIX;
+    }
+
+    private static boolean hasStaging(Path project, Journal journal) throws IOException {
+        for (int index = 0; index < journal.entries().size(); index++) {
+            Entry entry = journal.entries().get(index);
+            if (entry.kind() == Kind.FILE
+                    && Files.exists(
+                            stagingPath(journal, index, target(project, entry.path())),
+                            LinkOption.NOFOLLOW_LINKS)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void probeStagingPaths(Path project, Journal journal) throws IOException {
+        for (int index = 0; index < journal.entries().size(); index++) {
+            Entry entry = journal.entries().get(index);
+            if (entry.kind() != Kind.FILE) {
+                continue;
+            }
+            Path staging = stagingPath(journal, index, target(project, entry.path()));
+            // Candidate-only parents do not exist yet. Their scratch path cannot strand a
+            // baseline restore, because a failed ADD is removed rather than replaced.
+            if (!Files.isDirectory(staging.getParent(), LinkOption.NOFOLLOW_LINKS)) {
+                continue;
+            }
+            boolean created = false;
+            Throwable probeFailure = null;
+            try (FileChannel ignored = FileChannel.open(
+                    staging,
+                    Set.of(StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE),
+                    PosixFilePermissions.asFileAttribute(
+                            permissions(PRIVATE_STAGING_MODE)))) {
+                created = true;
+                Files.setPosixFilePermissions(staging, permissions(PRIVATE_STAGING_MODE));
+            } catch (IOException | RuntimeException e) {
+                probeFailure = e;
+            }
+            if (created) {
+                try {
+                    Files.delete(staging);
+                } catch (IOException cleanupFailure) {
+                    if (probeFailure != null) {
+                        cleanupFailure.addSuppressed(probeFailure);
+                    }
+                    throw new StagingCleanupException(
+                            "Ship could not remove publication path probe: " + staging,
+                            cleanupFailure);
+                }
+            }
+            if (probeFailure instanceof IOException failure) {
+                throw failure;
+            }
+            if (probeFailure instanceof RuntimeException failure) {
+                throw failure;
+            }
+        }
     }
 
     private static void clean(Path runDirectory) throws IOException {
         deleteTree(backupDirectory(runDirectory));
         Files.deleteIfExists(recordPath(runDirectory));
+        Files.deleteIfExists(applicationPath(runDirectory));
+        Files.deleteIfExists(recoveryPath(runDirectory));
         Files.deleteIfExists(journalPath(runDirectory));
+    }
+
+    private static Path applicationPath(Path runDirectory) {
+        return publicationDirectory(runDirectory).resolve(APPLICATION);
+    }
+
+    private static Path recoveryPath(Path runDirectory) {
+        return publicationDirectory(runDirectory).resolve(RECOVERY);
     }
 
     private static Journal readJournal(Path runDirectory) throws IOException {
@@ -581,6 +1144,7 @@ final class ShipPublicationService {
                                                    + entries.get(index).path());
             }
         }
+        requireStagingBindings(decoded, null, null);
         return decoded;
     }
 
@@ -620,8 +1184,39 @@ final class ShipPublicationService {
         return filtered;
     }
 
-    private static List<Entry> reversed(List<Entry> entries) {
-        List<Entry> copy = new ArrayList<>(entries);
+    private static void requireStagingBindings(
+            Journal journal, ProjectSnapshot baseline, ProjectSnapshot candidate)
+            throws UnsupportedChangeException {
+        Set<String> targets = new HashSet<>();
+        journal.entries().forEach(entry -> targets.add(entry.path()));
+        Set<String> staging = new HashSet<>();
+        ShipTreePolicy policy = ShipTreePolicy.current();
+        for (int index = 0; index < journal.entries().size(); index++) {
+            Entry entry = journal.entries().get(index);
+            if (entry.kind() != Kind.FILE) {
+                continue;
+            }
+            String relative = stagingRelativePath(journal, index, entry);
+            if (!staging.add(relative)
+                    || targets.contains(relative)
+                    || policy.classify(relative) != Classification.MATERIAL
+                    || contains(baseline, relative)
+                    || contains(candidate, relative)) {
+                throw new UnsupportedChangeException(
+                        "Ship cannot bind collision-free publication scratch for "
+                                                     + entry.path());
+            }
+        }
+    }
+
+    private static boolean contains(ProjectSnapshot snapshot, String path) {
+        return snapshot != null
+                && (snapshot.files().containsKey(path)
+                        || snapshot.directories().containsKey(path));
+    }
+
+    private static <T> List<T> reversed(List<T> entries) {
+        List<T> copy = new ArrayList<>(entries);
         java.util.Collections.reverse(copy);
         return copy;
     }
@@ -649,6 +1244,17 @@ final class ShipPublicationService {
         return bits;
     }
 
+    private static int maximumBytes(long size) {
+        return Math.toIntExact(Math.max(1, size));
+    }
+
+    private static RecoveryBlockedException recoveryBlocked(
+            String message, Throwable cause) {
+        RecoveryBlockedException blocked = new RecoveryBlockedException(message);
+        blocked.initCause(cause);
+        return blocked;
+    }
+
     private static java.util.Set<java.nio.file.attribute.PosixFilePermission> permissions(int mode) {
         StringBuilder text = new StringBuilder(9);
         int[] shifts = {6, 3, 0};
@@ -663,7 +1269,12 @@ final class ShipPublicationService {
 
     private static byte[] encode(Object document) throws IOException {
         try {
-            return JSON.writerWithDefaultPrettyPrinter().writeValueAsBytes(document);
+            byte[] encoded = JSON.writerWithDefaultPrettyPrinter().writeValueAsBytes(document);
+            if (encoded.length == 0 || encoded.length > MAX_DOCUMENT_BYTES) {
+                throw new IOException(
+                        "Ship publication document exceeds the durable read limit");
+            }
+            return encoded;
         } catch (JsonProcessingException e) {
             throw new IOException("Ship publication document cannot be encoded", e);
         }
@@ -699,6 +1310,8 @@ final class ShipPublicationService {
                         PosixFilePermissions.fromString("rw-------")));
         boolean moved = false;
         try {
+            Files.setPosixFilePermissions(
+                    temporary, PosixFilePermissions.fromString("rw-------"));
             writeFully(temporary, encoded);
             move(temporary, targetPath);
             moved = true;
@@ -741,11 +1354,6 @@ final class ShipPublicationService {
         }
     }
 
-    @FunctionalInterface
-    private interface Runnable2 {
-        void run() throws IOException;
-    }
-
     enum Kind {
         FILE,
         DIRECTORY
@@ -755,6 +1363,14 @@ final class ShipPublicationService {
         ADD,
         REPLACE,
         DELETE
+    }
+
+    private enum Side {
+        BASELINE,
+        CANDIDATE
+    }
+
+    private record Classified(int index, Entry entry, Side side) {
     }
 
     record Entry(
@@ -769,7 +1385,7 @@ final class ShipPublicationService {
             Integer candidateMode) {
 
         Entry {
-            Objects.requireNonNull(path, "entry path");
+            path = ShipTreePolicy.requireCanonicalRelativePath(path);
             Objects.requireNonNull(kind, "entry kind");
             Objects.requireNonNull(action, "entry action");
             boolean baseline = action != Action.ADD;
@@ -779,11 +1395,22 @@ final class ShipPublicationService {
                         && baselineMode != null));
                 require(candidate == (candidateDigest != null && candidateSize != null
                         && candidateMode != null));
+                require(!baseline || validFileSide(
+                        baselineDigest, baselineSize, baselineMode));
+                require(!candidate || validFileSide(
+                        candidateDigest, candidateSize, candidateMode));
+                require(action != Action.REPLACE
+                        || !baselineDigest.equals(candidateDigest)
+                        || !baselineSize.equals(candidateSize)
+                        || !baselineMode.equals(candidateMode));
             } else {
                 require(baselineDigest == null && baselineSize == null
                         && candidateDigest == null && candidateSize == null);
                 require(baseline == (baselineMode != null));
                 require(candidate == (candidateMode != null));
+                require(!baseline || validMode(baselineMode));
+                require(!candidate || validMode(candidateMode));
+                require(action != Action.REPLACE || !baselineMode.equals(candidateMode));
             }
         }
 
@@ -812,19 +1439,52 @@ final class ShipPublicationService {
                         "Ship publication entry does not match its action");
             }
         }
+
+        private static boolean validFileSide(String digest, long size, int mode) {
+            return ShipDigest.isSha256(digest)
+                    && size >= 0
+                    && size <= ShipTreePolicy.DEFAULT_MAX_FILE_BYTES
+                    && validMode(mode);
+        }
+
+        private static boolean validMode(int mode) {
+            return mode >= 0 && mode <= 0777;
+        }
     }
 
     record Journal(
             int schemaVersion,
             String runId,
             int attempt,
+            String baselineRootIdentity,
             String baselineIdentity,
             String candidateIdentity,
             String createdAt,
             List<Entry> entries) {
 
         Journal {
+            if (schemaVersion != SCHEMA_VERSION
+                    || !ShipRun.isRunId(runId)
+                    || attempt < 0
+                    || !ShipDigest.isSha256(baselineRootIdentity)
+                    || !ShipDigest.isSha256(baselineIdentity)
+                    || !ShipDigest.isSha256(candidateIdentity)
+                    || createdAt == null
+                    || createdAt.isBlank()) {
+                throw new IllegalArgumentException("Invalid Ship publication journal identity");
+            }
             entries = List.copyOf(Objects.requireNonNull(entries, "journal entries"));
+            if (entries.size() > 2 * ShipTreePolicy.DEFAULT_MAX_FILE_COUNT) {
+                throw new IllegalArgumentException("Ship publication journal has too many entries");
+            }
+            String previous = null;
+            for (Entry entry : entries) {
+                if (previous != null && previous.compareTo(entry.path()) >= 0) {
+                    throw new IllegalArgumentException(
+                            "Ship publication journal entries are not strictly ordered");
+                }
+                previous = entry.path();
+            }
         }
     }
 
@@ -860,6 +1520,16 @@ final class ShipPublicationService {
 
         RecoveryBlockedException(String message) {
             super(message);
+        }
+    }
+
+    /** A live scratch probe was created but could not be removed safely. */
+    private static final class StagingCleanupException extends IOException {
+
+        private static final long serialVersionUID = 1L;
+
+        private StagingCleanupException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 
