@@ -147,6 +147,22 @@ public final class ShipWorkspace {
             int attempt,
             String inputDigest)
             throws IOException {
+        return verify(liveProject, suppliedCandidate, runId, attempt, inputDigest, null);
+    }
+
+    /**
+     * Verifies one published candidate, additionally accepting a live project whose material identity equals
+     * {@code publishedIdentity} — the recorded identity of an already-published candidate, which legitimately replaced
+     * the prepare-time baseline.
+     */
+    public static Verification verify(
+            Path liveProject,
+            Path suppliedCandidate,
+            String runId,
+            int attempt,
+            String inputDigest,
+            String publishedIdentity)
+            throws IOException {
         Path project = realProject(liveProject);
         requireBindingFields(runId, attempt, inputDigest);
         Path candidate = realDirectory(suppliedCandidate, "Ship workspace candidate");
@@ -165,7 +181,9 @@ public final class ShipWorkspace {
         }
         ProjectSnapshot candidateSnapshot = ProjectEvidenceFiles.captureStaged(candidate);
         ProjectSnapshot baseline = ProjectEvidenceFiles.capture(project);
-        if (!materialIdentity(baseline).equals(binding.baselineDigest())) {
+        String liveIdentity = materialIdentity(baseline);
+        if (!liveIdentity.equals(binding.baselineDigest())
+                && (publishedIdentity == null || !liveIdentity.equals(publishedIdentity))) {
             throw new StaleBaselineException(
                     "Ship workspace baseline no longer matches the live project");
         }
@@ -446,7 +464,8 @@ public final class ShipWorkspace {
                 : new FileAttribute<?>[0];
     }
 
-    private static String materialIdentity(ProjectSnapshot snapshot) {
+    /** Framed identity of one material tree; shared by workspace baselines and publication records. */
+    public static String materialIdentity(ProjectSnapshot snapshot) {
         ByteArrayOutputStream framed = new ByteArrayOutputStream();
         field(framed, "camel-kit.ship.workspace-material.v1");
         field(framed, snapshot.policyDigest());

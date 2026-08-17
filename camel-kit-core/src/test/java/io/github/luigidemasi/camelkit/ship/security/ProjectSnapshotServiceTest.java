@@ -724,7 +724,7 @@ class ProjectSnapshotServiceTest {
         assertEquals(
                 Set.of("capture", "captureStaged", "captureSealed", "unchanged",
                         "unchangedMaterialTree", "materializeMaterial", "readMaterial",
-                        "readVolatile"),
+                        "readVolatile", "rootIdentity", "projectIdentity"),
                 Arrays.stream(ProjectEvidenceFiles.class.getDeclaredMethods())
                         .filter(method -> Modifier.isPublic(method.getModifiers()))
                         .map(method -> method.getName())

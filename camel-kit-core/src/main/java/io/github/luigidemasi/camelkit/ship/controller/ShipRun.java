@@ -25,11 +25,12 @@ public record ShipRun(
         Stage currentStage,
         ShipContext context,
         List<StageRecord> stages,
+        ArtifactRef publication,
         String createdAt,
         String updatedAt,
         String message) {
 
-    public static final int SCHEMA_VERSION = 3;
+    public static final int SCHEMA_VERSION = 4;
 
     private static final Pattern RUN_ID = Pattern.compile("ship-[0-9a-f]{32}");
     private static final Pattern PIPELINE_ID = Pattern.compile("[0-9]{3,}-[a-z0-9]+(?:-[a-z0-9]+)*");
@@ -62,7 +63,13 @@ public record ShipRun(
         if ((status == RunStatus.FAILED || status == RunStatus.ABORTED) != (message != null)) {
             throw new IllegalArgumentException("Only failed or aborted runs carry a message");
         }
-        requireConsistentProgress(status, currentStage, stages);
+        requireConsistentProgress(status, currentStage, stages, publication);
+    }
+
+    /** True when every stage is complete and only guarded publication remains. */
+    public boolean publicationPending() {
+        return status == RunStatus.RUNNING
+                && stages.stream().allMatch(stage -> stage.status() == StageStatus.COMPLETED);
     }
 
     public static boolean isRunId(String value) {
@@ -130,18 +137,31 @@ public record ShipRun(
     }
 
     private static void requireConsistentProgress(
-            RunStatus status, Stage currentStage, List<StageRecord> stages) {
+            RunStatus status, Stage currentStage, List<StageRecord> stages, ArtifactRef publication) {
         int current = currentStage.ordinal();
         boolean allCompleted = stages.stream().allMatch(stage -> stage.status() == StageStatus.COMPLETED);
+        if (publication != null
+                && (currentStage != Stage.VALIDATE
+                        || stages.get(Stage.EXECUTE.ordinal()).status() != StageStatus.COMPLETED)) {
+            throw new IllegalArgumentException(
+                    "A Ship publication record requires its published EXECUTE candidate");
+        }
         if (status == RunStatus.COMPLETED) {
             if (!allCompleted || currentStage != Stage.VALIDATE) {
                 throw new IllegalArgumentException("Completed Ship run has incomplete stages");
             }
+            if (publication == null) {
+                throw new IllegalArgumentException("Completed Ship run has no publication record");
+            }
             return;
         }
-        if ((status == RunStatus.PAUSED || status == RunStatus.ABORTED)
-                && allCompleted
-                && currentStage == Stage.VALIDATE) {
+        if (allCompleted && currentStage == Stage.VALIDATE) {
+            if (publication != null) {
+                throw new IllegalArgumentException(
+                        "Only a completed Ship run retains a publication record with all stages complete");
+            }
+            // RUNNING means guarded publication is pending; PAUSED is the pre-publication
+            // oversight gate; FAILED is a rolled-back publication; ABORTED is a user stop.
             return;
         }
         for (int index = 0; index < stages.size(); index++) {

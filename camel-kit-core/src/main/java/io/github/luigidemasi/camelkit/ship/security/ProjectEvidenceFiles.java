@@ -13,6 +13,16 @@ public final class ProjectEvidenceFiles {
         return new ProjectSnapshotService().capture(projectRoot);
     }
 
+    /** Returns the descriptor-bound identity of one project root without scanning its entries. */
+    public static String rootIdentity(Path projectRoot) throws IOException {
+        return new ProjectSnapshotService().rootIdentity(projectRoot);
+    }
+
+    /** Returns the path-independent device/inode identity used to coordinate one live project. */
+    public static String projectIdentity(Path projectRoot) throws IOException {
+        return new ProjectSnapshotService().projectIdentity(projectRoot);
+    }
+
     public static ProjectSnapshot captureSealed(Path sealedRoot) throws IOException {
         return new ProjectSnapshotService().captureSealed(sealedRoot);
     }

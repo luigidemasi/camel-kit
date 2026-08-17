@@ -67,6 +67,7 @@ import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -115,7 +116,11 @@ class ShipCoordinatorTest {
         state = directory.resolve("state");
         Map<String, String> environment = Map.of();
         distribution = DistributionConfig.load(new Properties());
-        controller = new ShipController(state, environment);
+        controller = new ShipController(
+                state,
+                directory.resolve("project-registry/projects"),
+                Clock.systemUTC(),
+                environment);
         worker = new PiWorker(
                 fixture.resolve("pi-rpc"),
                 distribution.piVersion(),
@@ -415,7 +420,11 @@ class ShipCoordinatorTest {
                         stateFile,
                         StandardCopyOption.ATOMIC_MOVE);
             }
-            ShipRun aborted = new ShipController(state, Map.of())
+            ShipRun aborted = new ShipController(
+                    state,
+                    directory.resolve("project-registry/projects"),
+                    Clock.systemUTC(),
+                    Map.of())
                     .abort(run.id());
             invocation.join(Duration.ofSeconds(10).toMillis());
 
@@ -799,6 +808,31 @@ class ShipCoordinatorTest {
                 ShipDigest.sha256(Files.readAllBytes(stampPath)),
                 completed.stage(Stage.VALIDATE)
                         .artifacts().get(0).digest());
+
+        assertNotNull(completed.publication());
+        Path publicationRecord = Path.of(completed.publication().path());
+        assertEquals(
+                state.resolve(run.id()).resolve("publication/publication.json").toRealPath(),
+                publicationRecord.toRealPath());
+        assertEquals(
+                ShipDigest.sha256(Files.readAllBytes(publicationRecord)),
+                completed.publication().digest());
+        assertTrue(Files.isRegularFile(
+                state.resolve(run.id()).resolve("publication/journal.json")),
+                "the committed journal is retained as evidence");
+        Path candidateRoot = Path.of(
+                completed.stage(Stage.EXECUTE).artifacts().get(0).path());
+        for (String relative : List.of(
+                "src/main/resources/routes/orders.camel.yaml",
+                "test/orders.camel.it.yaml",
+                ".camel-kit/config.properties",
+                "pom.xml",
+                "docs/camel-kit/149-coordinator/artifact-manifest.json")) {
+            assertEquals(
+                    Files.readString(candidateRoot.resolve(relative)),
+                    Files.readString(project.resolve(relative)),
+                    "published " + relative);
+        }
     }
 
     @Test

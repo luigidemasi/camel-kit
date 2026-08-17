@@ -40,6 +40,18 @@ final class ProjectSnapshotService {
         }
     }
 
+    String rootIdentity(Path projectRoot) throws IOException {
+        try (SecureRoot root = ShipSecureFilesystem.open(projectRoot, "Ship project", policy)) {
+            return root.rootIdentity();
+        }
+    }
+
+    String projectIdentity(Path projectRoot) throws IOException {
+        try (SecureRoot root = ShipSecureFilesystem.open(projectRoot, "Ship project", policy)) {
+            return root.projectIdentity();
+        }
+    }
+
     ProjectSnapshot captureStaged(Path stagedRoot) throws IOException {
         try (SecureRoot root = ShipSecureFilesystem.open(stagedRoot, "Staged Ship tree", policy)) {
             return root.snapshotStaged();

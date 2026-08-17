@@ -140,6 +140,175 @@ class ShipRunStoreTest {
     }
 
     @Test
+    void excludesConcurrentProjectPublicationAndReleasesTheLock() throws Exception {
+        Files.createDirectory(temporaryDirectory.resolve("project"));
+        ShipRunStore first = store();
+        ShipRun initial = run(RUN_ID);
+        first.create(initial);
+        ShipRunStore second = store();
+        Path project = Path.of(initial.projectDirectory());
+
+        try (ShipRunStore.LockedProject ignored = first.lockProject(project)) {
+            assertCode("operation-in-progress", () -> {
+                try (ShipRunStore.LockedProject competing = second.lockProject(project)) {
+                    // A competing publication must not enter.
+                }
+            });
+        }
+
+        try (ShipRunStore.LockedProject ignored = second.lockProject(project)) {
+            // Closing the first lease makes the project immediately available again.
+        }
+    }
+
+    @Test
+    void excludesConcurrentProjectPublicationAcrossStateRoots() throws Exception {
+        Path project = Files.createDirectory(temporaryDirectory.resolve("project"));
+        Path registry = projectRegistryRoot();
+        ShipRunStore first = new ShipRunStore(
+                temporaryDirectory.resolve("state-one"), registry);
+        ShipRunStore second = new ShipRunStore(
+                temporaryDirectory.resolve("state-two"), registry);
+
+        try (ShipRunStore.LockedProject ignored = first.lockProject(project)) {
+            assertCode("operation-in-progress", () -> {
+                try (ShipRunStore.LockedProject competing = second.lockProject(project)) {
+                    // The project rendezvous is independent of either run-state root.
+                }
+            });
+        }
+    }
+
+    @Test
+    void rejectsANonPrivateProjectRegistryWithoutChangingItsPermissions() throws Exception {
+        Assumptions.assumeTrue(
+                temporaryDirectory.getFileSystem().supportedFileAttributeViews().contains("posix"));
+        Path project = Files.createDirectory(temporaryDirectory.resolve("project"));
+        Path parent = Files.createDirectory(temporaryDirectory.resolve("project-registry"));
+        Files.setPosixFilePermissions(parent, PosixFilePermissions.fromString("rwx------"));
+        Path registry = Files.createDirectory(parent.resolve("projects"));
+        var publicPermissions = PosixFilePermissions.fromString("rwxr-xr-x");
+        Files.setPosixFilePermissions(registry, publicPermissions);
+        ShipRunStore store = new ShipRunStore(
+                temporaryDirectory.resolve("state"), registry);
+
+        assertCode("state-corrupt", () -> {
+            try (ShipRunStore.LockedProject ignored = store.lockProject(project)) {
+                // An unsafe rendezvous must not be used.
+            }
+        });
+        assertEquals(publicPermissions, Files.getPosixFilePermissions(registry));
+    }
+
+    @Test
+    void retainsAndFindsADormantPublicationOwnerAcrossStateRoots() throws Exception {
+        Path project = Files.createDirectory(temporaryDirectory.resolve("project"));
+        Path registry = projectRegistryRoot();
+        Path firstState = temporaryDirectory.resolve("state-one");
+        Path secondState = temporaryDirectory.resolve("state-two");
+        ShipRunStore first = new ShipRunStore(firstState, registry);
+        ShipRunStore second = new ShipRunStore(secondState, registry);
+        first.create(withProject(run(RUN_ID), project));
+        second.create(withProject(run(OTHER_RUN_ID), project));
+        Path journal = firstState.resolve(RUN_ID).resolve("publication/journal.json");
+
+        try (ShipRunStore.LockedProject owner = first.lockProject(project)) {
+            owner.requireNoForeignTornPublication(RUN_ID);
+            Files.createDirectories(journal.getParent());
+            Files.writeString(journal, "{}");
+        }
+
+        try (ShipRunStore.LockedProject competing = second.lockProject(project)) {
+            assertCode(
+                    "project-publication-in-progress",
+                    () -> competing.requireNoForeignTornPublication(OTHER_RUN_ID));
+        }
+
+        try (ShipRunStore.LockedProject owner = first.lockProject(project)) {
+            owner.requireNoForeignTornPublication(RUN_ID);
+            Files.delete(journal);
+        }
+        try (ShipRunStore.LockedProject competing = second.lockProject(project)) {
+            competing.requireNoForeignTornPublication(OTHER_RUN_ID);
+        }
+    }
+
+    @Test
+    void keepsTheProjectLeaseAcrossAnAncestorRename() throws Exception {
+        Path oldParent = Files.createDirectory(temporaryDirectory.resolve("old-parent"));
+        Path project = Files.createDirectory(oldParent.resolve("project"));
+        Path registry = projectRegistryRoot();
+        ShipRunStore first = new ShipRunStore(
+                temporaryDirectory.resolve("state-one"), registry);
+        ShipRunStore second = new ShipRunStore(
+                temporaryDirectory.resolve("state-two"), registry);
+
+        try (ShipRunStore.LockedProject ignored = first.lockProject(project)) {
+            Path newParent = temporaryDirectory.resolve("new-parent");
+            Files.move(oldParent, newParent);
+            Files.createSymbolicLink(oldParent, newParent);
+            Path renamedProject = newParent.resolve("project");
+            assertCode("operation-in-progress", () -> {
+                try (ShipRunStore.LockedProject competing = second.lockProject(renamedProject)) {
+                    // Device/inode identity remains stable when lexical ancestors move.
+                }
+            });
+        }
+    }
+
+    @Test
+    void recognizesADormantOwnerAfterAnAncestorRename() throws Exception {
+        Path oldParent = Files.createDirectory(temporaryDirectory.resolve("old-parent"));
+        Path project = Files.createDirectory(oldParent.resolve("project"));
+        Path registry = projectRegistryRoot();
+        Path state = temporaryDirectory.resolve("state");
+        ShipRunStore store = new ShipRunStore(state, registry);
+        store.create(withProject(run(RUN_ID), project));
+        Path journal = state.resolve(RUN_ID).resolve("publication/journal.json");
+
+        try (ShipRunStore.LockedProject owner = store.lockProject(project)) {
+            owner.requireNoForeignTornPublication(RUN_ID);
+            Files.createDirectories(journal.getParent());
+            Files.writeString(journal, "{}");
+        }
+
+        Path newParent = temporaryDirectory.resolve("new-parent");
+        Files.move(oldParent, newParent);
+        Files.createSymbolicLink(oldParent, newParent);
+        Path renamedProject = newParent.resolve("project");
+        try (ShipRunStore.LockedProject owner = store.lockProject(renamedProject)) {
+            owner.requireNoForeignTornPublication(RUN_ID);
+            Files.delete(journal);
+        }
+    }
+
+    @Test
+    void doesNotReclaimAnOwnerFromAnUnverifiedPublicationReference() throws Exception {
+        Path project = Files.createDirectory(temporaryDirectory.resolve("project"));
+        ShipRunStore store = store();
+        store.create(withProject(completedRun(RUN_ID), project));
+        store.create(withProject(run(OTHER_RUN_ID), project));
+        Path journal = stateRoot().resolve(RUN_ID).resolve("publication/journal.json");
+
+        try (ShipRunStore.LockedProject owner = store.lockProject(project)) {
+            owner.requireNoForeignTornPublication(RUN_ID);
+            Files.createDirectories(journal.getParent());
+            Files.writeString(journal, "{}");
+        }
+
+        try (ShipRunStore.LockedProject competing = store.lockProject(project)) {
+            assertCode(
+                    "project-publication-in-progress",
+                    () -> competing.requireNoForeignTornPublication(OTHER_RUN_ID));
+        }
+
+        Files.delete(journal);
+        try (ShipRunStore.LockedProject competing = store.lockProject(project)) {
+            competing.requireNoForeignTornPublication(OTHER_RUN_ID);
+        }
+    }
+
+    @Test
     void distinguishesMissingInvalidAndCorruptState() throws Exception {
         ShipRunStore store = store();
         assertCode("run-not-found", () -> store.read(RUN_ID));
@@ -304,11 +473,28 @@ class ShipRunStoreTest {
                 ShipRun.Stage.EXECUTE,
                 context,
                 stages,
+                null,
                 CREATED_AT,
                 UPDATED_AT,
                 null);
 
         assertCode("state-invalid", () -> store().create(legacy));
+    }
+
+    @Test
+    void rejectsAPublicationRecordOutsideItsRunDirectory() throws Exception {
+        ShipRunStore store = store();
+        ShipRun completed = completedRun(RUN_ID);
+        store.create(completed);
+        Path state = stateRoot().resolve(RUN_ID).resolve("state.json");
+        ObjectMapper json = new ObjectMapper();
+
+        ObjectNode document = (ObjectNode) json.readTree(Files.readAllBytes(state));
+        ((ObjectNode) document.get("publication")).put(
+                "path", temporaryDirectory.resolve("external-publication.json").toString());
+        Files.write(state, json.writeValueAsBytes(document));
+
+        assertCode("state-corrupt", () -> store.read(RUN_ID));
     }
 
     @Test
@@ -441,11 +627,15 @@ class ShipRunStoreTest {
     }
 
     private ShipRunStore store() {
-        return new ShipRunStore(stateRoot());
+        return new ShipRunStore(stateRoot(), projectRegistryRoot());
     }
 
     private Path stateRoot() {
         return temporaryDirectory.resolve("state");
+    }
+
+    private Path projectRegistryRoot() {
+        return temporaryDirectory.resolve("project-registry/projects");
     }
 
     private ShipRun run(String runId) {
@@ -459,6 +649,7 @@ class ShipRunStoreTest {
                 ShipRun.Stage.DISCOVERY,
                 ShipContext.none(),
                 ShipRun.pendingStages(),
+                null,
                 CREATED_AT,
                 CREATED_AT,
                 null);
@@ -505,6 +696,11 @@ class ShipRunStoreTest {
                 ShipRun.Stage.VALIDATE,
                 context,
                 stages,
+                new ShipRun.ArtifactRef(
+                        stateRoot().resolve(runId).resolve("publication/publication.json")
+                                .toAbsolutePath().normalize().toString(),
+                        ShipDigest.sha256(
+                                "publication".getBytes(java.nio.charset.StandardCharsets.UTF_8))),
                 CREATED_AT,
                 UPDATED_AT,
                 null);
@@ -521,6 +717,7 @@ class ShipRunStoreTest {
                 run.currentStage(),
                 run.context(),
                 run.stages(),
+                run.publication(),
                 run.createdAt(),
                 UPDATED_AT,
                 run.message());
@@ -537,6 +734,7 @@ class ShipRunStoreTest {
                 run.currentStage(),
                 run.context(),
                 run.stages(),
+                run.publication(),
                 run.createdAt(),
                 run.updatedAt(),
                 run.message());

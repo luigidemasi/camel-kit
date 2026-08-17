@@ -182,6 +182,10 @@ public final class ShipCoordinator {
         ShipRun current = controller.status(runId);
         while (current.status() == RunStatus.RUNNING
                 && !Thread.currentThread().isInterrupted()) {
+            if (current.publicationPending()) {
+                current = publishPending(runId);
+                continue;
+            }
             StageAttempt attempt = controller.prepareAttempt(current.id());
             Optional<ShipRun> restarted = restartStalePredecessor(
                     attempt);
@@ -238,6 +242,9 @@ public final class ShipCoordinator {
         requireNotInterrupted();
         ShipRun current = controller.status(runId);
         if (current.status() == RunStatus.RUNNING) {
+            if (current.publicationPending()) {
+                return continueAvailable(runId, publishPending(runId));
+            }
             final StageAttempt attempt;
             try {
                 attempt = controller.prepareAttempt(runId);
@@ -294,6 +301,21 @@ public final class ShipCoordinator {
         return current.status() == RunStatus.RUNNING
                 ? runAvailable(runId)
                 : current;
+    }
+
+    /**
+     * Drives the guarded publication of a fully validated run; a live project that drifted since EXECUTE routes into
+     * the controller's stale-stage resume path instead of escaping.
+     */
+    private ShipRun publishPending(String runId) throws IOException {
+        try {
+            return controller.publish(runId);
+        } catch (ShipController.Failure e) {
+            if (!"stale-stage-input".equals(e.code())) {
+                throw e;
+            }
+            return controller.resume(runId);
+        }
     }
 
     private Step advancePi(StageAttempt attempt)
