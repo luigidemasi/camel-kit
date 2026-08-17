@@ -306,6 +306,22 @@ class ShipCommandTest {
                 "Message: Validation failed",
                 "Stamp: " + stamp), failed.output());
 
+        RunResult paused = run(
+                controller,
+                evidenceLauncher(
+                        controller, ShipRun.RunStatus.PAUSED, stamp, publication),
+                "--resume", id);
+
+        assertEquals(0, paused.exitCode(), paused.error());
+        assertEquals(summary(
+                id,
+                "PAUSED",
+                "VALIDATE",
+                "SMART",
+                "Paused after: VALIDATE",
+                "Stamp: " + stamp,
+                "Warning: Adding context restarts from DISCOVERY and discards the validation Stamp."), paused.output());
+
         RunResult completed = run(
                 controller,
                 evidenceLauncher(

@@ -277,8 +277,9 @@ class ShipControllerTest {
         Path project = Files.createDirectory(directory.resolve("project"));
         ShipController controller = controller("state");
         ShipRun started = controller.start(project, Oversight.SMART, List.of());
-        String question = "Question: Which deployment region should be used?";
-        String report = "Analysis:\n" + "x".repeat(ShipRun.MAX_MESSAGE_LENGTH) + '\n' + question;
+        String unsafeQuestion = "Question:\tWhich deployment\rregion\u001bshould be used\u007f?";
+        String question = "Question: Which deployment region should be used ?";
+        String report = "Analysis:\n" + "x".repeat(ShipRun.MAX_MESSAGE_LENGTH) + '\n' + unsafeQuestion;
 
         ShipRun paused = controller.completeStage(
                 started.id(),
@@ -293,7 +294,7 @@ class ShipControllerTest {
         assertEquals(RunStatus.PAUSED, paused.status());
         assertEquals(ShipRun.MAX_MESSAGE_LENGTH, paused.message().length());
         assertTrue(paused.message().startsWith("...\n"), paused.message());
-        assertTrue(paused.message().endsWith(question), paused.message());
+        assertTrue(paused.message().endsWith("\n" + question), paused.message());
         assertEquals(paused, controller.status(paused.id()));
     }
 

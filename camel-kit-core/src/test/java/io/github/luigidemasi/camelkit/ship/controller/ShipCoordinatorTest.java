@@ -653,6 +653,45 @@ class ShipCoordinatorTest {
     }
 
     @Test
+    void reportsWhenContextWasRecordedBeforeContinuationFailed()
+            throws Exception {
+        writeDiscoveryResult(
+                "Question: Which deployment region should be used?");
+        ShipRun run = controller.start(
+                project,
+                Oversight.SMART,
+                List.of(new ShipContext.TextInput("Deploy the integration")));
+        ShipRun paused = coordinator.run(run.id());
+        assertEquals(RunStatus.PAUSED, paused.status());
+        Path inputs = state.resolve(run.id()).resolve("inputs");
+        Files.setPosixFilePermissions(
+                inputs, PosixFilePermissions.fromString("rwxr-xr-x"));
+        try {
+            ShipController.Failure failure = assertThrows(
+                    ShipController.Failure.class,
+                    () -> coordinator.resume(
+                            run.id(),
+                            List.of(new ShipContext.TextInput("Use eu-west"))));
+
+            assertEquals("worker-preparation-failed", failure.code());
+            assertEquals(
+                    "Ship context was recorded, but the run could not continue: "
+                         + "Could not prepare the Ship worker attempt for " + run.id(),
+                    failure.getMessage());
+            assertTrue(failure.getCause() instanceof ShipController.Failure);
+            ShipRun committed = controller.status(run.id());
+            assertEquals(RunStatus.RUNNING, committed.status());
+            assertEquals(2, committed.context().sources().size());
+            assertEquals(
+                    "Use eu-west",
+                    committed.context().sources().get(1).value());
+        } finally {
+            Files.setPosixFilePermissions(
+                    inputs, PosixFilePermissions.fromString("rwx------"));
+        }
+    }
+
+    @Test
     void invalidTypedResultCanResumeWithADistinctAttemptPrompt()
             throws Exception {
         ShipRun run = designRun(List.of(

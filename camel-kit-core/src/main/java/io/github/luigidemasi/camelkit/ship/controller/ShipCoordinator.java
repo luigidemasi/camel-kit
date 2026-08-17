@@ -3,6 +3,7 @@ package io.github.luigidemasi.camelkit.ship.controller;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
@@ -258,8 +259,21 @@ public final class ShipCoordinator {
             throws IOException, InterruptedException {
         requireNotInterrupted();
         if (!additions.isEmpty()) {
-            return continueAvailable(
-                    runId, controller.resume(runId, additions));
+            ShipRun committed = controller.resume(runId, additions);
+            try {
+                return continueAvailable(runId, committed);
+            } catch (ClosedByInterruptException e) {
+                throw e;
+            } catch (IOException e) {
+                throw new IOException(
+                        "Ship context was recorded, but the run could not continue: "
+                                      + safeMessage(e),
+                        e);
+            } catch (ShipController.Failure e) {
+                throw e.withMessage(
+                        "Ship context was recorded, but the run could not continue: "
+                                    + safeMessage(e));
+            }
         }
         ShipRun current = controller.status(runId);
         if (current.status() == RunStatus.RUNNING) {
@@ -1152,7 +1166,7 @@ public final class ShipCoordinator {
                 : message.substring(0, ShipRun.MAX_MESSAGE_LENGTH);
     }
 
-    private static String safeMessage(IOException failure) {
+    private static String safeMessage(Exception failure) {
         String message = failure.getMessage();
         return message == null || message.isBlank()
                 ? failure.getClass().getSimpleName()

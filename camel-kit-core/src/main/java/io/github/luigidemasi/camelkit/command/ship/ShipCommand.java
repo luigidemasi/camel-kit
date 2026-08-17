@@ -246,6 +246,9 @@ public final class ShipCommand implements Callable<Integer> {
             writer.println("Publication: " + safeDisplay(run.publication().path(), false));
         }
         if (run.status() == ShipRun.RunStatus.PAUSED) {
+            if (pausedAfter(run) == Stage.VALIDATE) {
+                writer.println("Warning: Adding context restarts from DISCOVERY and discards the validation Stamp.");
+            }
             writer.println("Next: camel-kit ship --resume " + run.id()
                            + " [--text TEXT | --document PATH]");
         } else if (run.status() == ShipRun.RunStatus.RUNNING

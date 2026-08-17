@@ -756,7 +756,9 @@ public final class ShipController {
     }
 
     private static String pauseMessage(Stage stage, String report) {
-        String message = report == null ? "" : report.replace('\0', ' ').strip();
+        String message = report == null
+                ? ""
+                : report.replaceAll("[\\p{Cntrl}&&[^\\n]]", " ").strip();
         if (message.isBlank()) {
             message = "Approval required after " + stage;
         }
@@ -2077,6 +2079,10 @@ public final class ShipController {
 
         public String code() {
             return code;
+        }
+
+        Failure withMessage(String message) {
+            return new Failure(code, message, this);
         }
     }
 }
