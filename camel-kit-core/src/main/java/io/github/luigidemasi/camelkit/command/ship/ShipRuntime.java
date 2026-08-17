@@ -5,11 +5,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 
 import io.github.luigidemasi.camelkit.config.DistributionConfig;
+import io.github.luigidemasi.camelkit.ship.context.ShipContext;
 import io.github.luigidemasi.camelkit.ship.controller.ShipCoordinator;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun;
 
@@ -64,8 +66,10 @@ final class ShipRuntime implements ShipCommand.WorkflowLauncher {
             }
 
             @Override
-            public ShipRun resume(String runId) throws IOException, InterruptedException {
-                return coordinator.resume(runId);
+            public ShipRun resume(
+                    String runId, List<? extends ShipContext.Input> additions)
+                    throws IOException, InterruptedException {
+                return coordinator.resume(runId, additions);
             }
         };
     }

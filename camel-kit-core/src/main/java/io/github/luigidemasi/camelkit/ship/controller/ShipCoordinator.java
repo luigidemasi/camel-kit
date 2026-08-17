@@ -213,33 +213,54 @@ public final class ShipCoordinator {
      * Recovers an exact durable Pi result before retrying; deterministic validation restarts in a fresh attempt.
      */
     public ShipRun resume(String runId) throws IOException, InterruptedException {
+        return resume(runId, List.of());
+    }
+
+    /** Appends context to a paused run before restarting stale work. */
+    public ShipRun resume(
+            String runId, List<? extends ShipContext.Input> additions)
+            throws IOException, InterruptedException {
+        List<ShipContext.Input> added = List.copyOf(
+                Objects.requireNonNull(additions, "context additions"));
         try {
             ShipRun initial = controller.status(runId);
             try (AttemptLease lease = tryCoordinatorLease(runId)) {
                 if (lease == null) {
+                    if (!added.isEmpty()) {
+                        throw new IOException(
+                                "Ship run is already active; context was not added");
+                    }
                     return controller.status(runId);
                 }
                 if (initial.status() == RunStatus.ABORTED) {
-                    return resumeAvailable(runId);
+                    return resumeAvailable(runId, added);
                 }
                 try (AbortWatcher ignored = new AbortWatcher(
                         controller, runId)) {
-                    return resumeAvailable(runId);
+                    return resumeAvailable(runId, added);
                 }
             }
         } catch (SessionBusyException e) {
+            if (!added.isEmpty()) {
+                throw e;
+            }
             return controller.status(runId);
         } catch (ShipController.Failure e) {
-            if (concurrentTransition(e)) {
+            if (added.isEmpty() && concurrentTransition(e)) {
                 return controller.status(runId);
             }
             throw e;
         }
     }
 
-    private ShipRun resumeAvailable(String runId)
+    private ShipRun resumeAvailable(
+            String runId, List<? extends ShipContext.Input> additions)
             throws IOException, InterruptedException {
         requireNotInterrupted();
+        if (!additions.isEmpty()) {
+            return continueAvailable(
+                    runId, controller.resume(runId, additions));
+        }
         ShipRun current = controller.status(runId);
         if (current.status() == RunStatus.RUNNING) {
             if (current.publicationPending()) {
@@ -435,7 +456,8 @@ public final class ShipCoordinator {
                         stage.inputDigest(),
                         outputDigest,
                         typed.pipelineId(),
-                        typed.materialAmbiguity());
+                        typed.materialAmbiguity(),
+                        typed.report());
             } else if (stage.stage() == Stage.EXECUTE) {
                 Path manifest;
                 try {
@@ -453,7 +475,8 @@ public final class ShipCoordinator {
                         stage.attempts(),
                         stage.inputDigest(),
                         List.of(manifest),
-                        typed.materialAmbiguity());
+                        typed.materialAmbiguity(),
+                        typed.report());
             } else {
                 committed = controller.completeStage(
                         attempt.run().id(),
@@ -462,7 +485,8 @@ public final class ShipCoordinator {
                         stage.inputDigest(),
                         outputDigest,
                         List.of(),
-                        typed.materialAmbiguity());
+                        typed.materialAmbiguity(),
+                        typed.report());
             }
             return new Step(committed, true);
         } catch (ShipController.Failure e) {
@@ -532,7 +556,7 @@ public final class ShipCoordinator {
             return new Step(
                     optimisticFailure(
                             attempt,
-                            "Ship validation could not run"),
+                            "Ship validation could not run: " + safeMessage(e)),
                     true);
         }
     }
@@ -809,11 +833,13 @@ public final class ShipCoordinator {
                 .append("The authoritative input digest is ")
                 .append(attempt.stage().inputDigest()).append(".\n")
                 .append("The bounded worker input identity is ")
-                .append(workerInputDigest).append(".\n");
+                .append(workerInputDigest).append(".\n")
+                .append("Do not ask for information already resolved by any context source. ")
+                .append("If material ambiguity remains, group concrete questions at the end of report ")
+                .append("and set materialAmbiguity to true.\n");
         switch (attempt.stage().stage()) {
             case DISCOVERY -> {
-                prompt.append(
-                        "Analyze supplied material before unresolved requirements. ");
+                prompt.append("Analyze every context source before unresolved requirements. ");
                 if (attempt.run().pipelineId() == null) {
                     prompt.append(
                             "Choose one unused pipeline ID matching "
@@ -1121,9 +1147,9 @@ public final class ShipCoordinator {
                 message.getBytes(StandardCharsets.UTF_8), environment)) {
             return "Failed";
         }
-        return message.length() <= 1024
+        return message.length() <= ShipRun.MAX_MESSAGE_LENGTH
                 ? message
-                : message.substring(0, 1024);
+                : message.substring(0, ShipRun.MAX_MESSAGE_LENGTH);
     }
 
     private static String safeMessage(IOException failure) {

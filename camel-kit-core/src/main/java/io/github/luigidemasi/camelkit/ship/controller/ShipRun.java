@@ -31,6 +31,7 @@ public record ShipRun(
         String message) {
 
     public static final int SCHEMA_VERSION = 4;
+    static final int MAX_MESSAGE_LENGTH = 1024;
 
     private static final Pattern RUN_ID = Pattern.compile("ship-[0-9a-f]{32}");
     private static final Pattern PIPELINE_ID = Pattern.compile("[0-9]{3,}-[a-z0-9]+(?:-[a-z0-9]+)*");
@@ -57,11 +58,16 @@ public record ShipRun(
         if (Instant.parse(updatedAt).isBefore(Instant.parse(createdAt))) {
             throw new IllegalArgumentException("Ship run update precedes its creation");
         }
-        if (message != null && (message.isBlank() || message.length() > 1024 || message.indexOf('\0') >= 0)) {
+        if (message != null
+                && (message.isBlank()
+                        || message.length() > MAX_MESSAGE_LENGTH
+                        || message.indexOf('\0') >= 0)) {
             throw new IllegalArgumentException("Ship run message is invalid");
         }
-        if ((status == RunStatus.FAILED || status == RunStatus.ABORTED) != (message != null)) {
-            throw new IllegalArgumentException("Only failed or aborted runs carry a message");
+        if (status != RunStatus.PAUSED
+                && ((status == RunStatus.FAILED || status == RunStatus.ABORTED)
+                    != (message != null))) {
+            throw new IllegalArgumentException("Only paused, failed, or aborted runs carry a message");
         }
         requireConsistentProgress(status, currentStage, stages, publication);
     }

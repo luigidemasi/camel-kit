@@ -100,6 +100,8 @@ class ShipRunTest {
         assertAll(
                 () -> assertDoesNotThrow(() -> run(RUNNING, DISCOVERY, runningStages, null)),
                 () -> assertDoesNotThrow(() -> run(PAUSED, DESIGN, pausedStages, null)),
+                () -> assertDoesNotThrow(() -> run(PAUSED, DESIGN, pausedStages,
+                        "Which database should the route use?")),
                 () -> assertDoesNotThrow(() -> run(FAILED, DISCOVERY, failedStages, "stage failed")),
                 () -> assertDoesNotThrow(() -> run(ABORTED, DISCOVERY, abortedStages, "cancelled")),
                 () -> assertDoesNotThrow(() -> run(COMPLETED, VALIDATE,
@@ -204,6 +206,11 @@ class ShipRunTest {
                                 "not-a-digest", null, List.of())),
                 () -> assertThrows(IllegalArgumentException.class,
                         () -> run(RUNNING, DISCOVERY, stages, null, "ship-ABC")),
+                () -> assertRejected(
+                        "Only paused, failed, or aborted runs carry a message",
+                        () -> run(RUNNING, DISCOVERY,
+                                replace(stages, DISCOVERY, stages.get(0).start(INPUT)),
+                                "not a running-state message")),
                 () -> assertThrows(IllegalArgumentException.class,
                         () -> run(RUNNING, DESIGN, stages, null)),
                 () -> assertThrows(IllegalArgumentException.class,
@@ -227,6 +234,10 @@ class ShipRunTest {
                 () -> assertRejected(
                         "Completed Ship run has no publication record",
                         () -> run(COMPLETED, VALIDATE, allComplete, null)),
+                () -> assertRejected(
+                        "Only paused, failed, or aborted runs carry a message",
+                        () -> run(COMPLETED, VALIDATE, allComplete,
+                                "not a completed-state message", PUBLICATION)),
                 () -> assertRejected(
                         "Only a completed Ship run retains a publication record with all stages complete",
                         () -> run(RUNNING, VALIDATE, allComplete, null, PUBLICATION)),

@@ -520,6 +520,14 @@ class ShipCoordinatorTest {
              FileLock ignored = channel.lock()) {
             assertEquals(run, coordinator.run(run.id()));
             assertEquals(run, coordinator.resume(run.id()));
+            IOException rejected = assertThrows(
+                    IOException.class,
+                    () -> coordinator.resume(
+                            run.id(),
+                            List.of(new ShipContext.TextInput("must not be dropped"))));
+            assertEquals(
+                    "Ship run is already active; context was not added",
+                    rejected.getMessage());
             assertEquals(run, controller.status(run.id()));
             assertFalse(Files.exists(fixture.resolve("session-ids")));
         }
@@ -584,6 +592,62 @@ class ShipCoordinatorTest {
                 List.of(
                         sessionId(run, Stage.DISCOVERY),
                         sessionId(completed, Stage.DISCOVERY)),
+                Files.readAllLines(fixture.resolve("session-ids")));
+        assertFalse(Files.exists(fixture.resolve("resumed-sessions")));
+    }
+
+    @Test
+    void resumeWithAddedContextRunsAFreshAttemptAndRetainsItsReport()
+            throws Exception {
+        writeDiscoveryResult(
+                "Question: Which deployment region should be used?");
+        ShipRun run = controller.start(
+                project,
+                Oversight.SMART,
+                List.of(new ShipContext.TextInput("Deploy the integration")));
+
+        ShipRun paused = coordinator.run(run.id());
+
+        assertEquals(RunStatus.PAUSED, paused.status());
+        assertEquals(
+                "Question: Which deployment region should be used?",
+                paused.message());
+        String firstDigest = paused.stage(Stage.DISCOVERY).inputDigest();
+
+        writeDiscoveryResult(
+                "Region accepted. Question: Which deployment window should be used?");
+        ShipRun resumed = coordinator.resume(
+                run.id(),
+                List.of(new ShipContext.TextInput("Use eu-west")));
+
+        assertEquals(RunStatus.PAUSED, resumed.status());
+        assertEquals(Stage.DESIGN, resumed.currentStage());
+        assertEquals(StageStatus.COMPLETED,
+                resumed.stage(Stage.DISCOVERY).status());
+        assertEquals(2, resumed.stage(Stage.DISCOVERY).attempts());
+        assertNotEquals(
+                firstDigest,
+                resumed.stage(Stage.DISCOVERY).inputDigest());
+        assertEquals(2, resumed.context().sources().size());
+        assertEquals(
+                "Use eu-west",
+                resumed.context().sources().get(1).value());
+        assertEquals(
+                "Region accepted. Question: Which deployment window should be used?",
+                resumed.message());
+
+        String secondDigest = resumed.stage(Stage.DISCOVERY).inputDigest();
+        Path briefing = state.resolve(run.id())
+                .resolve("inputs")
+                .resolve("discovery-"
+                         + secondDigest.substring("sha256:".length()) + ".md");
+        assertTrue(Files.readString(briefing).contains("Use eu-west"));
+        assertTrue(Files.readString(fixture.resolve("prompt")).contains(
+                "Do not ask for information already resolved by any context source."));
+        assertEquals(
+                List.of(
+                        sessionId(paused, Stage.DISCOVERY),
+                        sessionId(resumed, Stage.DISCOVERY)),
                 Files.readAllLines(fixture.resolve("session-ids")));
         assertFalse(Files.exists(fixture.resolve("resumed-sessions")));
     }
@@ -766,7 +830,9 @@ class ShipCoordinatorTest {
         assertEquals(StageStatus.FAILED,
                 failed.stage(Stage.VALIDATE).status());
         assertEquals(1, failed.stage(Stage.VALIDATE).attempts());
-        assertEquals("Ship validation could not run", failed.message());
+        assertEquals(
+                "Ship validation could not run: Catalog unavailable",
+                failed.message());
         assertFalse(Files.exists(
                 state.resolve(run.id())
                         .resolve("evidence/validate-1/stamp.json")));
@@ -1005,7 +1071,9 @@ class ShipCoordinatorTest {
         assertEquals(StageStatus.FAILED,
                 failed.stage(Stage.VALIDATE).status());
         assertEquals(2, failed.stage(Stage.VALIDATE).attempts());
-        assertEquals("Ship validation could not run", failed.message());
+        assertEquals(
+                "Ship validation could not run: Catalog unavailable",
+                failed.message());
         assertTrue(failed.stage(Stage.VALIDATE).artifacts().isEmpty());
         assertEquals(stamp, ShipLocalStampStore.read(
                 attempt.evidenceDirectory(), run.id()));
@@ -1307,11 +1375,15 @@ class ShipCoordinatorTest {
     }
 
     private void writeDiscoveryResult() throws IOException {
+        writeDiscoveryResult("Discovery report");
+    }
+
+    private void writeDiscoveryResult(String report) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         var result = mapper.createObjectNode();
         result.put("schemaVersion", 1);
         result.put("pipelineId", "149-coordinator");
-        result.put("report", "Discovery report");
+        result.put("report", report);
         result.putNull("artifactPolicy");
         result.put("materialAmbiguity", true);
         Files.writeString(
