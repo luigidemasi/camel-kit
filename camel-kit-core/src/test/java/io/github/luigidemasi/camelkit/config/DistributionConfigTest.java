@@ -1,12 +1,20 @@
 package io.github.luigidemasi.camelkit.config;
 
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Properties;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.parallel.Resources;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -158,6 +166,127 @@ class DistributionConfigTest {
         assertEquals("0.83.0", config.piVersion());
         assertEquals("22.22.2", config.nodeVersion());
         assertEquals(0, config.overrideCount());
+    }
+
+    @Test
+    @ResourceLock(Resources.SYSTEM_OUT)
+    void cascadingOverridesAreQuietAndCliPropertiesWin(@TempDir Path tempDir) throws Exception {
+        Path configFile = tempDir.resolve("config.properties");
+        Files.writeString(
+                configFile,
+                "camel.main.version=8.8.8\n"
+                            + "citrus.version=4.9.0\n");
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        PrintStream original = System.out;
+        DistributionConfig config;
+        try {
+            System.setOut(new PrintStream(output, true, StandardCharsets.UTF_8));
+            config = DistributionConfig.loadWithOverrides(
+                    configFile,
+                    List.of(
+                            "camel.main.version=9.9.8",
+                            "camel.main.version=9.9.9",
+                            "knowledge.mcp.version="));
+        } finally {
+            System.setOut(original);
+        }
+
+        assertEquals("", output.toString(StandardCharsets.UTF_8));
+        assertEquals("9.9.9", config.camelMainVersion());
+        assertEquals("4.9.0", config.citrusVersion());
+        assertEquals("4.21.0", config.camelSpringbootVersion());
+        assertEquals("", config.knowledgeMcpVersion());
+        assertEquals(5, config.overrideCount());
+    }
+
+    @Test
+    void explicitConfigMustBeAReadablePropertiesFile(@TempDir Path tempDir) throws Exception {
+        Path missing = tempDir.resolve("missing.properties");
+        Path directory = Files.createDirectory(tempDir.resolve("directory.properties"));
+        Path malformed = Files.write(
+                tempDir.resolve("malformed.properties"),
+                "camel.main.version=\\u00ZZ\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+
+        assertEquals(
+                "Config file is missing, unreadable, or not a regular file: " + missing,
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> DistributionConfig.loadWithOverridesStrict(missing, List.of()))
+                        .getMessage());
+        assertTrue(assertThrows(
+                IllegalArgumentException.class,
+                () -> DistributionConfig.loadWithOverridesStrict(directory, List.of()))
+                .getMessage().contains(directory.toString()));
+        assertTrue(assertThrows(
+                IllegalArgumentException.class,
+                () -> DistributionConfig.loadWithOverridesStrict(malformed, List.of()))
+                .getMessage().contains(malformed.toString()));
+    }
+
+    @Test
+    void strictDefaultConfigMayBeAbsentButNotMalformed(@TempDir Path tempDir) throws Exception {
+        Path configFile = tempDir.resolve("config.properties");
+
+        assertEquals("4.21.0", DistributionConfig.loadWithOverridesStrict(
+                null, List.of(), configFile).camelMainVersion());
+
+        Files.writeString(configFile, "camel.main.version=9.9.9\n");
+        assertEquals("9.9.9", DistributionConfig.loadWithOverridesStrict(
+                null, List.of(), configFile).camelMainVersion());
+
+        Files.writeString(configFile, "camel.main.version=\\u00ZZ\n");
+        assertTrue(assertThrows(
+                IllegalArgumentException.class,
+                () -> DistributionConfig.loadWithOverridesStrict(null, List.of(), configFile))
+                .getMessage().contains(configFile.toString()));
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    void strictDefaultConfigRejectsADanglingLink(@TempDir Path tempDir) throws Exception {
+        Path configFile = tempDir.resolve("config.properties");
+        Files.createSymbolicLink(configFile, tempDir.resolve("missing.properties"));
+
+        assertTrue(assertThrows(
+                IllegalArgumentException.class,
+                () -> DistributionConfig.loadWithOverridesStrict(null, List.of(), configFile))
+                .getMessage().contains(configFile.toString()));
+    }
+
+    @Test
+    @ResourceLock(Resources.SYSTEM_ERR)
+    void legacyCascadeIgnoresInvalidOverrides(@TempDir Path tempDir) throws Exception {
+        Path malformed = Files.writeString(
+                tempDir.resolve("malformed.properties"), "camel.main.version=\\u00ZZ\n");
+        ByteArrayOutputStream error = new ByteArrayOutputStream();
+        PrintStream original = System.err;
+        DistributionConfig config;
+        try {
+            System.setErr(new PrintStream(error, true, StandardCharsets.UTF_8));
+            config = DistributionConfig.loadWithOverrides(
+                    malformed, List.of("missing-equals"));
+        } finally {
+            System.setErr(original);
+        }
+
+        assertEquals("4.21.0", config.camelMainVersion());
+        assertEquals(0, config.overrideCount());
+        assertTrue(error.toString(StandardCharsets.UTF_8)
+                .contains("WARN: Failed to load config from " + malformed + ":"));
+    }
+
+    @Test
+    void malformedCliPropertiesFailWithoutEchoingTheirValues(@TempDir Path tempDir) {
+        Path defaultConfig = tempDir.resolve("config.properties");
+        for (String property : List.of("missing-equals", " =secret-value")) {
+            IllegalArgumentException failure = assertThrows(
+                    IllegalArgumentException.class,
+                    () -> DistributionConfig.loadWithOverridesStrict(
+                            null, List.of(property), defaultConfig));
+
+            assertEquals("Invalid config property; expected key=value", failure.getMessage());
+            assertFalse(failure.getMessage().contains(property));
+        }
     }
 
     @Test

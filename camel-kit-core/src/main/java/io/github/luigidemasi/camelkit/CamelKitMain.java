@@ -11,6 +11,7 @@ import io.github.luigidemasi.camelkit.command.doc.DocCommand;
 import io.github.luigidemasi.camelkit.command.graph.GraphCommand;
 import io.github.luigidemasi.camelkit.command.pipeline.NextIdCommand;
 import io.github.luigidemasi.camelkit.command.plan.PlanCommand;
+import io.github.luigidemasi.camelkit.command.ship.ShipCommand;
 import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.output.JLinePrinter;
 import io.github.luigidemasi.camelkit.output.Printer;
@@ -146,16 +147,25 @@ public class CamelKitMain implements Callable<Integer> {
     }
 
     public static void run(CamelKitMain main, String... args) {
+        int exitCode = commandLine(main, args).execute(args);
+        System.exit(exitCode);
+    }
+
+    static CommandLine commandLine(CamelKitMain main, String... args) {
         CommandLine commandLine = new CommandLine(main)
                 .addSubcommand("init", new InitCommand(main))
                 .addSubcommand("doctor", new DoctorCommand(main))
                 .addSubcommand("doc", new CommandLine(new DocCommand()))
                 .addSubcommand("graph", new CommandLine(new GraphCommand()))
                 .addSubcommand("plan", new CommandLine(new PlanCommand()))
-                .addSubcommand("nextId", new NextIdCommand());
+                .addSubcommand("nextId", new NextIdCommand())
+                .addSubcommand("ship", new CommandLine(new ShipCommand()));
 
-        int exitCode = commandLine.execute(args);
-        System.exit(exitCode);
+        // Picocli expands @files at the root before dispatching; only direct Ship invocations need literals.
+        if (args.length > 0 && "ship".equals(args[0])) {
+            commandLine.setExpandAtFiles(false);
+        }
+        return commandLine;
     }
 
     @Override

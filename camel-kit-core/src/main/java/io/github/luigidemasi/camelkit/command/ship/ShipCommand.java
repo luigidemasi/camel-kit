@@ -29,7 +29,7 @@ import picocli.CommandLine.TypeConversionException;
 
 /**
  * Local Ship command. Starting or resuming a run drives the authoritative coordinator workflow; status and abort remain
- * pure controller operations. Kept unregistered until the publication, interaction, and documentation gates pass.
+ * pure controller operations.
  */
 @Command(
          name = "ship",
@@ -37,8 +37,8 @@ import picocli.CommandLine.TypeConversionException;
          description = "Start, inspect, resume, or abort a local Camel Ship run")
 public final class ShipCommand implements Callable<Integer> {
 
-    private final ShipController controller;
-    private final WorkflowLauncher launcher;
+    private ShipController controller;
+    private WorkflowLauncher launcher;
 
     @Spec
     CommandLine.Model.CommandSpec spec;
@@ -90,9 +90,20 @@ public final class ShipCommand implements Callable<Integer> {
             description = "Accept an experimental Pi or Node version after its warning")
     Boolean acceptExperimental;
 
+    @Option(
+            names = {"-c", "--config"},
+            paramLabel = "PATH",
+            description = "Config properties file (default: ~/.camel-kit/config.properties)")
+    Path configFile;
+
+    @Option(
+            names = {"-p", "--property"},
+            paramLabel = "KEY=VALUE",
+            description = "Override a config property (repeatable)")
+    List<String> configProperties = new ArrayList<>();
+
     public ShipCommand() {
-        this(new ShipController(ShipController.defaultStateRoot()),
-             new ShipRuntime(ShipController.defaultStateRoot()));
+        this(null, null);
     }
 
     ShipCommand(ShipController controller, WorkflowLauncher launcher) {
@@ -116,10 +127,10 @@ public final class ShipCommand implements Callable<Integer> {
 
     private ShipRun execute() {
         if (operation != null && operation.status != null) {
-            return controller.status(operation.status);
+            return controller().status(operation.status);
         }
         if (operation != null && operation.abort != null) {
-            return controller.abort(operation.abort);
+            return controller().abort(operation.abort);
         }
         Workflow workflow = launchWorkflow();
         if (operation != null && operation.resume != null) {
@@ -128,8 +139,8 @@ public final class ShipCommand implements Callable<Integer> {
                     runId -> workflow.resume(runId, additions), operation.resume);
         }
         ShipRun run = operation == null
-                ? controller.start(projectDirectory, selectedOversight(), inputs())
-                : controller.startFrom(projectDirectory, operation.startFrom, selectedOversight(), inputs());
+                ? controller().start(projectDirectory, selectedOversight(), inputs())
+                : controller().startFrom(projectDirectory, operation.startFrom, selectedOversight(), inputs());
         return awaitWorkflow(workflow::run, run.id());
     }
 
@@ -139,12 +150,14 @@ public final class ShipCommand implements Callable<Integer> {
 
     private Workflow launchWorkflow() {
         try {
-            return launcher.launch(new RuntimeSettings(
+            return launcher().launch(new RuntimeSettings(
                     piExecutable,
                     nodeExecutable,
                     mavenRepository,
                     stageTimeout,
-                    Boolean.TRUE.equals(acceptExperimental)));
+                    Boolean.TRUE.equals(acceptExperimental),
+                    configFile,
+                    configProperties));
         } catch (IllegalArgumentException e) {
             throw new CommandFailure("runtime-unavailable", e.getMessage(), e);
         } catch (IllegalStateException e) {
@@ -181,7 +194,7 @@ public final class ShipCommand implements Callable<Integer> {
     private ShipRun statusAfterInterrupt(String runId) {
         Thread.interrupted();
         try {
-            return controller.status(runId);
+            return controller().status(runId);
         } finally {
             Thread.currentThread().interrupt();
         }
@@ -189,6 +202,26 @@ public final class ShipCommand implements Callable<Integer> {
 
     private static String runReference(String runId) {
         return " (run " + runId + ")";
+    }
+
+    private ShipController controller() {
+        if (controller == null) {
+            try {
+                controller = new ShipController(ShipController.defaultStateRoot());
+            } catch (IllegalArgumentException e) {
+                throw new CommandFailure("runtime-unavailable", e.getMessage(), e);
+            } catch (IllegalStateException e) {
+                throw new CommandFailure("runtime-unsupported", e.getMessage(), e);
+            }
+        }
+        return controller;
+    }
+
+    private WorkflowLauncher launcher() {
+        if (launcher == null) {
+            launcher = new ShipRuntime(ShipController.defaultStateRoot());
+        }
+        return launcher;
     }
 
     private void validateArguments() {
@@ -205,11 +238,11 @@ public final class ShipCommand implements Callable<Integer> {
         }
         if (operation != null && (operation.status != null || operation.abort != null)
                 && (piExecutable != null || nodeExecutable != null || mavenRepository != null
-                        || stageTimeout != null || acceptExperimental != null)) {
+                        || stageTimeout != null || acceptExperimental != null || configFile != null
+                        || !configProperties.isEmpty())) {
             throw new ParameterException(
                     spec.commandLine(),
-                    "--pi, --node, --maven-repository, --stage-timeout, and --accept-experimental"
-                                        + " are only valid when starting or resuming a run");
+                    "Runtime and config options are only valid when starting or resuming a run");
         }
     }
 
@@ -245,15 +278,21 @@ public final class ShipCommand implements Callable<Integer> {
         if (run.publication() != null) {
             writer.println("Publication: " + safeDisplay(run.publication().path(), false));
         }
+        if ((run.status() == ShipRun.RunStatus.PAUSED
+                || run.status() == ShipRun.RunStatus.RUNNING
+                || run.status() == ShipRun.RunStatus.FAILED)
+                && (configFile != null || !configProperties.isEmpty())) {
+            writer.println("Config: Repeat the same -c/-p options when resuming this run.");
+        }
         if (run.status() == ShipRun.RunStatus.PAUSED) {
             if (pausedAfter(run) == Stage.VALIDATE) {
                 writer.println("Warning: Adding context restarts from DISCOVERY and discards the validation Stamp.");
             }
-            writer.println("Next: camel-kit ship --resume " + run.id()
+            writer.println("Next: " + spec.qualifiedName() + " --resume " + run.id()
                            + " [--text TEXT | --document PATH]");
         } else if (run.status() == ShipRun.RunStatus.RUNNING
                 || run.status() == ShipRun.RunStatus.FAILED) {
-            writer.println("Next: camel-kit ship --resume " + run.id());
+            writer.println("Next: " + spec.qualifiedName() + " --resume " + run.id());
         }
         writer.flush();
     }
@@ -316,7 +355,8 @@ public final class ShipCommand implements Callable<Integer> {
 
     /** Raw runtime option values; the launcher resolves defaults and discovery. */
     record RuntimeSettings(Path piExecutable, Path nodeExecutable, Path mavenRepository,
-            Duration stageTimeout, boolean acceptExperimental) {
+            Duration stageTimeout, boolean acceptExperimental, Path configFile,
+            List<String> configProperties) {
     }
 
     @FunctionalInterface
