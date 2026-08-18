@@ -154,6 +154,9 @@ class PiGeneratorTest {
 
         String content = Files.readString(ctx.commandsDir().resolve("camel-start.md"));
         assertTrue(content.contains(".pi/skills/camel-start/SKILL.md"));
+        assertFalse(Files.exists(ctx.commandsDir().resolve("camel-ship.md")));
+        assertTrue(Files.readString(ctx.skillsDir().resolve("camel-ship/SKILL.md"))
+                .contains("camel-kit ship"));
     }
 
     @Test

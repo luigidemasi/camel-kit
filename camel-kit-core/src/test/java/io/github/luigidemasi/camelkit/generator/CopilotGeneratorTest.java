@@ -32,11 +32,9 @@ class CopilotGeneratorTest {
 
     private InitContext createContext() {
         AgentConfig agent = AgentRegistry.get("copilot");
-        String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf("/"));
-        Path commandsDir = tempDir.resolve(agent.folder());
-        Path skillsDir = tempDir.resolve(agentBaseFolder + "/skills");
+        Path skillsDir = tempDir.resolve(agent.skillsDirectory());
         return new InitContext(
-                agent, "copilot", commandsDir, skillsDir, tempDir,
+                agent, "copilot", skillsDir, skillsDir, tempDir,
                 "camel-kit", Printer.noop());
     }
 
@@ -174,12 +172,14 @@ class CopilotGeneratorTest {
     }
 
     @Test
-    void generatedCommandReferencesPointAtGithubSkills() throws Exception {
+    void exposesShipThroughTheNativeProjectSkillWithoutUnsupportedCommands() throws Exception {
         InitContext ctx = createContext();
         new CopilotGenerator().generate(ctx);
 
-        String content = Files.readString(ctx.commandsDir().resolve("camel-start.md"));
-        assertTrue(content.contains(".github/skills/camel-start/SKILL.md"));
+        assertFalse(Files.exists(tempDir.resolve(".github/commands")));
+        String content = Files.readString(tempDir.resolve(".github/skills/camel-ship/SKILL.md"));
+        assertTrue(content.contains("camel-kit ship"));
+        assertFalse(content.contains("user-invocable: false"));
     }
 
     private String resourceText(String resourcePath) throws Exception {

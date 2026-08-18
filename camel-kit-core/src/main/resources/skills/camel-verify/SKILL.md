@@ -56,4 +56,4 @@ The verify-log is an operational audit trail — it persists across multiple ver
 
 When all verification phases pass, return a structured verification report to the orchestrator (`camel-execute`). The orchestrator includes this report in the Step 4 completion summary.
 
-The pipeline proceeds to `/camel-validate` (Tier 1) as the next stage — this is handled by the orchestrating skill (`camel-ship` or the user), not by this skill.
+The pipeline proceeds to `/camel-validate` (Tier 1) as the next stage — this is handled by `camel-execute` or the user, not by this skill.

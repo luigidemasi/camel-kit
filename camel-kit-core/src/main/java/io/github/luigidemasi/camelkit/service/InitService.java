@@ -60,11 +60,7 @@ public class InitService {
 
         progress.startTask("\uD83D\uDCC1", "Creating project structure");
         createProjectStructure(
-                targetDir,
-                agent.generatesCommandStubs() ? commandsDir : null,
-                camelKitDir,
-                docsDir,
-                createdPaths);
+                targetDir, camelKitDir, docsDir, createdPaths);
         progress.finishTask();
 
         progress.startTask("\uD83D\uDCDD", "Writing configuration");
@@ -105,12 +101,9 @@ public class InitService {
     }
 
     private void createProjectStructure(
-            Path targetDir, Path commandsDir, Path camelKitDir, Path docsDir, List<Path> createdPaths)
+            Path targetDir, Path camelKitDir, Path docsDir, List<Path> createdPaths)
             throws Exception {
         createDirectory(targetDir, createdPaths);
-        if (commandsDir != null) {
-            createDirectory(commandsDir, createdPaths);
-        }
         createDirectory(camelKitDir, createdPaths);
         createDirectory(docsDir.resolve("flows"), createdPaths);
         createDirectory(camelKitDir.resolve("templates"), createdPaths);

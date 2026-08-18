@@ -331,9 +331,7 @@ Staleness is tracked in structured YAML frontmatter within each artifact. You ca
 camel-kit doc check docs/camel-kit/001-order-processing/implementation-plan.md
 ```
 
-To regenerate stale artifacts, either:
-- Run each stale stage standalone: `/camel-plan 001-order-processing`, then `/camel-execute 001-order-processing`
-- Use `camel-ship --resume` — it automatically detects staleness and re-runs from the earliest stale stage
+To regenerate stale artifacts, run each stale stage standalone: `/camel-plan 001-order-processing`, then `/camel-execute 001-order-processing`.
 
 See [camel-kit doc](commands.md#camel-kit-doc) for the full CLI reference.
 

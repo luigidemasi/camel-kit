@@ -21,6 +21,11 @@ import io.github.luigidemasi.camelkit.workflow.WorkflowManifest;
 
 class SkillResourceInstaller {
 
+    private static final List<String> RETIRED_SHIP_GUIDES = List.of(
+            "auto-fix-loop.md",
+            "oversight-matrix.md",
+            "state-management.md");
+
     private static final Set<String> MODEL_HIDDEN_INTERNAL_SKILLS = Set.of(
             "camel-design",
             "camel-implement",
@@ -132,6 +137,11 @@ class SkillResourceInstaller {
             Files.copy(in, destination, StandardCopyOption.REPLACE_EXISTING);
         }
         if (destination.getFileName().toString().equals("SKILL.md")) {
+            boolean shipDelegate = "camel-ship".equals(destination.getParent().getFileName().toString());
+            if (shipDelegate) {
+                String content = Files.readString(destination);
+                Files.writeString(destination, content.replace("{COMMAND_PREFIX}", ctx.commandPrefix()));
+            }
             if (AgentGeneratorStrategy.BOB2.descriptorValue().equals(ctx.agentName())) {
                 addBobReadableUserInvocableMetadata(destination);
             }
@@ -141,13 +151,22 @@ class SkillResourceInstaller {
             if (AgentGeneratorStrategy.PI.descriptorValue().equals(ctx.agentName())) {
                 addPiReadableInternalSkillMetadata(destination);
             }
-            dispatchBlockAppender.append(destination, ctx.agentName());
+            if (!shipDelegate) {
+                dispatchBlockAppender.append(destination, ctx.agentName());
+            }
         }
         if (destination.getFileName().toString().endsWith(".md")) {
             versionPlaceholderResolver.substitute(destination, ctx.distribution());
             if (AgentGeneratorStrategy.CODEX.descriptorValue().equals(ctx.agentName())) {
                 useCodexSkillInvocations(destination, workflow);
             }
+        }
+    }
+
+    void removeRetiredShipGuides(InitContext ctx) throws IOException {
+        Path guides = ctx.skillsDir().resolve("camel-ship/guides");
+        for (String guide : RETIRED_SHIP_GUIDES) {
+            GeneratedAssetCleaner.deleteRegularFile(ctx.projectDir(), guides.resolve(guide));
         }
     }
 

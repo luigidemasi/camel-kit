@@ -13,11 +13,12 @@ public class Bob2Generator extends DefaultGenerator {
             "camel-execute", "execute.md",
             "camel-validate", "validate.md",
             "camel-test", "test.md",
-            "camel-debug", "debug.md",
-            "camel-ship", "ship.md");
+            "camel-debug", "debug.md");
 
     @Override
     public void generate(InitContext ctx) throws Exception {
+        GeneratedAssetCleaner.deleteRegularFile(
+                ctx.projectDir(), ctx.projectDir().resolve(".bob/rules-camel-ship/ship.md"));
         super.generate(ctx);
         generateCustomModes(ctx);
         generateRules(ctx);
@@ -42,4 +43,5 @@ public class Bob2Generator extends DefaultGenerator {
                     modeRulesDir.resolve(rule.getValue()));
         }
     }
+
 }

@@ -37,6 +37,11 @@ import static org.junit.jupiter.api.Assertions.*;
 class ShippedAssetStructureTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final String TEST_COMMAND_PREFIX = "camel kit";
+    private static final List<String> RETIRED_SHIP_GUIDES = List.of(
+            "auto-fix-loop.md",
+            "oversight-matrix.md",
+            "state-management.md");
 
     private static final Pattern CODE_SPAN = Pattern.compile("`([^`\\n]+\\.md)`");
     private static final Pattern GENERATED_SKILL_REFERENCE
@@ -211,7 +216,8 @@ class ShippedAssetStructureTest {
                         LinkedHashMap::new));
 
         for (String agentName : sortedAgentNames()) {
-            InitContext ctx = createContext(agentName, tempDir.resolve(agentName));
+            InitContext ctx = createContext(agentName, tempDir.resolve(agentName), TEST_COMMAND_PREFIX);
+            seedRetiredShipAssets(ctx);
             AgentGeneratorFactory.create(agentName).generate(ctx);
 
             if (ctx.agent().generatesCommandStubs()) {
@@ -220,7 +226,104 @@ class ShippedAssetStructureTest {
             } else {
                 assertFalse(Files.exists(ctx.commandsDir()), agentName + " must not generate command scaffolding");
             }
+            assertGeneratedShipDelegate(agentName, ctx);
+            assertRetiredShipAssetsWereCleaned(agentName, ctx);
             assertGeneratedMcpConfigIsValid(agentName, ctx);
+        }
+    }
+
+    private static void seedRetiredShipAssets(InitContext ctx) throws IOException {
+        Path guidesDir = ctx.skillsDir().resolve("camel-ship/guides");
+        Files.createDirectories(guidesDir);
+        for (String guide : RETIRED_SHIP_GUIDES) {
+            Files.writeString(guidesDir.resolve(guide), "legacy generated guide");
+        }
+        Files.writeString(guidesDir.resolve("keep.md"), "user-owned neighboring file");
+
+        if ("bob2".equals(ctx.agentName())) {
+            Path rulesDir = ctx.projectDir().resolve(".bob/rules-camel-ship");
+            Files.createDirectories(rulesDir);
+            Files.writeString(rulesDir.resolve("ship.md"), "legacy generated rule");
+            Files.writeString(rulesDir.resolve("keep.md"), "user-owned neighboring file");
+        }
+        if ("pi".equals(ctx.agentName())) {
+            Files.createDirectories(ctx.commandsDir());
+            Files.writeString(ctx.commandsDir().resolve("camel-ship.md"), "legacy lossy prompt");
+            Files.writeString(ctx.commandsDir().resolve("keep.md"), "user-owned neighboring prompt");
+        }
+    }
+
+    private static void assertGeneratedShipDelegate(String agentName, InitContext ctx) throws IOException {
+        Path skill = ctx.skillsDir().resolve("camel-ship/SKILL.md");
+        assertTrue(Files.isRegularFile(skill), agentName + " must install the Ship skill");
+
+        String skillContent = Files.readString(skill);
+        assertTrue(skillContent.contains(ctx.commandPrefix() + " ship"),
+                agentName + " Ship skill must use the configured command prefix");
+        assertFalse(skillContent.contains("{COMMAND_PREFIX}"),
+                agentName + " Ship skill must not retain an unresolved command placeholder");
+        assertFalse(skillContent.contains("### Stage Execution"),
+                agentName + " Ship skill must not execute pipeline stages itself");
+        assertFalse(skillContent.contains("<!-- TRAIT:" + agentName + " -->"),
+                agentName + " Ship skill must not receive an orchestration trait");
+        assertFalse(skillContent.contains("## Dispatch"),
+                agentName + " Ship skill must not receive an orchestration dispatch block");
+        assertTrue(skillContent.contains("using the invocation's Ship options. Add no defaults"),
+                agentName + " Ship skill must pass the invocation options without inventing defaults");
+        assertTrue(skillContent.contains("Return the command output and whether it succeeded"),
+                agentName + " Ship skill must return the local command result");
+        for (String guide : RETIRED_SHIP_GUIDES) {
+            assertFalse(skillContent.contains(guide),
+                    agentName + " Ship skill must not reference retired guide " + guide);
+        }
+
+        if (!ctx.agent().generatesCommandStubs()) {
+            return;
+        }
+
+        Path command = ctx.commandsDir().resolve("camel-ship." + ctx.agent().fileFormat());
+        if ("pi".equals(agentName)) {
+            assertFalse(Files.exists(command), "Pi must expose Ship only through its quote-preserving native skill");
+            return;
+        }
+        String commandContent = Files.readString(command);
+        assertTrue(commandContent.contains(ctx.commandPrefix() + " ship " + ctx.agent().argPlaceholder()),
+                agentName + " Ship command must forward its arguments to the configured local controller");
+        assertTrue(commandContent.contains("using the supplied Ship options. Add no defaults"),
+                agentName + " Ship command must pass supplied options without inventing defaults");
+        assertTrue(commandContent.contains("Return the command output and whether it succeeded"),
+                agentName + " Ship command must return the local command result");
+        assertFalse(commandContent.contains("camel-ship/SKILL.md"),
+                agentName + " Ship command must not delegate to a prompt-owned workflow");
+
+        if ("bob2".equals(agentName)) {
+            assertTrue(commandContent.contains("argument-hint: \"[ship-options]\""),
+                    "Bob2 Ship must advertise CLI options instead of a positional request");
+            String modes = Files.readString(ctx.projectDir().resolve(".bob/custom_modes.yaml"));
+            assertFalse(modes.contains("slug: camel-ship"), "Bob2 must not install the retired Ship mode");
+            assertFalse(Files.exists(ctx.projectDir().resolve(".bob/rules-camel-ship/ship.md")),
+                    "Bob2 must not install the retired Ship mode rule");
+        }
+    }
+
+    private static void assertRetiredShipAssetsWereCleaned(String agentName, InitContext ctx) {
+        Path guidesDir = ctx.skillsDir().resolve("camel-ship/guides");
+        for (String guide : RETIRED_SHIP_GUIDES) {
+            assertFalse(Files.exists(guidesDir.resolve(guide)),
+                    agentName + " re-init must remove retired Ship guide " + guide);
+        }
+        assertTrue(Files.isRegularFile(guidesDir.resolve("keep.md")),
+                agentName + " re-init must preserve unrelated neighboring files");
+
+        if ("bob2".equals(agentName)) {
+            assertTrue(Files.isRegularFile(ctx.projectDir().resolve(".bob/rules-camel-ship/keep.md")),
+                    "Bob2 re-init must preserve unrelated neighboring rules");
+        }
+        if ("pi".equals(agentName)) {
+            assertFalse(Files.exists(ctx.commandsDir().resolve("camel-ship.md")),
+                    "Pi re-init must remove the retired lossy Ship prompt");
+            assertTrue(Files.isRegularFile(ctx.commandsDir().resolve("keep.md")),
+                    "Pi re-init must preserve unrelated neighboring prompts");
         }
     }
 
@@ -443,11 +546,13 @@ class ShippedAssetStructureTest {
             String agentName, InitContext ctx, Map<String, WorkflowManifest.WorkflowCommand> generatedCommands)
             throws IOException {
         Set<String> expected = generatedCommands.keySet().stream()
+                .filter(command -> !("pi".equals(agentName) && "camel-ship".equals(command)))
                 .map(command -> command + "." + ctx.agent().fileFormat())
                 .collect(Collectors.toCollection(java.util.TreeSet::new));
         Set<String> actual;
         try (Stream<Path> files = Files.list(ctx.commandsDir())) {
             actual = files.filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().startsWith("camel-"))
                     .map(path -> path.getFileName().toString())
                     .collect(Collectors.toCollection(java.util.TreeSet::new));
         }
@@ -458,6 +563,9 @@ class ShippedAssetStructureTest {
             String agentName, InitContext ctx, Map<String, WorkflowManifest.WorkflowCommand> generatedCommands)
             throws IOException {
         for (WorkflowManifest.WorkflowCommand command : generatedCommands.values()) {
+            if ("pi".equals(agentName) && "camel-ship".equals(command.name())) {
+                continue;
+            }
             Path commandFile = ctx.commandsDir().resolve(command.name() + "." + ctx.agent().fileFormat());
             assertTrue(Files.isRegularFile(commandFile), agentName + " missing command file " + commandFile);
             assertTrue(Files.isRegularFile(ctx.skillsDir().resolve(command.skill() + "/SKILL.md")),
@@ -499,6 +607,10 @@ class ShippedAssetStructureTest {
     }
 
     private static InitContext createContext(String agentName, Path projectDir) {
+        return createContext(agentName, projectDir, "camel-kit");
+    }
+
+    private static InitContext createContext(String agentName, Path projectDir, String commandPrefix) {
         AgentConfig agent = AgentRegistry.get(agentName);
         assertNotNull(agent, "Unexpected agent: " + agentName);
         Path commandsDir = agent.generatesCommandStubs()
@@ -507,7 +619,7 @@ class ShippedAssetStructureTest {
         Path skillsDir = projectDir.resolve(agent.skillsDirectory());
         return new InitContext(
                 agent, agentName, commandsDir, skillsDir, projectDir,
-                "camel-kit", Printer.noop());
+                commandPrefix, Printer.noop());
     }
 
     private static List<String> sortedAgentNames() {

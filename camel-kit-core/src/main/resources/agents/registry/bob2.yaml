@@ -4,7 +4,7 @@ commandDirectory: .bob/commands
 skillsDirectory: .bob/skills
 generatesCommandStubs: true
 commandFileFormat: md
-argumentPlaceholder: $ARGUMENTS
+argumentPlaceholder: "{{args}}"
 mcpConfigPath: .bob/mcp.json
 mcpConfigTemplatePath: templates/mcp-configs/bob-mcp.json
 mcpConfigFormat: json
@@ -31,8 +31,6 @@ templates:
     target: .bob/rules-camel-test/test.md
   - source: templates/bob2/rules-camel-debug/debug.md
     target: .bob/rules-camel-debug/debug.md
-  - source: templates/bob2/rules-camel-ship/ship.md
-    target: .bob/rules-camel-ship/ship.md
 supportsSubagents: true
 supportsTraits: true
 capabilities:

@@ -75,8 +75,10 @@ class AgentRegistryTest {
         AgentConfig copilot = AgentRegistry.get("copilot");
         assertNotNull(copilot);
         assertEquals("GitHub Copilot CLI", copilot.name());
-        assertEquals(".github/commands", copilot.folder());
-        assertEquals("md", copilot.fileFormat());
+        assertNull(copilot.commandDirectory());
+        assertEquals(".github/skills", copilot.skillsDirectory());
+        assertFalse(copilot.generatesCommandStubs());
+        assertEquals(".github/skills", copilot.folder());
         assertEquals(".github/mcp.json", copilot.mcpConfigPath());
         assertEquals("templates/mcp-configs/copilot-mcp.json", copilot.mcpConfigTemplatePath());
         assertEquals("mcpServers", copilot.mcpServerContainerKey());
@@ -91,6 +93,19 @@ class AgentRegistryTest {
         assertTrue(descriptor.capabilities().contains("custom-agents"));
         assertTrue(descriptor.capabilities().contains("project-skills"));
         assertTrue(descriptor.capabilities().contains("hooks"));
+    }
+
+    @Test
+    void commandAgentsUseTheirNativeArgumentPlaceholders() {
+        for (String agent : Set.of("bob", "bob2", "gemini", "qwen")) {
+            assertEquals("{{args}}", AgentRegistry.get(agent).argPlaceholder(), agent);
+        }
+        for (String agent : Set.of("claude", "opencode", "pi")) {
+            assertEquals("$ARGUMENTS", AgentRegistry.get(agent).argPlaceholder(), agent);
+        }
+        for (String agent : Set.of("codex", "copilot")) {
+            assertNull(AgentRegistry.get(agent).argPlaceholder(), agent);
+        }
     }
 
     @Test

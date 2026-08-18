@@ -528,7 +528,7 @@ The machine-readable source of truth for command names, generated stubs, skill v
 
 **Tier 1 — Pipeline:** `/camel-brainstorm`, `/camel-plan`, `/camel-execute`, `/camel-migrate`, `/camel-validate` — the five pipeline steps, invoked via the `/camel-start` decision tree or directly via slash command.
 
-**Tier 2 — Standalone utilities:** `/camel-ship`, `/camel-knowledge`, `/camel-debug` — can be invoked at any point without affecting pipeline state.
+**Tier 2 — Standalone utilities:** `/camel-ship`, `/camel-knowledge`, `/camel-debug` — can be invoked at any point. Ship delegates to a separate local controller and does not use the manual pipeline state as its run state.
 
 **Internal skill libraries:** `camel-implement`, `camel-verify`, `camel-test`, `camel-design` — subagent-only,
 dispatched automatically by pipeline skills. Not exposed as direct slash-command stubs.
@@ -806,7 +806,7 @@ For connectors with no direct equivalent, the command stops and asks the user be
 
 **Purpose:** Static quality analysis of generated Camel routes across multiple dimensions: schema validation, endpoint verification, constitution compliance, security analysis, and anti-pattern detection.
 
-**When to use:** After `/camel-execute` completes (standalone or as Stage 3 in the `/camel-ship` pipeline). Use whenever you have generated routes that need quality validation before shipping.
+**When to use:** After `/camel-execute` completes, or whenever generated routes need quality validation outside a controller-owned Ship run.
 
 **Produces:**
 - Validation report saved to `docs/validation-report-YYYY-MM-DD_HH-mm.md`
@@ -823,38 +823,108 @@ For connectors with no direct equivalent, the command stops and asks the user be
 
 ### /camel-ship
 
-**Purpose:** Run the full pipeline autonomously (brainstorm → plan → execute → validate → stamp) with configurable oversight.
+**Purpose:** Start or control the local Ship workflow through the configured Camel-Kit CLI. The harness skill is a thin delegate: it invokes the command once with the supplied Ship options, returns the command result, and does not implement stages or write Ship state.
 
-**When to use:** When you want the AI to run the entire pipeline end-to-end with minimal intervention.
+The registered command is `camel-kit ship` when Camel-Kit is installed standalone and `camel kit ship` when it is installed as a Camel JBang plugin. Harness-native forms such as `/camel-ship`, `$camel-ship`, and `/skill:camel-ship` invoke that configured command prefix. Pi uses `/skill:camel-ship`; Camel-Kit intentionally does not generate a Pi `/camel-ship` prompt because that prompt surface flattens quoted option values.
 
-**Arguments:**
+**When to use:** When you want one resumable controller-owned run to perform discovery, design, planning, implementation, deterministic validation, and guarded publication.
+
+**Context and lifecycle options:**
 
 | Argument | Default | Description |
 |---|---|---|
-| `[input-file]` | none | Requirements document, design spec, or brainstorm notes |
-| `--ask` | `smart` | Oversight level: `always`, `smart`, or `never` |
-| `--resume` | false | Continue from `.camel-kit/pipeline.json` with staleness detection |
-| `--start-from <stage>` | none | Skip to stage: `brainstorm`, `plan`, `execute`, `validate` |
+| `--text TEXT` | none | Add text context. Repeat for multiple inputs. |
+| `--document PATH` | none | Add a readable context document. Repeat for multiple documents. |
+| `--ask POLICY` | `smart` | Oversight for a new run or `--start-from`: `always`, `smart`, or `never`. |
+| `--resume RUN_ID` | none | Resume a controller-owned run. Optional `--text` and `--document` values add context to a paused run. |
+| `--status RUN_ID` | none | Read the latest durable state without starting the workflow runtime. |
+| `--abort RUN_ID` | none | Abort any run that has not completed, terminating its active attempt when present and recording the durable outcome. |
+| `--start-from STAGE` | none | Start a new run at `discovery`, `design`, or `plan` after validating the required context and imported artifacts. |
+
+`--resume`, `--status`, `--abort`, and `--start-from` are mutually exclusive. A bare invocation is valid and starts a short discovery conversation.
+
+`--start-from discovery` has no import prerequisite. `--start-from design` requires text or document context and a manual `activePipeline` in `.camel-kit/pipeline.json`. `--start-from plan` requires that manual active pipeline and its readable `docs/camel-kit/<pipeline-id>/design-spec.md`. Starting from `execute` or `validate` is unsupported because those stages require controller-owned plan and Pi evidence.
+
+**Runtime and configuration options:**
+
+| Argument | Default | Description |
+|---|---|---|
+| `--accept-experimental` | false | Continue after the warning for an experimental Pi or Node version. |
+| `--pi PATH` | discovered on `PATH` | Pi executable used by stage workers. |
+| `--node PATH` | discovered on `PATH` | Node executable used to run Pi. |
+| `--maven-repository PATH` | `<Ship state root>/catalog-repository` | Private Maven repository used for validation payloads. |
+| `--stage-timeout DURATION` | `10m` | Limit for one stage attempt, such as `90s`, `10m`, or `1h`. |
+| `-c`, `--config PATH` | `~/.camel-kit/config.properties` | Configuration properties file. |
+| `-p`, `--property KEY=VALUE` | none | Override a configuration property. Repeat as needed. |
+
+Runtime and configuration options apply only when starting or resuming a workflow. Repeat the same `-c` and `-p` options when resuming a run that used overrides.
+
+The current worker requires a merged-/usr Linux host (`/lib -> usr/lib` and `/lib64 -> usr/lib64`), Pi, Node, and Bubblewrap. Install the distribution's `bubblewrap` package so `bwrap` is executable at `/usr/bin/bwrap` or `/bin/bwrap`; deterministic validation deliberately has no unsandboxed fallback. Missing executables fail with installation guidance; an unrecognized Pi or Node version is reported as experimental and runs only with `--accept-experimental`.
+
+**Oversight:**
+
+- `always` pauses after design, planning, execution, and validation, and whenever a stage reports material ambiguity.
+- `smart` pauses after planning and execution, and whenever a stage reports material ambiguity.
+- `never` may record reasonable defaults, but still stops for missing tools, failed mandatory checks, or authority the user has not granted.
 
 **Examples:**
 
 ```bash
-# Run full pipeline from requirements doc
-/camel-ship requirements.md
+# Start with no supplied context
+camel-kit ship
 
-# Run with always-ask oversight
-/camel-ship requirements.md --ask always
+# Combine document and text context
+camel-kit ship --document requirements.md --text "Prefer YAML; no Java" --ask always
 
-# Resume a previously interrupted pipeline
-/camel-ship --resume
+# Resume, inspect, or abort a run
+camel-kit ship --resume <run-id>
+camel-kit ship --status <run-id>
+camel-kit ship --abort <run-id>
 
-# Start from execution (design spec and plan must already exist)
-/camel-ship --start-from execute
+# Import the active manual design and start planning
+camel-kit ship --start-from plan
+
+# The Camel JBang plugin exposes the same command
+camel kit ship --document requirements.md
+
+# Harness-native delegates forward the same flags
+/camel-ship --document requirements.md
+$camel-ship --document requirements.md
+/skill:camel-ship --document requirements.md
 ```
 
-**Staleness detection on resume:**
+**Controller state and evidence:**
 
-When `--resume` is used, camel-ship scans all pipeline artifacts for staleness markers (`⚠️ **STALE**`). If stale artifacts are found, it automatically re-runs from the earliest stale stage instead of continuing from the stored `currentStage`. This handles the case where `/camel-brainstorm <PIPELINE_ID>` amended the design spec between sessions — downstream artifacts are automatically regenerated.
+The local controller is the only component that writes Ship run state and commits stage transitions. It stores run records and retained evidence under `CAMEL_KIT_SHIP_STATE_HOME` when set, otherwise under `$XDG_STATE_HOME/camel-kit/ship` or `~/.local/state/camel-kit/ship`. `.camel-kit/pipeline.json` remains the active-pipeline pointer for manual skills; it is not Ship run state.
+
+Each start prints a run ID. Resume re-reads recorded inputs and artifacts, compares their digests, and restarts the earliest stale or incomplete stage without duplicating completed work. Paused, running, and failed run summaries include an actionable command using the same registered command surface; post-start operational errors preserve the run ID.
+
+Implementation changes stay in a staged workspace until the configured oversight and deterministic validation gates allow guarded publication. The controller retains command evidence and derives a local Stamp with `pass` or `fail`. The Stamp records detected executable versions and, for each validation command, the executable, redacted arguments, exit status and timing, and retained stdout/stderr log paths and digests. It describes checks performed on this machine and is not a signed release attestation.
+
+Ordinary process interruption is recoverable with the run ID, but Ship is not a daemon or a guarantee against OS or power loss. It assumes the invoking OS account is trusted: it is not a hostile same-user sandbox, credential broker, or long-lived service. Provider credentials remain under Pi and provider tooling.
+
+Maintainers can opt into the authenticated Pi/Linux live test on a merged-/usr host with Bubblewrap installed. Set `CAMEL_KIT_SHIP_LIVE_PI` and `CAMEL_KIT_SHIP_LIVE_NODE` to absolute executable paths for the bundled supported versions (currently Pi `0.83.0` and Node `22.22.2`), then run:
+
+```bash
+./mvnw -B -Plinux-ship-certification clean install
+```
+
+The test is skipped only when `CAMEL_KIT_SHIP_LIVE_PI` is unset or blank. Once it is set, `CAMEL_KIT_SHIP_LIVE_NODE` is required and both paths must identify executable files with the supported versions. The test exercises the controller workflow; release certification also includes one authenticated run through a registered `camel-kit ship` or `camel kit ship` entry point.
+
+**Upgrading an existing generated workspace:**
+
+After upgrading from the prompt-owned Ship workflow, commit or back up workspace customizations that overlap generated files, then regenerate with the same agent and the same command surface used to create the workspace:
+
+```bash
+camel-kit init --here --ai <same-agent> --force
+
+# Or, for a workspace generated through Camel JBang:
+camel kit init --here --ai <same-agent> --force
+```
+
+`--force` overwrites generated assets. Re-initialization installs the thin delegate and removes obsolete Ship guides, harness traits, and Bob 2 Ship mode/rule assets so an old prompt-owned workflow cannot continue alongside the controller. Pre-controller Ship state in `.camel-kit/ship-state.json` or a non-manual `.camel-kit/pipeline.json` is deliberately not imported. Inspect it if needed, then archive it outside the project before starting a controller run; its presence makes Ship fail closed. Preserve a manual-mode `.camel-kit/pipeline.json`, because standalone pipeline skills and validated `--start-from` imports still use its active pipeline ID.
+
+GitHub Copilot CLI now uses its native `.github/skills/` surface exclusively. Older generated `.github/commands/` files are ignored by current Copilot CLI; after preserving any local edits, they may be removed. Re-initialization records `agent.folder=.github/skills`.
 
 ---
 
@@ -963,10 +1033,11 @@ camel-kit init my-project --ai claude
 # Re-iteration (amend existing design, marks downstream stale)
 /camel-brainstorm 001-order-processing   # Amend design-spec.md → downstream marked stale
 
-# Autonomous pipeline
-/camel-ship requirements.md              # Full pipeline end-to-end
-/camel-ship --resume                     # Resume with staleness detection
-/camel-ship --start-from execute         # Skip to execution stage
+# Controller-owned Ship workflow
+/camel-ship --document requirements.md   # Delegate a document-driven run to the local controller
+/camel-ship --resume <run-id>             # Resume a controller-owned run
+/camel-ship --status <run-id>             # Inspect durable status without launching a worker
+/camel-ship --start-from plan             # Import the active manual design and begin planning
 
 # Migration
 /camel-migrate                           # Analyze legacy project → auto plan → auto execute

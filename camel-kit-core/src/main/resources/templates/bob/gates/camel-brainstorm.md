@@ -21,7 +21,7 @@ These are the ONLY user-invocable camel-kit commands. Use these exact names if y
 | `/camel-plan` | Decompose spec into implementation tasks |
 | `/camel-execute` | Implement all routes (includes validation and testing) |
 | `/camel-validate` | Standalone validation pass |
-| `/camel-ship` | Autonomous end-to-end pipeline |
+| `/camel-ship` | Delegate a Ship workflow to the registered Camel-Kit CLI |
 
 Modes (`camel-implement`, `camel-test`) are internal `switch_mode` targets, NOT user-invocable commands. Never present them as commands the user should run.
 

@@ -18,7 +18,7 @@ Use the `Plan` agent type for the brainstorming phase:
 
 ### Step Budget
 
-Budget `steps: 200` for the brainstorming phase (as specified in the ship trait). The interview can be lengthy — don't cut it short. Distribute steps across phases:
+Budget `steps: 200` for the brainstorming phase. The interview can be lengthy — don't cut it short. Distribute steps across phases:
 
 - Discovery phase: ~80 steps (requirements gathering, migration scanning)
 - Component selection: ~60 steps (MCP catalog verification, pattern research)

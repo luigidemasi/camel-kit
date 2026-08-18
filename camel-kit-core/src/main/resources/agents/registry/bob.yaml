@@ -4,7 +4,7 @@ commandDirectory: .bob/commands
 skillsDirectory: .bob/skills
 generatesCommandStubs: true
 commandFileFormat: md
-argumentPlaceholder: $ARGUMENTS
+argumentPlaceholder: "{{args}}"
 mcpConfigPath: .bob/mcp.json
 mcpConfigTemplatePath: templates/mcp-configs/bob-mcp.json
 mcpConfigFormat: json

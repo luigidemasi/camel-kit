@@ -105,10 +105,10 @@ public class InitCommand extends CamelKitCommand {
         }
 
         if (here) {
-            resolvedTargetDir = Path.of("").toAbsolutePath();
+            resolvedTargetDir = Path.of("").toAbsolutePath().normalize();
             projectName = resolvedTargetDir.getFileName().toString();
         } else {
-            resolvedTargetDir = Path.of(projectName).toAbsolutePath();
+            resolvedTargetDir = Path.of(projectName).toAbsolutePath().normalize();
         }
 
         Path agentsMd = resolvedTargetDir.resolve("AGENTS.md");

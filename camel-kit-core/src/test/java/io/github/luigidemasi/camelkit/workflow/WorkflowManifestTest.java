@@ -140,6 +140,8 @@ class WorkflowManifestTest {
 
             Set<String> expected = manifest.generatedCommandStubs().stream()
                     .map(command -> command.name() + "." + ctx.agent().fileFormat())
+                    .filter(command -> !("pi".equals(agentName)
+                            && command.equals("camel-ship." + ctx.agent().fileFormat())))
                     .collect(Collectors.toCollection(java.util.TreeSet::new));
             Set<String> actual;
             try (var stream = Files.list(ctx.commandsDir())) {

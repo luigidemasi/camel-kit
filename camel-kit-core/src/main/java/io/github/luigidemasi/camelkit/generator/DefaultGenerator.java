@@ -43,6 +43,11 @@ public class DefaultGenerator implements AgentGenerator {
 
     @Override
     public void generate(InitContext ctx) throws Exception {
+        skillResourceInstaller.removeRetiredShipGuides(ctx);
+        if ("pi".equals(ctx.agentName())) {
+            GeneratedAssetCleaner.deleteRegularFile(
+                    ctx.projectDir(), ctx.commandsDir().resolve("camel-ship." + ctx.agent().fileFormat()));
+        }
         WorkflowManifest workflow = loadWorkflowManifest();
         generateBaseAssets(ctx, workflow);
         beforeApplyTraits(ctx);

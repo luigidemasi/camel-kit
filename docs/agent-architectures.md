@@ -10,7 +10,7 @@ Camel-Kit uses a three-layer composition model to separate concerns between user
 
 | Layer | What it is | Examples |
 |-------|-----------|---------|
-| **Skill** | Workflow with steps and exit criteria | `camel-brainstorm`, `camel-execute`, `camel-ship` |
+| **Skill** | Workflow with steps and exit criteria | `camel-brainstorm`, `camel-execute`, `camel-debug` |
 | **Persona** | Role with perspective, output format, and composition rules | `integration-architect`, `catalog-researcher`, `code-quality-reviewer` |
 | **Command** | User-facing entry point | `/camel-brainstorm`, `/camel-ship`, `/camel-validate` |
 
@@ -25,7 +25,7 @@ Camel-Kit uses a three-layer composition model to separate concerns between user
 | Pattern | Purpose | Example |
 |---------|---------|---------|
 | **Direct dispatch** | One persona, one task, structured output | Implementer generates route YAML |
-| **Parallel fan-out with merge** | Multiple independent reviewers, merged reports | Stamp Gate: spec + quality + security in parallel |
+| **Parallel fan-out with merge** | Multiple independent reviewers, merged reports | Adversarial review critic lanes |
 | **Research isolation** | Batch lookups, return summary only | `catalog-researcher` verifies 8 components, returns 100-token summary |
 | **Adversarial Code Review** | Parallel Critic Lanes review implementation against the design spec | Moderator + Critic Lanes with 3-cycle cap |
 
@@ -95,7 +95,7 @@ Claude has no formal permission system. It relies on skill instructions to const
 - **Route graph topology:** uses `camel-kit graph` to determine route independence for parallelization decisions
 - **Context isolation:** each subagent gets a fresh context window -- no cross-contamination between phases
 - **Research isolation:** `catalog-researcher` and `knowledge-researcher` subagents batch MCP lookups and return only summaries
-- **Parallel reviewer fan-out:** Stamp Gate dispatches spec, quality, and security reviewers simultaneously
+- **Parallel reviewer fan-out:** adversarial review dispatches independent critic lanes simultaneously
 - **Adversarial Code Review:** parallel Critic Lanes (via Moderator subagent) adversarially review implementation before two-stage review
 - **Simplest configuration:** 3 template files total (fewest of any agent)
 

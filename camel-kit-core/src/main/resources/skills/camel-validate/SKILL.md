@@ -23,7 +23,7 @@ This skill supports two invocation modes (see `shared/pipeline-infrastructure.md
 
 ### Chained Mode
 
-Invoked as Stage 3 by `camel-ship` after execute completes, or auto-invoked by `camel-execute` at the end of its task loop. Pipeline context is available in the conversation.
+Auto-invoked by `camel-execute` at the end of its task loop. Pipeline context is available in the conversation.
 
 ### Standalone Mode
 
@@ -31,7 +31,7 @@ Invoked directly by the user: `/camel-validate` or `/camel-validate <PIPELINE_ID
 
 **Detection at start:**
 
-1. If auto-invoked by execute or ship in this conversation → **chained mode** (pipeline)
+1. If auto-invoked by execute in this conversation → **chained mode** (pipeline)
 2. If invoked with `<PIPELINE_ID>` and pipeline artifacts exist → **standalone mode** (pipeline-scoped)
 3. If invoked without `<PIPELINE_ID>` and `.camel-kit/pipeline.json` exists → **standalone mode** (pipeline-scoped, use `activePipeline`)
 4. If invoked without `<PIPELINE_ID>` and no `.camel-kit/pipeline.json` → **standalone mode** (project-scoped, validates routes in current project)
@@ -158,8 +158,6 @@ This creates an audit trail of validation results over time.
 </HARD-RULE>
 
 **Add frontmatter metadata** — run `{COMMAND_PREFIX} doc init --by camel-validate --from execution-report.md <validation-report.md>` to add provenance metadata. This is idempotent — if frontmatter already exists, it is preserved.
-
-**Mark downstream artifacts stale** — per `shared/pipeline-infrastructure.md`, after saving the validation report, if `stamp-report.md` exists, run `{COMMAND_PREFIX} doc stale --reason "validation report regenerated" --cascade <stamp-report.md>`. Do NOT mark the freshly regenerated `validation-report.md` itself stale.
 
 ## Iron Laws
 

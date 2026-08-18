@@ -77,6 +77,6 @@ These standalone utilities are not part of the main pipelines but are accessible
 
 | Slash Command | Purpose |
 |---|---|
-| `/camel-ship` | Run the full pipeline autonomously with configurable oversight (`--ask always\|smart\|never`) |
+| `/camel-ship` | Delegate a Ship workflow to the registered local Camel-Kit controller |
 | `/camel-knowledge` | Look up Apache Camel documentation, components, CVEs/security advisories, versions |
 | `/camel-debug` | Ad-hoc troubleshooting for broken routes outside of a pipeline run |
