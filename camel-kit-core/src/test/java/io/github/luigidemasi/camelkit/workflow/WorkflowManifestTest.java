@@ -134,14 +134,16 @@ class WorkflowManifestTest {
             AgentGeneratorFactory.create(agentName).generate(ctx);
 
             if (!ctx.agent().generatesCommandStubs()) {
-                assertFalse(Files.exists(ctx.commandsDir()), agentName + " must not generate a command directory");
+                assertFalse(Files.exists(tempDir.resolve(".codex/commands")),
+                        agentName + " must not generate a command directory");
+                assertFalse(Files.exists(tempDir.resolve(".github/commands")),
+                        agentName + " must not generate a command directory");
                 continue;
             }
 
             Set<String> expected = manifest.generatedCommandStubs().stream()
+                    .filter(command -> !command.isSkillOnly(agentName))
                     .map(command -> command.name() + "." + ctx.agent().fileFormat())
-                    .filter(command -> !("pi".equals(agentName)
-                            && command.equals("camel-ship." + ctx.agent().fileFormat())))
                     .collect(Collectors.toCollection(java.util.TreeSet::new));
             Set<String> actual;
             try (var stream = Files.list(ctx.commandsDir())) {
@@ -153,6 +155,22 @@ class WorkflowManifestTest {
 
             assertEquals(expected, actual, agentName + " generated command stubs must match manifest");
         }
+    }
+
+    @Test
+    void shipStubIsSkillOnlyForPi() throws Exception {
+        WorkflowManifest manifest = WorkflowManifestLoader.loadDefault();
+
+        WorkflowManifest.WorkflowCommand ship = manifest.generatedCommandStubs().stream()
+                .filter(command -> "camel-ship".equals(command.name()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(List.of("pi"), ship.skillOnlyAgents(),
+                "Pi prompt-file expansion flattens quoted values; Ship must stay skill-only for Pi");
+        assertTrue(manifest.generatedCommandStubs().stream()
+                .filter(command -> !"camel-ship".equals(command.name()))
+                .allMatch(command -> command.skillOnlyAgents().isEmpty()),
+                "Only camel-ship declares a skill-only carve-out");
     }
 
     @Test
@@ -344,10 +362,11 @@ class WorkflowManifestTest {
 
     private InitContext createContext(String agentName) {
         AgentConfig agent = AgentRegistry.get(agentName);
+        Path skillsDir = tempDir.resolve(agent.skillsDirectory());
+        // Mirrors InitService: non-stub agents resolve commandsDir to their skills directory.
         Path commandsDir = agent.generatesCommandStubs()
                 ? tempDir.resolve(agent.commandDirectory())
-                : tempDir.resolve(".codex/commands");
-        Path skillsDir = tempDir.resolve(agent.skillsDirectory());
+                : skillsDir;
         return new InitContext(
                 agent, agentName, commandsDir, skillsDir, tempDir,
                 "camel-kit", Printer.noop());

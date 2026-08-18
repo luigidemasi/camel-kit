@@ -49,14 +49,20 @@ public record WorkflowManifest(
             String tier,
             String description,
             boolean standalone,
-            boolean chained) {
+            boolean chained,
+            List<String> skillOnlyAgents) {
 
         public WorkflowCommand {
             aliases = List.copyOf(nullToEmpty(aliases));
+            skillOnlyAgents = List.copyOf(nullToEmpty(skillOnlyAgents));
         }
 
         public String shortName() {
             return name.startsWith("camel-") ? name.substring("camel-".length()) : name;
+        }
+
+        public boolean isSkillOnly(String agentName) {
+            return skillOnlyAgents.contains(agentName);
         }
     }
 

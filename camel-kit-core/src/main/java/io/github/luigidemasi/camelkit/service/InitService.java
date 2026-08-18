@@ -1,6 +1,8 @@
 package io.github.luigidemasi.camelkit.service;
 
+import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -51,6 +53,8 @@ public class InitService {
         Path docsDir = targetDir.resolve("docs");
         String citrusVersion = request.resolvedCitrusVersion();
 
+        requireRealAgentDirectories(targetDir, skillsDir, commandsDir);
+
         List<Path> createdPaths = new ArrayList<>();
         List<InitWarning> warnings = new ArrayList<>();
         InitProgress progress = request.progress();
@@ -98,6 +102,30 @@ public class InitService {
         return new InitResult(
                 request.projectName(), request.agentName(), agent, targetDir, camelKitDir, commandsDir, skillsDir,
                 citrusVersion, citrusSchemaCount, MAVEN_WRAPPER_VERSION, graph, createdPaths, warnings);
+    }
+
+    /**
+     * Fails initialization up front — before any project files are written — when a managed agent path component is a
+     * symbolic link. Generation and retired-asset cleanup refuse to operate through symbolic links, and failing late
+     * would leave a half-initialized workspace.
+     */
+    private void requireRealAgentDirectories(Path targetDir, Path... managedDirs) throws IOException {
+        for (Path dir : managedDirs) {
+            Path current = targetDir;
+            for (Path component : targetDir.relativize(dir)) {
+                current = current.resolve(component);
+                if (Files.isSymbolicLink(current)) {
+                    throw new IOException(
+                            "Initialization aborted: " + current + " is a symbolic link. Camel-Kit generates "
+                                          + "and removes files under the agent directories and refuses to operate "
+                                          + "through symbolic links; replace the link with a real directory and "
+                                          + "re-run init.");
+                }
+                if (!Files.isDirectory(current, LinkOption.NOFOLLOW_LINKS)) {
+                    break;
+                }
+            }
+        }
     }
 
     private void createProjectStructure(

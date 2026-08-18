@@ -73,6 +73,19 @@ class CommandStubGeneratorTest {
     }
 
     @Test
+    void shipStubForwardsOptionsInProseWhenNoPlaceholderIsDocumented() throws Exception {
+        InitContext ctx = createContext("bob");
+        Files.createDirectories(ctx.commandsDir());
+
+        new CommandStubGenerator().generate(ctx, WorkflowManifestLoader.loadDefault());
+
+        String content = Files.readString(ctx.commandsDir().resolve("camel-ship.md"));
+        assertTrue(content.contains(
+                "Run `camel-kit ship` once, appending every option supplied to this command invocation verbatim."));
+        assertFalse(content.contains("null"), "a missing placeholder must never be concatenated into the stub");
+    }
+
+    @Test
     void escapesTripleQuotesInTomlWrappedContent() throws Exception {
         InitContext ctx = createContext("gemini");
         Files.createDirectories(ctx.commandsDir());
@@ -119,7 +132,8 @@ class CommandStubGeneratorTest {
                 "entry",
                 "Test command",
                 true,
-                false);
+                false,
+                List.of());
     }
 
     private InitContext createContext(String agentName) {

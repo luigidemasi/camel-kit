@@ -365,10 +365,7 @@ public class DoctorService {
     private void checkCommandFiles(
             Path root, Path commandsDir, AgentConfig agent, List<DoctorFinding> findings) {
         String extension = "." + agent.fileFormat();
-        List<String> userCommands = expectations.userCommands().stream()
-                .filter(command -> !(AgentGeneratorStrategy.PI.descriptorValue().equals(agentKey(agent))
-                        && "camel-ship".equals(command)))
-                .toList();
+        List<String> userCommands = expectations.userCommands(agentKey(agent));
         List<String> missing = userCommands.stream()
                 .filter(command -> !Files.isRegularFile(commandsDir.resolve(command + extension)))
                 .toList();

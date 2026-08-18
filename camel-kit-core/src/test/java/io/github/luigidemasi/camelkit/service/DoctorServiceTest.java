@@ -466,10 +466,7 @@ class DoctorServiceTest {
         Path commands = root.resolve(agent.folder());
         String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf('/'));
         Files.createDirectories(commands);
-        for (String command : EXPECTATIONS.userCommands()) {
-            if (PI.equals(agentName) && "camel-ship".equals(command)) {
-                continue;
-            }
+        for (String command : EXPECTATIONS.userCommands(agentName)) {
             Files.writeString(commands.resolve(command + ".md"),
                     "Read " + agentBaseFolder + "/skills/" + command + "/SKILL.md and follow those instructions\n");
         }

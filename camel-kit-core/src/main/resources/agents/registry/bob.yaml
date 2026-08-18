@@ -4,7 +4,11 @@ commandDirectory: .bob/commands
 skillsDirectory: .bob/skills
 generatesCommandStubs: true
 commandFileFormat: md
-argumentPlaceholder: "{{args}}"
+# IBM Bob documents only positional $1/$2 command placeholders and no all-arguments
+# placeholder (https://bob.ibm.com/docs/shell/features/slash-commands,
+# https://bob.ibm.com/docs/ide/features/slash-commands), so the Ship stub forwards
+# the invocation options in prose instead of interpolating a placeholder.
+argumentPlaceholder: null
 mcpConfigPath: .bob/mcp.json
 mcpConfigTemplatePath: templates/mcp-configs/bob-mcp.json
 mcpConfigFormat: json

@@ -12,7 +12,7 @@ class CommandStubGenerator {
 
     void generate(InitContext ctx, WorkflowManifest workflow) throws Exception {
         List<WorkflowCommand> commands = workflow.generatedCommandStubs().stream()
-                .filter(command -> !("pi".equals(ctx.agentName()) && "camel-ship".equals(command.name())))
+                .filter(command -> !command.isSkillOnly(ctx.agentName()))
                 .toList();
 
         for (WorkflowCommand command : commands) {
@@ -27,9 +27,17 @@ class CommandStubGenerator {
     private String commandContent(InitContext ctx, WorkflowCommand command) {
         String content;
         if ("camel-ship".equals(command.name())) {
-            content = "Run `" + ctx.commandPrefix() + " ship " + ctx.agent().argPlaceholder()
-                      + "` once using the supplied Ship options. Add no defaults and do not orchestrate the "
-                      + "workflow yourself. Return the command output and whether it succeeded.";
+            String placeholder = ctx.agent().argPlaceholder();
+            if (placeholder == null) {
+                // No documented all-arguments placeholder for this harness — forward the options in prose.
+                content = "Run `" + ctx.commandPrefix() + " ship` once, appending every option supplied to this "
+                          + "command invocation verbatim. Add no defaults and do not orchestrate the workflow "
+                          + "yourself. Return the command output and whether it succeeded.";
+            } else {
+                content = "Run `" + ctx.commandPrefix() + " ship " + placeholder
+                          + "` once using the supplied Ship options. Add no defaults and do not orchestrate the "
+                          + "workflow yourself. Return the command output and whether it succeeded.";
+            }
         } else {
             content = "Read " + ctx.agent().skillsDirectory() + "/" + command.skill()
                       + "/SKILL.md and follow those instructions";

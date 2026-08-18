@@ -48,6 +48,11 @@ public record AgentDescriptor(
         if (generatesCommandStubs) {
             requireText(commandDirectory, "commandDirectory", source);
             requireText(commandFileFormat, "commandFileFormat", source);
+        }
+        // argumentPlaceholder is optional even for stub agents: a harness without a documented
+        // all-arguments placeholder (IBM Bob documents only positional $1/$2) declares none, and
+        // the Ship stub forwards options in prose instead.
+        if (argumentPlaceholder != null) {
             requireText(argumentPlaceholder, "argumentPlaceholder", source);
         }
         requireText(mcpConfigPath, "mcpConfigPath", source);

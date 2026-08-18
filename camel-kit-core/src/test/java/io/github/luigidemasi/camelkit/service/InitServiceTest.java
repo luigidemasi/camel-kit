@@ -92,7 +92,11 @@ class InitServiceTest {
                             request(targetDir, agentName, InitProgress.noop(), InitReporter.noop())));
 
             assertTrue(failure.getMessage().contains("symbolic link"), agentName);
+            assertTrue(failure.getMessage().contains("Initialization aborted"),
+                    agentName + " must state that initialization was aborted, not a file removal");
             assertEquals(before, snapshot(outside), agentName + " must not write through the agent-root link");
+            assertFalse(Files.exists(targetDir.resolve(".camel-kit")),
+                    agentName + " must fail before writing any project files");
         }
     }
 
