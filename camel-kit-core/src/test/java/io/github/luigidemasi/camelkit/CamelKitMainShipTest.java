@@ -51,6 +51,8 @@ class CamelKitMainShipTest {
             CommandLine.ParseResult parsed = root.parseArgs("ship", "--text", literal);
 
             assertEquals(literal, parsed.subcommand().matchedOptionValue("--text", null));
+            CommandLine.ParseResult document = root.parseArgs("ship", "--document", literal);
+            assertEquals(Path.of(literal), document.subcommand().matchedOptionValue("--document", null));
         } finally {
             main.closeTerminal();
         }

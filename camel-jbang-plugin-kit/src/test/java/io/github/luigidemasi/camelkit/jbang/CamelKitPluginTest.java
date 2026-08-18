@@ -56,9 +56,11 @@ class CamelKitPluginTest {
     }
 
     @Test
-    void registersShipWithQualifiedHelpAndDocumentsCamelArgumentFiles() throws Exception {
-        Path arguments = Files.writeString(tempDir.resolve("ship-arguments"), "EXPANDED");
-        String literal = "@" + arguments.toAbsolutePath();
+    void preservesLiteralShipContextAndCamelArgumentFiles() throws Exception {
+        Path context = Files.writeString(tempDir.resolve("ship-context"), "EXPANDED VALUE");
+        Path arguments = Files.writeString(
+                tempDir.resolve("kit-arguments"), "kit init orders --ai codex");
+        String literal = "@" + context.toAbsolutePath();
         CamelJBangMain main = new CamelJBangMain();
         CommandLine root = new CommandLine(main);
         new CamelKitPlugin().customize(root, main);
@@ -66,23 +68,27 @@ class CamelKitPluginTest {
         StringWriter output = new StringWriter();
         root.setOut(new PrintWriter(output, true));
 
-        assertTrue(root.isExpandAtFiles());
         assertInstanceOf(ShipCommand.class, ship.getCommand());
         assertEquals("camel kit ship", ship.getCommandSpec().qualifiedName());
-        CommandLine.ParseResult parsed = root.parseArgs("kit", "ship", "--text=" + literal);
+        CommandLine.ParseResult parsed = root.parseArgs("kit", "ship", "--text", literal);
         assertEquals(literal,
                 parsed.subcommand().subcommand().matchedOptionValue("--text", null));
-        CommandLine.ParseResult expanded = root.parseArgs("kit", "ship", "--text", literal);
-        assertEquals("EXPANDED",
-                expanded.subcommand().subcommand().matchedOptionValue("--text", null));
+        CommandLine.ParseResult document = root.parseArgs("kit", "ship", "--document", literal);
+        assertEquals(Path.of(literal),
+                document.subcommand().subcommand().matchedOptionValue("--document", null));
         CommandLine.ParseResult escaped = root.parseArgs("kit", "ship", "--text", "@" + literal);
         assertEquals(literal,
                 escaped.subcommand().subcommand().matchedOptionValue("--text", null));
+        CommandLine.ParseResult parentOption = root.parseArgs("kit", "--version=true", "ship", "--text", literal);
+        assertEquals(literal,
+                parentOption.subcommand().subcommand().matchedOptionValue("--text", null));
+
+        CommandLine.ParseResult expanded = root.parseArgs("@" + arguments.toAbsolutePath());
+        CommandLine.ParseResult init = expanded.subcommand().subcommand();
+        assertEquals("orders", init.matchedPositionalValue(0, null));
+        assertEquals("codex", init.matchedOptionValue("--ai", null));
+
         assertEquals(0, root.execute("kit", "ship", "--help"));
         assertTrue(output.toString().contains("Usage: camel kit ship"), output.toString());
-        assertTrue(output.toString().contains("--text=@value"), output.toString());
-        assertTrue(output.toString().contains("--text @@value"), output.toString());
-        assertTrue(output.toString().contains("--document=@path"), output.toString());
-        assertTrue(output.toString().contains("--document @@path"), output.toString());
     }
 }

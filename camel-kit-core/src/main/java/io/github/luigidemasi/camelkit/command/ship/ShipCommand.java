@@ -398,18 +398,10 @@ public final class ShipCommand implements Callable<Integer> {
 
     static final class ContextArgument {
 
-        @Option(
-                names = "--text",
-                paramLabel = "TEXT",
-                description = "Add text context (camel kit ship: use --text=@value or --text @@value"
-                              + " for a leading @)")
+        @Option(names = "--text", paramLabel = "TEXT", description = "Add text context")
         String text;
 
-        @Option(
-                names = "--document",
-                paramLabel = "PATH",
-                description = "Add document context (camel kit ship: use --document=@path or --document @@path"
-                              + " for a leading @)")
+        @Option(names = "--document", paramLabel = "PATH", description = "Add document context")
         Path document;
 
         ShipContext.Input input() {
