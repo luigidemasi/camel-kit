@@ -207,10 +207,12 @@ class DistributionConfigTest {
                 tempDir.resolve("malformed.properties"),
                 "camel.main.version=\\u00ZZ\n".getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
-        assertTrue(assertThrows(
-                IllegalArgumentException.class,
-                () -> DistributionConfig.loadWithOverridesStrict(missing, List.of()))
-                .getMessage().contains(missing.toString()));
+        assertEquals(
+                "Config file is missing, unreadable, or not a regular file: " + missing,
+                assertThrows(
+                        IllegalArgumentException.class,
+                        () -> DistributionConfig.loadWithOverridesStrict(missing, List.of()))
+                        .getMessage());
         assertTrue(assertThrows(
                 IllegalArgumentException.class,
                 () -> DistributionConfig.loadWithOverridesStrict(directory, List.of()))
@@ -252,15 +254,25 @@ class DistributionConfigTest {
     }
 
     @Test
+    @ResourceLock(Resources.SYSTEM_ERR)
     void legacyCascadeIgnoresInvalidOverrides(@TempDir Path tempDir) throws Exception {
         Path malformed = Files.writeString(
                 tempDir.resolve("malformed.properties"), "camel.main.version=\\u00ZZ\n");
-
-        DistributionConfig config = DistributionConfig.loadWithOverrides(
-                malformed, List.of("missing-equals"));
+        ByteArrayOutputStream error = new ByteArrayOutputStream();
+        PrintStream original = System.err;
+        DistributionConfig config;
+        try {
+            System.setErr(new PrintStream(error, true, StandardCharsets.UTF_8));
+            config = DistributionConfig.loadWithOverrides(
+                    malformed, List.of("missing-equals"));
+        } finally {
+            System.setErr(original);
+        }
 
         assertEquals("4.21.0", config.camelMainVersion());
         assertEquals(0, config.overrideCount());
+        assertTrue(error.toString(StandardCharsets.UTF_8)
+                .contains("WARN: Failed to load config from " + malformed + ":"));
     }
 
     @Test

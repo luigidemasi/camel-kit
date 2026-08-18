@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 
@@ -115,7 +116,8 @@ public class DistributionConfig {
                 ? !Files.notExists(userConfig, LinkOption.NOFOLLOW_LINKS)
                 : Files.exists(userConfig));
         if (strict && present && !Files.isRegularFile(userConfig)) {
-            throw new IllegalArgumentException("Config file is missing or not a regular file: " + userConfig);
+            throw new IllegalArgumentException(
+                    "Config file is missing, unreadable, or not a regular file: " + userConfig);
         }
         if (present) {
             try (InputStream in = Files.newInputStream(userConfig)) {
@@ -130,6 +132,8 @@ public class DistributionConfig {
                     throw new IllegalArgumentException(
                             "Failed to load config from " + userConfig, e);
                 }
+                System.err.printf(Locale.ROOT, "WARN: Failed to load config from %s: %s%n", userConfig,
+                        e.getMessage());
             }
         }
 

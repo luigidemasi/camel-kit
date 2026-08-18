@@ -28,6 +28,8 @@ public class CamelKitPlugin implements Plugin {
                 .addSubcommand("doctor", new CommandLine(new DoctorCommand(camelKitMain)))
                 .addSubcommand("graph", new CommandLine(new GraphCommand()))
                 .addSubcommand("plan", new CommandLine(new PlanCommand()))
+                // The Camel root expands @files before dispatch and customize() has no argv. Disabling it here
+                // would affect every camel kit command, so Ship help documents attached and escaped literal forms.
                 .addSubcommand("ship", new CommandLine(new ShipCommand()));
 
         commandLine.addSubcommand("kit", kitCommand);

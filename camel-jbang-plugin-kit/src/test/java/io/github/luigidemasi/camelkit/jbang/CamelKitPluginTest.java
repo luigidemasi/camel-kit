@@ -56,7 +56,7 @@ class CamelKitPluginTest {
     }
 
     @Test
-    void registersShipWithQualifiedHelpAndPreservesCamelArgumentFiles() throws Exception {
+    void registersShipWithQualifiedHelpAndDocumentsCamelArgumentFiles() throws Exception {
         Path arguments = Files.writeString(tempDir.resolve("ship-arguments"), "EXPANDED");
         String literal = "@" + arguments.toAbsolutePath();
         CamelJBangMain main = new CamelJBangMain();
@@ -72,7 +72,17 @@ class CamelKitPluginTest {
         CommandLine.ParseResult parsed = root.parseArgs("kit", "ship", "--text=" + literal);
         assertEquals(literal,
                 parsed.subcommand().subcommand().matchedOptionValue("--text", null));
+        CommandLine.ParseResult expanded = root.parseArgs("kit", "ship", "--text", literal);
+        assertEquals("EXPANDED",
+                expanded.subcommand().subcommand().matchedOptionValue("--text", null));
+        CommandLine.ParseResult escaped = root.parseArgs("kit", "ship", "--text", "@" + literal);
+        assertEquals(literal,
+                escaped.subcommand().subcommand().matchedOptionValue("--text", null));
         assertEquals(0, root.execute("kit", "ship", "--help"));
         assertTrue(output.toString().contains("Usage: camel kit ship"), output.toString());
+        assertTrue(output.toString().contains("--text=@value"), output.toString());
+        assertTrue(output.toString().contains("--text @@value"), output.toString());
+        assertTrue(output.toString().contains("--document=@path"), output.toString());
+        assertTrue(output.toString().contains("--document @@path"), output.toString());
     }
 }
