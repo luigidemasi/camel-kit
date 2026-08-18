@@ -52,12 +52,7 @@ import io.github.luigidemasi.camelkit.ship.worker.PiWorker.UntrustedResultExcept
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-/**
- * Concrete local composition of the compact Ship controller, Pi worker, and deterministic Main validation.
- *
- * <p>
- * The command remains unregistered until the live Pi/Linux and publication gates pass.
- */
+/** Concrete local composition of the compact Ship controller, Pi worker, and deterministic Main validation. */
 public final class ShipCoordinator {
 
     private static final long ABORT_POLL_MILLIS = 50;

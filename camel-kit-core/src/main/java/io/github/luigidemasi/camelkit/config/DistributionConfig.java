@@ -2,11 +2,11 @@ package io.github.luigidemasi.camelkit.config;
 
 import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 
@@ -90,13 +90,34 @@ public class DistributionConfig {
      * @return               merged configuration
      */
     public static DistributionConfig loadWithOverrides(Path configFile, List<String> cliProperties) {
+        return loadWithOverrides(configFile, cliProperties, DEFAULT_USER_CONFIG, false);
+    }
+
+    /** Loads the same cascade but rejects a present configuration that cannot be applied exactly. */
+    public static DistributionConfig loadWithOverridesStrict(Path configFile, List<String> cliProperties) {
+        return loadWithOverrides(configFile, cliProperties, DEFAULT_USER_CONFIG, true);
+    }
+
+    static DistributionConfig loadWithOverridesStrict(
+            Path configFile, List<String> cliProperties, Path defaultConfig) {
+        return loadWithOverrides(configFile, cliProperties, defaultConfig, true);
+    }
+
+    private static DistributionConfig loadWithOverrides(
+            Path configFile, List<String> cliProperties, Path defaultConfig, boolean strict) {
         // Layer 1: built-in defaults from classpath
         Properties props = loadClasspathProperties();
 
         // Layer 2: user config file (-c or default location)
         int overrides = 0;
-        Path userConfig = configFile != null ? configFile : DEFAULT_USER_CONFIG;
-        if (Files.exists(userConfig)) {
+        Path userConfig = configFile != null ? configFile : defaultConfig;
+        boolean present = configFile != null || (strict
+                ? !Files.notExists(userConfig, LinkOption.NOFOLLOW_LINKS)
+                : Files.exists(userConfig));
+        if (strict && present && !Files.isRegularFile(userConfig)) {
+            throw new IllegalArgumentException("Config file is missing or not a regular file: " + userConfig);
+        }
+        if (present) {
             try (InputStream in = Files.newInputStream(userConfig)) {
                 Properties userProps = new Properties();
                 userProps.load(in);
@@ -104,23 +125,29 @@ public class DistributionConfig {
                     props.setProperty(key, userProps.getProperty(key));
                     overrides++;
                 }
-                System.out.printf(Locale.ROOT, "  Config: %s (%d overrides)%n", userConfig, userProps.size());
             } catch (Exception e) {
-                System.out.printf(Locale.ROOT, "  WARN: Failed to load config from %s: %s%n", userConfig,
-                        e.getMessage());
+                if (strict) {
+                    throw new IllegalArgumentException(
+                            "Failed to load config from " + userConfig, e);
+                }
             }
         }
 
         // Layer 3: CLI -p overrides (highest priority)
         if (cliProperties != null) {
             for (String prop : cliProperties) {
-                int eq = prop.indexOf('=');
-                if (eq > 0) {
-                    String key = prop.substring(0, eq).trim();
-                    String value = prop.substring(eq + 1).trim();
-                    props.setProperty(key, value);
-                    overrides++;
+                int eq = prop == null ? -1 : prop.indexOf('=');
+                String key = eq < 0 ? "" : prop.substring(0, eq).trim();
+                if (key.isEmpty()) {
+                    if (strict) {
+                        throw new IllegalArgumentException(
+                                "Invalid config property; expected key=value");
+                    }
+                    continue;
                 }
+                String value = prop.substring(eq + 1).trim();
+                props.setProperty(key, value);
+                overrides++;
             }
         }
 

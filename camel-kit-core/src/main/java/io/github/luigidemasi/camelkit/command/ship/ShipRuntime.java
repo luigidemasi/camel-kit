@@ -21,9 +21,8 @@ import io.github.luigidemasi.camelkit.ship.controller.ShipRun;
  * <p>
  * Executable paths come from explicit options or PATH discovery; the maintained Pi/Node support pins always come from
  * the bundled distribution inside {@link ShipCoordinator}, so no option here can promote an unmaintained version beyond
- * an experimental run. The bundled distribution also drives artifact policy for now: the user config cascade prints
- * progress to stdout while loading, which would corrupt the command's summary contract, so wiring it up belongs to the
- * registration slice.
+ * an experimental run. User configuration is loaded only when a start or resume operation launches the workflow and
+ * drives the Camel and Citrus artifact policy.
  * </p>
  */
 final class ShipRuntime implements ShipCommand.WorkflowLauncher {
@@ -55,7 +54,8 @@ final class ShipRuntime implements ShipCommand.WorkflowLauncher {
                 resolved.piExecutable(),
                 resolved.nodeExecutable(),
                 resolved.mavenRepository(),
-                DistributionConfig.loadBundled(),
+                DistributionConfig.loadWithOverridesStrict(
+                        resolved.configFile(), resolved.configProperties()),
                 resolved.stageTimeout(),
                 resolved.acceptExperimental());
         return new ShipCommand.Workflow() {
@@ -83,7 +83,9 @@ final class ShipRuntime implements ShipCommand.WorkflowLauncher {
                         ? stateRoot.resolve(CATALOG_REPOSITORY)
                         : settings.mavenRepository(),
                 settings.stageTimeout() == null ? DEFAULT_STAGE_TIMEOUT : settings.stageTimeout(),
-                settings.acceptExperimental());
+                settings.acceptExperimental(),
+                settings.configFile(),
+                settings.configProperties());
     }
 
     private Path resolveExecutable(Path configured, String name, String label) {

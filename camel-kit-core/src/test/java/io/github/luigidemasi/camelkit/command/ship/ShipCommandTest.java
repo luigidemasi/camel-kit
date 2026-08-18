@@ -552,7 +552,10 @@ class ShipCommandTest {
                 "--node", "/opt/node/bin/node",
                 "--maven-repository", "/tmp/ship-repo",
                 "--stage-timeout", "90s",
-                "--accept-experimental");
+                "--accept-experimental",
+                "--config", "/tmp/ship.properties",
+                "--property", "camel.main.version=9.9.8",
+                "--property", "camel.main.version=9.9.9");
 
         assertEquals(0, result.exitCode(), result.error());
         ShipCommand.RuntimeSettings settings = launcher.settings;
@@ -561,6 +564,12 @@ class ShipCommandTest {
         assertEquals(Path.of("/tmp/ship-repo"), settings.mavenRepository());
         assertEquals(Duration.ofSeconds(90), settings.stageTimeout());
         assertTrue(settings.acceptExperimental());
+        assertEquals(Path.of("/tmp/ship.properties"), settings.configFile());
+        assertEquals(
+                List.of("camel.main.version=9.9.8", "camel.main.version=9.9.9"),
+                settings.configProperties());
+        assertTrue(result.output().contains(
+                "Config: Repeat the same -c/-p options when resuming this run."), result.output());
     }
 
     @Test
@@ -578,6 +587,8 @@ class ShipCommandTest {
         assertNull(settings.mavenRepository());
         assertNull(settings.stageTimeout());
         assertFalse(settings.acceptExperimental());
+        assertNull(settings.configFile());
+        assertTrue(settings.configProperties().isEmpty());
     }
 
     @Test
@@ -590,7 +601,9 @@ class ShipCommandTest {
                 new String[]{"--status", id, "--stage-timeout", "10m"},
                 new String[]{"--abort", id, "--accept-experimental"},
                 new String[]{"--abort", id, "--maven-repository", "/tmp/repo"},
-                new String[]{"--status", id, "--node", "/opt/node"})) {
+                new String[]{"--status", id, "--node", "/opt/node"},
+                new String[]{"--status", id, "--config", "/tmp/config"},
+                new String[]{"--abort", id, "--property", "camel.main.version=9.9.9"})) {
             RunResult result = run(controller, RecordingLauncher.passThrough(controller), arguments);
             assertEquals(CommandLine.ExitCode.USAGE, result.exitCode());
             assertTrue(result.error().contains(
@@ -700,6 +713,25 @@ class ShipCommandTest {
     }
 
     @Test
+    void resumeHintUsesTheRegisteredQualifiedCommandName() throws Exception {
+        Path project = Files.createDirectory(tempDir.resolve("qualified-project"));
+        ShipController controller = controller("qualified-state");
+        ShipRun started = controller.start(project, ShipRun.Oversight.SMART, List.of());
+
+        RunResult result = runAs(
+                "camel kit ship",
+                controller,
+                rejectingLauncher(),
+                "--status",
+                started.id());
+
+        assertEquals(0, result.exitCode(), result.error());
+        assertTrue(result.output().contains(
+                "Next: camel kit ship --resume " + started.id() + System.lineSeparator()),
+                result.output());
+    }
+
+    @Test
     void reportsDistinctDocumentFailuresAsOperationalErrors() throws Exception {
         Path project = Files.createDirectory(tempDir.resolve("project"));
         Path empty = Files.createFile(project.resolve("empty.txt"));
@@ -751,6 +783,7 @@ class ShipCommandTest {
         Files.writeString(fixture.resolve("version"), "0.81.1\n");
         Path project = Files.createDirectory(tempDir.resolve("project"));
         Path state = tempDir.resolve("state");
+        Path config = Files.createFile(tempDir.resolve("ship.properties"));
         ShipController controller = new ShipController(state);
 
         RunResult result = run(
@@ -759,6 +792,7 @@ class ShipCommandTest {
                 "--project-dir", project.toString(),
                 "--pi", fixture.resolve("pi-rpc").toString(),
                 "--node", node.toString(),
+                "--config", config.toString(),
                 "--stage-timeout", "30s",
                 "--text", "unverified Pi must fail the stage");
 
@@ -768,12 +802,19 @@ class ShipCommandTest {
                          + "install maintained Pi 0.83.0; explicitly accept experimental Pi "
                          + "or Node before starting the stage";
         assertEquals(summary(
-                id, "FAILED", "DISCOVERY", "SMART", "Message: " + message),
+                id,
+                "FAILED",
+                "DISCOVERY",
+                "SMART",
+                "Message: " + message,
+                "Config: Repeat the same -c/-p options when resuming this run."),
                 result.output());
         RunResult failedStatus = run(controller, new ShipRuntime(state), "--status", id);
         assertEquals(0, failedStatus.exitCode(),
                 "status queries report failed runs without a failing exit code");
-        assertEquals(result.output(), failedStatus.output());
+        assertEquals(summary(
+                id, "FAILED", "DISCOVERY", "SMART", "Message: " + message),
+                failedStatus.output());
         assertEquals(message, controller.status(id).message());
         assertFalse(Files.exists(fixture.resolve("args")),
                 "the gate must fire before any Pi process starts");
@@ -806,9 +847,18 @@ class ShipCommandTest {
 
     private static RunResult run(
             ShipController controller, ShipCommand.WorkflowLauncher launcher, String... args) {
+        return runAs("camel-kit ship", controller, launcher, args);
+    }
+
+    private static RunResult runAs(
+            String commandName,
+            ShipController controller,
+            ShipCommand.WorkflowLauncher launcher,
+            String... args) {
         StringWriter output = new StringWriter();
         StringWriter error = new StringWriter();
         CommandLine commandLine = new CommandLine(new ShipCommand(controller, launcher));
+        commandLine.setCommandName(commandName);
         commandLine.setExpandAtFiles(false);
         commandLine.setOut(new PrintWriter(output, true));
         commandLine.setErr(new PrintWriter(error, true));
