@@ -11,7 +11,9 @@ import io.github.luigidemasi.camelkit.workflow.WorkflowManifest.WorkflowCommand;
 class CommandStubGenerator {
 
     void generate(InitContext ctx, WorkflowManifest workflow) throws Exception {
-        List<WorkflowCommand> commands = workflow.generatedCommandStubs();
+        List<WorkflowCommand> commands = workflow.generatedCommandStubs().stream()
+                .filter(command -> !command.isSkillOnly(ctx.agentName()))
+                .toList();
 
         for (WorkflowCommand command : commands) {
             String content = commandContent(ctx, command);
@@ -19,12 +21,27 @@ class CommandStubGenerator {
             Files.writeString(ctx.commandsDir().resolve(filename), content);
         }
 
-        ctx.printer().println(AnsiColors.green("✓") + " Created " + commands.size() + " skill reference commands");
+        ctx.printer().println(AnsiColors.green("✓") + " Created " + commands.size() + " command stubs");
     }
 
     private String commandContent(InitContext ctx, WorkflowCommand command) {
-        String content = "Read " + ctx.agent().skillsDirectory() + "/" + command.skill()
-                         + "/SKILL.md and follow those instructions";
+        String content;
+        if ("camel-ship".equals(command.name())) {
+            String placeholder = ctx.agent().argPlaceholder();
+            if (placeholder == null) {
+                // No documented all-arguments placeholder for this harness — forward the options in prose.
+                content = "Run `" + ctx.commandPrefix() + " ship` once, appending every option supplied to this "
+                          + "command invocation verbatim. Add no defaults and do not orchestrate the workflow "
+                          + "yourself. Return the command output and whether it succeeded.";
+            } else {
+                content = "Run `" + ctx.commandPrefix() + " ship " + placeholder
+                          + "` once using the supplied Ship options. Add no defaults and do not orchestrate the "
+                          + "workflow yourself. Return the command output and whether it succeeded.";
+            }
+        } else {
+            content = "Read " + ctx.agent().skillsDirectory() + "/" + command.skill()
+                      + "/SKILL.md and follow those instructions";
+        }
         if ("toml".equals(ctx.agent().fileFormat())) {
             return wrapInToml(command.shortName(), content);
         }
@@ -63,7 +80,7 @@ class CommandStubGenerator {
             case "camel-plan" -> "<design-spec-or-pipeline-id>";
             case "camel-execute" -> "<pipeline-id-or-plan>";
             case "camel-validate" -> "<pipeline-id-or-route-path>";
-            case "camel-ship" -> "<integration-request>";
+            case "camel-ship" -> "[ship-options]";
             case "camel-knowledge" -> "<camel-question>";
             case "camel-debug" -> "<error-or-route-path>";
             default -> "<arguments>";

@@ -239,7 +239,7 @@ Fix any issues inline.
      "started": "<current ISO-8601 timestamp>"
    }
    ```
-   Create `.camel-kit/` directory if it doesn't exist. If `pipeline.json` already exists with `mode: "ship"`, preserve the existing ship state and only update `activePipeline`.
+   Create `.camel-kit/` directory if it doesn't exist.
 3. Create `.camel-kit/config.properties` if it doesn't exist:
    ```properties
    project.runtime=[main/spring-boot/quarkus]

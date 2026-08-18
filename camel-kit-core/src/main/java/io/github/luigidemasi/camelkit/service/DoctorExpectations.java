@@ -15,19 +15,19 @@ import io.github.luigidemasi.camelkit.workflow.WorkflowManifestLoader;
  */
 public final class DoctorExpectations {
 
-    private final List<String> userCommands;
+    private final List<WorkflowManifest.WorkflowCommand> generatedStubs;
     private final List<String> requiredSkills;
     private final Set<String> camelMcpTools;
     private final Set<String> knowledgeMcpTools;
     private final Set<String> citrusMcpTools;
 
     private DoctorExpectations(
-                               List<String> userCommands,
+                               List<WorkflowManifest.WorkflowCommand> generatedStubs,
                                List<String> requiredSkills,
                                Set<String> camelMcpTools,
                                Set<String> knowledgeMcpTools,
                                Set<String> citrusMcpTools) {
-        this.userCommands = List.copyOf(userCommands);
+        this.generatedStubs = List.copyOf(generatedStubs);
         this.requiredSkills = List.copyOf(requiredSkills);
         this.camelMcpTools = Collections.unmodifiableSet(new LinkedHashSet<>(camelMcpTools));
         this.knowledgeMcpTools = Collections.unmodifiableSet(new LinkedHashSet<>(knowledgeMcpTools));
@@ -44,9 +44,7 @@ public final class DoctorExpectations {
 
     public static DoctorExpectations from(WorkflowManifest workflow) {
         return new DoctorExpectations(
-                workflow.generatedCommandStubs().stream()
-                        .map(WorkflowManifest.WorkflowCommand::name)
-                        .toList(),
+                workflow.generatedCommandStubs(),
                 workflow.skills().stream()
                         .map(WorkflowManifest.WorkflowSkill::name)
                         .toList(),
@@ -56,7 +54,17 @@ public final class DoctorExpectations {
     }
 
     public List<String> userCommands() {
-        return userCommands;
+        return generatedStubs.stream()
+                .map(WorkflowManifest.WorkflowCommand::name)
+                .toList();
+    }
+
+    /** Command stubs expected for the given agent, honoring the manifest's skill-only carve-outs. */
+    public List<String> userCommands(String agentKey) {
+        return generatedStubs.stream()
+                .filter(command -> !command.isSkillOnly(agentKey))
+                .map(WorkflowManifest.WorkflowCommand::name)
+                .toList();
     }
 
     public List<String> requiredSkills() {

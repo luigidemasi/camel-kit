@@ -1,5 +1,6 @@
 package io.github.luigidemasi.camelkit.service;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -11,6 +12,8 @@ import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.output.Printer;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -74,6 +77,48 @@ class InitServiceTest {
     }
 
     @Test
+    @EnabledOnOs(OS.LINUX)
+    void rejectsSymlinkedAgentRootsBeforeWritingOutsideTheProject() throws Exception {
+        for (String agentName : List.of("claude", "bob2")) {
+            Path targetDir = Files.createDirectory(tempDir.resolve(agentName));
+            Path outside = Files.createDirectory(tempDir.resolve(agentName + "-outside"));
+            Files.writeString(outside.resolve("keep.md"), "outside");
+            Files.createSymbolicLink(targetDir.resolve("claude".equals(agentName) ? ".claude" : ".bob"), outside);
+            List<String> before = snapshot(outside);
+
+            IOException failure = assertThrows(
+                    IOException.class,
+                    () -> new InitService().initialize(
+                            request(targetDir, agentName, InitProgress.noop(), InitReporter.noop())));
+
+            assertTrue(failure.getMessage().contains("symbolic link"), agentName);
+            assertTrue(failure.getMessage().contains("Initialization aborted"),
+                    agentName + " must state that initialization was aborted, not a file removal");
+            assertEquals(before, snapshot(outside), agentName + " must not write through the agent-root link");
+            assertFalse(Files.exists(targetDir.resolve(".camel-kit")),
+                    agentName + " must fail before writing any project files");
+        }
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    void normalizesTheTargetBeforeCleanupAndGeneration() throws Exception {
+        Path targetDir = Files.createDirectory(tempDir.resolve("orders"));
+        Path outside = Files.createDirectory(tempDir.resolve("outside"));
+        Path outsideChild = Files.createDirectory(outside.resolve("child"));
+        Files.writeString(outside.resolve("keep.md"), "outside");
+        Files.createSymbolicLink(targetDir.resolve("link"), outsideChild);
+        List<String> before = snapshot(outside);
+
+        InitResult result = new InitService().initialize(
+                request(targetDir.resolve("link/.."), "claude", InitProgress.noop(), InitReporter.noop()));
+
+        assertEquals(targetDir.toAbsolutePath().normalize(), result.targetDir());
+        assertTrue(Files.isRegularFile(targetDir.resolve(".claude/commands/camel-ship.md")));
+        assertEquals(before, snapshot(outside));
+    }
+
+    @Test
     void initializesCopilotWorkspaceWithGithubNativeAssets() throws Exception {
         RecordingProgress progress = new RecordingProgress();
         Path targetDir = tempDir.resolve("orders");
@@ -87,12 +132,12 @@ class InitServiceTest {
         assertTrue(Files.isRegularFile(targetDir.resolve(".github/skills/camel-start/SKILL.md")));
         assertTrue(Files.isRegularFile(targetDir.resolve(".github/agents/camel-implementer.agent.md")));
         assertTrue(Files.isRegularFile(targetDir.resolve(".github/hooks/camel-kit-safety.json")));
-        assertTrue(Files.isRegularFile(targetDir.resolve(".github/commands/camel-start.md")));
+        assertFalse(Files.exists(targetDir.resolve(".github/commands")));
         assertTrue(progress.events().contains("start:Generating GitHub Copilot CLI workspace"));
 
         String config = Files.readString(targetDir.resolve(".camel-kit/config.properties"));
         assertTrue(config.contains("agent.name=copilot"));
-        assertTrue(config.contains("agent.folder=.github/commands"));
+        assertTrue(config.contains("agent.folder=.github/skills"));
     }
 
     @Test
@@ -302,6 +347,22 @@ class InitServiceTest {
                 Printer.noop(),
                 progress,
                 reporter);
+    }
+
+    private static List<String> snapshot(Path root) throws Exception {
+        List<String> entries = new ArrayList<>();
+        try (var paths = Files.walk(root)) {
+            for (Path path : paths.sorted().toList()) {
+                if (path.equals(root)) {
+                    continue;
+                }
+                String relative = root.relativize(path).toString();
+                entries.add(Files.isDirectory(path)
+                        ? "directory:" + relative
+                        : "file:" + relative + "=" + Files.readString(path));
+            }
+        }
+        return entries;
     }
 
     private InitRequest request(

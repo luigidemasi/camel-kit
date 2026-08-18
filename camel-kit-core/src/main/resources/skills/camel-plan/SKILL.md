@@ -302,7 +302,7 @@ with two-stage review (spec compliance → code quality) between tasks.
 ```text
 Plan saved to docs/camel-kit/<PIPELINE_ID>/implementation-plan.md
 
-Plan complete. Run /camel-execute or /camel-ship --start-from execute to proceed.
+Plan complete. Run /camel-execute to proceed.
 ```
 
 <HARD-RULE>

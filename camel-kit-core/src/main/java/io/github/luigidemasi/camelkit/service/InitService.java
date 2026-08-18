@@ -1,6 +1,8 @@
 package io.github.luigidemasi.camelkit.service;
 
+import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -51,6 +53,8 @@ public class InitService {
         Path docsDir = targetDir.resolve("docs");
         String citrusVersion = request.resolvedCitrusVersion();
 
+        requireRealAgentDirectories(targetDir, skillsDir, commandsDir);
+
         List<Path> createdPaths = new ArrayList<>();
         List<InitWarning> warnings = new ArrayList<>();
         InitProgress progress = request.progress();
@@ -60,11 +64,7 @@ public class InitService {
 
         progress.startTask("\uD83D\uDCC1", "Creating project structure");
         createProjectStructure(
-                targetDir,
-                agent.generatesCommandStubs() ? commandsDir : null,
-                camelKitDir,
-                docsDir,
-                createdPaths);
+                targetDir, camelKitDir, docsDir, createdPaths);
         progress.finishTask();
 
         progress.startTask("\uD83D\uDCDD", "Writing configuration");
@@ -104,13 +104,34 @@ public class InitService {
                 citrusVersion, citrusSchemaCount, MAVEN_WRAPPER_VERSION, graph, createdPaths, warnings);
     }
 
+    /**
+     * Fails initialization up front — before any project files are written — when a managed agent path component is a
+     * symbolic link. Generation and retired-asset cleanup refuse to operate through symbolic links, and failing late
+     * would leave a half-initialized workspace.
+     */
+    private void requireRealAgentDirectories(Path targetDir, Path... managedDirs) throws IOException {
+        for (Path dir : managedDirs) {
+            Path current = targetDir;
+            for (Path component : targetDir.relativize(dir)) {
+                current = current.resolve(component);
+                if (Files.isSymbolicLink(current)) {
+                    throw new IOException(
+                            "Initialization aborted: " + current + " is a symbolic link. Camel-Kit generates "
+                                          + "and removes files under the agent directories and refuses to operate "
+                                          + "through symbolic links; replace the link with a real directory and "
+                                          + "re-run init.");
+                }
+                if (!Files.isDirectory(current, LinkOption.NOFOLLOW_LINKS)) {
+                    break;
+                }
+            }
+        }
+    }
+
     private void createProjectStructure(
-            Path targetDir, Path commandsDir, Path camelKitDir, Path docsDir, List<Path> createdPaths)
+            Path targetDir, Path camelKitDir, Path docsDir, List<Path> createdPaths)
             throws Exception {
         createDirectory(targetDir, createdPaths);
-        if (commandsDir != null) {
-            createDirectory(commandsDir, createdPaths);
-        }
         createDirectory(camelKitDir, createdPaths);
         createDirectory(docsDir.resolve("flows"), createdPaths);
         createDirectory(camelKitDir.resolve("templates"), createdPaths);

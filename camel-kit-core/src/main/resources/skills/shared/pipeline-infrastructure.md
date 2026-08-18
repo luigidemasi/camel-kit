@@ -1,6 +1,6 @@
 # Pipeline Infrastructure
 
-> **Context:** Shared guide loaded by all pipeline skills (brainstorm, plan, execute, validate, ship).
+> **Context:** Shared guide loaded by all pipeline skills (brainstorm, plan, execute, validate).
 > **Purpose:** Documents conventions for file-based pipeline handoff.
 
 ---
@@ -25,7 +25,6 @@ docs/camel-kit/<PIPELINE_ID>/
   implementation-plan.md   <- written by plan
   execution-report.md      <- written by execute
   validation-report.md     <- written by validate
-  stamp-report.md          <- written by ship (stamp gate)
 ```
 
 All filenames are fixed. The pipeline ID directory provides namespacing.
@@ -46,34 +45,10 @@ Created by brainstorm when starting a new pipeline manually:
 }
 ```
 
-### Ship-Initiated Pipeline
-
-Created by camel-ship when running the autonomous pipeline:
-
-```json
-{
-  "activePipeline": "001-order-processing",
-  "mode": "ship",
-  "started": "2026-05-12T10:00:00Z",
-  "ask": "smart",
-  "currentStage": 0,
-  "stageResults": {
-    "0": {
-      "status": "completed",
-      "artifact": "docs/camel-kit/001-order-processing/design-spec.md",
-      "completedAt": "2026-05-12T10:15:00Z"
-    }
-  },
-  "inputFile": "requirements.md",
-  "fixAttempts": {}
-}
-```
-
 ### Rules
 
 - `activePipeline` and `mode` are always present
 - `mode = "manual"`: skills use `activePipeline` to resolve paths; no stage transition management
-- `mode = "ship"`: camel-ship manages full lifecycle with stage tracking, oversight, and fix attempts
 
 ---
 
@@ -101,8 +76,6 @@ For manual pipelines (`mode = "manual"`), stage is determined by which artifacts
 | `design-spec.md` + `implementation-plan.md` + `execution-report.md` | Execution complete |
 | All four (`+ validation-report.md`) | Pipeline complete |
 
-Ship-initiated pipelines (`mode = "ship"`) use `currentStage` in `pipeline.json` for stage tracking.
-
 ---
 
 ## Creating pipeline.json
@@ -118,8 +91,6 @@ Ship-initiated pipelines (`mode = "ship"`) use `currentStage` in `pipeline.json`
 ```
 
 Create `.camel-kit/` directory if it doesn't exist.
-
-**Ship (autonomous mode):** See `camel-ship/guides/state-management.md` for the full ship-mode schema.
 
 ---
 
@@ -276,7 +247,6 @@ Run `{COMMAND_PREFIX} doc check <file>` and inspect the JSON output. If `stale` 
 
 - **Chained mode:** Warn the user but proceed (the regeneration will produce a fresh artifact)
 - **Standalone mode:** Warn the user and ask whether to proceed with stale input or abort
-- **Ship --resume:** Automatically re-run from the earliest stale stage (see camel-ship)
 
 ### Applying Staleness — Amendments
 

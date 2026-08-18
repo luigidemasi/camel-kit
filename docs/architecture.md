@@ -69,10 +69,10 @@ adapt exact `/camel-*` skill invocations to native `$camel-*` mentions while lea
 | `camel-execute` | No | `camel-plan` (auto-invoked after planning) | Environment probe, dispatch sub-agents per task with two-stage review |
 | `camel-migrate` | No | `camel-start` (migration) | Migration entry point: shortcut into `camel-brainstorm` with project type pre-set |
 | `camel-verify` | No | `camel-execute` (internal sub-agent) | 3-phase runtime verification loop (build, Citrus tests, report) — runs inside execute, not as a standalone pipeline stage |
-| `camel-ship` | No | -- (standalone orchestrator) | Autonomous pipeline — chains brainstorm → plan → execute → validate with configurable oversight |
+| `camel-ship` | No | -- (standalone CLI delegate) | Forwards to the configured local Ship command; the controller owns stages, run state, and oversight |
 | `camel-design` | No | `camel-brainstorm` | Guides for component selection, EIP catalog, and flow design assembly |
 | `camel-implement` | No | `camel-execute` | Guides for YAML generation, properties, Docker Compose, DataMapper |
-| `camel-validate` | No | `camel-ship` (Stage 3) | Tier 1 quality gate: schema validation, endpoint verification, security analysis |
+| `camel-validate` | No | `camel-execute` or direct invocation | Tier 1 quality gate: schema validation, endpoint verification, security analysis |
 | `camel-test` | No | `camel-execute` | Guides for route analysis and test generation with Citrus + Testcontainers |
 | `camel-knowledge` | No | `camel-brainstorm`, `camel-execute` | Routes questions to knowledge MCP tools |
 | `camel-debug` | No | `camel-start` (ad-hoc troubleshooting) | Standalone debugging: STOP → PRESERVE → DIAGNOSE → FIX → GUARD workflow |
@@ -433,7 +433,7 @@ The `/camel-execute` pipeline relies on dispatching discrete units of work to is
 
 Most supported agents use native **sub-agent dispatch** or custom-agent isolation:
 
-- **Claude Code** -- uses the `Agent` tool to spawn fresh sub-agents per task. Each sub-agent receives the task text, relevant design spec section, guide file paths, and MCP parameters. Before implementation, a `catalog-researcher` sub-agent batch-verifies all MCP catalog artifacts (research isolation). After implementation, an Adversarial Code Review dispatches parallel Critic Lanes (Route Architecture, Security, Performance, Boundary Compliance, Behavioral Equivalence) via a Moderator sub-agent, then a spec-compliance reviewer sub-agent checks the design spec, then a code-quality reviewer sub-agent checks constitution compliance. At the Stamp Gate, three reviewers run in parallel (spec, quality, security). Claude uniquely supports **parallel dispatch**: `camel-kit plan analyze` groups tasks into waves using structured plan metadata (`dependsOn`, file overlap, and logical `provides`/`consumes` resources such as endpoints, routes, properties, schemas, test data, beans, external services, and route contracts), then independent tasks are dispatched simultaneously to multiple sub-agents.
+- **Claude Code** -- uses the `Agent` tool to spawn fresh sub-agents per task. Each sub-agent receives the task text, relevant design spec section, guide file paths, and MCP parameters. Before implementation, a `catalog-researcher` sub-agent batch-verifies all MCP catalog artifacts (research isolation). After implementation, an Adversarial Code Review dispatches parallel Critic Lanes (Route Architecture, Security, Performance, Boundary Compliance, Behavioral Equivalence) via a Moderator sub-agent, then a spec-compliance reviewer sub-agent checks the design spec, then a code-quality reviewer sub-agent checks constitution compliance. Claude uniquely supports **parallel dispatch**: `camel-kit plan analyze` groups tasks into waves using structured plan metadata (`dependsOn`, file overlap, and logical `provides`/`consumes` resources such as endpoints, routes, properties, schemas, test data, beans, external services, and route contracts), then independent tasks are dispatched simultaneously to multiple sub-agents.
 
 - **Gemini CLI** -- dispatches via a unified `invoke_subagent` tool to 6 specialized sub-agents. The scheduler natively supports **parallel tool execution** via `Promise.all()` (default-parallel). However, sub-agents cannot invoke other sub-agents (hardcoded `Kind.Agent` filter), so `/camel-execute` runs in the **main agent context** where it can dispatch to all sub-agents. Within-wave parallelism is achieved through the scheduler batching multiple `invoke_subagent` calls.
 
@@ -706,15 +706,13 @@ docs/camel-kit/<PIPELINE_ID>/
   implementation-plan.md   <- plan output
   execution-report.md      <- execute output
   validation-report.md     <- validate output
-  stamp-report.md          <- ship stamp gate output
 ```
 
 ### Pipeline State
 
-`.camel-kit/pipeline.json` tracks the active pipeline:
+`.camel-kit/pipeline.json` tracks the active manual pipeline. Skills resolve `activePipeline` to find the working directory, and stage is detected by artifact presence (spec-kit pattern). It is not Ship run state.
 
-- **Manual mode** (`mode: "manual"`): Skills resolve `activePipeline` to find the working directory. Stage is detected by artifact presence (spec-kit pattern).
-- **Ship mode** (`mode: "ship"`): Full lifecycle tracking with `currentStage`, `stageResults`, oversight level, and fix attempts.
+Ship harness entry points are thin delegates to the configured `camel-kit ship` or `camel kit ship` command. The local controller is the sole writer of Ship state and transitions. Its run records and retained evidence live under `CAMEL_KIT_SHIP_STATE_HOME` when configured, otherwise under `$XDG_STATE_HOME/camel-kit/ship` or `~/.local/state/camel-kit/ship`. This keeps controller state and validation evidence outside the live project.
 
 ### Stage Detection
 
@@ -739,7 +737,7 @@ camel-kit doc stale --reason "design spec was amended" --cascade design-spec.md
 
 Staleness is tracked in structured YAML frontmatter within each artifact (see [camel-kit doc](commands.md#camel-kit-doc) for the full schema and CLI reference). Skills detect staleness by running `camel-kit doc check <file>` and inspecting the JSON output.
 
-When `camel-ship --resume` detects stale artifacts, it automatically re-runs from the earliest stale stage instead of the stored `currentStage`. This ensures the pipeline produces consistent output after upstream amendments.
+For controller-owned runs, `camel-kit ship --resume <run-id>` re-reads recorded inputs and artifacts, compares their digests, and restarts the earliest stale or incomplete controller stage. It does not use manual staleness frontmatter or `.camel-kit/pipeline.json` as its run-state authority.
 
 ### Verify Iteration Log
 

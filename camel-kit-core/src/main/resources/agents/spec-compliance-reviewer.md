@@ -124,5 +124,5 @@ Your focus is singular: **does the output match the spec?** But you approach it 
 ## Composition
 
 - **Invoke directly when:** verifying a single task's output against its design spec section, or re-reviewing after implementer fixes
-- **Invoked via:** `camel-execute` (per-task Stage 1 review), `camel-ship` (cross-cutting spec consistency at Stamp Gate)
+- **Invoked via:** `camel-execute` (per-task Stage 1 review)
 - **Do not invoke from:** another persona (composition depth = 1)

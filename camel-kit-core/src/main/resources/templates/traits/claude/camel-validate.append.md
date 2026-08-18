@@ -50,4 +50,4 @@ When validation finds issues, use `AskUserQuestion` to present findings with act
 
 - For blocking issues: "Fix automatically" / "Fix manually" / "Skip and document"
 - For suggestions: "Apply" / "Decline"
-- This is only relevant in standalone mode — in chained mode, the validation report captures everything and camel-ship applies oversight
+- This is only relevant in standalone mode — in chained mode, `camel-execute` owns the transition

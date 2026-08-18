@@ -32,6 +32,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Ship harness entry points now delegate to the local controller** — `/camel-ship`, `$camel-ship`, and `/skill:camel-ship` forward their arguments to the configured registered `camel-kit ship` or `camel kit ship` command instead of maintaining a prompt-owned workflow. The local controller is the sole owner of Ship stages, run state, evidence, oversight, and guarded publication.
+  - Existing generated workspaces must be regenerated with the same command surface and agent, using `camel-kit init --here --ai <same-agent> --force` or `camel kit init --here --ai <same-agent> --force`; commit or back up workspace customizations first because `--force` rewrites generated configuration, instructions, skills, and templates
+  - Initialization aborts up front — before writing any project files — when a managed agent path (for example a symlinked `.claude` or `.bob` from a dotfiles setup) is a symbolic link; the error names the link. Replace the link with a real directory before running the upgrade command
+  - IBM Bob and Bob 2 Ship commands forward the invocation options in prose because IBM Bob documents only positional `$1`/`$2` command placeholders; Gemini and Qwen Ship commands interpolate their documented `{{args}}` placeholder
+  - Re-initialization removes obsolete Ship guides, harness traits, and Bob 2 Ship mode/rule assets
+  - Pre-controller `.camel-kit/ship-state.json` and non-manual `.camel-kit/pipeline.json` state is intentionally not resumable and must be archived outside the project before starting Ship; manual-mode `.camel-kit/pipeline.json` remains supported by standalone pipeline skills and validated `--start-from` imports
+  - GitHub Copilot CLI uses native project skills under `.github/skills/` without generating unsupported `.github/commands/`; older command files are inert and may be removed after preserving local edits
+  - Pi exposes Ship through `/skill:camel-ship` and removes the older `.pi/prompts/camel-ship.md` alias, whose argument expansion could flatten quoted option values
+
 - **Default Camel version updated to 4.21.0** — Camel Main and Spring Boot runtimes now default to Camel `4.21.0`, with the Spring Boot framework mapped to `4.1.0` (`spring.boot.4.21.0=4.1.0`, matching camel-parent 4.21.0). Supported version lists for Main and Spring Boot move to `4.21.0, 4.18.3, 4.14.7` (LTS fix release 4.18.3 maps to Spring Boot `3.5.16`).
   - Camel MCP server now pinned to the released `4.21.0` instead of `4.21.0-SNAPSHOT`
   - Compiled-in fallback defaults in `DistributionConfig` kept in lockstep with `distribution.properties`
@@ -341,9 +350,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`camel-implement` — Route validation with MCP** — replaced Maven YAML DSL Validator with MCP `camel_validate_route` tool; validates all endpoint URIs against Camel catalog in real-time
 
-- **`/camel-ship` — autonomous end-to-end pipeline with configurable oversight** — new skill that chains the entire camel-kit pipeline (brainstorm → plan → execute → verify → stamp) with three oversight levels: `always` (pause at every stage), `smart` (auto-proceed on clear outcomes, pause on ambiguity), `never` (fully autonomous). State persistence via `.camel-kit/ship-state.json` for `--resume` and `--start-from`. Auto-fix loop: classify → fix → re-verify, max 3 rounds then escalate. Stamp gate: build, tests, Iron Laws, constitution, acceptance criteria.
-
-- **Agent traits system — build-time append of agent-specific instructions** — `applyTraits()` method in `DefaultGenerator` scans `templates/traits/{agent}/` and appends `.append.md` files to matching skill files during `camel-kit init`. Two granularity levels: SKILL.md-level (strategy) and guide-level (tactics). 24 trait files across 5 agents: Claude Code (worktrees, cron, parallel Agent), Gemini CLI (read_many_files, TOML auto-approval), IBM Bob (switch_mode, gates), Qwen Code (serial dispatch, todo_write), OpenCode (LSP, step limits). Idempotent via HTML comment sentinels (`<!-- TRAIT:agent -->`).
+- **Agent traits system — build-time append of agent-specific instructions** — `applyTraits()` in `DefaultGenerator` scans `templates/traits/{agent}/` and appends skill- or guide-level `.append.md` files during `camel-kit init`. Traits are idempotent through HTML comment sentinels (`<!-- TRAIT:agent -->`).
 
 ### Changed
 

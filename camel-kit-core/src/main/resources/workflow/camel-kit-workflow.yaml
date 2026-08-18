@@ -62,9 +62,12 @@ commands:
     generated_stub: true
     user_facing: true
     tier: utility
-    description: "Run the full pipeline autonomously with configurable oversight."
+    description: "Delegate Ship workflow execution to the registered Camel-Kit CLI command."
     standalone: true
     chained: false
+    # Pi prompt-file argument expansion flattens quoted option values; Pi exposes Ship
+    # only through its quote-preserving native skill and gets no generated command stub.
+    skill_only_agents: [pi]
   - name: camel-knowledge
     aliases: [knowledge]
     skill: camel-knowledge
@@ -196,14 +199,6 @@ stages:
     inputs: [routes, execution-report, verification-report]
     outputs: [validation-report]
     transitions: []
-  - id: ship
-    skill: camel-ship
-    kind: autonomous-orchestration
-    standalone: true
-    chained: false
-    inputs: [user-request, pipeline-state]
-    outputs: [pipeline-artifacts]
-    transitions: [brainstorm, migrate, plan, execute, validate]
   - id: debug
     skill: camel-debug
     kind: troubleshooting
@@ -241,7 +236,7 @@ artifacts:
   - id: validation-report
     path: docs/camel-kit/<pipeline-id>/validation-report.md
     produced_by: [camel-validate]
-    consumed_by: [camel-ship]
+    consumed_by: []
 
 mcp_servers:
   - id: camel

@@ -175,28 +175,6 @@ class DefaultGeneratorTest {
     }
 
     @Test
-    void generatesShipCommand() throws Exception {
-        InitContext ctx = createContext("bob");
-        new DefaultGenerator().generate(ctx);
-
-        assertTrue(Files.exists(ctx.commandsDir().resolve("camel-ship.md")));
-        String content = Files.readString(ctx.commandsDir().resolve("camel-ship.md"));
-        assertTrue(content.contains("SKILL.md"));
-    }
-
-    @Test
-    void copiesShipSkill() throws Exception {
-        InitContext ctx = createContext("bob");
-        new DefaultGenerator().generate(ctx);
-
-        assertTrue(Files.exists(ctx.skillsDir().resolve("camel-ship/SKILL.md")));
-        assertTrue(Files.isDirectory(ctx.skillsDir().resolve("camel-ship/guides")));
-        assertTrue(Files.exists(ctx.skillsDir().resolve("camel-ship/guides/oversight-matrix.md")));
-        assertTrue(Files.exists(ctx.skillsDir().resolve("camel-ship/guides/state-management.md")));
-        assertTrue(Files.exists(ctx.skillsDir().resolve("camel-ship/guides/auto-fix-loop.md")));
-    }
-
-    @Test
     void generatesDebugCommand() throws Exception {
         InitContext ctx = createContext("bob");
         new DefaultGenerator().generate(ctx);

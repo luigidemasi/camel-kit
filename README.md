@@ -28,7 +28,7 @@ Greenfield:   /camel-brainstorm → /camel-plan → /camel-execute → /camel-va
 Migration:    /camel-migrate    → /camel-plan → /camel-execute → /camel-validate
 
 Utilities:    /camel-validate      (endpoint validation only)
-              /camel-ship          (autonomous full pipeline with oversight levels)
+              /camel-ship          (delegate to the local Ship controller)
               /camel-knowledge     (documentation Q&A)
               /camel-debug         (standalone troubleshooting)
 ```
@@ -42,7 +42,7 @@ Utilities:    /camel-validate      (endpoint validation only)
 | `/camel-execute` | Orchestrated execution — environment probe, then implements, validates, tests, and verifies all flows |
 | `/camel-validate` | Standalone endpoint validation — checks component configuration without full implementation |
 | `/camel-debug` | Standalone troubleshooting for broken routes, build failures, startup errors, and runtime exceptions |
-| `/camel-ship` | Autonomous pipeline — runs brainstorm, plan, execute, and validate end-to-end with configurable oversight (`always`, `smart`, `never`) |
+| `/camel-ship` | Thin harness entry point for the local Ship controller, which owns the end-to-end run and configurable oversight (`always`, `smart`, `never`) |
 | `/camel-knowledge` | Documentation Q&A — semantic search over Apache Camel docs, CVEs, errata, and component catalog |
 
 [Command Reference →](docs/commands.md)
@@ -183,7 +183,7 @@ All agents use the same skills — camel-kit generates agent-specific instructio
 ### Pipeline
 
 - **3-phase orchestrated pipeline** — brainstorm the design, plan the implementation, execute with environment probe and automated review. [Learn more →](docs/user-guide.md)
-- **Autonomous mode** — `/camel-ship` runs the full pipeline end-to-end with three oversight levels: `always` (pause at every gate), `smart` (pause on uncertainty), `never` (fully autonomous with re-planning). [Learn more →](docs/commands.md)
+- **Local Ship controller** — `/camel-ship` delegates to the configured `camel-kit ship` or `camel kit ship` command. The controller, rather than the AI harness, owns run state, stage transitions, validation evidence, and guarded publication, with `always`, `smart`, and `never` oversight. [Learn more →](docs/commands.md#camel-ship)
 - **Environment probe** — validates the target environment (dependency resolution, Docker services, runtime startup) before implementation begins. Mechanical failures are auto-fixed; architectural failures trigger re-planning. [Learn more →](docs/architecture.md)
 - **Wave analysis** — the plan analyzer uses structured task metadata, logical dependencies, and file overlap to group independent tasks into parallel execution waves.
 - **Deterministic staleness detection** — `doc check`, `doc stale`, and `doc unstale` CLI commands manage pipeline artifact validity via structured YAML frontmatter, with `--cascade` for automatic downstream propagation. [Learn more →](docs/commands.md)

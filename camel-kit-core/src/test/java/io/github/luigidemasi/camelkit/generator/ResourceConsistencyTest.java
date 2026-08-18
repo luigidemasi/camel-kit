@@ -151,6 +151,7 @@ class ResourceConsistencyTest {
             }
 
             Set<String> expectedCommands = WorkflowManifestLoader.loadDefault().generatedCommandStubs().stream()
+                    .filter(command -> !command.isSkillOnly(agentName))
                     .map(command -> command.name())
                     .collect(Collectors.toCollection(LinkedHashSet::new));
 

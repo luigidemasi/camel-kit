@@ -27,6 +27,7 @@ public record InitRequest(
         Objects.requireNonNull(projectName, "projectName");
         Objects.requireNonNull(agentName, "agentName");
         Objects.requireNonNull(targetDir, "targetDir");
+        targetDir = targetDir.toAbsolutePath().normalize();
         Objects.requireNonNull(citrusVersion, "citrusVersion");
         Objects.requireNonNull(commandPrefix, "commandPrefix");
         Objects.requireNonNull(defaultCitrusVersion, "defaultCitrusVersion");
