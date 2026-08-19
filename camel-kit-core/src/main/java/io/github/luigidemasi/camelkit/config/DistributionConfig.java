@@ -4,6 +4,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -52,6 +53,7 @@ public class DistributionConfig {
     private final String citrusMcpRepos;
     private final String camelCatalogRepos;
     private final String piVersion;
+    private final String piSupported;
     private final String nodeVersion;
     private final String piMcpAdapterVersion;
     private final int overrideCount;
@@ -78,6 +80,7 @@ public class DistributionConfig {
         this.camelCatalogRepos = props.getProperty("camel.catalog.repos",
                 "https://repo1.maven.org/maven2/,https://repository.apache.org/snapshots");
         this.piVersion = props.getProperty("pi.version", DEFAULT_PI_VERSION);
+        this.piSupported = props.getProperty("pi.supported", this.piVersion);
         this.nodeVersion = props.getProperty("node.version", DEFAULT_NODE_VERSION);
         this.piMcpAdapterVersion = props.getProperty("pi.mcp.adapter.version", DEFAULT_PI_MCP_ADAPTER_VERSION);
         this.overrideCount = overrideCount;
@@ -364,6 +367,14 @@ public class DistributionConfig {
 
     public String piVersion() {
         return piVersion;
+    }
+
+    /** Certified Pi versions; the first entry is the primary install target. */
+    public List<String> piSupportedVersions() {
+        return Arrays.stream(piSupported.split(","))
+                .map(String::trim)
+                .filter(version -> !version.isEmpty())
+                .toList();
     }
 
     public String nodeVersion() {

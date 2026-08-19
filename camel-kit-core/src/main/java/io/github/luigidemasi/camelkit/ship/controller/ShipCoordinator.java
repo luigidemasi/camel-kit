@@ -90,7 +90,7 @@ public final class ShipCoordinator {
         DistributionConfig maintained = DistributionConfig.loadBundled();
         this.worker = new PiWorker(
                 piExecutable,
-                maintained.piVersion(),
+                maintained.piSupportedVersions(),
                 nodeExecutable,
                 maintained.nodeVersion(),
                 timeout,

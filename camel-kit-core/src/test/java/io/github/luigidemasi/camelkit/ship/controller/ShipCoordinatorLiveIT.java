@@ -156,8 +156,8 @@ class ShipCoordinatorLiveIT {
                 stamp.toolVersions().stream()
                         .map(ShipLocalStamp.ToolVersion::tool)
                         .toList());
-        assertEquals(distribution.piVersion(),
-                stamp.toolVersions().get(0).version());
+        assertTrue(distribution.piSupportedVersions()
+                .contains(stamp.toolVersions().get(0).version()));
         assertEquals(
                 pi.toRealPath().toString(),
                 stamp.toolVersions().get(0).executable());

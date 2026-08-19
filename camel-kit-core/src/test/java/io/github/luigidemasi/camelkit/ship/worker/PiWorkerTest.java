@@ -225,7 +225,7 @@ class PiWorkerTest {
                         """);
         PiWorker blocked = new PiWorker(
                 executable,
-                "0.83.0",
+                List.of("0.83.0"),
                 blockingNode,
                 "22.22.2",
                 Duration.ofSeconds(30));
@@ -725,7 +725,7 @@ class PiWorkerTest {
 
         PiWorker.Result result = new PiWorker(
                 wrapper,
-                "0.83.0",
+                List.of("0.83.0"),
                 nodeExecutable,
                 "22.22.2",
                 Duration.ofSeconds(5),
@@ -913,6 +913,22 @@ class PiWorkerTest {
     }
 
     @Test
+    void supportsEveryCertifiedPiVersion() throws Exception {
+        PiWorker.Result result = new PiWorker(
+                executable,
+                List.of("0.84.2", "0.83.0"),
+                nodeExecutable,
+                "22.22.2",
+                Duration.ofSeconds(5))
+                .run(request(ShipRun.Stage.DISCOVERY, "prompt"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
+        assertEquals(ShipLocalStamp.Support.SUPPORTED, result.support());
+        assertEquals("0.83.0", result.version());
+        assertNull(result.warning());
+    }
+
+    @Test
     void reportsVersionCompatibilityAndExecutableGuidance() throws Exception {
         Files.writeString(fixture.resolve("version"), "0.81.1\n");
 
@@ -954,7 +970,7 @@ class PiWorkerTest {
                 IllegalArgumentException.class,
                 () -> new PiWorker(
                         temporaryDirectory.resolve("missing-pi"),
-                        "0.83.0",
+                        List.of("0.83.0"),
                         nodeExecutable,
                         "22.22.2",
                         Duration.ofSeconds(5)));
@@ -970,7 +986,7 @@ class PiWorkerTest {
 
         PiWorker.Result result = new PiWorker(
                 symlink,
-                "0.83.0",
+                List.of("0.83.0"),
                 nodeExecutable,
                 "22.22.2",
                 Duration.ofSeconds(5))
@@ -2044,7 +2060,7 @@ class PiWorkerTest {
                 result,
                 new PiWorker(
                         otherExecutable,
-                        "0.83.0",
+                        List.of("0.83.0"),
                         nodeExecutable,
                         "22.22.2",
                         Duration.ofSeconds(5))
@@ -2242,7 +2258,7 @@ class PiWorkerTest {
     private PiWorker worker(Duration timeout) {
         return new PiWorker(
                 executable,
-                "0.83.0",
+                List.of("0.83.0"),
                 nodeExecutable,
                 "22.22.2",
                 timeout);
@@ -2252,7 +2268,7 @@ class PiWorkerTest {
             Duration timeout, Map<String, String> environment) {
         return new PiWorker(
                 executable,
-                "0.83.0",
+                List.of("0.83.0"),
                 nodeExecutable,
                 "22.22.2",
                 timeout,

@@ -123,7 +123,7 @@ class ShipCoordinatorTest {
                 environment);
         worker = new PiWorker(
                 fixture.resolve("pi-rpc"),
-                distribution.piVersion(),
+                List.of(distribution.piVersion()),
                 nodeExecutable,
                 distribution.nodeVersion(),
                 Duration.ofSeconds(30),

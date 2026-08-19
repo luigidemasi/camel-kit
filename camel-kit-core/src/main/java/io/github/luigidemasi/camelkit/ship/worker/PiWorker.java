@@ -103,7 +103,7 @@ public final class PiWorker {
             .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
 
     private final Path executable;
-    private final String supportedVersion;
+    private final List<String> supportedVersions;
     private final Path nodeExecutable;
     private final String supportedNodeVersion;
     private final Duration timeout;
@@ -113,13 +113,13 @@ public final class PiWorker {
 
     public PiWorker(
                     Path executable,
-                    String supportedVersion,
+                    List<String> supportedVersions,
                     Path nodeExecutable,
                     String supportedNodeVersion,
                     Duration timeout) {
         this(
              executable,
-             supportedVersion,
+             supportedVersions,
              nodeExecutable,
              supportedNodeVersion,
              timeout,
@@ -128,14 +128,14 @@ public final class PiWorker {
 
     public PiWorker(
                     Path executable,
-                    String supportedVersion,
+                    List<String> supportedVersions,
                     Path nodeExecutable,
                     String supportedNodeVersion,
                     Duration timeout,
                     Map<String, String> environment) {
         this(
              executable,
-             supportedVersion,
+             supportedVersions,
              nodeExecutable,
              supportedNodeVersion,
              timeout,
@@ -145,14 +145,20 @@ public final class PiWorker {
 
     PiWorker(
              Path executable,
-             String supportedVersion,
+             List<String> supportedVersions,
              Path nodeExecutable,
              String supportedNodeVersion,
              Duration timeout,
              Clock clock,
              Map<String, String> environment) {
         this.executable = requireExecutable(executable, "Pi");
-        this.supportedVersion = requireVersion(supportedVersion, "supported Pi version");
+        Objects.requireNonNull(supportedVersions, "supported Pi versions");
+        if (supportedVersions.isEmpty()) {
+            throw new IllegalArgumentException("supported Pi versions must not be empty");
+        }
+        this.supportedVersions = supportedVersions.stream()
+                .map(version -> requireVersion(version, "supported Pi version"))
+                .toList();
         this.nodeExecutable = requireExecutable(nodeExecutable, "Node");
         this.supportedNodeVersion = requireVersion(
                 supportedNodeVersion, "supported Node version");
@@ -273,17 +279,17 @@ public final class PiWorker {
             if ("0.80.3".equals(detectedVersion)) {
                 throw new IOException(
                         "Pi 0.80.3 lacks the required settled RPC event; install the maintained Pi "
-                                      + supportedVersion);
+                                      + supportedVersions.get(0));
             }
             ShipLocalStamp.Support support
-                    = detectedVersion.equals(supportedVersion)
+                    = supportedVersions.contains(detectedVersion)
                             ? ShipLocalStamp.Support.SUPPORTED
                             : ShipLocalStamp.Support.EXPERIMENTAL;
             String warning = support == ShipLocalStamp.Support.SUPPORTED
                     ? null
                     : "Pi " + detectedVersion
                       + " is unverified; install maintained Pi "
-                      + supportedVersion;
+                      + supportedVersions.get(0);
             String experimentalWarning = warning == null
                     ? nodeWarning
                     : nodeWarning == null
