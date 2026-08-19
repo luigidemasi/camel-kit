@@ -369,7 +369,12 @@ public class DistributionConfig {
         return piVersion;
     }
 
-    /** Certified Pi versions; the first entry is the primary install target. */
+    /**
+     * Certified Pi versions; the first entry is the primary install target and must match {@link #piVersion()} — the
+     * bundled ordering invariant is pinned by DistributionConfigTest, and overrides of the two properties must stay
+     * consistent. Unlike the sibling raw-string supported accessors, this returns a parsed list because the Ship worker
+     * needs list membership and positional access rather than template interpolation.
+     */
     public List<String> piSupportedVersions() {
         return Arrays.stream(piSupported.split(","))
                 .map(String::trim)

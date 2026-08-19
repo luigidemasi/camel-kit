@@ -439,11 +439,16 @@ class PiWorkerTest {
     void rejectsSensitiveVersionDiagnosticsBeforePublication()
             throws Exception {
         Files.writeString(fixture.resolve("version"), "0.81.1\n");
-        String secret = "Pi 0.81.1 is unverified; install maintained Pi 0.83.0";
+        String secret = "Pi 0.81.1 is unverified; install maintained Pi 0.84.2";
         PiWorker.Request request = request(
                 ShipRun.Stage.DISCOVERY, "prompt");
-        PiWorker worker = worker(
-                Duration.ofSeconds(5), Map.of("API_TOKEN", secret));
+        PiWorker worker = new PiWorker(
+                executable,
+                List.of("0.84.2", "0.83.0"),
+                nodeExecutable,
+                "22.22.2",
+                Duration.ofSeconds(5),
+                Map.of("API_TOKEN", secret));
 
         IOException failure = assertThrows(
                 IOException.class,
@@ -914,7 +919,34 @@ class PiWorkerTest {
 
     @Test
     void supportsEveryCertifiedPiVersion() throws Exception {
-        PiWorker.Result result = new PiWorker(
+        List<String> certified = List.of("0.84.2", "0.83.0");
+        List<ShipRun.Stage> stages = List.of(ShipRun.Stage.DISCOVERY, ShipRun.Stage.DESIGN);
+        for (int i = 0; i < certified.size(); i++) {
+            String version = certified.get(i);
+            Files.writeString(fixture.resolve("version"), version + "\n");
+            Files.deleteIfExists(fixture.resolve("args"));
+            Files.deleteIfExists(fixture.resolve("prompt"));
+
+            PiWorker.Result result = new PiWorker(
+                    executable,
+                    certified,
+                    nodeExecutable,
+                    "22.22.2",
+                    Duration.ofSeconds(5))
+                    .run(request(stages.get(i), "prompt"));
+
+            assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome(), version);
+            assertEquals(ShipLocalStamp.Support.SUPPORTED, result.support(), version);
+            assertEquals(version, result.version());
+            assertNull(result.warning(), version);
+        }
+    }
+
+    @Test
+    void experimentalWarningNamesThePrimaryCertifiedVersion() throws Exception {
+        Files.writeString(fixture.resolve("version"), "0.81.1\n");
+
+        PiWorker.Result experimental = new PiWorker(
                 executable,
                 List.of("0.84.2", "0.83.0"),
                 nodeExecutable,
@@ -922,10 +954,8 @@ class PiWorkerTest {
                 Duration.ofSeconds(5))
                 .run(request(ShipRun.Stage.DISCOVERY, "prompt"));
 
-        assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
-        assertEquals(ShipLocalStamp.Support.SUPPORTED, result.support());
-        assertEquals("0.83.0", result.version());
-        assertNull(result.warning());
+        assertEquals(ShipLocalStamp.Support.EXPERIMENTAL, experimental.support());
+        assertTrue(experimental.warning().contains("install maintained Pi 0.84.2"));
     }
 
     @Test

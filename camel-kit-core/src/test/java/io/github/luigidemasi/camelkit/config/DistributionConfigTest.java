@@ -167,6 +167,8 @@ class DistributionConfigTest {
 
         assertEquals("0.84.2", config.piVersion());
         assertEquals(List.of("0.84.2", "0.83.0"), config.piSupportedVersions());
+        assertEquals(config.piVersion(), config.piSupportedVersions().get(0),
+                "the bundled primary pi.version must be the first pi.supported entry");
         assertEquals("22.22.2", config.nodeVersion());
         assertEquals(0, config.overrideCount());
     }
