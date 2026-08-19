@@ -799,7 +799,7 @@ class ShipCommandTest {
         assertEquals(1, result.exitCode(), result.error());
         String id = runId(result.output());
         String message = "Pi stage could not run: Pi 0.81.1 is unverified; "
-                         + "install maintained Pi 0.83.0; explicitly accept experimental Pi "
+                         + "install maintained Pi 0.84.2; explicitly accept experimental Pi "
                          + "or Node before starting the stage";
         assertEquals(summary(
                 id,

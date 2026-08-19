@@ -108,7 +108,7 @@ class ShipCoordinatorTest {
                         fi
                         """);
         Files.writeString(fixture.resolve("node-version"), "v22.22.2\n");
-        Files.writeString(fixture.resolve("version"), "0.83.0\n");
+        Files.writeString(fixture.resolve("version"), "0.84.2\n");
         Files.writeString(fixture.resolve("mode"), "success\n");
         writeDesignResult();
 
@@ -163,10 +163,10 @@ class ShipCoordinatorTest {
 
         assertEquals(RunStatus.FAILED, piFailed.status());
         assertTrue(piFailed.message().contains(
-                "Pi 0.81.1 is unverified; install maintained Pi 0.83.0"));
+                "Pi 0.81.1 is unverified; install maintained Pi 0.84.2"));
         assertFalse(Files.exists(fixture.resolve("args")));
 
-        Files.writeString(fixture.resolve("version"), "0.83.0\n");
+        Files.writeString(fixture.resolve("version"), "0.84.2\n");
         Files.writeString(fixture.resolve("node-version"), "v23.0.0\n");
         ShipRun unmaintainedNode = controller.start(
                 project,

@@ -98,7 +98,7 @@ class DistributionConfigTest {
         assertEquals("central=https://repo1.maven.org/maven2/", config.citrusMcpRepos());
         assertEquals("https://repo1.maven.org/maven2/,https://repository.apache.org/snapshots",
                 config.camelCatalogRepos());
-        assertEquals("0.83.0", config.piVersion());
+        assertEquals("0.84.2", config.piVersion());
         assertEquals("22.22.2", config.nodeVersion());
         assertEquals("2.11.0", config.piMcpAdapterVersion());
     }
@@ -163,7 +163,7 @@ class DistributionConfigTest {
     void bundledBaselineLoadsMaintainedWorkerVersionsWithoutOverrides() {
         DistributionConfig config = DistributionConfig.loadBundled();
 
-        assertEquals("0.83.0", config.piVersion());
+        assertEquals("0.84.2", config.piVersion());
         assertEquals("22.22.2", config.nodeVersion());
         assertEquals(0, config.overrideCount());
     }
