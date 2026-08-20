@@ -78,13 +78,15 @@ class CamelYamlCatalogUsageExtractorTest {
     }
 
     @Test
-    void rejectsDottedSimpleLookupKeysThatCamelCouldExecuteAsOgnl() throws Exception {
+    void acceptsDottedSimpleLookupsAndLeavesSyntaxToCamel() throws Exception {
+        // The extractor no longer re-implements Simple syntax; dotted OGNL-style
+        // lookups pass the bounded gate here and the sandboxed camel-main startup
+        // remains the authority (it rejects them without the bean language).
         for (String expression : List.of(
                 "${header.control.stop}",
                 "${exchangeProperty.control.stop}",
                 "${exchangeProperties.clear}",
-                "${exchangeProperties.size}",
-                "${exchangeProperties.toString}",
+                "${body.class}",
                 "${variable.control.stop}")) {
             Path route = write(String.format(Locale.ROOT, """
                     - route:
@@ -96,7 +98,7 @@ class CamelYamlCatalogUsageExtractorTest {
                                 simple: "%s"
                     """, expression));
 
-            assertThrows(IOException.class, () -> extractor().extract(route, available()), expression);
+            assertFalse(extractor().extract(route, available()).isEmpty(), expression);
             Files.delete(route);
         }
     }
@@ -131,8 +133,7 @@ class CamelYamlCatalogUsageExtractorTest {
                 "language:\n  language: simple\n  expression: [accepted-order]",
                 "language:\n  language: simple\n  expression: accepted-order\n  trim: true",
                 "language:\n  language: simple\n  expression: accepted-order\nsimple: hidden",
-                "Language:\n  language: simple\n  expression: accepted-order",
-                "language:\n  language: simple\n  expression: \"${body.class}\"")) {
+                "Language:\n  language: simple\n  expression: accepted-order")) {
             Path route = expressionRoute(expression);
 
             assertThrows(IOException.class, () -> extractor().extract(route, available()), expression);

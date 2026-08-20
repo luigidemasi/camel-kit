@@ -1,7 +1,5 @@
 package io.github.luigidemasi.camelkit.ship.expression;
 
-import java.util.List;
-
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -10,294 +8,70 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ShipExpressionPolicyTest {
 
     @Test
-    void acceptsOnlyExactSimpleYamlSelectors() {
-        assertTrue(ShipExpressionPolicy.isDirectSimpleSelector("simple"));
-        assertTrue(ShipExpressionPolicy.isGenericSimpleSelector("language", "simple"));
-
-        for (String selector : List.of(
-                "Simple", "SIMPLE", "simple-", "simple_", "constant", "csimple", "method", "java",
-                "jsonpath", "xpath", "\"simple\"", "!!str simple")) {
-            assertFalse(ShipExpressionPolicy.isDirectSimpleSelector(selector), selector);
-        }
-        for (String selector : List.of(
-                "", " simple", "simple ", "simple\n",
-                "s" + scalar(0x0456) + "mple",
-                scalar(0xff53) + "imple",
-                "sim" + scalar(0x200b) + "ple")) {
-            assertFalse(ShipExpressionPolicy.isDirectSimpleSelector(selector), selector);
-        }
-        assertFalse(ShipExpressionPolicy.isDirectSimpleSelector(null));
-        assertFalse(ShipExpressionPolicy.isGenericSimpleSelector(null, "simple"));
-        assertFalse(ShipExpressionPolicy.isGenericSimpleSelector("language", null));
-        assertFalse(ShipExpressionPolicy.isGenericSimpleSelector("Language", "simple"));
-        assertFalse(ShipExpressionPolicy.isGenericSimpleSelector("language", "Simple"));
-        assertFalse(ShipExpressionPolicy.isGenericSimpleSelector("simple", "simple"));
-    }
-
-    @Test
-    void acceptsClosedTemplateSurface() {
-        for (String expression : List.of(
+    void acceptsRealSimpleTemplatesAndPredicates() {
+        for (String value : new String[]{
                 "",
-                "literal text",
-                "ordinary Unicode: café 漢字 😀",
-                "C++ and regex are literal template text",
+                "plain literal text",
+                "città ${body}",
                 "${body}",
-                "${routeId}",
-                "${exchangeId}",
-                "${messageTimestamp}",
-                "${header.request-id}",
-                "${header.size}",
-                "${header.-}",
-                "${header._}",
-                "${header.0}",
-                "${header.A0_-}",
-                "${headers.request_id}",
-                "${exchangeProperty.correlationId}",
-                "${variable.route-key}",
-                "${variable.length}",
-                "${variables.route_key}",
-                "${header.first}${header.second}",
-                "Order is ${header.order-id}; route is ${routeId}",
-                "Status : ${header.status}",
-                "Question ? ${body}",
-                "${body} ? 'yes' : 'no'",
-                "C}++suffix")) {
-            assertTrue(ShipExpressionPolicy.isSafeSimpleTemplate(expression), expression);
+                "${bodyAs(String)}",
+                "${date:now:yyyyMMdd}",
+                "${header.CamelFileName}",
+                "${exchangeProperty.orderId}-${routeId}",
+                "${body} == 'expected'",
+                "${bodyAs(String)} =~ 'a.*b'",
+                "${header.count}>5",
+                "${body} != null && ${header.retries} <= 3 || ${variable.done} == true",
+                // Backslash escape sequences are plain text to this gate; any runtime
+                // expansion is Camel's, exercised by the sandboxed VALIDATE startup.
+                "line\\nfeed",
+                // A closing marker without its $init{ opener is inert literal text.
+                "orphan }init$ marker"}) {
+            assertTrue(ShipExpressionPolicy.isSafeSimple(value), value);
         }
     }
 
     @Test
-    void rejectsDynamicTemplateSurfacesOutsideTheAllowlist() {
-        for (String expression : List.of(
-                "${}",
-                "${header.}",
-                "${header.foo.bar}",
-                "${header.foo[0]}",
-                "${header(foo)}",
-                "${header.na" + scalar(0x043c) + "e}",
-                "${headers}",
-                "${headers.size}",
-                "${headers.length}",
-                "${exchangeProperties.foo}",
-                "${body.foo}",
-                "${variables.size}",
-                "${variables.length}",
-                "${bean:service}",
-                "${ref:service}",
-                "${type:java.lang.Runtime}",
-                "${sys.user.home}",
-                "${file:name}",
-                "${date:now}",
-                "${header.foo",
-                "${${body}}",
+    void acceptsTheExactByteBoundAndRejectsOneOver() {
+        String bounded = "x".repeat(16_384);
+
+        assertTrue(ShipExpressionPolicy.isSafeSimple(bounded));
+        assertFalse(ShipExpressionPolicy.isSafeSimple(bounded + "x"));
+        // Multi-byte text is bounded by encoded size, not char count: 8192 two-byte
+        // characters fill the budget exactly.
+        String twoByte = "è".repeat(8_192);
+        assertTrue(ShipExpressionPolicy.isSafeSimple(twoByte));
+        assertFalse(ShipExpressionPolicy.isSafeSimple(twoByte + "è"));
+    }
+
+    @Test
+    void rejectsControlFormatAndMalformedText() {
+        for (String value : new String[]{
+                null,
+                "line\nbreak",
+                "nul\u0000byte",
+                "del\u007fchar",
+                "c1\u0085control",
+                "line\u2028separator",
+                "para\u2029separator",
+                "zero\u200bwidth",
+                "bidi\u202eoverride",
+                "soft\u00adhyphen",
+                "tag\udb40\udc41char",
+                "lone\ud800surrogate",
+                "lone\udc00low"}) {
+            assertFalse(ShipExpressionPolicy.isSafeSimple(value), String.valueOf(value));
+        }
+    }
+
+    @Test
+    void rejectsIndirectExpansion() {
+        for (String value : new String[]{
                 "$simple{body}",
-                "$init{ int x = 1 }init$",
-                "{{secret}}",
-                "literal }} text",
-                "escaped\\ntext",
-                "escaped\\rtext",
-                "escaped\\ttext",
-                "escaped\\}text",
-                "${body}++",
-                "${body}--",
-                "${body}++ suffix",
-                "${body}-- suffix",
-                "${body}}++",
-                "${body}text}--",
-                "${body} ?: fallback",
-                "${body} ~> ${header.next}",
-                "${body}~> ${header.next}",
-                "${body} ?~> ${header.next}",
-                "${body}?~> ${header.next}",
-                "before ${body} after ${bean:service}")) {
-            assertFalse(ShipExpressionPolicy.isSafeSimpleTemplate(expression), expression);
+                "prefix $init{x} suffix",
+                "{{app.secret}}",
+                "closing }} marker"}) {
+            assertFalse(ShipExpressionPolicy.isSafeSimple(value), value);
         }
-        assertFalse(ShipExpressionPolicy.isSafeSimpleTemplate(null));
-    }
-
-    @Test
-    void acceptsOnlyTheClosedPredicateGrammar() {
-        for (String operator : List.of(
-                "==", "!=", "=~", "!=~", "<", "<=", ">", ">=",
-                "contains", "!contains", "startsWith", "!startsWith", "endsWith", "!endsWith")) {
-            assertTrue(
-                    ShipExpressionPolicy.isSafeSimplePredicate("${header.value} " + operator + " 'target'"),
-                    operator);
-        }
-
-        for (String expression : List.of(
-                "${header.score} >= -1.5",
-                "${header.enabled} == true",
-                "${header.disabled} == false",
-                "${header.optional} == null",
-                "${header.left} == ${exchangeProperty.right}",
-                "${body} == ''",
-                "${body} contains 'order' && ${header.confidence} >= 0.8",
-                "${header.first} == 'a' && ${header.second} != 'b' && ${routeId} == 'route-a'",
-                "${header.first} == 'a' || ${header.second} != 'b' || ${routeId} == 'route-a'",
-                "${body} == 'the words is, regex, and contains are data here'")) {
-            assertTrue(ShipExpressionPolicy.isSafeSimplePredicate(expression), expression);
-        }
-    }
-
-    @Test
-    void rejectsEveryUnapprovedPredicateSurface() {
-        for (String operator : List.of(
-                "~~", "!~~", "regex", "!regex", "not regex", "is", "!is", "not is",
-                "in", "!in", "not in", "range", "!range", "not range", "not contains",
-                "starts with", "ends with", "=", "===", "!==", "<>", "and", "or", "not",
-                "matches", "containsx", "StartsWith")) {
-            assertFalse(
-                    ShipExpressionPolicy.isSafeSimplePredicate("${body} " + operator + " 'value'"),
-                    operator);
-        }
-
-        for (String expression : List.of(
-                "",
-                "true",
-                "${header.enabled}",
-                "${body} == value",
-                "${body} == \"a value\"",
-                "${body}=='value'",
-                " ${body} == 'value'",
-                "${body}  == 'value'",
-                "${body} ==  'value'",
-                "${body} == 'value' ",
-                "${body} == 'unterminated",
-                "${body} == 'escaped\\'value'",
-                "${body} == '${bean:service}'",
-                "${body} == '$simple{body}'",
-                "${body} == '$init{x}init$'",
-                "${body} == '{{secret}}'",
-                "${body} == 'escaped\\nvalue'",
-                "${body} == 'value' && true",
-                "${body} == 'value' && ${header.other}",
-                "${body} == 'value' &&",
-                "${header.first} == 'a' || ${header.second} != 'b' && ${routeId} == 'route-a'",
-                "(${body} == 'value')",
-                "${body} ?: 'fallback'",
-                "${body} ? 'yes' : 'no'",
-                "${body} ~> ${header.next}",
-                "${body} ?~> ${header.next}",
-                "${header.count} ++",
-                "${header.count} --",
-                "${body} Contains 'value'",
-                "${type:java.lang.String} == 'value'",
-                "${header.foo.bar} == 'value'")) {
-            assertFalse(ShipExpressionPolicy.isSafeSimplePredicate(expression), expression);
-        }
-        assertFalse(ShipExpressionPolicy.isSafeSimplePredicate(null));
-    }
-
-    @Test
-    void pinsEveryUnicode16FormatControlRange() {
-        int[][] formatControlRanges = {
-                {0x00ad, 0x00ad},
-                {0x0600, 0x0605},
-                {0x061c, 0x061c},
-                {0x06dd, 0x06dd},
-                {0x070f, 0x070f},
-                {0x0890, 0x0891},
-                {0x08e2, 0x08e2},
-                {0x180e, 0x180e},
-                {0x200b, 0x200f},
-                {0x202a, 0x202e},
-                {0x2060, 0x2064},
-                {0x2066, 0x206f},
-                {0xfeff, 0xfeff},
-                {0xfff9, 0xfffb},
-                {0x110bd, 0x110bd},
-                {0x110cd, 0x110cd},
-                {0x13430, 0x1343f},
-                {0x1bca0, 0x1bca3},
-                {0x1d173, 0x1d17a},
-                {0xe0001, 0xe0001},
-                {0xe0020, 0xe007f}
-        };
-
-        for (int[] range : formatControlRanges) {
-            for (int codePoint = range[0]; codePoint <= range[1]; codePoint++) {
-                assertFalse(
-                        ShipExpressionPolicy.isSafeSimpleTemplate(scalar(codePoint)),
-                        "U+" + Integer.toHexString(codePoint));
-            }
-
-            int before = range[0] - 1;
-            if (before == 0x2029) {
-                assertFalse(
-                        ShipExpressionPolicy.isSafeSimpleTemplate(scalar(before)),
-                        "U+2029 is independently forbidden as a paragraph separator");
-            } else {
-                assertTrue(
-                        ShipExpressionPolicy.isSafeSimpleTemplate(scalar(before)),
-                        "U+" + Integer.toHexString(before));
-            }
-            int after = range[1] + 1;
-            assertTrue(ShipExpressionPolicy.isSafeSimpleTemplate(scalar(after)), "U+" + Integer.toHexString(after));
-        }
-    }
-
-    @Test
-    void enforcesStrictUnicodeAndUtf8ByteLimits() {
-        String asciiAtLimit = "a".repeat(16_384);
-        String twoByteAtLimit = "é".repeat(8_192);
-        String threeByteAtLimit = "€".repeat(5_461) + "a";
-        String fourByteAtLimit = "😀".repeat(4_096);
-
-        for (String expression : List.of(asciiAtLimit, twoByteAtLimit, threeByteAtLimit, fourByteAtLimit)) {
-            assertTrue(ShipExpressionPolicy.isSafeSimpleTemplate(expression));
-            assertFalse(ShipExpressionPolicy.isSafeSimpleTemplate(expression + 'a'));
-        }
-
-        String predicatePrefix = "${header.value} == '";
-        String predicateSuffix = "'";
-        String predicateAtLimit = predicatePrefix
-                                  + "a".repeat(16_384 - predicatePrefix.length() - predicateSuffix.length())
-                                  + predicateSuffix;
-        String predicateOverLimit = predicatePrefix
-                                    + "a".repeat(16_385 - predicatePrefix.length() - predicateSuffix.length())
-                                    + predicateSuffix;
-        assertTrue(ShipExpressionPolicy.isSafeSimplePredicate(predicateAtLimit));
-        assertFalse(ShipExpressionPolicy.isSafeSimplePredicate(predicateOverLimit));
-
-        for (String number : List.of(
-                "-9223372036854775808", "-2147483649", "-2147483648", "2147483647",
-                "9223372036854775807", "0", "-0", "0.0", "-1.5")) {
-            assertTrue(ShipExpressionPolicy.isSafeSimplePredicate("${header.value} == " + number), number);
-        }
-        for (String number : List.of(
-                "-9223372036854775809", "9223372036854775808", "00", "01", "00.1", "1e3", ".5", "1.", "+1",
-                "1,5", "1..2", "--1", "NaN", "Infinity", "١",
-                "9".repeat(400) + ".0")) {
-            assertFalse(ShipExpressionPolicy.isSafeSimplePredicate("${header.value} == " + number), number);
-        }
-
-        for (String expression : List.of(
-                "line\nfeed",
-                "tab\tvalue",
-                "nul\0value",
-                "line" + scalar(0x2028) + "separator",
-                "paragraph" + scalar(0x2029) + "separator",
-                "bidi" + scalar(0x202e) + "override",
-                "isolate" + scalar(0x2066) + "text",
-                "zero" + scalar(0x200b) + "width",
-                "bom" + scalar(0xfeff) + "value",
-                scalar(0x0890),
-                scalar(0x110bd),
-                scalar(0x13430),
-                scalar(0xe0001),
-                scalar(0xe007f),
-                "\ud800",
-                "\udc00",
-                "\ud800x")) {
-            assertFalse(ShipExpressionPolicy.isSafeSimpleTemplate(expression));
-        }
-        assertFalse(ShipExpressionPolicy.isSafeSimplePredicate("${body} == 'line" + scalar(0x2028) + "separator'"));
-        assertTrue(ShipExpressionPolicy.isSafeSimpleTemplate(scalar(0x088f)));
-        assertTrue(ShipExpressionPolicy.isSafeSimpleTemplate(scalar(0x0892)));
-    }
-
-    private static String scalar(int codePoint) {
-        return new String(Character.toChars(codePoint));
     }
 }
