@@ -4,12 +4,15 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -286,10 +289,10 @@ public final class ShipCatalogService {
         }
         byte[] bytes;
         try {
-            bytes = CatalogArtifactReader.read(localRepository, normalized, MAX_ARTIFACT_BYTES);
+            bytes = readBoundedArtifact(normalized);
         } catch (IOException e) {
             throw new IOException(
-                    "Could not securely snapshot the exact catalog artifact "
+                    "Could not read the exact catalog artifact "
                                   + resolverString(coordinate),
                     e);
         }
@@ -298,6 +301,18 @@ public final class ShipCatalogService {
             throw new IOException("Catalog artifact does not match its acquired content identity");
         }
         return new ResolvedArtifactSnapshot(coordinate, bytes, digest);
+    }
+
+    /** Reads one catalog artifact within its fixed byte bound; the caller verifies the acquired content digest. */
+    private static byte[] readBoundedArtifact(Path file) throws IOException {
+        try (SeekableByteChannel channel = Files.newByteChannel(
+                file, StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS)) {
+            long size = channel.size();
+            if (size <= 0 || size > MAX_ARTIFACT_BYTES) {
+                throw new IOException("Catalog artifact has an unsafe size");
+            }
+            return Channels.newInputStream(channel).readNBytes(Math.toIntExact(size));
+        }
     }
 
     private Path exactArtifactPath(MavenCoordinate coordinate) {

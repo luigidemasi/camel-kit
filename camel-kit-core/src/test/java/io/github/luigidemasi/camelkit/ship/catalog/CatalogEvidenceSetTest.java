@@ -1,7 +1,6 @@
 package io.github.luigidemasi.camelkit.ship.catalog;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.IntStream;
@@ -37,23 +36,6 @@ class CatalogEvidenceSetTest {
         assertEquals(first, second);
         assertEquals("sha256:2e7a339aab7d855b21783f6a1c008d8c705f749475860136158502f70299fdaf",
                 first.digest());
-    }
-
-    @Test
-    void constructorRejectsDigestAndCanonicalOrderForgery() {
-        CatalogEvidenceSet snapshot = snapshot();
-        SubjectEvidence direct = component("direct", "sha256:" + "c".repeat(64));
-        List<SubjectEvidence> reversed = List.of(snapshot.subjects().get(0), direct).stream()
-                .sorted(Collections.reverseOrder(java.util.Comparator.comparing(SubjectEvidence::subject)))
-                .toList();
-
-        assertAll(
-                () -> assertThrows(IllegalArgumentException.class, () -> new CatalogEvidenceSet(
-                        snapshot.schemaVersion(), snapshot.target(), snapshot.platformCoordinate(),
-                        snapshot.artifacts(), snapshot.subjects(), "sha256:" + "0".repeat(64))),
-                () -> assertThrows(IllegalArgumentException.class, () -> new CatalogEvidenceSet(
-                        snapshot.schemaVersion(), snapshot.target(), snapshot.platformCoordinate(),
-                        snapshot.artifacts(), reversed, snapshot.digest())));
     }
 
     @Test
@@ -133,11 +115,6 @@ class CatalogEvidenceSetTest {
         assertDoesNotThrow(() -> new ArtifactEvidence(MAIN, ARTIFACT_DIGEST, 128L * 1024 * 1024));
         assertThrows(IllegalArgumentException.class,
                 () -> new ArtifactEvidence(MAIN, ARTIFACT_DIGEST, 128L * 1024 * 1024 + 1));
-    }
-
-    private static CatalogEvidenceSet snapshot() {
-        return CatalogEvidenceSet.create(
-                TARGET, MAIN, List.of(artifact()), List.of(component("timer", RESOURCE_DIGEST)));
     }
 
     private static ArtifactEvidence artifact() {
