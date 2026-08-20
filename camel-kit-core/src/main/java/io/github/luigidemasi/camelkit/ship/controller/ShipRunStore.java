@@ -582,15 +582,18 @@ final class ShipRunStore {
         return runRoot;
     }
 
-    private FileAttribute<?>[] directoryAttributes() {
+    private FileAttribute<?>[] directoryAttributes() throws StoreException {
         return attributes("rwx------");
     }
 
-    private FileAttribute<?>[] fileAttributes() {
+    private FileAttribute<?>[] fileAttributes() throws StoreException {
         return attributes("rw-------");
     }
 
-    private FileAttribute<?>[] attributes(String permissions) {
+    private FileAttribute<?>[] attributes(String permissions) throws StoreException {
+        if (!stateRoot.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+            throw new StoreException("state-root-invalid", "Ship run state storage requires a POSIX filesystem");
+        }
         return new FileAttribute<?>[]{
                 PosixFilePermissions.asFileAttribute(
                         PosixFilePermissions.fromString(permissions))};
