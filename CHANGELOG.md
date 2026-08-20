@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Certified Pi versions: `0.84.2` and `0.83.0`** — the bundled distribution now carries a certified-version list (`pi.supported`); Ship reports every listed version as `supported`, and each entry has completed an authenticated Pi/Linux live-gate run. `pi.version=0.84.2` is the primary install target named in guidance messages (Node stays `22.22.2`; Pi `0.84.2` requires Node `>=22.19.0`). Other detected versions still run only with `--accept-experimental`.
+
 - **Ship harness entry points now delegate to the local controller** — `/camel-ship`, `$camel-ship`, and `/skill:camel-ship` forward their arguments to the configured registered `camel-kit ship` or `camel kit ship` command instead of maintaining a prompt-owned workflow. The local controller is the sole owner of Ship stages, run state, evidence, oversight, and guarded publication.
   - Existing generated workspaces must be regenerated with the same command surface and agent, using `camel-kit init --here --ai <same-agent> --force` or `camel kit init --here --ai <same-agent> --force`; commit or back up workspace customizations first because `--force` rewrites generated configuration, instructions, skills, and templates
   - Initialization aborts up front — before writing any project files — when a managed agent path (for example a symlinked `.claude` or `.bob` from a dotfiles setup) is a symbolic link; the error names the link. Replace the link with a real directory before running the upgrade command

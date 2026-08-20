@@ -903,7 +903,7 @@ Implementation changes stay in a staged workspace until the configured oversight
 
 Ordinary process interruption is recoverable with the run ID, but Ship is not a daemon or a guarantee against OS or power loss. It assumes the invoking OS account is trusted: it is not a hostile same-user sandbox, credential broker, or long-lived service. Provider credentials remain under Pi and provider tooling.
 
-Maintainers can opt into the authenticated Pi/Linux live test on a merged-/usr host with Bubblewrap installed. Set `CAMEL_KIT_SHIP_LIVE_PI` and `CAMEL_KIT_SHIP_LIVE_NODE` to absolute executable paths for the bundled supported versions (currently Pi `0.83.0` and Node `22.22.2`), then run:
+Maintainers can opt into the authenticated Pi/Linux live test on a merged-/usr host with Bubblewrap installed. Set `CAMEL_KIT_SHIP_LIVE_PI` and `CAMEL_KIT_SHIP_LIVE_NODE` to absolute executable paths for a bundled certified configuration (currently Pi `0.84.2` or `0.83.0`, with Node `22.22.2`), then run:
 
 ```bash
 ./mvnw -B -Plinux-ship-certification clean install

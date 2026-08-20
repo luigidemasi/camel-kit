@@ -98,7 +98,8 @@ class DistributionConfigTest {
         assertEquals("central=https://repo1.maven.org/maven2/", config.citrusMcpRepos());
         assertEquals("https://repo1.maven.org/maven2/,https://repository.apache.org/snapshots",
                 config.camelCatalogRepos());
-        assertEquals("0.83.0", config.piVersion());
+        assertEquals("0.84.2", config.piVersion());
+        assertEquals(List.of("0.84.2", "0.83.0"), config.piSupportedVersions());
         assertEquals("22.22.2", config.nodeVersion());
         assertEquals("2.11.0", config.piMcpAdapterVersion());
     }
@@ -126,6 +127,7 @@ class DistributionConfigTest {
         DistributionConfig config = DistributionConfig.load(properties);
 
         assertEquals("9.9.9-test", config.piVersion());
+        assertEquals(List.of("9.9.9-test"), config.piSupportedVersions());
         assertEquals("7.7.7-test", config.nodeVersion());
         assertEquals("8.8.8-test", config.piMcpAdapterVersion());
     }
@@ -163,7 +165,10 @@ class DistributionConfigTest {
     void bundledBaselineLoadsMaintainedWorkerVersionsWithoutOverrides() {
         DistributionConfig config = DistributionConfig.loadBundled();
 
-        assertEquals("0.83.0", config.piVersion());
+        assertEquals("0.84.2", config.piVersion());
+        assertEquals(List.of("0.84.2", "0.83.0"), config.piSupportedVersions());
+        assertEquals(config.piVersion(), config.piSupportedVersions().get(0),
+                "the bundled primary pi.version must be the first pi.supported entry");
         assertEquals("22.22.2", config.nodeVersion());
         assertEquals(0, config.overrideCount());
     }
