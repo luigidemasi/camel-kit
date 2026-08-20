@@ -3,8 +3,6 @@ package io.github.luigidemasi.camelkit.ship.evidence;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.ProxySelector;
-import java.net.SocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -56,7 +54,6 @@ public final class JvmPayloadArchive {
     private static final HttpClient CENTRAL_CLIENT = HttpClient.newBuilder()
             .connectTimeout(java.time.Duration.ofSeconds(10))
             .followRedirects(HttpClient.Redirect.NEVER)
-            .proxy(new NoProxySelector())
             .build();
     private static final int MAX_ARTIFACTS = 512;
     private static final long MAX_ARTIFACT_BYTES = 128L * 1024 * 1024;
@@ -279,7 +276,7 @@ public final class JvmPayloadArchive {
         return List.copyOf(result);
     }
 
-    private static void rejectRepositoryOverrides() throws IOException {
+    static void rejectRepositoryOverrides() throws IOException {
         for (String key : List.of(
                 "camel.extra.repos",
                 "camel.default.extra.repos.default.value")) {
@@ -552,19 +549,6 @@ public final class JvmPayloadArchive {
     private static HttpClient centralClient() throws IOException {
         rejectRepositoryOverrides();
         return CENTRAL_CLIENT;
-    }
-
-    private static final class NoProxySelector extends ProxySelector {
-
-        @Override
-        public List<java.net.Proxy> select(URI uri) {
-            return List.of(java.net.Proxy.NO_PROXY);
-        }
-
-        @Override
-        public void connectFailed(URI uri, SocketAddress address, IOException failure) {
-            // There is no proxy endpoint to report.
-        }
     }
 
     public record Identity(Path archive, String aggregateDigest, String archiveDigest, JvmPayloadLock lock) {

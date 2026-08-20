@@ -142,6 +142,38 @@ class JvmPayloadArchiveTest {
         }
     }
 
+    @Test
+    void overrideGuardToleratesTransportPropertiesButRefusesRepositoryOverrides() throws Exception {
+        withProperty("https.proxyHost", "proxy.corp.example",
+                JvmPayloadArchive::rejectRepositoryOverrides);
+        withProperty("javax.net.ssl.trustStore", "/etc/pki/corp-truststore.p12",
+                JvmPayloadArchive::rejectRepositoryOverrides);
+        withProperty("camel.extra.repos", "https://repo.example/maven", () -> {
+            IOException refused = assertThrows(IOException.class,
+                    JvmPayloadArchive::rejectRepositoryOverrides);
+            assertEquals("Controller JVM payload refuses repository override property camel.extra.repos",
+                    refused.getMessage());
+        });
+    }
+
+    private interface GuardProbe {
+        void run() throws IOException;
+    }
+
+    private static void withProperty(String key, String value, GuardProbe probe) throws IOException {
+        String previous = System.getProperty(key);
+        System.setProperty(key, value);
+        try {
+            probe.run();
+        } finally {
+            if (previous == null) {
+                System.clearProperty(key);
+            } else {
+                System.setProperty(key, previous);
+            }
+        }
+    }
+
     private static String classPath(Class<?> type) {
         return type.getName().replace('.', '/') + ".class";
     }
