@@ -2,9 +2,6 @@ package io.github.luigidemasi.camelkit.ship.resolver;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.Proxy;
-import java.net.ProxySelector;
-import java.net.SocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -246,9 +243,11 @@ public final class ShipMavenResolver {
                 ConfigurationProperties.HTTP_MAX_REDIRECTS, 0,
                 ConfigurationProperties.HTTPS_SECURITY_MODE,
                 ConfigurationProperties.HTTPS_SECURITY_MODE_DEFAULT,
-                "aether.connector.http.useSystemProperties", false,
+                // Honor the JVM's standard proxy and TLS system properties so Ship
+                // resolves through the developer's configured transport (corporate
+                // proxies, custom trust stores) instead of requiring a direct route.
+                "aether.connector.http.useSystemProperties", true,
                 "aether.checksums.algorithms", "SHA-1"));
-        session.setProxySelector(remote -> null);
         session.setLocalRepositoryManager(
                 system.newLocalRepositoryManager(session, new LocalRepository(repository.toFile())));
         return session;
@@ -399,7 +398,6 @@ public final class ShipMavenResolver {
         return HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
                 .followRedirects(HttpClient.Redirect.NEVER)
-                .proxy(DirectProxySelector.INSTANCE)
                 .build();
     }
 
@@ -494,15 +492,7 @@ public final class ShipMavenResolver {
     private static void rejectRepositoryOverrides() throws IOException {
         for (String key : List.of(
                 "camel.extra.repos",
-                "camel.default.extra.repos.default.value",
-                "https.proxyHost",
-                "https.proxyPort",
-                "http.proxyHost",
-                "http.proxyPort",
-                "java.net.useSystemProxies",
-                "javax.net.ssl.trustStore",
-                "javax.net.ssl.trustStoreType",
-                "javax.net.ssl.trustStoreProvider")) {
+                "camel.default.extra.repos.default.value")) {
             if (System.getProperty(key) != null && !System.getProperty(key).isBlank()) {
                 throw new IOException("Ship resolver refuses repository override property " + key);
             }
@@ -700,21 +690,6 @@ public final class ShipMavenResolver {
 
         private void abort(IOException failure) {
             subscriber.abort(failure);
-        }
-    }
-
-    private static final class DirectProxySelector extends ProxySelector {
-        private static final DirectProxySelector INSTANCE = new DirectProxySelector();
-
-        @Override
-        public List<Proxy> select(URI uri) {
-            Objects.requireNonNull(uri, "uri must not be null");
-            return List.of(Proxy.NO_PROXY);
-        }
-
-        @Override
-        public void connectFailed(URI uri, SocketAddress address, IOException failure) {
-            // A direct connection has no proxy to retry.
         }
     }
 

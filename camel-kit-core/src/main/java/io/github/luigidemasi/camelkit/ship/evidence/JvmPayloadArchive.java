@@ -282,15 +282,7 @@ public final class JvmPayloadArchive {
     private static void rejectRepositoryOverrides() throws IOException {
         for (String key : List.of(
                 "camel.extra.repos",
-                "camel.default.extra.repos.default.value",
-                "https.proxyHost",
-                "https.proxyPort",
-                "http.proxyHost",
-                "http.proxyPort",
-                "java.net.useSystemProxies",
-                "javax.net.ssl.trustStore",
-                "javax.net.ssl.trustStoreType",
-                "javax.net.ssl.trustStoreProvider")) {
+                "camel.default.extra.repos.default.value")) {
             if (System.getProperty(key) != null && !System.getProperty(key).isBlank()) {
                 throw new IOException("Controller JVM payload refuses repository override property " + key);
             }

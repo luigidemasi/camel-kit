@@ -4,7 +4,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
-import java.net.Proxy;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
@@ -149,20 +148,22 @@ class ExactArtifactResolutionTest {
     }
 
     @Test
-    void directCentralTransportDisablesRedirectsProxiesAndContentEncoding() {
+    void directCentralTransportDisablesRedirectsAndContentEncodingAndFollowsJvmProxyDefaults() {
         URI uri = URI.create("https://repo.maven.apache.org/maven2/example.test");
         HttpClient client = ShipMavenResolver.directClient();
         HttpRequest request = ShipMavenResolver.directRequest(uri);
 
         assertSame(client, ShipMavenResolver.directClient());
         assertEquals(HttpClient.Redirect.NEVER, client.followRedirects());
-        assertEquals(List.of(Proxy.NO_PROXY), client.proxy().orElseThrow().select(uri));
+        // No explicit proxy selector: the client follows the JVM default, which
+        // honors the standard proxy system properties.
+        assertTrue(client.proxy().isEmpty());
         assertEquals("identity", request.headers().firstValue("Accept-Encoding").orElseThrow());
         assertEquals(uri, request.uri());
     }
 
     @Test
-    void aetherCacheFillAlsoDisablesRedirectsAndAmbientProxyConfiguration() {
+    void aetherCacheFillDisablesRedirectsAndHonorsJvmTransportProperties() {
         var session = ShipMavenResolver.session(
                 new RepositorySystemSupplier().get(), repository, ShipMavenResolver.ResolutionMode.ONLINE);
         Map<String, Object> configuration = session.getConfigProperties();
@@ -173,9 +174,52 @@ class ExactArtifactResolutionTest {
         assertEquals(0, configuration.get(ConfigurationProperties.HTTP_MAX_REDIRECTS));
         assertEquals(ConfigurationProperties.HTTPS_SECURITY_MODE_DEFAULT,
                 configuration.get(ConfigurationProperties.HTTPS_SECURITY_MODE));
-        assertEquals(false, configuration.get("aether.connector.http.useSystemProperties"));
+        assertEquals(true, configuration.get("aether.connector.http.useSystemProperties"));
         assertEquals("SHA-1", configuration.get("aether.checksums.algorithms"));
+        // No Aether-level proxy override: transport proxying is decided by the
+        // JVM's standard proxy system properties.
         assertNull(session.getProxySelector().getProxy(central));
+    }
+
+    @Test
+    void resolutionToleratesProxyAndTrustStorePropertiesButStillRefusesRepositoryOverrides() throws IOException {
+        MavenCoordinate coordinate = MavenCoordinate.jar("example.test", "catalog", "1.0.0");
+        seed(coordinate, "artifact");
+
+        withProperty("https.proxyHost", "proxy.corp.example", () -> {
+            List<ResolvedExactMavenArtifact> resolved = ShipMavenResolver.resolveArtifacts(
+                    repository, List.of(coordinate), ShipMavenResolver.ResolutionMode.OFFLINE);
+            assertEquals(coordinate, resolved.get(0).coordinate());
+        });
+        withProperty("javax.net.ssl.trustStore", "/etc/pki/corp-truststore.p12", () -> {
+            List<ResolvedExactMavenArtifact> resolved = ShipMavenResolver.resolveArtifacts(
+                    repository, List.of(coordinate), ShipMavenResolver.ResolutionMode.OFFLINE);
+            assertEquals(coordinate, resolved.get(0).coordinate());
+        });
+        withProperty("camel.extra.repos", "https://repo.example/maven", () -> {
+            IOException refused = assertThrows(IOException.class, () -> ShipMavenResolver.resolveArtifacts(
+                    repository, List.of(coordinate), ShipMavenResolver.ResolutionMode.OFFLINE));
+            assertEquals("Ship resolver refuses repository override property camel.extra.repos",
+                    refused.getMessage());
+        });
+    }
+
+    private interface ResolutionProbe {
+        void run() throws IOException;
+    }
+
+    private static void withProperty(String key, String value, ResolutionProbe probe) throws IOException {
+        String previous = System.getProperty(key);
+        System.setProperty(key, value);
+        try {
+            probe.run();
+        } finally {
+            if (previous == null) {
+                System.clearProperty(key);
+            } else {
+                System.setProperty(key, previous);
+            }
+        }
     }
 
     @Test
