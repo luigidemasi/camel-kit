@@ -5,7 +5,7 @@ import java.util.Set;
 
 import io.github.luigidemasi.camelkit.ship.expression.ShipExpressionPolicy;
 
-/** Exact Camel YAML selector inventory layered over Ship's closed Simple syntax policy. */
+/** Exact Camel YAML selector inventory layered over Ship's bounded Simple expression gate. */
 public final class CatalogExpressionInventory {
 
     public static final String SIMPLE = "simple";
@@ -53,8 +53,7 @@ public final class CatalogExpressionInventory {
 
     /** Syntax permission only; the exact runtime launcher remains the compatibility authority. */
     public static boolean isSafeSimple(String value) {
-        return ShipExpressionPolicy.isSafeSimpleTemplate(value)
-                || ShipExpressionPolicy.isSafeSimplePredicate(value);
+        return ShipExpressionPolicy.isSafeSimple(value);
     }
 
     private static String normalize(String value) {

@@ -21,9 +21,13 @@ class ShipExpressionPolicyTest {
                 "${body} == 'expected'",
                 "${bodyAs(String)} =~ 'a.*b'",
                 "${header.count}>5",
-                "${body} != null && ${header.retries} <= 3 || ${variable.done} == true"}) {
-            assertTrue(ShipExpressionPolicy.isSafeSimpleTemplate(value), value);
-            assertTrue(ShipExpressionPolicy.isSafeSimplePredicate(value), value);
+                "${body} != null && ${header.retries} <= 3 || ${variable.done} == true",
+                // Backslash escape sequences are plain text to this gate; any runtime
+                // expansion is Camel's, exercised by the sandboxed VALIDATE startup.
+                "line\\nfeed",
+                // A closing marker without its $init{ opener is inert literal text.
+                "orphan }init$ marker"}) {
+            assertTrue(ShipExpressionPolicy.isSafeSimple(value), value);
         }
     }
 
@@ -31,13 +35,13 @@ class ShipExpressionPolicyTest {
     void acceptsTheExactByteBoundAndRejectsOneOver() {
         String bounded = "x".repeat(16_384);
 
-        assertTrue(ShipExpressionPolicy.isSafeSimpleTemplate(bounded));
-        assertFalse(ShipExpressionPolicy.isSafeSimpleTemplate(bounded + "x"));
+        assertTrue(ShipExpressionPolicy.isSafeSimple(bounded));
+        assertFalse(ShipExpressionPolicy.isSafeSimple(bounded + "x"));
         // Multi-byte text is bounded by encoded size, not char count: 8192 two-byte
         // characters fill the budget exactly.
         String twoByte = "è".repeat(8_192);
-        assertTrue(ShipExpressionPolicy.isSafeSimplePredicate(twoByte));
-        assertFalse(ShipExpressionPolicy.isSafeSimplePredicate(twoByte + "è"));
+        assertTrue(ShipExpressionPolicy.isSafeSimple(twoByte));
+        assertFalse(ShipExpressionPolicy.isSafeSimple(twoByte + "è"));
     }
 
     @Test
@@ -56,8 +60,7 @@ class ShipExpressionPolicyTest {
                 "tag\udb40\udc41char",
                 "lone\ud800surrogate",
                 "lone\udc00low"}) {
-            assertFalse(ShipExpressionPolicy.isSafeSimpleTemplate(value), String.valueOf(value));
-            assertFalse(ShipExpressionPolicy.isSafeSimplePredicate(value), String.valueOf(value));
+            assertFalse(ShipExpressionPolicy.isSafeSimple(value), String.valueOf(value));
         }
     }
 
@@ -68,8 +71,7 @@ class ShipExpressionPolicyTest {
                 "prefix $init{x} suffix",
                 "{{app.secret}}",
                 "closing }} marker"}) {
-            assertFalse(ShipExpressionPolicy.isSafeSimpleTemplate(value), value);
-            assertFalse(ShipExpressionPolicy.isSafeSimplePredicate(value), value);
+            assertFalse(ShipExpressionPolicy.isSafeSimple(value), value);
         }
     }
 }

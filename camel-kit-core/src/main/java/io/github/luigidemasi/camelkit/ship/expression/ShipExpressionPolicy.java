@@ -6,9 +6,10 @@ package io.github.luigidemasi.camelkit.ship.expression;
  * <p>
  * The gate accepts any bounded, cleanly encoded Simple text and rejects only what Ship must never forward: oversized
  * values, control and format characters, lone surrogates, and indirect expansion through nested or property
- * placeholders. Simple syntax itself is not re-implemented here; the sandboxed camel-main startup in the VALIDATE stage
- * remains the authority on what Camel accepts. Format characters are classified with the running JDK's Unicode data,
- * matching how the tree policy classifies unsafe display characters.
+ * placeholders. The gate operates on the raw code points of the source text only: backslash escape sequences that Camel
+ * may expand at evaluation time are deliberately not blocked. Simple syntax itself is not re-implemented here; the
+ * sandboxed camel-main startup in the VALIDATE stage remains the authority on what Camel accepts. Format characters are
+ * classified with the running JDK's Unicode data, matching how the tree policy classifies unsafe display characters.
  * </p>
  */
 public final class ShipExpressionPolicy {
@@ -18,17 +19,8 @@ public final class ShipExpressionPolicy {
     private ShipExpressionPolicy() {
     }
 
-    /** Returns whether the value is bounded, cleanly encoded Simple template text. */
-    public static boolean isSafeSimpleTemplate(String value) {
-        return isSafeSimpleText(value);
-    }
-
-    /** Returns whether the value is bounded, cleanly encoded Simple predicate text. */
-    public static boolean isSafeSimplePredicate(String value) {
-        return isSafeSimpleText(value);
-    }
-
-    private static boolean isSafeSimpleText(String value) {
+    /** Returns whether the value is bounded, cleanly encoded Simple text. */
+    public static boolean isSafeSimple(String value) {
         if (value == null || hasIndirectExpansion(value)) {
             return false;
         }
