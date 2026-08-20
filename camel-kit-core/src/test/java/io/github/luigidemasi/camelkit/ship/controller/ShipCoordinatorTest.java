@@ -42,12 +42,7 @@ import io.github.luigidemasi.camelkit.ship.controller.ShipRun.RunStatus;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.Stage;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.StageStatus;
 import io.github.luigidemasi.camelkit.ship.evidence.CommandEvidence;
-import io.github.luigidemasi.camelkit.ship.evidence.CommandEvidence.SandboxIdentity;
 import io.github.luigidemasi.camelkit.ship.evidence.EvidenceCommand;
-import io.github.luigidemasi.camelkit.ship.evidence.EvidenceRunner;
-import io.github.luigidemasi.camelkit.ship.evidence.JvmPayloadArchive;
-import io.github.luigidemasi.camelkit.ship.evidence.JvmPayloadRequest;
-import io.github.luigidemasi.camelkit.ship.evidence.JvmPayloadTestFixture;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStampStore;
 import io.github.luigidemasi.camelkit.ship.worker.PiWorker;
@@ -1465,14 +1460,6 @@ class ShipCoordinatorTest {
             Files.setPosixFilePermissions(
                     evidence,
                     PosixFilePermissions.fromString("rwx------"));
-            String jdkDigest = digest("jdk");
-            JvmPayloadArchive.Identity toolchain
-                    = JvmPayloadTestFixture.create(
-                            evidence.resolve("toolchain"),
-                            command.jvmPayload(),
-                            jdkDigest);
-            Path sandbox = writeExecutable(
-                    evidence.resolve("bwrap"), "sandbox");
             Path java = writeExecutable(
                     evidence.resolve("java"), "java");
             byte[] stdout = "PASS\n".getBytes(StandardCharsets.UTF_8);
@@ -1480,34 +1467,14 @@ class ShipCoordinatorTest {
                     evidence.resolve("raw.stdout.log"), stdout);
             Path stderrPath = writePrivateFile(
                     evidence.resolve("raw.stderr.log"), new byte[0]);
-            String sandboxDigest = digest(sandbox);
-            String javaDigest = digest(java);
             Instant started = Instant.parse("2026-07-29T11:59:58Z");
             Instant ended = Instant.parse("2026-07-29T11:59:59Z");
             return new CommandEvidence(
-                    CommandEvidence.SCHEMA_VERSION,
                     command.id(),
-                    new SandboxIdentity(
-                            EvidenceRunner.SANDBOX_PROVIDER,
-                            sandbox.toString(),
-                            sandboxDigest,
-                            sandboxDigest,
-                            null,
-                            EvidenceRunner.expectedSandboxProfileDigest(
-                                    command, jdkDigest)),
-                    toolchain.aggregateDigest(),
-                    toolchain.aggregateDigest(),
-                    toolchain.archive().toString(),
-                    toolchain.archiveDigest(),
                     java.toString(),
-                    javaDigest,
-                    javaDigest,
-                    null,
-                    payloadVersion(command.jvmPayload()),
                     command.arguments(),
                     candidate.toString(),
-                    EvidenceRunner.expectedEnvironment(
-                            command, jdkDigest),
+                    command.inputDigests(),
                     started,
                     ended,
                     true,
@@ -1518,31 +1485,13 @@ class ShipCoordinatorTest {
                     ShipDigest.sha256(stdout),
                     stderrPath.toString(),
                     ShipDigest.sha256(new byte[0]),
-                    command.inputDigests());
+                    false,
+                    evidence.resolve("sandbox"));
         }
-    }
-
-    private static String payloadVersion(JvmPayloadRequest payload) {
-        return switch (payload.kind()) {
-            case CAMEL_YAML_VALIDATE ->
-                "Camel direct YAML validator " + payload.camelVersion();
-            case CAMEL_MAIN_START ->
-                "Camel direct Main bootstrap " + payload.camelVersion();
-            case CITRUS_YAML ->
-                "Citrus direct YAML " + payload.citrusVersion()
-                                + " with Camel " + payload.camelVersion();
-            default -> throw new IllegalArgumentException(
-                    "Unexpected deterministic evidence stub payload");
-        };
     }
 
     private static String digest(Path file) throws IOException {
         return ShipDigest.sha256(Files.readAllBytes(file));
-    }
-
-    private static String digest(String value) {
-        return ShipDigest.sha256(
-                value.getBytes(StandardCharsets.UTF_8));
     }
 
     private static Path writePrivateFile(

@@ -14,7 +14,7 @@ public final class JvmPayloadTestFixture {
     }
 
     public static JvmPayloadArchive.Identity create(
-            Path directory, JvmPayloadRequest request, String jdkDigest)
+            Path directory, JvmPayloadRequest request)
             throws IOException {
         Files.createDirectories(directory);
         List<JvmPayloadArchive.ArtifactFile> artifacts = new ArrayList<>();
@@ -28,6 +28,7 @@ public final class JvmPayloadTestFixture {
             artifacts.add(new JvmPayloadArchive.ArtifactFile(
                     parts[0] + ':' + parts[1] + ":jar:" + parts[2], parts[1], parts[2], jar));
         }
-        return JvmPayloadArchive.write(directory.resolve("payload.jar"), request, jdkDigest, artifacts);
+        return JvmPayloadArchive.write(
+                directory.resolve(JvmPayloadArchive.ARCHIVE_NAME), request, artifacts);
     }
 }
