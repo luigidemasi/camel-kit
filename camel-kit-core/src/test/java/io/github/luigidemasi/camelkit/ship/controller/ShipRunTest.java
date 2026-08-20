@@ -163,14 +163,16 @@ class ShipRunTest {
         ShipRun.ArtifactRef firstArtifact = new ShipRun.ArtifactRef(
                 "/tmp/camel-kit-design.md", digest("design"));
         List<ShipRun.StageRecord> stages = replace(
-                completed, DESIGN, completed.get(DESIGN.ordinal()).withArtifacts(List.of(firstArtifact)));
+                completed, DESIGN, completed.get(DESIGN.ordinal()).withArtifacts(
+                        completed.get(DESIGN.ordinal()).outputDigest(), List.of(firstArtifact)));
 
         String first = ShipRun.inputDigest(ShipContext.none(), stages, PLAN);
         String repeated = ShipRun.inputDigest(ShipContext.none(), List.copyOf(stages), PLAN);
         ShipRun.ArtifactRef changedArtifact = new ShipRun.ArtifactRef(
                 firstArtifact.path(), digest("changed design"));
         List<ShipRun.StageRecord> changed = replace(stages, DESIGN,
-                stages.get(DESIGN.ordinal()).withArtifacts(List.of(changedArtifact)));
+                stages.get(DESIGN.ordinal()).withArtifacts(
+                        stages.get(DESIGN.ordinal()).outputDigest(), List.of(changedArtifact)));
 
         assertAll(
                 () -> assertTrue(ShipDigest.isSha256(first)),

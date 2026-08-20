@@ -14,7 +14,7 @@ class MavenCoordinateTest {
 
     @Test
     void formatsGavResolverAndFileNamesWithoutCamelTooling() {
-        MavenCoordinate plain = MavenCoordinate.parseGav("org.apache.camel:camel-main:4.18.3");
+        MavenCoordinate plain = MavenCoordinate.jar("org.apache.camel", "camel-main", "4.18.3");
         MavenCoordinate classified = new MavenCoordinate(
                 "org.example", "artifact", "jar", "tests", "1.2.3");
 
@@ -29,8 +29,6 @@ class MavenCoordinateTest {
     @Test
     void rejectsMutableOrUnsafeCoordinates() {
         assertAll(
-                () -> assertThrows(IllegalArgumentException.class,
-                        () -> MavenCoordinate.parseGav("org.apache.camel:camel-main")),
                 () -> assertThrows(IllegalArgumentException.class,
                         () -> MavenCoordinate.jar("../org", "camel-main", "4.18.3")),
                 () -> assertThrows(IllegalArgumentException.class,
@@ -73,7 +71,6 @@ class MavenCoordinateTest {
                         () -> new MavenCoordinate("org.apache.camel", "camel-main", null, "", "4.18.3")),
                 () -> assertThrows(NullPointerException.class,
                         () -> new MavenCoordinate("org.apache.camel", "camel-main", "jar", "", null)),
-                () -> assertThrows(IllegalArgumentException.class, () -> MavenCoordinate.parseGav(null)),
                 () -> assertEquals(
                         "",
                         new MavenCoordinate("org.apache.camel", "camel-main", "jar", null, "4.18.3")

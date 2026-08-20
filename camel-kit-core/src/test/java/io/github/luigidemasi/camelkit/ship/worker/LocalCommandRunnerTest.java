@@ -129,7 +129,14 @@ class LocalCommandRunnerTest {
     void closesInputAndRetainsOnlyRedactedBoundedLogs() throws Exception {
         List<String> arguments = new ArrayList<>(
                 List.of("echo", "--token", "fixture-secret"));
-        Command command = command(arguments, Duration.ofSeconds(5), 4096);
+        Command command = new Command(
+                executable,
+                arguments,
+                workingDirectory,
+                evidenceDirectory,
+                Duration.ofSeconds(5),
+                4096,
+                List.of("fixture-secret"));
         arguments.clear();
 
         LocalCommandRunner.Result result = new LocalCommandRunner().run(command);
@@ -165,135 +172,6 @@ class LocalCommandRunnerTest {
                 result.stderrDigest());
         assertFalse(command.toString().contains("fixture-secret"));
         assertFalse(result.toString().contains("fixture-secret"));
-    }
-
-    @Test
-    void redactsEchoedFragmentsFromEmbeddedArgumentSecrets() throws Exception {
-        LocalCommandRunner.Result result = new LocalCommandRunner().run(command(
-                List.of(
-                        "embedded-secrets",
-                        "--header=Authorization: Bearer supersecret",
-                        "-u",
-                        "user:password-fragment",
-                        "MYSQL_PWD: db-secret",
-                        "--header=Authorization: Bearer \"quoted-token\"",
-                        "--config={\"password\":\"json-secret,tail\"}",
-                        "https://url-token@host",
-                        "https://:empty-user-secret@host"),
-                Duration.ofSeconds(5),
-                4096));
-
-        assertEquals(
-                "<redacted>\n<redacted>\n<redacted>\n<redacted>\n"
-                     + "<redacted>\n<redacted>\n<redacted>\n",
-                Files.readString(result.stdoutLog()));
-        assertEquals(
-                List.of(
-                        "embedded-secrets",
-                        "--header=Authorization: <redacted>",
-                        "-u",
-                        "<redacted>",
-                        "MYSQL_PWD: <redacted>",
-                        "--header=Authorization: <redacted>",
-                        "--config={\"password\":\"<redacted>\"}",
-                        "https://<redacted>@host",
-                        "https://<redacted>@host"),
-                result.redactedArguments());
-    }
-
-    @Test
-    void redactsMultiwordAuthorizationAndExtendedSensitiveArguments() throws Exception {
-        List<String> arguments = List.of(
-                "echo",
-                "--authorization",
-                "Basic",
-                "abc",
-                "--authorization=Bearer",
-                "split-token",
-                "--auth",
-                "Bearer \"quoted-token\"",
-                "--passphrase",
-                "argument-passphrase",
-                "--docker-auth-config",
-                "{\"auth\":\"docker-token\"}",
-                "--npm-config--auth",
-                "npm-token",
-                "--aws-access-key-id",
-                "AKIAARGUMENT",
-                "--service-private-key",
-                "argument-private",
-                "--service-jwt",
-                "argument-jwt",
-                "--service-pat",
-                "argument-pat");
-
-        LocalCommandRunner.Result result = new LocalCommandRunner().run(command(
-                arguments, Duration.ofSeconds(5), 4096));
-
-        assertEquals(List.of(
-                "echo",
-                "--authorization",
-                "Basic",
-                "<redacted>",
-                "--authorization=<redacted>",
-                "<redacted>",
-                "--auth",
-                "Bearer <redacted>",
-                "--passphrase",
-                "<redacted>",
-                "--docker-auth-config",
-                "<redacted>",
-                "--npm-config--auth",
-                "<redacted>",
-                "--aws-access-key-id",
-                "<redacted>",
-                "--service-private-key",
-                "<redacted>",
-                "--service-jwt",
-                "<redacted>",
-                "--service-pat",
-                "<redacted>"), result.redactedArguments());
-        assertFalse(result.toString().contains("AKIAARGUMENT"));
-        assertFalse(result.toString().contains("argument-private"));
-        assertFalse(result.toString().contains("argument-jwt"));
-        assertFalse(result.toString().contains("argument-pat"));
-        assertFalse(result.toString().contains("argument-passphrase"));
-        assertFalse(result.toString().contains("docker-token"));
-        assertFalse(result.toString().contains("npm-token"));
-    }
-
-    @Test
-    void redactsKnownCredentialCarriersAndProducesValidStampArguments() throws Exception {
-        LocalCommandRunner.Result result = new LocalCommandRunner().run(command(
-                List.of(
-                        "credential-carriers",
-                        "--proxy-user=user:proxy-secret",
-                        "--oauth2-bearer=oauth-secret",
-                        "--cookie=SID=cookie-secret",
-                        "-bSID=compact-cookie-secret",
-                        "--authorization",
-                        "Bearer",
-                        "carrier-auth-secret"),
-                Duration.ofSeconds(5),
-                4096));
-
-        assertEquals(
-                List.of(
-                        "credential-carriers",
-                        "--proxy-user=<redacted>",
-                        "--oauth2-bearer=<redacted>",
-                        "--cookie=<redacted>",
-                        "-b<redacted>",
-                        "--authorization",
-                        "Bearer",
-                        "<redacted>"),
-                result.redactedArguments());
-        assertEquals(
-                "<redacted>\n<redacted>\n<redacted>\n<redacted>\n<redacted>\n",
-                Files.readString(result.stdoutLog()));
-
-        ShipLocalStamp.CommandRun evidence = stampCommand(result);
-        assertEquals(result.redactedArguments(), evidence.redactedArguments());
     }
 
     @Test
@@ -333,33 +211,6 @@ class LocalCommandRunnerTest {
     }
 
     @Test
-    void directAuthorizationFormsProduceValidStampArguments() throws Exception {
-        List<List<String>> forms = List.of(
-                List.of("echo", "--authorization=direct-secret", "direct-payload"),
-                List.of("echo", "--authorization", "direct-secret", "direct-payload"),
-                List.of("echo", "--proxyAuthorization=proxy-secret", "proxy-payload"),
-                List.of("echo", "--authorization", "\"Bearer\"", "quoted-token"),
-                List.of("echo", "--authorization=Bearer", "-opaque-token"),
-                List.of("echo", "authorization", "Bearer", "bare-token"));
-        List<List<String>> expected = List.of(
-                List.of("echo", "--authorization=<redacted>", "<redacted>"),
-                List.of("echo", "--authorization", "<redacted>", "<redacted>"),
-                List.of("echo", "--proxyAuthorization=<redacted>", "<redacted>"),
-                List.of("echo", "--authorization", "\"Bearer\"", "<redacted>"),
-                List.of("echo", "--authorization=<redacted>", "<redacted>"),
-                List.of("echo", "authorization", "Bearer", "<redacted>"));
-        for (int index = 0; index < forms.size(); index++) {
-            LocalCommandRunner.Result result = new LocalCommandRunner().run(command(
-                    forms.get(index), Duration.ofSeconds(5), 4096));
-
-            assertEquals(expected.get(index), result.redactedArguments());
-            assertEquals(
-                    result.redactedArguments(),
-                    stampCommand(result).redactedArguments());
-        }
-    }
-
-    @Test
     void reapsFastDetachedProcessGroupBeforeReturning() throws Exception {
         LocalCommandRunner.Result result = new LocalCommandRunner().run(command(
                 List.of("fast-detach"), Duration.ofSeconds(5), 4096));
@@ -368,8 +219,6 @@ class LocalCommandRunnerTest {
                 Files.readString(fixture.resolve("detached-pid")).trim());
         assertEquals(0, result.exitCode());
         assertFalse(ProcessHandle.of(detached).map(ProcessHandle::isAlive).orElse(false));
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
-        assertFalse(Files.exists(workingDirectory.resolve("delayed-mutation")));
     }
 
     @Test

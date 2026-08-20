@@ -11,19 +11,11 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest;
-import io.github.luigidemasi.camelkit.ship.catalog.CatalogComponentModel;
-import io.github.luigidemasi.camelkit.ship.catalog.CatalogEvidenceSet;
-import io.github.luigidemasi.camelkit.ship.catalog.CatalogSubject;
-import io.github.luigidemasi.camelkit.ship.catalog.CatalogTarget;
-import io.github.luigidemasi.camelkit.ship.catalog.CatalogUsageRecord;
-import io.github.luigidemasi.camelkit.ship.evidence.CommandEvidence;
-import io.github.luigidemasi.camelkit.ship.resolver.MavenCoordinate;
 
 import com.fasterxml.jackson.core.StreamReadFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.networknt.schema.Schema;
 import com.networknt.schema.SchemaLocation;
 import com.networknt.schema.SchemaRegistry;
@@ -38,11 +30,7 @@ class ShipSchemaResourceTest {
     private static final String DRAFT_2020_12 = "https://json-schema.org/draft/2020-12/schema";
     private static final String ID_BASE = "https://github.com/luigidemasi/camel-kit/schemas/ship/v1/";
     private static final String RESOURCE_BASE = "ship/schema/";
-    private static final List<String> FILES = List.of(
-            "artifact-manifest.schema.json",
-            "catalog-evidence.schema.json",
-            "catalog-usage.schema.json",
-            "command-evidence.schema.json");
+    private static final List<String> FILES = List.of("artifact-manifest.schema.json");
     private static final ObjectMapper MAPPER = JsonMapper.builder()
             .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
             .build();
@@ -64,26 +52,6 @@ class ShipSchemaResourceTest {
         assertRecordShape(manifest, "/$defs/routeArtifact", ArtifactManifest.RouteArtifact.class);
         assertRecordShape(manifest, "/$defs/testArtifact", ArtifactManifest.TestArtifact.class);
         assertRecordShape(manifest, "/$defs/declaredArtifact", ArtifactManifest.DeclaredArtifact.class);
-
-        JsonNode catalogEvidence = readSchema("catalog-evidence.schema.json");
-        assertRecordShape(catalogEvidence, "/$defs/catalogSubject", CatalogSubject.class);
-        assertRecordShape(catalogEvidence, "/$defs/target", CatalogTarget.class);
-        assertRecordShape(catalogEvidence, "/$defs/coordinate", MavenCoordinate.class);
-        assertRecordShape(catalogEvidence, "/$defs/evidenceSet", CatalogEvidenceSet.class);
-        assertRecordShape(catalogEvidence, "/$defs/artifactEvidence", CatalogEvidenceSet.ArtifactEvidence.class);
-        assertRecordShape(catalogEvidence, "/$defs/subjectEvidence", CatalogEvidenceSet.SubjectEvidence.class);
-
-        JsonNode usage = readSchema("catalog-usage.schema.json");
-        assertRecordShape(usage, "", CatalogUsageRecord.class);
-        assertRecordShape(usage, "/$defs/routeUsage", CatalogUsageRecord.RouteUsage.class);
-        assertRecordShape(usage, "/$defs/endpointUsage", CatalogUsageRecord.EndpointUsage.class);
-        assertRecordShape(usage, "/$defs/componentModel", CatalogComponentModel.class);
-        assertRecordShape(usage, "/$defs/componentOption", CatalogComponentModel.Option.class);
-        assertRecordShape(usage, "/$defs/runtimeDependency", CatalogUsageRecord.RuntimeDependency.class);
-
-        JsonNode command = readSchema("command-evidence.schema.json");
-        assertRecordShape(command, "", CommandEvidence.class);
-        assertRecordShape(command, "/$defs/sandboxIdentity", CommandEvidence.SandboxIdentity.class);
     }
 
     @Test
@@ -106,7 +74,7 @@ class ShipSchemaResourceTest {
     }
 
     @Test
-    void retainedSchemasRejectUnsafePathsAndMutableCoordinates() throws Exception {
+    void retainedSchemasRejectUnsafePaths() throws Exception {
         Schema routePath = compiledSchema("artifact-manifest.schema.json#/$defs/routeArtifact/properties/path");
         assertTrue(routePath.validate(MAPPER.getNodeFactory().textNode("routes/orders.camel.yaml")).isEmpty());
         assertTrue(routePath.validate(MAPPER.getNodeFactory().textNode("a".repeat(4085) + ".camel.yaml")).isEmpty());
@@ -119,38 +87,6 @@ class ShipSchemaResourceTest {
                 "a".repeat(4086) + ".camel.yaml")) {
             assertFalse(routePath.validate(MAPPER.getNodeFactory().textNode(invalid)).isEmpty(), invalid);
         }
-
-        Schema coordinate = compiledSchema("catalog-evidence.schema.json#/$defs/coordinate");
-        ObjectNode valid = (ObjectNode) MAPPER.readTree("""
-                {
-                  "groupId": "org.apache.camel",
-                  "artifactId": "camel-catalog",
-                  "extension": "jar",
-                  "classifier": "",
-                  "version": "4.21.0"
-                }
-                """);
-        assertTrue(coordinate.validate(valid).isEmpty());
-        for (String groupId : List.of(".org.apache.camel", "org.apache.camel.", "org..apache.camel")) {
-            ObjectNode invalid = valid.deepCopy();
-            invalid.put("groupId", groupId);
-            assertFalse(coordinate.validate(invalid).isEmpty(), groupId);
-        }
-        for (String version : List.of(
-                "4.21.0-SNAPSHOT", "LATEST", "RELEASE", "4.21-20260721.120000-1")) {
-            ObjectNode invalid = valid.deepCopy();
-            invalid.put("version", version);
-            assertFalse(coordinate.validate(invalid).isEmpty(), version);
-        }
-
-        Schema subject = compiledSchema("catalog-usage.schema.json#/$defs/catalogSubject");
-        ObjectNode validSubject = (ObjectNode) MAPPER.readTree("""
-                {"kind":"COMPONENT","name":"timer"}
-                """);
-        assertTrue(subject.validate(validSubject).isEmpty());
-        ObjectNode invalidSubject = validSubject.deepCopy();
-        invalidSubject.put("name", "unsafe/name");
-        assertFalse(subject.validate(invalidSubject).isEmpty());
     }
 
     private static Schema compiledSchema(String location) throws IOException {

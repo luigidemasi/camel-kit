@@ -169,8 +169,7 @@ final class LocalCommandRunner {
             }
             byte[] capturedStdout = awaitPump(stdoutPump);
             byte[] capturedStderr = awaitPump(stderrPump);
-            List<String> argumentSecrets = secretValues(
-                    arguments, command.sensitiveValues());
+            List<String> secrets = secretValues(command.sensitiveValues());
             byte[] stdoutEvidence = outputLimited.get()
                     ? OUTPUT_LIMIT_LOG
                     : capturedStdout;
@@ -182,7 +181,7 @@ final class LocalCommandRunner {
                     evidenceDirectory,
                     ".stdout.log",
                     command.maximumOutputBytesPerStream(),
-                    argumentSecrets);
+                    secrets);
             RetainedLog stderr;
             try {
                 stderr = retain(
@@ -190,14 +189,14 @@ final class LocalCommandRunner {
                         evidenceDirectory,
                         ".stderr.log",
                         command.maximumOutputBytesPerStream(),
-                        argumentSecrets);
+                        secrets);
             } catch (IOException | RuntimeException e) {
                 Files.deleteIfExists(stdout.path());
                 throw e;
             }
             return new Result(
                     executable,
-                    redactArguments(arguments, argumentSecrets),
+                    redactArguments(arguments, secrets),
                     workingDirectory,
                     startedAt,
                     endedAt,
@@ -390,8 +389,7 @@ final class LocalCommandRunner {
                 .toList();
     }
 
-    private static List<String> secretValues(
-            List<String> arguments, List<String> knownValues) {
+    private static List<String> secretValues(List<String> knownValues) {
         List<String> values = new ArrayList<>();
         knownValues.forEach(value -> addSecretValue(values, value, true));
         System.getenv().entrySet().stream()
@@ -399,55 +397,6 @@ final class LocalCommandRunner {
                         entry.getKey(), entry.getValue()))
                 .map(Map.Entry::getValue)
                 .forEach(value -> addSecretValue(values, value, true));
-        for (int index = 0; index < arguments.size(); index++) {
-            String argument = arguments.get(index);
-            addMatches(values, SENSITIVE_ASSIGNMENT.matcher(argument), 3);
-            addMatches(values, AUTHORIZATION_SCHEME.matcher(argument), 2);
-            addUrlMatches(values, URL_USERINFO.matcher(argument));
-            int separator = argument.indexOf('=');
-            boolean compactCredential = compactCredential(argument);
-            String name = compactCredential
-                    ? argument.substring(0, 2)
-                    : separator < 0 ? argument : argument.substring(0, separator);
-            boolean authorization = authorizationName(name);
-            if ((separator < 0 && !name.startsWith("-") && !authorization)
-                    || !isSensitiveOption(name)) {
-                continue;
-            }
-            String value = compactCredential
-                    ? argument.substring(2)
-                    : separator < 0
-                            ? index + 1 < arguments.size() ? arguments.get(index + 1) : null
-                    : argument.substring(separator + 1);
-            boolean schemeAuthorization = authorization && authorizationScheme(value);
-            if (value != null && !value.isEmpty() && !ShipLocalStamp.REDACTED.equals(value)) {
-                boolean splitAuthorization = separator < 0 && schemeAuthorization;
-                if (!splitAuthorization) {
-                    addSecretValue(values, value, false);
-                }
-                if (userCredentialName(name)) {
-                    String credential = unquote(value.trim());
-                    int colon = credential.indexOf(':');
-                    if (colon >= 0) {
-                        addSecretValue(values, credential.substring(colon + 1), false);
-                    }
-                } else if (cookieCredentialName(name)) {
-                    for (String cookie : unquote(value.trim()).split(";")) {
-                        int equals = cookie.indexOf('=');
-                        if (equals >= 0) {
-                            addSecretValue(values, cookie.substring(equals + 1).trim(), false);
-                        }
-                    }
-                }
-            }
-            int credentialIndex = separator < 0 ? index + 2 : index + 1;
-            if (authorization
-                    && credentialIndex < arguments.size()
-                    && (schemeAuthorization
-                            || !arguments.get(credentialIndex).startsWith("-"))) {
-                addSecretValue(values, arguments.get(credentialIndex), false);
-            }
-        }
         return values.stream()
                 .distinct()
                 .sorted(Comparator.comparingInt(String::length).reversed())
@@ -529,53 +478,6 @@ final class LocalCommandRunner {
         } else if (node.isContainerNode()) {
             node.elements().forEachRemaining(child -> collectJsonValues(child, values));
         }
-    }
-
-    private static boolean isSensitiveOption(String name) {
-        return ShipLocalStamp.isSensitiveName(name)
-                || userCredentialName(name)
-                || cookieCredentialName(name)
-                || "--oauth2-bearer".equals(name);
-    }
-
-    private static boolean userCredentialName(String name) {
-        return "-u".equals(name)
-                || "--user".equals(name)
-                || "--userpwd".equals(name)
-                || "--proxy-user".equals(name);
-    }
-
-    private static boolean cookieCredentialName(String name) {
-        return "-b".equals(name) || "--cookie".equals(name);
-    }
-
-    private static boolean compactCredential(String value) {
-        return value.length() > 2
-                && !value.startsWith("--")
-                && (value.startsWith("-u")
-                        || (value.startsWith("-b")
-                                && (value.indexOf('=', 2) >= 0
-                                        || ShipLocalStamp.REDACTED.equals(value.substring(2)))));
-    }
-
-    private static boolean authorizationName(String name) {
-        String normalized = name.replaceAll("([a-z0-9])([A-Z])", "$1-$2")
-                .toLowerCase(Locale.ROOT)
-                .replace('_', '-')
-                .replaceFirst("^-+", "");
-        return normalized.equals("authorization")
-                || normalized.equals("auth")
-                || normalized.endsWith("-authorization")
-                || normalized.endsWith("-auth");
-    }
-
-    private static boolean authorizationScheme(String value) {
-        if (value == null) {
-            return false;
-        }
-        String normalized = unquote(value.trim()).trim();
-        return "basic".equalsIgnoreCase(normalized)
-                || "bearer".equalsIgnoreCase(normalized);
     }
 
     private static String unquote(String value) {

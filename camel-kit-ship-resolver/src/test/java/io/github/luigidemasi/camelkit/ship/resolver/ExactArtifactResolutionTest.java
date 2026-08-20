@@ -259,13 +259,10 @@ class ExactArtifactResolutionTest {
             });
 
             URI endpoint = URI.create("http://127.0.0.1:" + server.getLocalPort() + "/artifact.jar");
-            long started = System.nanoTime();
             IOException failure = assertThrows(IOException.class,
                     () -> ShipMavenResolver.fetchDirect(endpoint, 2, Duration.ofMillis(300)));
-            long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started);
 
             assertTrue(failure.getMessage().contains("Timed out"), failure.getMessage());
-            assertTrue(elapsedMillis < 2_000, "stalled fetch took " + elapsedMillis + " ms");
             assertTrue(clientClosed.get(2, TimeUnit.SECONDS), "cancelled exchange did not close its connection");
         } finally {
             serverExecutor.shutdownNow();

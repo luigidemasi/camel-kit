@@ -81,19 +81,6 @@ public final class EvidenceRunner {
              EvidenceRunner::freezeControllerJdk);
     }
 
-    EvidenceRunner(Clock clock) {
-        this(clock, new BubblewrapSandboxLauncher(), new ControllerToolchainResolver(),
-             EvidenceRunner::freezeControllerJdk);
-    }
-
-    EvidenceRunner(Clock clock, EvidenceSandboxLauncher sandboxLauncher) {
-        this(clock, sandboxLauncher, new ControllerToolchainResolver(), EvidenceRunner::freezeControllerJdk);
-    }
-
-    EvidenceRunner(Clock clock, EvidenceSandboxLauncher sandboxLauncher, ToolchainResolver toolchains) {
-        this(clock, sandboxLauncher, toolchains, EvidenceRunner::freezeControllerJdk);
-    }
-
     EvidenceRunner(
                    Clock clock,
                    EvidenceSandboxLauncher sandboxLauncher,
@@ -113,10 +100,6 @@ public final class EvidenceRunner {
         this.toolchains = Objects.requireNonNull(toolchains, "toolchains");
         this.jdks = Objects.requireNonNull(jdks, "jdks");
         this.systemLibraries = List.copyOf(systemLibraries);
-    }
-
-    public static String expectedSandboxProfileDigest(EvidenceCommand command) throws IOException {
-        return sandboxProfileDigest(command, expectedEnvironment(command));
     }
 
     /** Rebuilds a historical sandbox profile from its authenticated, recorded JDK identity. */
@@ -142,10 +125,6 @@ public final class EvidenceRunner {
                 command.requiredToolchainDigest() == null ? "external-toolchain" : command.requiredToolchainDigest());
         update(digest, command.jvmPayload() == null ? "no-jvm-payload" : command.jvmPayload().digest());
         return digest(digest);
-    }
-
-    public static Map<String, String> expectedEnvironment(EvidenceCommand command) throws IOException {
-        return expectedEnvironment(command, controllerJdk().digest());
     }
 
     /** Rebuilds the deterministic environment without consulting the controller's current JDK. */
@@ -833,11 +812,6 @@ public final class EvidenceRunner {
             throw new IOException(label + " executable is missing, symbolic, non-regular, or not executable: " + path);
         }
         return path.toRealPath();
-    }
-
-    private static JdkIdentity controllerJdk() throws IOException {
-        Path root = realDirectory(Path.of(System.getProperty("java.home", "")), "controller JDK");
-        return jdkIdentity(root);
     }
 
     private static JdkIdentity freezeControllerJdk(Path sandboxRoot) throws IOException {

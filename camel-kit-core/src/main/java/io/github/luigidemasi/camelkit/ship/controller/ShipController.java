@@ -776,25 +776,6 @@ public final class ShipController {
     /**
      * Records a worker result only when it matches the currently running stage attempt.
      */
-    public ShipRun completeStage(
-            String runId,
-            Stage stage,
-            int attempt,
-            String inputDigest,
-            String outputDigest,
-            List<Path> artifacts,
-            boolean materialAmbiguity) {
-        return completeStage(
-                runId,
-                stage,
-                attempt,
-                inputDigest,
-                outputDigest,
-                artifacts,
-                materialAmbiguity,
-                null);
-    }
-
     ShipRun completeStage(
             String runId,
             Stage stage,
@@ -858,21 +839,6 @@ public final class ShipController {
      * Records an EXECUTE result from the controller-owned workspace. The workspace root is always retained;
      * {@code artifacts} contains only additional material files.
      */
-    public ShipRun completeExecuteStage(
-            String runId,
-            int attempt,
-            String inputDigest,
-            List<Path> artifacts,
-            boolean materialAmbiguity) {
-        return completeExecuteStage(
-                runId,
-                attempt,
-                inputDigest,
-                artifacts,
-                materialAmbiguity,
-                null);
-    }
-
     ShipRun completeExecuteStage(
             String runId,
             int attempt,
@@ -891,33 +857,6 @@ public final class ShipController {
                 materialAmbiguity,
                 report,
                 null);
-    }
-
-    /** Prepares the controller-owned workspace for the active EXECUTE attempt. */
-    public Path prepareWorkspace(String runId, int attempt, String inputDigest) {
-        try (ShipRunStore.LockedRun locked = store.lock(runId)) {
-            ShipRun current = locked.read();
-            StageRecord active = requireActiveAttempt(current, Stage.EXECUTE, attempt, inputDigest);
-            requireCurrentInputs(current, active, locked.directory());
-            return ShipWorkspace.prepare(
-                    Path.of(current.projectDirectory()),
-                    locked.directory(),
-                    current.id(),
-                    active.attempts(),
-                    active.inputDigest());
-        } catch (ShipRunStore.StoreException e) {
-            throw failure(e.code(), e.getMessage(), e);
-        } catch (StaleBaselineException e) {
-            throw failure(
-                    "stale-stage-input",
-                    "Ship workspace baseline changed; resume the run",
-                    e);
-        } catch (IOException e) {
-            throw failure(
-                    "workspace-failed",
-                    "Could not prepare the Ship EXECUTE workspace for " + runId,
-                    e);
-        }
     }
 
     /**

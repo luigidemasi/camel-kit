@@ -58,7 +58,6 @@ final class ShipRunStore {
 
     private final Path stateRoot;
     private final Path projectRegistryRoot;
-    private final boolean posix;
 
     ShipRunStore(Path stateRoot) {
         this(stateRoot, defaultProjectRegistryRoot());
@@ -68,7 +67,6 @@ final class ShipRunStore {
         this.stateRoot = Objects.requireNonNull(stateRoot, "stateRoot").toAbsolutePath().normalize();
         this.projectRegistryRoot = Objects.requireNonNull(
                 projectRegistryRoot, "projectRegistryRoot").toAbsolutePath().normalize();
-        this.posix = this.stateRoot.getFileSystem().supportedFileAttributeViews().contains("posix");
     }
 
     static Path defaultProjectRegistryRoot() {
@@ -593,11 +591,9 @@ final class ShipRunStore {
     }
 
     private FileAttribute<?>[] attributes(String permissions) {
-        return posix
-                ? new FileAttribute<?>[]{
-                        PosixFilePermissions.asFileAttribute(
-                                PosixFilePermissions.fromString(permissions))}
-                : new FileAttribute<?>[0];
+        return new FileAttribute<?>[]{
+                PosixFilePermissions.asFileAttribute(
+                        PosixFilePermissions.fromString(permissions))};
     }
 
     private static StoreException corrupt(Path stateFile, Throwable cause) {

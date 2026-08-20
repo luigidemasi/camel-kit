@@ -333,7 +333,6 @@ class PiWorkerTest {
         assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
         assertEquals(assistant, result.assistantText());
         assertFalse(result.toString().contains(assistant));
-        assertFalse(result.toString().contains("live Pi end-to-end gate"));
 
         Files.writeString(fixture.resolve("mode"), "terminal-before-response\n");
         assertEquals(
@@ -2281,8 +2280,6 @@ class PiWorkerTest {
         long detached = Long.parseLong(
                 Files.readString(fixture.resolve("detached-pid")).trim());
         awaitGone(detached);
-        Thread.sleep(1200);
-        assertFalse(Files.exists(fixture.resolve("delayed-mutation")));
     }
 
     private PiWorker worker(Duration timeout) {

@@ -132,9 +132,10 @@ class ShipCoordinatorTest {
                 state,
                 controller,
                 worker,
-                new ShipCatalogService(directory.resolve("m2")),
+                new ShipCatalogService(directory.resolve("m2"))::snapshot,
                 new ShipMainValidator(),
                 distribution,
+                Map.of(),
                 true,
                 Clock.systemUTC());
     }
@@ -204,7 +205,7 @@ class ShipCoordinatorTest {
         seedDurableResult(run);
         Files.writeString(fixture.resolve("mode"), "nonzero\n");
 
-        ShipRun completed = coordinator.resume(run.id());
+        ShipRun completed = coordinator.resume(run.id(), List.of());
 
         assertDesignPaused(completed, 1);
         assertEquals(
@@ -224,7 +225,7 @@ class ShipCoordinatorTest {
 
             assertThrows(
                     InterruptedException.class,
-                    () -> coordinator.resume(run.id()));
+                    () -> coordinator.resume(run.id(), List.of()));
             assertTrue(Thread.currentThread().isInterrupted());
         } finally {
             Thread.interrupted();
@@ -247,7 +248,7 @@ class ShipCoordinatorTest {
             Thread.currentThread().interrupt();
             assertThrows(
                     InterruptedException.class,
-                    () -> coordinator.resume(run.id()));
+                    () -> coordinator.resume(run.id(), List.of()));
             assertTrue(Thread.currentThread().isInterrupted());
         } finally {
             Thread.interrupted();
@@ -255,7 +256,7 @@ class ShipCoordinatorTest {
         assertEquals(run, controller.status(run.id()));
 
         Files.writeString(fixture.resolve("mode"), "nonzero\n");
-        ShipRun completed = coordinator.resume(run.id());
+        ShipRun completed = coordinator.resume(run.id(), List.of());
 
         assertDesignPaused(completed, 1);
         assertEquals(
@@ -287,7 +288,7 @@ class ShipCoordinatorTest {
                 Files.writeString(marker, "{}\n");
             }
 
-            ShipRun restarted = coordinator.resume(activePlan.id());
+            ShipRun restarted = coordinator.resume(activePlan.id(), List.of());
 
             assertDesignPaused(restarted, 2);
             assertEquals(StageStatus.PENDING,
@@ -322,7 +323,7 @@ class ShipCoordinatorTest {
         try {
             IOException failure = assertThrows(
                     IOException.class,
-                    () -> coordinator.resume(activePlan.id()));
+                    () -> coordinator.resume(activePlan.id(), List.of()));
 
             assertFalse(failure instanceof PiWorker.UntrustedResultException);
             assertEquals(activePlan, controller.status(run.id()));
@@ -368,7 +369,7 @@ class ShipCoordinatorTest {
         assertFixtureProcessesGone();
 
         Files.writeString(fixture.resolve("mode"), "success\n");
-        ShipRun completed = coordinator.resume(run.id());
+        ShipRun completed = coordinator.resume(run.id(), List.of());
 
         assertDesignPaused(completed, 2);
         String sessionId = sessionId(run);
@@ -443,7 +444,7 @@ class ShipCoordinatorTest {
             assertEquals(aborted, coordinator.run(run.id()));
             ShipController.Failure cannotResume = assertThrows(
                     ShipController.Failure.class,
-                    () -> coordinator.resume(run.id()));
+                    () -> coordinator.resume(run.id(), List.of()));
             assertEquals("run-aborted", cannotResume.code());
             assertFalse(Thread.currentThread().isInterrupted());
         } finally {
@@ -519,7 +520,7 @@ class ShipCoordinatorTest {
                         PosixFilePermissions.fromString("rw-------")));
              FileLock ignored = channel.lock()) {
             assertEquals(run, coordinator.run(run.id()));
-            assertEquals(run, coordinator.resume(run.id()));
+            assertEquals(run, coordinator.resume(run.id(), List.of()));
             IOException rejected = assertThrows(
                     IOException.class,
                     () -> coordinator.resume(
@@ -575,7 +576,7 @@ class ShipCoordinatorTest {
         Files.writeString(fixture.resolve("mode"), "success\n");
         writeDiscoveryResult();
 
-        ShipRun completed = coordinator.resume(run.id());
+        ShipRun completed = coordinator.resume(run.id(), List.of());
 
         assertEquals(RunStatus.PAUSED, completed.status());
         assertEquals(Stage.DESIGN, completed.currentStage());
@@ -708,7 +709,7 @@ class ShipCoordinatorTest {
         String firstPrompt = Files.readString(fixture.resolve("prompt"));
 
         writeDesignResult();
-        ShipRun completed = coordinator.resume(run.id());
+        ShipRun completed = coordinator.resume(run.id(), List.of());
 
         assertDesignPaused(completed, 2);
         String secondPrompt = Files.readString(fixture.resolve("prompt"));
@@ -876,7 +877,7 @@ class ShipCoordinatorTest {
                 state.resolve(run.id())
                         .resolve("evidence/validate-1/stamp.json")));
 
-        ShipRun completed = deterministic.resume(run.id());
+        ShipRun completed = deterministic.resume(run.id(), List.of());
 
         assertEquals(RunStatus.COMPLETED, completed.status());
         assertEquals(StageStatus.COMPLETED,
@@ -969,9 +970,10 @@ class ShipCoordinatorTest {
                 state,
                 controller,
                 worker,
-                new ShipCatalogService(directory.resolve("m2")),
+                new ShipCatalogService(directory.resolve("m2"))::snapshot,
                 new ShipMainValidator(),
                 upgradedDistribution,
+                Map.of(),
                 true,
                 Clock.systemUTC());
 
@@ -1103,7 +1105,7 @@ class ShipCoordinatorTest {
                 true,
                 Clock.systemUTC());
 
-        ShipRun failed = unavailableCatalog.resume(run.id());
+        ShipRun failed = unavailableCatalog.resume(run.id(), List.of());
 
         assertEquals(RunStatus.FAILED, failed.status());
         assertEquals(Stage.VALIDATE, failed.currentStage());
@@ -1185,7 +1187,7 @@ class ShipCoordinatorTest {
                 fixture.resolve("assistant-text"),
                 corrected.replace("\"", "\\\""));
 
-        ShipRun paused = coordinator.resume(run.id());
+        ShipRun paused = coordinator.resume(run.id(), List.of());
 
         assertEquals(RunStatus.PAUSED, paused.status());
         assertEquals(Stage.DESIGN, paused.currentStage());

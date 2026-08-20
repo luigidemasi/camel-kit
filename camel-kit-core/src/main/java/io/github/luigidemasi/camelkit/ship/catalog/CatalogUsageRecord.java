@@ -2,41 +2,10 @@ package io.github.luigidemasi.camelkit.ship.catalog;
 
 import java.util.List;
 
-/** Controller-derived catalog usage for the exact accepted route bytes. */
-public record CatalogUsageRecord(
-        int schemaVersion,
-        String runId,
-        String catalogEvidenceDigest,
-        String artifactManifestDigest,
-        String candidateSnapshotDigest,
-        String candidateContentDigest,
-        String pomDigest,
-        String inventoryDigest,
-        List<RouteUsage> routes,
-        List<CatalogComponentModel> componentModels,
-        List<RuntimeDependency> runtimeDependencies,
-        CatalogEvidenceSet evidence) {
+/** Bounded catalog usage shapes derived from the exact accepted route bytes. */
+public final class CatalogUsageRecord {
 
-    public static final int SCHEMA_VERSION = 1;
-
-    public CatalogUsageRecord {
-        routes = routes == null ? List.of() : List.copyOf(routes);
-        componentModels = componentModels == null ? List.of() : List.copyOf(componentModels);
-        runtimeDependencies = runtimeDependencies == null ? List.of() : List.copyOf(runtimeDependencies);
-    }
-
-    /** Usage extracted from one exact manifest route. */
-    public record RouteUsage(
-            String routeId,
-            String path,
-            String routeDigest,
-            List<CatalogSubject> subjects,
-            List<EndpointUsage> endpoints) {
-
-        public RouteUsage {
-            subjects = subjects == null ? List.of() : List.copyOf(subjects);
-            endpoints = endpoints == null ? List.of() : List.copyOf(endpoints);
-        }
+    private CatalogUsageRecord() {
     }
 
     /** Static endpoint shape proven against one frozen component model. Values are deliberately not retained. */

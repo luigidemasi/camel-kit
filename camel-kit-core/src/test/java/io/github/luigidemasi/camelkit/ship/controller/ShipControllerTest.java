@@ -268,7 +268,8 @@ class ShipControllerTest {
                         paused.stage(Stage.DISCOVERY).inputDigest(),
                         digest("late result"),
                         List.of(),
-                        false));
+                        false,
+                        null));
         assertEquals("stale-stage-attempt", stale.code());
     }
 
@@ -399,10 +400,7 @@ class ShipControllerTest {
         run = complete(controller, run, "design");
         run = complete(controller, run, "plan");
 
-        Path workspace = controller.prepareWorkspace(
-                run.id(),
-                run.stage(Stage.EXECUTE).attempts(),
-                run.stage(Stage.EXECUTE).inputDigest());
+        Path workspace = controller.prepareAttempt(run.id()).workingDirectory();
         Path route = Files.writeString(
                 workspace.resolve("route.yaml"), "from:\n  uri: direct:start\n");
         ShipRun validating = controller.completeExecuteStage(
@@ -410,7 +408,8 @@ class ShipControllerTest {
                 run.stage(Stage.EXECUTE).attempts(),
                 run.stage(Stage.EXECUTE).inputDigest(),
                 List.of(route),
-                false);
+                false,
+                null);
 
         assertEquals(validating, new ShipController(stateRoot).status(run.id()));
         assertEquals(
@@ -514,7 +513,8 @@ class ShipControllerTest {
                         validating.stage(Stage.VALIDATE).inputDigest(),
                         digest("worker-prose-pass"),
                         List.of(),
-                        false));
+                        false,
+                        null));
 
         assertEquals("validation-controller-owned", failure.code());
         assertEquals(validating, controller.status(validating.id()));
@@ -569,7 +569,8 @@ class ShipControllerTest {
                         started.stage(Stage.DISCOVERY).inputDigest(),
                         digest("late-result"),
                         List.of(),
-                        false));
+                        false,
+                        null));
         assertEquals("stale-stage-attempt", failure.code());
         assertEquals(2, controller.status(started.id()).stage(Stage.DISCOVERY).attempts());
     }
@@ -589,7 +590,8 @@ class ShipControllerTest {
                         digest("wrong-input"),
                         digest("result"),
                         List.of(),
-                        false));
+                        false,
+                        null));
 
         assertEquals("stale-stage-attempt", failure.code());
         assertEquals(run, controller.status(run.id()));
@@ -877,10 +879,7 @@ class ShipControllerTest {
         run = complete(controller, run, "discovery");
         run = complete(controller, run, "design");
         run = complete(controller, run, "plan");
-        Path workspace = controller.prepareWorkspace(
-                run.id(),
-                run.stage(Stage.EXECUTE).attempts(),
-                run.stage(Stage.EXECUTE).inputDigest());
+        Path workspace = controller.prepareAttempt(run.id()).workingDirectory();
         Path route = Files.writeString(
                 workspace.resolve("route.yaml"), "password: " + secret);
         ShipRun executing = run;
@@ -892,7 +891,8 @@ class ShipControllerTest {
                         executing.stage(Stage.EXECUTE).attempts(),
                         executing.stage(Stage.EXECUTE).inputDigest(),
                         List.of(route),
-                        false));
+                        false,
+                        null));
         assertEquals(executing, controller.status(executing.id()));
     }
 
@@ -983,7 +983,8 @@ class ShipControllerTest {
                         run.stage(Stage.DISCOVERY).inputDigest(),
                         digest("result"),
                         List.of(),
-                        false));
+                        false,
+                        null));
 
         assertEquals("stale-stage-input", failure.code());
         assertEquals(run, controller.status(run.id()));
@@ -1008,7 +1009,8 @@ class ShipControllerTest {
                         design.stage(Stage.DESIGN).inputDigest(),
                         digest("design"),
                         List.of(),
-                        false));
+                        false,
+                        null));
 
         assertEquals("stale-stage-input", failure.code());
         assertEquals(design, controller.status(design.id()));
@@ -1025,10 +1027,7 @@ class ShipControllerTest {
         run = complete(controller, run, "plan");
         assertEquals(Stage.EXECUTE, run.currentStage());
 
-        Path workspace = controller.prepareWorkspace(
-                run.id(),
-                run.stage(Stage.EXECUTE).attempts(),
-                run.stage(Stage.EXECUTE).inputDigest());
+        Path workspace = controller.prepareAttempt(run.id()).workingDirectory();
         Path report = Files.writeString(
                 workspace.resolve("execution-report.md"), "executed");
         Path route = Files.writeString(workspace.resolve("orders.camel.yaml"), "version one");
@@ -1043,7 +1042,8 @@ class ShipControllerTest {
                         executing.stage(Stage.EXECUTE).inputDigest(),
                         digest("execute"),
                         List.of(),
-                        false));
+                        false,
+                        null));
         assertFailure(
                 "artifact-invalid",
                 () -> controller.completeExecuteStage(
@@ -1051,7 +1051,8 @@ class ShipControllerTest {
                         executing.stage(Stage.EXECUTE).attempts(),
                         executing.stage(Stage.EXECUTE).inputDigest(),
                         List.of(liveArtifact),
-                        false));
+                        false,
+                        null));
         assertFailure(
                 "artifact-invalid",
                 () -> controller.completeExecuteStage(
@@ -1059,7 +1060,8 @@ class ShipControllerTest {
                         executing.stage(Stage.EXECUTE).attempts(),
                         executing.stage(Stage.EXECUTE).inputDigest(),
                         List.of(workspace),
-                        false));
+                        false,
+                        null));
         Path credential = Files.writeString(workspace.resolve(".env"), "TOKEN=secret");
         assertFailure(
                 "artifact-invalid",
@@ -1068,7 +1070,8 @@ class ShipControllerTest {
                         executing.stage(Stage.EXECUTE).attempts(),
                         executing.stage(Stage.EXECUTE).inputDigest(),
                         List.of(report),
-                        false));
+                        false,
+                        null));
         Files.delete(credential);
         Files.createDirectories(workspace.resolve("target"));
         Files.writeString(workspace.resolve("target/build.log"), "volatile output");
@@ -1078,7 +1081,8 @@ class ShipControllerTest {
                 run.stage(Stage.EXECUTE).attempts(),
                 run.stage(Stage.EXECUTE).inputDigest(),
                 List.of(report),
-                false);
+                false,
+                null);
         ProjectSnapshot acceptedSnapshot = ProjectEvidenceFiles.captureStaged(workspace);
         assertEquals(Stage.VALIDATE, validating.currentStage());
         assertTrue(ShipDigest.isSha256(validating.stage(Stage.EXECUTE).outputDigest()));
@@ -1127,16 +1131,14 @@ class ShipControllerTest {
         run = complete(controller, run, "discovery");
         run = complete(controller, run, "design");
         run = complete(controller, run, "plan");
-        Path workspace = controller.prepareWorkspace(
-                run.id(),
-                run.stage(Stage.EXECUTE).attempts(),
-                run.stage(Stage.EXECUTE).inputDigest());
+        Path workspace = controller.prepareAttempt(run.id()).workingDirectory();
         run = controller.completeExecuteStage(
                 run.id(),
                 run.stage(Stage.EXECUTE).attempts(),
                 run.stage(Stage.EXECUTE).inputDigest(),
                 List.of(),
-                false);
+                false,
+                null);
 
         String runId = run.id();
         Path state = directory.resolve("state").resolve(runId).resolve("state.json");
@@ -1184,7 +1186,8 @@ class ShipControllerTest {
                         active.stage(Stage.DISCOVERY).inputDigest(),
                         digest("discovery"),
                         List.of(),
-                        false));
+                        false,
+                        null));
     }
 
     @Test
@@ -1196,10 +1199,7 @@ class ShipControllerTest {
         run = complete(controller, run, "discovery");
         run = complete(controller, run, "design");
         run = complete(controller, run, "plan");
-        Path workspace = controller.prepareWorkspace(
-                run.id(),
-                run.stage(Stage.EXECUTE).attempts(),
-                run.stage(Stage.EXECUTE).inputDigest());
+        Path workspace = controller.prepareAttempt(run.id()).workingDirectory();
         Files.writeString(project.resolve("README.md"), "changed");
         ShipRun executing = run;
 
@@ -1210,15 +1210,13 @@ class ShipControllerTest {
                         executing.stage(Stage.EXECUTE).attempts(),
                         executing.stage(Stage.EXECUTE).inputDigest(),
                         List.of(),
-                        false));
+                        false,
+                        null));
         assertEquals(executing, controller.status(executing.id()));
 
         ShipRun resumed = controller.resume(executing.id());
         assertEquals(2, resumed.stage(Stage.EXECUTE).attempts());
-        Path refreshed = controller.prepareWorkspace(
-                resumed.id(),
-                resumed.stage(Stage.EXECUTE).attempts(),
-                resumed.stage(Stage.EXECUTE).inputDigest());
+        Path refreshed = controller.prepareAttempt(resumed.id()).workingDirectory();
         assertEquals(workspace, refreshed);
         assertEquals("changed", Files.readString(refreshed.resolve("README.md")));
     }
@@ -1232,10 +1230,7 @@ class ShipControllerTest {
         run = complete(controller, run, "discovery");
         run = complete(controller, run, "design");
         run = complete(controller, run, "plan one", plan);
-        Path workspace = controller.prepareWorkspace(
-                run.id(),
-                run.stage(Stage.EXECUTE).attempts(),
-                run.stage(Stage.EXECUTE).inputDigest());
+        Path workspace = controller.prepareAttempt(run.id()).workingDirectory();
         Files.writeString(workspace.resolve("partial.txt"), "interrupted edit");
 
         Files.writeString(plan, "plan two");
@@ -1243,10 +1238,7 @@ class ShipControllerTest {
         assertEquals(Stage.EXECUTE, executing.currentStage());
         assertEquals(2, executing.stage(Stage.EXECUTE).attempts());
 
-        Path rebound = controller.prepareWorkspace(
-                executing.id(),
-                executing.stage(Stage.EXECUTE).attempts(),
-                executing.stage(Stage.EXECUTE).inputDigest());
+        Path rebound = controller.prepareAttempt(executing.id()).workingDirectory();
         assertEquals(workspace, rebound);
         assertFalse(Files.exists(rebound.resolve("partial.txt")));
         assertEquals("plan two", Files.readString(rebound.resolve("plan.md")));
@@ -1260,10 +1252,7 @@ class ShipControllerTest {
         run = complete(controller, run, "discovery");
         run = complete(controller, run, "design");
         run = complete(controller, run, "plan");
-        Path workspace = controller.prepareWorkspace(
-                run.id(),
-                run.stage(Stage.EXECUTE).attempts(),
-                run.stage(Stage.EXECUTE).inputDigest());
+        Path workspace = controller.prepareAttempt(run.id()).workingDirectory();
         Files.writeString(workspace.resolve("partial.txt"), "preserve me");
 
         ShipRun resumed = controller.resume(run.id());
@@ -1275,13 +1264,11 @@ class ShipControllerTest {
                         resumed.stage(Stage.EXECUTE).attempts(),
                         resumed.stage(Stage.EXECUTE).inputDigest(),
                         List.of(),
-                        false));
+                        false,
+                        null));
         assertEquals(resumed, controller.status(resumed.id()));
 
-        Path rebound = controller.prepareWorkspace(
-                resumed.id(),
-                resumed.stage(Stage.EXECUTE).attempts(),
-                resumed.stage(Stage.EXECUTE).inputDigest());
+        Path rebound = controller.prepareAttempt(resumed.id()).workingDirectory();
         assertEquals(workspace, rebound);
         assertEquals("preserve me", Files.readString(rebound.resolve("partial.txt")));
         ShipRun validating = controller.completeExecuteStage(
@@ -1289,7 +1276,8 @@ class ShipControllerTest {
                 resumed.stage(Stage.EXECUTE).attempts(),
                 resumed.stage(Stage.EXECUTE).inputDigest(),
                 List.of(),
-                false);
+                false,
+                null);
         assertEquals(Stage.VALIDATE, validating.currentStage());
     }
 
@@ -1301,10 +1289,7 @@ class ShipControllerTest {
         run = complete(controller, run, "discovery");
         run = complete(controller, run, "design");
         run = complete(controller, run, "plan");
-        Path workspace = controller.prepareWorkspace(
-                run.id(),
-                run.stage(Stage.EXECUTE).attempts(),
-                run.stage(Stage.EXECUTE).inputDigest());
+        Path workspace = controller.prepareAttempt(run.id()).workingDirectory();
         Path empty = Files.createFile(workspace.resolve("execution-report.md"));
         ShipRun executing = run;
 
@@ -1315,7 +1300,8 @@ class ShipControllerTest {
                         executing.stage(Stage.EXECUTE).attempts(),
                         executing.stage(Stage.EXECUTE).inputDigest(),
                         List.of(empty),
-                        false));
+                        false,
+                        null));
         assertEquals(executing, controller.status(executing.id()));
     }
 
@@ -1327,10 +1313,7 @@ class ShipControllerTest {
         run = complete(controller, run, "discovery");
         run = complete(controller, run, "design");
         run = complete(controller, run, "plan");
-        Path workspace = controller.prepareWorkspace(
-                run.id(),
-                run.stage(Stage.EXECUTE).attempts(),
-                run.stage(Stage.EXECUTE).inputDigest());
+        Path workspace = controller.prepareAttempt(run.id()).workingDirectory();
         Files.writeString(workspace.resolve("line\nbreak"), "content");
         ShipRun executing = run;
 
@@ -1341,7 +1324,8 @@ class ShipControllerTest {
                         executing.stage(Stage.EXECUTE).attempts(),
                         executing.stage(Stage.EXECUTE).inputDigest(),
                         List.of(),
-                        false));
+                        false,
+                        null));
 
         assertEquals("artifact-invalid", failure.code());
         ShipFilesystemException cause = assertInstanceOf(
@@ -1396,7 +1380,8 @@ class ShipControllerTest {
                         run.stage(run.currentStage()).inputDigest(),
                         digest("aggregate"),
                         aggregate,
-                        false));
+                        false,
+                        null));
         assertEquals(run, controller.status(run.id()));
     }
 
@@ -1580,7 +1565,8 @@ class ShipControllerTest {
                         run.stage(Stage.DISCOVERY).inputDigest(),
                         digest("result"),
                         List.of(link),
-                        false));
+                        false,
+                        null));
 
         assertEquals("artifact-invalid", failure.code());
         assertEquals(run, controller.status(run.id()));
@@ -2033,10 +2019,7 @@ class ShipControllerTest {
             run = complete(
                     controller, run, run.currentStage().name().toLowerCase(Locale.ROOT));
         }
-        Path candidate = controller.prepareWorkspace(
-                run.id(),
-                run.stage(Stage.EXECUTE).attempts(),
-                run.stage(Stage.EXECUTE).inputDigest());
+        Path candidate = controller.prepareAttempt(run.id()).workingDirectory();
         Files.createDirectory(candidate.resolve("routes"));
         Files.writeString(candidate.resolve("routes/order-route.yaml"), "route: order");
         Files.writeString(candidate.resolve("src/replace.txt"), "replaced");
@@ -2047,7 +2030,8 @@ class ShipControllerTest {
                 run.stage(Stage.EXECUTE).attempts(),
                 run.stage(Stage.EXECUTE).inputDigest(),
                 List.of(candidate.resolve("routes/order-route.yaml")),
-                false);
+                false,
+                null);
         ShipController.StageAttempt attempt = controller.prepareAttempt(run.id());
         ShipLocalStamp stamp = localStamp(run.id(), Outcome.PASS);
         ShipLocalStampStore.write(attempt.evidenceDirectory(), run.id(), stamp);
@@ -2254,16 +2238,14 @@ class ShipControllerTest {
             ShipController controller, ShipRun run, String result, Path... artifacts) {
         Stage stage = run.currentStage();
         if (stage == Stage.EXECUTE) {
-            controller.prepareWorkspace(
-                    run.id(),
-                    run.stage(stage).attempts(),
-                    run.stage(stage).inputDigest());
+            controller.prepareAttempt(run.id());
             return controller.completeExecuteStage(
                     run.id(),
                     run.stage(stage).attempts(),
                     run.stage(stage).inputDigest(),
                     List.of(artifacts),
-                    false);
+                    false,
+                    null);
         }
         return controller.completeStage(
                 run.id(),
@@ -2272,7 +2254,8 @@ class ShipControllerTest {
                 run.stage(stage).inputDigest(),
                 digest(result),
                 List.of(artifacts),
-                false);
+                false,
+                null);
     }
 
     private static String digest(String value) {

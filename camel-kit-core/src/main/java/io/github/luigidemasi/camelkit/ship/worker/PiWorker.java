@@ -2477,24 +2477,11 @@ public final class PiWorker {
             return terminal;
         }
 
-        List<JsonNode> messages() {
-            return List.copyOf(messages);
-        }
-
-        List<ExpectedRecord> records() {
-            return List.copyOf(records);
-        }
-
-        List<Terminal> agentResults() {
-            return List.copyOf(agentResults);
-        }
-
         CompletedTurn turn() throws IOException {
             requireTerminalMessage(
                     terminal, messages, records, agentResults);
             return new CompletedTurn(
                     terminal,
-                    List.copyOf(messages),
                     List.copyOf(records));
         }
     }
@@ -2618,7 +2605,6 @@ public final class PiWorker {
             return new ReconciledTurn(
                     new CompletedTurn(
                             terminal,
-                            List.copyOf(messages),
                             List.copyOf(records)),
                     natural);
         }
@@ -3203,7 +3189,6 @@ public final class PiWorker {
 
     private record CompletedTurn(
             Terminal terminal,
-            List<JsonNode> messages,
             List<ExpectedRecord> records) {
     }
 

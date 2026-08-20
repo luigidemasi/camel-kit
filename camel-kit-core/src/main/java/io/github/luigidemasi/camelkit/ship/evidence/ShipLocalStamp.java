@@ -125,7 +125,6 @@ public record ShipLocalStamp(
     public enum Support {
         SUPPORTED,
         EXPERIMENTAL,
-        INCOMPATIBLE,
         UNTESTED,
         MISSING;
 

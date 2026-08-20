@@ -389,10 +389,6 @@ public record ShipRun(
             return new StageRecord(stage, StageStatus.PENDING, attempts, null, null, List.of());
         }
 
-        StageRecord withArtifacts(List<ArtifactRef> references) {
-            return withArtifacts(outputDigest, references);
-        }
-
         StageRecord withArtifacts(String digest, List<ArtifactRef> references) {
             if (status != StageStatus.COMPLETED) {
                 throw new IllegalStateException("Only a completed Ship stage has artifacts");

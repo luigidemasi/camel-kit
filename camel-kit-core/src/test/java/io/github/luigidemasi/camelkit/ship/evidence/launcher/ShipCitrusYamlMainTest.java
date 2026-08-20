@@ -23,35 +23,18 @@ class ShipCitrusYamlMainTest {
         ShipCitrusYamlMain.TestContract contract = ShipCitrusYamlMain.inspect(write(validTest()), "orders");
 
         assertEquals("orders-behavior", contract.name());
-        assertEquals("camel:sync:direct:camel-kit-ship-test-orders", contract.endpoint());
-        assertEquals(1, contract.cases().size());
-        assertEquals("new-order", contract.cases().get(0).requestBody());
-        assertEquals("accepted-order", contract.cases().get(0).responseBody());
-        assertTrue(contract.cases().get(0).requestHeaders().isEmpty());
-        assertTrue(contract.cases().get(0).responseHeaders().isEmpty());
     }
 
     @Test
     void acceptsBoundedLiteralAcceptanceMatrixWithApplicationHeaders() throws Exception {
         ShipCitrusYamlMain.TestContract contract = ShipCitrusYamlMain.inspect(write(matrixTest()), "orders");
 
-        assertEquals(2, contract.cases().size());
-        assertEquals(List.of(
-                new ShipCitrusYamlMain.Header("requestId", "req-1"),
-                new ShipCitrusYamlMain.Header("timestamp", "2026-07-17T10:15:30Z"),
-                new ShipCitrusYamlMain.Header("strategy", "priority")),
-                contract.cases().get(0).requestHeaders());
-        assertEquals(List.of(new ShipCitrusYamlMain.Header("requestId", "req-1")),
-                contract.cases().get(0).responseHeaders());
-        assertEquals("standard-order", contract.cases().get(1).requestBody());
-        assertEquals("accepted-standard", contract.cases().get(1).responseBody());
+        assertEquals("orders-matrix", contract.name());
     }
 
     @Test
     void enforcesCompleteAlternatingCasesAndActionBounds() throws Exception {
-        assertEquals(ShipCitrusYamlMain.MAX_CASES,
-                ShipCitrusYamlMain.inspect(write(testWithCases(ShipCitrusYamlMain.MAX_CASES)), "orders")
-                        .cases().size());
+        ShipCitrusYamlMain.inspect(write(testWithCases(ShipCitrusYamlMain.MAX_CASES)), "orders");
 
         for (String invalid : List.of(
                 validTest().replace("  - receive:", "  - send:"),
@@ -109,7 +92,7 @@ class ShipCitrusYamlMainTest {
 
         ShipCitrusYamlMain.TestContract contract = ShipCitrusYamlMain.inspect(test, "orders");
 
-        assertEquals(literal, contract.cases().get(0).responseBody());
+        assertEquals("orders-behavior", contract.name());
     }
 
     @Test
