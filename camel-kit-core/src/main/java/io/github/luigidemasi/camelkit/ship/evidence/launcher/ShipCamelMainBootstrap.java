@@ -82,15 +82,16 @@ public final class ShipCamelMainBootstrap {
     }
 
     public static void main(String[] arguments) throws Exception {
-        if (arguments.length == 1 && "--payload-version".equals(arguments[0])) {
-            System.out.println("Camel direct Main bootstrap " + camelVersion());
-            return;
+        if (arguments.length == 0 || !arguments[0].startsWith("--accepted-root=")) {
+            throw new IOException("Direct Main bootstrap requires --accepted-root first");
         }
-        TreeSet<String> routes = new TreeSet<>();
+        Path root = acceptedRoot(arguments[0].substring("--accepted-root=".length()));
+        TreeSet<Path> routes = new TreeSet<>();
         TreeSet<String> routeIds = new TreeSet<>();
-        for (String argument : arguments) {
+        for (int index = 1; index < arguments.length; index++) {
+            String argument = arguments[index];
             if (argument.startsWith("--route=")) {
-                if (!routes.add(argument.substring("--route=".length()))) {
+                if (!routes.add(root.resolve(argument.substring("--route=".length())).normalize())) {
                     throw new IOException("A route path was supplied more than once");
                 }
             } else if (argument.startsWith("--expected-route=")) {
@@ -102,7 +103,21 @@ public final class ShipCamelMainBootstrap {
                 throw new IOException("Unknown direct Main bootstrap argument");
             }
         }
-        start(Path.of("/workspace"), routes.stream().map(Path::of).toList(), routeIds);
+        start(root, List.copyOf(routes), routeIds);
+    }
+
+    /** Validates the runner-supplied accepted snapshot root: absolute, real, and a directory. */
+    static Path acceptedRoot(String value) throws IOException {
+        Path root = Path.of(value);
+        if (!root.isAbsolute()) {
+            throw new IOException("Accepted snapshot root must be an absolute path");
+        }
+        Path real = root.toRealPath(LinkOption.NOFOLLOW_LINKS);
+        if (!real.equals(root.normalize()) || Files.isSymbolicLink(real)
+                || !Files.isDirectory(real, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("Accepted snapshot root must be a real directory");
+        }
+        return real;
     }
 
     public static void start(Path acceptedRoot, List<Path> requestedRoutes, Set<String> expectedRouteIds)
@@ -535,11 +550,6 @@ public final class ShipCamelMainBootstrap {
 
     private static boolean isEndpointSelector(String key) {
         return key != null && ENDPOINT_SELECTOR_KEYS.contains(key);
-    }
-
-    private static String camelVersion() {
-        String version = CamelContext.class.getPackage().getImplementationVersion();
-        return version == null || version.isBlank() ? "unknown" : version;
     }
 
     @FunctionalInterface

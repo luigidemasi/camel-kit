@@ -859,7 +859,7 @@ The registered command is `camel-kit ship` when Camel-Kit is installed standalon
 
 Runtime and configuration options apply only when starting or resuming a workflow. Repeat the same `-c` and `-p` options when resuming a run that used overrides.
 
-The current worker requires a merged-/usr Linux host (`/lib -> usr/lib` and `/lib64 -> usr/lib64`), Pi, Node, and Bubblewrap. Install the distribution's `bubblewrap` package so `bwrap` is executable at `/usr/bin/bwrap` or `/bin/bwrap`; deterministic validation deliberately has no unsandboxed fallback. Missing executables fail with installation guidance; an unrecognized Pi or Node version is reported as experimental and runs only with `--accept-experimental`.
+The current worker requires a Linux host, Pi, and Node. Deterministic validation commands run in a separate JVM launched by the controller with a pinned, controller-resolved classpath, a scrubbed environment, and a frozen read-only copy of the accepted project tree; network access during validation is avoided by replacing every non-direct Camel endpoint with an in-memory stub, not by OS-level sandboxing. Missing executables fail with installation guidance; an unrecognized Pi or Node version is reported as experimental and runs only with `--accept-experimental`.
 
 **Oversight:**
 
@@ -903,7 +903,7 @@ Implementation changes stay in a staged workspace until the configured oversight
 
 Ordinary process interruption is recoverable with the run ID, but Ship is not a daemon or a guarantee against OS or power loss. It assumes the invoking OS account is trusted: it is not a hostile same-user sandbox, credential broker, or long-lived service. Provider credentials remain under Pi and provider tooling.
 
-Maintainers can opt into the authenticated Pi/Linux live test on a merged-/usr host with Bubblewrap installed. Set `CAMEL_KIT_SHIP_LIVE_PI` and `CAMEL_KIT_SHIP_LIVE_NODE` to absolute executable paths for a bundled certified configuration (currently Pi `0.84.2` or `0.83.0`, with Node `22.22.2`), then run:
+Maintainers can opt into the authenticated Pi/Linux live test on a Linux host. Set `CAMEL_KIT_SHIP_LIVE_PI` and `CAMEL_KIT_SHIP_LIVE_NODE` to absolute executable paths for a bundled certified configuration (currently Pi `0.84.2` or `0.83.0`, with Node `22.22.2`), then run:
 
 ```bash
 ./mvnw -B -Plinux-ship-certification clean install

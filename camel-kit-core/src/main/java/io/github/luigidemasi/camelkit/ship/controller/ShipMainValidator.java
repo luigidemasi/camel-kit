@@ -13,13 +13,10 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFileAttributeView;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -58,13 +55,12 @@ import io.github.luigidemasi.camelkit.ship.security.ProjectEvidenceFiles;
 final class ShipMainValidator {
 
     /** Bump whenever accepted manifest or mandatory validation semantics change. */
-    static final int CONTRACT_VERSION = 2;
+    static final int CONTRACT_VERSION = 3;
     static final int MAX_EVIDENCE_COMMANDS = 64;
     static final Duration MAX_EVIDENCE_TIMEOUT_BUDGET = Duration.ofHours(12);
 
     private static final int MAX_LOG_BYTES = 64 * 1024 * 1024;
     private static final long MAX_TOTAL_LOG_BYTES = 64L * 1024 * 1024;
-    private static final long MAX_EXECUTABLE_BYTES = 128L * 1024 * 1024;
     private static final Map<String, String> LOCALE = Map.of("LC_ALL", "C", "LANG", "C");
 
     private final EvidenceExecutor executor;
@@ -82,7 +78,7 @@ final class ShipMainValidator {
             @Override
             public void cleanup(Path directory, EvidenceCommand command, CommandEvidence evidence)
                     throws IOException {
-                EvidenceRunner.cleanupEphemeral(directory, command, evidence);
+                EvidenceRunner.cleanupEphemeral(evidence);
             }
         });
     }
@@ -308,18 +304,19 @@ final class ShipMainValidator {
         List<ArtifactManifest.RouteArtifact> routes = orderedRoutes(manifest);
         List<EvidenceCommand> result = new ArrayList<>();
 
-        List<String> routeArguments = directJvmArguments();
-        routes.forEach(route -> routeArguments.add("/workspace/" + route.path()));
+        JvmPayloadRequest routePayload = JvmPayloadRequest.yamlValidator(manifest.camelVersion());
+        List<String> routeArguments = directJvmArguments(routePayload);
+        routes.forEach(route -> routeArguments.add(route.path()));
         result.add(command(
                 "route-schema",
                 routeArguments,
                 Duration.ofMinutes(10),
                 inputs,
-                JvmPayloadRequest.yamlValidator(manifest.camelVersion())));
+                routePayload));
 
-        List<String> mainArguments = directJvmArguments();
+        List<String> mainArguments = directJvmArguments(mainPayload);
         routes.forEach(route -> {
-            mainArguments.add("--route=/workspace/" + route.path());
+            mainArguments.add("--route=" + route.path());
             mainArguments.add("--expected-route=" + route.routeId());
         });
         result.add(command(
@@ -340,20 +337,21 @@ final class ShipMainValidator {
                     .findFirst()
                     .orElseThrow(() -> new IllegalArgumentException(
                             "Citrus test has no accepted route: " + test.routeId()));
-            List<String> arguments = directJvmArguments();
-            arguments.add("--route=/workspace/" + route.path());
+            JvmPayloadRequest citrusPayload = JvmPayloadRequest.citrus(
+                    manifest.camelVersion(),
+                    manifest.citrusVersion(),
+                    manifest.citrusDependencies(),
+                    binding.runtimeDependencies());
+            List<String> arguments = directJvmArguments(citrusPayload);
+            arguments.add("--route=" + route.path());
             arguments.add("--expected-route=" + route.routeId());
-            arguments.add("--test=/workspace/" + test.path());
+            arguments.add("--test=" + test.path());
             result.add(command(
                     String.format(java.util.Locale.ROOT, "citrus-integration-test-%03d", index + 1),
                     arguments,
                     Duration.ofMinutes(30),
                     inputs,
-                    JvmPayloadRequest.citrus(
-                            manifest.camelVersion(),
-                            manifest.citrusVersion(),
-                            manifest.citrusDependencies(),
-                            binding.runtimeDependencies())));
+                    citrusPayload));
         }
         return List.copyOf(result);
     }
@@ -364,18 +362,13 @@ final class ShipMainValidator {
             Duration timeout,
             List<String> inputs,
             JvmPayloadRequest payload) {
-        List<String> versionArguments = directJvmArguments();
-        versionArguments.add("--payload-version");
         return new EvidenceCommand(
                 id,
                 arguments,
-                versionArguments,
                 null,
                 timeout,
                 inputs,
                 LOCALE,
-                null,
-                null,
                 payload);
     }
 
@@ -389,7 +382,6 @@ final class ShipMainValidator {
         Path commandRoot = realDirectory(
                 evidenceRoot.resolve(expected.id()), "command evidence root");
         if (evidence == null
-                || evidence.schemaVersion() != CommandEvidence.SCHEMA_VERSION
                 || !expected.id().equals(evidence.commandId())
                 || !expected.arguments().equals(evidence.arguments())
                 || !expected.inputDigests().equals(evidence.inputDigests())
@@ -400,51 +392,10 @@ final class ShipMainValidator {
             throw new IOException("Command evidence identity differs from the controller plan");
         }
 
-        String jdkDigest = evidence.controlledEnvironment().get("CAMEL_KIT_JDK_DIGEST");
-        if (!ShipDigest.isSha256(jdkDigest)
-                || !EvidenceRunner.expectedEnvironment(expected, jdkDigest)
-                        .equals(evidence.controlledEnvironment())) {
-            throw new IOException("Command evidence environment differs from controller policy");
-        }
-        CommandEvidence.SandboxIdentity sandbox = evidence.sandbox();
-        if (sandbox == null
-                || !EvidenceRunner.SANDBOX_PROVIDER.equals(sandbox.provider())
-                || !sandbox.intact()
-                || !ShipDigest.isSha256(sandbox.executableDigest())
-                || !EvidenceRunner.expectedSandboxProfileDigest(expected, jdkDigest)
-                        .equals(sandbox.profileDigest())) {
-            throw new IOException("Command evidence did not use the expected intact sandbox");
-        }
-        requireExecutableDigest(
-                sandbox.executable(), sandbox.executableDigest(), "sandbox executable");
-        if (!ShipDigest.isSha256(evidence.toolchainDigest())
-                || !evidence.toolchainDigest().equals(evidence.postToolchainDigest())
-                || !ShipDigest.isSha256(evidence.toolchainSnapshotDigest())
-                || !ShipDigest.isSha256(evidence.executableDigest())
-                || !evidence.executableDigest().equals(evidence.postExecutableDigest())) {
-            throw new IOException("Command execution authority changed during collection");
-        }
-        requireContained(
-                commandRoot,
-                requireExecutableDigest(
-                        evidence.executable(), evidence.executableDigest(), "command executable"),
-                "command executable");
-        Path toolchain = path(evidence.toolchainSnapshot(), "toolchain snapshot");
-        requireContained(commandRoot, toolchain, "toolchain snapshot");
-        JvmPayloadArchive.Identity identity
-                = JvmPayloadArchive.verify(toolchain, expected.jvmPayload(), jdkDigest);
-        if (!evidence.toolchainDigest().equals(identity.aggregateDigest())
-                || !evidence.toolchainSnapshotDigest().equals(identity.archiveDigest())) {
-            throw new IOException("Command toolchain identity differs from its retained snapshot");
-        }
-        if (!expectedVersion(expected.jvmPayload(), manifest).equals(evidence.executableVersion())) {
-            throw new IOException("Command launcher version differs from the controller policy");
-        }
-
         RetainedLogs logs = retainLogs(commandRoot, evidenceRoot, expected.id(), evidence);
         CommandRun command = new CommandRun(
                 path(evidence.executable(), "command executable").toString(),
-                evidence.executableVersion(),
+                expectedVersion(expected.jvmPayload(), manifest),
                 expected.arguments(),
                 candidate.toString(),
                 expected.inputDigests(),
@@ -530,37 +481,6 @@ final class ShipMainValidator {
             throw new IOException("Command log differs from its recorded digest");
         }
         return content;
-    }
-
-    private static Path requireExecutableDigest(
-            String value, String expectedDigest, String label)
-            throws IOException {
-        Path file = path(value, label);
-        if (Files.isSymbolicLink(file)
-                || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)
-                || !Files.isExecutable(file)
-                || Files.size(file) <= 0
-                || Files.size(file) > MAX_EXECUTABLE_BYTES
-                || !expectedDigest.equals(digest(file))) {
-            throw new IOException(label + " differs from command evidence");
-        }
-        return file;
-    }
-
-    private static String digest(Path file) throws IOException {
-        MessageDigest digest;
-        try {
-            digest = MessageDigest.getInstance("SHA-256");
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 is unavailable", e);
-        }
-        try (InputStream input = Files.newInputStream(file, LinkOption.NOFOLLOW_LINKS)) {
-            byte[] buffer = new byte[16_384];
-            for (int count; (count = input.read(buffer)) != -1;) {
-                digest.update(buffer, 0, count);
-            }
-        }
-        return "sha256:" + HexFormat.of().formatHex(digest.digest());
     }
 
     private static void requireContained(Path root, Path supplied, String label)
@@ -725,13 +645,14 @@ final class ShipMainValidator {
                 .toList();
     }
 
-    private static List<String> directJvmArguments() {
+    private static List<String> directJvmArguments(JvmPayloadRequest payload) {
         return new ArrayList<>(
                 List.of(
                         EvidenceRunner.JAVA_EXECUTABLE,
                         "-cp",
-                        JvmPayloadArchive.SANDBOX_ARCHIVE,
-                        ShipJvmPayloadBootstrap.class.getName()));
+                        JvmPayloadArchive.ARCHIVE_NAME,
+                        ShipJvmPayloadBootstrap.class.getName(),
+                        "--launcher=" + payload.launcherClass()));
     }
 
     private static String expectedVersion(

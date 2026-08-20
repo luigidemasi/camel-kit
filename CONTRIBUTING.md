@@ -52,7 +52,7 @@ This project follows the [Apache Software Foundation Code of Conduct](https://ww
 # Portable build of all modules using Maven Wrapper
 ./mvnw clean install
 
-# CI always certifies packaged Ship payloads on Linux; reproduce it locally when Bubblewrap is available
+# CI always certifies packaged Ship payloads on Linux; reproduce it locally on a Linux host
 ./mvnw -B -Plinux-ship-certification clean install
 
 # Run CLI using JBang (from jbang-catalog.json)
@@ -189,7 +189,7 @@ Before opening an issue:
    # Portable build
    ./mvnw clean install
 
-   # CI always certifies packaged Ship payloads on Linux; reproduce it locally when Bubblewrap is available
+   # CI always certifies packaged Ship payloads on Linux; reproduce it locally on a Linux host
    ./mvnw -B -Plinux-ship-certification clean install
    ```
 
