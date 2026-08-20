@@ -106,27 +106,6 @@ public final class ShipCoordinator {
                     Path stateRoot,
                     ShipController controller,
                     PiWorker worker,
-                    ShipCatalogService catalogs,
-                    ShipMainValidator validator,
-                    DistributionConfig distribution,
-                    boolean acceptExperimental,
-                    Clock clock) {
-        this(
-             stateRoot,
-             controller,
-             worker,
-             catalogs::snapshot,
-             validator,
-             distribution,
-             Map.of(),
-             acceptExperimental,
-             clock);
-    }
-
-    ShipCoordinator(
-                    Path stateRoot,
-                    ShipController controller,
-                    PiWorker worker,
                     CatalogProvider catalogs,
                     ShipMainValidator validator,
                     DistributionConfig distribution,
@@ -206,13 +185,9 @@ public final class ShipCoordinator {
     }
 
     /**
-     * Recovers an exact durable Pi result before retrying; deterministic validation restarts in a fresh attempt.
+     * Appends context to a paused run, then recovers an exact durable Pi result before retrying; deterministic
+     * validation restarts in a fresh attempt.
      */
-    public ShipRun resume(String runId) throws IOException, InterruptedException {
-        return resume(runId, List.of());
-    }
-
-    /** Appends context to a paused run before restarting stale work. */
     public ShipRun resume(
             String runId, List<? extends ShipContext.Input> additions)
             throws IOException, InterruptedException {

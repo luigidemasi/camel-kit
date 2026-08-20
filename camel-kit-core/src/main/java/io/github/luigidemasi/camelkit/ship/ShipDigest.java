@@ -18,10 +18,6 @@ public final class ShipDigest {
         return value != null && value.matches("sha256:[0-9a-f]{64}");
     }
 
-    public static boolean isHmacSha256(String value) {
-        return value != null && value.matches("hmac-sha256:[0-9a-f]{64}");
-    }
-
     private static MessageDigest messageDigest() {
         try {
             return MessageDigest.getInstance("SHA-256");

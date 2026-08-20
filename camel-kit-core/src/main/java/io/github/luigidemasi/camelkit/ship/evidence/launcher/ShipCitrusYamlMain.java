@@ -7,7 +7,6 @@ import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -121,27 +120,24 @@ public final class ShipCitrusYamlMain {
                                   + " complete send/receive cases and at most " + MAX_ACTIONS + " actions");
         }
         String expectedEndpoint = "camel:sync:" + ShipCamelMainBootstrap.testEntryUri(expectedRouteId);
-        List<BehaviorCase> cases = new ArrayList<>(actions.size() / 2);
         for (int index = 0; index < actions.size(); index += 2) {
-            Action send = action(actions.get(index), "send");
-            Action receive = action(actions.get(index + 1), "receive");
-            if (!send.endpoint().equals(receive.endpoint())) {
+            String send = action(actions.get(index), "send");
+            String receive = action(actions.get(index + 1), "receive");
+            if (!send.equals(receive)) {
                 throw new IOException("Each Citrus send and assertion must address the same Camel endpoint");
             }
-            if (!expectedEndpoint.equals(send.endpoint())) {
+            if (!expectedEndpoint.equals(send)) {
                 throw new IOException("Every Citrus endpoint must address the controller test entry for its route");
             }
-            cases.add(new BehaviorCase(
-                    send.body(), send.headers(), receive.body(), receive.headers()));
         }
-        return new TestContract(name.asText(), expectedEndpoint, cases);
+        return new TestContract(name.asText());
     }
 
     public static void validatePolicy(Path test, String expectedRouteId) throws IOException {
         inspect(test, expectedRouteId);
     }
 
-    private static Action action(JsonNode node, String expected) throws IOException {
+    private static String action(JsonNode node, String expected) throws IOException {
         if (node == null || !node.isObject() || node.size() != 1 || !node.has(expected)) {
             throw new IOException("Citrus actions must be exactly send followed by receive");
         }
@@ -174,17 +170,17 @@ public final class ShipCitrusYamlMain {
                 || body.get("data").asText().length() > MAX_BODY_CHARS) {
             throw new IOException("Citrus message body must contain one bounded nonblank inline literal");
         }
-        return new Action(endpoint, body.get("data").asText(), headers(message.get("headers")));
+        validateHeaders(message.get("headers"));
+        return endpoint;
     }
 
-    private static List<Header> headers(JsonNode node) throws IOException {
+    private static void validateHeaders(JsonNode node) throws IOException {
         if (node == null) {
-            return List.of();
+            return;
         }
         if (!node.isArray() || node.isEmpty() || node.size() > MAX_HEADERS_PER_ACTION) {
             throw new IOException("Citrus headers must contain 1-" + MAX_HEADERS_PER_ACTION + " literal entries");
         }
-        List<Header> headers = new ArrayList<>(node.size());
         Set<String> names = new HashSet<>();
         for (JsonNode entry : node) {
             if (!entry.isObject() || entry.size() != HEADER_FIELDS.size()
@@ -201,8 +197,7 @@ public final class ShipCitrusYamlMain {
             if (!nameNode.isTextual() || !HEADER_NAME.matcher(nameNode.asText()).matches()) {
                 throw new IOException("Citrus header name is not a safe application header name");
             }
-            String name = nameNode.asText();
-            String normalizedName = name.toLowerCase(Locale.ROOT);
+            String normalizedName = nameNode.asText().toLowerCase(Locale.ROOT);
             if (normalizedName.startsWith("camel") || normalizedName.startsWith("citrus")
                     || !names.add(normalizedName)) {
                 throw new IOException("Citrus headers must be unique application-owned names");
@@ -211,9 +206,7 @@ public final class ShipCitrusYamlMain {
                     || valueNode.asText().chars().anyMatch(Character::isISOControl)) {
                 throw new IOException("Citrus header value must be one bounded literal string");
             }
-            headers.add(new Header(name, valueNode.asText()));
         }
-        return List.copyOf(headers);
     }
 
     private static String textualEndpoint(JsonNode value) throws IOException {
@@ -377,28 +370,6 @@ public final class ShipCitrusYamlMain {
         return version == null || version.isBlank() ? "unknown" : version;
     }
 
-    public record TestContract(String name, String endpoint, List<BehaviorCase> cases) {
-
-        public TestContract {
-            cases = List.copyOf(cases);
-        }
-    }
-
-    public record BehaviorCase(
-            String requestBody,
-            List<Header> requestHeaders,
-            String responseBody,
-            List<Header> responseHeaders) {
-
-        public BehaviorCase {
-            requestHeaders = List.copyOf(requestHeaders);
-            responseHeaders = List.copyOf(responseHeaders);
-        }
-    }
-
-    public record Header(String name, String value) {
-    }
-
-    private record Action(String endpoint, String body, List<Header> headers) {
+    public record TestContract(String name) {
     }
 }

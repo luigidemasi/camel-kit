@@ -155,12 +155,6 @@ public final class ArtifactValidator {
         return new ArtifactValidationResult(findings);
     }
 
-    /** Binds every used Camel component model to an exact runtime dependency in the accepted POM. */
-    public static ArtifactValidationResult validateCatalogDependencies(
-            Path projectRoot, ArtifactPolicy policy, CatalogEvidenceSet usageEvidence) {
-        return bindCatalogDependencies(projectRoot, policy, usageEvidence).validation();
-    }
-
     /** Validate and retain the exact candidate runtime dependency roots used for controller execution. */
     public static CatalogDependencyBinding bindCatalogDependencies(
             Path projectRoot, ArtifactPolicy policy, CatalogEvidenceSet usageEvidence) {
@@ -180,48 +174,9 @@ public final class ArtifactValidator {
             if (Files.size(pom) > MAX_POM_INSPECTION_BYTES) {
                 throw new IOException("Maven POM is too large for deterministic inspection");
             }
-            String runtime = normalizeRuntime(policy.runtime());
-            MavenModel model = parseMavenModel(pom, "main".equals(runtime));
-            if ("main".equals(runtime)) {
-                List<RuntimeDependency> dependencies = validateExactMainDependencies(
-                        model, policy, runtimeSubjects, findings);
-                return new CatalogDependencyBinding(
-                        new ArtifactValidationResult(findings), model.sourceDigest(), dependencies);
-            }
-            for (SubjectEvidence component : runtimeSubjects) {
-                MavenCoordinate dependency = model.dependencies().stream()
-                        .filter(candidate -> candidate.matches(component.groupId(), component.artifactId())
-                                && candidate.runtimeScoped() && candidate.classifier() == null)
-                        .findFirst()
-                        .orElse(null);
-                String coordinate = component.groupId() + ':' + component.artifactId();
-                if (dependency == null) {
-                    findings.add(error("catalog-component-dependency-missing", "pom.xml",
-                            "Route component " + component.subject().name()
-                                                                                          + " requires runtime dependency "
-                                                                                          + coordinate));
-                    continue;
-                }
-                if (dependency.version() == null) {
-                    if (!managedByApprovedBom(model, runtime, policy)) {
-                        findings.add(error("catalog-component-dependency-version", "pom.xml",
-                                "Route component dependency " + coordinate
-                                                                                              + " has no version from the approved runtime BOM"));
-                    }
-                } else if (!dependency.version().equals(component.artifactVersion())) {
-                    findings.add(error("catalog-component-dependency-version", "pom.xml",
-                            "Route component dependency " + coordinate + " version " + dependency.version()
-                                                                                          + " differs from catalog version "
-                                                                                          + component
-                                                                                                  .artifactVersion()));
-                }
-            }
-            List<RuntimeDependency> dependencies = runtimeSubjects.stream()
-                    .map(subject -> new RuntimeDependency(
-                            subject.groupId(), subject.artifactId(), subject.artifactVersion(), "compile"))
-                    .distinct()
-                    .sorted(java.util.Comparator.comparing(RuntimeDependency::coordinate))
-                    .toList();
+            MavenModel model = parseMavenModel(pom, true);
+            List<RuntimeDependency> dependencies = validateExactMainDependencies(
+                    model, policy, runtimeSubjects, findings);
             return new CatalogDependencyBinding(
                     new ArtifactValidationResult(findings), model.sourceDigest(), dependencies);
         } catch (ExactMainPomPolicyException e) {
@@ -239,16 +194,6 @@ public final class ArtifactValidator {
             ArtifactPolicy policy,
             List<SubjectEvidence> runtimeSubjects,
             List<ArtifactFinding> findings) {
-        if (model.parent() != null || model.hasProperties() || model.hasDependencyManagement()
-                || !model.managedDependencies().isEmpty() || model.hasBuild() || !model.plugins().isEmpty()
-                || model.packaging() != null && !"jar".equals(model.packaging())
-                || model.hasProfiles() || model.hasModules() || model.hasRepositories()
-                || model.hasPluginRepositories() || model.hasBuildExtensions() || model.hasPluginManagement()) {
-            findings.add(error("catalog-runtime-pom-policy", "pom.xml",
-                    "Ship protocol v1 Main requires a self-contained POM without parents, properties, "
-                                                                        + "dependency management, profiles, repositories, extensions, or plugins"));
-        }
-
         Map<String, RuntimeDependency> expected = new HashMap<>();
         putExpected(expected, new RuntimeDependency(
                 "org.apache.camel", "camel-main", policy.camelVersion(), "compile"), findings);
@@ -267,17 +212,6 @@ public final class ArtifactValidator {
         for (MavenCoordinate coordinate : model.dependencies()) {
             String ga = coordinate.groupId() + ':' + coordinate.artifactId();
             String scope = coordinate.scope() == null ? "compile" : coordinate.scope();
-            if (!coordinate.runtimeScoped() || coordinate.optionalDeclared() || coordinate.exclusionsDeclared()
-                    || coordinate.expressionDeclared()
-                    || coordinate.type() != null && !"jar".equals(coordinate.type())
-                    || coordinate.classifier() != null || !safeMavenToken(coordinate.groupId())
-                    || !safeMavenToken(coordinate.artifactId()) || !exactRelease(coordinate.version())) {
-                findings.add(error("catalog-runtime-dependency-policy", "pom.xml",
-                        "Ship protocol v1 Main requires every dependency to be an exact, non-optional, "
-                                                                                   + "unexcluded compile/runtime JAR: "
-                                                                                   + ga));
-                continue;
-            }
             RuntimeDependency dependency = new RuntimeDependency(
                     coordinate.groupId(), coordinate.artifactId(), coordinate.version(), scope);
             if (actual.putIfAbsent(ga, dependency) != null) {
@@ -350,19 +284,6 @@ public final class ArtifactValidator {
         public CatalogDependencyBinding {
             runtimeDependencies = runtimeDependencies == null ? List.of() : List.copyOf(runtimeDependencies);
         }
-    }
-
-    private static boolean managedByApprovedBom(
-            MavenModel model, String runtime, ArtifactPolicy policy) {
-        MavenCoordinate bom = switch (runtime) {
-            case "main" -> findImportedBom(model, "org.apache.camel", "camel-bom");
-            case "spring-boot" ->
-                findImportedBom(model, "org.apache.camel.springboot", "camel-spring-boot-bom");
-            case "quarkus" -> findImportedBom(model, "io.quarkus.platform", "quarkus-camel-bom");
-            default -> null;
-        };
-        String expected = "main".equals(runtime) ? policy.camelVersion() : policy.platformVersion();
-        return bom != null && Objects.equals(expected, bom.version());
     }
 
     private static void validateRoute(

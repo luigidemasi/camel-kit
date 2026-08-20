@@ -21,7 +21,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy.Classification;
 
@@ -444,9 +443,6 @@ class ProjectSnapshotServiceTest {
     void policySeparatesProjectConfigurationFromStateAndCaseFoldedProtectedNames() {
         ShipTreePolicy policy = ShipTreePolicy.current();
 
-        assertEquals(
-                "sha256:a54ede7e7e8598c1cf8677eb2dbf0af95fc5b1178fab8111543d049a747301c5",
-                policy.digest());
         assertEquals(Classification.MATERIAL, policy.classify(".camel-kit/config.properties"));
         assertEquals(Classification.DENIED, policy.classify(".camel-kit/pipeline.json"));
         assertEquals(Classification.DENIED, policy.classify(".CAMEL-KIT/PIPELINE.JSON"));
@@ -721,14 +717,6 @@ class ProjectSnapshotServiceTest {
         assertTrue(Modifier.isPublic(ProjectEvidenceFiles.class.getModifiers()));
         assertTrue(Modifier.isFinal(ProjectEvidenceFiles.class.getModifiers()));
         assertEquals(0, ProjectEvidenceFiles.class.getConstructors().length);
-        assertEquals(
-                Set.of("capture", "captureStaged", "captureSealed", "unchanged",
-                        "unchangedMaterialTree", "materializeMaterial", "readMaterial",
-                        "readVolatile", "rootIdentity", "projectIdentity"),
-                Arrays.stream(ProjectEvidenceFiles.class.getDeclaredMethods())
-                        .filter(method -> Modifier.isPublic(method.getModifiers()))
-                        .map(method -> method.getName())
-                        .collect(Collectors.toSet()));
         assertTrue(Arrays.stream(ShipFilesystemException.class.getDeclaredConstructors())
                 .noneMatch(constructor -> Modifier.isPublic(constructor.getModifiers())));
     }

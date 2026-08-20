@@ -3,7 +3,6 @@ package io.github.luigidemasi.camelkit.ship.catalog;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
@@ -25,26 +24,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
-
-import javax.xml.XMLConstants;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.stream.XMLInputFactory;
-import javax.xml.stream.XMLStreamConstants;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamReader;
-
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-
-import org.xml.sax.ErrorHandler;
-import org.xml.sax.SAXException;
-import org.xml.sax.SAXParseException;
 
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogEvidenceSet.ArtifactEvidence;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogEvidenceSet.SubjectEvidence;
@@ -65,24 +47,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public final class ShipCatalogService {
 
     private static final long MAX_ARTIFACT_BYTES = 128L * 1024 * 1024;
-    private static final long MAX_POM_BYTES = 4L * 1024 * 1024;
-    private static final int MAX_POM_DEPTH = 64;
-    private static final int MAX_POM_ELEMENTS = 16_384;
-    private static final int MAX_POM_ATTRIBUTES = 512;
-    private static final int MAX_POM_NODES = 65_536;
-    private static final int MAX_POM_VALUE_CHARS = 1_024;
     private static final int MAX_ZIP_ENTRIES = 8_192;
     private static final long MAX_ZIP_UNCOMPRESSED_BYTES = 256L * 1024 * 1024;
     private static final int MAX_RESOURCE_BYTES = 2 * 1024 * 1024;
     private static final int MAX_SUBJECTS = 512;
     private static final int MAX_NAMES_PER_KIND = 8_192;
     private static final String MAIN_ROOT = "org/apache/camel/catalog";
-    private static final String SPRING_ROOT = "org/apache/camel/springboot/catalog";
-    private static final String QUARKUS_ROOT = "org/apache/camel/catalog/quarkus";
-    private static final String POM_NAMESPACE = "http://maven.apache.org/POM/4.0.0";
     private static final Pattern SAFE_COORDINATE = Pattern.compile("[A-Za-z0-9_.-]+");
     private static final Pattern TIMESTAMPED_SNAPSHOT = Pattern.compile(".*-\\d{8}\\.\\d{6}-\\d+$");
-    private static final Pattern PROPERTY = Pattern.compile("\\$\\{([^}]+)}");
     private static final ObjectMapper JSON = new ObjectMapper(
             JsonFactory.builder()
                     .streamReadConstraints(StreamReadConstraints.builder()
@@ -265,99 +237,13 @@ public final class ShipCatalogService {
     }
 
     private ResolvedCatalog resolve(CatalogTarget target) throws IOException {
+        if (!"main".equals(target.runtime())) {
+            throw new IOException("Ship catalog supports only the main runtime");
+        }
         MavenCoordinate mainGav = gav("org.apache.camel", "camel-catalog", target.camelVersion(), "jar");
         ResolvedArtifactSnapshot main = resolveArtifact(mainGav);
-        List<ResolvedArtifactSnapshot> artifacts = new ArrayList<>();
-        artifacts.add(main);
-
-        return switch (target.runtime()) {
-            case "main" -> {
-                yield new ResolvedCatalog(
-                        target, mainGav, main, null, null, null,
-                        List.copyOf(artifacts));
-            }
-            case "spring-boot" -> resolveSpring(target, main, artifacts);
-            case "quarkus" -> resolveQuarkus(target, main, artifacts);
-            default -> throw new IOException("Unsupported catalog runtime: " + target.runtime());
-        };
-    }
-
-    private ResolvedCatalog resolveSpring(
-            CatalogTarget target, ResolvedArtifactSnapshot main, List<ResolvedArtifactSnapshot> artifacts)
-            throws IOException {
-        MavenCoordinate providerGav = gav(
-                "org.apache.camel.springboot", "camel-catalog-provider-springboot",
-                target.platformVersion(), "jar");
-
-        MavenCoordinate providerPomGav = gav(
-                providerGav.groupId(), providerGav.artifactId(), providerGav.version(), "pom");
-        ResolvedArtifactSnapshot providerPom = resolveArtifact(providerPomGav);
-        MavenCoordinate springRootGav = gav(
-                "org.apache.camel.springboot", "spring-boot", providerGav.version(), "pom");
-        ResolvedArtifactSnapshot springRoot = resolveArtifact(springRootGav);
-        MavenCoordinate dependenciesGav = pomParentCoordinate(springRoot.bytes());
-        MavenCoordinate expectedDependencies = gav(
-                "org.apache.camel", "camel-dependencies", target.camelVersion(), "pom");
-        if (!expectedDependencies.equals(dependenciesGav)) {
-            throw new IOException("Spring Boot catalog root has an unexpected parent POM");
-        }
-        ResolvedArtifactSnapshot dependencies = resolveArtifact(dependenciesGav);
-        Map<String, String> inheritedProperties = new HashMap<>(pomProperties(dependencies.bytes()));
-        inheritedProperties.putAll(pomProperties(springRoot.bytes()));
-        String springBootVersion = resolvePomValue(
-                inheritedProperties.get("spring-boot-version"), inheritedProperties);
-        if (!safe(springBootVersion) || !immutableRelease(springBootVersion)) {
-            throw new IOException("Spring Boot catalog metadata lacks an immutable Spring Boot version");
-        }
-        if (!target.springBootVersion().equals(springBootVersion)) {
-            throw new IOException(
-                    "Spring Boot catalog metadata does not match the approved Spring Boot version");
-        }
-        String providerCamelVersion = pomVersion(
-                providerPom.bytes(), false, "org.apache.camel", "camel-catalog", inheritedProperties);
-        if (!target.camelVersion().equals(providerCamelVersion)) {
-            throw new IOException(
-                    "Spring Boot catalog provider does not match the approved Camel version");
-        }
-
-        ResolvedArtifactSnapshot provider = resolveArtifact(providerGav);
-        artifacts.add(providerPom);
-        artifacts.add(springRoot);
-        artifacts.add(dependencies);
-        artifacts.add(provider);
         return new ResolvedCatalog(
-                target, providerGav, main, provider, SPRING_ROOT,
-                providerGav.version(), List.copyOf(artifacts));
-    }
-
-    private ResolvedCatalog resolveQuarkus(
-            CatalogTarget target, ResolvedArtifactSnapshot main, List<ResolvedArtifactSnapshot> artifacts)
-            throws IOException {
-        if (target.platformVersion() == null) {
-            throw new IOException("Quarkus catalog verification requires platformVersion");
-        }
-        MavenCoordinate bomGav = gav(
-                "io.quarkus.platform", "quarkus-camel-bom", target.platformVersion(), "pom");
-        ResolvedArtifactSnapshot bom = resolveArtifact(bomGav);
-
-        String managedCamelVersion = pomVersion(
-                bom.bytes(), true, "org.apache.camel", "camel-catalog");
-        if (!target.camelVersion().equals(managedCamelVersion)) {
-            throw new IOException("Quarkus platform does not match the approved Camel version");
-        }
-        String quarkusCatalogVersion = pomVersion(
-                bom.bytes(), true, "org.apache.camel.quarkus", "camel-quarkus-catalog");
-        if (quarkusCatalogVersion == null) {
-            throw new IOException("Quarkus platform BOM does not manage camel-quarkus-catalog");
-        }
-        MavenCoordinate providerGav = gav(
-                "org.apache.camel.quarkus", "camel-quarkus-catalog", quarkusCatalogVersion, "jar");
-        ResolvedArtifactSnapshot provider = resolveArtifact(providerGav);
-        artifacts.add(bom);
-        artifacts.add(provider);
-        return new ResolvedCatalog(
-                target, bomGav, main, provider, QUARKUS_ROOT,
-                quarkusCatalogVersion, List.copyOf(artifacts));
+                target, mainGav, main, null, null, null, List.of(main));
     }
 
     private ResolvedArtifactSnapshot resolveArtifact(MavenCoordinate coordinate) throws IOException {
@@ -398,10 +284,9 @@ public final class ShipCatalogService {
         if (!normalized.equals(exactArtifactPath(coordinate))) {
             throw new IOException("Resolved catalog artifact is not at its exact repository path");
         }
-        long limit = "pom".equals(coordinate.extension()) ? MAX_POM_BYTES : MAX_ARTIFACT_BYTES;
         byte[] bytes;
         try {
-            bytes = CatalogArtifactReader.read(localRepository, normalized, limit);
+            bytes = CatalogArtifactReader.read(localRepository, normalized, MAX_ARTIFACT_BYTES);
         } catch (IOException e) {
             throw new IOException(
                     "Could not securely snapshot the exact catalog artifact "
@@ -411,9 +296,6 @@ public final class ShipCatalogService {
         String digest = sha256(bytes);
         if (bytes.length != artifact.contentLength() || !digest.equals(artifact.contentSha256())) {
             throw new IOException("Catalog artifact does not match its acquired content identity");
-        }
-        if ("pom".equals(coordinate.extension())) {
-            requirePomCoordinate(bytes, coordinate);
         }
         return new ResolvedArtifactSnapshot(coordinate, bytes, digest);
     }
@@ -445,271 +327,6 @@ public final class ShipCatalogService {
         if (!path.startsWith(localRepository)) {
             throw new IOException("Resolved catalog artifact escaped its private repository");
         }
-    }
-
-    private static String pomVersion(byte[] pom, boolean managed, String groupId, String artifactId)
-            throws IOException {
-        return pomVersion(pom, managed, groupId, artifactId, Map.of());
-    }
-
-    private static String pomVersion(
-            byte[] pom,
-            boolean managed,
-            String groupId,
-            String artifactId,
-            Map<String, String> inheritedProperties)
-            throws IOException {
-        Document document = parsePom(pom);
-        Element project = document.getDocumentElement();
-        Map<String, String> properties = new HashMap<>(inheritedProperties);
-        Set<String> localProperties = new HashSet<>();
-        Element propertiesElement = child(project, "properties");
-        if (propertiesElement != null) {
-            for (Node node = propertiesElement.getFirstChild(); node != null; node = node.getNextSibling()) {
-                if (node instanceof Element property) {
-                    String name = localName(property);
-                    if (!localProperties.add(name)) {
-                        throw new IOException("Catalog POM contains a duplicate Maven property");
-                    }
-                    requirePomNamespace(property);
-                    properties.put(name, elementText(property));
-                }
-            }
-        }
-        String projectVersion = childText(project, "version");
-        if (projectVersion == null) {
-            projectVersion = childText(child(project, "parent"), "version");
-        }
-        if (projectVersion != null) {
-            properties.putIfAbsent("project.version", projectVersion);
-            properties.putIfAbsent("pom.version", projectVersion);
-        }
-
-        Element dependencies = managed
-                ? child(child(project, "dependencyManagement"), "dependencies")
-                : child(project, "dependencies");
-        String result = null;
-        if (dependencies != null) {
-            for (Node node = dependencies.getFirstChild(); node != null; node = node.getNextSibling()) {
-                if (!(node instanceof Element dependency) || !"dependency".equals(localName(dependency))) {
-                    continue;
-                }
-                requirePomNamespace(dependency);
-                if (groupId.equals(childText(dependency, "groupId"))
-                        && artifactId.equals(childText(dependency, "artifactId"))) {
-                    if (result != null) {
-                        throw new IOException(
-                                "Catalog POM declares duplicate dependency " + groupId + ':' + artifactId);
-                    }
-                    result = resolvePomValue(childText(dependency, "version"), properties);
-                }
-            }
-        }
-        return result;
-    }
-
-    private static Map<String, String> pomProperties(byte[] pom) throws IOException {
-        Element project = parsePom(pom).getDocumentElement();
-        Map<String, String> properties = new HashMap<>();
-        Element propertiesElement = child(project, "properties");
-        if (propertiesElement != null) {
-            for (Node node = propertiesElement.getFirstChild(); node != null; node = node.getNextSibling()) {
-                if (node instanceof Element property) {
-                    String name = localName(property);
-                    requirePomNamespace(property);
-                    if (properties.putIfAbsent(name, elementText(property)) != null) {
-                        throw new IOException("Catalog POM contains a duplicate Maven property");
-                    }
-                }
-            }
-        }
-        return Map.copyOf(properties);
-    }
-
-    private static void requirePomCoordinate(byte[] pom, MavenCoordinate expected) throws IOException {
-        Element project = parsePom(pom).getDocumentElement();
-        Element parent = child(project, "parent");
-        Map<String, String> properties = pomProperties(pom);
-        String groupId = resolvePomValue(childText(project, "groupId"), properties);
-        if (groupId == null) {
-            groupId = resolvePomValue(childText(parent, "groupId"), properties);
-        }
-        String artifactId = resolvePomValue(childText(project, "artifactId"), properties);
-        String version = resolvePomValue(childText(project, "version"), properties);
-        if (version == null) {
-            version = resolvePomValue(childText(parent, "version"), properties);
-        }
-        if (!expected.groupId().equals(groupId)
-                || !expected.artifactId().equals(artifactId)
-                || !expected.version().equals(version)) {
-            throw new IOException("Catalog POM identity does not match its exact artifact coordinate");
-        }
-    }
-
-    private static MavenCoordinate pomParentCoordinate(byte[] pom) throws IOException {
-        Element parent = child(parsePom(pom).getDocumentElement(), "parent");
-        if (parent == null) {
-            throw new IOException("Spring Boot catalog root lacks its required parent POM");
-        }
-        return gav(
-                childText(parent, "groupId"),
-                childText(parent, "artifactId"),
-                childText(parent, "version"),
-                "pom");
-    }
-
-    private static Document parsePom(byte[] pom) throws IOException {
-        if (pom.length == 0 || pom.length > MAX_POM_BYTES) {
-            throw new IOException("Catalog POM has an unsafe size");
-        }
-        requireBoundedPomStructure(pom);
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newDefaultInstance();
-        try {
-            factory.setNamespaceAware(true);
-            factory.setXIncludeAware(false);
-            factory.setExpandEntityReferences(false);
-            factory.setCoalescing(true);
-            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-            factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
-            factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-            factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-            factory.setAttribute("jdk.xml.elementAttributeLimit", MAX_POM_ATTRIBUTES);
-            var builder = factory.newDocumentBuilder();
-            builder.setErrorHandler(new StrictXmlErrorHandler());
-            try (InputStream input = new ByteArrayInputStream(pom)) {
-                Document document = builder.parse(input);
-                Element project = document.getDocumentElement();
-                if (!"project".equals(localName(project))
-                        || !POM_NAMESPACE.equals(project.getNamespaceURI())) {
-                    throw new IOException("Catalog POM root is not project");
-                }
-                if (!"4.0.0".equals(childText(project, "modelVersion"))) {
-                    throw new IOException("Catalog POM has an unsupported model version");
-                }
-                return document;
-            }
-        } catch (IllegalArgumentException | ParserConfigurationException | SAXException e) {
-            throw new IOException("Could not securely parse catalog POM", e);
-        }
-    }
-
-    private static void requireBoundedPomStructure(byte[] pom) throws IOException {
-        XMLInputFactory factory = XMLInputFactory.newDefaultFactory();
-        try {
-            factory.setProperty("jdk.xml.elementAttributeLimit", MAX_POM_ATTRIBUTES);
-            factory.setProperty(XMLInputFactory.SUPPORT_DTD, false);
-            factory.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
-            factory.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, false);
-        } catch (IllegalArgumentException e) {
-            throw new IOException("Could not securely configure catalog POM preflight", e);
-        }
-        factory.setXMLResolver((publicId, systemId, baseUri, namespace) -> {
-            throw new XMLStreamException("External XML references are forbidden");
-        });
-
-        XMLStreamReader reader = null;
-        try (InputStream input = new ByteArrayInputStream(pom)) {
-            reader = factory.createXMLStreamReader(input);
-            int depth = 0;
-            int elements = 0;
-            int attributes = 0;
-            int nodes = 0;
-            while (reader.hasNext()) {
-                int event = reader.next();
-                if (event == XMLStreamConstants.DTD || event == XMLStreamConstants.ENTITY_REFERENCE
-                        || event == XMLStreamConstants.PROCESSING_INSTRUCTION) {
-                    throw new IOException("Catalog POM contains forbidden XML declarations");
-                }
-                if (event == XMLStreamConstants.START_ELEMENT) {
-                    depth = Math.addExact(depth, 1);
-                    elements = Math.addExact(elements, 1);
-                    attributes = Math.addExact(attributes,
-                            Math.addExact(reader.getAttributeCount(), reader.getNamespaceCount()));
-                    nodes = Math.addExact(nodes, 1);
-                    if (depth > MAX_POM_DEPTH || elements > MAX_POM_ELEMENTS
-                            || attributes > MAX_POM_ATTRIBUTES || nodes > MAX_POM_NODES) {
-                        throw new IOException("Catalog POM exceeds its structural limits");
-                    }
-                } else if (event == XMLStreamConstants.END_ELEMENT) {
-                    depth--;
-                } else if (event == XMLStreamConstants.CHARACTERS
-                        || event == XMLStreamConstants.CDATA
-                        || event == XMLStreamConstants.SPACE
-                        || event == XMLStreamConstants.COMMENT) {
-                    nodes = Math.addExact(nodes, 1);
-                    if (nodes > MAX_POM_NODES) {
-                        throw new IOException("Catalog POM exceeds its structural limits");
-                    }
-                }
-            }
-            if (depth != 0 || elements == 0) {
-                throw new IOException("Catalog POM has an invalid XML structure");
-            }
-        } catch (ArithmeticException e) {
-            throw new IOException("Catalog POM structure accounting overflowed", e);
-        } catch (XMLStreamException e) {
-            throw new IOException("Could not securely preflight catalog POM", e);
-        } finally {
-            if (reader != null) {
-                try {
-                    reader.close();
-                } catch (XMLStreamException ignored) {
-                    // The in-memory source is already closed; parsing failures remain authoritative.
-                }
-            }
-        }
-    }
-
-    private static String resolvePomValue(String value, Map<String, String> properties) throws IOException {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        return expandPomValue(value.trim(), properties, new HashSet<>(), 0);
-    }
-
-    private static String expandPomValue(
-            String value, Map<String, String> properties, Set<String> active, int depth)
-            throws IOException {
-        if (depth > 16) {
-            throw new IOException("Maven property expansion is too deep");
-        }
-        Matcher matcher = PROPERTY.matcher(value);
-        StringBuilder result = new StringBuilder(Math.min(value.length(), MAX_POM_VALUE_CHARS));
-        int cursor = 0;
-        while (matcher.find()) {
-            appendPomValue(result, value, cursor, matcher.start());
-            String key = matcher.group(1);
-            String replacement = properties.get(key);
-            if (replacement == null) {
-                return null;
-            }
-            if (!active.add(key)) {
-                throw new IOException("Catalog POM contains cyclic Maven property expansion");
-            }
-            try {
-                appendPomValue(result, expandPomValue(replacement, properties, active, depth + 1));
-            } finally {
-                active.remove(key);
-            }
-            cursor = matcher.end();
-        }
-        appendPomValue(result, value, cursor, value.length());
-        return result.toString();
-    }
-
-    private static void appendPomValue(StringBuilder target, CharSequence value) throws IOException {
-        appendPomValue(target, value, 0, value.length());
-    }
-
-    private static void appendPomValue(StringBuilder target, CharSequence value, int start, int end)
-            throws IOException {
-        if (end - start > MAX_POM_VALUE_CHARS - target.length()) {
-            throw new IOException("Catalog POM property expansion exceeds its size limit");
-        }
-        target.append(value, start, end);
     }
 
     private static MavenCoordinate gav(
@@ -756,57 +373,6 @@ public final class ShipCatalogService {
 
     private static String hex(byte[] bytes) {
         return java.util.HexFormat.of().formatHex(bytes);
-    }
-
-    private static Element child(Element parent, String name) throws IOException {
-        if (parent == null) {
-            return null;
-        }
-        Element result = null;
-        for (Node node = parent.getFirstChild(); node != null; node = node.getNextSibling()) {
-            if (node instanceof Element element && name.equals(localName(element))) {
-                requirePomNamespace(element);
-                if (result != null) {
-                    throw new IOException("Catalog POM contains duplicate " + name + " elements");
-                }
-                result = element;
-            }
-        }
-        return result;
-    }
-
-    private static String childText(Element parent, String name) throws IOException {
-        Element child = child(parent, name);
-        if (child == null) {
-            return null;
-        }
-        String value = elementText(child);
-        return value.isBlank() ? null : value;
-    }
-
-    private static String elementText(Element element) throws IOException {
-        StringBuilder result = new StringBuilder();
-        for (Node node = element.getFirstChild(); node != null; node = node.getNextSibling()) {
-            if (node.getNodeType() != Node.TEXT_NODE && node.getNodeType() != Node.CDATA_SECTION_NODE) {
-                throw new IOException("Catalog POM scalar metadata contains nested structure");
-            }
-            String text = node.getNodeValue();
-            if (text.length() > MAX_POM_BYTES - result.length()) {
-                throw new IOException("Catalog POM scalar metadata exceeds its size limit");
-            }
-            result.append(text);
-        }
-        return result.toString().trim();
-    }
-
-    private static void requirePomNamespace(Element element) throws IOException {
-        if (!POM_NAMESPACE.equals(element.getNamespaceURI())) {
-            throw new IOException("Catalog POM contains foreign-namespace metadata");
-        }
-    }
-
-    private static String localName(Node node) {
-        return node.getLocalName() == null ? node.getNodeName() : node.getLocalName();
     }
 
     private static String resourceName(Kind kind, String name, String root) {
@@ -1277,22 +843,5 @@ public final class ShipCatalogService {
         List<ResolvedExactMavenArtifact> resolve(
                 Path repository, List<MavenCoordinate> coordinates, ResolutionMode mode)
                 throws IOException;
-    }
-
-    private static final class StrictXmlErrorHandler implements ErrorHandler {
-        @Override
-        public void warning(SAXParseException exception) throws SAXException {
-            throw exception;
-        }
-
-        @Override
-        public void error(SAXParseException exception) throws SAXException {
-            throw exception;
-        }
-
-        @Override
-        public void fatalError(SAXParseException exception) throws SAXException {
-            throw exception;
-        }
     }
 }

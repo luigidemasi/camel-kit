@@ -27,7 +27,6 @@ import static io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.Outcom
 import static io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.Status.COMPLETED_WITH_WAIVER;
 import static io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.Status.FAIL;
 import static io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.Support.EXPERIMENTAL;
-import static io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.Support.INCOMPATIBLE;
 import static io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.Support.SUPPORTED;
 import static io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.Support.UNTESTED;
 import static org.junit.jupiter.api.Assertions.assertAll;
@@ -355,8 +354,6 @@ class ShipLocalStampTest {
     void genericToolDiagnosticsDoNotOverrideRequiredChecks() {
         ShipLocalStamp experimental = stamp(withTool(new ShipLocalStamp.ToolVersion(
                 "pi", "/usr/bin/pi", "0.80.6", EXPERIMENTAL, "Version is experimental")), List.of());
-        ShipLocalStamp.ToolVersion incompatible = new ShipLocalStamp.ToolVersion(
-                "pi", "/usr/bin/pi", "0.70.0", INCOMPATIBLE, "Required JSON mode is absent");
         ShipLocalStamp.ToolVersion untested = new ShipLocalStamp.ToolVersion(
                 "pi", "/usr/bin/pi", null, UNTESTED, "Version could not be identified");
         ShipLocalStamp.ToolVersion missing = new ShipLocalStamp.ToolVersion(
@@ -375,8 +372,6 @@ class ShipLocalStampTest {
                 () -> assertEquals(ShipLocalStamp.Status.PASS, missingNode.status()),
                 () -> assertEquals(ShipLocalStamp.Status.PASS, supportedWithoutExecutable.status()),
                 () -> assertEquals(ShipLocalStamp.Status.PASS, osWithExecutable.status()),
-                () -> assertEquals(ShipLocalStamp.Status.PASS, stamp(
-                        withTool(incompatible), List.of()).status()),
                 () -> assertEquals(ShipLocalStamp.Status.PASS, stamp(
                         withTool(untested), List.of()).status()),
                 () -> assertEquals(ShipLocalStamp.Status.PASS, stamp(

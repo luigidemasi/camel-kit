@@ -18,6 +18,7 @@ import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.context.ShipContext;
 import io.github.luigidemasi.camelkit.ship.context.ShipContext.Kind;
 import io.github.luigidemasi.camelkit.ship.controller.ShipController;
+import io.github.luigidemasi.camelkit.ship.controller.ShipControllerTestSupport;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun;
 
 import org.junit.jupiter.api.Assumptions;
@@ -107,14 +108,16 @@ class ShipCommandTest {
                 project,
                 ShipRun.Oversight.SMART,
                 List.of(new ShipContext.TextInput("original context")));
-        ShipRun paused = controller.completeStage(
+        ShipRun paused = ShipControllerTestSupport.completeStage(
+                controller,
                 started.id(),
                 ShipRun.Stage.DISCOVERY,
                 started.stage(ShipRun.Stage.DISCOVERY).attempts(),
                 started.stage(ShipRun.Stage.DISCOVERY).inputDigest(),
                 ShipDigest.sha256("discovery result".getBytes(StandardCharsets.UTF_8)),
                 List.of(),
-                true);
+                true,
+                null);
         RecordingLauncher launcher = RecordingLauncher.passThrough(controller);
 
         RunResult result = run(
@@ -207,14 +210,16 @@ class ShipCommandTest {
         Path project = Files.createDirectory(tempDir.resolve("project"));
         ShipController controller = controller("state");
         ShipRun started = controller.start(project, ShipRun.Oversight.SMART, List.of());
-        ShipRun paused = controller.completeStage(
+        ShipRun paused = ShipControllerTestSupport.completeStage(
+                controller,
                 started.id(),
                 ShipRun.Stage.DISCOVERY,
                 started.stage(ShipRun.Stage.DISCOVERY).attempts(),
                 started.stage(ShipRun.Stage.DISCOVERY).inputDigest(),
                 ShipDigest.sha256("discovery result".getBytes(StandardCharsets.UTF_8)),
                 List.of(),
-                true);
+                true,
+                null);
         ShipCommand.WorkflowLauncher rejecting = settings -> {
             throw new AssertionError("status must not launch the runtime");
         };
@@ -243,14 +248,16 @@ class ShipCommandTest {
             @Override
             public ShipRun run(String runId) {
                 ShipRun running = controller.status(runId);
-                ShipRun paused = controller.completeStage(
+                ShipRun paused = ShipControllerTestSupport.completeStage(
+                        controller,
                         runId,
                         ShipRun.Stage.DISCOVERY,
                         running.stage(ShipRun.Stage.DISCOVERY).attempts(),
                         running.stage(ShipRun.Stage.DISCOVERY).inputDigest(),
                         ShipDigest.sha256("discovery result".getBytes(StandardCharsets.UTF_8)),
                         List.of(),
-                        true);
+                        true,
+                        null);
                 return withMessage(paused, report);
             }
 

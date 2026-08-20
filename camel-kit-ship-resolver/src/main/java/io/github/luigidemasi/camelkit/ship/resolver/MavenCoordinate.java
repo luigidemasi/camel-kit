@@ -38,14 +38,6 @@ public record MavenCoordinate(
         return new MavenCoordinate(groupId, artifactId, extension, "", version);
     }
 
-    public static MavenCoordinate parseGav(String value) {
-        String[] parts = value == null ? new String[0] : value.trim().split(":", -1);
-        if (parts.length != 3) {
-            throw new IllegalArgumentException("Maven coordinate must be groupId:artifactId:version");
-        }
-        return jar(parts[0], parts[1], parts[2]);
-    }
-
     public MavenCoordinate withExtension(String value) {
         return new MavenCoordinate(groupId, artifactId, value, classifier, version);
     }
