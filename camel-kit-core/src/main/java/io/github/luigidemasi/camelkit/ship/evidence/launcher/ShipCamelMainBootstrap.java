@@ -193,7 +193,17 @@ public final class ShipCamelMainBootstrap {
         }
 
         try {
-            main.start();
+            try {
+                main.start();
+            } catch (Exception e) {
+                // Camel Main is the authority on route and expression syntax; a route it
+                // cannot create (for example Simple OGNL, which needs the absent bean
+                // language) fails validation with the launcher's uniform failure type.
+                throw new IOException(
+                        "Camel Main rejected the accepted routes: "
+                                      + (e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()),
+                        e);
+            }
             CamelContext context = main.getCamelContext();
             Set<String> actualIds = Set.copyOf(context.getRouteIds());
             if (!actualIds.equals(Set.copyOf(expectedRouteIds))) {
