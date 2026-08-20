@@ -50,9 +50,6 @@ import io.github.luigidemasi.camelkit.ship.evidence.JvmPayloadRequest;
 import io.github.luigidemasi.camelkit.ship.evidence.JvmPayloadTestFixture;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStampStore;
-import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipMainPackageMain;
-import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipMainPackageMain.EntrySummary;
-import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipMainPackageMain.Summary;
 import io.github.luigidemasi.camelkit.ship.worker.PiWorker;
 import io.github.luigidemasi.camelkit.ship.worker.PiWorker.Outcome;
 import io.github.luigidemasi.camelkit.ship.worker.PiWorker.Request;
@@ -892,7 +889,6 @@ class ShipCoordinatorTest {
                 "artifact-policy",
                 "catalog-usage",
                 "route-schema",
-                "main-package-and-inspect",
                 "main-runtime-resolve-and-start",
                 "citrus-integration-test-001"),
                 stamp.checks().stream()
@@ -900,7 +896,6 @@ class ShipCoordinatorTest {
                         .toList());
         assertEquals(List.of(
                 "route-schema",
-                "main-package-and-inspect",
                 "main-runtime-resolve-and-start",
                 "citrus-integration-test-001"),
                 evidence.commandIds);
@@ -1480,10 +1475,7 @@ class ShipCoordinatorTest {
                     evidence.resolve("bwrap"), "sandbox");
             Path java = writeExecutable(
                     evidence.resolve("java"), "java");
-            byte[] stdout = command.jvmPayload().kind()
-                            == JvmPayloadRequest.Kind.MAIN_PACKAGE_INSPECT
-                                    ? packageSummary(candidate, command)
-                                    : "PASS\n".getBytes(StandardCharsets.UTF_8);
+            byte[] stdout = "PASS\n".getBytes(StandardCharsets.UTF_8);
             Path stdoutPath = writePrivateFile(
                     evidence.resolve("raw.stdout.log"), stdout);
             Path stderrPath = writePrivateFile(
@@ -1530,52 +1522,10 @@ class ShipCoordinatorTest {
         }
     }
 
-    private static byte[] packageSummary(
-            Path candidate, EvidenceCommand command)
-            throws IOException {
-        List<EntrySummary> entries = new ArrayList<>();
-        for (int index = 0;
-             index < command.arguments().size();
-             index++) {
-            String argument = command.arguments().get(index);
-            if (!argument.startsWith("--route=")) {
-                continue;
-            }
-            String path = argument.substring("--route=".length());
-            String routeDigest = command.arguments().get(++index)
-                    .substring("--route-digest=".length());
-            entries.add(new EntrySummary(
-                    path,
-                    Files.size(candidate.resolve(path)),
-                    routeDigest));
-        }
-        return new Summary(
-                1,
-                argument(command, "--candidate-digest="),
-                argument(command, "--manifest-digest="),
-                argument(command, "--catalog-usage-digest="),
-                argument(command, "--pom-digest="),
-                argument(command, "--main-payload-digest="),
-                digest("stub-package"),
-                1,
-                entries).encode();
-    }
-
-    private static String argument(
-            EvidenceCommand command, String prefix) {
-        return command.arguments().stream()
-                .filter(argument -> argument.startsWith(prefix))
-                .map(argument -> argument.substring(prefix.length()))
-                .findFirst()
-                .orElseThrow();
-    }
-
     private static String payloadVersion(JvmPayloadRequest payload) {
         return switch (payload.kind()) {
             case CAMEL_YAML_VALIDATE ->
                 "Camel direct YAML validator " + payload.camelVersion();
-            case MAIN_PACKAGE_INSPECT ->
-                ShipMainPackageMain.PAYLOAD_VERSION;
             case CAMEL_MAIN_START ->
                 "Camel direct Main bootstrap " + payload.camelVersion();
             case CITRUS_YAML ->

@@ -35,9 +35,6 @@ import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.Outcome;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.Support;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.ToolVersion;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStampStore;
-import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipMainPackageMain;
-import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipMainPackageMain.EntrySummary;
-import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipMainPackageMain.Summary;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -117,14 +114,12 @@ class ShipMainValidatorTest {
                 "artifact-policy",
                 "catalog-usage",
                 "route-schema",
-                "main-package-and-inspect",
                 "main-runtime-resolve-and-start",
                 "citrus-integration-test-001",
                 "citrus-integration-test-002"),
                 result.stamp().checks().stream().map(ShipLocalStamp.Check::id).toList());
         assertEquals(List.of(
                 "route-schema",
-                "main-package-and-inspect",
                 "main-runtime-resolve-and-start",
                 "citrus-integration-test-001",
                 "citrus-integration-test-002"),
@@ -134,14 +129,6 @@ class ShipMainValidatorTest {
         assertTrue(executor.commands.stream()
                 .allMatch(command -> manifestDigest.equals(
                         command.inputDigests().get(0))));
-        EvidenceCommand packageCommand = executor.commands.stream()
-                .filter(command -> "main-package-and-inspect".equals(
-                        command.id()))
-                .findFirst()
-                .orElseThrow();
-        assertEquals(
-                manifestDigest,
-                argument(packageCommand, "--manifest-digest="));
         assertEquals(result.stamp(),
                 ShipLocalStampStore.read(tempDir.resolve("evidence"), RUN_ID));
     }
@@ -258,7 +245,7 @@ class ShipMainValidatorTest {
     }
 
     @Test
-    void mapsNonzeroAndRejectsAnUnboundPackageSummary() throws Exception {
+    void mapsANonzeroCommandExitToItsCheckOutcome() throws Exception {
         Project nonzeroProject = project("orders");
         RecordingExecutor nonzero = new RecordingExecutor();
         nonzero.nonzeroCommand = "citrus-integration-test-001";
@@ -274,29 +261,10 @@ class ShipMainValidatorTest {
                 NODE,
                 CLOCK);
 
-        Project packageProject = project("payments");
-        RecordingExecutor badPackage = new RecordingExecutor();
-        badPackage.invalidPackageSummary = true;
-        ShipMainValidator.Result packageResult = validator(badPackage).validate(
-                RUN_ID,
-                packageProject.root(),
-                packageProject.manifest(),
-                packageProject.policy(),
-                snapshot(),
-                tempDir.resolve("package-evidence"),
-                PI,
-                NODE,
-                CLOCK);
-
         assertEquals(ShipLocalStamp.Status.FAIL, nonzeroResult.stamp().status());
         assertEquals(Outcome.NONZERO, nonzeroResult.stamp().checks().stream()
                 .filter(check -> "citrus-integration-test-001".equals(check.id()))
                 .findFirst().orElseThrow().outcome());
-        assertEquals(ShipLocalStamp.Status.FAIL, packageResult.stamp().status());
-        assertEquals(Outcome.FAIL, packageResult.stamp().checks().stream()
-                .filter(check -> "main-package-and-inspect".equals(check.id()))
-                .findFirst().orElseThrow().outcome());
-        assertEquals(4, badPackage.commands.size(), "later checks still collect deterministic diagnostics");
     }
 
     @Test
@@ -385,10 +353,10 @@ class ShipMainValidatorTest {
         privateFile(routeStdout, new byte[0]);
         privateFile(routeStderr, new byte[0]);
         privateSparseFile(
-                evidence.resolve("main-package-and-inspect.stdout.log"),
+                evidence.resolve("main-runtime-resolve-and-start.stdout.log"),
                 MAX_TOTAL_LOG_BYTES);
         privateFile(
-                evidence.resolve("main-package-and-inspect.stderr.log"),
+                evidence.resolve("main-runtime-resolve-and-start.stderr.log"),
                 new byte[0]);
 
         ShipMainValidator.Result result = validator(executor).validate(
@@ -582,43 +550,9 @@ class ShipMainValidatorTest {
         }
     }
 
-    private static String argument(EvidenceCommand command, String prefix) {
-        return command.arguments().stream()
-                .filter(argument -> argument.startsWith(prefix))
-                .map(argument -> argument.substring(prefix.length()))
-                .findFirst()
-                .orElseThrow();
-    }
-
-    private static byte[] packageSummary(Path candidate, EvidenceCommand command)
-            throws Exception {
-        List<EntrySummary> entries = new ArrayList<>();
-        for (int index = 0; index < command.arguments().size(); index++) {
-            String argument = command.arguments().get(index);
-            if (!argument.startsWith("--route=")) {
-                continue;
-            }
-            String path = argument.substring("--route=".length());
-            String routeDigest = command.arguments().get(++index)
-                    .substring("--route-digest=".length());
-            entries.add(new EntrySummary(path, Files.size(candidate.resolve(path)), routeDigest));
-        }
-        return new Summary(
-                1,
-                argument(command, "--candidate-digest="),
-                argument(command, "--manifest-digest="),
-                argument(command, "--catalog-usage-digest="),
-                argument(command, "--pom-digest="),
-                argument(command, "--main-payload-digest="),
-                digest("package"),
-                1,
-                entries).encode();
-    }
-
     private static String version(JvmPayloadRequest payload) {
         return switch (payload.kind()) {
             case CAMEL_YAML_VALIDATE -> "Camel direct YAML validator " + payload.camelVersion();
-            case MAIN_PACKAGE_INSPECT -> ShipMainPackageMain.PAYLOAD_VERSION;
             case CAMEL_MAIN_START -> "Camel direct Main bootstrap " + payload.camelVersion();
             case CITRUS_YAML -> "Citrus direct YAML " + payload.citrusVersion()
                                 + " with Camel " + payload.camelVersion();
@@ -649,7 +583,6 @@ class ShipMainValidatorTest {
         private final List<EvidenceCommand> commands = new ArrayList<>();
         private String nonzeroCommand;
         private String interruptCommand;
-        private boolean invalidPackageSummary;
 
         @Override
         public CommandEvidence run(Path candidate, Path directory, EvidenceCommand command)
@@ -665,11 +598,7 @@ class ShipMainValidatorTest {
                         directory.resolve("bwrap"), "sandbox".getBytes(java.nio.charset.StandardCharsets.UTF_8));
                 Path javaExecutable = privateExecutable(
                         directory.resolve("java"), "java".getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                byte[] stdout = command.jvmPayload().kind() == JvmPayloadRequest.Kind.MAIN_PACKAGE_INSPECT
-                        ? invalidPackageSummary
-                                ? "not-a-summary\n".getBytes(java.nio.charset.StandardCharsets.UTF_8)
-                                : packageSummary(candidate, command)
-                        : "PASS\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+                byte[] stdout = "PASS\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
                 Path stdoutPath = directory.resolve("raw.stdout.log");
                 Path stderrPath = directory.resolve("raw.stderr.log");
                 privateFile(stdoutPath, stdout);

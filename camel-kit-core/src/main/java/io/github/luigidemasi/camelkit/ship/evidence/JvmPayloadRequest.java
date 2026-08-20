@@ -22,7 +22,6 @@ import io.github.luigidemasi.camelkit.ship.catalog.CatalogUsageRecord.RuntimeDep
 import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipCamelMainBootstrap;
 import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipCamelYamlValidateMain;
 import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipCitrusYamlMain;
-import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipMainPackageMain;
 
 /** Exact controller-owned dependency roots and launcher selected for a JVM evidence command. */
 public record JvmPayloadRequest(
@@ -51,7 +50,7 @@ public record JvmPayloadRequest(
         }
         if (kind.supported()) {
             if (launcherClass == null || !launcherClass.matches("[A-Za-z_$][A-Za-z0-9_$.]*")
-                    || kind != Kind.MAIN_PACKAGE_INSPECT && dependencyRoots.isEmpty()) {
+                    || dependencyRoots.isEmpty()) {
                 throw new IllegalArgumentException("A supported JVM payload requires a launcher and roots");
             }
         } else if (launcherClass != null) {
@@ -72,16 +71,6 @@ public record JvmPayloadRequest(
                 null,
                 ShipCamelYamlValidateMain.class.getName(),
                 yamlValidatorRoots(camelVersion));
-    }
-
-    /** JDK-only deterministic route-resource packaging and immediate archive inspection. */
-    public static JvmPayloadRequest mainPackage(String camelVersion) {
-        return new JvmPayloadRequest(
-                Kind.MAIN_PACKAGE_INSPECT,
-                camelVersion,
-                null,
-                ShipMainPackageMain.class.getName(),
-                List.of());
     }
 
     public static JvmPayloadRequest camelMain(String camelVersion) {
@@ -222,13 +211,6 @@ public record JvmPayloadRequest(
         String expectedLauncher;
         List<DependencyRoot> expectedRoots;
         switch (kind) {
-            case MAIN_PACKAGE_INSPECT -> {
-                if (citrusVersion != null) {
-                    throw new IllegalArgumentException("Camel Main packaging cannot name a Citrus version");
-                }
-                expectedLauncher = ShipMainPackageMain.class.getName();
-                expectedRoots = List.of();
-            }
             case CAMEL_YAML_VALIDATE -> {
                 if (citrusVersion != null) {
                     throw new IllegalArgumentException("Camel YAML validation cannot name a Citrus version");
@@ -484,7 +466,6 @@ public record JvmPayloadRequest(
     }
 
     public enum Kind {
-        MAIN_PACKAGE_INSPECT("main-package-inspect", true),
         CAMEL_YAML_VALIDATE("camel-yaml-validate", true),
         CAMEL_MAIN_START("camel-main-start", true),
         CITRUS_YAML("citrus-yaml", true),
