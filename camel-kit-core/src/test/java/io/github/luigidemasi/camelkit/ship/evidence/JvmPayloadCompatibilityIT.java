@@ -8,7 +8,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -21,9 +20,6 @@ import java.util.jar.JarFile;
 
 import io.github.luigidemasi.camelkit.ship.artifact.CitrusDependencyPolicy;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogUsageRecord.RuntimeDependency;
-import io.github.luigidemasi.camelkit.ship.evidence.EvidenceSandboxLauncher.Access;
-import io.github.luigidemasi.camelkit.ship.evidence.EvidenceSandboxLauncher.Invocation;
-import io.github.luigidemasi.camelkit.ship.evidence.EvidenceSandboxLauncher.Mount;
 import io.github.luigidemasi.camelkit.ship.resolver.ShipMavenResolver;
 
 import org.junit.jupiter.api.BeforeAll;
@@ -32,12 +28,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Explicit network and bubblewrap conformance for every packaged Ship JVM compatibility row. */
+/** Explicit network and direct-launch conformance for every packaged Ship JVM compatibility row. */
 class JvmPayloadCompatibilityIT {
 
-    private static final String JDK_DIGEST = "sha256:" + "1".repeat(64);
-    private static final String SANDBOX_ARCHIVE = JvmPayloadArchive.SANDBOX_ARCHIVE;
-    private static final String SANDBOX_JAVA = "/opt/camel-kit/jdk/bin/java";
     private static final Duration PROCESS_TIMEOUT = Duration.ofMinutes(2);
     private static final int MAX_RETAINED_OUTPUT_BYTES = 8 * 1024 * 1024;
     private static final Set<Row> FUNCTIONALLY_TESTED_ROWS = Set.of(
@@ -52,7 +45,7 @@ class JvmPayloadCompatibilityIT {
     @BeforeAll
     static void packagedResolverIsTheResolverUnderTest() throws Exception {
         assertEquals("Linux", System.getProperty("os.name"),
-                "The linux-ship-certification profile requires Linux and Bubblewrap");
+                "The linux-ship-certification profile requires Linux");
         String configured = System.getProperty("ship.resolver.jar");
         assertNotNull(configured, "Compatibility certification requires the packaged resolver path");
         Path expected = Path.of(configured).toRealPath();
@@ -162,21 +155,19 @@ class JvmPayloadCompatibilityIT {
                         acceptedRuntime));
         for (JvmPayloadRequest request : requests) {
             Path root = Files.createDirectory(directory.resolve(request.kind().id()));
-            JvmPayloadArchive.Identity payload = JvmPayloadArchive.materialize(root, request, JDK_DIGEST);
-            requireIsolatedLaunch(payload.archive(), workspace, request, List.of("--payload-version"), true);
-            requireIsolatedLaunch(
-                    payload.archive(), workspace, request, functionalArguments(request), false);
+            JvmPayloadArchive.Identity payload = JvmPayloadArchive.materialize(root, request);
+            requireIsolatedLaunch(payload.archive(), workspace, request, functionalArguments(request));
         }
     }
 
     private static List<String> functionalArguments(JvmPayloadRequest request) {
         return switch (request.kind()) {
-            case CAMEL_YAML_VALIDATE -> List.of("/workspace/orders.camel.yaml");
+            case CAMEL_YAML_VALIDATE -> List.of("orders.camel.yaml");
             case CAMEL_MAIN_START -> List.of(
-                    "--route=/workspace/orders.camel.yaml", "--expected-route=orders");
+                    "--route=orders.camel.yaml", "--expected-route=orders");
             case CITRUS_YAML -> List.of(
-                    "--route=/workspace/orders.camel.yaml", "--expected-route=orders",
-                    "--test=/workspace/orders.camel.it.yaml");
+                    "--route=orders.camel.yaml", "--expected-route=orders",
+                    "--test=orders.camel.it.yaml");
             default -> throw new IllegalArgumentException("Unsupported compatibility request " + request.kind());
         };
     }
@@ -185,42 +176,33 @@ class JvmPayloadCompatibilityIT {
             Path archive,
             Path workspace,
             JvmPayloadRequest request,
-            List<String> launcherArguments,
-            boolean assertVersions)
+            List<String> launcherArguments)
             throws Exception {
-        Path javaHome = Path.of(System.getProperty("java.home")).toRealPath();
-        Path java = javaHome.resolve("bin/java").toRealPath();
-        String launch = assertVersions ? "version" : "functional";
-        Path home = Files.createDirectory(directory.resolve(request.kind().id() + "-home-" + launch));
-        Path temporary = Files.createDirectory(
-                directory.resolve(request.kind().id() + "-tmp-" + launch));
+        Path java = Path.of(System.getProperty("java.home"), "bin", "java").toRealPath();
+        Path acceptedRoot = workspace.toRealPath();
+        // Space-bearing names prove the sandbox JVM options survive as argv entries.
+        Path home = Files.createDirectory(directory.resolve(request.kind().id() + " home"));
+        Path temporary = Files.createDirectory(directory.resolve(request.kind().id() + " tmp"));
 
-        List<Mount> mounts = List.of(
-                new Mount(Path.of("/usr/lib").toRealPath(), "/usr/lib", Access.READ_ONLY),
-                new Mount(Path.of("/usr/lib64").toRealPath(), "/usr/lib64", Access.READ_ONLY),
-                new Mount(javaHome, "/opt/camel-kit/jdk", Access.READ_ONLY),
-                new Mount(workspace.toRealPath(), "/workspace", Access.READ_ONLY),
-                new Mount(home.toRealPath(), "/home/camel-kit", Access.READ_WRITE),
-                new Mount(temporary.toRealPath(), "/tmp", Access.READ_WRITE),
-                new Mount(archive.toRealPath(), SANDBOX_ARCHIVE, Access.READ_ONLY));
         List<String> arguments = new ArrayList<>(
                 List.of(
-                        SANDBOX_JAVA, "-cp", SANDBOX_ARCHIVE,
-                        ShipJvmPayloadBootstrap.class.getName()));
+                        java.toString(),
+                        "-Duser.home=" + home, "-Djava.io.tmpdir=" + temporary,
+                        "-cp", archive.toRealPath().toString(),
+                        ShipJvmPayloadBootstrap.class.getName(),
+                        "--launcher=" + request.launcherClass(),
+                        "--accepted-root=" + acceptedRoot));
         arguments.addAll(launcherArguments);
-        Map<String, String> environment = new LinkedHashMap<>();
-        environment.put("HOME", "/home/camel-kit");
-        environment.put("TMPDIR", "/tmp");
-        environment.put("JAVA_HOME", "/opt/camel-kit/jdk");
-        environment.put("JAVA_TOOL_OPTIONS", "-Duser.home=/home/camel-kit -Djava.io.tmpdir=/tmp");
-        environment.put("CAMEL_KIT_JDK_DIGEST", JDK_DIGEST);
+        ProcessBuilder builder = new ProcessBuilder(arguments);
+        builder.directory(acceptedRoot.toFile());
+        Map<String, String> environment = builder.environment();
+        environment.clear();
         environment.put("LANG", "C");
         environment.put("LC_ALL", "C");
+        environment.put("HOME", home.toString());
+        environment.put("TMPDIR", temporary.toString());
 
-        Invocation invocation = new Invocation(
-                workspace, workspace, "/workspace", home, temporary, java,
-                mounts, arguments, environment);
-        Process process = new BubblewrapSandboxLauncher().launch(invocation);
+        Process process = builder.start();
         ExecutorService readers = Executors.newFixedThreadPool(2, runnable -> {
             Thread thread = new Thread(runnable, "camel-kit-ship-compatibility-output");
             thread.setDaemon(true);
@@ -246,12 +228,6 @@ class JvmPayloadCompatibilityIT {
         assertFalse(capturedStdout.truncated() || capturedStderr.truncated(),
                 "Isolated payload output exceeded " + MAX_RETAINED_OUTPUT_BYTES + " bytes per stream\n" + output);
         assertEquals(0, process.exitValue(), output);
-        if (assertVersions) {
-            assertTrue(output.contains(request.camelVersion()), output);
-            if (request.citrusVersion() != null) {
-                assertTrue(output.contains(request.citrusVersion()), output);
-            }
-        }
     }
 
     private static CapturedOutput drain(InputStream input) throws IOException {

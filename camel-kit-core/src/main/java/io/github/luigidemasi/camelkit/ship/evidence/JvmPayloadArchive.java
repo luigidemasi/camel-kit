@@ -7,8 +7,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -44,10 +42,10 @@ import io.github.luigidemasi.camelkit.ship.resolver.MavenDependencyRoot;
 import io.github.luigidemasi.camelkit.ship.resolver.ResolvedMavenArtifact;
 import io.github.luigidemasi.camelkit.ship.resolver.ShipMavenResolver;
 
-/** Resolves, freezes, and verifies a single controller-owned nested-JAR JVM payload. */
+/** Resolves and freezes a single controller-owned nested-JAR JVM payload. */
 public final class JvmPayloadArchive {
 
-    public static final String SANDBOX_ARCHIVE = "/opt/camel-kit/payload/payload.jar";
+    public static final String ARCHIVE_NAME = "payload.jar";
     public static final String BOOTSTRAP_CLASS = ShipJvmPayloadBootstrap.class.getName();
     private static final String CENTRAL = "https://repo.maven.apache.org/maven2/";
     private static final HttpClient CENTRAL_CLIENT = HttpClient.newBuilder()
@@ -61,7 +59,7 @@ public final class JvmPayloadArchive {
     private JvmPayloadArchive() {
     }
 
-    public static Identity materialize(Path root, JvmPayloadRequest request, String jdkDigest) throws IOException {
+    public static Identity materialize(Path root, JvmPayloadRequest request) throws IOException {
         if (request == null || !request.kind().supported()) {
             String kind = request == null ? "missing" : request.kind().id();
             throw new IOException(switch (kind) {
@@ -81,15 +79,15 @@ public final class JvmPayloadArchive {
             }
         }
         List<ArtifactFile> artifacts = resolve(repository, request);
-        Path archive = payloadRoot.resolve("payload.jar");
-        return write(archive, request, jdkDigest, artifacts);
+        Path archive = payloadRoot.resolve(ARCHIVE_NAME);
+        return write(archive, request, artifacts);
     }
 
     static Identity write(
-            Path archive, JvmPayloadRequest request, String jdkDigest, List<ArtifactFile> artifacts)
+            Path archive, JvmPayloadRequest request, List<ArtifactFile> artifacts)
             throws IOException {
         List<SourceEntry> sources = new ArrayList<>();
-        for (Class<?> type : classClosure(ShipJvmPayloadBootstrap.class, JvmPayloadLock.class)) {
+        for (Class<?> type : classClosure(ShipJvmPayloadBootstrap.class)) {
             byte[] bytes = classBytes(type);
             sources.add(SourceEntry.bytes(
                     "bootstrap", "class:" + type.getName(), classPath(type), bytes));
@@ -109,16 +107,7 @@ public final class JvmPayloadArchive {
                     String.format(Locale.ROOT, "lib/%03d-%s", index + 100, name), artifact.path()));
         }
         sources.sort(Comparator.comparing(SourceEntry::path));
-        List<JvmPayloadLock.Entry> entries = sources.stream()
-                .map(SourceEntry::lockEntry).toList();
-        JvmPayloadLock lock = JvmPayloadLock.create(request, jdkDigest, entries);
-        SourceEntry lockEntry = SourceEntry.bytes(
-                "lock", "lock", JvmPayloadLock.LOCK_PATH, lock.encode());
-
-        List<SourceEntry> archiveEntries = new ArrayList<>(sources);
-        archiveEntries.add(lockEntry);
-        archiveEntries.sort(Comparator.comparing(SourceEntry::path));
-        long total = archiveEntries.stream().mapToLong(SourceEntry::size).reduce(0, Math::addExact);
+        long total = sources.stream().mapToLong(SourceEntry::size).reduce(0, Math::addExact);
         if (total > MAX_TOTAL_BYTES) {
             throw new IOException("Controller JVM payload exceeds " + MAX_TOTAL_BYTES + " bytes");
         }
@@ -127,7 +116,7 @@ public final class JvmPayloadArchive {
                 Files.newOutputStream(
                         archive, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE))) {
             zip.setLevel(0);
-            for (SourceEntry source : archiveEntries) {
+            for (SourceEntry source : sources) {
                 ZipEntry entry = new ZipEntry(source.path());
                 entry.setMethod(ZipEntry.STORED);
                 entry.setSize(source.size());
@@ -142,51 +131,37 @@ public final class JvmPayloadArchive {
         if (Files.getFileAttributeView(archive, PosixFileAttributeView.class, LinkOption.NOFOLLOW_LINKS) != null) {
             Files.setPosixFilePermissions(archive, PosixFilePermissions.fromString("r--------"));
         }
-        return verify(archive, request, jdkDigest);
+        return roundTrip(archive, sources);
     }
 
-    public static Identity verify(Path archive, JvmPayloadRequest request, String jdkDigest) throws IOException {
+    /** One write-time sanity check: the archive on disk must contain exactly what was just written. */
+    private static Identity roundTrip(Path archive, List<SourceEntry> sources) throws IOException {
         Path file = regular(archive, "JVM payload archive");
         if (Files.size(file) <= 0 || Files.size(file) > MAX_TOTAL_BYTES) {
             throw new IOException("JVM payload archive has an unsafe size");
         }
-        String archiveDigest = digest(file);
-        JvmPayloadLock lock;
+        Map<String, SourceEntry> expected = new HashMap<>();
+        sources.forEach(source -> expected.put(source.path(), source));
+        Set<String> observed = new HashSet<>();
         try (ZipFile zip = new ZipFile(file.toFile())) {
-            lock = JvmPayloadLock.parse(read(zip, JvmPayloadLock.LOCK_PATH, 1024 * 1024));
-            lock.requireRequest(request);
-            if (!lock.jdkDigest().equals(jdkDigest)) {
-                throw new IOException("JVM payload JDK digest differs from the accepted controller JDK");
-            }
-            Set<String> expected = new HashSet<>();
-            expected.add(JvmPayloadLock.LOCK_PATH);
-            lock.entries().forEach(entry -> expected.add(entry.path()));
-            Set<String> observed = new HashSet<>();
-            long total = 0;
             var enumeration = zip.entries();
             while (enumeration.hasMoreElements()) {
                 ZipEntry entry = enumeration.nextElement();
-                if (entry.isDirectory() || !observed.add(entry.getName()) || !expected.contains(entry.getName())
-                        || entry.getSize() <= 0 || entry.getSize() > MAX_ARTIFACT_BYTES) {
-                    throw new IOException("JVM payload archive contains an unsafe entry: " + entry.getName());
+                SourceEntry source = expected.get(entry.getName());
+                if (entry.isDirectory() || !observed.add(entry.getName()) || source == null
+                        || entry.getSize() != source.size()) {
+                    throw new IOException("JVM payload archive contains an unexpected entry: " + entry.getName());
                 }
-                total = Math.addExact(total, entry.getSize());
-                if (total > MAX_TOTAL_BYTES) {
-                    throw new IOException("JVM payload archive exceeds the controller size bound");
-                }
-            }
-            if (!observed.equals(expected)) {
-                throw new IOException("JVM payload archive entries differ from its content lock");
-            }
-            for (JvmPayloadLock.Entry entry : lock.entries()) {
-                byte[] bytes = read(zip, entry.path(), Math.toIntExact(entry.size()));
-                if (bytes.length != entry.size() || !entry.digest().equals(digest(bytes))) {
-                    throw new IOException("JVM payload entry differs from its content lock: " + entry.path());
+                byte[] bytes = read(zip, entry.getName(), Math.toIntExact(source.size()));
+                if (!source.digest().equals(digest(bytes))) {
+                    throw new IOException("JVM payload entry differs from its written content: " + entry.getName());
                 }
             }
         }
-        String aggregate = aggregate(lock.contentDigest(), archiveDigest, jdkDigest);
-        return new Identity(file, aggregate, archiveDigest, lock);
+        if (!observed.equals(expected.keySet())) {
+            throw new IOException("JVM payload archive entries differ from the written payload");
+        }
+        return new Identity(file, digest(file));
     }
 
     private static List<ArtifactFile> resolve(Path repository, JvmPayloadRequest request) throws IOException {
@@ -467,15 +442,6 @@ public final class JvmPayloadArchive {
         return value;
     }
 
-    private static String aggregate(String contentDigest, String archiveDigest, String jdkDigest) {
-        MessageDigest digest = sha256();
-        update(digest, "camel-kit.ship.jvm-payload-identity.v1");
-        update(digest, contentDigest);
-        update(digest, archiveDigest);
-        update(digest, jdkDigest);
-        return "sha256:" + HexFormat.of().formatHex(digest.digest());
-    }
-
     private static String digest(Path file) throws IOException {
         MessageDigest digest = sha256();
         try (InputStream input = Files.newInputStream(file, LinkOption.NOFOLLOW_LINKS)) {
@@ -525,12 +491,6 @@ public final class JvmPayloadArchive {
         }
     }
 
-    private static void update(MessageDigest digest, String value) {
-        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
-        digest.update(ByteBuffer.allocate(Integer.BYTES).putInt(bytes.length).array());
-        digest.update(bytes);
-    }
-
     private static String safeMessage(Throwable error) {
         return error.getMessage() == null || error.getMessage().isBlank()
                 ? error.getClass().getSimpleName()
@@ -542,7 +502,8 @@ public final class JvmPayloadArchive {
         return CENTRAL_CLIENT;
     }
 
-    public record Identity(Path archive, String aggregateDigest, String archiveDigest, JvmPayloadLock lock) {
+    /** Frozen payload archive and its deterministic content digest. */
+    public record Identity(Path archive, String digest) {
     }
 
     record ArtifactFile(String identity, String artifactId, String version, Path path) {
@@ -590,10 +551,6 @@ public final class JvmPayloadArchive {
             return new SourceEntry(
                     kind, identity, path, size,
                     "sha256:" + HexFormat.of().formatHex(digest.digest()), crc.getValue(), null, source);
-        }
-
-        private JvmPayloadLock.Entry lockEntry() {
-            return new JvmPayloadLock.Entry(kind, identity, path, size, digest);
         }
 
         private void writeTo(ZipOutputStream target) throws IOException {

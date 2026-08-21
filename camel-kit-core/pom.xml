@@ -184,7 +184,7 @@
     </build>
 
     <profiles>
-        <!-- Explicit Linux/Bubblewrap certification; ordinary reactor builds stay platform-portable. -->
+        <!-- Explicit Linux certification; ordinary reactor builds stay platform-portable. -->
         <profile>
             <id>linux-ship-certification</id>
             <build>

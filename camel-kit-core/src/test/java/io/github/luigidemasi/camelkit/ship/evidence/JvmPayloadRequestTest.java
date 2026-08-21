@@ -85,7 +85,7 @@ class JvmPayloadRequestTest {
     }
 
     @Test
-    void authenticatedRuntimeRootsExtendMainAndCitrusPayloadLocksExactly() {
+    void authenticatedRuntimeRootsExtendMainAndCitrusPayloadsExactly() {
         List<RuntimeDependency> runtime = List.of(
                 new RuntimeDependency("org.apache.camel", "camel-main", "4.21.0", "compile"),
                 new RuntimeDependency("org.apache.camel", "camel-yaml-dsl", "4.21.0", "compile"),

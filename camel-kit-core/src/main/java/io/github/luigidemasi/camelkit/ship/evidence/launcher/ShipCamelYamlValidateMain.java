@@ -8,7 +8,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.camel.CamelContext;
 import org.apache.camel.dsl.yaml.validator.CamelYamlParser;
 import org.apache.camel.dsl.yaml.validator.YamlValidator;
 
@@ -21,12 +20,12 @@ public final class ShipCamelYamlValidateMain {
     }
 
     public static void main(String[] arguments) throws Exception {
-        if (arguments.length == 1 && "--payload-version".equals(arguments[0])) {
-            new YamlValidator().init();
-            System.out.println("Camel direct YAML validator " + camelVersion());
-            return;
+        if (arguments.length < 2 || !arguments[0].startsWith("--accepted-root=")) {
+            throw new IOException("YAML validation requires --accepted-root and at least one route");
         }
-        validate(Path.of("/workspace"), List.of(arguments));
+        validate(
+                acceptedRoot(arguments[0].substring("--accepted-root=".length())),
+                List.of(arguments).subList(1, arguments.length));
     }
 
     public static void validate(Path acceptedRoot, List<String> routeArguments) throws Exception {
@@ -37,7 +36,7 @@ public final class ShipCamelYamlValidateMain {
         }
         Set<Path> routes = new HashSet<>();
         for (String value : routeArguments) {
-            Path route = Path.of(value).toAbsolutePath().normalize();
+            Path route = root.resolve(value).normalize();
             if (!route.startsWith(root) || Files.isSymbolicLink(route)
                     || !Files.isRegularFile(route, LinkOption.NOFOLLOW_LINKS)
                     || Files.size(route) <= 0
@@ -59,8 +58,17 @@ public final class ShipCamelYamlValidateMain {
         }
     }
 
-    private static String camelVersion() {
-        String version = CamelContext.class.getPackage().getImplementationVersion();
-        return version == null || version.isBlank() ? "unknown" : version;
+    // ponytail: duplicates ShipCamelMainBootstrap.acceptedRoot because each launcher JAR is a self-contained closure
+    private static Path acceptedRoot(String value) throws IOException {
+        Path root = Path.of(value);
+        if (!root.isAbsolute()) {
+            throw new IOException("Accepted snapshot root must be an absolute path");
+        }
+        Path real = root.toRealPath(LinkOption.NOFOLLOW_LINKS);
+        if (!real.equals(root.normalize()) || Files.isSymbolicLink(real)
+                || !Files.isDirectory(real, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("Accepted snapshot root must be a real directory");
+        }
+        return real;
     }
 }
