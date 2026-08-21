@@ -71,7 +71,8 @@ public final class ShipCatalogService {
 
     /**
      * Uses an explicit caller-supplied local repository and the fixed Maven Central release source. The controlling
-     * process remains responsible for creating and protecting that repository from other writers.
+     * process remains responsible for creating and protecting that repository from other writers. Artifacts already
+     * present in the repository are trusted as-is: checksum enforcement applies only when bytes are downloaded.
      */
     public ShipCatalogService(Path localRepository) {
         this(localRepository, ResolutionMode.ONLINE, ShipMavenResolver::resolveArtifacts);

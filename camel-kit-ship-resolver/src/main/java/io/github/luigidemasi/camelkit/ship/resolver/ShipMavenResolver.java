@@ -117,7 +117,9 @@ public final class ShipMavenResolver {
     /**
      * Resolves exact artifacts without reading descriptors or traversing dependencies. Requests must contain between
      * one and {@value #MAX_ARTIFACTS} unique immutable coordinates and results retain request order. Results are bound
-     * to the locally resolved bytes. Consumers must compare the returned identity with the bytes they actually read.
+     * to the locally resolved bytes. Consumers must compare the returned identity with the bytes they actually read. In
+     * ONLINE mode an artifact already present in the repository is returned as-is: checksum enforcement applies to
+     * downloads only, so protecting the repository between runs belongs to the caller.
      */
     public static List<ResolvedExactMavenArtifact> resolveArtifacts(
             Path repository, List<MavenCoordinate> artifacts, ResolutionMode mode)
@@ -192,6 +194,9 @@ public final class ShipMavenResolver {
         session.setSystemProperties(Map.of("java.version", Runtime.version().toString()));
         session.setUserProperties(Map.of());
         session.setConfigProperties(Map.of(
+                // REQUEST_TIMEOUT bounds per-read socket inactivity, not the whole transfer: a peer that keeps
+                // trickling bytes can hold a download open beyond it. Ship accepts that availability limit
+                // against the fixed HTTPS Central origin.
                 ConfigurationProperties.CONNECT_TIMEOUT, 10_000,
                 ConfigurationProperties.REQUEST_TIMEOUT, 60_000,
                 ConfigurationProperties.HTTP_FOLLOW_REDIRECTS, false,
@@ -237,6 +242,9 @@ public final class ShipMavenResolver {
         if (!returned.equals(expected)) {
             throw new IOException("Ship resolver returned an artifact outside its exact repository path");
         }
+        // This walk runs after resolution: in ONLINE mode Aether may already have written through a
+        // pre-planted symlink before it fails the run. Planting one requires a same-user writer, which
+        // the Ship product boundary excludes.
         Path current = repository;
         for (Path part : repository.relativize(expected)) {
             current = current.resolve(part);
