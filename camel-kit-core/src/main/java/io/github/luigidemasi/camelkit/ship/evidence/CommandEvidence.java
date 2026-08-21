@@ -4,7 +4,18 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.util.List;
 
-/** Result of a controller-owned direct process execution. */
+/**
+ * Result of a controller-owned direct process execution.
+ *
+ * <p>
+ * {@code executable}, {@code arguments}, and {@code workingDirectory} record the planned controller form of the
+ * command, not the runtime invocation: the launch resolves the executable, substitutes the materialized archive for the
+ * {@code payload.jar} token at index 2, injects the sandbox JVM options and {@code --accepted-root}, and runs inside
+ * the frozen accepted snapshot. Run-local paths travel in {@code sandboxRoot}. {@code workingDirectory} anchors the
+ * command to the candidate root; the process working directory is the byte-identical accepted snapshot bound by
+ * {@code inputDigests}.
+ * </p>
+ */
 public record CommandEvidence(
         String commandId,
         String executable,

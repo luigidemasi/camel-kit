@@ -180,12 +180,15 @@ class JvmPayloadCompatibilityIT {
             throws Exception {
         Path java = Path.of(System.getProperty("java.home"), "bin", "java").toRealPath();
         Path acceptedRoot = workspace.toRealPath();
-        Path home = Files.createDirectory(directory.resolve(request.kind().id() + "-home"));
-        Path temporary = Files.createDirectory(directory.resolve(request.kind().id() + "-tmp"));
+        // Space-bearing names prove the sandbox JVM options survive as argv entries.
+        Path home = Files.createDirectory(directory.resolve(request.kind().id() + " home"));
+        Path temporary = Files.createDirectory(directory.resolve(request.kind().id() + " tmp"));
 
         List<String> arguments = new ArrayList<>(
                 List.of(
-                        java.toString(), "-cp", archive.toRealPath().toString(),
+                        java.toString(),
+                        "-Duser.home=" + home, "-Djava.io.tmpdir=" + temporary,
+                        "-cp", archive.toRealPath().toString(),
                         ShipJvmPayloadBootstrap.class.getName(),
                         "--launcher=" + request.launcherClass(),
                         "--accepted-root=" + acceptedRoot));
@@ -198,9 +201,6 @@ class JvmPayloadCompatibilityIT {
         environment.put("LC_ALL", "C");
         environment.put("HOME", home.toString());
         environment.put("TMPDIR", temporary.toString());
-        environment.put(
-                "JAVA_TOOL_OPTIONS",
-                "-Duser.home=" + home + " -Djava.io.tmpdir=" + temporary);
 
         Process process = builder.start();
         ExecutorService readers = Executors.newFixedThreadPool(2, runnable -> {

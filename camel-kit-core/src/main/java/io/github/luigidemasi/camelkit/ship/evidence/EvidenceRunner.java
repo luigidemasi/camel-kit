@@ -95,6 +95,10 @@ public final class EvidenceRunner {
             argv.set(0, java.toString());
             argv.set(2, payload.archive().toString());
             argv.add(head.size(), "--accepted-root=" + acceptedSnapshot);
+            // Sandbox JVM options travel in the argv: HotSpot splits JAVA_TOOL_OPTIONS on whitespace,
+            // so a space-bearing state-root path would abort the launch as an unrecognized option.
+            argv.add(1, "-Duser.home=" + privateHome);
+            argv.add(2, "-Djava.io.tmpdir=" + privateTemporaryDirectory);
             Map<String, String> environment
                     = controlledEnvironment(privateHome, privateTemporaryDirectory, command);
             Path launchDirectory = acceptedSnapshot.resolve(candidate.relativize(workingDirectory));
@@ -187,7 +191,7 @@ public final class EvidenceRunner {
             Instant endedAt = clock.instant();
             CommandEvidence evidence = new CommandEvidence(
                     command.id(),
-                    java.toString(),
+                    JAVA_EXECUTABLE,
                     command.arguments(),
                     workingDirectory.toString(),
                     command.inputDigests(),
@@ -212,7 +216,11 @@ public final class EvidenceRunner {
         }
     }
 
-    /** Removes raw logs and the exact controller-created sandbox after CAS retention, unless quarantined. */
+    /**
+     * Removes raw logs and the exact controller-created sandbox after CAS retention, unless quarantined. Quarantined
+     * sandboxes are retained with their read-only snapshot permissions for inspection; restore write permissions before
+     * removing them manually.
+     */
     public static void cleanupEphemeral(CommandEvidence evidence) throws IOException {
         if (evidence.quarantined()) {
             return;
@@ -268,9 +276,6 @@ public final class EvidenceRunner {
         environment.put("LC_ALL", "C");
         environment.put("HOME", privateHome.toString());
         environment.put("TMPDIR", privateTemporaryDirectory.toString());
-        environment.put(
-                "JAVA_TOOL_OPTIONS",
-                "-Duser.home=" + privateHome + " -Djava.io.tmpdir=" + privateTemporaryDirectory);
         environment.putAll(command.environment());
         return Map.copyOf(environment);
     }
@@ -540,6 +545,8 @@ public final class EvidenceRunner {
     }
 
     private static boolean terminateDescendantsAndWait(Process process) {
+        // Best-effort after exit: descendants already reparented to init are invisible here.
+        // Containment rests on the stubbed-component model, not on process-tree tracking.
         List<ProcessHandle> children = descendants(process);
         children.forEach(ProcessHandle::destroy);
         if (awaitHandles(children, TERMINATION_GRACE)) {

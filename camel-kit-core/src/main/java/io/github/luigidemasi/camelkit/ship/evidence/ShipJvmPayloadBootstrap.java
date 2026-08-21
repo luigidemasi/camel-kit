@@ -29,6 +29,8 @@ public final class ShipJvmPayloadBootstrap {
         String launcherClass = arguments[0].substring("--launcher=".length());
         String[] launcherArguments = Arrays.copyOfRange(arguments, 1, arguments.length);
         Path archive = archive();
+        // Resolves against java.io.tmpdir, which the controller pins to the run's private sandbox tmp
+        // through a -D launch option.
         Path extraction = Files.createTempDirectory("camel-kit-ship-payload-");
         try {
             List<URL> urls = new ArrayList<>();

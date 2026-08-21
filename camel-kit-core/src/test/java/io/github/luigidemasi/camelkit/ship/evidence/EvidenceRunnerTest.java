@@ -59,26 +59,26 @@ class EvidenceRunnerTest {
 
         Path sandbox = snapshot.getParent();
         assertEquals(sandbox, result.sandboxRoot());
+        assertEquals(EvidenceRunner.JAVA_EXECUTABLE, result.executable());
         assertEquals(Path.of(EvidenceRunner.JAVA_EXECUTABLE).toRealPath().toString(), launch.arguments().get(0));
-        assertEquals("-cp", launch.arguments().get(1));
-        Path payloadArchive = Path.of(launch.arguments().get(2));
+        assertEquals("-Duser.home=" + sandbox.resolve("home"), launch.arguments().get(1));
+        assertEquals("-Djava.io.tmpdir=" + sandbox.resolve("tmp"), launch.arguments().get(2));
+        assertEquals("-cp", launch.arguments().get(3));
+        Path payloadArchive = Path.of(launch.arguments().get(4));
         assertEquals(JvmPayloadArchive.ARCHIVE_NAME, payloadArchive.getFileName().toString());
         assertTrue(payloadArchive.startsWith(sandbox), "payload archive must live in the run's sandbox");
         assertTrue(Files.isRegularFile(payloadArchive));
-        assertEquals(ShipJvmPayloadBootstrap.class.getName(), launch.arguments().get(3));
-        assertEquals("--launcher=" + command.jvmPayload().launcherClass(), launch.arguments().get(4));
-        assertEquals("--accepted-root=" + snapshot, launch.arguments().get(5));
-        assertEquals(6, launch.arguments().size());
+        assertEquals(ShipJvmPayloadBootstrap.class.getName(), launch.arguments().get(5));
+        assertEquals("--launcher=" + command.jvmPayload().launcherClass(), launch.arguments().get(6));
+        assertEquals("--accepted-root=" + snapshot, launch.arguments().get(7));
+        assertEquals(8, launch.arguments().size());
 
         assertEquals(
                 Map.of(
                         "LANG", "C",
                         "LC_ALL", "C",
                         "HOME", sandbox.resolve("home").toString(),
-                        "TMPDIR", sandbox.resolve("tmp").toString(),
-                        "JAVA_TOOL_OPTIONS",
-                        "-Duser.home=" + sandbox.resolve("home")
-                                             + " -Djava.io.tmpdir=" + sandbox.resolve("tmp")),
+                        "TMPDIR", sandbox.resolve("tmp").toString()),
                 launch.environment(),
                 "the child environment must be exactly the scrubbed controller set");
         assertEquals("PASS\n", Files.readString(Path.of(result.stdoutLog())));

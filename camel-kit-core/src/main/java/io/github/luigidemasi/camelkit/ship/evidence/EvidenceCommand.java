@@ -4,7 +4,11 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
-/** Controller-selected command vector. Worker-provided shell strings are deliberately unsupported. */
+/**
+ * Controller-selected command vector. Worker-provided shell strings are deliberately unsupported. The argument vector
+ * is the planned template: index 0 names the controller java path and index 2 the {@code payload.jar} token; the runner
+ * substitutes run-local sandbox paths at launch.
+ */
 public record EvidenceCommand(
         String id,
         List<String> arguments,
