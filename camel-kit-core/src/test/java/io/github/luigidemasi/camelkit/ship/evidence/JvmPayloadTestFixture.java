@@ -23,7 +23,7 @@ public final class JvmPayloadTestFixture {
             String[] parts = root.split(":", -1);
             Path jar = directory.resolve("root-" + index++ + ".jar");
             try (ZipOutputStream ignored = new ZipOutputStream(Files.newOutputStream(jar))) {
-                // A valid empty JAR is enough: production verification validates real Central bytes.
+                // A valid empty JAR is enough: the archive validates coordinates and sizes, never JAR contents.
             }
             artifacts.add(new JvmPayloadArchive.ArtifactFile(
                     parts[0] + ':' + parts[1] + ":jar:" + parts[2], parts[1], parts[2], jar));

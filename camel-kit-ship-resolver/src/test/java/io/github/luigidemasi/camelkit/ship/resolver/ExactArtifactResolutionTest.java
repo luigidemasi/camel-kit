@@ -99,6 +99,21 @@ class ExactArtifactResolutionTest {
     }
 
     @Test
+    void onlineResolutionBindsIdentityToTheLocallyCachedBytes() throws IOException {
+        MavenCoordinate coordinate = MavenCoordinate.jar("example.test", "catalog", "1.0.0");
+        byte[] cached = "cached-bytes".getBytes(StandardCharsets.UTF_8);
+        seed(coordinate, "cached-bytes");
+
+        ResolvedExactMavenArtifact resolved = ShipMavenResolver.resolveArtifacts(
+                repository, List.of(coordinate), ShipMavenResolver.ResolutionMode.ONLINE).get(0);
+
+        // A warm cache is served without touching the network and its bytes are trusted as-is;
+        // the recorded identity must match the cached bytes exactly.
+        assertEquals(cached.length, resolved.contentLength());
+        assertEquals(sha256(cached), resolved.contentSha256());
+    }
+
+    @Test
     void aetherCacheFillDisablesRedirectsAndHonorsJvmTransportProperties() {
         var session = ShipMavenResolver.session(
                 new RepositorySystemSupplier().get(), repository, ShipMavenResolver.ResolutionMode.ONLINE);
