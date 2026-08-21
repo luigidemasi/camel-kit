@@ -15,14 +15,11 @@ class JvmPayloadRequestTest {
 
     @Test
     void selectsOnlyControllerOwnedDirectLaunchersAndExactRoots() {
-        JvmPayloadRequest packager = JvmPayloadRequest.mainPackage("4.21.0");
         JvmPayloadRequest validator = JvmPayloadRequest.yamlValidator("4.21.0");
         JvmPayloadRequest main = JvmPayloadRequest.camelMain("4.21.0");
         JvmPayloadRequest citrus = JvmPayloadRequest.citrus(
                 "4.21.0", "5.0.0-M2", CitrusDependencyPolicy.required("5.0.0-M2"));
 
-        assertEquals(JvmPayloadRequest.Kind.MAIN_PACKAGE_INSPECT, packager.kind());
-        assertTrue(packager.roots().isEmpty());
         assertEquals(JvmPayloadRequest.Kind.CAMEL_YAML_VALIDATE, validator.kind());
         assertEquals(JvmPayloadRequest.Kind.CAMEL_MAIN_START, main.kind());
         assertEquals(JvmPayloadRequest.Kind.CITRUS_YAML, citrus.kind());
@@ -45,7 +42,6 @@ class JvmPayloadRequestTest {
         assertFalse(citrus.roots().stream().anyMatch(root -> root.contains("testcontainers")));
         assertFalse(citrus.roots().stream().anyMatch(root -> root.endsWith(":4.20.0")));
         assertNotEquals(validator.digest(), main.digest());
-        assertNotEquals(packager.digest(), main.digest());
         assertNotEquals(main.digest(), citrus.digest());
     }
 

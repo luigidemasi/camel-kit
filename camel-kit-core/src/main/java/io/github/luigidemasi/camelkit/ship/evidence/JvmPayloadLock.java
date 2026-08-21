@@ -227,9 +227,8 @@ public final class JvmPayloadLock {
     }
 
     private void validate() throws IOException {
-        boolean jdkOnlyPackage = "main-package-inspect".equals(kind);
         if (dependencyRoots.size() > MAX_ROOTS
-                || dependencyRoots.isEmpty() != jdkOnlyPackage
+                || dependencyRoots.isEmpty()
                 || dependencyRoots.stream().map(Root::coordinate).distinct().count() != dependencyRoots.size()) {
             throw new IOException("JVM payload lock roots are missing, duplicated, or excessive");
         }

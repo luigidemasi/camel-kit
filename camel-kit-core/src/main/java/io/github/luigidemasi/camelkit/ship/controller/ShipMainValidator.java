@@ -52,18 +52,16 @@ import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.Outcome;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.Support;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.ToolVersion;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStampStore;
-import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipMainPackageMain;
 import io.github.luigidemasi.camelkit.ship.security.ProjectEvidenceFiles;
 
 /** Composes the deterministic controller checks currently available for Camel Main. */
 final class ShipMainValidator {
 
     /** Bump whenever accepted manifest or mandatory validation semantics change. */
-    static final int CONTRACT_VERSION = 1;
+    static final int CONTRACT_VERSION = 2;
     static final int MAX_EVIDENCE_COMMANDS = 64;
     static final Duration MAX_EVIDENCE_TIMEOUT_BUDGET = Duration.ofHours(12);
 
-    private static final int DIRECT_JVM_PREFIX_SIZE = 4;
     private static final int MAX_LOG_BYTES = 64 * 1024 * 1024;
     private static final long MAX_TOTAL_LOG_BYTES = 64L * 1024 * 1024;
     private static final long MAX_EXECUTABLE_BYTES = 128L * 1024 * 1024;
@@ -319,23 +317,6 @@ final class ShipMainValidator {
                 inputs,
                 JvmPayloadRequest.yamlValidator(manifest.camelVersion())));
 
-        List<String> packageArguments = directJvmArguments();
-        packageArguments.add("--candidate-digest=" + candidateDigest);
-        packageArguments.add("--manifest-digest=" + manifestDigest);
-        packageArguments.add("--catalog-usage-digest=" + catalogDigest);
-        packageArguments.add("--pom-digest=" + binding.pomDigest());
-        packageArguments.add("--main-payload-digest=" + mainPayload.digest());
-        routes.forEach(route -> {
-            packageArguments.add("--route=" + route.path());
-            packageArguments.add("--route-digest=" + route.digest());
-        });
-        result.add(command(
-                "main-package-and-inspect",
-                packageArguments,
-                Duration.ofMinutes(10),
-                inputs,
-                JvmPayloadRequest.mainPackage(manifest.camelVersion())));
-
         List<String> mainArguments = directJvmArguments();
         routes.forEach(route -> {
             mainArguments.add("--route=/workspace/" + route.path());
@@ -461,13 +442,6 @@ final class ShipMainValidator {
         }
 
         RetainedLogs logs = retainLogs(commandRoot, evidenceRoot, expected.id(), evidence);
-        if (expected.jvmPayload().kind() == JvmPayloadRequest.Kind.MAIN_PACKAGE_INSPECT
-                && evidence.passed()) {
-            ShipMainPackageMain.verifySummary(
-                    logs.stdout(),
-                    candidate,
-                    expected.arguments().subList(DIRECT_JVM_PREFIX_SIZE, expected.arguments().size()));
-        }
         CommandRun command = new CommandRun(
                 path(evidence.executable(), "command executable").toString(),
                 evidence.executableVersion(),
@@ -503,7 +477,7 @@ final class ShipMainValidator {
         requireRetentionBudget(evidenceRoot, stdoutPath, stderrPath, stdout.length, stderr.length);
         stdoutPath = privateFile(stdoutPath, stdout);
         stderrPath = privateFile(stderrPath, stderr);
-        return new RetainedLogs(stdoutPath, stdout, stderrPath);
+        return new RetainedLogs(stdoutPath, stderrPath);
     }
 
     private static void requireRetentionBudget(
@@ -728,10 +702,10 @@ final class ShipMainValidator {
     }
 
     private static void validateBudget(ArtifactManifest manifest) {
-        long count = Math.addExact(3L, manifest.citrusTests().size());
+        long count = Math.addExact(2L, manifest.citrusTests().size());
         Duration timeout;
         try {
-            timeout = Duration.ofMinutes(30)
+            timeout = Duration.ofMinutes(20)
                     .plus(Duration.ofMinutes(Math.multiplyExact(30L, manifest.citrusTests().size())));
         } catch (ArithmeticException e) {
             throw new IllegalArgumentException("Evidence timeout budget overflowed", e);
@@ -764,7 +738,6 @@ final class ShipMainValidator {
             JvmPayloadRequest payload, ArtifactManifest manifest) {
         return switch (payload.kind()) {
             case CAMEL_YAML_VALIDATE -> "Camel direct YAML validator " + manifest.camelVersion();
-            case MAIN_PACKAGE_INSPECT -> ShipMainPackageMain.PAYLOAD_VERSION;
             case CAMEL_MAIN_START -> "Camel direct Main bootstrap " + manifest.camelVersion();
             case CITRUS_YAML -> "Citrus direct YAML " + manifest.citrusVersion()
                                 + " with Camel " + manifest.camelVersion();
@@ -913,15 +886,6 @@ final class ShipMainValidator {
     private record VerifiedEvidence(CommandRun command) {
     }
 
-    private record RetainedLogs(Path stdoutPath, byte[] stdout, Path stderrPath) {
-
-        private RetainedLogs {
-            stdout = stdout.clone();
-        }
-
-        @Override
-        public byte[] stdout() {
-            return stdout.clone();
-        }
+    private record RetainedLogs(Path stdoutPath, Path stderrPath) {
     }
 }

@@ -48,20 +48,6 @@ class JvmPayloadArchiveTest {
     }
 
     @Test
-    void writesAReproducibleJdkOnlyPackagePayloadWithoutMavenRoots() throws Exception {
-        JvmPayloadRequest request = JvmPayloadRequest.mainPackage("4.21.0");
-        JvmPayloadArchive.Identity first = JvmPayloadTestFixture.create(
-                directory.resolve("package-first"), request, JDK_DIGEST);
-        JvmPayloadArchive.Identity second = JvmPayloadTestFixture.create(
-                directory.resolve("package-second"), request, JDK_DIGEST);
-
-        assertTrue(first.lock().roots().isEmpty());
-        assertEquals(first.archiveDigest(), second.archiveDigest());
-        assertArrayEquals(Files.readAllBytes(first.archive()), Files.readAllBytes(second.archive()));
-        first.lock().requireRequest(request);
-    }
-
-    @Test
     void rejectsRequestJdkAndArchiveTampering() throws Exception {
         JvmPayloadRequest request = JvmPayloadRequest.yamlValidator("4.21.0");
         JvmPayloadArchive.Identity identity = JvmPayloadTestFixture.create(
@@ -112,7 +98,6 @@ class JvmPayloadArchiveTest {
     @Test
     void isolatedLaunchersContainExactlyTheirApplicationOwnedDependencies() throws Exception {
         for (JvmPayloadRequest request : java.util.List.of(
-                JvmPayloadRequest.mainPackage("4.21.0"),
                 JvmPayloadRequest.yamlValidator("4.21.0"),
                 JvmPayloadRequest.camelMain("4.21.0"),
                 JvmPayloadRequest.citrus(

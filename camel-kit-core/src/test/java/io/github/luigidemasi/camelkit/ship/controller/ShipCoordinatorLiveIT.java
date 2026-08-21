@@ -192,7 +192,6 @@ class ShipCoordinatorLiveIT {
                 "artifact-policy",
                 "catalog-usage",
                 "route-schema",
-                "main-package-and-inspect",
                 "main-runtime-resolve-and-start",
                 "citrus-integration-test-001"),
                 stamp.checks().stream()
@@ -205,7 +204,7 @@ class ShipCoordinatorLiveIT {
                 .map(ShipLocalStamp.Check::command)
                 .filter(java.util.Objects::nonNull)
                 .toList();
-        assertEquals(4, commands.size());
+        assertEquals(3, commands.size());
         for (ShipLocalStamp.CommandRun command : commands) {
             assertTrue(command.launched());
             assertFalse(command.timedOut());

@@ -37,7 +37,6 @@ import io.github.luigidemasi.camelkit.ship.catalog.CatalogExpressionInventory;
 import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipCamelMainBootstrap;
 import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipCamelYamlValidateMain;
 import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipCitrusYamlMain;
-import io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipMainPackageMain;
 import io.github.luigidemasi.camelkit.ship.expression.ShipExpressionPolicy;
 import io.github.luigidemasi.camelkit.ship.resolver.MavenCoordinate;
 import io.github.luigidemasi.camelkit.ship.resolver.MavenDependencyExclusion;
@@ -75,16 +74,13 @@ public final class JvmPayloadArchive {
             });
         }
         Path payloadRoot = privateDirectory(root.resolve("jvm-payload"));
-        List<ArtifactFile> artifacts = List.of();
-        if (!request.dependencyRoots().isEmpty()) {
-            Path repository = privateDirectory(root.resolve("resolver-repository"));
-            try (var files = Files.list(repository)) {
-                if (files.findAny().isPresent()) {
-                    throw new IOException("Controller JVM payload resolver repository must start empty");
-                }
+        Path repository = privateDirectory(root.resolve("resolver-repository"));
+        try (var files = Files.list(repository)) {
+            if (files.findAny().isPresent()) {
+                throw new IOException("Controller JVM payload resolver repository must start empty");
             }
-            artifacts = resolve(repository, request);
         }
+        List<ArtifactFile> artifacts = resolve(repository, request);
         Path archive = payloadRoot.resolve("payload.jar");
         return write(archive, request, jdkDigest, artifacts);
     }
@@ -344,9 +340,6 @@ public final class JvmPayloadArchive {
     }
 
     private static Class<?> launcher(JvmPayloadRequest request) throws IOException {
-        if (ShipMainPackageMain.class.getName().equals(request.launcherClass())) {
-            return ShipMainPackageMain.class;
-        }
         if (ShipCamelYamlValidateMain.class.getName().equals(request.launcherClass())) {
             return ShipCamelYamlValidateMain.class;
         }
@@ -388,8 +381,6 @@ public final class JvmPayloadArchive {
                 types = classClosure(
                         launcher, ShipArtifactLimits.class, ShipExpressionPolicy.class,
                         CatalogExpressionInventory.class);
-            } else if (launcher == ShipMainPackageMain.class) {
-                types = classClosure(launcher, ShipArtifactLimits.class);
             } else if (launcher == ShipCamelYamlValidateMain.class) {
                 types = classClosure(launcher, ShipArtifactLimits.class);
             } else {

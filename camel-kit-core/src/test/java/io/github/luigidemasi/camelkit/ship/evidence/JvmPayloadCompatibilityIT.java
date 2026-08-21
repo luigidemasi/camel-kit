@@ -10,7 +10,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -109,7 +108,7 @@ class JvmPayloadCompatibilityIT {
 
     private void requirePayloads(String camelVersion, String citrusVersion) throws Exception {
         Path workspace = Files.createDirectory(directory.resolve("workspace"));
-        Path route = Files.writeString(workspace.resolve("orders.camel.yaml"), """
+        Files.writeString(workspace.resolve("orders.camel.yaml"), """
                 - route:
                     id: orders
                     from:
@@ -156,7 +155,6 @@ class JvmPayloadCompatibilityIT {
                 new RuntimeDependency("org.apache.camel", "camel-main", camelVersion, "compile"),
                 new RuntimeDependency("org.apache.camel", "camel-yaml-dsl", camelVersion, "compile"));
         List<JvmPayloadRequest> requests = List.of(
-                JvmPayloadRequest.mainPackage(camelVersion),
                 JvmPayloadRequest.yamlValidator(camelVersion),
                 JvmPayloadRequest.camelMain(camelVersion, acceptedRuntime),
                 JvmPayloadRequest.citrus(
@@ -167,30 +165,12 @@ class JvmPayloadCompatibilityIT {
             JvmPayloadArchive.Identity payload = JvmPayloadArchive.materialize(root, request, JDK_DIGEST);
             requireIsolatedLaunch(payload.archive(), workspace, request, List.of("--payload-version"), true);
             requireIsolatedLaunch(
-                    payload.archive(), workspace, request, functionalArguments(request, digest(route)), false);
+                    payload.archive(), workspace, request, functionalArguments(request), false);
         }
     }
 
-    private static List<String> functionalArguments(JvmPayloadRequest request, String routeDigest) {
+    private static List<String> functionalArguments(JvmPayloadRequest request) {
         return switch (request.kind()) {
-            case MAIN_PACKAGE_INSPECT -> List.of(
-                    "--candidate-digest=" + digest(1),
-                    "--manifest-digest=" + digest(2),
-                    "--catalog-usage-digest=" + digest(3),
-                    "--pom-digest=" + digest(4),
-                    "--main-payload-digest=" + JvmPayloadRequest.camelMain(
-                            request.camelVersion(), List.of(
-                                    new RuntimeDependency(
-                                            "org.apache.camel", "camel-kafka",
-                                            request.camelVersion(), "compile"),
-                                    new RuntimeDependency(
-                                            "org.apache.camel", "camel-main",
-                                            request.camelVersion(), "compile"),
-                                    new RuntimeDependency(
-                                            "org.apache.camel", "camel-yaml-dsl",
-                                            request.camelVersion(), "compile")))
-                            .digest(),
-                    "--route=orders.camel.yaml", "--route-digest=" + routeDigest);
             case CAMEL_YAML_VALIDATE -> List.of("/workspace/orders.camel.yaml");
             case CAMEL_MAIN_START -> List.of(
                     "--route=/workspace/orders.camel.yaml", "--expected-route=orders");
@@ -267,13 +247,7 @@ class JvmPayloadCompatibilityIT {
                 "Isolated payload output exceeded " + MAX_RETAINED_OUTPUT_BYTES + " bytes per stream\n" + output);
         assertEquals(0, process.exitValue(), output);
         if (assertVersions) {
-            if (request.kind() == JvmPayloadRequest.Kind.MAIN_PACKAGE_INSPECT) {
-                assertTrue(output.contains(
-                        io.github.luigidemasi.camelkit.ship.evidence.launcher.ShipMainPackageMain.PAYLOAD_VERSION),
-                        output);
-            } else {
-                assertTrue(output.contains(request.camelVersion()), output);
-            }
+            assertTrue(output.contains(request.camelVersion()), output);
             if (request.citrusVersion() != null) {
                 assertTrue(output.contains(request.citrusVersion()), output);
             }
@@ -293,15 +267,6 @@ class JvmPayloadCompatibilityIT {
             truncated |= count > remaining;
         }
         return new CapturedOutput(retained.toByteArray(), truncated);
-    }
-
-    private static String digest(Path file) throws Exception {
-        return "sha256:" + java.util.HexFormat.of().formatHex(
-                java.security.MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(file)));
-    }
-
-    private static String digest(int seed) {
-        return "sha256:" + String.format(Locale.ROOT, "%064x", seed);
     }
 
     private record Row(String camelVersion, String citrusVersion) {
