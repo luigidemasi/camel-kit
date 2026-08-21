@@ -3,10 +3,6 @@ package io.github.luigidemasi.camelkit.ship.evidence;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -47,11 +43,6 @@ public final class JvmPayloadArchive {
 
     public static final String ARCHIVE_NAME = "payload.jar";
     public static final String BOOTSTRAP_CLASS = ShipJvmPayloadBootstrap.class.getName();
-    private static final String CENTRAL = "https://repo.maven.apache.org/maven2/";
-    private static final HttpClient CENTRAL_CLIENT = HttpClient.newBuilder()
-            .connectTimeout(java.time.Duration.ofSeconds(10))
-            .followRedirects(HttpClient.Redirect.NEVER)
-            .build();
     private static final int MAX_ARTIFACTS = 512;
     private static final long MAX_ARTIFACT_BYTES = 128L * 1024 * 1024;
     private static final long MAX_TOTAL_BYTES = 768L * 1024 * 1024;
@@ -233,7 +224,6 @@ public final class JvmPayloadArchive {
             if (size <= 0 || size > MAX_ARTIFACT_BYTES) {
                 throw new IOException("Direct JVM payload artifact has an unsafe size: " + identity);
             }
-            verifyCentralBytes(coordinate, file, size);
             total = Math.addExact(total, size);
             if (total > MAX_TOTAL_BYTES) {
                 throw new IOException("Direct JVM payload dependencies exceed the controller size limit");
@@ -254,63 +244,6 @@ public final class JvmPayloadArchive {
             if (System.getProperty(key) != null && !System.getProperty(key).isBlank()) {
                 throw new IOException("Controller JVM payload refuses repository override property " + key);
             }
-        }
-    }
-
-    private static void verifyCentralBytes(
-            MavenCoordinate artifact, Path local, long expectedSize)
-            throws IOException {
-        requireCoordinatePart(artifact.groupId(), "groupId");
-        requireCoordinatePart(artifact.artifactId(), "artifactId");
-        requireCoordinatePart(artifact.version(), "version");
-        if (!artifact.classifier().isBlank()) {
-            requireCoordinatePart(artifact.classifier(), "classifier");
-        }
-        URI uri = URI.create(CENTRAL
-                             + artifact.groupId().replace('.', '/') + '/'
-                             + artifact.artifactId() + '/' + artifact.version() + '/' + artifact.fileName());
-        HttpRequest request = HttpRequest.newBuilder(uri)
-                .timeout(java.time.Duration.ofSeconds(60))
-                .header("Accept", "application/java-archive")
-                .GET()
-                .build();
-        try {
-            HttpResponse<InputStream> response = centralClient().send(
-                    request, HttpResponse.BodyHandlers.ofInputStream());
-            if (response.statusCode() != 200 || !uri.equals(response.uri())) {
-                response.body().close();
-                throw new IOException("Authenticated Maven Central verification failed for " + artifact);
-            }
-            MessageDigest remoteDigest = sha512();
-            long remoteSize = 0;
-            try (InputStream input = response.body()) {
-                byte[] buffer = new byte[16_384];
-                int count;
-                while ((count = input.read(buffer)) != -1) {
-                    remoteSize = Math.addExact(remoteSize, count);
-                    if (remoteSize > MAX_ARTIFACT_BYTES) {
-                        throw new IOException("Authenticated Maven Central artifact exceeds the size limit");
-                    }
-                    remoteDigest.update(buffer, 0, count);
-                }
-            }
-            if (remoteSize != expectedSize
-                    || !MessageDigest.isEqual(remoteDigest.digest(), digest(local, "SHA-512"))) {
-                throw new IOException("Resolved JVM payload artifact differs from Maven Central: " + artifact);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Interrupted while verifying authenticated Maven Central bytes", e);
-        } catch (IOException e) {
-            throw new IOException(
-                    "Could not verify authenticated Maven Central bytes for " + artifact + ": " + safeMessage(e),
-                    e);
-        }
-    }
-
-    private static void requireCoordinatePart(String value, String label) throws IOException {
-        if (value == null || !value.matches("[A-Za-z0-9_.-]+")) {
-            throw new IOException("Direct JVM payload has an unsafe Maven " + label);
         }
     }
 
@@ -454,23 +387,6 @@ public final class JvmPayloadArchive {
         return "sha256:" + HexFormat.of().formatHex(digest.digest());
     }
 
-    private static byte[] digest(Path file, String algorithm) throws IOException {
-        MessageDigest digest;
-        try {
-            digest = MessageDigest.getInstance(algorithm);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(algorithm + " is unavailable", e);
-        }
-        try (InputStream input = Files.newInputStream(file, LinkOption.NOFOLLOW_LINKS)) {
-            byte[] buffer = new byte[16_384];
-            int count;
-            while ((count = input.read(buffer)) != -1) {
-                digest.update(buffer, 0, count);
-            }
-        }
-        return digest.digest();
-    }
-
     private static String digest(byte[] bytes) {
         return "sha256:" + HexFormat.of().formatHex(sha256().digest(bytes));
     }
@@ -483,23 +399,10 @@ public final class JvmPayloadArchive {
         }
     }
 
-    private static MessageDigest sha512() {
-        try {
-            return MessageDigest.getInstance("SHA-512");
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-512 is unavailable", e);
-        }
-    }
-
     private static String safeMessage(Throwable error) {
         return error.getMessage() == null || error.getMessage().isBlank()
                 ? error.getClass().getSimpleName()
                 : error.getMessage();
-    }
-
-    private static HttpClient centralClient() throws IOException {
-        rejectRepositoryOverrides();
-        return CENTRAL_CLIENT;
     }
 
     /** Frozen payload archive and its deterministic content digest. */
