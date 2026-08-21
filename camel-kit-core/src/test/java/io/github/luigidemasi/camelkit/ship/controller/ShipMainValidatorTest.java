@@ -243,7 +243,7 @@ class ShipMainValidatorTest {
     void mapsANonzeroCommandExitToItsCheckOutcome() throws Exception {
         Project nonzeroProject = project("orders");
         RecordingExecutor nonzero = new RecordingExecutor();
-        nonzero.nonzeroCommand = "citrus-integration-test-001";
+        nonzero.nonzeroCommand = "route-schema";
 
         ShipMainValidator.Result nonzeroResult = validator(nonzero).validate(
                 RUN_ID,
@@ -258,8 +258,9 @@ class ShipMainValidatorTest {
 
         assertEquals(ShipLocalStamp.Status.FAIL, nonzeroResult.stamp().status());
         assertEquals(Outcome.NONZERO, nonzeroResult.stamp().checks().stream()
-                .filter(check -> "citrus-integration-test-001".equals(check.id()))
+                .filter(check -> "route-schema".equals(check.id()))
                 .findFirst().orElseThrow().outcome());
+        assertEquals(3, nonzero.commands.size(), "later checks still run after a failing command");
     }
 
     @Test
