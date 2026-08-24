@@ -50,7 +50,7 @@ public final class JvmPayloadArchive {
     private JvmPayloadArchive() {
     }
 
-    public static Identity materialize(Path root, JvmPayloadRequest request) throws IOException {
+    public static Path materialize(Path root, JvmPayloadRequest request) throws IOException {
         if (request == null || !request.kind().supported()) {
             String kind = request == null ? "missing" : request.kind().id();
             throw new IOException(switch (kind) {
@@ -74,19 +74,18 @@ public final class JvmPayloadArchive {
         return write(archive, request, artifacts);
     }
 
-    static Identity write(
+    static Path write(
             Path archive, JvmPayloadRequest request, List<ArtifactFile> artifacts)
             throws IOException {
         List<SourceEntry> sources = new ArrayList<>();
         for (Class<?> type : classClosure(ShipJvmPayloadBootstrap.class)) {
             byte[] bytes = classBytes(type);
             sources.add(SourceEntry.bytes(
-                    "bootstrap", "class:" + type.getName(), classPath(type), bytes));
+                    classPath(type), bytes));
         }
         Class<?> launcher = launcher(request);
         byte[] launcherJar = launcherJar(launcher);
-        sources.add(SourceEntry.bytes(
-                "launcher", "class:" + launcher.getName(), "lib/000-controller-launcher.jar", launcherJar));
+        sources.add(SourceEntry.bytes("lib/000-controller-launcher.jar", launcherJar));
 
         List<ArtifactFile> ordered = artifacts.stream()
                 .sorted(Comparator.comparing(ArtifactFile::identity)).toList();
@@ -94,7 +93,6 @@ public final class JvmPayloadArchive {
             ArtifactFile artifact = ordered.get(index);
             String name = safeName(artifact.artifactId()) + '-' + safeName(artifact.version()) + ".jar";
             sources.add(SourceEntry.file(
-                    "maven", artifact.identity(),
                     String.format(Locale.ROOT, "lib/%03d-%s", index + 100, name), artifact.path()));
         }
         sources.sort(Comparator.comparing(SourceEntry::path));
@@ -126,7 +124,7 @@ public final class JvmPayloadArchive {
     }
 
     /** One write-time sanity check: the archive on disk must contain exactly what was just written. */
-    private static Identity roundTrip(Path archive, List<SourceEntry> sources) throws IOException {
+    private static Path roundTrip(Path archive, List<SourceEntry> sources) throws IOException {
         Path file = regular(archive, "JVM payload archive");
         if (Files.size(file) <= 0 || Files.size(file) > MAX_TOTAL_BYTES) {
             throw new IOException("JVM payload archive has an unsafe size");
@@ -152,7 +150,7 @@ public final class JvmPayloadArchive {
         if (!observed.equals(expected.keySet())) {
             throw new IOException("JVM payload archive entries differ from the written payload");
         }
-        return new Identity(file, digest(file));
+        return file;
     }
 
     private static List<ArtifactFile> resolve(Path repository, JvmPayloadRequest request) throws IOException {
@@ -375,18 +373,6 @@ public final class JvmPayloadArchive {
         return value;
     }
 
-    private static String digest(Path file) throws IOException {
-        MessageDigest digest = sha256();
-        try (InputStream input = Files.newInputStream(file, LinkOption.NOFOLLOW_LINKS)) {
-            byte[] buffer = new byte[16_384];
-            int count;
-            while ((count = input.read(buffer)) != -1) {
-                digest.update(buffer, 0, count);
-            }
-        }
-        return "sha256:" + HexFormat.of().formatHex(digest.digest());
-    }
-
     private static String digest(byte[] bytes) {
         return "sha256:" + HexFormat.of().formatHex(sha256().digest(bytes));
     }
@@ -405,10 +391,6 @@ public final class JvmPayloadArchive {
                 : error.getMessage();
     }
 
-    /** Frozen payload archive and its deterministic content digest. */
-    public record Identity(Path archive, String digest) {
-    }
-
     record ArtifactFile(String identity, String artifactId, String version, Path path) {
 
         ArtifactFile {
@@ -417,8 +399,6 @@ public final class JvmPayloadArchive {
     }
 
     private record SourceEntry(
-            String kind,
-            String identity,
             String path,
             long size,
             String digest,
@@ -426,15 +406,14 @@ public final class JvmPayloadArchive {
             byte[] bytes,
             Path file) {
 
-        private static SourceEntry bytes(String kind, String identity, String path, byte[] bytes) {
+        private static SourceEntry bytes(String path, byte[] bytes) {
             CRC32 crc = new CRC32();
             crc.update(bytes);
             return new SourceEntry(
-                    kind, identity, path, bytes.length, JvmPayloadArchive.digest(bytes), crc.getValue(), bytes.clone(),
-                    null);
+                    path, bytes.length, JvmPayloadArchive.digest(bytes), crc.getValue(), bytes.clone(), null);
         }
 
-        private static SourceEntry file(String kind, String identity, String path, Path file) throws IOException {
+        private static SourceEntry file(String path, Path file) throws IOException {
             Path source = regular(file, "JVM payload source");
             CRC32 crc = new CRC32();
             MessageDigest digest = sha256();
@@ -452,7 +431,7 @@ public final class JvmPayloadArchive {
                 }
             }
             return new SourceEntry(
-                    kind, identity, path, size,
+                    path, size,
                     "sha256:" + HexFormat.of().formatHex(digest.digest()), crc.getValue(), null, source);
         }
 

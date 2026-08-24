@@ -24,15 +24,14 @@ class JvmPayloadArchiveTest {
     Path directory;
 
     @Test
-    void writesAReproducibleContentAddressedArchive() throws Exception {
+    void writesAReproducibleArchive() throws Exception {
         JvmPayloadRequest request = JvmPayloadRequest.camelMain("4.21.0");
-        JvmPayloadArchive.Identity first = JvmPayloadTestFixture.create(
+        Path first = JvmPayloadTestFixture.create(
                 directory.resolve("first"), request);
-        JvmPayloadArchive.Identity second = JvmPayloadTestFixture.create(
+        Path second = JvmPayloadTestFixture.create(
                 directory.resolve("second"), request);
 
-        assertEquals(first.digest(), second.digest());
-        assertArrayEquals(Files.readAllBytes(first.archive()), Files.readAllBytes(second.archive()));
+        assertArrayEquals(Files.readAllBytes(first), Files.readAllBytes(second));
     }
 
     @Test
@@ -42,11 +41,11 @@ class JvmPayloadArchiveTest {
                 JvmPayloadRequest.camelMain("4.21.0"),
                 JvmPayloadRequest.citrus(
                         "4.21.0", "5.0.0-M2", CitrusDependencyPolicy.required("5.0.0-M2")))) {
-            JvmPayloadArchive.Identity identity = JvmPayloadTestFixture.create(
+            Path archive = JvmPayloadTestFixture.create(
                     directory.resolve(request.kind().id()), request);
 
             Set<String> launcherEntries = new HashSet<>();
-            try (ZipFile payload = new ZipFile(identity.archive().toFile())) {
+            try (ZipFile payload = new ZipFile(archive.toFile())) {
                 var payloadEntries = payload.entries();
                 while (payloadEntries.hasMoreElements()) {
                     String name = payloadEntries.nextElement().getName();

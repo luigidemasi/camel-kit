@@ -155,8 +155,8 @@ class JvmPayloadCompatibilityIT {
                         acceptedRuntime));
         for (JvmPayloadRequest request : requests) {
             Path root = Files.createDirectory(directory.resolve(request.kind().id()));
-            JvmPayloadArchive.Identity payload = JvmPayloadArchive.materialize(root, request);
-            requireIsolatedLaunch(payload.archive(), workspace, request, functionalArguments(request));
+            Path payload = JvmPayloadArchive.materialize(root, request);
+            requireIsolatedLaunch(payload, workspace, request, functionalArguments(request));
         }
     }
 

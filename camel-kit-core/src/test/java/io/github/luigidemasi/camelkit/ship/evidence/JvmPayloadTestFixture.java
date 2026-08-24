@@ -13,7 +13,7 @@ public final class JvmPayloadTestFixture {
     private JvmPayloadTestFixture() {
     }
 
-    public static JvmPayloadArchive.Identity create(
+    public static Path create(
             Path directory, JvmPayloadRequest request)
             throws IOException {
         Files.createDirectories(directory);
