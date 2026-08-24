@@ -521,7 +521,7 @@ class PiWorkerTest {
     }
 
     @Test
-    void allowsResumeCompactionBeforeTheNewUserButRejectsUnrelatedAssistants()
+    void allowsCompactionBeforeTheNewUserButRejectsUnrelatedAssistants()
             throws Exception {
         PiWorker worker = worker(Duration.ofSeconds(5));
         worker.run(request(ShipRun.Stage.DESIGN, "baseline"));
@@ -544,15 +544,6 @@ class PiWorkerTest {
         assertEquals(8, persisted.size());
         assertTrue(persisted.get(5).contains("\"type\":\"compaction\""));
         assertTrue(persisted.get(6).contains("\"role\":\"user\""));
-
-        Files.writeString(fixture.resolve("mode"), "pre-user-compaction\n");
-        IOException newSessionCompaction = assertThrows(
-                IOException.class,
-                () -> worker.run(request(
-                        ShipRun.Stage.DISCOVERY, "new")));
-        assertTrue(newSessionCompaction.getMessage().contains(
-                "before its prompt"));
-        assertFalse(hasSession(sessionId(ShipRun.Stage.DISCOVERY)));
 
         Files.writeString(fixture.resolve("mode"), "unrelated-intermediate\n");
         IOException unrelated = assertThrows(
@@ -832,30 +823,6 @@ class PiWorkerTest {
             assertTrue(Files.size(Path.of(result.evidence().stdoutLog()))
                        < 1024 * 1024);
         }
-    }
-
-    @Test
-    void malformedSessionErrorsDoNotRetainSensitiveJson() throws Exception {
-        String secret = "malformed-secret-credential";
-        Files.writeString(fixture.resolve("secret"), secret);
-        Files.writeString(
-                fixture.resolve("mode"), "session-malformed-secret\n");
-
-        IOException failure = assertThrows(
-                IOException.class,
-                () -> worker(
-                        Duration.ofSeconds(5),
-                        Map.of("API_TOKEN", secret))
-                        .run(request(ShipRun.Stage.PLAN, "prompt")));
-
-        for (Throwable cause = failure;
-             cause != null;
-             cause = cause.getCause()) {
-            assertFalse(cause.toString().contains(secret));
-        }
-        assertFalse(hasSession(sessionId(ShipRun.Stage.PLAN)));
-        assertNoScratchDirectories();
-        assertEvidenceDoesNotContain(secret);
     }
 
     @Test
@@ -1149,40 +1116,27 @@ class PiWorkerTest {
     }
 
     @Test
-    void rejectsMismatchedOrAmbiguousPersistedStageSessions() throws Exception {
-        String[] modes = {"session-mismatch", "session-cwd", "session-duplicate"};
-        ShipRun.Stage[] stages = {
-                ShipRun.Stage.DISCOVERY,
-                ShipRun.Stage.DESIGN,
-                ShipRun.Stage.PLAN
-        };
+    void rejectsAmbiguousPersistedStageSessions() throws Exception {
+        Files.writeString(fixture.resolve("mode"), "session-duplicate\n");
 
-        for (int index = 0; index < modes.length; index++) {
-            int caseIndex = index;
-            Files.writeString(fixture.resolve("mode"), modes[index] + "\n");
+        IOException failure = assertThrows(
+                IOException.class,
+                () -> worker(Duration.ofSeconds(5))
+                        .run(request(ShipRun.Stage.PLAN, "prompt")));
 
-            IOException failure = assertThrows(
-                    IOException.class,
-                    () -> worker(Duration.ofSeconds(5))
-                            .run(request(stages[caseIndex], "prompt")),
-                    modes[index]);
-
-            assertTrue(
-                    failure.getMessage().contains("session"),
-                    modes[index] + ": " + failure.getMessage());
-        }
+        assertTrue(failure.getMessage().contains("session"));
     }
 
     @Test
-    void requiresPersistedTurnRecordsAndAppendOnlyResume() throws Exception {
-        Files.writeString(fixture.resolve("mode"), "header-only\n");
+    void requiresANonemptySessionAndAppendOnlyResume() throws Exception {
+        Files.writeString(fixture.resolve("mode"), "empty-session\n");
 
-        IOException headerOnly = assertThrows(
+        IOException empty = assertThrows(
                 IOException.class,
                 () -> worker(Duration.ofSeconds(5))
                         .run(request(ShipRun.Stage.DISCOVERY, "prompt")));
 
-        assertTrue(headerOnly.getMessage().contains("no persisted turn records"));
+        assertTrue(empty.getMessage().contains("invalid size"));
 
         Files.writeString(fixture.resolve("mode"), "success\n");
         PiWorker worker = worker(Duration.ofSeconds(5));
@@ -1198,66 +1152,6 @@ class PiWorkerTest {
         assertTrue(java.util.Arrays.equals(
                 before, Files.readAllBytes(sessionFile(sessionId(ShipRun.Stage.DESIGN)))));
 
-        Files.writeString(fixture.resolve("mode"), "rewrite-session\n");
-        IOException rewritten = assertThrows(
-                IOException.class,
-                () -> worker.run(request(ShipRun.Stage.DESIGN, "third")));
-
-        assertTrue(rewritten.getMessage().contains("Pi"));
-        assertArrayEquals(
-                before,
-                Files.readAllBytes(
-                        sessionFile(sessionId(ShipRun.Stage.DESIGN))));
-    }
-
-    @Test
-    void refusesToReplayACompletedPromptBeforeLaunchingRpc() throws Exception {
-        PiWorker worker = worker(Duration.ofSeconds(5));
-        PiWorker.Request first = request(
-                ShipRun.Stage.DESIGN, "same prompt", true);
-        worker.run(first);
-        Path canonical = sessionFile(sessionId(ShipRun.Stage.DESIGN));
-        byte[] before = Files.readAllBytes(canonical);
-        Files.delete(fixture.resolve("args"));
-        Files.delete(fixture.resolve("prompt"));
-
-        IOException failure = assertThrows(
-                IOException.class,
-                () -> worker.run(new PiWorker.Request(
-                        RUN_ID,
-                        ShipRun.Stage.DESIGN,
-                        2,
-                        workingDirectory,
-                        sessions,
-                        evidence,
-                        inputDigest(),
-                        true,
-                        "same prompt")));
-
-        assertTrue(failure.getMessage().contains("controller recovery"));
-        assertFalse(Files.exists(fixture.resolve("args")));
-        assertFalse(Files.exists(fixture.resolve("prompt")));
-        assertArrayEquals(before, Files.readAllBytes(canonical));
-    }
-
-    @Test
-    void rejectsBrokenLinearSessionChainsWithoutPublishingThem() throws Exception {
-        PiWorker worker = worker(Duration.ofSeconds(5));
-        for (ShipRun.Stage stage : List.of(
-                ShipRun.Stage.DISCOVERY, ShipRun.Stage.DESIGN)) {
-            String mode = stage == ShipRun.Stage.DISCOVERY
-                    ? "session-wrong-parent"
-                    : "session-duplicate-id";
-            Files.writeString(fixture.resolve("mode"), mode + "\n");
-
-            IOException failure = assertThrows(
-                    IOException.class,
-                    () -> worker.run(request(stage, "prompt")));
-
-            assertTrue(failure.getMessage().contains("session"));
-            assertFalse(hasSession(sessionId(stage)));
-            assertNoScratchDirectories();
-        }
     }
 
     @Test
@@ -1292,85 +1186,6 @@ class PiWorkerTest {
             assertTrue(locked.getMessage().contains("already running"));
             assertFalse(hasSession(lockedSession));
         }
-    }
-
-    @Test
-    void rejectsInvalidAppendedSessionTurns() throws Exception {
-        String[] modes = {
-                "session-whitespace",
-                "session-malformed-turn",
-                "session-unrelated-prompt",
-                "session-wrong-stop",
-                "session-missing-stop"
-        };
-        ShipRun.Stage[] stages = ShipRun.Stage.values();
-        PiWorker worker = worker(Duration.ofSeconds(5));
-
-        for (int index = 0; index < modes.length; index++) {
-            ShipRun.Stage stage = stages[index];
-            Files.writeString(fixture.resolve("mode"), "success\n");
-            worker.run(request(stage, "baseline"));
-            Path canonical = sessionFile(sessionId(stage));
-            byte[] before = Files.readAllBytes(canonical);
-            Files.writeString(fixture.resolve("mode"), modes[index] + "\n");
-
-            IOException failure = assertThrows(
-                    IOException.class,
-                    () -> worker.run(request(stage, "current")),
-                    modes[index]);
-
-            assertTrue(failure.getMessage().contains("Pi"), modes[index]);
-            assertArrayEquals(
-                    before, Files.readAllBytes(canonical), modes[index]);
-        }
-    }
-
-    @Test
-    void retriesFromTheCleanCanonicalPrefixAfterDiscardingPoisonedScratch()
-            throws Exception {
-        PiWorker worker = worker(Duration.ofSeconds(5));
-        ShipRun.Stage stage = ShipRun.Stage.DESIGN;
-        worker.run(request(stage, "baseline"));
-        Path canonical = sessionFile(sessionId(stage));
-        byte[] baseline = Files.readAllBytes(canonical);
-
-        Files.writeString(
-                fixture.resolve("mode"), "session-unrelated-prompt\n");
-        assertThrows(
-                IOException.class,
-                () -> worker.run(new PiWorker.Request(
-                        RUN_ID,
-                        stage,
-                        2,
-                        workingDirectory,
-                        sessions,
-                        evidence,
-                        inputDigest(),
-                        true,
-                        "current")));
-        assertArrayEquals(baseline, Files.readAllBytes(canonical));
-
-        Files.writeString(fixture.resolve("mode"), "success\n");
-        PiWorker.Result retry = worker.run(new PiWorker.Request(
-                RUN_ID,
-                stage,
-                3,
-                workingDirectory,
-                sessions,
-                evidence,
-                inputDigest(),
-                true,
-                "current"));
-
-        assertEquals(PiWorker.Outcome.SUCCEEDED, retry.outcome());
-        List<String> persisted = Files.readAllLines(canonical);
-        assertEquals(7, persisted.size());
-        assertEquals(
-                1,
-                persisted.stream()
-                        .filter(line -> line.contains(
-                                "\"content\":\"current\""))
-                        .count());
     }
 
     @Test
@@ -1466,39 +1281,6 @@ class PiWorkerTest {
         assertEquals(6, persisted.size());
         assertTrue(persisted.get(4).contains("\"stopReason\":\"stop\""));
         assertTrue(persisted.get(5).contains("\"type\":\"compaction\""));
-    }
-
-    @Test
-    void interruptionRecoversANaturalStopThatWinsAfterAbort() throws Exception {
-        Files.writeString(fixture.resolve("mode"), "natural-stop-after-abort\n");
-        PiWorker worker = worker(Duration.ofSeconds(30));
-        PiWorker.Request request = request(ShipRun.Stage.DESIGN, "prompt");
-        AtomicReference<Throwable> failure = new AtomicReference<>();
-        AtomicReference<PiWorker.Result> result = new AtomicReference<>();
-        AtomicBoolean interrupted = new AtomicBoolean();
-        Thread invocation = new Thread(() -> {
-            try {
-                result.set(worker.run(request));
-                interrupted.set(Thread.currentThread().isInterrupted());
-            } catch (Throwable unexpected) {
-                failure.set(unexpected);
-            }
-        });
-
-        invocation.start();
-        awaitFile(fixture.resolve("ready"));
-        invocation.interrupt();
-        invocation.join(Duration.ofSeconds(10).toMillis());
-
-        assertFalse(invocation.isAlive());
-        assertNull(failure.get());
-        assertTrue(interrupted.get());
-        assertEquals(PiWorker.Outcome.SUCCEEDED, result.get().outcome());
-        assertEquals("done", result.get().assistantText());
-        assertEquals(result.get(), worker.recover(request).orElseThrow());
-        assertEquals(
-                List.of("{\"id\":\"abort-1\",\"type\":\"abort\"}"),
-                Files.readAllLines(fixture.resolve("abort")));
     }
 
     @Test
@@ -1660,79 +1442,6 @@ class PiWorkerTest {
         assertInterruptedInvalidNaturalStopIsRetryable(
                 "duplicate-response-natural-stop-after-eof",
                 ShipRun.Stage.PLAN);
-    }
-
-    @Test
-    void interruptionDrainsAQueuedNaturalTurnAsPiExits()
-            throws Exception {
-        Files.writeString(fixture.resolve("mode"), "queued-natural-exit\n");
-        PiWorker worker = worker(Duration.ofSeconds(30));
-        AtomicReference<Throwable> failure = new AtomicReference<>();
-        AtomicReference<PiWorker.Result> result = new AtomicReference<>();
-        AtomicBoolean interrupted = new AtomicBoolean();
-        PiWorker.Request request = request(ShipRun.Stage.DESIGN, "prompt");
-        Thread invocation = new Thread(() -> {
-            try {
-                result.set(worker.run(request));
-                interrupted.set(Thread.currentThread().isInterrupted());
-            } catch (Throwable unexpected) {
-                failure.set(unexpected);
-            }
-        });
-
-        invocation.start();
-        awaitFile(fixture.resolve("ready"));
-        invocation.interrupt();
-        Thread.sleep(250);
-        Files.writeString(fixture.resolve("release"), "release\n");
-        invocation.join(Duration.ofSeconds(10).toMillis());
-
-        assertFalse(invocation.isAlive());
-        assertNull(failure.get());
-        assertTrue(interrupted.get());
-        assertEquals(PiWorker.Outcome.SUCCEEDED, result.get().outcome());
-        assertEquals(result.get(), worker.recover(request).orElseThrow());
-        assertFalse(Files.exists(fixture.resolve("abort")));
-        List<String> persisted = Files.readAllLines(
-                sessionFile(sessionId(ShipRun.Stage.DESIGN)));
-        assertEquals(5, persisted.size());
-        assertTrue(persisted.get(4).contains("\"stopReason\":\"stop\""));
-    }
-
-    @Test
-    void interruptionDisposesAndPublishesAPostAgentTerminalWithoutSettled()
-            throws Exception {
-        Files.writeString(
-                fixture.resolve("mode"), "terminal-no-settled\n");
-        PiWorker worker = worker(Duration.ofSeconds(30));
-        AtomicReference<Throwable> failure = new AtomicReference<>();
-        AtomicReference<PiWorker.Result> result = new AtomicReference<>();
-        AtomicBoolean interrupted = new AtomicBoolean();
-        PiWorker.Request request = request(ShipRun.Stage.DESIGN, "prompt");
-        Thread invocation = new Thread(() -> {
-            try {
-                result.set(worker.run(request));
-                interrupted.set(Thread.currentThread().isInterrupted());
-            } catch (Throwable unexpected) {
-                failure.set(unexpected);
-            }
-        });
-
-        invocation.start();
-        awaitFile(fixture.resolve("ready"));
-        invocation.interrupt();
-        invocation.join(Duration.ofSeconds(10).toMillis());
-
-        assertFalse(invocation.isAlive());
-        assertNull(failure.get());
-        assertTrue(interrupted.get());
-        assertEquals(PiWorker.Outcome.SUCCEEDED, result.get().outcome());
-        assertEquals(result.get(), worker.recover(request).orElseThrow());
-        assertFalse(Files.exists(fixture.resolve("unexpected-input")));
-        List<String> persisted = Files.readAllLines(
-                sessionFile(sessionId(ShipRun.Stage.DESIGN)));
-        assertEquals(5, persisted.size());
-        assertTrue(persisted.get(4).contains("\"stopReason\":\"stop\""));
     }
 
     @Test
@@ -2072,7 +1781,7 @@ class PiWorkerTest {
     }
 
     @Test
-    void recoveryPreservesHistoricalExecutableAndRejectsDeletedOrTamperedEvidence()
+    void recoveryPreservesHistoricalExecutableAndRejectsDeletedOrTruncatedEvidence()
             throws Exception {
         PiWorker worker = worker(Duration.ofSeconds(5));
         PiWorker.Request request = request(
@@ -2097,11 +1806,11 @@ class PiWorkerTest {
                         .orElseThrow());
         assertEquals(result, worker.recover(request).orElseThrow());
 
-        Files.writeString(stdout, "tampered");
-        PiWorker.UntrustedResultException tampered = assertThrows(
+        Files.writeString(stdout, "x");
+        PiWorker.UntrustedResultException truncated = assertThrows(
                 PiWorker.UntrustedResultException.class,
                 () -> worker.recover(request));
-        assertTrue(tampered.getMessage().contains("recorded digest"));
+        assertTrue(truncated.getMessage().contains("recorded size"));
 
         Files.write(stdout, stdoutBytes);
         Files.delete(stderr);

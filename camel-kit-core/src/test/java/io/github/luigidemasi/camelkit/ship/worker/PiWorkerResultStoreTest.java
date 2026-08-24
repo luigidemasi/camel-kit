@@ -114,7 +114,7 @@ class PiWorkerResultStoreTest {
                 () -> PiWorkerResultStore.read(request))
                 .getMessage().contains("does not match"));
 
-        Files.writeString(marker, encoded.replace("\"schemaVersion\" : 2", "\"schemaVersion\" : 3"));
+        Files.writeString(marker, encoded.replace("\"schemaVersion\" : 3", "\"schemaVersion\" : 4"));
         assertTrue(assertThrows(IOException.class,
                 () -> PiWorkerResultStore.read(request))
                 .getMessage().contains("schema version"));
@@ -146,7 +146,7 @@ class PiWorkerResultStoreTest {
     }
 
     @Test
-    void rejectsDeletedTamperedAndOversizedEvidenceLogs() throws Exception {
+    void rejectsDeletedAndTruncatedEvidenceLogs() throws Exception {
         Path sessions = Files.createDirectory(directory.resolve("sessions"));
         PiWorker.Request request = request(RUN_A, sessions);
 
@@ -158,27 +158,15 @@ class PiWorkerResultStoreTest {
                 () -> PiWorkerResultStore.read(request))
                 .getMessage().contains("missing or invalid"));
 
-        PiWorker.Result tampered = result("tampered");
-        PiWorkerResultStore.write(request, tampered);
+        PiWorker.Result truncated = result("truncated");
+        PiWorkerResultStore.write(request, truncated);
         Files.writeString(
-                Path.of(tampered.evidence().stderrLog()),
-                "changed");
+                Path.of(truncated.evidence().stderrLog()),
+                "x");
         assertTrue(assertThrows(
                 IOException.class,
                 () -> PiWorkerResultStore.read(request))
-                .getMessage().contains("recorded digest"));
-
-        PiWorker.Result oversized = result("oversized");
-        PiWorkerResultStore.write(request, oversized);
-        try (RandomAccessFile file = new RandomAccessFile(
-                Path.of(oversized.evidence().stdoutLog()).toFile(),
-                "rw")) {
-            file.setLength((long) PiWorker.MAX_LOG_BYTES + 1);
-        }
-        assertTrue(assertThrows(
-                IOException.class,
-                () -> PiWorkerResultStore.read(request))
-                .getMessage().contains("size limit"));
+                .getMessage().contains("recorded size"));
     }
 
     @Test

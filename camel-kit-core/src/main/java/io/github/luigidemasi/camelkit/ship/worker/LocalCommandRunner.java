@@ -310,62 +310,48 @@ final class LocalCommandRunner {
     }
 
     private static String redact(String value, List<String> secrets) {
-        StringBuilder result = new StringBuilder(value.length());
-        redact(value, secrets, (part, start, end, atomic) -> {
-            result.append(part, start, end);
-            return true;
-        });
-        return result.toString();
+        String result = value;
+        List<String> literals = secretRepresentations(secrets);
+        if (!literals.isEmpty()) {
+            String expression = String.join(
+                    "|", literals.stream().map(Pattern::quote).toList());
+            result = Pattern.compile(expression).matcher(result)
+                    .replaceAll(Matcher.quoteReplacement(ShipLocalStamp.REDACTED));
+        }
+        result = SENSITIVE_ASSIGNMENT.matcher(result)
+                .replaceAll(match -> Matcher.quoteReplacement(redactedAssignment(match)));
+        result = AUTHORIZATION_SCHEME.matcher(result).replaceAll(match -> Matcher.quoteReplacement(
+                match.group(1) + " " + ShipLocalStamp.REDACTED));
+        return URL_USERINFO.matcher(result).replaceAll(match -> Matcher.quoteReplacement(
+                match.group(1) + ShipLocalStamp.REDACTED + "@"));
     }
 
     private static byte[] redactBounded(
             String value, List<String> secrets, int maximumBytes) {
-        BoundedUtf8Output result = new BoundedUtf8Output(maximumBytes);
-        redact(value, secrets, result::append);
-        return result.toByteArray();
+        byte[] encoded = redact(value, secrets).getBytes(StandardCharsets.UTF_8);
+        if (encoded.length <= maximumBytes) {
+            return encoded;
+        }
+        int end = maximumBytes;
+        while (end > 0 && (encoded[end] & 0xc0) == 0x80) {
+            end--;
+        }
+        String prefix = new String(encoded, 0, end, StandardCharsets.UTF_8);
+        for (int length = 1; length < ShipLocalStamp.REDACTED.length(); length++) {
+            if (prefix.endsWith(ShipLocalStamp.REDACTED.substring(0, length))) {
+                prefix = prefix.substring(0, prefix.length() - length);
+                break;
+            }
+        }
+        return prefix.getBytes(StandardCharsets.UTF_8);
     }
 
-    private static void redact(
-            String value, List<String> secrets, RedactionSink output) {
-        RedactionCursor cursor = new RedactionCursor(
-                value, secretRepresentations(secrets));
-        int offset = 0;
-        while (offset < value.length()) {
-            RedactionMatch match = cursor.next(offset);
-            int unchangedEnd = match == null ? value.length() : match.start();
-            if (!output.append(value, offset, unchangedEnd, false) || match == null) {
-                return;
-            }
-            String replacement = match.replacement();
-            if (!output.append(replacement, 0, replacement.length(), true)) {
-                return;
-            }
-            offset = match.end();
-        }
-    }
-
-    private static RedactionMatch combine(
-            RedactionMatch current, RedactionMatch candidate) {
-        if (current == null) {
-            return candidate;
-        }
-        if (candidate == null) {
-            return current;
-        }
-        if (candidate.start() < current.start()) {
-            return candidate.end() > current.start()
-                    ? new RedactionMatch(
-                            candidate.start(),
-                            Math.max(candidate.end(), current.end()),
-                            candidate.replacement())
-                    : candidate;
-        }
-        return candidate.start() < current.end()
-                ? new RedactionMatch(
-                        current.start(),
-                        Math.max(current.end(), candidate.end()),
-                        current.replacement())
-                : current;
+    private static String redactedAssignment(java.util.regex.MatchResult match) {
+        String supplied = match.group(3);
+        String value = unquote(supplied);
+        String quote = value.equals(supplied) ? "" : supplied.substring(0, 1);
+        return match.group(1) + match.group(2)
+               + quote + ShipLocalStamp.REDACTED + quote;
     }
 
     private static List<String> secretRepresentations(List<String> secrets) {
@@ -814,155 +800,4 @@ final class LocalCommandRunner {
     record RetainedLog(Path path, String digest) {
     }
 
-    private record RedactionMatch(int start, int end, String replacement) {
-    }
-
-    private static final class RedactionCursor {
-
-        private final String value;
-        private final List<String> literals;
-        private final int[] literalStarts;
-        private final Matcher assignment;
-        private final Matcher authorization;
-        private final Matcher url;
-        private boolean assignmentAvailable;
-        private boolean authorizationAvailable;
-        private boolean urlAvailable;
-
-        private RedactionCursor(String value, List<String> literals) {
-            this.value = value;
-            this.literals = literals;
-            literalStarts = new int[literals.size()];
-            for (int index = 0; index < literals.size(); index++) {
-                literalStarts[index] = value.indexOf(literals.get(index));
-            }
-            assignment = SENSITIVE_ASSIGNMENT.matcher(value);
-            authorization = AUTHORIZATION_SCHEME.matcher(value);
-            url = URL_USERINFO.matcher(value);
-            assignmentAvailable = assignment.find();
-            authorizationAvailable = authorization.find();
-            urlAvailable = url.find();
-        }
-
-        private RedactionMatch next(int offset) {
-            while (assignmentAvailable && assignment.start() < offset) {
-                assignmentAvailable = assignment.find();
-            }
-            while (authorizationAvailable && authorization.start() < offset) {
-                authorizationAvailable = authorization.find();
-            }
-            while (urlAvailable && url.start() < offset) {
-                urlAvailable = url.find();
-            }
-            RedactionMatch result = assignmentAvailable
-                    ? new RedactionMatch(
-                            assignment.start(),
-                            assignment.end(),
-                            redactedAssignment(assignment))
-                    : null;
-            result = combine(result, authorizationAvailable
-                    ? new RedactionMatch(
-                            authorization.start(),
-                            authorization.end(),
-                            authorization.group(1) + " " + ShipLocalStamp.REDACTED)
-                    : null);
-            result = combine(result, urlAvailable
-                    ? new RedactionMatch(
-                            url.start(),
-                            url.end(),
-                            url.group(1) + ShipLocalStamp.REDACTED + "@")
-                    : null);
-            for (int index = 0; index < literals.size(); index++) {
-                String literal = literals.get(index);
-                if (literalStarts[index] >= 0 && literalStarts[index] < offset) {
-                    literalStarts[index] = value.indexOf(literal, offset);
-                }
-                int start = literalStarts[index];
-                if (start >= 0) {
-                    result = combine(
-                            result,
-                            new RedactionMatch(
-                                    start,
-                                    start + literal.length(),
-                                    ShipLocalStamp.REDACTED));
-                }
-            }
-            return result;
-        }
-
-        private static String redactedAssignment(Matcher matcher) {
-            String supplied = matcher.group(3);
-            String value = unquote(supplied);
-            String quote = value.equals(supplied) ? "" : supplied.substring(0, 1);
-            return matcher.group(1) + matcher.group(2)
-                   + quote + ShipLocalStamp.REDACTED + quote;
-        }
-    }
-
-    @FunctionalInterface
-    private interface RedactionSink {
-
-        boolean append(String value, int start, int end, boolean atomic);
-    }
-
-    private static final class BoundedUtf8Output {
-
-        private final ByteArrayOutputStream output;
-        private final int maximumBytes;
-
-        private BoundedUtf8Output(int maximumBytes) {
-            this.maximumBytes = maximumBytes;
-            output = new ByteArrayOutputStream(Math.min(maximumBytes, 8192));
-        }
-
-        private boolean append(
-                String value, int start, int end, boolean atomic) {
-            if (atomic && encodedLength(value, start, end)
-                          > maximumBytes - output.size()) {
-                return false;
-            }
-            for (int index = start; index < end;) {
-                int codePoint = value.codePointAt(index);
-                int encodedBytes = codePoint <= 0x7f
-                        ? 1
-                        : codePoint <= 0x7ff ? 2 : codePoint <= 0xffff ? 3 : 4;
-                if (output.size() + encodedBytes > maximumBytes) {
-                    return false;
-                }
-                if (encodedBytes == 1) {
-                    output.write(codePoint);
-                } else if (encodedBytes == 2) {
-                    output.write(0xc0 | codePoint >> 6);
-                    output.write(0x80 | codePoint & 0x3f);
-                } else if (encodedBytes == 3) {
-                    output.write(0xe0 | codePoint >> 12);
-                    output.write(0x80 | codePoint >> 6 & 0x3f);
-                    output.write(0x80 | codePoint & 0x3f);
-                } else {
-                    output.write(0xf0 | codePoint >> 18);
-                    output.write(0x80 | codePoint >> 12 & 0x3f);
-                    output.write(0x80 | codePoint >> 6 & 0x3f);
-                    output.write(0x80 | codePoint & 0x3f);
-                }
-                index += Character.charCount(codePoint);
-            }
-            return true;
-        }
-
-        private static int encodedLength(String value, int start, int end) {
-            int length = 0;
-            for (int index = start; index < end;) {
-                int codePoint = value.codePointAt(index);
-                length += codePoint <= 0x7f
-                        ? 1
-                        : codePoint <= 0x7ff ? 2 : codePoint <= 0xffff ? 3 : 4;
-                index += Character.charCount(codePoint);
-            }
-            return length;
-        }
-
-        private byte[] toByteArray() {
-            return output.toByteArray();
-        }
-    }
 }
