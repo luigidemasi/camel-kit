@@ -324,6 +324,31 @@ class EvidenceRunnerTest {
     }
 
     @Test
+    void launchFailureIsRecordedWithoutQuarantineAndCleansUp() throws Exception {
+        Path project = Files.createDirectory(tempDir.resolve("candidate"));
+        Path evidenceDirectory = tempDir.resolve("evidence");
+        EvidenceRunner failingLaunch = new EvidenceRunner(
+                Clock.systemUTC(),
+                launch -> {
+                    throw new IOException("fixture launch failure");
+                },
+                (sandboxRoot, payload) -> JvmPayloadTestFixture.create(
+                        sandboxRoot.resolve("fixture-payload"), payload));
+
+        CommandEvidence result = failingLaunch.run(
+                project, evidenceDirectory, command(project, "launch-failure-check", Duration.ofSeconds(2)));
+
+        assertFalse(result.passed());
+        assertFalse(result.launched());
+        assertFalse(result.quarantined());
+        assertTrue(result.launchError().contains("IOException: fixture launch failure"));
+        assertFalse(result.launchError().contains("could not be reaped"), result::launchError);
+
+        EvidenceRunner.cleanupEphemeral(result);
+        assertFalse(Files.exists(evidenceDirectory));
+    }
+
+    @Test
     void failsClosedForFailedPayloadLegacyExecutableAndWorkingDirectoryEscape() throws Exception {
         Path project = Files.createDirectory(tempDir.resolve("candidate"));
         EvidenceCommand command = command(project, "build-check", Duration.ofSeconds(1));

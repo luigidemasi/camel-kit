@@ -83,7 +83,7 @@ public final class EvidenceRunner {
             Path privateTemporaryDirectory = privateDirectory(sandboxRoot.resolve("tmp"));
             Path acceptedSnapshot = acceptedSnapshot(candidate, sandboxRoot, command);
             Path java = requireExecutable(Path.of(JAVA_EXECUTABLE), "controller java");
-            JvmPayloadArchive.Identity payload = payloads.materialize(sandboxRoot, command.jvmPayload());
+            Path payload = payloads.materialize(sandboxRoot, command.jvmPayload());
             List<String> head = List.of(
                     JAVA_EXECUTABLE, "-cp", JvmPayloadArchive.ARCHIVE_NAME,
                     JvmPayloadArchive.BOOTSTRAP_CLASS, "--launcher=" + command.jvmPayload().launcherClass());
@@ -93,7 +93,7 @@ public final class EvidenceRunner {
             }
             List<String> argv = new ArrayList<>(command.arguments());
             argv.set(0, java.toString());
-            argv.set(2, payload.archive().toString());
+            argv.set(2, payload.toString());
             argv.add(head.size(), "--accepted-root=" + acceptedSnapshot);
             // Sandbox JVM options travel in the argv: HotSpot splits JAVA_TOOL_OPTIONS on whitespace,
             // so a space-bearing state-root path would abort the launch as an unrecognized option.
@@ -156,14 +156,14 @@ public final class EvidenceRunner {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 launchError = appendFailure(launchError, "Interrupted while waiting for the command");
-                processTreeReaped = process != null && terminateAndWait(process);
+                processTreeReaped = process == null || terminateAndWait(process);
                 if (!processTreeReaped) {
                     launchError = appendFailure(
                             launchError, residualProcessFailure("Interrupted command", process));
                 }
             } catch (IOException e) {
                 launchError = appendFailure(launchError, e.getClass().getSimpleName() + ": " + e.getMessage());
-                processTreeReaped = process != null && terminateAndWait(process);
+                processTreeReaped = process == null || terminateAndWait(process);
                 if (!processTreeReaped) {
                     launchError = appendFailure(
                             launchError, residualProcessFailure("Failed command", process));
@@ -171,7 +171,7 @@ public final class EvidenceRunner {
             } catch (ExecutionException e) {
                 launchError = appendFailure(
                         launchError, "Could not retain command logs: " + e.getCause().getMessage());
-                processTreeReaped = process != null && terminateAndWait(process);
+                processTreeReaped = process == null || terminateAndWait(process);
                 if (!processTreeReaped) {
                     launchError = appendFailure(
                             launchError, residualProcessFailure("Log-flooding command", process));
@@ -180,6 +180,10 @@ public final class EvidenceRunner {
                 pumps.shutdownNow();
             }
 
+            if (process == null) {
+                // A command that never launched submitted no log pumps, so there is nothing to quiesce.
+                logPumpsQuiesced = true;
+            }
             quarantined = !(processTreeReaped && logPumpsQuiesced);
             if (quarantined) {
                 launchError = appendFailure(
@@ -723,7 +727,7 @@ public final class EvidenceRunner {
     @FunctionalInterface
     interface PayloadMaterializer {
 
-        JvmPayloadArchive.Identity materialize(Path sandboxRoot, JvmPayloadRequest request) throws IOException;
+        Path materialize(Path sandboxRoot, JvmPayloadRequest request) throws IOException;
     }
 
     private record LogFile(Path path, Object fileKey) {
