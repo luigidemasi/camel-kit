@@ -45,15 +45,9 @@ public record CatalogEvidenceSet(
         }
         Objects.requireNonNull(target, "target must not be null");
         Objects.requireNonNull(platformCoordinate, "platformCoordinate must not be null");
+        requireDigest(digest, "snapshot");
         artifacts = boundedCopy(artifacts, 1, MAX_ARTIFACTS, "artifacts");
         subjects = boundedCopy(subjects, 1, MAX_SUBJECTS, "subjects");
-        requireCanonical(artifacts, ARTIFACT_ORDER, "artifacts");
-        requireCanonical(subjects, SUBJECT_ORDER, "subjects");
-        validateSnapshot(target, platformCoordinate, artifacts, subjects);
-        String expected = digestFor(schemaVersion, target, platformCoordinate, artifacts, subjects);
-        if (!expected.equals(digest)) {
-            throw new IllegalArgumentException("Catalog snapshot digest does not match its contents");
-        }
     }
 
     @Override
@@ -66,7 +60,7 @@ public record CatalogEvidenceSet(
                + ", digest=" + digest + ']';
     }
 
-    /** Creates a canonically ordered snapshot and derives its content digest. */
+    /** Creates a validated, canonically ordered snapshot and derives its content digest once. */
     public static CatalogEvidenceSet create(
             CatalogTarget target,
             MavenCoordinate platformCoordinate,
@@ -76,6 +70,9 @@ public record CatalogEvidenceSet(
                 artifacts, MAX_ARTIFACTS, ARTIFACT_ORDER, "artifacts");
         List<SubjectEvidence> canonicalSubjects = sortedCopy(
                 subjects, MAX_SUBJECTS, SUBJECT_ORDER, "subjects");
+        requireCanonical(canonicalArtifacts, ARTIFACT_ORDER, "artifacts");
+        requireCanonical(canonicalSubjects, SUBJECT_ORDER, "subjects");
+        validateSnapshot(target, platformCoordinate, canonicalArtifacts, canonicalSubjects);
         String digest = digestFor(
                 SCHEMA_VERSION, target, platformCoordinate, canonicalArtifacts, canonicalSubjects);
         return new CatalogEvidenceSet(

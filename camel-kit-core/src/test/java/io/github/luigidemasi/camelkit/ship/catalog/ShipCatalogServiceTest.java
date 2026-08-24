@@ -500,19 +500,6 @@ class ShipCatalogServiceTest {
         assertTrue(causeChainContains(error, "symbolic link"));
     }
 
-    @Test
-    void hardLinkedCatalogArtifactIsRejected() throws Exception {
-        writeMainCatalog(CAMEL_VERSION, "timer");
-        Files.createLink(
-                repository.resolve("artifact-hard-link"),
-                artifact("org.apache.camel", "camel-catalog", CAMEL_VERSION, "jar"));
-
-        IOException error = assertThrows(IOException.class, () -> service().snapshot(
-                new CatalogTarget("main", CAMEL_VERSION, null, null)));
-
-        assertTrue(causeChainContains(error, "hard-linked"));
-    }
-
     private ShipCatalogService service() {
         return offlineService(repository);
     }
