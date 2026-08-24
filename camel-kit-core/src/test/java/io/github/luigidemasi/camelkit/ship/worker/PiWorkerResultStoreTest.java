@@ -33,8 +33,8 @@ class PiWorkerResultStoreTest {
         PiWorker.Request first = request(RUN_A, sessions);
         PiWorker.Request second = request(RUN_B, sessions);
 
-        PiWorkerResultStore.write(first, result("first"));
-        PiWorkerResultStore.write(second, result("second"));
+        write(first, result("first"));
+        write(second, result("second"));
 
         assertEquals(
                 "first",
@@ -93,7 +93,7 @@ class PiWorkerResultStoreTest {
     void rejectsMismatchedAndUnsupportedMarkers() throws Exception {
         Path sessions = Files.createDirectory(directory.resolve("sessions"));
         PiWorker.Request request = request(RUN_A, sessions);
-        PiWorkerResultStore.write(request, result("done"));
+        write(request, result("done"));
         Path marker = marker(sessions);
         String encoded = Files.readString(marker);
 
@@ -124,7 +124,7 @@ class PiWorkerResultStoreTest {
     void rejectsEmptyMalformedAndOversizedMarkers() throws Exception {
         Path sessions = Files.createDirectory(directory.resolve("sessions"));
         PiWorker.Request request = request(RUN_A, sessions);
-        PiWorkerResultStore.write(request, result("done"));
+        write(request, result("done"));
         Path marker = marker(sessions);
 
         Files.write(marker, new byte[0]);
@@ -151,7 +151,7 @@ class PiWorkerResultStoreTest {
         PiWorker.Request request = request(RUN_A, sessions);
 
         PiWorker.Result deleted = result("deleted");
-        PiWorkerResultStore.write(request, deleted);
+        write(request, deleted);
         Files.delete(Path.of(deleted.evidence().stdoutLog()));
         assertTrue(assertThrows(
                 IOException.class,
@@ -159,7 +159,7 @@ class PiWorkerResultStoreTest {
                 .getMessage().contains("missing or invalid"));
 
         PiWorker.Result truncated = result("truncated");
-        PiWorkerResultStore.write(request, truncated);
+        write(request, truncated);
         Files.writeString(
                 Path.of(truncated.evidence().stderrLog()),
                 "x");
@@ -188,7 +188,7 @@ class PiWorkerResultStoreTest {
                 original.evidence().stderrDigest(),
                 original.evidence().version());
 
-        PiWorkerResultStore.write(request, escaped);
+        write(request, escaped);
 
         assertTrue(assertThrows(
                 IOException.class,
@@ -206,7 +206,7 @@ class PiWorkerResultStoreTest {
 
         Path otherWorking = Files.createDirectory(
                 directory.resolve("other-working"));
-        PiWorkerResultStore.write(
+        write(
                 request,
                 withEvidence(
                         original,
@@ -226,7 +226,7 @@ class PiWorkerResultStoreTest {
         String otherDigest = ShipDigest.sha256(
                 "other input".getBytes(
                         java.nio.charset.StandardCharsets.UTF_8));
-        PiWorkerResultStore.write(
+        write(
                 request,
                 withEvidence(
                         original,
@@ -247,7 +247,7 @@ class PiWorkerResultStoreTest {
                 .toAbsolutePath()
                 .normalize()
                 .toString();
-        PiWorkerResultStore.write(
+        write(
                 request,
                 withEvidence(
                         original,
@@ -266,7 +266,7 @@ class PiWorkerResultStoreTest {
                         .evidence()
                         .executable());
 
-        PiWorkerResultStore.write(request, original);
+        write(request, original);
         Path marker = marker(sessions);
         String encoded = Files.readString(marker);
         String version = "\"version\" : \"0.83.0\"";
@@ -282,6 +282,16 @@ class PiWorkerResultStoreTest {
                 IOException.class,
                 () -> PiWorkerResultStore.read(request))
                 .getMessage().contains("malformed"));
+    }
+
+    private static void write(
+            PiWorker.Request request, PiWorker.Result result)
+            throws IOException {
+        PiWorkerResultStore.write(
+                request,
+                result,
+                Files.size(Path.of(result.evidence().stdoutLog())),
+                Files.size(Path.of(result.evidence().stderrLog())));
     }
 
     private PiWorker.Request request(String runId, Path sessions)

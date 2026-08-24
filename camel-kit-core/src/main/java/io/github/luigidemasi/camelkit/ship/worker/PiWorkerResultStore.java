@@ -99,7 +99,12 @@ final class PiWorkerResultStore {
         return Optional.of(marker.result());
     }
 
-    static void write(Request request, Result result) throws IOException {
+    static void write(
+            Request request,
+            Result result,
+            long stdoutSize,
+            long stderrSize)
+            throws IOException {
         Path path = resultPath(request, true);
         byte[] encoded;
         try {
@@ -110,8 +115,8 @@ final class PiWorkerResultStore {
                             request.stage(),
                             request.attempt(),
                             request.inputDigest(),
-                            Files.size(Path.of(result.evidence().stdoutLog())),
-                            Files.size(Path.of(result.evidence().stderrLog())),
+                            stdoutSize,
+                            stderrSize,
                             result));
         } catch (JsonProcessingException e) {
             throw new IOException("Pi stage result marker cannot be encoded", e);

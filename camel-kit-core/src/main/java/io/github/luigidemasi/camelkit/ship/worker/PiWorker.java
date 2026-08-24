@@ -374,7 +374,11 @@ public final class PiWorker {
             versionRun.deleteLogs();
             versionLogsDeleted = true;
             if (turn.validatedSession() != null) {
-                PiWorkerResultStore.write(request, result);
+                PiWorkerResultStore.write(
+                        request,
+                        result,
+                        turn.stdoutSize(),
+                        turn.stderrSize());
                 try {
                     publishSession(
                             turn.validatedSession(),
@@ -769,8 +773,10 @@ public final class PiWorker {
                     exitCode,
                     retainedStdout.path(),
                     retainedStdout.digest(),
+                    retainedStdout.size(),
                     retainedStderr.path(),
                     retainedStderr.digest(),
+                    retainedStderr.size(),
                     naturalCompletion
                             ? completedTurn.terminal().text()
                             : null,
@@ -2407,7 +2413,7 @@ public final class PiWorker {
 
         private final int limit;
         private final BlockingQueue<Frame> frames = new LinkedBlockingQueue<>(
-                QUEUE_CAPACITY);
+                QUEUE_CAPACITY + 1);
         private final ByteArrayOutputStream safe = new ByteArrayOutputStream(8192);
         private final AtomicBoolean limited = new AtomicBoolean();
         private final AtomicBoolean protocolUnverifiable = new AtomicBoolean();
@@ -2441,7 +2447,7 @@ public final class PiWorker {
             if (line.size() > 0 || lineLimited) {
                 emit(line.toByteArray(), lineLimited, false);
             }
-            offer(Frame.end());
+            frames.add(Frame.end());
         }
 
         private void emit(byte[] bytes, boolean truncated, boolean terminated)
@@ -2481,7 +2487,7 @@ public final class PiWorker {
             }
             appendRetained(retained);
             appendRetained(new byte[]{'\n'});
-            offer(Frame.event(event, rawBytes));
+            offer(Frame.event(event));
             settled |= "agent_settled".equals(type);
         }
 
@@ -2506,7 +2512,8 @@ public final class PiWorker {
         }
 
         private void offer(Frame frame) {
-            if (!frames.offer(frame)) {
+            if (frames.size() >= QUEUE_CAPACITY
+                    || !frames.offer(frame)) {
                 markUnverifiableLimit();
             }
         }
@@ -2619,18 +2626,18 @@ public final class PiWorker {
     }
 
     private record Frame(
-            JsonNode event, String failure, boolean endOfStream, long rawBytes) {
+            JsonNode event, String failure, boolean endOfStream) {
 
-        private static Frame event(JsonNode event, long rawBytes) {
-            return new Frame(event, null, false, rawBytes);
+        private static Frame event(JsonNode event) {
+            return new Frame(event, null, false);
         }
 
         private static Frame failed(String failure) {
-            return new Frame(null, failure, false, 0);
+            return new Frame(null, failure, false);
         }
 
         private static Frame end() {
-            return new Frame(null, null, true, 0);
+            return new Frame(null, null, true);
         }
     }
 
@@ -2692,8 +2699,10 @@ public final class PiWorker {
             Integer exitCode,
             Path stdoutLog,
             String stdoutDigest,
+            long stdoutSize,
             Path stderrLog,
             String stderrDigest,
+            long stderrSize,
             String assistantText,
             String stopReason,
             String protocolFailure,

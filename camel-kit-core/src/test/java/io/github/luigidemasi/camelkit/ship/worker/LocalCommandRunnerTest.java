@@ -263,7 +263,7 @@ class LocalCommandRunnerTest {
     void boundsShortSecretRedactionWithoutRescanningTheMarker() throws Exception {
         int maximumBytes = 1024;
         LocalCommandRunner.RetainedLog retained = LocalCommandRunner.retain(
-                "a".repeat(4096).getBytes(StandardCharsets.UTF_8),
+                "a".repeat(16 * 1024 * 1024).getBytes(StandardCharsets.UTF_8),
                 evidenceDirectory,
                 ".stdout.log",
                 maximumBytes,
@@ -271,6 +271,7 @@ class LocalCommandRunnerTest {
 
         String content = Files.readString(retained.path());
         assertTrue(Files.size(retained.path()) <= maximumBytes);
+        assertEquals(Files.size(retained.path()), retained.size());
         assertEquals(
                 ShipLocalStamp.REDACTED.repeat(
                         maximumBytes / ShipLocalStamp.REDACTED.length()),

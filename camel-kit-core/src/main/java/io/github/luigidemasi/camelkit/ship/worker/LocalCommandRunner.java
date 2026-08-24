@@ -26,6 +26,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
+import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -261,7 +263,7 @@ final class LocalCommandRunner {
                     StandardOpenOption.TRUNCATE_EXISTING,
                     StandardOpenOption.WRITE,
                     LinkOption.NOFOLLOW_LINKS);
-            return new RetainedLog(log, ShipDigest.sha256(retained));
+            return new RetainedLog(log, ShipDigest.sha256(retained), retained.length);
         } catch (IOException | RuntimeException e) {
             Files.deleteIfExists(log);
             throw e;
@@ -328,7 +330,33 @@ final class LocalCommandRunner {
 
     private static byte[] redactBounded(
             String value, List<String> secrets, int maximumBytes) {
-        byte[] encoded = redact(value, secrets).getBytes(StandardCharsets.UTF_8);
+        String result = value;
+        List<String> literals = secretRepresentations(secrets);
+        if (!literals.isEmpty()) {
+            String expression = String.join(
+                    "|", literals.stream().map(Pattern::quote).toList());
+            result = replaceBounded(
+                    result,
+                    Pattern.compile(expression),
+                    match -> ShipLocalStamp.REDACTED,
+                    maximumBytes);
+        }
+        result = replaceBounded(
+                result,
+                SENSITIVE_ASSIGNMENT,
+                LocalCommandRunner::redactedAssignment,
+                maximumBytes);
+        result = replaceBounded(
+                result,
+                AUTHORIZATION_SCHEME,
+                match -> match.group(1) + " " + ShipLocalStamp.REDACTED,
+                maximumBytes);
+        result = replaceBounded(
+                result,
+                URL_USERINFO,
+                match -> match.group(1) + ShipLocalStamp.REDACTED + "@",
+                maximumBytes);
+        byte[] encoded = result.getBytes(StandardCharsets.UTF_8);
         if (encoded.length <= maximumBytes) {
             return encoded;
         }
@@ -346,7 +374,52 @@ final class LocalCommandRunner {
         return prefix.getBytes(StandardCharsets.UTF_8);
     }
 
-    private static String redactedAssignment(java.util.regex.MatchResult match) {
+    private static String replaceBounded(
+            String value,
+            Pattern pattern,
+            Function<MatchResult, String> replacement,
+            int maximumCharacters) {
+        Matcher matcher = pattern.matcher(value);
+        StringBuilder bounded = new StringBuilder(
+                Math.min(value.length(), maximumCharacters));
+        int position = 0;
+        while (matcher.find()) {
+            int remaining = maximumCharacters - bounded.length();
+            int unmatched = matcher.start() - position;
+            if (unmatched > remaining) {
+                appendPrefix(bounded, value, position, remaining);
+                return bounded.toString();
+            }
+            bounded.append(value, position, matcher.start());
+            String replacementValue = replacement.apply(matcher);
+            if (replacementValue.length()
+                > maximumCharacters - bounded.length()) {
+                return bounded.toString();
+            }
+            bounded.append(replacementValue);
+            position = matcher.end();
+        }
+        appendPrefix(
+                bounded,
+                value,
+                position,
+                maximumCharacters - bounded.length());
+        return bounded.toString();
+    }
+
+    private static void appendPrefix(
+            StringBuilder target, String value, int start, int maximumCharacters) {
+        int end = Math.min(value.length(), start + maximumCharacters);
+        if (end > start
+                && end < value.length()
+                && Character.isHighSurrogate(value.charAt(end - 1))
+                && Character.isLowSurrogate(value.charAt(end))) {
+            end--;
+        }
+        target.append(value, start, end);
+    }
+
+    private static String redactedAssignment(MatchResult match) {
         String supplied = match.group(3);
         String value = unquote(supplied);
         String quote = value.equals(supplied) ? "" : supplied.substring(0, 1);
@@ -797,7 +870,7 @@ final class LocalCommandRunner {
         }
     }
 
-    record RetainedLog(Path path, String digest) {
+    record RetainedLog(Path path, String digest, long size) {
     }
 
 }
