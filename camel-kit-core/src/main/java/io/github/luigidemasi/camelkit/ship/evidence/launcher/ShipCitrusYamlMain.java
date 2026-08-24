@@ -55,16 +55,18 @@ public final class ShipCitrusYamlMain {
     }
 
     public static void main(String[] arguments) throws Exception {
-        if (arguments.length == 1 && "--payload-version".equals(arguments[0])) {
-            System.out.println("Citrus direct YAML " + citrusVersion() + " with Camel " + camelVersion());
-            return;
+        if (arguments.length == 0 || !arguments[0].startsWith("--accepted-root=")) {
+            throw new IOException("Direct Citrus requires --accepted-root first");
         }
+        Path acceptedRoot = ShipCamelMainBootstrap.acceptedRoot(
+                arguments[0].substring("--accepted-root=".length()));
         TreeSet<Path> routes = new TreeSet<>();
         TreeSet<String> routeIds = new TreeSet<>();
         Path test = null;
-        for (String argument : arguments) {
+        for (int index = 1; index < arguments.length; index++) {
+            String argument = arguments[index];
             if (argument.startsWith("--route=")) {
-                routes.add(Path.of(argument.substring("--route=".length())));
+                routes.add(acceptedRoot.resolve(argument.substring("--route=".length())).normalize());
             } else if (argument.startsWith("--expected-route=")) {
                 routeIds.add(argument.substring("--expected-route=".length()));
             } else if (argument.startsWith("--test=") && test == null) {
@@ -76,7 +78,6 @@ public final class ShipCitrusYamlMain {
         if (routes.size() != 1 || routeIds.size() != 1 || test == null) {
             throw new IOException("Direct Citrus requires exactly one route, route ID, and YAML test");
         }
-        Path acceptedRoot = Path.of("/workspace");
         Path acceptedTest = acceptedFile(
                 acceptedRoot, test, ShipArtifactLimits.MAX_CITRUS_YAML_BYTES, "Citrus YAML test");
         String routeId = routeIds.first();
@@ -343,7 +344,7 @@ public final class ShipCitrusYamlMain {
 
     private static Path acceptedFile(Path rootValue, Path value, long maximum, String label) throws IOException {
         Path root = rootValue.toRealPath(LinkOption.NOFOLLOW_LINKS);
-        Path file = value.toAbsolutePath().normalize();
+        Path file = root.resolve(value).normalize();
         if (!file.startsWith(root) || Files.isSymbolicLink(file)
                 || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)
                 || Files.size(file) <= 0 || Files.size(file) > maximum) {
@@ -354,20 +355,6 @@ public final class ShipCitrusYamlMain {
             throw new IOException(label + " escaped the accepted snapshot");
         }
         return file;
-    }
-
-    private static String citrusVersion() {
-        try {
-            Class<?> citrus = Class.forName("org.citrusframework.Citrus");
-            return String.valueOf(citrus.getMethod("getVersion").invoke(null));
-        } catch (ReflectiveOperationException e) {
-            return "unknown";
-        }
-    }
-
-    private static String camelVersion() {
-        String version = CamelContext.class.getPackage().getImplementationVersion();
-        return version == null || version.isBlank() ? "unknown" : version;
     }
 
     public record TestContract(String name) {

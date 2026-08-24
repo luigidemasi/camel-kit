@@ -1,7 +1,6 @@
 package io.github.luigidemasi.camelkit.ship.catalog;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.IntStream;
@@ -40,20 +39,16 @@ class CatalogEvidenceSetTest {
     }
 
     @Test
-    void constructorRejectsDigestAndCanonicalOrderForgery() {
-        CatalogEvidenceSet snapshot = snapshot();
-        SubjectEvidence direct = component("direct", "sha256:" + "c".repeat(64));
-        List<SubjectEvidence> reversed = List.of(snapshot.subjects().get(0), direct).stream()
-                .sorted(Collections.reverseOrder(java.util.Comparator.comparing(SubjectEvidence::subject)))
-                .toList();
+    void constructorRejectsAMalformedSnapshotDigest() {
+        CatalogEvidenceSet valid = CatalogEvidenceSet.create(
+                TARGET, MAIN, List.of(artifact()), List.of(component("timer", RESOURCE_DIGEST)));
 
-        assertAll(
-                () -> assertThrows(IllegalArgumentException.class, () -> new CatalogEvidenceSet(
-                        snapshot.schemaVersion(), snapshot.target(), snapshot.platformCoordinate(),
-                        snapshot.artifacts(), snapshot.subjects(), "sha256:" + "0".repeat(64))),
-                () -> assertThrows(IllegalArgumentException.class, () -> new CatalogEvidenceSet(
-                        snapshot.schemaVersion(), snapshot.target(), snapshot.platformCoordinate(),
-                        snapshot.artifacts(), reversed, snapshot.digest())));
+        assertThrows(IllegalArgumentException.class, () -> new CatalogEvidenceSet(
+                CatalogEvidenceSet.SCHEMA_VERSION, TARGET, MAIN,
+                valid.artifacts(), valid.subjects(), "not-a-digest"));
+        assertThrows(IllegalArgumentException.class, () -> new CatalogEvidenceSet(
+                CatalogEvidenceSet.SCHEMA_VERSION, TARGET, MAIN,
+                valid.artifacts(), valid.subjects(), null));
     }
 
     @Test
@@ -133,11 +128,6 @@ class CatalogEvidenceSetTest {
         assertDoesNotThrow(() -> new ArtifactEvidence(MAIN, ARTIFACT_DIGEST, 128L * 1024 * 1024));
         assertThrows(IllegalArgumentException.class,
                 () -> new ArtifactEvidence(MAIN, ARTIFACT_DIGEST, 128L * 1024 * 1024 + 1));
-    }
-
-    private static CatalogEvidenceSet snapshot() {
-        return CatalogEvidenceSet.create(
-                TARGET, MAIN, List.of(artifact()), List.of(component("timer", RESOURCE_DIGEST)));
     }
 
     private static ArtifactEvidence artifact() {

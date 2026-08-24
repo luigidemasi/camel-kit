@@ -24,12 +24,7 @@ import io.github.luigidemasi.camelkit.ship.artifact.CitrusDependencyPolicy;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogTestVerifier;
 import io.github.luigidemasi.camelkit.ship.catalog.ShipCatalogService;
 import io.github.luigidemasi.camelkit.ship.evidence.CommandEvidence;
-import io.github.luigidemasi.camelkit.ship.evidence.CommandEvidence.SandboxIdentity;
 import io.github.luigidemasi.camelkit.ship.evidence.EvidenceCommand;
-import io.github.luigidemasi.camelkit.ship.evidence.EvidenceRunner;
-import io.github.luigidemasi.camelkit.ship.evidence.JvmPayloadArchive;
-import io.github.luigidemasi.camelkit.ship.evidence.JvmPayloadRequest;
-import io.github.luigidemasi.camelkit.ship.evidence.JvmPayloadTestFixture;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.Outcome;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.Support;
@@ -248,7 +243,7 @@ class ShipMainValidatorTest {
     void mapsANonzeroCommandExitToItsCheckOutcome() throws Exception {
         Project nonzeroProject = project("orders");
         RecordingExecutor nonzero = new RecordingExecutor();
-        nonzero.nonzeroCommand = "citrus-integration-test-001";
+        nonzero.nonzeroCommand = "route-schema";
 
         ShipMainValidator.Result nonzeroResult = validator(nonzero).validate(
                 RUN_ID,
@@ -263,8 +258,9 @@ class ShipMainValidatorTest {
 
         assertEquals(ShipLocalStamp.Status.FAIL, nonzeroResult.stamp().status());
         assertEquals(Outcome.NONZERO, nonzeroResult.stamp().checks().stream()
-                .filter(check -> "citrus-integration-test-001".equals(check.id()))
+                .filter(check -> "route-schema".equals(check.id()))
                 .findFirst().orElseThrow().outcome());
+        assertEquals(3, nonzero.commands.size(), "later checks still run after a failing command");
     }
 
     @Test
@@ -538,26 +534,12 @@ class ShipMainValidatorTest {
         return ShipDigest.sha256(Files.readAllBytes(file));
     }
 
-    private static String digest(String value) {
-        return ShipDigest.sha256(value.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-    }
-
     private static void restoreProperty(String name, String value) {
         if (value == null) {
             System.clearProperty(name);
         } else {
             System.setProperty(name, value);
         }
-    }
-
-    private static String version(JvmPayloadRequest payload) {
-        return switch (payload.kind()) {
-            case CAMEL_YAML_VALIDATE -> "Camel direct YAML validator " + payload.camelVersion();
-            case CAMEL_MAIN_START -> "Camel direct Main bootstrap " + payload.camelVersion();
-            case CITRUS_YAML -> "Citrus direct YAML " + payload.citrusVersion()
-                                + " with Camel " + payload.camelVersion();
-            default -> throw new IllegalArgumentException();
-        };
     }
 
     private static void privateFile(Path file, byte[] content) throws Exception {
@@ -591,11 +573,6 @@ class ShipMainValidatorTest {
             try {
                 Files.createDirectory(directory);
                 Files.setPosixFilePermissions(directory, PosixFilePermissions.fromString("rwx------"));
-                String jdkDigest = digest("jdk");
-                JvmPayloadArchive.Identity toolchain = JvmPayloadTestFixture.create(
-                        directory.resolve("toolchain"), command.jvmPayload(), jdkDigest);
-                Path sandboxExecutable = privateExecutable(
-                        directory.resolve("bwrap"), "sandbox".getBytes(java.nio.charset.StandardCharsets.UTF_8));
                 Path javaExecutable = privateExecutable(
                         directory.resolve("java"), "java".getBytes(java.nio.charset.StandardCharsets.UTF_8));
                 byte[] stdout = "PASS\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -603,31 +580,13 @@ class ShipMainValidatorTest {
                 Path stderrPath = directory.resolve("raw.stderr.log");
                 privateFile(stdoutPath, stdout);
                 privateFile(stderrPath, new byte[0]);
-                String sandboxDigest = digest(sandboxExecutable);
-                String executableDigest = digest(javaExecutable);
                 boolean nonzero = command.id().equals(nonzeroCommand);
                 CommandEvidence evidence = new CommandEvidence(
-                        CommandEvidence.SCHEMA_VERSION,
                         command.id(),
-                        new SandboxIdentity(
-                                EvidenceRunner.SANDBOX_PROVIDER,
-                                sandboxExecutable.toString(),
-                                sandboxDigest,
-                                sandboxDigest,
-                                null,
-                                EvidenceRunner.expectedSandboxProfileDigest(command, jdkDigest)),
-                        toolchain.aggregateDigest(),
-                        toolchain.aggregateDigest(),
-                        toolchain.archive().toString(),
-                        toolchain.archiveDigest(),
                         javaExecutable.toString(),
-                        executableDigest,
-                        executableDigest,
-                        null,
-                        version(command.jvmPayload()),
                         command.arguments(),
                         candidate.toString(),
-                        EvidenceRunner.expectedEnvironment(command, jdkDigest),
+                        command.inputDigests(),
                         STARTED,
                         ENDED,
                         true,
@@ -638,7 +597,8 @@ class ShipMainValidatorTest {
                         ShipDigest.sha256(stdout),
                         stderrPath.toString(),
                         ShipDigest.sha256(new byte[0]),
-                        command.inputDigests());
+                        false,
+                        directory.resolve("sandbox"));
                 if (command.id().equals(interruptCommand)) {
                     Thread.currentThread().interrupt();
                 }

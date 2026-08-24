@@ -16,9 +16,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import io.github.luigidemasi.camelkit.ship.evidence.EvidenceSandboxLauncher.Access;
-import io.github.luigidemasi.camelkit.ship.evidence.EvidenceSandboxLauncher.Invocation;
-import io.github.luigidemasi.camelkit.ship.evidence.EvidenceSandboxLauncher.Mount;
 import io.github.luigidemasi.camelkit.ship.security.ProjectEvidenceFiles;
 
 import org.junit.jupiter.api.Test;
@@ -32,62 +29,64 @@ class EvidenceRunnerTest {
     Path tempDir;
 
     @Test
-    void usesOnlyTheFrozenCandidateAndControllerOwnedJvmPayload() throws Exception {
+    void runsDirectlyOnAFrozenReadOnlySnapshotWithAScrubbedEnvironment() throws Exception {
         Path project = Files.createDirectory(tempDir.resolve("candidate"));
         Path candidateFile = Files.writeString(project.resolve("route.camel.yaml"), "route fixture");
-        Path emptyDirectory = Files.createDirectories(project.resolve("config/empty"));
-        Files.setPosixFilePermissions(emptyDirectory, PosixFilePermissions.fromString("rwxr-x---"));
-        Path candidateSibling = Files.writeString(tempDir.resolve("candidate-sibling.secret"), "secret");
+        Files.createDirectories(project.resolve("config/empty"));
         Path controllerRoot = Files.createDirectories(tempDir.resolve("controller/run"));
-        Path controllerSentinel = Files.writeString(controllerRoot.resolve("signing.key"), "secret");
-        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
-        RecordingLauncher launcher = new RecordingLauncher(fakeBubblewrap, candidateSibling, controllerSentinel);
+        RecordingLauncher launcher = new RecordingLauncher();
         EvidenceCommand command = command(project, "route-schema", Duration.ofSeconds(5));
 
         CommandEvidence result = runner(launcher).run(project, controllerRoot.resolve("evidence"), command);
 
         assertTrue(result.passed(), result::toString);
-        assertEquals(2, launcher.invocations.size(), "version and evidence commands must both be sandboxed");
-        for (Invocation invocation : launcher.invocations) {
-            assertFalse(invocation.exposes(candidateSibling));
-            assertFalse(invocation.exposes(controllerSentinel));
-            Mount workspace = invocation.mounts().stream()
-                    .filter(mount -> "/workspace".equals(mount.target()))
-                    .findFirst().orElseThrow();
-            assertEquals(Access.READ_ONLY, workspace.access());
-            assertNotEquals(project.toRealPath(), workspace.source());
-            assertEquals(Files.readString(candidateFile),
-                    Files.readString(workspace.source().resolve("route.camel.yaml")));
-            Path frozenEmptyDirectory = workspace.source().resolve("config/empty");
-            assertTrue(Files.isDirectory(frozenEmptyDirectory));
-            assertEquals(
-                    Files.getPosixFilePermissions(emptyDirectory),
-                    Files.getPosixFilePermissions(frozenEmptyDirectory));
-            assertTrue(invocation.mounts().stream().noneMatch(mount -> "/usr".equals(mount.target())));
-            assertTrue(invocation.mounts().stream().anyMatch(mount -> "/usr/lib".equals(mount.target())));
-            assertTrue(invocation.mounts().stream().anyMatch(mount -> "/usr/lib64".equals(mount.target())));
-        }
-        assertEquals("Camel direct YAML validator 4.21.0", result.executableVersion());
-        assertEquals("PASS\n", Files.readString(Path.of(result.stdoutLog())));
-        assertEquals(result.toolchainDigest(), result.postToolchainDigest());
-        assertNotNull(result.toolchainSnapshot());
-        assertEquals("/home/camel-kit", result.controlledEnvironment().get("HOME"));
+        assertEquals(1, launcher.launches.size(), "exactly one direct evidence launch is expected");
+        EvidenceRunner.Launch launch = launcher.launches.get(0);
+        Path snapshot = launch.workingDirectory();
+        assertNotEquals(project.toRealPath(), snapshot);
+        assertTrue(snapshot.startsWith(controllerRoot.resolve("evidence").toRealPath()));
+        assertEquals(Files.readString(candidateFile), Files.readString(snapshot.resolve("route.camel.yaml")));
+        assertEquals(
+                PosixFilePermissions.fromString("r--------"),
+                Files.getPosixFilePermissions(snapshot.resolve("route.camel.yaml")));
+        assertEquals(
+                PosixFilePermissions.fromString("r-x------"),
+                Files.getPosixFilePermissions(snapshot));
+        assertTrue(Files.isDirectory(snapshot.resolve("config/empty")));
+        assertEquals(
+                PosixFilePermissions.fromString("r-x------"),
+                Files.getPosixFilePermissions(snapshot.resolve("config/empty")));
 
-        List<String> bubblewrapArguments = BubblewrapSandboxLauncher.arguments(
-                fakeBubblewrap, launcher.invocations.get(1));
-        assertTrue(bubblewrapArguments.containsAll(List.of(
-                "--unshare-user", "--unshare-pid", "--unshare-ipc", "--unshare-uts",
-                "--unshare-cgroup", "--unshare-net", "--die-with-parent", "--new-session", "--clearenv")));
-        assertTrue(bubblewrapArguments.containsAll(List.of("usr/lib", "/lib", "usr/lib64", "/lib64")));
-        assertFalse(bubblewrapArguments.contains("/bin"));
-        assertFalse(bubblewrapArguments.contains("/sbin"));
-        int separator = bubblewrapArguments.indexOf("--");
-        assertEquals(command.arguments(), bubblewrapArguments.subList(separator + 1, bubblewrapArguments.size()));
-        assertFalse(bubblewrapArguments.contains("-c"));
+        Path sandbox = snapshot.getParent();
+        assertEquals(sandbox, result.sandboxRoot());
+        assertEquals(EvidenceRunner.JAVA_EXECUTABLE, result.executable());
+        assertEquals(Path.of(EvidenceRunner.JAVA_EXECUTABLE).toRealPath().toString(), launch.arguments().get(0));
+        assertEquals("-Duser.home=" + sandbox.resolve("home"), launch.arguments().get(1));
+        assertEquals("-Djava.io.tmpdir=" + sandbox.resolve("tmp"), launch.arguments().get(2));
+        assertEquals("-cp", launch.arguments().get(3));
+        Path payloadArchive = Path.of(launch.arguments().get(4));
+        assertEquals(JvmPayloadArchive.ARCHIVE_NAME, payloadArchive.getFileName().toString());
+        assertTrue(payloadArchive.startsWith(sandbox), "payload archive must live in the run's sandbox");
+        assertTrue(Files.isRegularFile(payloadArchive));
+        assertEquals(ShipJvmPayloadBootstrap.class.getName(), launch.arguments().get(5));
+        assertEquals("--launcher=" + command.jvmPayload().launcherClass(), launch.arguments().get(6));
+        assertEquals("--accepted-root=" + snapshot, launch.arguments().get(7));
+        assertEquals(8, launch.arguments().size());
+
+        assertEquals(
+                Map.of(
+                        "LANG", "C",
+                        "LC_ALL", "C",
+                        "HOME", sandbox.resolve("home").toString(),
+                        "TMPDIR", sandbox.resolve("tmp").toString()),
+                launch.environment(),
+                "the child environment must be exactly the scrubbed controller set");
+        assertEquals("PASS\n", Files.readString(Path.of(result.stdoutLog())));
+        assertFalse(result.quarantined());
 
         Path rawStdout = Path.of(result.stdoutLog());
         Path rawStderr = Path.of(result.stderrLog());
-        EvidenceRunner.cleanupEphemeral(controllerRoot.resolve("evidence"), command, result);
+        EvidenceRunner.cleanupEphemeral(result);
         assertFalse(Files.exists(rawStdout));
         assertFalse(Files.exists(rawStderr));
         assertFalse(Files.exists(controllerRoot.resolve("evidence")));
@@ -95,34 +94,31 @@ class EvidenceRunnerTest {
 
     @Test
     void abandonedEvidenceCleanupDoesNotFollowLinksOutsideItsExclusiveRoot() throws Exception {
-        Path project = Files.createDirectory(tempDir.resolve("candidate"));
         Path evidenceDirectory = Files.createDirectory(tempDir.resolve("partial-evidence"));
         Path outside = Files.createDirectory(tempDir.resolve("outside"));
         Path sentinel = Files.writeString(outside.resolve("sentinel"), "preserve");
         Files.writeString(evidenceDirectory.resolve("partial.log"), "partial");
         Files.createSymbolicLink(evidenceDirectory.resolve("outside-link"), outside);
 
-        EvidenceRunner.cleanupAbandoned(
-                evidenceDirectory,
-                command(project, "partial-check", Duration.ofSeconds(2)));
+        EvidenceRunner.cleanupAbandoned(evidenceDirectory);
 
         assertFalse(Files.exists(evidenceDirectory, java.nio.file.LinkOption.NOFOLLOW_LINKS));
         assertEquals("preserve", Files.readString(sentinel));
     }
 
     @Test
-    void recordsNonzeroAndTimeoutOutcomesFromSandbox() throws Exception {
+    void recordsNonzeroAndTimeoutOutcomes() throws Exception {
         Path project = Files.createDirectory(tempDir.resolve("candidate"));
-        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
-        RecordingLauncher nonzero = new RecordingLauncher(fakeBubblewrap, null, null);
-        nonzero.executionExitCode = 7;
+        RecordingLauncher nonzero = new RecordingLauncher();
+        nonzero.exitCode = 7;
         CommandEvidence failed = runner(nonzero).run(
                 project, tempDir.resolve("evidence-a"), command(project, "build-check", Duration.ofSeconds(2)));
         assertFalse(failed.passed());
         assertEquals(7, failed.exitCode());
+        assertFalse(failed.quarantined());
 
-        RecordingLauncher timeout = new RecordingLauncher(fakeBubblewrap, null, null);
-        timeout.executionCompletes = false;
+        RecordingLauncher timeout = new RecordingLauncher();
+        timeout.completes = false;
         CommandEvidence timedOut = runner(timeout).run(
                 project, tempDir.resolve("evidence-b"), command(project, "slow-check", Duration.ofMillis(10)));
         assertFalse(timedOut.passed());
@@ -134,77 +130,15 @@ class EvidenceRunnerTest {
     }
 
     @Test
-    void failedVersionQueryCannotLaunchOrPassOnStderrNoise() throws Exception {
-        Path project = Files.createDirectory(tempDir.resolve("candidate"));
-        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
-        RecordingLauncher launcher = new RecordingLauncher(fakeBubblewrap, null, null);
-        launcher.versionStdout = "misleading version\n";
-        launcher.versionExitCode = 9;
-
-        CommandEvidence result = runner(launcher).run(
-                project, tempDir.resolve("evidence"), command(project, "version-check", Duration.ofSeconds(2)));
-
-        assertFalse(result.passed());
-        assertFalse(result.launched());
-        assertNull(result.exitCode());
-        assertEquals("exit-9", result.executableVersion());
-        assertTrue(result.launchError().contains("Version query failed: exit-9"));
-        assertEquals(1, launcher.invocations.size(), "the evidence command must not launch after a failed query");
-    }
-
-    @Test
-    void zeroExitVersionQueryWithOnlyStderrCannotLaunchOrPass() throws Exception {
-        Path project = Files.createDirectory(tempDir.resolve("candidate"));
-        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
-        RecordingLauncher launcher = new RecordingLauncher(fakeBubblewrap, null, null);
-        launcher.versionStdout = " \n";
-        launcher.versionStderr = "Picked up JAVA_TOOL_OPTIONS: fixture\n";
-
-        CommandEvidence result = runner(launcher).run(
-                project, tempDir.resolve("evidence"), command(project, "version-check", Duration.ofSeconds(2)));
-
-        assertFalse(result.passed());
-        assertFalse(result.launched());
-        assertNull(result.exitCode());
-        assertEquals("unreported", result.executableVersion());
-        assertTrue(result.launchError().contains("Version query failed: unreported"));
-        assertEquals(1, launcher.invocations.size(), "stderr must not become executable version evidence");
-    }
-
-    @Test
-    void missingVersionCommandCannotLaunchOrPass() throws Exception {
-        Path project = Files.createDirectory(tempDir.resolve("candidate"));
-        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
-        RecordingLauncher launcher = new RecordingLauncher(fakeBubblewrap, null, null);
-        EvidenceCommand configured = command(project, "version-check", Duration.ofSeconds(2));
-        EvidenceCommand missingVersion = new EvidenceCommand(
-                configured.id(), configured.arguments(), List.of(), configured.relativeWorkingDirectory(),
-                configured.timeout(), configured.inputDigests(), configured.environment(),
-                configured.inheritedEnvironmentKeys(), configured.requiredToolchainDigest(), configured.jvmPayload());
-
-        CommandEvidence result = runner(launcher).run(
-                project, tempDir.resolve("evidence"), missingVersion);
-
-        assertFalse(result.passed());
-        assertFalse(result.launched());
-        assertNull(result.exitCode());
-        assertEquals("unreported", result.executableVersion());
-        assertTrue(result.launchError().contains("Version query failed: unreported"));
-        assertTrue(launcher.invocations.isEmpty(), "neither a version query nor the evidence command may launch");
-    }
-
-    @Test
     void rejectsReuseOfAnotherRunsEvidenceDirectoryWithoutDeletingIt() throws Exception {
         Path project = Files.createDirectory(tempDir.resolve("candidate"));
         Path evidenceDirectory = tempDir.resolve("evidence");
-        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
         EvidenceCommand command = command(project, "first-check", Duration.ofSeconds(2));
-        RecordingLauncher firstLauncher = new RecordingLauncher(fakeBubblewrap, null, null);
+        RecordingLauncher firstLauncher = new RecordingLauncher();
         CommandEvidence first = runner(firstLauncher).run(project, evidenceDirectory, command);
-        Path firstSandbox = firstLauncher.invocations.get(1).privateHome().getParent();
+        Path firstSandbox = first.sandboxRoot();
 
-        IOException rejected = assertThrows(IOException.class, () -> runner(
-                new RecordingLauncher(fakeBubblewrap, null, null))
+        IOException rejected = assertThrows(IOException.class, () -> runner(new RecordingLauncher())
                 .run(project, evidenceDirectory, command(project, "sibling-check", Duration.ofSeconds(2))));
 
         assertTrue(rejected.getMessage().contains("new and exclusive"));
@@ -218,11 +152,10 @@ class EvidenceRunnerTest {
         Path project = Files.createDirectory(tempDir.resolve("candidate"));
         Path realParent = Files.createDirectory(tempDir.resolve("real-evidence-parent"));
         Path parentAlias = Files.createSymbolicLink(tempDir.resolve("evidence-parent-alias"), realParent);
-        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
         Path evidenceDirectory = parentAlias.resolve("evidence");
         EvidenceCommand aliasCommand = command(project, "alias-check", Duration.ofSeconds(2));
 
-        CommandEvidence result = runner(new RecordingLauncher(fakeBubblewrap, null, null)).run(
+        CommandEvidence result = runner(new RecordingLauncher()).run(
                 project, evidenceDirectory, aliasCommand);
 
         Path realEvidenceDirectory = realParent.resolve("evidence").toRealPath();
@@ -231,13 +164,13 @@ class EvidenceRunnerTest {
         assertEquals(
                 PosixFilePermissions.fromString("rwx------"),
                 Files.getPosixFilePermissions(realEvidenceDirectory));
-        EvidenceRunner.cleanupEphemeral(evidenceDirectory, aliasCommand, result);
+        EvidenceRunner.cleanupEphemeral(result);
         assertFalse(Files.exists(realEvidenceDirectory));
 
         Path target = Files.createDirectory(realParent.resolve("existing-target"));
         Path symlinkLeaf = parentAlias.resolve("symlink-evidence");
         Files.createSymbolicLink(symlinkLeaf, target);
-        RecordingLauncher rejectedLauncher = new RecordingLauncher(fakeBubblewrap, null, null);
+        RecordingLauncher rejectedLauncher = new RecordingLauncher();
 
         IOException rejected = assertThrows(IOException.class, () -> runner(rejectedLauncher).run(
                 project, symlinkLeaf, command(project, "symlink-check", Duration.ofSeconds(2))));
@@ -245,17 +178,16 @@ class EvidenceRunnerTest {
         assertTrue(rejected.getMessage().contains("new and exclusive"));
         assertTrue(Files.isSymbolicLink(symlinkLeaf));
         assertTrue(Files.isDirectory(target));
-        assertTrue(rejectedLauncher.invocations.isEmpty());
+        assertTrue(rejectedLauncher.launches.isEmpty());
     }
 
     @Test
     void createsMissingEvidenceParentDirectories() throws Exception {
         Path project = Files.createDirectory(tempDir.resolve("candidate"));
-        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
         Path evidenceDirectory = tempDir.resolve("missing/nested/evidence");
         EvidenceCommand command = command(project, "nested-parent-check", Duration.ofSeconds(2));
 
-        CommandEvidence result = runner(new RecordingLauncher(fakeBubblewrap, null, null)).run(
+        CommandEvidence result = runner(new RecordingLauncher()).run(
                 project, evidenceDirectory, command);
 
         assertTrue(result.passed(), result::toString);
@@ -263,7 +195,7 @@ class EvidenceRunnerTest {
         assertEquals(
                 PosixFilePermissions.fromString("rwx------"),
                 Files.getPosixFilePermissions(evidenceDirectory));
-        EvidenceRunner.cleanupEphemeral(evidenceDirectory, command, result);
+        EvidenceRunner.cleanupEphemeral(result);
         assertFalse(Files.exists(evidenceDirectory));
         assertTrue(Files.isDirectory(tempDir.resolve("missing/nested")));
     }
@@ -274,8 +206,7 @@ class EvidenceRunnerTest {
         Path project = Files.createDirectory(realParent.resolve("candidate"));
         Path parentAlias = Files.createSymbolicLink(tempDir.resolve("project-parent-alias"), realParent);
         Path projectAlias = parentAlias.resolve("candidate");
-        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
-        RecordingLauncher launcher = new RecordingLauncher(fakeBubblewrap, null, null);
+        RecordingLauncher launcher = new RecordingLauncher();
 
         CommandEvidence result = runner(launcher).run(
                 projectAlias,
@@ -283,10 +214,10 @@ class EvidenceRunnerTest {
                 command(projectAlias, "project-alias-check", Duration.ofSeconds(2)));
 
         assertTrue(result.passed(), result::toString);
-        for (Invocation invocation : launcher.invocations) {
-            assertEquals(project.toRealPath(), invocation.candidate());
-            assertEquals(project.toRealPath(), invocation.workingDirectory());
-        }
+        assertEquals(project.toRealPath().toString(), result.workingDirectory());
+        assertEquals(
+                result.sandboxRoot().resolve("accepted-snapshot"),
+                launcher.launches.get(0).workingDirectory());
     }
 
     @Test
@@ -295,8 +226,7 @@ class EvidenceRunnerTest {
         Path project = Files.createDirectory(realParent.resolve("candidate"));
         Path parentAlias = Files.createSymbolicLink(tempDir.resolve("project-parent-alias"), realParent);
         Path nestedEvidenceAlias = parentAlias.resolve("candidate/evidence");
-        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
-        RecordingLauncher launcher = new RecordingLauncher(fakeBubblewrap, null, null);
+        RecordingLauncher launcher = new RecordingLauncher();
 
         assertThrows(IOException.class, () -> runner(launcher).run(
                 project,
@@ -304,43 +234,16 @@ class EvidenceRunnerTest {
                 command(project, "nested-evidence-check", Duration.ofSeconds(2))));
 
         assertFalse(Files.exists(project.resolve("evidence")));
-        assertTrue(launcher.invocations.isEmpty());
-    }
-
-    @Test
-    void midRunAuthorityTamperAlwaysFailsClosed() throws Exception {
-        Path project = Files.createDirectory(tempDir.resolve("candidate"));
-        for (AuthorityTamper tamper : AuthorityTamper.values()) {
-            String id = tamper.name().toLowerCase(java.util.Locale.ROOT).replace('_', '-');
-            Path fakeBubblewrap = executable(
-                    tempDir.resolve("fake-bwrap-" + id), "fixture");
-            RecordingLauncher launcher = new RecordingLauncher(fakeBubblewrap, null, null);
-            launcher.executionTamper = tamper;
-
-            CommandEvidence result = runner(launcher).run(
-                    project,
-                    tempDir.resolve("evidence-" + id),
-                    command(project, "tamper-" + id, Duration.ofSeconds(2)));
-
-            assertFalse(result.passed(), tamper.name());
-            switch (tamper) {
-                case PAYLOAD_ARCHIVE -> assertNull(result.postToolchainDigest());
-                case TOOLCHAIN_EXECUTABLE ->
-                    assertNotEquals(result.executableDigest(), result.postExecutableDigest());
-                case SANDBOX_EXECUTABLE -> assertNotEquals(
-                        result.sandbox().executableDigest(), result.sandbox().postExecutableDigest());
-            }
-        }
+        assertTrue(launcher.launches.isEmpty());
     }
 
     @Test
     void interruptionStillForciblyReapsAParentThatIgnoresGracefulTermination() throws Exception {
         Path project = Files.createDirectory(tempDir.resolve("candidate"));
-        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
-        RecordingLauncher launcher = new RecordingLauncher(fakeBubblewrap, null, null);
-        launcher.executionCompletes = false;
-        launcher.executionInterruptsWait = true;
-        launcher.executionRequiresForcibleTermination = true;
+        RecordingLauncher launcher = new RecordingLauncher();
+        launcher.completes = false;
+        launcher.interruptsWait = true;
+        launcher.requiresForcibleTermination = true;
 
         CommandEvidence interrupted = runner(launcher).run(
                 project, tempDir.resolve("evidence"), command(project, "interrupted-check", Duration.ofSeconds(2)));
@@ -356,24 +259,24 @@ class EvidenceRunnerTest {
     }
 
     @Test
-    void interruptionReportsAParentThatCannotBeReaped() throws Exception {
+    void interruptionReportsAndQuarantinesAParentThatCannotBeReaped() throws Exception {
         Path project = Files.createDirectory(tempDir.resolve("candidate"));
-        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
         Path evidenceRoot = Files.createDirectory(tempDir.resolve("evidence"));
         Path evidenceDirectory = evidenceRoot.resolve("unreaped-run");
-        RecordingLauncher launcher = new RecordingLauncher(fakeBubblewrap, null, null);
-        launcher.executionCompletes = false;
-        launcher.executionInterruptsWait = true;
-        launcher.executionRequiresForcibleTermination = true;
-        launcher.executionIgnoresForcibleTermination = true;
+        RecordingLauncher launcher = new RecordingLauncher();
+        launcher.completes = false;
+        launcher.interruptsWait = true;
+        launcher.requiresForcibleTermination = true;
+        launcher.ignoresForcibleTermination = true;
 
         CommandEvidence interrupted = runner(launcher).run(
                 project, evidenceDirectory, command(project, "unreaped-check", Duration.ofSeconds(2)));
         boolean interruptPreserved = Thread.interrupted();
-        Path retainedSandbox = launcher.invocations.get(1).privateHome().getParent();
+        Path retainedSandbox = interrupted.sandboxRoot();
         Path retainedStdout = Path.of(interrupted.stdoutLog());
         Path retainedStderr = Path.of(interrupted.stderrLog());
 
+        assertTrue(interrupted.quarantined());
         assertTrue(interrupted.launchError().contains("Interrupted command process tree could not be reaped"));
         assertTrue(interrupted.launchError().contains("Ephemeral evidence quarantined at"));
         assertNotNull(launcher.lastProcess);
@@ -381,17 +284,15 @@ class EvidenceRunnerTest {
         assertTrue(launcher.lastProcess.isAlive());
         assertTrue(interruptPreserved, "the caller's interrupted status must be preserved");
 
-        EvidenceRunner.cleanupEphemeral(
-                evidenceDirectory, command(project, "unreaped-check", Duration.ofSeconds(2)), interrupted);
-        assertTrue(Files.isDirectory(retainedSandbox));
+        EvidenceRunner.cleanupEphemeral(interrupted);
+        assertTrue(Files.isDirectory(retainedSandbox), "quarantined sandboxes must survive cleanup");
         assertTrue(Files.isRegularFile(retainedStdout));
         assertTrue(Files.isRegularFile(retainedStderr));
 
-        RecordingLauncher nextLauncher = new RecordingLauncher(fakeBubblewrap, null, null);
+        RecordingLauncher nextLauncher = new RecordingLauncher();
         EvidenceCommand nextCommand = command(project, "next-check", Duration.ofSeconds(2));
-        Path nextEvidenceDirectory = evidenceRoot.resolve("next-run");
-        CommandEvidence next = runner(nextLauncher).run(project, nextEvidenceDirectory, nextCommand);
-        EvidenceRunner.cleanupEphemeral(nextEvidenceDirectory, nextCommand, next);
+        CommandEvidence next = runner(nextLauncher).run(project, evidenceRoot.resolve("next-run"), nextCommand);
+        EvidenceRunner.cleanupEphemeral(next);
 
         assertTrue(Files.isDirectory(retainedSandbox), "a sibling run must preserve quarantined sandboxes");
         assertTrue(Files.isRegularFile(retainedStdout), "a sibling run must preserve quarantined stdout");
@@ -399,242 +300,117 @@ class EvidenceRunnerTest {
     }
 
     @Test
-    void unreapedVersionQueryIsQuarantinedBeforeTheCommandCanLaunch() throws Exception {
+    void timedOutProcessThatCannotBeReapedIsQuarantined() throws Exception {
         Path project = Files.createDirectory(tempDir.resolve("candidate"));
-        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
         Path evidenceDirectory = tempDir.resolve("evidence");
-        RecordingLauncher launcher = new RecordingLauncher(fakeBubblewrap, null, null);
-        launcher.versionCompletes = false;
-        launcher.versionInterruptsWait = true;
-        launcher.versionRequiresForcibleTermination = true;
-        launcher.versionIgnoresForcibleTermination = true;
-        EvidenceCommand evidenceCommand = command(project, "version-check", Duration.ofSeconds(2));
+        RecordingLauncher launcher = new RecordingLauncher();
+        launcher.completes = false;
+        launcher.requiresForcibleTermination = true;
+        launcher.ignoresForcibleTermination = true;
+        EvidenceCommand evidenceCommand = command(project, "unreapable-check", Duration.ofMillis(10));
 
         CommandEvidence result = runner(launcher).run(project, evidenceDirectory, evidenceCommand);
-        boolean interruptPreserved = Thread.interrupted();
-        Path retainedSandbox = launcher.invocations.get(0).privateHome().getParent();
 
-        assertEquals(1, launcher.invocations.size(),
-                "the evidence command must not launch after a residual version process");
-        assertFalse(result.launched());
-        assertTrue(result.launchError().contains("Version query process tree could not be reaped"));
+        assertFalse(result.passed());
+        assertTrue(result.timedOut());
+        assertTrue(result.quarantined());
+        assertTrue(result.launchError().contains("Timed-out command process tree could not be reaped"));
         assertTrue(result.launchError().contains("Ephemeral evidence quarantined at"));
-        assertTrue(interruptPreserved, "the caller's interrupted status must be preserved");
 
-        EvidenceRunner.cleanupEphemeral(evidenceDirectory, evidenceCommand, result);
-        assertTrue(Files.isDirectory(retainedSandbox));
+        EvidenceRunner.cleanupEphemeral(result);
+        assertTrue(Files.isDirectory(result.sandboxRoot()));
         assertTrue(Files.isRegularFile(Path.of(result.stdoutLog())));
         assertTrue(Files.isRegularFile(Path.of(result.stderrLog())));
     }
 
     @Test
-    void failsClosedForMissingSandboxLegacyExecutableAndWorkingDirectoryEscape() throws Exception {
+    void launchFailureIsRecordedWithoutQuarantineAndCleansUp() throws Exception {
         Path project = Files.createDirectory(tempDir.resolve("candidate"));
-        EvidenceCommand command = command(project, "build-check", Duration.ofSeconds(1));
-        EvidenceRunner missingSandbox = new EvidenceRunner(
-                Clock.systemUTC(), new BubblewrapSandboxLauncher(tempDir.resolve("missing-bwrap")),
-                new FixtureToolchainResolver(), new FixtureJdkResolver());
-        assertThrows(Exception.class, () -> missingSandbox.run(
-                project, tempDir.resolve("evidence-a"), command));
-        assertFalse(Files.exists(tempDir.resolve("evidence-a")));
+        Path evidenceDirectory = tempDir.resolve("evidence");
+        EvidenceRunner failingLaunch = new EvidenceRunner(
+                Clock.systemUTC(),
+                launch -> {
+                    throw new IOException("fixture launch failure");
+                },
+                (sandboxRoot, payload) -> JvmPayloadTestFixture.create(
+                        sandboxRoot.resolve("fixture-payload"), payload));
 
-        Path fakeBubblewrap = executable(tempDir.resolve("fake-bwrap"), "fixture");
-        RecordingLauncher launcher = new RecordingLauncher(fakeBubblewrap, null, null);
-        Exception legacyFailure = assertThrows(IllegalArgumentException.class, () -> new EvidenceCommand(
-                "legacy", List.of("/usr/bin/mvn", "--version"), List.of(), null,
-                Duration.ofSeconds(1), List.of(ProjectEvidenceFiles.capture(project).digest()),
-                Map.of(), List.of(), null, null));
-        assertTrue(legacyFailure.getMessage().contains("direct JVM"));
+        CommandEvidence result = failingLaunch.run(
+                project, evidenceDirectory, command(project, "launch-failure-check", Duration.ofSeconds(2)));
 
-        EvidenceCommand escaped = new EvidenceCommand(
-                "escaped", command.arguments(), command.versionArguments(), "..", Duration.ofSeconds(1),
-                command.inputDigests(), Map.of(), List.of(), null, command.jvmPayload());
-        assertThrows(Exception.class, () -> runner(launcher)
-                .run(project, tempDir.resolve("evidence-c"), escaped));
-        assertTrue(launcher.invocations.isEmpty());
+        assertFalse(result.passed());
+        assertFalse(result.launched());
+        assertFalse(result.quarantined());
+        assertTrue(result.launchError().contains("IOException: fixture launch failure"));
+        assertFalse(result.launchError().contains("could not be reaped"), result::launchError);
+
+        EvidenceRunner.cleanupEphemeral(result);
+        assertFalse(Files.exists(evidenceDirectory));
     }
 
     @Test
-    void freezesIndependentExactJdkBytesWithoutFollowingInternalLinks() throws Exception {
-        Path live = Files.createDirectories(tempDir.resolve("live-jdk"));
-        Path bin = Files.createDirectory(live.resolve("bin"));
-        Path java = executable(bin.resolve("java"), "java-bytes");
-        Path lib = Files.createDirectories(live.resolve("lib/security"));
-        Path policy = Files.writeString(lib.resolve("default.policy"), "accepted-policy");
-        Path conf = Files.createDirectory(live.resolve("conf"));
-        Files.createSymbolicLink(conf.resolve("security"), Path.of("../lib/security"));
-        Path sandbox = Files.createDirectory(tempDir.resolve("jdk-sandbox"));
+    void failsClosedForFailedPayloadLegacyExecutableAndWorkingDirectoryEscape() throws Exception {
+        Path project = Files.createDirectory(tempDir.resolve("candidate"));
+        EvidenceCommand command = command(project, "build-check", Duration.ofSeconds(1));
+        EvidenceRunner failingPayload = new EvidenceRunner(
+                Clock.systemUTC(), new RecordingLauncher(),
+                (sandboxRoot, payload) -> {
+                    throw new IOException("fixture payload failure");
+                });
+        assertThrows(IOException.class, () -> failingPayload.run(
+                project, tempDir.resolve("evidence-a"), command));
+        assertFalse(Files.exists(tempDir.resolve("evidence-a")));
 
-        EvidenceRunner.JdkIdentity frozen = EvidenceRunner.freezeJdk(live, sandbox);
-        Files.writeString(java, "mutated-java");
-        Files.writeString(policy, "mutated-policy");
+        Exception legacyFailure = assertThrows(IllegalArgumentException.class, () -> new EvidenceCommand(
+                "legacy", List.of("/usr/bin/mvn", "--version"), null,
+                Duration.ofSeconds(1), List.of(ProjectEvidenceFiles.capture(project).digest()),
+                Map.of(), null));
+        assertTrue(legacyFailure.getMessage().contains("direct JVM"));
 
-        assertNotEquals(live.toRealPath(), frozen.root());
-        assertEquals("java-bytes", Files.readString(frozen.root().resolve("bin/java")));
-        assertEquals("accepted-policy", Files.readString(frozen.root().resolve("lib/security/default.policy")));
-        assertTrue(Files.isSymbolicLink(frozen.root().resolve("conf/security")));
-        assertEquals(Path.of("../lib/security"), Files.readSymbolicLink(frozen.root().resolve("conf/security")));
-        assertTrue(frozen.digest().matches("sha256:[0-9a-f]{64}"));
-        assertTrue(frozen.externalMounts().isEmpty());
+        RecordingLauncher launcher = new RecordingLauncher();
+        EvidenceCommand escaped = new EvidenceCommand(
+                "escaped", command.arguments(), "..", Duration.ofSeconds(1),
+                command.inputDigests(), Map.of(), command.jvmPayload());
+        assertThrows(Exception.class, () -> runner(launcher)
+                .run(project, tempDir.resolve("evidence-c"), escaped));
+        assertTrue(launcher.launches.isEmpty());
     }
 
-    private EvidenceRunner runner(RecordingLauncher launcher) throws IOException {
-        Path libraries = Files.createDirectories(tempDir.resolve("fixture-system-libraries"));
-        Path lib = Files.createDirectories(libraries.resolve("lib"));
-        Path lib64 = Files.createDirectories(libraries.resolve("lib64"));
+    private EvidenceRunner runner(RecordingLauncher launcher) {
         return new EvidenceRunner(
-                Clock.systemUTC(), launcher, new FixtureToolchainResolver(), new FixtureJdkResolver(),
-                List.of(
-                        new Mount(lib, "/usr/lib", Access.READ_ONLY),
-                        new Mount(lib64, "/usr/lib64", Access.READ_ONLY)));
+                Clock.systemUTC(), launcher,
+                (sandboxRoot, payload) -> JvmPayloadTestFixture.create(
+                        sandboxRoot.resolve("fixture-payload"), payload));
     }
 
     private EvidenceCommand command(Path project, String id, Duration timeout) throws Exception {
         JvmPayloadRequest payload = JvmPayloadRequest.yamlValidator("4.21.0");
         List<String> arguments = List.of(
-                EvidenceRunner.JAVA_EXECUTABLE, "-cp", JvmPayloadArchive.SANDBOX_ARCHIVE,
-                ShipJvmPayloadBootstrap.class.getName());
-        List<String> version = new ArrayList<>(arguments);
-        version.add("--payload-version");
+                EvidenceRunner.JAVA_EXECUTABLE, "-cp", JvmPayloadArchive.ARCHIVE_NAME,
+                ShipJvmPayloadBootstrap.class.getName(), "--launcher=" + payload.launcherClass());
         return new EvidenceCommand(
-                id, arguments, version, null, timeout,
+                id, arguments, null, timeout,
                 List.of(ProjectEvidenceFiles.capture(project).digest()),
-                Map.of("LANG", "C", "LC_ALL", "C"), List.of(), null, payload);
+                Map.of("LANG", "C", "LC_ALL", "C"), payload);
     }
 
-    private static Path executable(Path path, String content) throws Exception {
-        Files.writeString(path, content);
-        assertTrue(path.toFile().setExecutable(true, true) || Files.isExecutable(path));
-        return path.toRealPath();
-    }
+    private static final class RecordingLauncher implements EvidenceRunner.ProcessLauncher {
 
-    private static final class FixtureToolchainResolver implements EvidenceRunner.ToolchainResolver {
-
-        @Override
-        public EvidenceRunner.ResolvedToolchain resolve(
-                Path candidate,
-                Path sandboxRoot,
-                EvidenceCommand command,
-                EvidenceRunner.JdkIdentity jdk)
-                throws java.io.IOException {
-            String jdkDigest = jdk.digest();
-            JvmPayloadArchive.Identity identity = JvmPayloadTestFixture.create(
-                    sandboxRoot.resolve("fixture-payload"), command.jvmPayload(), jdkDigest);
-            Path java = jdk.root().resolve("bin/java").toRealPath();
-            return new EvidenceRunner.ResolvedToolchain(
-                    java, EvidenceRunner.JAVA_EXECUTABLE,
-                    List.of(new Mount(identity.archive().getParent(), "/opt/camel-kit/payload", Access.READ_ONLY)),
-                    identity.aggregateDigest(), identity.archive(), identity.archiveDigest(),
-                    () -> JvmPayloadArchive.verify(identity.archive(), command.jvmPayload(), jdkDigest));
-        }
-    }
-
-    private static final class FixtureJdkResolver implements EvidenceRunner.JdkResolver {
-
-        @Override
-        public EvidenceRunner.JdkIdentity freeze(Path sandboxRoot) throws java.io.IOException {
-            Path root = Files.createDirectories(sandboxRoot.resolve("fixture-jdk"));
-            Path bin = Files.createDirectory(root.resolve("bin"));
-            Path java = Files.writeString(bin.resolve("java"), "fixture-java");
-            if (!java.toFile().setExecutable(true, true) && !Files.isExecutable(java)) {
-                throw new java.io.IOException("Could not create fixture Java executable");
-            }
-            return new EvidenceRunner.JdkIdentity(
-                    root.toRealPath(), "sha256:" + "3".repeat(64), List.of());
-        }
-    }
-
-    private static final class RecordingLauncher implements EvidenceSandboxLauncher {
-
-        private final Path executable;
-        private final Path candidateSentinel;
-        private final Path controllerSentinel;
-        private final List<Invocation> invocations = new ArrayList<>();
-        private int executionExitCode;
-        private String versionStdout = "Camel direct YAML validator 4.21.0\n";
-        private String versionStderr = "Picked up JAVA_TOOL_OPTIONS: fixture\n";
-        private int versionExitCode;
-        private boolean versionCompletes = true;
-        private boolean versionInterruptsWait;
-        private boolean versionRequiresForcibleTermination;
-        private boolean versionIgnoresForcibleTermination;
-        private boolean executionCompletes = true;
-        private boolean executionInterruptsWait;
-        private boolean executionRequiresForcibleTermination;
-        private boolean executionIgnoresForcibleTermination;
-        private AuthorityTamper executionTamper;
+        private final List<EvidenceRunner.Launch> launches = new ArrayList<>();
+        private int exitCode;
+        private boolean completes = true;
+        private boolean interruptsWait;
+        private boolean requiresForcibleTermination;
+        private boolean ignoresForcibleTermination;
         private FakeProcess lastProcess;
 
-        private RecordingLauncher(Path executable, Path candidateSentinel, Path controllerSentinel) {
-            this.executable = executable;
-            this.candidateSentinel = candidateSentinel;
-            this.controllerSentinel = controllerSentinel;
-        }
-
         @Override
-        public Identity identity() {
-            return new Identity(EvidenceRunner.SANDBOX_PROVIDER, executable);
-        }
-
-        @Override
-        public String profileId() {
-            return BubblewrapSandboxLauncher.PROFILE_ID;
-        }
-
-        @Override
-        public Process launch(Invocation invocation) throws IOException {
-            invocations.add(invocation);
-            if (candidateSentinel != null) {
-                assertFalse(invocation.exposes(candidateSentinel));
-            }
-            if (controllerSentinel != null) {
-                assertFalse(invocation.exposes(controllerSentinel));
-            }
-            boolean version = invocation.arguments().contains("--payload-version");
-            CheckedAction completionAction = !version && executionTamper != null
-                    ? () -> executionTamper.apply(invocation, executable)
-                    : null;
-            boolean completes = version ? versionCompletes : executionCompletes;
-            if (completionAction != null) {
-                completes = false;
-            }
+        public Process launch(EvidenceRunner.Launch launch) {
+            launches.add(launch);
             lastProcess = new FakeProcess(
-                    version ? versionStdout : "PASS\n",
-                    version ? versionStderr : "", version ? versionExitCode : executionExitCode,
-                    completes,
-                    version ? versionInterruptsWait : executionInterruptsWait,
-                    version ? versionRequiresForcibleTermination : executionRequiresForcibleTermination,
-                    version ? versionIgnoresForcibleTermination : executionIgnoresForcibleTermination,
-                    completionAction);
+                    "PASS\n", "", exitCode, completes, interruptsWait,
+                    requiresForcibleTermination, ignoresForcibleTermination);
             return lastProcess;
-        }
-    }
-
-    @FunctionalInterface
-    private interface CheckedAction {
-
-        void run() throws IOException;
-    }
-
-    private enum AuthorityTamper {
-        PAYLOAD_ARCHIVE,
-        TOOLCHAIN_EXECUTABLE,
-        SANDBOX_EXECUTABLE;
-
-        private void apply(Invocation invocation, Path sandboxExecutable) throws IOException {
-            switch (this) {
-                case PAYLOAD_ARCHIVE -> {
-                    Path archive = invocation.mounts().stream()
-                            .filter(mount -> "/opt/camel-kit/payload".equals(mount.target()))
-                            .findFirst().orElseThrow()
-                            .source().resolve("payload.jar");
-                    Files.delete(archive);
-                    Files.writeString(archive, "mutated-payload");
-                }
-                case TOOLCHAIN_EXECUTABLE -> Files.writeString(
-                        invocation.toolchainExecutable(), "mutated-toolchain");
-                case SANDBOX_EXECUTABLE -> Files.writeString(sandboxExecutable, "mutated-sandbox");
-            }
         }
     }
 
@@ -648,8 +424,6 @@ class EvidenceRunnerTest {
         private boolean interruptWait;
         private final boolean requiresForcibleTermination;
         private final boolean ignoresForcibleTermination;
-        private final CheckedAction completionAction;
-        private boolean completionActionRun;
         private boolean forciblyDestroyed;
 
         private FakeProcess(
@@ -659,8 +433,7 @@ class EvidenceRunnerTest {
                             boolean completes,
                             boolean interruptWait,
                             boolean requiresForcibleTermination,
-                            boolean ignoresForcibleTermination,
-                            CheckedAction completionAction) {
+                            boolean ignoresForcibleTermination) {
             this.stdout = new ByteArrayInputStream(stdout.getBytes(StandardCharsets.UTF_8));
             this.stderr = new ByteArrayInputStream(stderr.getBytes(StandardCharsets.UTF_8));
             this.exitCode = exitCode;
@@ -668,7 +441,6 @@ class EvidenceRunnerTest {
             this.interruptWait = interruptWait;
             this.requiresForcibleTermination = requiresForcibleTermination;
             this.ignoresForcibleTermination = ignoresForcibleTermination;
-            this.completionAction = completionAction;
         }
 
         @Override
@@ -700,15 +472,6 @@ class EvidenceRunnerTest {
             }
             if (Thread.interrupted()) {
                 throw new InterruptedException("fixture observed caller interruption");
-            }
-            if (completionAction != null && !completionActionRun) {
-                completionActionRun = true;
-                try {
-                    completionAction.run();
-                } catch (IOException e) {
-                    throw new AssertionError("Could not apply execution-time authority tamper", e);
-                }
-                alive = false;
             }
             return !alive;
         }

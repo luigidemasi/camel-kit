@@ -3,12 +3,6 @@ package io.github.luigidemasi.camelkit.ship.evidence;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -44,16 +38,11 @@ import io.github.luigidemasi.camelkit.ship.resolver.MavenDependencyRoot;
 import io.github.luigidemasi.camelkit.ship.resolver.ResolvedMavenArtifact;
 import io.github.luigidemasi.camelkit.ship.resolver.ShipMavenResolver;
 
-/** Resolves, freezes, and verifies a single controller-owned nested-JAR JVM payload. */
+/** Resolves and freezes a single controller-owned nested-JAR JVM payload. */
 public final class JvmPayloadArchive {
 
-    public static final String SANDBOX_ARCHIVE = "/opt/camel-kit/payload/payload.jar";
+    public static final String ARCHIVE_NAME = "payload.jar";
     public static final String BOOTSTRAP_CLASS = ShipJvmPayloadBootstrap.class.getName();
-    private static final String CENTRAL = "https://repo.maven.apache.org/maven2/";
-    private static final HttpClient CENTRAL_CLIENT = HttpClient.newBuilder()
-            .connectTimeout(java.time.Duration.ofSeconds(10))
-            .followRedirects(HttpClient.Redirect.NEVER)
-            .build();
     private static final int MAX_ARTIFACTS = 512;
     private static final long MAX_ARTIFACT_BYTES = 128L * 1024 * 1024;
     private static final long MAX_TOTAL_BYTES = 768L * 1024 * 1024;
@@ -61,7 +50,7 @@ public final class JvmPayloadArchive {
     private JvmPayloadArchive() {
     }
 
-    public static Identity materialize(Path root, JvmPayloadRequest request, String jdkDigest) throws IOException {
+    public static Path materialize(Path root, JvmPayloadRequest request) throws IOException {
         if (request == null || !request.kind().supported()) {
             String kind = request == null ? "missing" : request.kind().id();
             throw new IOException(switch (kind) {
@@ -81,23 +70,22 @@ public final class JvmPayloadArchive {
             }
         }
         List<ArtifactFile> artifacts = resolve(repository, request);
-        Path archive = payloadRoot.resolve("payload.jar");
-        return write(archive, request, jdkDigest, artifacts);
+        Path archive = payloadRoot.resolve(ARCHIVE_NAME);
+        return write(archive, request, artifacts);
     }
 
-    static Identity write(
-            Path archive, JvmPayloadRequest request, String jdkDigest, List<ArtifactFile> artifacts)
+    static Path write(
+            Path archive, JvmPayloadRequest request, List<ArtifactFile> artifacts)
             throws IOException {
         List<SourceEntry> sources = new ArrayList<>();
-        for (Class<?> type : classClosure(ShipJvmPayloadBootstrap.class, JvmPayloadLock.class)) {
+        for (Class<?> type : classClosure(ShipJvmPayloadBootstrap.class)) {
             byte[] bytes = classBytes(type);
             sources.add(SourceEntry.bytes(
-                    "bootstrap", "class:" + type.getName(), classPath(type), bytes));
+                    classPath(type), bytes));
         }
         Class<?> launcher = launcher(request);
         byte[] launcherJar = launcherJar(launcher);
-        sources.add(SourceEntry.bytes(
-                "launcher", "class:" + launcher.getName(), "lib/000-controller-launcher.jar", launcherJar));
+        sources.add(SourceEntry.bytes("lib/000-controller-launcher.jar", launcherJar));
 
         List<ArtifactFile> ordered = artifacts.stream()
                 .sorted(Comparator.comparing(ArtifactFile::identity)).toList();
@@ -105,20 +93,10 @@ public final class JvmPayloadArchive {
             ArtifactFile artifact = ordered.get(index);
             String name = safeName(artifact.artifactId()) + '-' + safeName(artifact.version()) + ".jar";
             sources.add(SourceEntry.file(
-                    "maven", artifact.identity(),
                     String.format(Locale.ROOT, "lib/%03d-%s", index + 100, name), artifact.path()));
         }
         sources.sort(Comparator.comparing(SourceEntry::path));
-        List<JvmPayloadLock.Entry> entries = sources.stream()
-                .map(SourceEntry::lockEntry).toList();
-        JvmPayloadLock lock = JvmPayloadLock.create(request, jdkDigest, entries);
-        SourceEntry lockEntry = SourceEntry.bytes(
-                "lock", "lock", JvmPayloadLock.LOCK_PATH, lock.encode());
-
-        List<SourceEntry> archiveEntries = new ArrayList<>(sources);
-        archiveEntries.add(lockEntry);
-        archiveEntries.sort(Comparator.comparing(SourceEntry::path));
-        long total = archiveEntries.stream().mapToLong(SourceEntry::size).reduce(0, Math::addExact);
+        long total = sources.stream().mapToLong(SourceEntry::size).reduce(0, Math::addExact);
         if (total > MAX_TOTAL_BYTES) {
             throw new IOException("Controller JVM payload exceeds " + MAX_TOTAL_BYTES + " bytes");
         }
@@ -127,7 +105,7 @@ public final class JvmPayloadArchive {
                 Files.newOutputStream(
                         archive, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE))) {
             zip.setLevel(0);
-            for (SourceEntry source : archiveEntries) {
+            for (SourceEntry source : sources) {
                 ZipEntry entry = new ZipEntry(source.path());
                 entry.setMethod(ZipEntry.STORED);
                 entry.setSize(source.size());
@@ -142,51 +120,37 @@ public final class JvmPayloadArchive {
         if (Files.getFileAttributeView(archive, PosixFileAttributeView.class, LinkOption.NOFOLLOW_LINKS) != null) {
             Files.setPosixFilePermissions(archive, PosixFilePermissions.fromString("r--------"));
         }
-        return verify(archive, request, jdkDigest);
+        return roundTrip(archive, sources);
     }
 
-    public static Identity verify(Path archive, JvmPayloadRequest request, String jdkDigest) throws IOException {
+    /** One write-time sanity check: the archive on disk must contain exactly what was just written. */
+    private static Path roundTrip(Path archive, List<SourceEntry> sources) throws IOException {
         Path file = regular(archive, "JVM payload archive");
         if (Files.size(file) <= 0 || Files.size(file) > MAX_TOTAL_BYTES) {
             throw new IOException("JVM payload archive has an unsafe size");
         }
-        String archiveDigest = digest(file);
-        JvmPayloadLock lock;
+        Map<String, SourceEntry> expected = new HashMap<>();
+        sources.forEach(source -> expected.put(source.path(), source));
+        Set<String> observed = new HashSet<>();
         try (ZipFile zip = new ZipFile(file.toFile())) {
-            lock = JvmPayloadLock.parse(read(zip, JvmPayloadLock.LOCK_PATH, 1024 * 1024));
-            lock.requireRequest(request);
-            if (!lock.jdkDigest().equals(jdkDigest)) {
-                throw new IOException("JVM payload JDK digest differs from the accepted controller JDK");
-            }
-            Set<String> expected = new HashSet<>();
-            expected.add(JvmPayloadLock.LOCK_PATH);
-            lock.entries().forEach(entry -> expected.add(entry.path()));
-            Set<String> observed = new HashSet<>();
-            long total = 0;
             var enumeration = zip.entries();
             while (enumeration.hasMoreElements()) {
                 ZipEntry entry = enumeration.nextElement();
-                if (entry.isDirectory() || !observed.add(entry.getName()) || !expected.contains(entry.getName())
-                        || entry.getSize() <= 0 || entry.getSize() > MAX_ARTIFACT_BYTES) {
-                    throw new IOException("JVM payload archive contains an unsafe entry: " + entry.getName());
+                SourceEntry source = expected.get(entry.getName());
+                if (entry.isDirectory() || !observed.add(entry.getName()) || source == null
+                        || entry.getSize() != source.size()) {
+                    throw new IOException("JVM payload archive contains an unexpected entry: " + entry.getName());
                 }
-                total = Math.addExact(total, entry.getSize());
-                if (total > MAX_TOTAL_BYTES) {
-                    throw new IOException("JVM payload archive exceeds the controller size bound");
-                }
-            }
-            if (!observed.equals(expected)) {
-                throw new IOException("JVM payload archive entries differ from its content lock");
-            }
-            for (JvmPayloadLock.Entry entry : lock.entries()) {
-                byte[] bytes = read(zip, entry.path(), Math.toIntExact(entry.size()));
-                if (bytes.length != entry.size() || !entry.digest().equals(digest(bytes))) {
-                    throw new IOException("JVM payload entry differs from its content lock: " + entry.path());
+                byte[] bytes = read(zip, entry.getName(), Math.toIntExact(source.size()));
+                if (!source.digest().equals(digest(bytes))) {
+                    throw new IOException("JVM payload entry differs from its written content: " + entry.getName());
                 }
             }
         }
-        String aggregate = aggregate(lock.contentDigest(), archiveDigest, jdkDigest);
-        return new Identity(file, aggregate, archiveDigest, lock);
+        if (!observed.equals(expected.keySet())) {
+            throw new IOException("JVM payload archive entries differ from the written payload");
+        }
+        return file;
     }
 
     private static List<ArtifactFile> resolve(Path repository, JvmPayloadRequest request) throws IOException {
@@ -258,7 +222,6 @@ public final class JvmPayloadArchive {
             if (size <= 0 || size > MAX_ARTIFACT_BYTES) {
                 throw new IOException("Direct JVM payload artifact has an unsafe size: " + identity);
             }
-            verifyCentralBytes(coordinate, file, size);
             total = Math.addExact(total, size);
             if (total > MAX_TOTAL_BYTES) {
                 throw new IOException("Direct JVM payload dependencies exceed the controller size limit");
@@ -279,63 +242,6 @@ public final class JvmPayloadArchive {
             if (System.getProperty(key) != null && !System.getProperty(key).isBlank()) {
                 throw new IOException("Controller JVM payload refuses repository override property " + key);
             }
-        }
-    }
-
-    private static void verifyCentralBytes(
-            MavenCoordinate artifact, Path local, long expectedSize)
-            throws IOException {
-        requireCoordinatePart(artifact.groupId(), "groupId");
-        requireCoordinatePart(artifact.artifactId(), "artifactId");
-        requireCoordinatePart(artifact.version(), "version");
-        if (!artifact.classifier().isBlank()) {
-            requireCoordinatePart(artifact.classifier(), "classifier");
-        }
-        URI uri = URI.create(CENTRAL
-                             + artifact.groupId().replace('.', '/') + '/'
-                             + artifact.artifactId() + '/' + artifact.version() + '/' + artifact.fileName());
-        HttpRequest request = HttpRequest.newBuilder(uri)
-                .timeout(java.time.Duration.ofSeconds(60))
-                .header("Accept", "application/java-archive")
-                .GET()
-                .build();
-        try {
-            HttpResponse<InputStream> response = centralClient().send(
-                    request, HttpResponse.BodyHandlers.ofInputStream());
-            if (response.statusCode() != 200 || !uri.equals(response.uri())) {
-                response.body().close();
-                throw new IOException("Authenticated Maven Central verification failed for " + artifact);
-            }
-            MessageDigest remoteDigest = sha512();
-            long remoteSize = 0;
-            try (InputStream input = response.body()) {
-                byte[] buffer = new byte[16_384];
-                int count;
-                while ((count = input.read(buffer)) != -1) {
-                    remoteSize = Math.addExact(remoteSize, count);
-                    if (remoteSize > MAX_ARTIFACT_BYTES) {
-                        throw new IOException("Authenticated Maven Central artifact exceeds the size limit");
-                    }
-                    remoteDigest.update(buffer, 0, count);
-                }
-            }
-            if (remoteSize != expectedSize
-                    || !MessageDigest.isEqual(remoteDigest.digest(), digest(local, "SHA-512"))) {
-                throw new IOException("Resolved JVM payload artifact differs from Maven Central: " + artifact);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("Interrupted while verifying authenticated Maven Central bytes", e);
-        } catch (IOException e) {
-            throw new IOException(
-                    "Could not verify authenticated Maven Central bytes for " + artifact + ": " + safeMessage(e),
-                    e);
-        }
-    }
-
-    private static void requireCoordinatePart(String value, String label) throws IOException {
-        if (value == null || !value.matches("[A-Za-z0-9_.-]+")) {
-            throw new IOException("Direct JVM payload has an unsafe Maven " + label);
         }
     }
 
@@ -467,44 +373,6 @@ public final class JvmPayloadArchive {
         return value;
     }
 
-    private static String aggregate(String contentDigest, String archiveDigest, String jdkDigest) {
-        MessageDigest digest = sha256();
-        update(digest, "camel-kit.ship.jvm-payload-identity.v1");
-        update(digest, contentDigest);
-        update(digest, archiveDigest);
-        update(digest, jdkDigest);
-        return "sha256:" + HexFormat.of().formatHex(digest.digest());
-    }
-
-    private static String digest(Path file) throws IOException {
-        MessageDigest digest = sha256();
-        try (InputStream input = Files.newInputStream(file, LinkOption.NOFOLLOW_LINKS)) {
-            byte[] buffer = new byte[16_384];
-            int count;
-            while ((count = input.read(buffer)) != -1) {
-                digest.update(buffer, 0, count);
-            }
-        }
-        return "sha256:" + HexFormat.of().formatHex(digest.digest());
-    }
-
-    private static byte[] digest(Path file, String algorithm) throws IOException {
-        MessageDigest digest;
-        try {
-            digest = MessageDigest.getInstance(algorithm);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(algorithm + " is unavailable", e);
-        }
-        try (InputStream input = Files.newInputStream(file, LinkOption.NOFOLLOW_LINKS)) {
-            byte[] buffer = new byte[16_384];
-            int count;
-            while ((count = input.read(buffer)) != -1) {
-                digest.update(buffer, 0, count);
-            }
-        }
-        return digest.digest();
-    }
-
     private static String digest(byte[] bytes) {
         return "sha256:" + HexFormat.of().formatHex(sha256().digest(bytes));
     }
@@ -517,32 +385,10 @@ public final class JvmPayloadArchive {
         }
     }
 
-    private static MessageDigest sha512() {
-        try {
-            return MessageDigest.getInstance("SHA-512");
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-512 is unavailable", e);
-        }
-    }
-
-    private static void update(MessageDigest digest, String value) {
-        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
-        digest.update(ByteBuffer.allocate(Integer.BYTES).putInt(bytes.length).array());
-        digest.update(bytes);
-    }
-
     private static String safeMessage(Throwable error) {
         return error.getMessage() == null || error.getMessage().isBlank()
                 ? error.getClass().getSimpleName()
                 : error.getMessage();
-    }
-
-    private static HttpClient centralClient() throws IOException {
-        rejectRepositoryOverrides();
-        return CENTRAL_CLIENT;
-    }
-
-    public record Identity(Path archive, String aggregateDigest, String archiveDigest, JvmPayloadLock lock) {
     }
 
     record ArtifactFile(String identity, String artifactId, String version, Path path) {
@@ -553,8 +399,6 @@ public final class JvmPayloadArchive {
     }
 
     private record SourceEntry(
-            String kind,
-            String identity,
             String path,
             long size,
             String digest,
@@ -562,15 +406,14 @@ public final class JvmPayloadArchive {
             byte[] bytes,
             Path file) {
 
-        private static SourceEntry bytes(String kind, String identity, String path, byte[] bytes) {
+        private static SourceEntry bytes(String path, byte[] bytes) {
             CRC32 crc = new CRC32();
             crc.update(bytes);
             return new SourceEntry(
-                    kind, identity, path, bytes.length, JvmPayloadArchive.digest(bytes), crc.getValue(), bytes.clone(),
-                    null);
+                    path, bytes.length, JvmPayloadArchive.digest(bytes), crc.getValue(), bytes.clone(), null);
         }
 
-        private static SourceEntry file(String kind, String identity, String path, Path file) throws IOException {
+        private static SourceEntry file(String path, Path file) throws IOException {
             Path source = regular(file, "JVM payload source");
             CRC32 crc = new CRC32();
             MessageDigest digest = sha256();
@@ -588,12 +431,8 @@ public final class JvmPayloadArchive {
                 }
             }
             return new SourceEntry(
-                    kind, identity, path, size,
+                    path, size,
                     "sha256:" + HexFormat.of().formatHex(digest.digest()), crc.getValue(), null, source);
-        }
-
-        private JvmPayloadLock.Entry lockEntry() {
-            return new JvmPayloadLock.Entry(kind, identity, path, size, digest);
         }
 
         private void writeTo(ZipOutputStream target) throws IOException {
