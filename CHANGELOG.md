@@ -32,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Ship VALIDATE runs evidence commands as direct JVMs — Bubblewrap is no longer required** — the OS-level sandbox was removed from VALIDATE in line with the Ship product boundary. Evidence commands now launch as direct child JVMs on a frozen read-only copy of the accepted candidate tree, with a scrubbed environment and a command-private home and temporary directory; network access during validation is avoided by replacing every non-direct Camel endpoint with an in-memory stub, not by OS-level sandboxing.
+  - Linux hosts no longer need `bwrap` for `camel-kit ship`; the authenticated Pi/Linux live gate likewise runs without it
+  - The internal attestation stack, the Maven Central double-download verification, and the redundant catalog artifact reader were removed with it; catalog evidence keeps its digest and length checks
+
 - **Certified Pi versions: `0.84.2` and `0.83.0`** — the bundled distribution now carries a certified-version list (`pi.supported`); Ship reports every listed version as `supported`, and each entry has completed an authenticated Pi/Linux live-gate run. `pi.version=0.84.2` is the primary install target named in guidance messages (Node stays `22.22.2`; Pi `0.84.2` requires Node `>=22.19.0`). Other detected versions still run only with `--accept-experimental`.
 
 - **Ship harness entry points now delegate to the local controller** — `/camel-ship`, `$camel-ship`, and `/skill:camel-ship` forward their arguments to the configured registered `camel-kit ship` or `camel kit ship` command instead of maintaining a prompt-owned workflow. The local controller is the sole owner of Ship stages, run state, evidence, oversight, and guarded publication.
