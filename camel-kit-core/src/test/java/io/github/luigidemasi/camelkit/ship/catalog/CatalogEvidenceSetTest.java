@@ -39,6 +39,19 @@ class CatalogEvidenceSetTest {
     }
 
     @Test
+    void constructorRejectsAMalformedSnapshotDigest() {
+        CatalogEvidenceSet valid = CatalogEvidenceSet.create(
+                TARGET, MAIN, List.of(artifact()), List.of(component("timer", RESOURCE_DIGEST)));
+
+        assertThrows(IllegalArgumentException.class, () -> new CatalogEvidenceSet(
+                CatalogEvidenceSet.SCHEMA_VERSION, TARGET, MAIN,
+                valid.artifacts(), valid.subjects(), "not-a-digest"));
+        assertThrows(IllegalArgumentException.class, () -> new CatalogEvidenceSet(
+                CatalogEvidenceSet.SCHEMA_VERSION, TARGET, MAIN,
+                valid.artifacts(), valid.subjects(), null));
+    }
+
+    @Test
     void snapshotIsDeeplyImmutableAndDigestChangesWithExactResourceBytes() {
         List<ArtifactEvidence> artifacts = new ArrayList<>(List.of(artifact()));
         List<SubjectEvidence> subjects = new ArrayList<>(List.of(component("timer", RESOURCE_DIGEST)));

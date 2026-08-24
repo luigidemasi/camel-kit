@@ -45,7 +45,7 @@ public record CatalogEvidenceSet(
         }
         Objects.requireNonNull(target, "target must not be null");
         Objects.requireNonNull(platformCoordinate, "platformCoordinate must not be null");
-        Objects.requireNonNull(digest, "digest must not be null");
+        requireDigest(digest, "snapshot");
         artifacts = boundedCopy(artifacts, 1, MAX_ARTIFACTS, "artifacts");
         subjects = boundedCopy(subjects, 1, MAX_SUBJECTS, "subjects");
     }
