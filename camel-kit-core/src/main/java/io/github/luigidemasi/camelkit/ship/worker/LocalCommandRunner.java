@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.PriorityQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -26,7 +27,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -44,16 +44,23 @@ final class LocalCommandRunner {
     private static final Path KILL = Path.of("/bin/kill");
     private static final byte[] OUTPUT_LIMIT_LOG
             = "<output-limit-exceeded>\n".getBytes(StandardCharsets.UTF_8);
+    private static final String SENSITIVE_NAME_EXPRESSION
+            = "docker[-_]?auth[-_]?config|npm[-_]?config[-_]*auth"
+              + "|password|passwd|pass|passphrase|pwd"
+              + "|secret|token|credentials?|auth(?:orization)?"
+              + "|api[-_]?key"
+              + "|access[-_]?key(?:[-_]?id)?|private[-_]?key|jwt|pat";
     private static final Pattern SENSITIVE_ASSIGNMENT = Pattern.compile(
-            "(?i)(docker[-_]?auth[-_]?config|npm[-_]?config[-_]*auth"
-                                                                        + "|password|passwd|pass|passphrase|pwd"
-                                                                        + "|secret|token|credentials?|auth(?:orization)?"
-                                                                        + "|api[-_]?key"
-                                                                        + "|access[-_]?key(?:[-_]?id)?|private[-_]?key|jwt|pat)"
+            "(?i)(" + SENSITIVE_NAME_EXPRESSION + ")"
                                                                         + "([\"']?\\s*[:=]\\s*)"
                                                                         + "(\"[^\"\\r\\n]*\"|'[^'\\r\\n]*'|[^\"'\\r\\n,}]+)");
+    private static final Pattern SENSITIVE_ASSIGNMENT_PREFIX = Pattern.compile(
+            "(?i)(" + SENSITIVE_NAME_EXPRESSION + ")"
+                                                                               + "([\"']?\\s*[:=]\\s*)(?=[^\\r\\n,}])");
     private static final Pattern AUTHORIZATION_SCHEME = Pattern.compile(
             "(?i)[\"']?\\b(Bearer|Basic)\\s+[\"']?([^\\s\"',}]+)[\"']?");
+    private static final Pattern AUTHORIZATION_PREFIX = Pattern.compile(
+            "(?i)[\"']?\\b(Bearer|Basic)\\s+[\"']?");
     private static final Pattern URL_USERINFO = Pattern.compile(
             "(?<=://)([^/@\\s]*)@");
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -307,156 +314,45 @@ final class LocalCommandRunner {
 
     static List<String> redactArguments(
             List<String> arguments, List<String> secrets) {
-        return arguments.stream().map(argument -> redact(argument, secrets)).toList();
+        List<String> redacted = arguments.stream()
+                .map(argument -> redact(argument, secrets))
+                .toList();
+        return ShipLocalStamp.redactSensitiveArguments(arguments, redacted);
     }
 
     private static String redact(String value, List<String> secrets) {
-        return redact(value, secrets, Integer.MAX_VALUE);
-    }
-
-    private static String redact(
-            String value, List<String> secrets, int maximumCharacters) {
-        List<String> literals = secretRepresentations(secrets);
-        Pattern literalPattern = null;
-        String expression = "(?:" + SENSITIVE_ASSIGNMENT.pattern() + ')'
-                            + "|(?:" + AUTHORIZATION_SCHEME.pattern() + ')'
-                            + "|(?:" + URL_USERINFO.pattern() + ')';
-        if (!literals.isEmpty()) {
-            String literalExpression = String.join(
-                    "|", literals.stream().map(Pattern::quote).toList());
-            literalPattern = Pattern.compile(literalExpression);
-            expression += "|(?:" + literalExpression + ')';
-        }
-        Matcher search = Pattern.compile("(?=(?:" + expression + "))").matcher(value);
-
-        StringBuilder redacted = new StringBuilder(
-                Math.min(value.length(), maximumCharacters));
-        int position = 0;
-        while (search.find(position)) {
-            RedactionMatch match = redactionAt(
-                    value, search.start(), literalPattern);
-            int candidateStart = match.start() + 1;
-            while (search.find(candidateStart)) {
-                RedactionMatch candidate = redactionAt(
-                        value, search.start(), literalPattern);
-                if (candidate.start() >= match.end()) {
-                    break;
-                }
-                match = new RedactionMatch(
-                        match.start(),
-                        Math.max(match.end(), candidate.end()),
-                        match.replacement());
-                candidateStart = candidate.start() + 1;
-            }
-
-            int remaining = maximumCharacters - redacted.length();
-            int unchanged = match.start() - position;
-            if (unchanged > remaining) {
-                appendPrefix(redacted, value, position, remaining);
-                return redacted.toString();
-            }
-            redacted.append(value, position, match.start());
-            if (match.replacement().length()
-                > maximumCharacters - redacted.length()) {
-                return redacted.toString();
-            }
-            redacted.append(match.replacement());
-            position = match.end();
-        }
-        appendPrefix(
-                redacted,
-                value,
-                position,
-                maximumCharacters - redacted.length());
-        return redacted.toString();
+        StringBuilder result = new StringBuilder(value.length());
+        redact(value, secrets, (part, start, end, atomic) -> {
+            result.append(part, start, end);
+            return true;
+        });
+        return result.toString();
     }
 
     private static byte[] redactBounded(
             String value, List<String> secrets, int maximumBytes) {
-        String result = redact(value, secrets, maximumBytes);
-        byte[] encoded = result.getBytes(StandardCharsets.UTF_8);
-        if (encoded.length <= maximumBytes) {
-            return encoded;
-        }
-        int end = maximumBytes;
-        while (end > 0 && (encoded[end] & 0xc0) == 0x80) {
-            end--;
-        }
-        String prefix = new String(encoded, 0, end, StandardCharsets.UTF_8);
-        for (int length = 1; length < ShipLocalStamp.REDACTED.length(); length++) {
-            if (prefix.endsWith(ShipLocalStamp.REDACTED.substring(0, length))) {
-                prefix = prefix.substring(0, prefix.length() - length);
-                break;
-            }
-        }
-        return prefix.getBytes(StandardCharsets.UTF_8);
+        BoundedUtf8Output result = new BoundedUtf8Output(maximumBytes);
+        redact(value, secrets, result::append);
+        return result.toByteArray();
     }
 
-    private static RedactionMatch redactionAt(
-            String value, int start, Pattern literalPattern) {
-        int end = start;
-        String replacement = null;
-
-        Matcher assignment = at(SENSITIVE_ASSIGNMENT, value, start);
-        if (assignment.lookingAt()) {
-            end = assignment.end();
-            replacement = redactedAssignment(assignment);
-        }
-        Matcher authorization = at(AUTHORIZATION_SCHEME, value, start);
-        if (authorization.lookingAt()) {
-            end = Math.max(end, authorization.end());
-            if (replacement == null) {
-                replacement = authorization.group(1) + " " + ShipLocalStamp.REDACTED;
+    private static void redact(
+            String value, List<String> secrets, RedactionSink output) {
+        RedactionCursor cursor = new RedactionCursor(
+                value, secretRepresentations(secrets));
+        int offset = 0;
+        while (offset < value.length()) {
+            RedactionMatch match = cursor.next(offset);
+            int unchangedEnd = match == null ? value.length() : match.start();
+            if (!output.append(value, offset, unchangedEnd, false) || match == null) {
+                return;
             }
-        }
-        Matcher url = at(URL_USERINFO, value, start);
-        if (url.lookingAt()) {
-            end = Math.max(end, url.end());
-            if (replacement == null) {
-                replacement = ShipLocalStamp.REDACTED + "@";
+            String replacement = match.replacement();
+            if (!output.append(replacement, 0, replacement.length(), true)) {
+                return;
             }
+            offset = match.end();
         }
-        if (literalPattern != null) {
-            Matcher literal = at(literalPattern, value, start);
-            if (literal.lookingAt()) {
-                end = Math.max(end, literal.end());
-                if (replacement == null) {
-                    replacement = ShipLocalStamp.REDACTED;
-                }
-            }
-        }
-        if (literalPattern != null
-                && !ShipLocalStamp.REDACTED.equals(replacement)
-                && literalPattern.matcher(replacement).find()) {
-            replacement = ShipLocalStamp.REDACTED;
-        }
-        return new RedactionMatch(start, end, replacement);
-    }
-
-    private static Matcher at(Pattern pattern, String value, int start) {
-        return pattern.matcher(value)
-                .region(start, value.length())
-                .useTransparentBounds(true);
-    }
-
-    private static void appendPrefix(
-            StringBuilder target, String value, int start, int maximumCharacters) {
-        int end = start + Math.min(maximumCharacters, value.length() - start);
-        if (end > start
-                && end < value.length()
-                && Character.isHighSurrogate(value.charAt(end - 1))
-                && Character.isLowSurrogate(value.charAt(end))) {
-            end--;
-        }
-        target.append(value, start, end);
-    }
-
-    private static String redactedAssignment(MatchResult match) {
-        String supplied = match.group(3);
-        String value = unquote(supplied);
-        String quote = value.equals(supplied) ? "" : supplied.substring(0, 1);
-        return match.group(1) + match.group(2)
-               + quote + ShipLocalStamp.REDACTED + quote;
     }
 
     private static List<String> secretRepresentations(List<String> secrets) {
@@ -906,6 +802,420 @@ final class LocalCommandRunner {
     }
 
     private record RedactionMatch(int start, int end, String replacement) {
+    }
+
+    private record CursorMatch(int source, RedactionMatch match) {
+    }
+
+    private static final class RedactionCursor {
+
+        private static final int ASSIGNMENT_SOURCE = 0;
+        private static final int AUTHORIZATION_SOURCE = 1;
+        private static final int URL_SOURCE = 2;
+        private static final int LITERAL_SOURCE = 3;
+
+        private final String value;
+        private final List<String> literals;
+        private final PriorityQueue<LiteralCursor> literalMatches;
+        private final Matcher assignment;
+        private final Matcher authorization;
+        private final Matcher url;
+        private RedactionMatch assignmentMatch;
+        private RedactionMatch authorizationMatch;
+        private RedactionMatch urlMatch;
+        private int assignmentBoundary = -1;
+        private int authorizationBoundary = -1;
+
+        private RedactionCursor(String value, List<String> literals) {
+            this.value = value;
+            this.literals = literals;
+            literalMatches = new PriorityQueue<>(
+                    Comparator.comparingInt(LiteralCursor::start)
+                            .thenComparingInt(LiteralCursor::priority));
+            for (int index = 0; index < literals.size(); index++) {
+                LiteralCursor literal = new LiteralCursor(
+                        value, literals.get(index), index);
+                literal.advance();
+                if (literal.start() >= 0) {
+                    literalMatches.add(literal);
+                }
+            }
+            assignment = SENSITIVE_ASSIGNMENT_PREFIX.matcher(value);
+            authorization = AUTHORIZATION_PREFIX.matcher(value);
+            url = URL_USERINFO.matcher(value);
+            advanceAssignment();
+            advanceAuthorization();
+            advanceUrl();
+        }
+
+        private RedactionMatch next(int offset) {
+            advanceTo(offset);
+            CursorMatch selected = earliest();
+            if (selected == null) {
+                return null;
+            }
+            RedactionMatch result = selected.match();
+            advance(selected.source());
+            while (result.end() < value.length()) {
+                selected = earliest();
+                if (selected == null || selected.match().start() >= result.end()) {
+                    break;
+                }
+                RedactionMatch candidate = selected.match();
+                result = new RedactionMatch(
+                        result.start(),
+                        Math.max(result.end(), candidate.end()),
+                        result.replacement());
+                advance(selected.source());
+            }
+            if (!ShipLocalStamp.REDACTED.equals(result.replacement())
+                    && literals.stream().anyMatch(result.replacement()::contains)) {
+                result = new RedactionMatch(
+                        result.start(), result.end(), ShipLocalStamp.REDACTED);
+            }
+            return result;
+        }
+
+        private void advanceTo(int offset) {
+            while (assignmentMatch != null && assignmentMatch.start() < offset) {
+                advanceAssignment();
+            }
+            while (authorizationMatch != null
+                    && authorizationMatch.start() < offset) {
+                advanceAuthorization();
+            }
+            while (urlMatch != null && urlMatch.start() < offset) {
+                advanceUrl();
+            }
+            while (!literalMatches.isEmpty()
+                    && literalMatches.peek().start() < offset) {
+                LiteralCursor literal = literalMatches.remove();
+                do {
+                    literal.advance();
+                } while (literal.start() >= 0 && literal.start() < offset);
+                if (literal.start() >= 0) {
+                    literalMatches.add(literal);
+                }
+            }
+        }
+
+        private CursorMatch earliest() {
+            CursorMatch result = candidate(ASSIGNMENT_SOURCE, assignmentMatch);
+            result = earlier(
+                    result,
+                    candidate(AUTHORIZATION_SOURCE, authorizationMatch));
+            result = earlier(result, candidate(URL_SOURCE, urlMatch));
+            LiteralCursor literal = literalMatches.peek();
+            if (literal != null) {
+                result = earlier(
+                        result,
+                        candidate(
+                                LITERAL_SOURCE + literal.priority(),
+                                new RedactionMatch(
+                                        literal.start(),
+                                        literal.start() + literal.length(),
+                                        ShipLocalStamp.REDACTED)));
+            }
+            return result;
+        }
+
+        private static CursorMatch candidate(
+                int source, RedactionMatch match) {
+            return match == null ? null : new CursorMatch(source, match);
+        }
+
+        private static CursorMatch earlier(
+                CursorMatch current, CursorMatch candidate) {
+            if (current == null) {
+                return candidate;
+            }
+            if (candidate == null) {
+                return current;
+            }
+            int currentStart = current.match().start();
+            int candidateStart = candidate.match().start();
+            return candidateStart < currentStart
+                    || (candidateStart == currentStart
+                            && candidate.source() < current.source())
+                                    ? candidate
+                                    : current;
+        }
+
+        private void advance(int source) {
+            switch (source) {
+                case ASSIGNMENT_SOURCE -> advanceAssignment();
+                case AUTHORIZATION_SOURCE -> advanceAuthorization();
+                case URL_SOURCE -> advanceUrl();
+                default -> advanceLiteral(source - LITERAL_SOURCE);
+            }
+        }
+
+        private void advanceAssignment() {
+            assignmentMatch = null;
+            while (assignment.find()) {
+                int valueStart = assignment.end();
+                int end = assignmentEnd(valueStart);
+                if (end <= valueStart) {
+                    continue;
+                }
+                String quote = isQuote(value.charAt(valueStart))
+                        ? value.substring(valueStart, valueStart + 1)
+                        : "";
+                assignmentMatch = new RedactionMatch(
+                        assignment.start(),
+                        end,
+                        assignment.group(1) + assignment.group(2)
+                             + quote + ShipLocalStamp.REDACTED + quote);
+                return;
+            }
+        }
+
+        private int assignmentEnd(int start) {
+            if (start >= value.length()) {
+                return -1;
+            }
+            char first = value.charAt(start);
+            if (isQuote(first)) {
+                for (int index = start + 1; index < value.length(); index++) {
+                    char current = value.charAt(index);
+                    if (current == '\r' || current == '\n') {
+                        return -1;
+                    }
+                    if (current == first) {
+                        return index + 1;
+                    }
+                }
+                return -1;
+            }
+            if (start < assignmentBoundary) {
+                return assignmentBoundary;
+            }
+            int end = start;
+            while (end < value.length()
+                    && !isAssignmentDelimiter(value.charAt(end))) {
+                end++;
+            }
+            assignmentBoundary = end;
+            return end;
+        }
+
+        private void advanceAuthorization() {
+            authorizationMatch = null;
+            while (authorization.find()) {
+                int credentialStart = authorization.end();
+                int end = authorizationEnd(credentialStart);
+                if (end <= credentialStart) {
+                    continue;
+                }
+                authorizationMatch = new RedactionMatch(
+                        authorization.start(),
+                        end,
+                        authorization.group(1) + " " + ShipLocalStamp.REDACTED);
+                return;
+            }
+        }
+
+        private int authorizationEnd(int start) {
+            if (start >= value.length()) {
+                return -1;
+            }
+            int end;
+            if (start < authorizationBoundary) {
+                end = authorizationBoundary;
+            } else {
+                end = start;
+                while (end < value.length()
+                        && !isAuthorizationDelimiter(value.charAt(end))) {
+                    end++;
+                }
+                authorizationBoundary = end;
+            }
+            if (end == start) {
+                return -1;
+            }
+            return end < value.length() && isQuote(value.charAt(end))
+                    ? end + 1
+                    : end;
+        }
+
+        private void advanceUrl() {
+            urlMatch = url.find()
+                    ? new RedactionMatch(
+                            url.start(),
+                            url.end(),
+                            ShipLocalStamp.REDACTED + "@")
+                    : null;
+        }
+
+        private void advanceLiteral(int priority) {
+            LiteralCursor literal = literalMatches.poll();
+            if (literal == null || literal.priority() != priority) {
+                throw new IllegalStateException(
+                        "Literal redaction cursor is inconsistent");
+            }
+            literal.advance();
+            if (literal.start() >= 0) {
+                literalMatches.add(literal);
+            }
+        }
+
+        private static boolean isQuote(char value) {
+            return value == '\'' || value == '"';
+        }
+
+        private static boolean isAssignmentDelimiter(char value) {
+            return isQuote(value)
+                    || value == '\r'
+                    || value == '\n'
+                    || value == ','
+                    || value == '}';
+        }
+
+        private static boolean isAuthorizationDelimiter(char value) {
+            return value == ' '
+                    || value == '\t'
+                    || value == '\n'
+                    || value == '\u000b'
+                    || value == '\f'
+                    || value == '\r'
+                    || isQuote(value)
+                    || value == ','
+                    || value == '}';
+        }
+
+        private static final class LiteralCursor {
+
+            private final String value;
+            private final String literal;
+            private final int priority;
+            private final int[] failure;
+            private int offset;
+            private int matched;
+            private int start = -1;
+
+            private LiteralCursor(
+                                  String value, String literal, int priority) {
+                this.value = value;
+                this.literal = literal;
+                this.priority = priority;
+                failure = failureTable(literal);
+            }
+
+            private void advance() {
+                start = -1;
+                while (offset < value.length()) {
+                    char current = value.charAt(offset++);
+                    while (matched > 0
+                            && literal.charAt(matched) != current) {
+                        matched = failure[matched - 1];
+                    }
+                    if (literal.charAt(matched) == current) {
+                        matched++;
+                    }
+                    if (matched == literal.length()) {
+                        start = offset - literal.length();
+                        matched = failure[matched - 1];
+                        return;
+                    }
+                }
+            }
+
+            private int start() {
+                return start;
+            }
+
+            private int priority() {
+                return priority;
+            }
+
+            private int length() {
+                return literal.length();
+            }
+
+            private static int[] failureTable(String literal) {
+                int[] result = new int[literal.length()];
+                int matched = 0;
+                for (int index = 1; index < literal.length(); index++) {
+                    char current = literal.charAt(index);
+                    while (matched > 0
+                            && literal.charAt(matched) != current) {
+                        matched = result[matched - 1];
+                    }
+                    if (literal.charAt(matched) == current) {
+                        matched++;
+                    }
+                    result[index] = matched;
+                }
+                return result;
+            }
+        }
+    }
+
+    @FunctionalInterface
+    private interface RedactionSink {
+
+        boolean append(String value, int start, int end, boolean atomic);
+    }
+
+    private static final class BoundedUtf8Output {
+
+        private final ByteArrayOutputStream output;
+        private final int maximumBytes;
+
+        private BoundedUtf8Output(int maximumBytes) {
+            this.maximumBytes = maximumBytes;
+            output = new ByteArrayOutputStream(Math.min(maximumBytes, 8192));
+        }
+
+        private boolean append(
+                String value, int start, int end, boolean atomic) {
+            if (atomic && encodedLength(value, start, end)
+                          > maximumBytes - output.size()) {
+                return false;
+            }
+            for (int index = start; index < end;) {
+                int codePoint = value.codePointAt(index);
+                int encodedBytes = codePoint <= 0x7f
+                        ? 1
+                        : codePoint <= 0x7ff ? 2 : codePoint <= 0xffff ? 3 : 4;
+                if (output.size() + encodedBytes > maximumBytes) {
+                    return false;
+                }
+                if (encodedBytes == 1) {
+                    output.write(codePoint);
+                } else if (encodedBytes == 2) {
+                    output.write(0xc0 | codePoint >> 6);
+                    output.write(0x80 | codePoint & 0x3f);
+                } else if (encodedBytes == 3) {
+                    output.write(0xe0 | codePoint >> 12);
+                    output.write(0x80 | codePoint >> 6 & 0x3f);
+                    output.write(0x80 | codePoint & 0x3f);
+                } else {
+                    output.write(0xf0 | codePoint >> 18);
+                    output.write(0x80 | codePoint >> 12 & 0x3f);
+                    output.write(0x80 | codePoint >> 6 & 0x3f);
+                    output.write(0x80 | codePoint & 0x3f);
+                }
+                index += Character.charCount(codePoint);
+            }
+            return true;
+        }
+
+        private static int encodedLength(String value, int start, int end) {
+            int length = 0;
+            for (int index = start; index < end;) {
+                int codePoint = value.codePointAt(index);
+                length += codePoint <= 0x7f
+                        ? 1
+                        : codePoint <= 0x7ff ? 2 : codePoint <= 0xffff ? 3 : 4;
+                index += Character.charCount(codePoint);
+            }
+            return length;
+        }
+
+        private byte[] toByteArray() {
+            return output.toByteArray();
+        }
     }
 
 }

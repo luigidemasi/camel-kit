@@ -188,7 +188,8 @@ class PiWorkerResultStoreTest {
     }
 
     @Test
-    void rejectsSharedStdoutAndStderrEvidence() throws Exception {
+    void rejectsMarkerWithSharedCommandEvidencePathsDuringDeserialization()
+            throws Exception {
         Path sessions = Files.createDirectory(directory.resolve("sessions"));
         PiWorker.Request request = request(RUN_A, sessions);
         PiWorker.Result original = result("shared");

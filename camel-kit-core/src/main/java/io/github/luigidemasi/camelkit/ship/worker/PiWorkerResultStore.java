@@ -232,18 +232,14 @@ final class PiWorkerResultStore {
                     "Pi stage result evidence does not match its request");
         }
 
-        Path stdout = resolveLog(
+        resolveLog(
                 evidenceDirectory,
                 evidence.stdoutLog(),
                 marker.stdoutSize());
-        Path stderr = resolveLog(
+        resolveLog(
                 evidenceDirectory,
                 evidence.stderrLog(),
                 marker.stderrSize());
-        if (stdout.equals(stderr)) {
-            throw new UntrustedResultException(
-                    "Pi stage result stdout and stderr must be distinct files");
-        }
     }
 
     private static Path normalizedAbsolute(String supplied, String label)
