@@ -517,8 +517,19 @@ public record ShipLocalStamp(
                     : argument.substring(0, separator);
             boolean positionalName = separator < 0
                     && (name.startsWith("-") || authorizationName(name));
-            if (!isSensitiveOption(name)
-                    || (separator < 0 && !positionalName)) {
+            String transformed = redacted.get(index);
+            int transformedSeparator = transformed.indexOf('=');
+            String transformedName = transformedSeparator < 0
+                    ? transformed
+                    : transformed.substring(0, transformedSeparator);
+            boolean transformedPositionalName = transformedSeparator < 0
+                    && (transformedName.startsWith("-")
+                            || authorizationName(transformedName));
+            if ((!isSensitiveOption(name)
+                    || (separator < 0 && !positionalName))
+                    && (!isSensitiveOption(transformedName)
+                            || (transformedSeparator < 0
+                                    && !transformedPositionalName))) {
                 continue;
             }
             String supplied = separator < 0
@@ -530,10 +541,13 @@ public record ShipLocalStamp(
                 continue;
             }
             if (separator < 0) {
-                redactArgument(redacted, index + 1);
+                if (index + 1 < redacted.size()) {
+                    redactArgument(redacted, index + 1);
+                } else {
+                    redacted.set(index, REDACTED);
+                }
             } else {
                 String prefix = argument.substring(0, separator + 1);
-                String transformed = redacted.get(index);
                 if (!isRedactedValue(transformed)
                         && (!transformed.startsWith(prefix)
                                 || !isRedactedValue(

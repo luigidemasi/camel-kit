@@ -955,8 +955,15 @@ final class LocalCommandRunner {
             while (assignment.find()) {
                 int valueStart = assignment.end();
                 int end = assignmentEnd(valueStart);
+                String separator = assignment.group(2);
                 if (end <= valueStart) {
-                    continue;
+                    if (valueStart == 0
+                            || !isInlineWhitespace(value.charAt(valueStart - 1))) {
+                        continue;
+                    }
+                    valueStart--;
+                    end = valueStart + 1;
+                    separator = separator.substring(0, separator.length() - 1);
                 }
                 String quote = isQuote(value.charAt(valueStart))
                         ? value.substring(valueStart, valueStart + 1)
@@ -964,7 +971,7 @@ final class LocalCommandRunner {
                 assignmentMatch = new RedactionMatch(
                         assignment.start(),
                         end,
-                        assignment.group(1) + assignment.group(2)
+                        assignment.group(1) + separator
                              + quote + ShipLocalStamp.REDACTED + quote);
                 return;
             }
@@ -1069,6 +1076,13 @@ final class LocalCommandRunner {
                     || value == '\n'
                     || value == ','
                     || value == '}';
+        }
+
+        private static boolean isInlineWhitespace(char value) {
+            return value == ' '
+                    || value == '\t'
+                    || value == '\u000b'
+                    || value == '\f';
         }
 
         private static boolean isAuthorizationDelimiter(char value) {

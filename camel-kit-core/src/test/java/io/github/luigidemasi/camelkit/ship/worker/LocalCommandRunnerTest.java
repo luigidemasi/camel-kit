@@ -351,6 +351,18 @@ class LocalCommandRunnerTest {
     }
 
     @Test
+    void redactsWhitespaceBeforeUnterminatedAssignmentQuote() throws Exception {
+        LocalCommandRunner.RetainedLog retained = LocalCommandRunner.retain(
+                "token=   \"".getBytes(StandardCharsets.UTF_8),
+                evidenceDirectory,
+                ".stdout.log",
+                4096,
+                List.of());
+
+        assertEquals("token=  <redacted>\"", Files.readString(retained.path()));
+    }
+
+    @Test
     void mergesOverlappingCredentialRedactions() throws Exception {
         List<String> output = List.of(
                 "prefix https://user:hunter2@host",
@@ -451,6 +463,22 @@ class LocalCommandRunnerTest {
                         List.of("token=abc}tail"),
                         List.of("abc}ta"),
                         List.of("token=<redacted>")),
+                new Case(
+                        List.of("passx="),
+                        List.of("token", "x"),
+                        List.of("<redacted>")),
+                new Case(
+                        List.of("jwtaba=credentials"),
+                        List.of("aba"),
+                        List.of("<redacted>")),
+                new Case(
+                        List.of("--token"),
+                        List.of(),
+                        List.of("<redacted>")),
+                new Case(
+                        List.of("-api-key:aba"),
+                        List.of("aba"),
+                        List.of("<redacted>")),
                 new Case(
                         List.of("--token=actual-secret"),
                         List.of(),
