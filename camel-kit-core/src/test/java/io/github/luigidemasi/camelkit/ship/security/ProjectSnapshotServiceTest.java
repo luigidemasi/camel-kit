@@ -705,13 +705,14 @@ class ProjectSnapshotServiceTest {
     }
 
     @Test
-    void nonSecureDirectoryStreamFailsClosed() throws Exception {
+    void nonPosixFilesystemFailsClosed() throws Exception {
         Path archive = temporaryDirectory.resolve("tree.zip");
         URI uri = URI.create("jar:" + archive.toUri());
         try (FileSystem zip = FileSystems.newFileSystem(uri, Map.of("create", "true"))) {
             Path project = Files.createDirectory(zip.getPath("/project"));
             Files.writeString(project.resolve("sentinel.txt"), "unchanged");
 
+            // zipfs does not expose the Unix mode and link-count metadata required by project inspection.
             assertCode(ShipFilesystemException.SECURE_FILESYSTEM_UNSUPPORTED,
                     () -> new ProjectSnapshotService().capture(project));
             assertEquals("unchanged", Files.readString(project.resolve("sentinel.txt")));

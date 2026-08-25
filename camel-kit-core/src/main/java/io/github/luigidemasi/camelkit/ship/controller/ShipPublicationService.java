@@ -474,9 +474,9 @@ final class ShipPublicationService {
     }
 
     /**
-     * Restores the exact baseline per journal entry. Every entry must currently match its baseline side, its candidate
-     * side, or be absent where the journal records a creation; anything else blocks recovery before any file is
-     * touched, so a live tree edited after a tear is never overwritten.
+     * Restores the exact baseline per journal entry. Every material entry's content, kind, and existence must match its
+     * baseline side, candidate side, or recorded absence before rollback changes it. Current permissions do not
+     * classify a side; surviving entries are reset to their journaled baseline permissions.
      */
     private static void rollback(Path project, Path runDirectory, Journal journal)
             throws IOException {
@@ -534,13 +534,13 @@ final class ShipPublicationService {
         // marker makes this private work mode an explicit crash-recoverable journal state.
         for (Classified item : classified) {
             Entry entry = item.entry();
-            if (item.side() != Side.CANDIDATE
-                    || entry.kind() != Kind.DIRECTORY
-                    || entry.action() == Action.DELETE) {
-                continue;
+            if (entry.kind() == Kind.DIRECTORY
+                    && (entry.action() == Action.REPLACE
+                            || entry.action() == Action.ADD
+                                    && item.side() == Side.CANDIDATE)) {
+                Files.setPosixFilePermissions(
+                        target(project, entry.path()), permissions(workMode(entry)));
             }
-            Files.setPosixFilePermissions(
-                    target(project, entry.path()), permissions(workMode(entry)));
         }
 
         // First release candidate-only quota and shrink growing replacements.

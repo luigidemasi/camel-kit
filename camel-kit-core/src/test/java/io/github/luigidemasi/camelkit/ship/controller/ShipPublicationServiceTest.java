@@ -226,6 +226,32 @@ class ShipPublicationServiceTest {
     }
 
     @Test
+    void recoversAReadOnlyReplacementDirectoryWithAChangedChild() throws Exception {
+        Fixture fixture = fixture("read-only-replacement-directory", project -> {
+            Path config = Files.createDirectory(project.resolve("config"));
+            write(config.resolve("a.txt"), "old");
+            setMode(config, "rwxr-xr-x");
+        }, candidate -> {
+            write(candidate.resolve("config/a.txt"), "new");
+            setMode(candidate.resolve("config"), "r-xr-xr-x");
+        });
+        fixture.begin();
+        ShipPublicationService.apply(
+                fixture.project(), fixture.candidate(), fixture.run(), fixture.journal());
+
+        assertEquals("new", Files.readString(fixture.live("config/a.txt")));
+        assertMode(fixture.live("config"), "r-xr-xr-x");
+
+        ShipPublicationService.recover(
+                fixture.project(), fixture.run(), RUN_ID, ATTEMPT);
+
+        assertEquals("old", Files.readString(fixture.live("config/a.txt")));
+        assertMode(fixture.live("config"), "rwxr-xr-x");
+        assertMaterialTree(fixture.baseline(), fixture.project());
+        assertFalse(ShipPublicationService.journalExists(fixture.run()));
+    }
+
+    @Test
     void blocksRecoveryWhenTheProjectRootWasReplaced() throws Exception {
         Fixture fixture = fixture("replaced-root", project -> {
             write(project.resolve("replace.txt"), "old");
