@@ -330,31 +330,18 @@ final class LocalCommandRunner {
 
     private static byte[] redactBounded(
             String value, List<String> secrets, int maximumBytes) {
-        String result = value;
         List<String> literals = secretRepresentations(secrets);
+        String expression = "(?<assignment>" + SENSITIVE_ASSIGNMENT.pattern() + ')'
+                            + "|(?<authorization>" + AUTHORIZATION_SCHEME.pattern() + ')'
+                            + "|(?<url>" + URL_USERINFO.pattern() + ')';
         if (!literals.isEmpty()) {
-            String expression = String.join(
-                    "|", literals.stream().map(Pattern::quote).toList());
-            result = replaceBounded(
-                    result,
-                    Pattern.compile(expression),
-                    match -> ShipLocalStamp.REDACTED,
-                    maximumBytes);
+            expression += "|(?<literal>" + String.join(
+                    "|", literals.stream().map(Pattern::quote).toList()) + ')';
         }
-        result = replaceBounded(
-                result,
-                SENSITIVE_ASSIGNMENT,
-                LocalCommandRunner::redactedAssignment,
-                maximumBytes);
-        result = replaceBounded(
-                result,
-                AUTHORIZATION_SCHEME,
-                match -> match.group(1) + " " + ShipLocalStamp.REDACTED,
-                maximumBytes);
-        result = replaceBounded(
-                result,
-                URL_USERINFO,
-                match -> match.group(1) + ShipLocalStamp.REDACTED + "@",
+        String result = replaceBounded(
+                value,
+                Pattern.compile(expression),
+                LocalCommandRunner::boundedReplacement,
                 maximumBytes);
         byte[] encoded = result.getBytes(StandardCharsets.UTF_8);
         if (encoded.length <= maximumBytes) {
@@ -377,7 +364,7 @@ final class LocalCommandRunner {
     private static String replaceBounded(
             String value,
             Pattern pattern,
-            Function<MatchResult, String> replacement,
+            Function<Matcher, String> replacement,
             int maximumCharacters) {
         Matcher matcher = pattern.matcher(value);
         StringBuilder bounded = new StringBuilder(
@@ -405,6 +392,31 @@ final class LocalCommandRunner {
                 position,
                 maximumCharacters - bounded.length());
         return bounded.toString();
+    }
+
+    private static String boundedReplacement(Matcher match) {
+        String assignmentValue = match.group("assignment");
+        if (assignmentValue != null) {
+            Matcher assignment = SENSITIVE_ASSIGNMENT.matcher(assignmentValue);
+            if (assignment.matches()) {
+                return redactedAssignment(assignment);
+            }
+        }
+        String authorizationValue = match.group("authorization");
+        if (authorizationValue != null) {
+            Matcher authorization = AUTHORIZATION_SCHEME.matcher(authorizationValue);
+            if (authorization.matches()) {
+                return authorization.group(1) + " " + ShipLocalStamp.REDACTED;
+            }
+        }
+        String urlValue = match.group("url");
+        if (urlValue != null) {
+            Matcher url = URL_USERINFO.matcher(urlValue);
+            if (url.matches()) {
+                return url.group(1) + ShipLocalStamp.REDACTED + "@";
+            }
+        }
+        return ShipLocalStamp.REDACTED;
     }
 
     private static void appendPrefix(

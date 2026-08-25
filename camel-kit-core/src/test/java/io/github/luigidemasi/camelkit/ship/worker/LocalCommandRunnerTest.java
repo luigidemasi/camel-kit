@@ -279,6 +279,41 @@ class LocalCommandRunnerTest {
     }
 
     @Test
+    void redactsUrlUserInfo() throws Exception {
+        LocalCommandRunner.RetainedLog retained = LocalCommandRunner.retain(
+                "proxy https://user:hunter2@host/path".getBytes(StandardCharsets.UTF_8),
+                evidenceDirectory,
+                ".stdout.log",
+                4096,
+                List.of());
+
+        assertEquals(
+                "proxy https://<redacted>@host/path",
+                Files.readString(retained.path()));
+    }
+
+    @Test
+    void redactsUrlUserInfoAcrossTheTruncationBoundary() throws Exception {
+        int maximumBytes = 1024;
+        String output = "x".repeat(1000) + "https://user:hunter2pass@h.io/p";
+
+        for (List<String> secrets : List.of(List.<String>of(), List.of("https"))) {
+            LocalCommandRunner.RetainedLog retained = LocalCommandRunner.retain(
+                    output.getBytes(StandardCharsets.UTF_8),
+                    evidenceDirectory,
+                    ".stdout.log",
+                    maximumBytes,
+                    secrets);
+            String content = Files.readString(retained.path());
+
+            assertTrue(Files.size(retained.path()) <= maximumBytes);
+            assertTrue(content.contains("https://<redacted>@"));
+            assertFalse(content.contains("user"));
+            assertFalse(content.contains("hunter2pass"));
+        }
+    }
+
+    @Test
     void rejectsPreInterruptedInvocationWithoutLaunching() {
         Thread.currentThread().interrupt();
         try {

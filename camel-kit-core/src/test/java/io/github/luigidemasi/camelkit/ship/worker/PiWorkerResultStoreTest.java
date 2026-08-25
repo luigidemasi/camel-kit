@@ -11,6 +11,7 @@ import io.github.luigidemasi.camelkit.ship.controller.ShipRun;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.CommandRun;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
@@ -167,6 +168,41 @@ class PiWorkerResultStoreTest {
                 IOException.class,
                 () -> PiWorkerResultStore.read(request))
                 .getMessage().contains("recorded size"));
+    }
+
+    @Test
+    void rejectsEvidenceLogsWithAnOversizedRecordedSize() throws Exception {
+        Path sessions = Files.createDirectory(directory.resolve("sessions"));
+        PiWorker.Request request = request(RUN_A, sessions);
+        PiWorker.Result result = result("oversized");
+        PiWorkerResultStore.write(
+                request,
+                result,
+                PiWorker.MAX_LOG_BYTES + 1L,
+                Files.size(Path.of(result.evidence().stderrLog())));
+
+        assertTrue(assertThrows(
+                IOException.class,
+                () -> PiWorkerResultStore.read(request))
+                .getMessage().contains("missing or invalid"));
+    }
+
+    @Test
+    void rejectsSharedStdoutAndStderrEvidence() throws Exception {
+        Path sessions = Files.createDirectory(directory.resolve("sessions"));
+        PiWorker.Request request = request(RUN_A, sessions);
+        PiWorker.Result original = result("shared");
+        write(request, original);
+        Path marker = marker(sessions);
+        ObjectMapper json = new ObjectMapper();
+        Files.writeString(marker, Files.readString(marker).replace(
+                json.writeValueAsString(original.evidence().stderrLog()),
+                json.writeValueAsString(original.evidence().stdoutLog())));
+
+        assertTrue(assertThrows(
+                PiWorker.UntrustedResultException.class,
+                () -> PiWorkerResultStore.read(request))
+                .getMessage().contains("malformed"));
     }
 
     @Test
