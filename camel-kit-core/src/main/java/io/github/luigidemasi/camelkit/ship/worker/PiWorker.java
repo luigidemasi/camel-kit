@@ -12,7 +12,6 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.NoSuchFileException;
@@ -22,16 +21,11 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.nio.file.attribute.UserPrincipal;
-import java.security.DigestInputStream;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -76,14 +70,12 @@ public final class PiWorker {
 
     private static final int MAX_PROMPT_BYTES = 1024 * 1024;
     static final int MAX_LOG_BYTES = 16 * 1024 * 1024;
-    private static final int MAX_SESSION_HEADER_BYTES = 64 * 1024;
     private static final long MAX_SESSION_BYTES = 64L * 1024 * 1024;
     private static final int MAX_VERSION_LENGTH = 1024;
     // Short values cannot be distinguished reliably from ordinary transcript text.
     private static final int MIN_SENSITIVE_TRANSCRIPT_MATCH_LENGTH = 8;
     private static final Duration VERSION_TIMEOUT = Duration.ofSeconds(15);
     private static final Duration ABORT_TIMEOUT = Duration.ofSeconds(5);
-    private static final Duration ABORT_DRAIN_RESERVE = Duration.ofSeconds(1);
     private static final Duration EXIT_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration IO_TIMEOUT = Duration.ofSeconds(5);
     private static final String PROMPT_ID = "prompt-1";
@@ -172,9 +164,9 @@ public final class PiWorker {
      * Executes one Pi stage. The prompt is sent as an RPC command and never appears in argv.
      *
      * <p>
-     * A validated session turn is published atomically, but that publication is not atomic with the controller's
-     * durable {@link ShipRun}. The controller must recover the result for the same run, stage, input, and attempt
-     * before starting a later attempt.
+     * A completed session is published atomically, but that publication is not atomic with the controller's durable
+     * {@link ShipRun}. The controller must recover the result for the same run, stage, input, and attempt before
+     * starting a later attempt.
      */
     public Result run(Request request) throws IOException, InterruptedException {
         Objects.requireNonNull(request, "request");
@@ -185,7 +177,7 @@ public final class PiWorker {
         requireDisjoint(workingDirectory, sessionDirectory, "working and session directories");
         requireDisjoint(workingDirectory, evidenceDirectory, "working and evidence directories");
         requireDisjoint(sessionDirectory, evidenceDirectory, "session and evidence directories");
-        UserPrincipal sessionOwner = requirePrivateSessionDirectory(sessionDirectory);
+        requirePrivateSessionDirectory(sessionDirectory);
         String prompt = requirePrompt(request.prompt());
         Set<String> sensitive = sensitiveEnvironmentValues(environment);
         List<String> sensitiveValues = List.copyOf(sensitive);
@@ -201,8 +193,7 @@ public final class PiWorker {
         boolean restoreInterrupt = false;
         try {
             String sessionId = sessionId(request);
-            sessionLock = lockSession(
-                    sessionDirectory, sessionId, sessionOwner);
+            sessionLock = lockSession(sessionDirectory, sessionId);
             nodeVersionRun = commands.run(new Command(
                     nodeExecutable,
                     List.of("--version"),
@@ -305,10 +296,9 @@ public final class PiWorker {
                                       + "; explicitly accept experimental Pi or Node before starting the stage");
             }
 
-            cleanupAbandonedScratch(sessionDirectory, sessionId, sessionOwner);
+            cleanupAbandonedScratch(sessionDirectory, sessionId);
             SessionState previousSession = snapshotExistingSession(
-                    sessionDirectory, sessionId, workingDirectory, sessionOwner);
-            refuseCompletedTurnReplay(previousSession.transcript(), prompt);
+                    sessionDirectory, sessionId);
             ScratchSession scratch = createScratch(
                     sessionDirectory, sessionId, previousSession);
             scratchDirectory = scratch.directory();
@@ -320,7 +310,6 @@ public final class PiWorker {
                     sessionDirectory,
                     evidenceDirectory,
                     sessionId,
-                    sessionOwner,
                     scratch.previous(),
                     previousSession,
                     prompt,
@@ -385,7 +374,11 @@ public final class PiWorker {
             versionRun.deleteLogs();
             versionLogsDeleted = true;
             if (turn.validatedSession() != null) {
-                PiWorkerResultStore.write(request, result);
+                PiWorkerResultStore.write(
+                        request,
+                        result,
+                        turn.stdoutSize(),
+                        turn.stderrSize());
                 try {
                     publishSession(
                             turn.validatedSession(),
@@ -499,9 +492,9 @@ public final class PiWorker {
         Request requested = Objects.requireNonNull(request, "request");
         Path sessionDirectory = realDirectory(
                 requested.sessionDirectory(), "Pi session directory");
-        UserPrincipal owner = requirePrivateSessionDirectory(sessionDirectory);
+        requirePrivateSessionDirectory(sessionDirectory);
         SessionLock lock = lockSession(
-                sessionDirectory, sessionId(requested), owner);
+                sessionDirectory, sessionId(requested));
         try {
             return new Recovery(
                     PiWorkerResultStore.read(requested),
@@ -523,7 +516,6 @@ public final class PiWorker {
             Path canonicalSessionDirectory,
             Path evidenceDirectory,
             String sessionId,
-            UserPrincipal sessionOwner,
             SessionState previousSession,
             SessionState canonicalPreviousSession,
             String prompt,
@@ -707,10 +699,7 @@ public final class PiWorker {
                 validatedSession = validatePersistedSession(
                         sessionDirectory,
                         sessionId,
-                        workingDirectory,
-                        sessionOwner,
                         previousSession,
-                        prompt,
                         completedTurn);
             } else {
                 if (!awaitExit(process, EXIT_TIMEOUT)
@@ -784,8 +773,10 @@ public final class PiWorker {
                     exitCode,
                     retainedStdout.path(),
                     retainedStdout.digest(),
+                    retainedStdout.size(),
                     retainedStderr.path(),
                     retainedStderr.digest(),
+                    retainedStderr.size(),
                     naturalCompletion
                             ? completedTurn.terminal().text()
                             : null,
@@ -844,60 +835,8 @@ public final class PiWorker {
                     validatedSession = validatePersistedSession(
                             sessionDirectory,
                             sessionId,
-                            workingDirectory,
-                            sessionOwner,
                             previousSession,
-                            prompt,
                             reconciliation.turn());
-                    if (process.exitValue() == 0
-                            && reconciliation.naturalCompletion()
-                            && !outputLimited
-                            && !stdout.protocolUnverifiable()
-                            && protocolFailure == null) {
-                        List<String> stdoutSecrets = new ArrayList<>(
-                                sensitiveValues.size() + 1);
-                        stdoutSecrets.add(prompt);
-                        stdoutSecrets.addAll(sensitiveValues);
-                        RetainedLog retainedStdout = LocalCommandRunner.retain(
-                                stdout.safeBytes(),
-                                evidenceDirectory,
-                                ".stdout.log",
-                                MAX_LOG_BYTES,
-                                stdoutSecrets);
-                        RetainedLog retainedStderr;
-                        try {
-                            retainedStderr = LocalCommandRunner.retain(
-                                    stderr.metadata(),
-                                    evidenceDirectory,
-                                    ".stderr.log",
-                                    MAX_LOG_BYTES,
-                                    sensitiveValues);
-                        } catch (IOException | RuntimeException retentionFailure) {
-                            Files.deleteIfExists(retainedStdout.path());
-                            throw retentionFailure;
-                        }
-                        Instant endedAt = clock.instant();
-                        if (endedAt.isBefore(startedAt)) {
-                            endedAt = startedAt;
-                        }
-                        interrupted = false;
-                        completedNormally = true;
-                        return new RpcRun(
-                                startedAt,
-                                endedAt,
-                                false,
-                                false,
-                                0,
-                                retainedStdout.path(),
-                                retainedStdout.digest(),
-                                retainedStderr.path(),
-                                retainedStderr.digest(),
-                                reconciliation.turn().terminal().text(),
-                                reconciliation.turn().terminal().stopReason(),
-                                null,
-                                validatedSession,
-                                true);
-                    }
                     if (process.exitValue() == 0
                             && !reconciliation.naturalCompletion()
                             && !stdout.protocolUnverifiable()
@@ -992,27 +931,7 @@ public final class PiWorker {
                     close(process.getOutputStream());
                     inputClosed = true;
                 }
-                if (!inputClosed
-                        && lifecycle.shouldDisposeTerminal()
-                        && abortRemaining
-                           <= ABORT_DRAIN_RESERVE.toNanos()) {
-                    if (promptWriter.isDone()
-                            && (abortWriter == null
-                                    || abortWriter.isDone())) {
-                        if (abortWriter != null
-                                && completedFailureUninterruptibly(
-                                        abortWriter,
-                                        "Could not send the Pi abort")
-                                   != null) {
-                            return null;
-                        }
-                        close(process.getOutputStream());
-                        inputClosed = true;
-                    }
-                }
                 if (abortWriter == null
-                        && abortRemaining
-                           > ABORT_DRAIN_RESERVE.toNanos()
                         && lifecycle.shouldIssueAbort()
                         && promptWriter.isDone()
                         && process.isAlive()) {
@@ -1502,27 +1421,16 @@ public final class PiWorker {
         }
     }
 
-    private static UserPrincipal requirePrivateSessionDirectory(Path directory)
+    private static void requirePrivateSessionDirectory(Path directory)
             throws IOException {
-        String userName = System.getProperty("user.name");
-        if (userName == null || userName.isBlank()) {
-            throw new IOException("Could not determine the current user for the Pi session directory");
-        }
-        UserPrincipal currentUser = FileSystems.getDefault()
-                .getUserPrincipalLookupService()
-                .lookupPrincipalByName(userName);
-        if (!currentUser.equals(Files.getOwner(directory, LinkOption.NOFOLLOW_LINKS))) {
-            throw new IOException("Pi session directory must be owned by the current user");
-        }
         if (!PRIVATE_DIRECTORY.equals(
                 Files.getPosixFilePermissions(directory, LinkOption.NOFOLLOW_LINKS))) {
             throw new IOException("Pi session directory permissions must be 0700");
         }
-        return currentUser;
     }
 
     private static SessionLock lockSession(
-            Path directory, String sessionId, UserPrincipal owner)
+            Path directory, String sessionId)
             throws IOException {
         Path path = directory.resolve("." + sessionId + ".lock");
         if (Files.isSymbolicLink(path)) {
@@ -1536,10 +1444,9 @@ public final class PiWorker {
                         LinkOption.NOFOLLOW_LINKS),
                 PosixFilePermissions.asFileAttribute(PRIVATE_FILE));
         try {
-            if (!owner.equals(Files.getOwner(path, LinkOption.NOFOLLOW_LINKS))
-                    || !PRIVATE_FILE.equals(
-                            Files.getPosixFilePermissions(path, LinkOption.NOFOLLOW_LINKS))) {
-                throw new IOException("Pi stage session lock must be owned by the current user and 0600");
+            if (!PRIVATE_FILE.equals(
+                    Files.getPosixFilePermissions(path, LinkOption.NOFOLLOW_LINKS))) {
+                throw new IOException("Pi stage session lock permissions must be 0600");
             }
             FileLock lock;
             try {
@@ -1558,21 +1465,13 @@ public final class PiWorker {
     }
 
     private static void cleanupAbandonedScratch(
-            Path directory, String sessionId, UserPrincipal owner)
+            Path directory, String sessionId)
             throws IOException {
         String prefix = SCRATCH_PREFIX + sessionId + "-";
         try (DirectoryStream<Path> entries = Files.newDirectoryStream(directory)) {
             for (Path entry : entries) {
                 if (!entry.getFileName().toString().startsWith(prefix)) {
                     continue;
-                }
-                if (Files.isSymbolicLink(entry)
-                        || !Files.isDirectory(entry, LinkOption.NOFOLLOW_LINKS)
-                        || !owner.equals(Files.getOwner(entry, LinkOption.NOFOLLOW_LINKS))
-                        || !PRIVATE_DIRECTORY.equals(
-                                Files.getPosixFilePermissions(
-                                        entry, LinkOption.NOFOLLOW_LINKS))) {
-                    throw new IOException("Pi stage scratch directory is unsafe");
                 }
                 deleteTree(entry);
             }
@@ -1592,8 +1491,7 @@ public final class PiWorker {
             if (previous.file() == null) {
                 return new ScratchSession(
                         scratch,
-                        new SessionState(
-                                null, 0, null, previous.transcript()));
+                        new SessionState(null, 0));
             }
             Path copy = scratch.resolve(previous.file().getFileName());
             Files.copy(
@@ -1605,9 +1503,7 @@ public final class PiWorker {
                     scratch,
                     new SessionState(
                             copy,
-                            previous.size(),
-                            previous.digest(),
-                            previous.transcript()));
+                            previous.size()));
         } catch (IOException | RuntimeException e) {
             try {
                 deleteTree(scratch);
@@ -1670,9 +1566,6 @@ public final class PiWorker {
         if (attributes == null) {
             return;
         }
-        if (attributes.isSymbolicLink()) {
-            throw new IOException("Pi scratch cleanup refused a symbolic link");
-        }
         if (attributes.isDirectory()) {
             try (DirectoryStream<Path> entries = Files.newDirectoryStream(path)) {
                 for (Path entry : entries) {
@@ -1685,40 +1578,27 @@ public final class PiWorker {
 
     private static SessionState snapshotExistingSession(
             Path directory,
-            String sessionId,
-            Path workingDirectory,
-            UserPrincipal owner)
+            String sessionId)
             throws IOException {
-        List<Path> matches = sessionFiles(directory, sessionId, owner, true);
+        List<Path> matches = sessionFiles(directory, sessionId, true);
         if (matches.size() > 1) {
             throw new IOException("Pi stage session ID is ambiguous");
         }
         if (matches.isEmpty()) {
-            return new SessionState(
-                    null,
-                    0,
-                    null,
-                    new SessionTranscript(null, List.of()));
+            return new SessionState(null, 0);
         }
         Path file = matches.get(0);
-        long size = boundedSessionSize(file);
-        SessionTranscript transcript = parseSession(
-                file, size, sessionId, workingDirectory);
-        return new SessionState(
-                file, size, fileDigest(file, size), transcript);
+        return new SessionState(file, boundedSessionSize(file));
     }
 
     private Path validatePersistedSession(
             Path directory,
             String sessionId,
-            Path workingDirectory,
-            UserPrincipal owner,
             SessionState previous,
-            String prompt,
             CompletedTurn turn)
             throws IOException {
         Objects.requireNonNull(turn, "turn");
-        List<Path> matches = sessionFiles(directory, sessionId, owner, false);
+        List<Path> matches = sessionFiles(directory, sessionId, false);
         if (matches.size() != 1) {
             throw new IOException("Pi did not persist exactly one stage session");
         }
@@ -1727,120 +1607,59 @@ public final class PiWorker {
             throw new IOException("Pi replaced the existing stage session");
         }
         long size = boundedSessionSize(file);
+        if (size == 0) {
+            throw new IOException("Pi stage session has an invalid size");
+        }
         if (previous.file() != null) {
             if (size <= previous.size()) {
                 throw new IOException("Pi did not append the current stage turn");
             }
-            if (!previous.digest().equals(fileDigest(file, previous.size()))) {
-                throw new IOException("Pi rewrote the existing stage session");
-            }
         }
-        SessionTranscript transcript = parseSession(
-                file, size, sessionId, workingDirectory);
-        validatePersistedTurn(previous, transcript, prompt, turn);
-        rejectSensitiveEnvironmentValues(transcript, turn);
+        rejectSensitiveEnvironmentValues(turn);
         return file;
     }
 
-    private static void validatePersistedTurn(
-            SessionState previous,
-            SessionTranscript transcript,
-            String prompt,
-            CompletedTurn turn)
+    private static List<Path> sessionFiles(
+            Path directory,
+            String sessionId,
+            boolean canonical)
             throws IOException {
-        List<JsonNode> entries = transcript.entries();
-        int prefix = previous.transcript().entries().size();
-        if (previous.file() == null) {
-            if (transcript.header() == null
-                    || entries.size() < 2
-                    || !"model_change".equals(entries.get(0).path("type").textValue())
-                    || !"thinking_level_change".equals(
-                            entries.get(1).path("type").textValue())) {
-                throw new IOException(
-                        "Pi new stage session has an invalid model/thinking bootstrap");
-            }
-            prefix = 2;
-        } else if (!previous.transcript().header().equals(transcript.header())
-                || entries.size() < prefix
-                || !previous.transcript().entries().equals(
-                        entries.subList(0, prefix))) {
-            throw new IOException("Pi rewrote the existing stage session records");
-        }
-
-        List<ExpectedRecord> expected = turn.records();
-        if (previous.file() == null
-                && (expected.isEmpty()
-                        || !"message".equals(expected.get(0).type())
-                        || !"user".equals(
-                                expected.get(0).value().path("role").textValue()))) {
-            throw new IOException(
-                    "Pi new stage session persisted a record before its prompt");
-        }
-        if (entries.size() - prefix != expected.size()) {
-            throw new IOException(
-                    "Pi persisted records that do not match the ordered RPC results");
-        }
-        for (int index = 0; index < expected.size(); index++) {
-            JsonNode entry = entries.get(prefix + index);
-            ExpectedRecord record = expected.get(index);
-            if (!record.type().equals(entry.path("type").textValue())
-                    || !matchesExpectedRecord(entry, record)) {
-                throw new IOException(
-                        "Pi persisted records that do not match the ordered RPC results");
-            }
-        }
-
-        boolean userSeen = false;
-        for (ExpectedRecord record : expected) {
-            if (!"message".equals(record.type())) {
-                continue;
-            }
-            String role = record.value().path("role").textValue();
-            if ("user".equals(role)) {
-                if (userSeen
-                        || !matchesPrompt(
-                                record.value().path("content"), prompt)) {
-                    throw new IOException(
-                            "Pi persisted an unrelated current stage prompt");
+        List<Path> matches = new ArrayList<>(2);
+        String suffix = "_" + sessionId + ".jsonl";
+        try (DirectoryStream<Path> files = Files.newDirectoryStream(directory)) {
+            for (Path file : files) {
+                String name = file.getFileName().toString();
+                if (!name.endsWith(suffix)) {
+                    continue;
                 }
-                userSeen = true;
-            } else if (!userSeen) {
-                throw new IOException(
-                        "Pi persisted a message before the current stage prompt");
+                if (Files.isSymbolicLink(file)) {
+                    throw new IOException("Pi stage session must not be a symbolic link");
+                }
+                if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
+                    throw new IOException(
+                            "Pi stage session must be a regular file");
+                }
+                if (canonical
+                        && !PRIVATE_FILE.equals(
+                                Files.getPosixFilePermissions(
+                                        file,
+                                        LinkOption.NOFOLLOW_LINKS))) {
+                    throw new IOException(
+                            "Pi stage session permissions must be 0600");
+                }
+                matches.add(file.toAbsolutePath().normalize());
+                if (matches.size() > 1) {
+                    break;
+                }
             }
         }
-        if (!userSeen) {
-            throw new IOException("Pi did not persist the current stage prompt");
-        }
-        Terminal terminal = turn.terminal();
-        JsonNode lastMessage = null;
-        for (ExpectedRecord record : expected) {
-            if ("message".equals(record.type())) {
-                lastMessage = record.value();
-            }
-        }
-        if (lastMessage == null || !terminal.assistant().equals(lastMessage)) {
-            throw new IOException(
-                    "Pi persisted terminal content that does not match the RPC result");
-        }
+        return matches;
     }
 
-    private static boolean matchesExpectedRecord(
-            JsonNode entry, ExpectedRecord expected) {
-        if ("message".equals(expected.type())) {
-            return expected.value().equals(entry.path("message"));
-        }
-        if (!"compaction".equals(expected.type())) {
-            return false;
-        }
-        JsonNode value = expected.value();
-        return value.path("summary").equals(entry.path("summary"))
-                && value.path("firstKeptEntryId").equals(
-                        entry.path("firstKeptEntryId"))
-                && value.path("tokensBefore").equals(entry.path("tokensBefore"))
-                && value.path("details").equals(entry.path("details"))
-                && entry.path("fromHook").isBoolean()
-                && !entry.path("fromHook").booleanValue();
+    private static boolean isNonBlankText(JsonNode value) {
+        return value != null
+                && value.isTextual()
+                && !value.textValue().isBlank();
     }
 
     private static boolean matchesPrompt(JsonNode content, String prompt) {
@@ -1862,283 +1681,15 @@ public final class PiWorker {
         return prompt.contentEquals(text);
     }
 
-    private static List<Path> sessionFiles(
-            Path directory,
-            String sessionId,
-            UserPrincipal owner,
-            boolean canonical)
-            throws IOException {
-        List<Path> matches = new ArrayList<>(2);
-        String suffix = "_" + sessionId + ".jsonl";
-        try (DirectoryStream<Path> files = Files.newDirectoryStream(directory)) {
-            for (Path file : files) {
-                String name = file.getFileName().toString();
-                if (!name.endsWith(suffix)) {
-                    continue;
-                }
-                if (Files.isSymbolicLink(file)) {
-                    throw new IOException("Pi stage session must not be a symbolic link");
-                }
-                if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)
-                        || !owner.equals(
-                                Files.getOwner(file, LinkOption.NOFOLLOW_LINKS))) {
-                    throw new IOException(
-                            "Pi stage session must be a regular file owned by the current user");
-                }
-                if (canonical
-                        && !PRIVATE_FILE.equals(
-                                Files.getPosixFilePermissions(
-                                        file,
-                                        LinkOption.NOFOLLOW_LINKS))) {
-                    throw new IOException(
-                            "Pi stage session permissions must be 0600");
-                }
-                matches.add(file.toAbsolutePath().normalize());
-                if (matches.size() > 1) {
-                    break;
-                }
-            }
-        }
-        return matches;
-    }
-
-    private static SessionTranscript parseSession(
-            Path file,
-            long expectedSize,
-            String sessionId,
-            Path workingDirectory)
-            throws IOException {
-        if (Files.isSymbolicLink(file)
-                || !Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
-            throw new IOException("Pi stage session must be a real JSONL file");
-        }
-        byte[] bytes = new byte[Math.toIntExact(expectedSize)];
-        try (InputStream input = Files.newInputStream(
-                file, StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS)) {
-            if (input.readNBytes(bytes, 0, bytes.length) != bytes.length
-                    || input.read() != -1) {
-                throw new IOException(
-                        "Pi stage session changed while it was inspected");
-            }
-        }
-        int headerEnd = 0;
-        while (headerEnd < bytes.length && bytes[headerEnd] != '\n') {
-            headerEnd++;
-        }
-        int headerBytes = headerEnd;
-        if (headerBytes > 0 && bytes[headerBytes - 1] == '\r') {
-            headerBytes--;
-        }
-        if (headerBytes > MAX_SESSION_HEADER_BYTES) {
-            throw new IOException(
-                    "Pi stage session header exceeds its size limit");
-        }
-        String jsonl = decodeStrict(bytes);
-        String[] lines = jsonl.split("\n", -1);
-        List<JsonNode> records = new ArrayList<>(lines.length);
-        for (int index = 0; index < lines.length; index++) {
-            String line = lines[index];
-            if (line.endsWith("\r")) {
-                line = line.substring(0, line.length() - 1);
-            }
-            if (line.isEmpty() && index == lines.length - 1) {
-                continue;
-            }
-            if (line.isBlank()) {
-                throw new IOException("Pi stage session contains a blank JSONL record");
-            }
-            JsonNode record;
-            try {
-                record = JSON.readTree(line);
-            } catch (IOException e) {
-                throw new IOException(
-                        "Pi stage session contains a malformed JSONL record");
-            }
-            if (record == null || !record.isObject()) {
-                throw new IOException(
-                        "Pi stage session contains a malformed JSONL record");
-            }
-            records.add(record);
-        }
-        if (records.isEmpty()) {
-            throw new IOException("Pi stage session has no JSONL header");
-        }
-        JsonNode header = records.remove(0);
-        if (header == null
-                || !header.isObject()
-                || header.size() != 5
-                || !"session".equals(header.path("type").textValue())
-                || !header.path("version").isIntegralNumber()
-                || header.path("version").longValue() != 3
-                || !sessionId.equals(header.path("id").textValue())
-                || !isNonBlankText(header.path("timestamp"))
-                || !workingDirectory.toString().equals(header.path("cwd").textValue())) {
-            throw new IOException("Pi stage session header does not match this stage");
-        }
-        if (records.isEmpty()) {
-            throw new IOException("Pi stage session has no persisted turn records");
-        }
-        validateLinearEntries(records);
-        List<JsonNode> entries = new ArrayList<>(records.size());
-        for (JsonNode record : records) {
-            entries.add(record.deepCopy());
-        }
-        return new SessionTranscript(
-                header.deepCopy(),
-                List.copyOf(entries));
-    }
-
-    private static void validateLinearEntries(List<JsonNode> entries)
-            throws IOException {
-        Set<String> ids = new HashSet<>();
-        String parent = null;
-        for (int index = 0; index < entries.size(); index++) {
-            JsonNode entry = entries.get(index);
-            if (entry == null
-                    || !entry.isObject()
-                    || !isNonBlankText(entry.path("id"))
-                    || !isNonBlankText(entry.path("timestamp"))) {
-                throw new IOException("Pi stage session has an invalid entry");
-            }
-            String id = entry.path("id").textValue();
-            if (ids.contains(id)) {
-                throw new IOException("Pi stage session has a duplicate entry ID");
-            }
-            JsonNode parentId = entry.get("parentId");
-            if ((index == 0 && (parentId == null || !parentId.isNull()))
-                    || (index > 0
-                            && (parentId == null
-                                    || !parentId.isTextual()
-                                    || !parent.equals(parentId.textValue())))) {
-                throw new IOException(
-                        "Pi stage session entries do not form one linear chain");
-            }
-
-            String type = entry.path("type").textValue();
-            switch (type == null ? "" : type) {
-                case "model_change" -> {
-                    if (index != 0
-                            || entry.size() != 6
-                            || !isNonBlankText(entry.path("provider"))
-                            || !isNonBlankText(entry.path("modelId"))) {
-                        throw new IOException(
-                                "Pi stage session has an invalid model bootstrap");
-                    }
-                }
-                case "thinking_level_change" -> {
-                    if (index != 1
-                            || entry.size() != 5
-                            || !"model_change".equals(
-                                    entries.get(0).path("type").textValue())
-                            || !isNonBlankText(entry.path("thinkingLevel"))) {
-                        throw new IOException(
-                                "Pi stage session has an invalid thinking bootstrap");
-                    }
-                }
-                case "message" -> validateMessageEntry(entry, index);
-                case "compaction" -> validateCompactionEntry(entry, ids);
-                default -> throw new IOException(
-                        "Pi stage session contains an unsupported entry type");
-            }
-            ids.add(id);
-            parent = id;
-        }
-        if (entries.size() < 2
-                || !"model_change".equals(entries.get(0).path("type").textValue())
-                || !"thinking_level_change".equals(
-                        entries.get(1).path("type").textValue())) {
-            throw new IOException(
-                    "Pi stage session has an invalid model/thinking bootstrap");
-        }
-    }
-
-    private static void validateMessageEntry(JsonNode entry, int index)
-            throws IOException {
-        JsonNode message = entry.get("message");
-        String role = message == null ? null : message.path("role").textValue();
-        if (index < 2
-                || entry.size() != 5
-                || message == null
-                || !message.isObject()
-                || (!"user".equals(role)
-                        && !"assistant".equals(role)
-                        && !"toolResult".equals(role))
-                || message.get("content") == null) {
-            throw new IOException("Pi stage session has an invalid message entry");
-        }
-        if ("assistant".equals(role)
-                && !isNonBlankText(message.path("stopReason"))) {
-            throw new IOException(
-                    "Pi stage session has an assistant without a stop reason");
-        }
-    }
-
-    private static void validateCompactionEntry(
-            JsonNode entry, Set<String> priorIds)
-            throws IOException {
-        String firstKept = entry.path("firstKeptEntryId").textValue();
-        if (entry.size() != 9
-                || !isNonBlankText(entry.path("summary"))
-                || firstKept == null
-                || !priorIds.contains(firstKept)
-                || !entry.path("tokensBefore").isIntegralNumber()
-                || entry.path("tokensBefore").longValue() < 0
-                || entry.get("details") == null
-                || !entry.path("fromHook").isBoolean()
-                || entry.path("fromHook").booleanValue()) {
-            throw new IOException("Pi stage session has an invalid compaction entry");
-        }
-    }
-
-    private static boolean isNonBlankText(JsonNode value) {
-        return value != null
-                && value.isTextual()
-                && !value.textValue().isBlank();
-    }
-
-    private static void refuseCompletedTurnReplay(
-            SessionTranscript transcript, String prompt)
-            throws IOException {
-        if (transcript == null || transcript.entries().isEmpty()) {
-            return;
-        }
-        JsonNode lastUser = null;
-        JsonNode lastAssistant = null;
-        for (JsonNode entry : transcript.entries()) {
-            if (!"message".equals(entry.path("type").textValue())) {
-                continue;
-            }
-            JsonNode message = entry.path("message");
-            String role = message.path("role").textValue();
-            if ("user".equals(role)) {
-                lastUser = message;
-                lastAssistant = null;
-            } else if (lastUser != null && "assistant".equals(role)) {
-                lastAssistant = message;
-            }
-        }
-        if (lastUser != null
-                && lastAssistant != null
-                && matchesPrompt(lastUser.path("content"), prompt)
-                && "stop".equals(
-                        lastAssistant.path("stopReason").textValue())) {
-            throw new IOException(
-                    "Pi completed turn requires controller recovery before another attempt");
-        }
-    }
-
     private void rejectSensitiveEnvironmentValues(
-            SessionTranscript transcript, CompletedTurn turn)
+            CompletedTurn turn)
             throws IOException {
         Set<String> sensitive = sensitiveEnvironmentValues(environment);
         if (sensitive.isEmpty()) {
             return;
         }
-        if (containsSensitiveValue(transcript.header(), sensitive)) {
-            throw sensitiveOutput();
-        }
-        for (JsonNode entry : transcript.entries()) {
-            if (containsSensitiveValue(entry, sensitive)) {
+        for (ExpectedRecord record : turn.records()) {
+            if (containsSensitiveValue(record.value(), sensitive)) {
                 throw sensitiveOutput();
             }
         }
@@ -2213,30 +1764,6 @@ public final class PiWorker {
             throw new IOException("Pi stage session exceeds its size limit");
         }
         return size;
-    }
-
-    private static String fileDigest(Path file, long length) throws IOException {
-        MessageDigest digest;
-        try {
-            digest = MessageDigest.getInstance("SHA-256");
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 is unavailable", e);
-        }
-        try (InputStream input = new DigestInputStream(
-                Files.newInputStream(
-                        file, StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS),
-                digest)) {
-            byte[] buffer = new byte[8192];
-            long remaining = length;
-            while (remaining > 0) {
-                int read = input.read(buffer, 0, (int) Math.min(buffer.length, remaining));
-                if (read < 0) {
-                    throw new IOException("Pi stage session changed while it was inspected");
-                }
-                remaining -= read;
-            }
-        }
-        return "sha256:" + HexFormat.of().formatHex(digest.digest());
     }
 
     private static void requireLinux() {
@@ -2570,10 +2097,6 @@ public final class PiWorker {
                             || !terminalMatchesLastMessage());
         }
 
-        boolean shouldDisposeTerminal() {
-            return !settled && authoritativeTerminal();
-        }
-
         void markAbortIssued() {
             abortIssued = true;
         }
@@ -2889,14 +2412,12 @@ public final class PiWorker {
                 "message_update", "tool_execution_update");
 
         private final int limit;
-        private final BlockingQueue<Frame> frames = new LinkedBlockingQueue<>();
+        private final BlockingQueue<Frame> frames = new LinkedBlockingQueue<>(
+                QUEUE_CAPACITY + 1);
         private final ByteArrayOutputStream safe = new ByteArrayOutputStream(8192);
         private final AtomicBoolean limited = new AtomicBoolean();
         private final AtomicBoolean protocolUnverifiable = new AtomicBoolean();
-        private long primaryMaterialBytes;
-        private long recoveryMaterialBytes;
-        private long queuedBytes;
-        private int queuedFrames;
+        private long materialBytes;
         private boolean settled;
 
         private RpcOutput(int limit) {
@@ -2926,7 +2447,7 @@ public final class PiWorker {
             if (line.size() > 0 || lineLimited) {
                 emit(line.toByteArray(), lineLimited, false);
             }
-            frames.offer(Frame.end());
+            frames.add(Frame.end());
         }
 
         private void emit(byte[] bytes, boolean truncated, boolean terminated)
@@ -2966,19 +2487,17 @@ public final class PiWorker {
             }
             appendRetained(retained);
             appendRetained(new byte[]{'\n'});
-            offer(Frame.event(event, rawBytes));
+            offer(Frame.event(event));
             settled |= "agent_settled".equals(type);
         }
 
         private boolean admitMaterial(long rawBytes) {
-            if (!limited.get()
-                    && primaryMaterialBytes <= limit - rawBytes) {
-                primaryMaterialBytes += rawBytes;
-                return true;
-            }
-            limited.set(true);
-            if (recoveryMaterialBytes <= limit - rawBytes) {
-                recoveryMaterialBytes += rawBytes;
+            long budget = 2L * limit;
+            if (rawBytes <= budget - materialBytes) {
+                materialBytes += rawBytes;
+                if (materialBytes > limit) {
+                    limited.set(true);
+                }
                 return true;
             }
             markUnverifiableLimit();
@@ -2992,22 +2511,10 @@ public final class PiWorker {
             }
         }
 
-        private synchronized void offer(Frame frame) {
-            long rawBytes = frame.rawBytes();
-            if (queuedFrames >= QUEUE_CAPACITY
-                    || queuedBytes > limit - rawBytes) {
+        private void offer(Frame frame) {
+            if (frames.size() >= QUEUE_CAPACITY
+                    || !frames.offer(frame)) {
                 markUnverifiableLimit();
-                return;
-            }
-            queuedFrames++;
-            queuedBytes += rawBytes;
-            frames.offer(frame);
-        }
-
-        private synchronized void release(Frame frame) {
-            if (!frame.endOfStream()) {
-                queuedFrames--;
-                queuedBytes -= frame.rawBytes();
             }
         }
 
@@ -3028,19 +2535,11 @@ public final class PiWorker {
         }
 
         Frame poll(long nanos) throws InterruptedException {
-            Frame frame = frames.poll(nanos, TimeUnit.NANOSECONDS);
-            if (frame != null) {
-                release(frame);
-            }
-            return frame;
+            return frames.poll(nanos, TimeUnit.NANOSECONDS);
         }
 
         Frame pollNow() {
-            Frame frame = frames.poll();
-            if (frame != null) {
-                release(frame);
-            }
-            return frame;
+            return frames.poll();
         }
 
         boolean limited() {
@@ -3127,29 +2626,25 @@ public final class PiWorker {
     }
 
     private record Frame(
-            JsonNode event, String failure, boolean endOfStream, long rawBytes) {
+            JsonNode event, String failure, boolean endOfStream) {
 
-        private static Frame event(JsonNode event, long rawBytes) {
-            return new Frame(event, null, false, rawBytes);
+        private static Frame event(JsonNode event) {
+            return new Frame(event, null, false);
         }
 
         private static Frame failed(String failure) {
-            return new Frame(null, failure, false, 0);
+            return new Frame(null, failure, false);
         }
 
         private static Frame end() {
-            return new Frame(null, null, true, 0);
+            return new Frame(null, null, true);
         }
     }
 
-    private record SessionState(
-            Path file, long size, String digest, SessionTranscript transcript) {
+    private record SessionState(Path file, long size) {
     }
 
     private record ScratchSession(Path directory, SessionState previous) {
-    }
-
-    private record SessionTranscript(JsonNode header, List<JsonNode> entries) {
     }
 
     private record ExpectedRecord(
@@ -3204,8 +2699,10 @@ public final class PiWorker {
             Integer exitCode,
             Path stdoutLog,
             String stdoutDigest,
+            long stdoutSize,
             Path stderrLog,
             String stderrDigest,
+            long stderrSize,
             String assistantText,
             String stopReason,
             String protocolFailure,

@@ -11,6 +11,7 @@ import io.github.luigidemasi.camelkit.ship.controller.ShipRun;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.CommandRun;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
@@ -33,8 +34,8 @@ class PiWorkerResultStoreTest {
         PiWorker.Request first = request(RUN_A, sessions);
         PiWorker.Request second = request(RUN_B, sessions);
 
-        PiWorkerResultStore.write(first, result("first"));
-        PiWorkerResultStore.write(second, result("second"));
+        write(first, result("first"));
+        write(second, result("second"));
 
         assertEquals(
                 "first",
@@ -93,7 +94,7 @@ class PiWorkerResultStoreTest {
     void rejectsMismatchedAndUnsupportedMarkers() throws Exception {
         Path sessions = Files.createDirectory(directory.resolve("sessions"));
         PiWorker.Request request = request(RUN_A, sessions);
-        PiWorkerResultStore.write(request, result("done"));
+        write(request, result("done"));
         Path marker = marker(sessions);
         String encoded = Files.readString(marker);
 
@@ -114,7 +115,7 @@ class PiWorkerResultStoreTest {
                 () -> PiWorkerResultStore.read(request))
                 .getMessage().contains("does not match"));
 
-        Files.writeString(marker, encoded.replace("\"schemaVersion\" : 2", "\"schemaVersion\" : 3"));
+        Files.writeString(marker, encoded.replace("\"schemaVersion\" : 3", "\"schemaVersion\" : 4"));
         assertTrue(assertThrows(IOException.class,
                 () -> PiWorkerResultStore.read(request))
                 .getMessage().contains("schema version"));
@@ -124,7 +125,7 @@ class PiWorkerResultStoreTest {
     void rejectsEmptyMalformedAndOversizedMarkers() throws Exception {
         Path sessions = Files.createDirectory(directory.resolve("sessions"));
         PiWorker.Request request = request(RUN_A, sessions);
-        PiWorkerResultStore.write(request, result("done"));
+        write(request, result("done"));
         Path marker = marker(sessions);
 
         Files.write(marker, new byte[0]);
@@ -146,39 +147,63 @@ class PiWorkerResultStoreTest {
     }
 
     @Test
-    void rejectsDeletedTamperedAndOversizedEvidenceLogs() throws Exception {
+    void rejectsDeletedAndTruncatedEvidenceLogs() throws Exception {
         Path sessions = Files.createDirectory(directory.resolve("sessions"));
         PiWorker.Request request = request(RUN_A, sessions);
 
         PiWorker.Result deleted = result("deleted");
-        PiWorkerResultStore.write(request, deleted);
+        write(request, deleted);
         Files.delete(Path.of(deleted.evidence().stdoutLog()));
         assertTrue(assertThrows(
                 IOException.class,
                 () -> PiWorkerResultStore.read(request))
                 .getMessage().contains("missing or invalid"));
 
-        PiWorker.Result tampered = result("tampered");
-        PiWorkerResultStore.write(request, tampered);
+        PiWorker.Result truncated = result("truncated");
+        write(request, truncated);
         Files.writeString(
-                Path.of(tampered.evidence().stderrLog()),
-                "changed");
+                Path.of(truncated.evidence().stderrLog()),
+                "x");
         assertTrue(assertThrows(
                 IOException.class,
                 () -> PiWorkerResultStore.read(request))
-                .getMessage().contains("recorded digest"));
+                .getMessage().contains("recorded size"));
+    }
 
-        PiWorker.Result oversized = result("oversized");
-        PiWorkerResultStore.write(request, oversized);
-        try (RandomAccessFile file = new RandomAccessFile(
-                Path.of(oversized.evidence().stdoutLog()).toFile(),
-                "rw")) {
-            file.setLength((long) PiWorker.MAX_LOG_BYTES + 1);
-        }
+    @Test
+    void rejectsEvidenceLogsWithAnOversizedRecordedSize() throws Exception {
+        Path sessions = Files.createDirectory(directory.resolve("sessions"));
+        PiWorker.Request request = request(RUN_A, sessions);
+        PiWorker.Result result = result("oversized");
+        PiWorkerResultStore.write(
+                request,
+                result,
+                PiWorker.MAX_LOG_BYTES + 1L,
+                Files.size(Path.of(result.evidence().stderrLog())));
+
         assertTrue(assertThrows(
                 IOException.class,
                 () -> PiWorkerResultStore.read(request))
-                .getMessage().contains("size limit"));
+                .getMessage().contains("missing or invalid"));
+    }
+
+    @Test
+    void rejectsMarkerWithSharedCommandEvidencePathsDuringDeserialization()
+            throws Exception {
+        Path sessions = Files.createDirectory(directory.resolve("sessions"));
+        PiWorker.Request request = request(RUN_A, sessions);
+        PiWorker.Result original = result("shared");
+        write(request, original);
+        Path marker = marker(sessions);
+        ObjectMapper json = new ObjectMapper();
+        Files.writeString(marker, Files.readString(marker).replace(
+                json.writeValueAsString(original.evidence().stderrLog()),
+                json.writeValueAsString(original.evidence().stdoutLog())));
+
+        assertTrue(assertThrows(
+                PiWorker.UntrustedResultException.class,
+                () -> PiWorkerResultStore.read(request))
+                .getMessage().contains("malformed"));
     }
 
     @Test
@@ -200,7 +225,7 @@ class PiWorkerResultStoreTest {
                 original.evidence().stderrDigest(),
                 original.evidence().version());
 
-        PiWorkerResultStore.write(request, escaped);
+        write(request, escaped);
 
         assertTrue(assertThrows(
                 IOException.class,
@@ -218,7 +243,7 @@ class PiWorkerResultStoreTest {
 
         Path otherWorking = Files.createDirectory(
                 directory.resolve("other-working"));
-        PiWorkerResultStore.write(
+        write(
                 request,
                 withEvidence(
                         original,
@@ -238,7 +263,7 @@ class PiWorkerResultStoreTest {
         String otherDigest = ShipDigest.sha256(
                 "other input".getBytes(
                         java.nio.charset.StandardCharsets.UTF_8));
-        PiWorkerResultStore.write(
+        write(
                 request,
                 withEvidence(
                         original,
@@ -259,7 +284,7 @@ class PiWorkerResultStoreTest {
                 .toAbsolutePath()
                 .normalize()
                 .toString();
-        PiWorkerResultStore.write(
+        write(
                 request,
                 withEvidence(
                         original,
@@ -278,7 +303,7 @@ class PiWorkerResultStoreTest {
                         .evidence()
                         .executable());
 
-        PiWorkerResultStore.write(request, original);
+        write(request, original);
         Path marker = marker(sessions);
         String encoded = Files.readString(marker);
         String version = "\"version\" : \"0.83.0\"";
@@ -294,6 +319,16 @@ class PiWorkerResultStoreTest {
                 IOException.class,
                 () -> PiWorkerResultStore.read(request))
                 .getMessage().contains("malformed"));
+    }
+
+    private static void write(
+            PiWorker.Request request, PiWorker.Result result)
+            throws IOException {
+        PiWorkerResultStore.write(
+                request,
+                result,
+                Files.size(Path.of(result.evidence().stdoutLog())),
+                Files.size(Path.of(result.evidence().stderrLog())));
     }
 
     private PiWorker.Request request(String runId, Path sessions)

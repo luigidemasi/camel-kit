@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.PriorityQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -43,18 +44,25 @@ final class LocalCommandRunner {
     private static final Path KILL = Path.of("/bin/kill");
     private static final byte[] OUTPUT_LIMIT_LOG
             = "<output-limit-exceeded>\n".getBytes(StandardCharsets.UTF_8);
+    private static final String SENSITIVE_NAME_EXPRESSION
+            = "docker[-_]?auth[-_]?config|npm[-_]?config[-_]*auth"
+              + "|password|passwd|pass|passphrase|pwd"
+              + "|secret|token|credentials?|auth(?:orization)?"
+              + "|api[-_]?key"
+              + "|access[-_]?key(?:[-_]?id)?|private[-_]?key|jwt|pat";
     private static final Pattern SENSITIVE_ASSIGNMENT = Pattern.compile(
-            "(?i)(docker[-_]?auth[-_]?config|npm[-_]?config[-_]*auth"
-                                                                        + "|password|passwd|pass|passphrase|pwd"
-                                                                        + "|secret|token|credentials?|auth(?:orization)?"
-                                                                        + "|api[-_]?key"
-                                                                        + "|access[-_]?key(?:[-_]?id)?|private[-_]?key|jwt|pat)"
+            "(?i)(" + SENSITIVE_NAME_EXPRESSION + ")"
                                                                         + "([\"']?\\s*[:=]\\s*)"
                                                                         + "(\"[^\"\\r\\n]*\"|'[^'\\r\\n]*'|[^\"'\\r\\n,}]+)");
+    private static final Pattern SENSITIVE_ASSIGNMENT_PREFIX = Pattern.compile(
+            "(?i)(" + SENSITIVE_NAME_EXPRESSION + ")"
+                                                                               + "([\"']?\\s*[:=]\\s*)(?=[^\\r\\n,}])");
     private static final Pattern AUTHORIZATION_SCHEME = Pattern.compile(
             "(?i)[\"']?\\b(Bearer|Basic)\\s+[\"']?([^\\s\"',}]+)[\"']?");
+    private static final Pattern AUTHORIZATION_PREFIX = Pattern.compile(
+            "(?i)[\"']?\\b(Bearer|Basic)\\s+[\"']?");
     private static final Pattern URL_USERINFO = Pattern.compile(
-            "([A-Za-z][A-Za-z0-9+.-]*://)([^/@\\s]*)@");
+            "(?<=://)([^/@\\s]*)@");
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private final Clock clock;
@@ -261,7 +269,7 @@ final class LocalCommandRunner {
                     StandardOpenOption.TRUNCATE_EXISTING,
                     StandardOpenOption.WRITE,
                     LinkOption.NOFOLLOW_LINKS);
-            return new RetainedLog(log, ShipDigest.sha256(retained));
+            return new RetainedLog(log, ShipDigest.sha256(retained), retained.length);
         } catch (IOException | RuntimeException e) {
             Files.deleteIfExists(log);
             throw e;
@@ -306,7 +314,10 @@ final class LocalCommandRunner {
 
     static List<String> redactArguments(
             List<String> arguments, List<String> secrets) {
-        return arguments.stream().map(argument -> redact(argument, secrets)).toList();
+        List<String> redacted = arguments.stream()
+                .map(argument -> redact(argument, secrets))
+                .toList();
+        return ShipLocalStamp.redactSensitiveArguments(arguments, redacted);
     }
 
     private static String redact(String value, List<String> secrets) {
@@ -342,30 +353,6 @@ final class LocalCommandRunner {
             }
             offset = match.end();
         }
-    }
-
-    private static RedactionMatch combine(
-            RedactionMatch current, RedactionMatch candidate) {
-        if (current == null) {
-            return candidate;
-        }
-        if (candidate == null) {
-            return current;
-        }
-        if (candidate.start() < current.start()) {
-            return candidate.end() > current.start()
-                    ? new RedactionMatch(
-                            candidate.start(),
-                            Math.max(candidate.end(), current.end()),
-                            candidate.replacement())
-                    : candidate;
-        }
-        return candidate.start() < current.end()
-                ? new RedactionMatch(
-                        current.start(),
-                        Math.max(current.end(), candidate.end()),
-                        current.replacement())
-                : current;
     }
 
     private static List<String> secretRepresentations(List<String> secrets) {
@@ -435,7 +422,7 @@ final class LocalCommandRunner {
 
     private static void addUrlMatches(List<String> values, Matcher matcher) {
         while (matcher.find()) {
-            String userInfo = matcher.group(2);
+            String userInfo = matcher.group(1);
             addSecretValue(values, userInfo, false);
             int colon = userInfo.indexOf(':');
             if (colon >= 0) {
@@ -811,91 +798,370 @@ final class LocalCommandRunner {
         }
     }
 
-    record RetainedLog(Path path, String digest) {
+    record RetainedLog(Path path, String digest, long size) {
     }
 
     private record RedactionMatch(int start, int end, String replacement) {
     }
 
+    private record CursorMatch(int source, RedactionMatch match) {
+    }
+
     private static final class RedactionCursor {
+
+        private static final int ASSIGNMENT_SOURCE = 0;
+        private static final int AUTHORIZATION_SOURCE = 1;
+        private static final int URL_SOURCE = 2;
+        private static final int LITERAL_SOURCE = 3;
 
         private final String value;
         private final List<String> literals;
-        private final int[] literalStarts;
+        private final PriorityQueue<LiteralCursor> literalMatches;
         private final Matcher assignment;
         private final Matcher authorization;
         private final Matcher url;
-        private boolean assignmentAvailable;
-        private boolean authorizationAvailable;
-        private boolean urlAvailable;
+        private RedactionMatch assignmentMatch;
+        private RedactionMatch authorizationMatch;
+        private RedactionMatch urlMatch;
+        private int assignmentBoundary = -1;
+        private int authorizationBoundary = -1;
 
         private RedactionCursor(String value, List<String> literals) {
             this.value = value;
             this.literals = literals;
-            literalStarts = new int[literals.size()];
+            literalMatches = new PriorityQueue<>(
+                    Comparator.comparingInt(LiteralCursor::start)
+                            .thenComparingInt(LiteralCursor::priority));
             for (int index = 0; index < literals.size(); index++) {
-                literalStarts[index] = value.indexOf(literals.get(index));
+                LiteralCursor literal = new LiteralCursor(
+                        value, literals.get(index), index);
+                literal.advance();
+                if (literal.start() >= 0) {
+                    literalMatches.add(literal);
+                }
             }
-            assignment = SENSITIVE_ASSIGNMENT.matcher(value);
-            authorization = AUTHORIZATION_SCHEME.matcher(value);
+            assignment = SENSITIVE_ASSIGNMENT_PREFIX.matcher(value);
+            authorization = AUTHORIZATION_PREFIX.matcher(value);
             url = URL_USERINFO.matcher(value);
-            assignmentAvailable = assignment.find();
-            authorizationAvailable = authorization.find();
-            urlAvailable = url.find();
+            advanceAssignment();
+            advanceAuthorization();
+            advanceUrl();
         }
 
         private RedactionMatch next(int offset) {
-            while (assignmentAvailable && assignment.start() < offset) {
-                assignmentAvailable = assignment.find();
+            advanceTo(offset);
+            CursorMatch selected = earliest();
+            if (selected == null) {
+                return null;
             }
-            while (authorizationAvailable && authorization.start() < offset) {
-                authorizationAvailable = authorization.find();
-            }
-            while (urlAvailable && url.start() < offset) {
-                urlAvailable = url.find();
-            }
-            RedactionMatch result = assignmentAvailable
-                    ? new RedactionMatch(
-                            assignment.start(),
-                            assignment.end(),
-                            redactedAssignment(assignment))
-                    : null;
-            result = combine(result, authorizationAvailable
-                    ? new RedactionMatch(
-                            authorization.start(),
-                            authorization.end(),
-                            authorization.group(1) + " " + ShipLocalStamp.REDACTED)
-                    : null);
-            result = combine(result, urlAvailable
-                    ? new RedactionMatch(
-                            url.start(),
-                            url.end(),
-                            url.group(1) + ShipLocalStamp.REDACTED + "@")
-                    : null);
-            for (int index = 0; index < literals.size(); index++) {
-                String literal = literals.get(index);
-                if (literalStarts[index] >= 0 && literalStarts[index] < offset) {
-                    literalStarts[index] = value.indexOf(literal, offset);
+            RedactionMatch result = selected.match();
+            advance(selected.source());
+            while (result.end() < value.length()) {
+                selected = earliest();
+                if (selected == null || selected.match().start() >= result.end()) {
+                    break;
                 }
-                int start = literalStarts[index];
-                if (start >= 0) {
-                    result = combine(
-                            result,
-                            new RedactionMatch(
-                                    start,
-                                    start + literal.length(),
-                                    ShipLocalStamp.REDACTED));
-                }
+                RedactionMatch candidate = selected.match();
+                result = new RedactionMatch(
+                        result.start(),
+                        Math.max(result.end(), candidate.end()),
+                        result.replacement());
+                advance(selected.source());
+            }
+            if (!ShipLocalStamp.REDACTED.equals(result.replacement())
+                    && literals.stream().anyMatch(result.replacement()::contains)) {
+                result = new RedactionMatch(
+                        result.start(), result.end(), ShipLocalStamp.REDACTED);
             }
             return result;
         }
 
-        private static String redactedAssignment(Matcher matcher) {
-            String supplied = matcher.group(3);
-            String value = unquote(supplied);
-            String quote = value.equals(supplied) ? "" : supplied.substring(0, 1);
-            return matcher.group(1) + matcher.group(2)
-                   + quote + ShipLocalStamp.REDACTED + quote;
+        private void advanceTo(int offset) {
+            while (assignmentMatch != null && assignmentMatch.start() < offset) {
+                advanceAssignment();
+            }
+            while (authorizationMatch != null
+                    && authorizationMatch.start() < offset) {
+                advanceAuthorization();
+            }
+            while (urlMatch != null && urlMatch.start() < offset) {
+                advanceUrl();
+            }
+            while (!literalMatches.isEmpty()
+                    && literalMatches.peek().start() < offset) {
+                LiteralCursor literal = literalMatches.remove();
+                do {
+                    literal.advance();
+                } while (literal.start() >= 0 && literal.start() < offset);
+                if (literal.start() >= 0) {
+                    literalMatches.add(literal);
+                }
+            }
+        }
+
+        private CursorMatch earliest() {
+            CursorMatch result = candidate(ASSIGNMENT_SOURCE, assignmentMatch);
+            result = earlier(
+                    result,
+                    candidate(AUTHORIZATION_SOURCE, authorizationMatch));
+            result = earlier(result, candidate(URL_SOURCE, urlMatch));
+            LiteralCursor literal = literalMatches.peek();
+            if (literal != null) {
+                result = earlier(
+                        result,
+                        candidate(
+                                LITERAL_SOURCE + literal.priority(),
+                                new RedactionMatch(
+                                        literal.start(),
+                                        literal.start() + literal.length(),
+                                        ShipLocalStamp.REDACTED)));
+            }
+            return result;
+        }
+
+        private static CursorMatch candidate(
+                int source, RedactionMatch match) {
+            return match == null ? null : new CursorMatch(source, match);
+        }
+
+        private static CursorMatch earlier(
+                CursorMatch current, CursorMatch candidate) {
+            if (current == null) {
+                return candidate;
+            }
+            if (candidate == null) {
+                return current;
+            }
+            int currentStart = current.match().start();
+            int candidateStart = candidate.match().start();
+            return candidateStart < currentStart
+                    || (candidateStart == currentStart
+                            && candidate.source() < current.source())
+                                    ? candidate
+                                    : current;
+        }
+
+        private void advance(int source) {
+            switch (source) {
+                case ASSIGNMENT_SOURCE -> advanceAssignment();
+                case AUTHORIZATION_SOURCE -> advanceAuthorization();
+                case URL_SOURCE -> advanceUrl();
+                default -> advanceLiteral(source - LITERAL_SOURCE);
+            }
+        }
+
+        private void advanceAssignment() {
+            assignmentMatch = null;
+            while (assignment.find()) {
+                int valueStart = assignment.end();
+                int end = assignmentEnd(valueStart);
+                String separator = assignment.group(2);
+                if (end <= valueStart) {
+                    if (valueStart == 0
+                            || !isInlineWhitespace(value.charAt(valueStart - 1))) {
+                        continue;
+                    }
+                    valueStart--;
+                    end = valueStart + 1;
+                    separator = separator.substring(0, separator.length() - 1);
+                }
+                String quote = isQuote(value.charAt(valueStart))
+                        ? value.substring(valueStart, valueStart + 1)
+                        : "";
+                assignmentMatch = new RedactionMatch(
+                        assignment.start(),
+                        end,
+                        assignment.group(1) + separator
+                             + quote + ShipLocalStamp.REDACTED + quote);
+                return;
+            }
+        }
+
+        private int assignmentEnd(int start) {
+            if (start >= value.length()) {
+                return -1;
+            }
+            char first = value.charAt(start);
+            if (isQuote(first)) {
+                for (int index = start + 1; index < value.length(); index++) {
+                    char current = value.charAt(index);
+                    if (current == '\r' || current == '\n') {
+                        return -1;
+                    }
+                    if (current == first) {
+                        return index + 1;
+                    }
+                }
+                return -1;
+            }
+            if (start < assignmentBoundary) {
+                return assignmentBoundary;
+            }
+            int end = start;
+            while (end < value.length()
+                    && !isAssignmentDelimiter(value.charAt(end))) {
+                end++;
+            }
+            assignmentBoundary = end;
+            return end;
+        }
+
+        private void advanceAuthorization() {
+            authorizationMatch = null;
+            while (authorization.find()) {
+                int credentialStart = authorization.end();
+                int end = authorizationEnd(credentialStart);
+                if (end <= credentialStart) {
+                    continue;
+                }
+                authorizationMatch = new RedactionMatch(
+                        authorization.start(),
+                        end,
+                        authorization.group(1) + " " + ShipLocalStamp.REDACTED);
+                return;
+            }
+        }
+
+        private int authorizationEnd(int start) {
+            if (start >= value.length()) {
+                return -1;
+            }
+            int end;
+            if (start < authorizationBoundary) {
+                end = authorizationBoundary;
+            } else {
+                end = start;
+                while (end < value.length()
+                        && !isAuthorizationDelimiter(value.charAt(end))) {
+                    end++;
+                }
+                authorizationBoundary = end;
+            }
+            if (end == start) {
+                return -1;
+            }
+            return end < value.length() && isQuote(value.charAt(end))
+                    ? end + 1
+                    : end;
+        }
+
+        private void advanceUrl() {
+            urlMatch = url.find()
+                    ? new RedactionMatch(
+                            url.start(),
+                            url.end(),
+                            ShipLocalStamp.REDACTED + "@")
+                    : null;
+        }
+
+        private void advanceLiteral(int priority) {
+            LiteralCursor literal = literalMatches.poll();
+            if (literal == null || literal.priority() != priority) {
+                throw new IllegalStateException(
+                        "Literal redaction cursor is inconsistent");
+            }
+            literal.advance();
+            if (literal.start() >= 0) {
+                literalMatches.add(literal);
+            }
+        }
+
+        private static boolean isQuote(char value) {
+            return value == '\'' || value == '"';
+        }
+
+        private static boolean isAssignmentDelimiter(char value) {
+            return isQuote(value)
+                    || value == '\r'
+                    || value == '\n'
+                    || value == ','
+                    || value == '}';
+        }
+
+        private static boolean isInlineWhitespace(char value) {
+            return value == ' '
+                    || value == '\t'
+                    || value == '\u000b'
+                    || value == '\f';
+        }
+
+        private static boolean isAuthorizationDelimiter(char value) {
+            return value == ' '
+                    || value == '\t'
+                    || value == '\n'
+                    || value == '\u000b'
+                    || value == '\f'
+                    || value == '\r'
+                    || isQuote(value)
+                    || value == ','
+                    || value == '}';
+        }
+
+        private static final class LiteralCursor {
+
+            private final String value;
+            private final String literal;
+            private final int priority;
+            private final int[] failure;
+            private int offset;
+            private int matched;
+            private int start = -1;
+
+            private LiteralCursor(
+                                  String value, String literal, int priority) {
+                this.value = value;
+                this.literal = literal;
+                this.priority = priority;
+                failure = failureTable(literal);
+            }
+
+            private void advance() {
+                start = -1;
+                while (offset < value.length()) {
+                    char current = value.charAt(offset++);
+                    while (matched > 0
+                            && literal.charAt(matched) != current) {
+                        matched = failure[matched - 1];
+                    }
+                    if (literal.charAt(matched) == current) {
+                        matched++;
+                    }
+                    if (matched == literal.length()) {
+                        start = offset - literal.length();
+                        matched = failure[matched - 1];
+                        return;
+                    }
+                }
+            }
+
+            private int start() {
+                return start;
+            }
+
+            private int priority() {
+                return priority;
+            }
+
+            private int length() {
+                return literal.length();
+            }
+
+            private static int[] failureTable(String literal) {
+                int[] result = new int[literal.length()];
+                int matched = 0;
+                for (int index = 1; index < literal.length(); index++) {
+                    char current = literal.charAt(index);
+                    while (matched > 0
+                            && literal.charAt(matched) != current) {
+                        matched = result[matched - 1];
+                    }
+                    if (literal.charAt(matched) == current) {
+                        matched++;
+                    }
+                    result[index] = matched;
+                }
+                return result;
+            }
         }
     }
 
@@ -965,4 +1231,5 @@ final class LocalCommandRunner {
             return output.toByteArray();
         }
     }
+
 }

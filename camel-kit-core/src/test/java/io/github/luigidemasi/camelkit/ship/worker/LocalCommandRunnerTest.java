@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @EnabledOnOs(OS.LINUX)
@@ -199,6 +200,25 @@ class LocalCommandRunnerTest {
     }
 
     @Test
+    void redactsCredentialedUrlSuppliedAsAKnownSecret() throws Exception {
+        String secret = "https://user:hunter2@host/path";
+        Command command = new Command(
+                executable,
+                List.of("known-secret", secret),
+                workingDirectory,
+                evidenceDirectory,
+                Duration.ofSeconds(5),
+                4096,
+                List.of(secret));
+
+        LocalCommandRunner.Result result = new LocalCommandRunner().run(command);
+
+        assertEquals(List.of("known-secret", "<redacted>"), result.redactedArguments());
+        assertFalse(Files.readString(result.stdoutLog()).contains("user:hunter2"));
+        assertFalse(Files.readString(result.stderrLog()).contains("user:hunter2"));
+    }
+
+    @Test
     void filtersOnlyBooleanFeatureToggleEnvironmentValues() {
         assertFalse(LocalCommandRunner.isSensitiveEnvironmentValue(
                 "AUTH_ENABLED", "true"));
@@ -263,7 +283,7 @@ class LocalCommandRunnerTest {
     void boundsShortSecretRedactionWithoutRescanningTheMarker() throws Exception {
         int maximumBytes = 1024;
         LocalCommandRunner.RetainedLog retained = LocalCommandRunner.retain(
-                "a".repeat(4096).getBytes(StandardCharsets.UTF_8),
+                "a".repeat(16 * 1024 * 1024).getBytes(StandardCharsets.UTF_8),
                 evidenceDirectory,
                 ".stdout.log",
                 maximumBytes,
@@ -271,10 +291,248 @@ class LocalCommandRunnerTest {
 
         String content = Files.readString(retained.path());
         assertTrue(Files.size(retained.path()) <= maximumBytes);
+        assertEquals(Files.size(retained.path()), retained.size());
         assertEquals(
                 ShipLocalStamp.REDACTED.repeat(
                         maximumBytes / ShipLocalStamp.REDACTED.length()),
                 content);
+    }
+
+    @Test
+    void redactsUrlUserInfo() throws Exception {
+        LocalCommandRunner.RetainedLog retained = LocalCommandRunner.retain(
+                "proxy https://user:hunter2@host/path".getBytes(StandardCharsets.UTF_8),
+                evidenceDirectory,
+                ".stdout.log",
+                4096,
+                List.of());
+
+        assertEquals(
+                "proxy https://<redacted>@host/path",
+                Files.readString(retained.path()));
+    }
+
+    @Test
+    void redactsUrlUserInfoAcrossTheTruncationBoundary() throws Exception {
+        int maximumBytes = 1024;
+        String output = "x".repeat(1000) + "https://user:hunter2pass@h.io/p";
+
+        for (List<String> secrets : List.of(List.<String>of(), List.of("https"))) {
+            LocalCommandRunner.RetainedLog retained = LocalCommandRunner.retain(
+                    output.getBytes(StandardCharsets.UTF_8),
+                    evidenceDirectory,
+                    ".stdout.log",
+                    maximumBytes,
+                    secrets);
+            String content = Files.readString(retained.path());
+
+            assertTrue(Files.size(retained.path()) <= maximumBytes);
+            assertTrue(content.contains("<redacted>@"));
+            if (secrets.isEmpty()) {
+                assertTrue(content.contains("https://<redacted>@"));
+            } else {
+                assertFalse(content.contains("https"));
+            }
+            assertFalse(content.contains("user"));
+            assertFalse(content.contains("hunter2pass"));
+        }
+    }
+
+    @Test
+    void redactsWhitespaceAssignmentValue() throws Exception {
+        LocalCommandRunner.RetainedLog retained = LocalCommandRunner.retain(
+                "token=   ".getBytes(StandardCharsets.UTF_8),
+                evidenceDirectory,
+                ".stdout.log",
+                4096,
+                List.of());
+
+        assertEquals("token=  <redacted>", Files.readString(retained.path()));
+    }
+
+    @Test
+    void redactsWhitespaceBeforeUnterminatedAssignmentQuote() throws Exception {
+        LocalCommandRunner.RetainedLog retained = LocalCommandRunner.retain(
+                "token=   \"".getBytes(StandardCharsets.UTF_8),
+                evidenceDirectory,
+                ".stdout.log",
+                4096,
+                List.of());
+
+        assertEquals("token=  <redacted>\"", Files.readString(retained.path()));
+    }
+
+    @Test
+    void mergesOverlappingCredentialRedactions() throws Exception {
+        List<String> output = List.of(
+                "prefix https://user:hunter2@host",
+                "token=https://user,hunter2@host",
+                "Bearer https://user,hunter2@host",
+                "https://user:hunter2@host",
+                "token=hunter2",
+                "token=\"x password\"=hunter2",
+                "Bearer /Basic hunter2",
+                "Bearer abc\u2003def",
+                "ababa",
+                "abababa");
+        List<String> secrets = List.of("prefix https", "https", "oken", "aba");
+        List<String> argumentExpected = List.of(
+                "<redacted>://<redacted>@host",
+                "<redacted>",
+                "Bearer <redacted>",
+                "<redacted>://<redacted>@host",
+                "<redacted>",
+                "<redacted>",
+                "Bearer <redacted>",
+                "Bearer <redacted>",
+                "<redacted>",
+                "<redacted>");
+        List<String> logExpected = List.of(
+                "<redacted>://<redacted>@host",
+                "<redacted>host",
+                "Bearer <redacted>host",
+                "<redacted>://<redacted>@host",
+                "<redacted>",
+                "<redacted>",
+                "Bearer <redacted>",
+                "Bearer <redacted>",
+                "<redacted>",
+                "<redacted>");
+
+        assertEquals(
+                argumentExpected,
+                LocalCommandRunner.redactArguments(output, secrets));
+
+        LocalCommandRunner.RetainedLog retained = LocalCommandRunner.retain(
+                String.join("\n", output).getBytes(StandardCharsets.UTF_8),
+                evidenceDirectory,
+                ".stdout.log",
+                4096,
+                secrets);
+        assertEquals(
+                String.join("\n", logExpected),
+                Files.readString(retained.path()));
+    }
+
+    @Test
+    void redactsLongOverlappingAssignmentsWithinLinearTime() {
+        String argument = "--api-key=x".repeat(20_000);
+
+        assertTimeoutPreemptively(
+                Duration.ofSeconds(1),
+                () -> assertEquals(
+                        List.of("--api-key=" + ShipLocalStamp.REDACTED),
+                        LocalCommandRunner.redactArguments(
+                                List.of(argument), List.of())));
+    }
+
+    @Test
+    void redactsLongSelfOverlappingLiteralsWithinLinearTime() {
+        String secret = "a".repeat(50_000);
+        String argument = secret + "a".repeat(50_000);
+
+        assertTimeoutPreemptively(
+                Duration.ofSeconds(1),
+                () -> assertEquals(
+                        List.of(ShipLocalStamp.REDACTED),
+                        LocalCommandRunner.redactArguments(
+                                List.of(argument), List.of(secret))));
+    }
+
+    @Test
+    void redactsArgumentsIntoCommandRunValidForms() {
+        record Case(
+                List<String> input,
+                List<String> secrets,
+                List<String> expected) {
+        }
+        List<Case> cases = List.of(
+                new Case(
+                        List.of("Bearer https://user,hunter2@host"),
+                        List.of("prefix https", "https", "oken"),
+                        List.of("Bearer <redacted>")),
+                new Case(
+                        List.of("token=abc,XYZmore"),
+                        List.of("abc,XYZ"),
+                        List.of("token=<redacted>")),
+                new Case(
+                        List.of("token=\"abc\"tail"),
+                        List.of("abc\"ta"),
+                        List.of("token=<redacted>")),
+                new Case(
+                        List.of("token=abc}tail"),
+                        List.of("abc}ta"),
+                        List.of("token=<redacted>")),
+                new Case(
+                        List.of("passx="),
+                        List.of("token", "x"),
+                        List.of("<redacted>")),
+                new Case(
+                        List.of("jwtaba=credentials"),
+                        List.of("aba"),
+                        List.of("<redacted>")),
+                new Case(
+                        List.of("--token"),
+                        List.of(),
+                        List.of("<redacted>")),
+                new Case(
+                        List.of("-api-key:aba"),
+                        List.of("aba"),
+                        List.of("<redacted>")),
+                new Case(
+                        List.of("--token=actual-secret"),
+                        List.of(),
+                        List.of("--token=<redacted>")),
+                new Case(
+                        List.of("--token", "actual-secret"),
+                        List.of(),
+                        List.of("--token", "<redacted>")),
+                new Case(
+                        List.of("--token", "hunter2"),
+                        List.of("token"),
+                        List.of("--<redacted>", "<redacted>")),
+                new Case(
+                        List.of("--token", "<redacted>"),
+                        List.of("redacted"),
+                        List.of("--token", "<redacted>")),
+                new Case(
+                        List.of("--token=<redacted>"),
+                        List.of("redacted"),
+                        List.of("<redacted>")),
+                new Case(
+                        List.of("-uuser:actual-secret"),
+                        List.of(),
+                        List.of("-u<redacted>")),
+                new Case(
+                        List.of("-u<redacted>"),
+                        List.of("redacted"),
+                        List.of("-u<redacted>")),
+                new Case(
+                        List.of("-bSID=actual-secret"),
+                        List.of(),
+                        List.of("-b<redacted>")),
+                new Case(
+                        List.of("--authorization=Bearer", "actual-secret"),
+                        List.of(),
+                        List.of("--authorization=<redacted>", "<redacted>")),
+                new Case(
+                        List.of("--authorization", "Basic", "actual-secret"),
+                        List.of(),
+                        List.of("--authorization", "Basic", "<redacted>")),
+                new Case(
+                        List.of("Authorization", "Bearer", "actual-secret"),
+                        List.of(),
+                        List.of("Authorization", "Bearer", "<redacted>")));
+
+        for (Case testCase : cases) {
+            List<String> redacted = LocalCommandRunner.redactArguments(
+                    testCase.input(), testCase.secrets());
+
+            assertEquals(
+                    testCase.expected(),
+                    stampArguments(redacted).redactedArguments(),
+                    testCase.input().toString());
+        }
     }
 
     @Test
@@ -431,6 +689,26 @@ class LocalCommandRunnerTest {
                 result.stdoutDigest(),
                 result.stderrLog().toString(),
                 result.stderrDigest());
+    }
+
+    private ShipLocalStamp.CommandRun stampArguments(List<String> arguments) {
+        String digest = ShipDigest.sha256(new byte[0]);
+        return new ShipLocalStamp.CommandRun(
+                executable.toString(),
+                "1.0",
+                arguments,
+                workingDirectory.toString(),
+                List.of(digest),
+                true,
+                false,
+                false,
+                0,
+                "2026-08-25T00:00:00Z",
+                "2026-08-25T00:00:01Z",
+                evidenceDirectory.resolve("stdout.log").toString(),
+                digest,
+                evidenceDirectory.resolve("stderr.log").toString(),
+                digest);
     }
 
     private void assertProcessesGone() throws Exception {

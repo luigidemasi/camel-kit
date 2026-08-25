@@ -64,7 +64,6 @@ user_emitted=0
 entry_count=0
 last_id=""
 current_user_id=""
-append_count=0
 
 initialize_state() {
   if [ -f "$session_file" ]; then
@@ -76,24 +75,12 @@ initialize_state() {
 ensure_session() {
   if [ -f "$session_file" ]; then
     initialize_state
-    if [ "$mode" = "rewrite-session" ]; then
-      printf '{"type":"session","version":3,"id":"%s","timestamp":"2026-07-24T00:00:01.000Z","cwd":"%s"}\n' \
-        "$session" "$PWD" > "$session_file"
-      printf '%s\n' '{"type":"rewrite-padding","padding":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}' >> "$session_file"
-      initialize_state
-    fi
     return
   fi
-  header_id="$session"
-  header_cwd="$PWD"
-  if [ "$mode" = "session-mismatch" ]; then
-    header_id="ship-ffffffffffffffffffffffffffffffff-discovery"
-  elif [ "$mode" = "session-cwd" ]; then
-    header_cwd="/wrong/project"
-  fi
   printf '{"type":"session","version":3,"id":"%s","timestamp":"2026-07-24T00:00:00.000Z","cwd":"%s"}\n' \
-    "$header_id" "$header_cwd" > "$session_file"
-  if [ "$mode" = "header-only" ]; then
+    "$session" "$PWD" > "$session_file"
+  if [ "$mode" = "empty-session" ]; then
+    : > "$session_file"
     return
   fi
   printf '%s\n' '{"type":"model_change","id":"e1","parentId":null,"timestamp":"2026-07-24T00:00:00.001Z","provider":"fixture","modelId":"fixture-model"}' >> "$session_file"
@@ -106,45 +93,13 @@ append_message() {
   message="$1"
   role="$2"
   ensure_session
-  if [ "$mode" = "header-only" ] || [ "$mode" = "unchanged-session" ]; then
+  if [ "$mode" = "empty-session" ] || [ "$mode" = "unchanged-session" ]; then
     return
   fi
-  if [ "$append_count" -eq 0 ]; then
-    if [ "$mode" = "session-whitespace" ]; then
-      printf ' \t\n' >> "$session_file"
-    elif [ "$mode" = "session-malformed-turn" ]; then
-      printf '%s\n' 'not-json' >> "$session_file"
-    elif [ "$mode" = "session-malformed-secret" ]; then
-      printf '{"type":"message","credential":%s\n' \
-        "$(cat "$fixture/secret")" >> "$session_file"
-    elif [ "$mode" = "session-assistant-first" ]; then
-      entry_count=$((entry_count + 1))
-      printf '{"type":"message","id":"e%s","parentId":"%s","timestamp":"2026-07-24T00:00:00.010Z","message":{"role":"assistant","content":[],"stopReason":"stop","timestamp":0}}\n' \
-        "$entry_count" "$last_id" >> "$session_file"
-      last_id="e$entry_count"
-    fi
-  fi
-  append_count=$((append_count + 1))
   entry_count=$((entry_count + 1))
   id="e$entry_count"
   parent="$last_id"
-  if [ "$mode" = "session-wrong-parent" ] && [ "$append_count" -eq 1 ]; then
-    parent="not-the-parent"
-  elif [ "$mode" = "session-duplicate-id" ] && [ "$append_count" -eq 1 ]; then
-    id="$last_id"
-  fi
   persisted="$message"
-  if [ "$role" = "user" ] && [ "$mode" = "session-unrelated-prompt" ]; then
-    persisted='{"role":"user","content":"unrelated","timestamp":1}'
-  elif [ "$role" = "assistant" ] && [ "$mode" = "session-missing-stop" ]; then
-    persisted='{"role":"assistant","content":[],"timestamp":2}'
-  elif [ "$role" = "assistant" ] && [ "$mode" = "session-wrong-stop" ]; then
-    persisted='{"role":"assistant","content":[],"stopReason":"error","timestamp":2}'
-  elif [ "$role" = "assistant" ] \
-      && { [ "$mode" = "session-content-mismatch" ] \
-           || [ "$mode" = "terminal-content-mismatch" ]; }; then
-    persisted='{"role":"assistant","content":[{"type":"text","text":"different"}],"stopReason":"stop","timestamp":2}'
-  fi
   printf '{"type":"message","id":"%s","parentId":"%s","timestamp":"2026-07-24T00:00:00.010Z","message":%s}\n' \
     "$id" "$parent" "$persisted" >> "$session_file"
   last_id="$id"
@@ -368,18 +323,6 @@ if [ "$mode" = "preflight-compaction-block" ]; then
   exit 0
 fi
 
-if [ "$mode" = "queued-natural-exit" ]; then
-  touch "$fixture/ready"
-  while [ ! -e "$fixture/release" ]; do sleep 0.01; done
-  printf '%s\n' '{"id":"prompt-1","type":"response","command":"prompt","success":true}'
-  begin_turn
-  natural='{"role":"assistant","content":[{"type":"text","text":"done"}],"stopReason":"stop","timestamp":2}'
-  emit_message "$natural" assistant
-  printf '{"type":"agent_end","messages":[%s],"willRetry":false}\n' "$natural"
-  printf '%s\n' '{"type":"agent_settled"}'
-  exit 0
-fi
-
 if [ "$mode" = "malformed-natural-stop-after-eof" ] \
     || [ "$mode" = "duplicate-response-natural-stop-after-eof" ]; then
   printf '%s\n' '{"id":"prompt-1","type":"response","command":"prompt","success":true}'
@@ -454,17 +397,6 @@ if [ "$mode" = "abort-hang" ]; then
   IFS= read -r abort || exit 6
   printf '%s\n' "$abort" > "$fixture/abort"
   sleep 300
-  exit 0
-fi
-
-if [ "$mode" = "terminal-no-settled" ]; then
-  natural='{"role":"assistant","content":[{"type":"text","text":"done"}],"stopReason":"stop","timestamp":2}'
-  emit_message "$natural" assistant
-  printf '{"type":"agent_end","messages":[%s],"willRetry":false}\n' "$natural"
-  touch "$fixture/ready"
-  while IFS= read -r unexpected; do
-    printf '%s\n' "$unexpected" >> "$fixture/unexpected-input"
-  done
   exit 0
 fi
 

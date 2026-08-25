@@ -3,6 +3,7 @@ package io.github.luigidemasi.camelkit.ship.evidence;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -480,6 +481,179 @@ public record ShipLocalStamp(
             offset += Character.charCount(codePoint);
         }
         return false;
+    }
+
+    /** Canonicalizes credentials using their original argument positions. */
+    public static List<String> redactSensitiveArguments(
+            List<String> arguments, List<String> redactedArguments) {
+        List<String> original = List.copyOf(
+                Objects.requireNonNull(arguments, "arguments"));
+        List<String> redacted = new ArrayList<>(
+                Objects.requireNonNull(redactedArguments, "redactedArguments"));
+        if (original.size() != redacted.size()
+                || redacted.stream().anyMatch(Objects::isNull)) {
+            throw new IllegalArgumentException(
+                    "Original and redacted command arguments must align");
+        }
+        redacted.replaceAll(ShipLocalStamp::redactKnownSecrets);
+        for (int index = 0; index < redacted.size(); index++) {
+            String argument = original.get(index);
+            if (compactCredential(argument)) {
+                String prefix = argument.substring(0, 2);
+                String transformed = redacted.get(index);
+                if (!transformed.startsWith(prefix)
+                        || !isRedactedValue(transformed.substring(2))) {
+                    redacted.set(
+                            index,
+                            transformed.startsWith(prefix)
+                                    ? prefix + REDACTED
+                                    : REDACTED);
+                }
+                continue;
+            }
+            int separator = argument.indexOf('=');
+            String name = separator < 0
+                    ? argument
+                    : argument.substring(0, separator);
+            boolean positionalName = separator < 0
+                    && (name.startsWith("-") || authorizationName(name));
+            String transformed = redacted.get(index);
+            int transformedSeparator = transformed.indexOf('=');
+            String transformedName = transformedSeparator < 0
+                    ? transformed
+                    : transformed.substring(0, transformedSeparator);
+            boolean transformedPositionalName = transformedSeparator < 0
+                    && (transformedName.startsWith("-")
+                            || authorizationName(transformedName));
+            if ((!isSensitiveOption(name)
+                    || (separator < 0 && !positionalName))
+                    && (!isSensitiveOption(transformedName)
+                            || (transformedSeparator < 0
+                                    && !transformedPositionalName))) {
+                continue;
+            }
+            String supplied = separator < 0
+                    ? index + 1 < original.size() ? original.get(index + 1) : null
+                    : argument.substring(separator + 1).trim();
+            int credentialIndex = separator < 0 ? index + 2 : index + 1;
+            if (authorizationName(name) && authorizationScheme(supplied)) {
+                redactArgument(redacted, credentialIndex);
+                continue;
+            }
+            if (separator < 0) {
+                if (index + 1 < redacted.size()) {
+                    redactArgument(redacted, index + 1);
+                } else {
+                    redacted.set(index, REDACTED);
+                }
+            } else {
+                String prefix = argument.substring(0, separator + 1);
+                if (!isRedactedValue(transformed)
+                        && (!transformed.startsWith(prefix)
+                                || !isRedactedValue(
+                                        transformed.substring(prefix.length()).trim()))) {
+                    redacted.set(
+                            index,
+                            transformed.startsWith(prefix)
+                                    ? prefix + REDACTED
+                                    : REDACTED);
+                }
+            }
+            if (authorizationName(name)
+                    && credentialIndex < original.size()
+                    && !original.get(credentialIndex).startsWith("-")) {
+                redactArgument(redacted, credentialIndex);
+            }
+        }
+        return List.copyOf(redacted);
+    }
+
+    private static void redactArgument(List<String> arguments, int index) {
+        if (index < arguments.size()
+                && !isRedactedValue(arguments.get(index))) {
+            arguments.set(index, REDACTED);
+        }
+    }
+
+    private static String redactKnownSecrets(String argument) {
+        String redacted = redactAssignments(argument);
+        redacted = redactAuthorizations(redacted);
+        return redactUrls(redacted);
+    }
+
+    private static String redactAssignments(String argument) {
+        Matcher matcher = SENSITIVE_ASSIGNMENT.matcher(argument);
+        StringBuilder result = null;
+        int offset = 0;
+        while (matcher.find()) {
+            String supplied = matcher.group(3).trim();
+            if (isRedactedValue(supplied)
+                    || (authorizationName(matcher.group(1))
+                            && authorizationScheme(supplied))) {
+                continue;
+            }
+            if (result == null) {
+                result = new StringBuilder(argument.length());
+            }
+            result.append(argument, offset, matcher.start());
+            String matched = matcher.group(3);
+            String quote = matched.length() >= 2
+                    && (matched.charAt(0) == '"' || matched.charAt(0) == '\'')
+                    && matched.charAt(matched.length() - 1) == matched.charAt(0)
+                            ? matched.substring(0, 1)
+                            : "";
+            result.append(matcher.group(1))
+                    .append(matcher.group(2))
+                    .append(quote)
+                    .append(REDACTED)
+                    .append(quote);
+            offset = matcher.end();
+        }
+        return finishReplacement(argument, result, offset);
+    }
+
+    private static String redactAuthorizations(String argument) {
+        Matcher matcher = AUTHORIZATION_SCHEME.matcher(argument);
+        StringBuilder result = null;
+        int offset = 0;
+        while (matcher.find()) {
+            if (REDACTED.equals(matcher.group(2))) {
+                continue;
+            }
+            if (result == null) {
+                result = new StringBuilder(argument.length());
+            }
+            result.append(argument, offset, matcher.start())
+                    .append(matcher.group(1))
+                    .append(' ')
+                    .append(REDACTED);
+            offset = matcher.end();
+        }
+        return finishReplacement(argument, result, offset);
+    }
+
+    private static String redactUrls(String argument) {
+        Matcher matcher = URL_USERINFO.matcher(argument);
+        StringBuilder result = null;
+        int offset = 0;
+        while (matcher.find()) {
+            if (REDACTED.equals(matcher.group(1))) {
+                continue;
+            }
+            if (result == null) {
+                result = new StringBuilder(argument.length());
+            }
+            result.append(argument, offset, matcher.start(1)).append(REDACTED);
+            offset = matcher.end(1);
+        }
+        return finishReplacement(argument, result, offset);
+    }
+
+    private static String finishReplacement(
+            String original, StringBuilder result, int offset) {
+        return result == null
+                ? original
+                : result.append(original, offset, original.length()).toString();
     }
 
     public static boolean isSensitiveName(String value) {
