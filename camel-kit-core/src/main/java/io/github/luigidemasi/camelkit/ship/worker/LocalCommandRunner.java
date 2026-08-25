@@ -55,7 +55,7 @@ final class LocalCommandRunner {
     private static final Pattern AUTHORIZATION_SCHEME = Pattern.compile(
             "(?i)[\"']?\\b(Bearer|Basic)\\s+[\"']?([^\\s\"',}]+)[\"']?");
     private static final Pattern URL_USERINFO = Pattern.compile(
-            "(?<=://)[^/@\\s]*@");
+            "(?<=://)([^/@\\s]*)@");
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private final Clock clock;
@@ -526,7 +526,7 @@ final class LocalCommandRunner {
 
     private static void addUrlMatches(List<String> values, Matcher matcher) {
         while (matcher.find()) {
-            String userInfo = matcher.group(2);
+            String userInfo = matcher.group(1);
             addSecretValue(values, userInfo, false);
             int colon = userInfo.indexOf(':');
             if (colon >= 0) {

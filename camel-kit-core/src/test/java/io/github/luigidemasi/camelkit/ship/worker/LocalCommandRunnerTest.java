@@ -199,6 +199,25 @@ class LocalCommandRunnerTest {
     }
 
     @Test
+    void redactsCredentialedUrlSuppliedAsAKnownSecret() throws Exception {
+        String secret = "https://user:hunter2@host/path";
+        Command command = new Command(
+                executable,
+                List.of("known-secret", secret),
+                workingDirectory,
+                evidenceDirectory,
+                Duration.ofSeconds(5),
+                4096,
+                List.of(secret));
+
+        LocalCommandRunner.Result result = new LocalCommandRunner().run(command);
+
+        assertEquals(List.of("known-secret", "<redacted>"), result.redactedArguments());
+        assertFalse(Files.readString(result.stdoutLog()).contains("user:hunter2"));
+        assertFalse(Files.readString(result.stderrLog()).contains("user:hunter2"));
+    }
+
+    @Test
     void filtersOnlyBooleanFeatureToggleEnvironmentValues() {
         assertFalse(LocalCommandRunner.isSensitiveEnvironmentValue(
                 "AUTH_ENABLED", "true"));

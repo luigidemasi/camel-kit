@@ -800,6 +800,18 @@ class PiWorkerTest {
     }
 
     @Test
+    void acceptsCredentialedUrlInSensitiveEnvironment() throws Exception {
+        String secret = "https://user:hunter2@host/path";
+
+        PiWorker.Result result = worker(
+                Duration.ofSeconds(5), Map.of("API_TOKEN", secret))
+                .run(request(ShipRun.Stage.DISCOVERY, "prompt"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
+        assertFalse(result.evidence().toString().contains("user:hunter2"));
+    }
+
+    @Test
     void ignoresCumulativeStreamingSnapshotsWithoutLosingTheTerminal()
             throws Exception {
         String[] modes = {
