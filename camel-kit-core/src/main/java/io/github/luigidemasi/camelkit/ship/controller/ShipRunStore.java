@@ -6,7 +6,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -15,7 +14,6 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileAttribute;
-import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Objects;
 import java.util.Set;
@@ -40,7 +38,6 @@ final class ShipRunStore {
 
     private static final int MAX_STATE_BYTES = 64 * 1024 * 1024;
     private static final int MAX_PROJECT_OWNER_BYTES = 64 * 1024;
-    private static final int MAX_PROCESS_STATUS_BYTES = 64 * 1024;
     private static final String STATE_FILE = "state.json";
     private static final String LOCK_FILE = "run.lock";
     private static final int PROJECT_OWNER_SCHEMA_VERSION = 1;
@@ -57,28 +54,9 @@ final class ShipRunStore {
             .disable(MapperFeature.ALLOW_COERCION_OF_SCALARS);
 
     private final Path stateRoot;
-    private final Path projectRegistryRoot;
 
     ShipRunStore(Path stateRoot) {
-        this(stateRoot, defaultProjectRegistryRoot());
-    }
-
-    ShipRunStore(Path stateRoot, Path projectRegistryRoot) {
         this.stateRoot = Objects.requireNonNull(stateRoot, "stateRoot").toAbsolutePath().normalize();
-        this.projectRegistryRoot = Objects.requireNonNull(
-                projectRegistryRoot, "projectRegistryRoot").toAbsolutePath().normalize();
-    }
-
-    static Path defaultProjectRegistryRoot() {
-        final long uid;
-        try {
-            uid = effectiveUserId();
-        } catch (IOException e) {
-            throw new IllegalStateException("Could not resolve the effective Unix user ID", e);
-        }
-        return Path.of("/var/tmp")
-                .resolve("camel-kit-ship-" + Long.toUnsignedString(uid))
-                .resolve("projects");
     }
 
     static Path validationStampPath(Path runDirectory, int attempt) {
@@ -486,79 +464,25 @@ final class ShipRunStore {
     }
 
     private Path resolvedProjectRegistryRoot() throws StoreException {
-        if (!projectRegistryRoot.getFileSystem().supportedFileAttributeViews().contains("posix")) {
-            throw new StoreException(
-                    "state-corrupt", "Ship project publication ownership requires a POSIX filesystem");
-        }
-        Path parent = projectRegistryRoot.getParent();
-        if (parent == null) {
-            throw new StoreException(
-                    "state-corrupt", "Ship project publication registry has no parent directory");
-        }
         try {
-            ensurePrivateDirectory(parent);
-            ensurePrivateDirectory(projectRegistryRoot);
-            return canonicalize(projectRegistryRoot);
+            Path root = resolvedStateRoot("state-corrupt");
+            Files.createDirectories(root, directoryAttributes());
+            root = resolvedStateRoot("state-corrupt");
+            Path registry = root.resolve("projects");
+            try {
+                Files.createDirectory(registry, directoryAttributes());
+            } catch (FileAlreadyExistsException ignored) {
+                // The state-home registry is shared by runs in this store.
+            }
+            if (Files.isSymbolicLink(registry)
+                    || !Files.isDirectory(registry, LinkOption.NOFOLLOW_LINKS)) {
+                throw new IOException("Ship project publication registry is not a real directory");
+            }
+            return registry.toRealPath();
         } catch (IOException | SecurityException e) {
             throw new StoreException(
                     "state-corrupt", "Ship project publication registry is unsafe", e);
         }
-    }
-
-    private static void ensurePrivateDirectory(Path directory) throws IOException {
-        try {
-            Files.createDirectory(
-                    directory,
-                    PosixFilePermissions.asFileAttribute(
-                            PosixFilePermissions.fromString("rwx------")));
-        } catch (FileAlreadyExistsException ignored) {
-            // Validate the existing per-user rendezvous below.
-        }
-        if (Files.isSymbolicLink(directory)
-                || !Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) {
-            throw new IOException("Ship private state path is not a real directory: " + directory);
-        }
-        long owner = ((Number) Files.getAttribute(
-                directory, "unix:uid", LinkOption.NOFOLLOW_LINKS)).longValue();
-        long current = effectiveUserId();
-        if (owner != current) {
-            throw new IOException("Ship private state path is owned by another user: " + directory);
-        }
-        Set<PosixFilePermission> permissions = Files.getPosixFilePermissions(
-                directory, LinkOption.NOFOLLOW_LINKS);
-        if (!permissions.equals(PosixFilePermissions.fromString("rwx------"))) {
-            throw new IOException("Ship private state path is not private: " + directory);
-        }
-    }
-
-    private static long effectiveUserId() throws IOException {
-        Path status = Path.of("/proc/self/status");
-        byte[] encoded;
-        try (InputStream input = Files.newInputStream(status)) {
-            encoded = input.readNBytes(MAX_PROCESS_STATUS_BYTES + 1);
-        }
-        if (encoded.length == 0 || encoded.length > MAX_PROCESS_STATUS_BYTES) {
-            throw new IOException("Linux process status has an invalid size");
-        }
-        for (String line : new String(encoded, StandardCharsets.UTF_8).split("\\R")) {
-            if (!line.startsWith("Uid:")) {
-                continue;
-            }
-            String[] fields = line.trim().split("\\s+");
-            if (fields.length != 5) {
-                break;
-            }
-            try {
-                long uid = Long.parseLong(fields[2]);
-                if (uid >= 0) {
-                    return uid;
-                }
-            } catch (NumberFormatException ignored) {
-                // Report one stable error below.
-            }
-            break;
-        }
-        throw new IOException("Linux process status does not contain an effective user ID");
     }
 
     private static Path canonicalize(Path path) throws IOException {
@@ -622,8 +546,7 @@ final class ShipRunStore {
 
     private static StoreException projectOwned(ProjectOwner owner, Throwable cause) {
         String message = "Ship run " + owner.runId()
-                         + " has an unfinished publication for this project in "
-                         + owner.stateRoot() + "; resume or abort it first";
+                         + " has an unfinished publication for this project; resume or abort it first";
         return cause == null
                 ? new StoreException("project-publication-in-progress", message)
                 : new StoreException("project-publication-in-progress", message, cause);
@@ -706,15 +629,9 @@ final class ShipRunStore {
     }
 
     private boolean foreignOwnerBlocks(ProjectOwner owner) throws IOException {
-        final Path ownerRoot;
         final Path ownerRun;
         try {
-            Path suppliedRoot = Path.of(owner.stateRoot());
-            ownerRoot = canonicalize(suppliedRoot);
-            if (!ownerRoot.toString().equals(owner.stateRoot())) {
-                throw new IOException("Ship publication owner state root was rebound");
-            }
-            ownerRun = runRoot(ownerRoot, owner.runId());
+            ownerRun = runRoot(resolvedStateRoot("state-corrupt"), owner.runId());
             if (Files.isSymbolicLink(ownerRun)
                     || !Files.isDirectory(ownerRun, LinkOption.NOFOLLOW_LINKS)) {
                 throw new IOException("Ship publication owner run directory is unavailable");
@@ -727,7 +644,7 @@ final class ShipRunStore {
         }
         final ShipRun run;
         try {
-            run = new ShipRunStore(ownerRoot, projectRegistryRoot).read(owner.runId());
+            run = read(owner.runId());
         } catch (IOException | RuntimeException e) {
             throw projectOwned(owner, e);
         }
@@ -766,7 +683,6 @@ final class ShipRunStore {
         return new ProjectOwner(
                 PROJECT_OWNER_SCHEMA_VERSION,
                 projectIdentity,
-                root.toString(),
                 runId);
     }
 
@@ -945,7 +861,7 @@ final class ShipRunStore {
                 throw new StoreException(
                         "state-corrupt", "Ship project publication owner changed while locked");
             }
-            Path root = Path.of(expected.stateRoot());
+            Path root = resolvedStateRoot("state-corrupt");
             Path runDirectory = runRoot(root, claimedRunId);
             boolean resolved = !ShipPublicationService.journalExists(runDirectory);
             if (!resolved) {
@@ -976,7 +892,6 @@ final class ShipRunStore {
     private record ProjectOwner(
             int schemaVersion,
             String projectIdentity,
-            String stateRoot,
             String runId) {
 
         private ProjectOwner {
@@ -984,14 +899,6 @@ final class ShipRunStore {
                     || !ShipDigest.isSha256(projectIdentity)
                     || !ShipRun.isRunId(runId)) {
                 throw new IllegalArgumentException("Invalid Ship project publication owner");
-            }
-            requireCanonicalAbsolute(stateRoot);
-        }
-
-        private static void requireCanonicalAbsolute(String value) {
-            Path path = Path.of(Objects.requireNonNull(value, "owner path"));
-            if (!path.isAbsolute() || !path.normalize().equals(path)) {
-                throw new IllegalArgumentException("Invalid Ship project publication owner path");
             }
         }
     }

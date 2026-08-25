@@ -24,13 +24,12 @@ public record ProjectSnapshot(
         Map<String, FileEntry> files,
         String digest) {
 
-    public static final int SCHEMA_VERSION = 5;
+    public static final int SCHEMA_VERSION = 6;
 
     private static final int FILE_TYPE_MASK = 0170000;
     private static final int DIRECTORY_TYPE = 0040000;
     private static final int REGULAR_FILE_TYPE = 0100000;
     private static final int UNIX_MODE_MASK = 0177777;
-    private static final long MAX_UNIX_ID = 0xffff_ffffL;
 
     public ProjectSnapshot {
         if (schemaVersion != SCHEMA_VERSION) {
@@ -145,7 +144,7 @@ public record ProjectSnapshot(
             Map<String, DirectoryEntry> directories,
             Map<String, FileEntry> files) {
         MessageDigest digest = messageDigest();
-        update(digest, "camel-kit.ship.project-snapshot.v5");
+        update(digest, "camel-kit.ship.project-snapshot.v6");
         update(digest, root);
         update(digest, rootIdentity);
         update(digest, policyDigest);
@@ -154,8 +153,6 @@ public record ProjectSnapshot(
             update(digest, "DIRECTORY");
             update(digest, entry.classification().name());
             update(digest, Integer.toString(entry.unixMode()));
-            update(digest, Long.toString(entry.userId()));
-            update(digest, Long.toString(entry.groupId()));
         });
         files.forEach((path, entry) -> {
             update(digest, path);
@@ -164,21 +161,18 @@ public record ProjectSnapshot(
             update(digest, Long.toString(entry.size()));
             update(digest, entry.digest());
             update(digest, Integer.toString(entry.unixMode()));
-            update(digest, Long.toString(entry.userId()));
-            update(digest, Long.toString(entry.groupId()));
         });
         return "sha256:" + HexFormat.of().formatHex(digest.digest());
     }
 
-    public record DirectoryEntry(
-            Classification classification, int unixMode, long userId, long groupId) {
+    public record DirectoryEntry(Classification classification, int unixMode) {
 
         public DirectoryEntry {
             if (classification == null || classification == Classification.VOLATILE
                     || classification == Classification.DENIED) {
                 throw new IllegalArgumentException("Invalid project-snapshot directory identity");
             }
-            requireUnixIdentity(unixMode, userId, groupId, DIRECTORY_TYPE, "directory");
+            requireUnixMode(unixMode, DIRECTORY_TYPE, "directory");
         }
     }
 
@@ -235,14 +229,11 @@ public record ProjectSnapshot(
         }
     }
 
-    private static void requireUnixIdentity(
-            int unixMode, long userId, long groupId, int expectedType, String label) {
+    private static void requireUnixMode(int unixMode, int expectedType, String label) {
         if ((unixMode & ~UNIX_MODE_MASK) != 0
-                || (unixMode & FILE_TYPE_MASK) != expectedType
-                || userId < 0 || userId > MAX_UNIX_ID
-                || groupId < 0 || groupId > MAX_UNIX_ID) {
+                || (unixMode & FILE_TYPE_MASK) != expectedType) {
             throw new IllegalArgumentException(
-                    "Invalid project-snapshot Unix " + label + " identity");
+                    "Invalid project-snapshot Unix " + label + " mode");
         }
     }
 
@@ -283,9 +274,7 @@ public record ProjectSnapshot(
             Classification classification,
             long size,
             String digest,
-            int unixMode,
-            long userId,
-            long groupId) {
+            int unixMode) {
 
         public FileEntry {
             if (classification == null || classification == Classification.VOLATILE
@@ -294,7 +283,7 @@ public record ProjectSnapshot(
                 throw new IllegalArgumentException("Invalid project-snapshot file identity");
             }
             requireDigest(digest, "file digest");
-            requireUnixIdentity(unixMode, userId, groupId, REGULAR_FILE_TYPE, "file");
+            requireUnixMode(unixMode, REGULAR_FILE_TYPE, "file");
         }
     }
 

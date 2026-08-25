@@ -162,55 +162,31 @@ class ShipRunStoreTest {
     }
 
     @Test
-    void excludesConcurrentProjectPublicationAcrossStateRoots() throws Exception {
-        Path project = Files.createDirectory(temporaryDirectory.resolve("project"));
-        Path registry = projectRegistryRoot();
-        ShipRunStore first = new ShipRunStore(
-                temporaryDirectory.resolve("state-one"), registry);
-        ShipRunStore second = new ShipRunStore(
-                temporaryDirectory.resolve("state-two"), registry);
-
-        try (ShipRunStore.LockedProject ignored = first.lockProject(project)) {
-            assertCode("operation-in-progress", () -> {
-                try (ShipRunStore.LockedProject competing = second.lockProject(project)) {
-                    // The project rendezvous is independent of either run-state root.
-                }
-            });
-        }
-    }
-
-    @Test
-    void rejectsANonPrivateProjectRegistryWithoutChangingItsPermissions() throws Exception {
+    void createsTheProjectRegistryUnderTheStateRoot() throws Exception {
         Assumptions.assumeTrue(
                 temporaryDirectory.getFileSystem().supportedFileAttributeViews().contains("posix"));
         Path project = Files.createDirectory(temporaryDirectory.resolve("project"));
-        Path parent = Files.createDirectory(temporaryDirectory.resolve("project-registry"));
-        Files.setPosixFilePermissions(parent, PosixFilePermissions.fromString("rwx------"));
-        Path registry = Files.createDirectory(parent.resolve("projects"));
-        var publicPermissions = PosixFilePermissions.fromString("rwxr-xr-x");
-        Files.setPosixFilePermissions(registry, publicPermissions);
-        ShipRunStore store = new ShipRunStore(
-                temporaryDirectory.resolve("state"), registry);
+        ShipRunStore store = store();
+        store.create(run(RUN_ID));
 
-        assertCode("state-corrupt", () -> {
-            try (ShipRunStore.LockedProject ignored = store.lockProject(project)) {
-                // An unsafe rendezvous must not be used.
-            }
-        });
-        assertEquals(publicPermissions, Files.getPosixFilePermissions(registry));
+        try (ShipRunStore.LockedProject ignored = store.lockProject(project)) {
+            assertTrue(Files.isDirectory(stateRoot().resolve("projects")));
+        }
+
+        assertEquals(
+                PosixFilePermissions.fromString("rwx------"),
+                Files.getPosixFilePermissions(stateRoot().resolve("projects")));
     }
 
     @Test
-    void retainsAndFindsADormantPublicationOwnerAcrossStateRoots() throws Exception {
+    void retainsAndFindsADormantPublicationOwner() throws Exception {
         Path project = Files.createDirectory(temporaryDirectory.resolve("project"));
-        Path registry = projectRegistryRoot();
-        Path firstState = temporaryDirectory.resolve("state-one");
-        Path secondState = temporaryDirectory.resolve("state-two");
-        ShipRunStore first = new ShipRunStore(firstState, registry);
-        ShipRunStore second = new ShipRunStore(secondState, registry);
+        Path state = stateRoot();
+        ShipRunStore first = new ShipRunStore(state);
+        ShipRunStore second = new ShipRunStore(state);
         first.create(withProject(run(RUN_ID), project));
         second.create(withProject(run(OTHER_RUN_ID), project));
-        Path journal = firstState.resolve(RUN_ID).resolve("publication/journal.json");
+        Path journal = state.resolve(RUN_ID).resolve("publication/journal.json");
 
         try (ShipRunStore.LockedProject owner = first.lockProject(project)) {
             owner.requireNoForeignTornPublication(RUN_ID);
@@ -237,11 +213,8 @@ class ShipRunStoreTest {
     void keepsTheProjectLeaseAcrossAnAncestorRename() throws Exception {
         Path oldParent = Files.createDirectory(temporaryDirectory.resolve("old-parent"));
         Path project = Files.createDirectory(oldParent.resolve("project"));
-        Path registry = projectRegistryRoot();
-        ShipRunStore first = new ShipRunStore(
-                temporaryDirectory.resolve("state-one"), registry);
-        ShipRunStore second = new ShipRunStore(
-                temporaryDirectory.resolve("state-two"), registry);
+        ShipRunStore first = store();
+        ShipRunStore second = store();
 
         try (ShipRunStore.LockedProject ignored = first.lockProject(project)) {
             Path newParent = temporaryDirectory.resolve("new-parent");
@@ -250,7 +223,7 @@ class ShipRunStoreTest {
             Path renamedProject = newParent.resolve("project");
             assertCode("operation-in-progress", () -> {
                 try (ShipRunStore.LockedProject competing = second.lockProject(renamedProject)) {
-                    // Device/inode identity remains stable when lexical ancestors move.
+                    // Filesystem identity remains stable when lexical ancestors move.
                 }
             });
         }
@@ -260,9 +233,8 @@ class ShipRunStoreTest {
     void recognizesADormantOwnerAfterAnAncestorRename() throws Exception {
         Path oldParent = Files.createDirectory(temporaryDirectory.resolve("old-parent"));
         Path project = Files.createDirectory(oldParent.resolve("project"));
-        Path registry = projectRegistryRoot();
-        Path state = temporaryDirectory.resolve("state");
-        ShipRunStore store = new ShipRunStore(state, registry);
+        Path state = stateRoot();
+        ShipRunStore store = new ShipRunStore(state);
         store.create(withProject(run(RUN_ID), project));
         Path journal = state.resolve(RUN_ID).resolve("publication/journal.json");
 
@@ -627,15 +599,11 @@ class ShipRunStoreTest {
     }
 
     private ShipRunStore store() {
-        return new ShipRunStore(stateRoot(), projectRegistryRoot());
+        return new ShipRunStore(stateRoot());
     }
 
     private Path stateRoot() {
         return temporaryDirectory.resolve("state");
-    }
-
-    private Path projectRegistryRoot() {
-        return temporaryDirectory.resolve("project-registry/projects");
     }
 
     private ShipRun run(String runId) {

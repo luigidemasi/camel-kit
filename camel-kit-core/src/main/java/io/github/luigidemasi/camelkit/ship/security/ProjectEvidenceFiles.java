@@ -13,12 +13,12 @@ public final class ProjectEvidenceFiles {
         return new ProjectSnapshotService().capture(projectRoot);
     }
 
-    /** Returns the descriptor-bound identity of one project root without scanning its entries. */
+    /** Returns the identity of one project root without scanning its entries. */
     public static String rootIdentity(Path projectRoot) throws IOException {
         return new ProjectSnapshotService().rootIdentity(projectRoot);
     }
 
-    /** Returns the path-independent device/inode identity used to coordinate one live project. */
+    /** Returns the path-independent filesystem identity used to coordinate one live project. */
     public static String projectIdentity(Path projectRoot) throws IOException {
         return new ProjectSnapshotService().projectIdentity(projectRoot);
     }
@@ -48,7 +48,7 @@ public final class ProjectEvidenceFiles {
         return new ProjectSnapshotService().readMaterial(root, relativePath, maximumBytes);
     }
 
-    /** Reads one bounded volatile file through the descriptor-relative project boundary. */
+    /** Reads one bounded volatile file within the project boundary. */
     public static byte[] readVolatile(Path root, String relativePath, int maximumBytes) throws IOException {
         return new ProjectSnapshotService().readVolatile(root, relativePath, maximumBytes);
     }

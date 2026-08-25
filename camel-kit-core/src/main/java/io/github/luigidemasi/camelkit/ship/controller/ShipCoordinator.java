@@ -2,29 +2,23 @@ package io.github.luigidemasi.camelkit.ship.controller;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
 import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.nio.file.attribute.PosixFileAttributes;
-import java.nio.file.attribute.PosixFilePermissions;
-import java.nio.file.attribute.UserPrincipal;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 
 import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
@@ -619,7 +613,7 @@ public final class ShipCoordinator {
             throws IOException {
         String digest = ShipDigest.sha256(content)
                 .substring("sha256:".length());
-        return writeOnce(
+        return writeInput(
                 directory.resolve(name + '-' + digest + ".json"),
                 content);
     }
@@ -719,7 +713,7 @@ public final class ShipCoordinator {
         Path target = attempt.inputDirectory()
                 .resolve(attempt.stage().stage().name().toLowerCase(
                         java.util.Locale.ROOT) + "-" + suffix + ".md");
-        return writeOnce(target, encoded);
+        return writeInput(target, encoded);
     }
 
     private Result completedPiResult(
@@ -973,60 +967,15 @@ public final class ShipCoordinator {
 
     private AttemptLease tryCoordinatorLease(String runId)
             throws IOException {
-        Path root = stateRoot.toRealPath();
-        Path run = stateRoot.resolve(runId).toAbsolutePath().normalize();
-        if (Files.isSymbolicLink(run)
-                || !Files.isDirectory(run, LinkOption.NOFOLLOW_LINKS)) {
-            throw new IOException(
-                    "Ship coordinator run directory is missing or unsafe");
-        }
-        Path realRun = run.toRealPath(LinkOption.NOFOLLOW_LINKS);
-        if (!realRun.equals(root.resolve(runId))) {
-            throw new IOException(
-                    "Ship coordinator run directory escaped its state root");
-        }
-        return tryLease(
-                realRun.resolve(".coordinator.lock"),
-                "Ship coordinator lease");
+        return tryLease(stateRoot.resolve(runId).resolve(".coordinator.lock"));
     }
 
-    private static AttemptLease tryLease(Path lockPath, String label)
-            throws IOException {
-        String userName = System.getProperty("user.name");
-        if (userName == null || userName.isBlank()) {
-            throw new IOException(
-                    "Could not determine the current user for " + label);
-        }
-        UserPrincipal owner = lockPath.getFileSystem()
-                .getUserPrincipalLookupService()
-                .lookupPrincipalByName(userName);
-        if (!owner.equals(Files.getOwner(
-                lockPath.getParent(), LinkOption.NOFOLLOW_LINKS))) {
-            throw new IOException(
-                    label + " directory must be owned by the current user");
-        }
+    private static AttemptLease tryLease(Path lockPath) throws IOException {
         FileChannel channel = FileChannel.open(
                 lockPath,
-                Set.of(
-                        StandardOpenOption.CREATE,
-                        StandardOpenOption.WRITE,
-                        LinkOption.NOFOLLOW_LINKS),
-                PosixFilePermissions.asFileAttribute(
-                        PosixFilePermissions.fromString("rw-------")));
+                StandardOpenOption.CREATE,
+                StandardOpenOption.WRITE);
         try {
-            PosixFileAttributes attributes = Files.readAttributes(
-                    lockPath,
-                    PosixFileAttributes.class,
-                    LinkOption.NOFOLLOW_LINKS);
-            if (attributes.isSymbolicLink()
-                    || !attributes.isRegularFile()
-                    || !owner.equals(attributes.owner())
-                    || !PosixFilePermissions.fromString("rw-------").equals(
-                            attributes.permissions())) {
-                throw new IOException(
-                        label
-                                      + " must be a current-user-owned 0600 regular file");
-            }
             FileLock lock;
             try {
                 lock = channel.tryLock();
@@ -1053,48 +1002,13 @@ public final class ShipCoordinator {
                 || "stale-stage-attempt".equals(failure.code());
     }
 
-    private static Path writeOnce(Path target, byte[] encoded)
-            throws IOException {
-        if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
-            byte[] current = readBounded(target, MAX_BRIEFING_BYTES);
-            if (!java.security.MessageDigest.isEqual(current, encoded)) {
-                throw new IOException(
-                        "Controller-owned Pi briefing differs from its durable input");
-            }
-            return target.toRealPath(LinkOption.NOFOLLOW_LINKS);
-        }
-        Path temporary = Files.createTempFile(
-                target.getParent(),
-                ".briefing-",
-                ".tmp",
-                PosixFilePermissions.asFileAttribute(
-                        PosixFilePermissions.fromString("rw-------")));
-        try {
-            try (FileChannel channel = FileChannel.open(
-                    temporary,
-                    StandardOpenOption.WRITE,
-                    StandardOpenOption.TRUNCATE_EXISTING,
-                    LinkOption.NOFOLLOW_LINKS)) {
-                ByteBuffer content = ByteBuffer.wrap(encoded);
-                while (content.hasRemaining()) {
-                    channel.write(content);
-                }
-                channel.force(true);
-            }
-            try {
-                Files.createLink(target, temporary);
-            } catch (FileAlreadyExistsException e) {
-                byte[] current = readBounded(target, MAX_BRIEFING_BYTES);
-                if (!java.security.MessageDigest.isEqual(current, encoded)) {
-                    throw new IOException(
-                            "Concurrent Ship briefing differs from its input",
-                            e);
-                }
-            }
-            return target.toRealPath(LinkOption.NOFOLLOW_LINKS);
-        } finally {
-            Files.deleteIfExists(temporary);
-        }
+    private static Path writeInput(Path target, byte[] encoded) throws IOException {
+        return Files.write(
+                target,
+                encoded,
+                StandardOpenOption.CREATE,
+                StandardOpenOption.TRUNCATE_EXISTING,
+                StandardOpenOption.WRITE);
     }
 
     private static byte[] readBounded(Path path, int maximum)

@@ -93,7 +93,7 @@ class ShipPublicationServiceTest {
     }
 
     @Test
-    void blocksRecoveryOfAThirdFileModeWithoutMutation() throws Exception {
+    void recoversABaselineFileModeFromAnyIntermediateMode() throws Exception {
         Fixture fixture = fixture("third-file-mode", project -> {
             write(project.resolve("mode.txt"), "same bytes");
             setMode(project.resolve("mode.txt"), "rw-r--r--");
@@ -103,21 +103,16 @@ class ShipPublicationServiceTest {
         fixture.begin();
         backup(fixture, "mode.txt");
         setMode(fixture.live("mode.txt"), "rw-rw----");
-        ProjectSnapshot thirdState = ProjectEvidenceFiles.capture(fixture.project());
 
-        assertThrows(
-                ShipPublicationService.RecoveryBlockedException.class,
-                () -> ShipPublicationService.recover(
-                        fixture.project(), fixture.run(), RUN_ID, ATTEMPT));
+        ShipPublicationService.recover(fixture.project(), fixture.run(), RUN_ID, ATTEMPT);
 
-        assertMaterialTree(thirdState, fixture.project());
         assertEquals("same bytes", Files.readString(fixture.live("mode.txt")));
-        assertMode(fixture.live("mode.txt"), "rw-rw----");
-        assertTrue(ShipPublicationService.journalExists(fixture.run()));
+        assertMode(fixture.live("mode.txt"), "rw-r--r--");
+        assertFalse(ShipPublicationService.journalExists(fixture.run()));
     }
 
     @Test
-    void blocksRecoveryOfAThirdDirectoryModeWithoutMutation() throws Exception {
+    void recoversABaselineDirectoryModeFromAnyIntermediateMode() throws Exception {
         Fixture fixture = fixture("third-directory-mode", project -> {
             Path config = Files.createDirectory(project.resolve("config"));
             setMode(config, "rwxr-xr-x");
@@ -126,20 +121,15 @@ class ShipPublicationServiceTest {
         });
         fixture.begin();
         setMode(fixture.live("config"), "rwxr-x---");
-        ProjectSnapshot thirdState = ProjectEvidenceFiles.capture(fixture.project());
 
-        assertThrows(
-                ShipPublicationService.RecoveryBlockedException.class,
-                () -> ShipPublicationService.recover(
-                        fixture.project(), fixture.run(), RUN_ID, ATTEMPT));
+        ShipPublicationService.recover(fixture.project(), fixture.run(), RUN_ID, ATTEMPT);
 
-        assertMaterialTree(thirdState, fixture.project());
-        assertMode(fixture.live("config"), "rwxr-x---");
-        assertTrue(ShipPublicationService.journalExists(fixture.run()));
+        assertMode(fixture.live("config"), "rwxr-xr-x");
+        assertFalse(ShipPublicationService.journalExists(fixture.run()));
     }
 
     @Test
-    void blocksAThirdReplacementDirectoryModeAfterRecoveryStarted() throws Exception {
+    void recoversABaselineDirectoryModeAfterRecoveryStarted() throws Exception {
         Fixture fixture = fixture("third-recovery-directory-mode", project -> {
             Path config = Files.createDirectory(project.resolve("config"));
             setMode(config, "rwxr-xr-x");
@@ -149,16 +139,11 @@ class ShipPublicationServiceTest {
         fixture.begin();
         ShipPublicationService.startRecovery(fixture.run(), fixture.journal(), false);
         setMode(fixture.live("config"), "rwxr-x---");
-        ProjectSnapshot thirdState = ProjectEvidenceFiles.capture(fixture.project());
 
-        assertThrows(
-                ShipPublicationService.RecoveryBlockedException.class,
-                () -> ShipPublicationService.recover(
-                        fixture.project(), fixture.run(), RUN_ID, ATTEMPT));
+        ShipPublicationService.recover(fixture.project(), fixture.run(), RUN_ID, ATTEMPT);
 
-        assertMaterialTree(thirdState, fixture.project());
-        assertMode(fixture.live("config"), "rwxr-x---");
-        assertTrue(ShipPublicationService.journalExists(fixture.run()));
+        assertMode(fixture.live("config"), "rwxr-xr-x");
+        assertFalse(ShipPublicationService.journalExists(fixture.run()));
     }
 
     @Test
@@ -325,7 +310,7 @@ class ShipPublicationServiceTest {
     }
 
     @Test
-    void recoveryBeforeApplicationPreservesAnExactScratchLookalike() throws Exception {
+    void recoveryBeforeApplicationDeletesOwnedScratch() throws Exception {
         Fixture fixture = fixture("pre-application-scratch", project -> {
             write(project.resolve("replace.txt"), "old");
         }, candidate -> {
@@ -340,15 +325,11 @@ class ShipPublicationServiceTest {
                 StandardOpenOption.WRITE);
         setMode(scratch, "rw-------");
 
-        assertThrows(
-                ShipPublicationService.RecoveryBlockedException.class,
-                () -> ShipPublicationService.recover(
-                        fixture.project(), fixture.run(), RUN_ID, ATTEMPT));
+        ShipPublicationService.recover(fixture.project(), fixture.run(), RUN_ID, ATTEMPT);
 
         assertEquals("old", Files.readString(fixture.live("replace.txt")));
-        assertEquals(0, Files.size(scratch));
-        assertMode(scratch, "rw-------");
-        assertTrue(ShipPublicationService.journalExists(fixture.run()));
+        assertFalse(Files.exists(scratch, LinkOption.NOFOLLOW_LINKS));
+        assertFalse(ShipPublicationService.journalExists(fixture.run()));
     }
 
     @Test
@@ -476,26 +457,6 @@ class ShipPublicationServiceTest {
         } finally {
             setMode(publication, "rwx------");
         }
-    }
-
-    @Test
-    void beginCleansAnInterruptedPermissionProbeBeforeWritingTheJournal() throws Exception {
-        Fixture fixture = fixture("interrupted-permission-probe", project -> {
-            write(project.resolve("replace.txt"), "old");
-        }, candidate -> {
-            write(candidate.resolve("replace.txt"), "new");
-        });
-        Path publication = Files.createDirectory(
-                ShipPublicationService.publicationDirectory(fixture.run()));
-        Path fileProbe = Files.writeString(publication.resolve(".permission-probe-file"), "");
-        Path directoryProbe = Files.createDirectory(
-                publication.resolve(".permission-probe-directory"));
-
-        fixture.begin();
-
-        assertTrue(ShipPublicationService.journalExists(fixture.run()));
-        assertFalse(Files.exists(fileProbe, LinkOption.NOFOLLOW_LINKS));
-        assertFalse(Files.exists(directoryProbe, LinkOption.NOFOLLOW_LINKS));
     }
 
     private Fixture fixture(

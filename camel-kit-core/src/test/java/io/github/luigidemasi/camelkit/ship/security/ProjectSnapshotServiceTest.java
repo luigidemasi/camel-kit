@@ -156,7 +156,7 @@ class ProjectSnapshotServiceTest {
     }
 
     @Test
-    void readsOnlyBoundedMaterialFilesThroughTheHeldProjectDescriptor() throws Exception {
+    void readsOnlyBoundedMaterialFilesWithinTheProjectBoundary() throws Exception {
         Path project = project();
         Path material = write(project, "requirements.md", "requirements");
         write(project, ".camel-kit/pipeline.json", "private");
@@ -195,7 +195,7 @@ class ProjectSnapshotServiceTest {
     }
 
     @Test
-    void readsOnlyBoundedVolatileFilesThroughTheHeldProjectDescriptor() throws Exception {
+    void readsOnlyBoundedVolatileFilesWithinTheProjectBoundary() throws Exception {
         Path project = project();
         Path generated = write(project, "target/generated.txt", "generated");
         write(project, "requirements.md", "requirements");
@@ -542,7 +542,7 @@ class ProjectSnapshotServiceTest {
         ProjectSnapshot.FileEntry metadata = forgedProtected.get(".idea/workspace.xml");
         forgedProtected.put(".idea/workspace.xml", new ProjectSnapshot.FileEntry(
                 Classification.MATERIAL, metadata.size(), metadata.digest(),
-                metadata.unixMode(), metadata.userId(), metadata.groupId()));
+                metadata.unixMode()));
         String protectedDigest = ProjectSnapshot.computeDigest(
                 snapshot.root(), snapshot.rootIdentity(), snapshot.policyDigest(),
                 snapshot.directories(), forgedProtected);
@@ -554,7 +554,7 @@ class ProjectSnapshotServiceTest {
         ProjectSnapshot.FileEntry readmeAsDenied = forgedDenied.get("README.md");
         forgedDenied.put(".git/HEAD", new ProjectSnapshot.FileEntry(
                 Classification.MATERIAL, readmeAsDenied.size(), readmeAsDenied.digest(),
-                readmeAsDenied.unixMode(), readmeAsDenied.userId(), readmeAsDenied.groupId()));
+                readmeAsDenied.unixMode()));
         String deniedDigest = ProjectSnapshot.computeDigest(
                 snapshot.root(), snapshot.rootIdentity(), snapshot.policyDigest(),
                 snapshot.directories(), forgedDenied);
@@ -566,7 +566,7 @@ class ProjectSnapshotServiceTest {
         ProjectSnapshot.FileEntry readme = forgedMaterial.get("README.md");
         forgedMaterial.put("README.md", new ProjectSnapshot.FileEntry(
                 Classification.PROTECTED, readme.size(), readme.digest(),
-                readme.unixMode(), readme.userId(), readme.groupId()));
+                readme.unixMode()));
         String materialDigest = ProjectSnapshot.computeDigest(
                 snapshot.root(), snapshot.rootIdentity(), snapshot.policyDigest(),
                 snapshot.directories(), forgedMaterial);
@@ -576,7 +576,7 @@ class ProjectSnapshotServiceTest {
     }
 
     @Test
-    void snapshotStoresAndDigestsFullUnixModeAndOwnership() throws Exception {
+    void snapshotStoresAndDigestsFullUnixModes() throws Exception {
         Path project = project();
         Path routes = Files.createDirectory(project.resolve("routes"));
         Path route = write(project, "routes/orders.camel.yaml", "- route:\n");
@@ -585,45 +585,28 @@ class ProjectSnapshotServiceTest {
         ProjectSnapshot.FileEntry file = snapshot.files().get("routes/orders.camel.yaml");
 
         assertEquals(unixInt(routes, "mode"), directory.unixMode());
-        assertEquals(unixId(routes, "uid"), directory.userId());
-        assertEquals(unixId(routes, "gid"), directory.groupId());
         assertEquals(unixInt(route, "mode"), file.unixMode());
-        assertEquals(unixId(route, "uid"), file.userId());
-        assertEquals(unixId(route, "gid"), file.groupId());
 
         TreeMap<String, ProjectSnapshot.FileEntry> specialModeFiles = new TreeMap<>(snapshot.files());
         specialModeFiles.put("routes/orders.camel.yaml", new ProjectSnapshot.FileEntry(
-                file.classification(), file.size(), file.digest(), file.unixMode() ^ 04000,
-                file.userId(), file.groupId()));
-        TreeMap<String, ProjectSnapshot.FileEntry> differentOwnerFiles = new TreeMap<>(snapshot.files());
-        differentOwnerFiles.put("routes/orders.camel.yaml", new ProjectSnapshot.FileEntry(
-                file.classification(), file.size(), file.digest(), file.unixMode(),
-                differentUnixId(file.userId()), file.groupId()));
+                file.classification(), file.size(), file.digest(), file.unixMode() ^ 04000));
         TreeMap<String, ProjectSnapshot.DirectoryEntry> specialModeDirectories
                 = new TreeMap<>(snapshot.directories());
         specialModeDirectories.put("routes", new ProjectSnapshot.DirectoryEntry(
-                directory.classification(), directory.unixMode() ^ 01000,
-                directory.userId(), directory.groupId()));
+                directory.classification(), directory.unixMode() ^ 01000));
 
         assertNotEquals(snapshot.digest(), ProjectSnapshot.computeDigest(
                 snapshot.root(), snapshot.rootIdentity(), snapshot.policyDigest(),
                 snapshot.directories(), specialModeFiles));
         assertNotEquals(snapshot.digest(), ProjectSnapshot.computeDigest(
                 snapshot.root(), snapshot.rootIdentity(), snapshot.policyDigest(),
-                snapshot.directories(), differentOwnerFiles));
-        assertNotEquals(snapshot.digest(), ProjectSnapshot.computeDigest(
-                snapshot.root(), snapshot.rootIdentity(), snapshot.policyDigest(),
                 specialModeDirectories, snapshot.files()));
         assertThrows(IllegalArgumentException.class,
                 () -> new ProjectSnapshot.DirectoryEntry(
-                        Classification.MATERIAL, 0100755, directory.userId(), directory.groupId()));
+                        Classification.MATERIAL, 0100755));
         assertThrows(IllegalArgumentException.class,
                 () -> new ProjectSnapshot.FileEntry(
-                        Classification.MATERIAL, 0, file.digest(), 0040644,
-                        file.userId(), file.groupId()));
-        assertThrows(IllegalArgumentException.class,
-                () -> new ProjectSnapshot.FileEntry(
-                        Classification.MATERIAL, 0, file.digest(), 0100644, -1, file.groupId()));
+                        Classification.MATERIAL, 0, file.digest(), 0040644));
     }
 
     @Test
@@ -634,7 +617,7 @@ class ProjectSnapshotServiceTest {
         String deepPath = "d/".repeat(ShipTreePolicy.DEFAULT_MAX_DEPTH + 1) + "file.txt";
         ProjectSnapshot.FileEntry entry = new ProjectSnapshot.FileEntry(
                 Classification.MATERIAL, 0, "sha256:" + "1".repeat(64),
-                0100644, 1000, 1000);
+                0100644);
         Map<String, ProjectSnapshot.FileEntry> files = Map.of(deepPath, entry);
         String digest = ProjectSnapshot.computeDigest(
                 root, rootIdentity, policyDigest, Map.of(), files);
@@ -651,7 +634,7 @@ class ProjectSnapshotServiceTest {
         String policyDigest = ShipTreePolicy.current().digest();
         String placeholderDigest = "sha256:" + "1".repeat(64);
         ProjectSnapshot.FileEntry entry = new ProjectSnapshot.FileEntry(
-                Classification.MATERIAL, 0, placeholderDigest, 0100644, 1000, 1000);
+                Classification.MATERIAL, 0, placeholderDigest, 0100644);
         Map<String, ProjectSnapshot.FileEntry> preflightOversized = new AbstractMap<>() {
             @Override
             public int size() {
@@ -772,17 +755,6 @@ class ProjectSnapshotServiceTest {
 
     private static int unixInt(Path path, String attribute) throws Exception {
         return ((Number) Files.getAttribute(path, "unix:" + attribute)).intValue();
-    }
-
-    private static long unixId(Path path, String attribute) throws Exception {
-        Number value = (Number) Files.getAttribute(path, "unix:" + attribute);
-        return value instanceof Integer integer
-                ? Integer.toUnsignedLong(integer)
-                : value.longValue();
-    }
-
-    private static long differentUnixId(long value) {
-        return value == 0xffff_ffffL ? value - 1 : value + 1;
     }
 
     private Path project() throws Exception {

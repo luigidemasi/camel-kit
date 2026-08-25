@@ -110,7 +110,6 @@ class ShipCoordinatorTest {
         distribution = DistributionConfig.load(new Properties());
         controller = new ShipController(
                 state,
-                directory.resolve("project-registry/projects"),
                 Clock.systemUTC(),
                 environment);
         worker = new PiWorker(
@@ -415,7 +414,6 @@ class ShipCoordinatorTest {
             }
             ShipRun aborted = new ShipController(
                     state,
-                    directory.resolve("project-registry/projects"),
                     Clock.systemUTC(),
                     Map.of())
                     .abort(run.id());

@@ -758,11 +758,6 @@ final class ShipMainValidator {
                         e);
             }
             moved = true;
-            if (!Files.getPosixFilePermissions(
-                    path, LinkOption.NOFOLLOW_LINKS)
-                    .equals(PosixFilePermissions.fromString("rw-------"))) {
-                throw new IOException("Retained validation log permissions must be 0600");
-            }
             return path.toRealPath(LinkOption.NOFOLLOW_LINKS);
         } finally {
             if (!moved) {
