@@ -26,7 +26,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -56,7 +55,7 @@ final class LocalCommandRunner {
     private static final Pattern AUTHORIZATION_SCHEME = Pattern.compile(
             "(?i)[\"']?\\b(Bearer|Basic)\\s+[\"']?([^\\s\"',}]+)[\"']?");
     private static final Pattern URL_USERINFO = Pattern.compile(
-            "([A-Za-z][A-Za-z0-9+.-]*://)([^/@\\s]*)@");
+            "(?<=://)[^/@\\s]*@");
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private final Clock clock;
@@ -312,37 +311,69 @@ final class LocalCommandRunner {
     }
 
     private static String redact(String value, List<String> secrets) {
-        String result = value;
+        return redact(value, secrets, Integer.MAX_VALUE);
+    }
+
+    private static String redact(
+            String value, List<String> secrets, int maximumCharacters) {
         List<String> literals = secretRepresentations(secrets);
+        Pattern literalPattern = null;
+        String expression = "(?:" + SENSITIVE_ASSIGNMENT.pattern() + ')'
+                            + "|(?:" + AUTHORIZATION_SCHEME.pattern() + ')'
+                            + "|(?:" + URL_USERINFO.pattern() + ')';
         if (!literals.isEmpty()) {
-            String expression = String.join(
+            String literalExpression = String.join(
                     "|", literals.stream().map(Pattern::quote).toList());
-            result = Pattern.compile(expression).matcher(result)
-                    .replaceAll(Matcher.quoteReplacement(ShipLocalStamp.REDACTED));
+            literalPattern = Pattern.compile(literalExpression);
+            expression += "|(?:" + literalExpression + ')';
         }
-        result = SENSITIVE_ASSIGNMENT.matcher(result)
-                .replaceAll(match -> Matcher.quoteReplacement(redactedAssignment(match)));
-        result = AUTHORIZATION_SCHEME.matcher(result).replaceAll(match -> Matcher.quoteReplacement(
-                match.group(1) + " " + ShipLocalStamp.REDACTED));
-        return URL_USERINFO.matcher(result).replaceAll(match -> Matcher.quoteReplacement(
-                match.group(1) + ShipLocalStamp.REDACTED + "@"));
+        Matcher search = Pattern.compile("(?=(?:" + expression + "))").matcher(value);
+
+        StringBuilder redacted = new StringBuilder(
+                Math.min(value.length(), maximumCharacters));
+        int position = 0;
+        while (search.find(position)) {
+            RedactionMatch match = redactionAt(
+                    value, search.start(), literalPattern);
+            int candidateStart = match.start() + 1;
+            while (search.find(candidateStart)) {
+                RedactionMatch candidate = redactionAt(
+                        value, search.start(), literalPattern);
+                if (candidate.start() >= match.end()) {
+                    break;
+                }
+                match = new RedactionMatch(
+                        match.start(),
+                        Math.max(match.end(), candidate.end()),
+                        match.replacement());
+                candidateStart = candidate.start() + 1;
+            }
+
+            int remaining = maximumCharacters - redacted.length();
+            int unchanged = match.start() - position;
+            if (unchanged > remaining) {
+                appendPrefix(redacted, value, position, remaining);
+                return redacted.toString();
+            }
+            redacted.append(value, position, match.start());
+            if (match.replacement().length()
+                > maximumCharacters - redacted.length()) {
+                return redacted.toString();
+            }
+            redacted.append(match.replacement());
+            position = match.end();
+        }
+        appendPrefix(
+                redacted,
+                value,
+                position,
+                maximumCharacters - redacted.length());
+        return redacted.toString();
     }
 
     private static byte[] redactBounded(
             String value, List<String> secrets, int maximumBytes) {
-        List<String> literals = secretRepresentations(secrets);
-        String expression = "(?<assignment>" + SENSITIVE_ASSIGNMENT.pattern() + ')'
-                            + "|(?<authorization>" + AUTHORIZATION_SCHEME.pattern() + ')'
-                            + "|(?<url>" + URL_USERINFO.pattern() + ')';
-        if (!literals.isEmpty()) {
-            expression += "|(?<literal>" + String.join(
-                    "|", literals.stream().map(Pattern::quote).toList()) + ')';
-        }
-        String result = replaceBounded(
-                value,
-                Pattern.compile(expression),
-                LocalCommandRunner::boundedReplacement,
-                maximumBytes);
+        String result = redact(value, secrets, maximumBytes);
         byte[] encoded = result.getBytes(StandardCharsets.UTF_8);
         if (encoded.length <= maximumBytes) {
             return encoded;
@@ -361,67 +392,56 @@ final class LocalCommandRunner {
         return prefix.getBytes(StandardCharsets.UTF_8);
     }
 
-    private static String replaceBounded(
-            String value,
-            Pattern pattern,
-            Function<Matcher, String> replacement,
-            int maximumCharacters) {
-        Matcher matcher = pattern.matcher(value);
-        StringBuilder bounded = new StringBuilder(
-                Math.min(value.length(), maximumCharacters));
-        int position = 0;
-        while (matcher.find()) {
-            int remaining = maximumCharacters - bounded.length();
-            int unmatched = matcher.start() - position;
-            if (unmatched > remaining) {
-                appendPrefix(bounded, value, position, remaining);
-                return bounded.toString();
-            }
-            bounded.append(value, position, matcher.start());
-            String replacementValue = replacement.apply(matcher);
-            if (replacementValue.length()
-                > maximumCharacters - bounded.length()) {
-                return bounded.toString();
-            }
-            bounded.append(replacementValue);
-            position = matcher.end();
+    private static RedactionMatch redactionAt(
+            String value, int start, Pattern literalPattern) {
+        int end = start;
+        String replacement = null;
+
+        Matcher assignment = at(SENSITIVE_ASSIGNMENT, value, start);
+        if (assignment.lookingAt()) {
+            end = assignment.end();
+            replacement = redactedAssignment(assignment);
         }
-        appendPrefix(
-                bounded,
-                value,
-                position,
-                maximumCharacters - bounded.length());
-        return bounded.toString();
+        Matcher authorization = at(AUTHORIZATION_SCHEME, value, start);
+        if (authorization.lookingAt()) {
+            end = Math.max(end, authorization.end());
+            if (replacement == null) {
+                replacement = authorization.group(1) + " " + ShipLocalStamp.REDACTED;
+            }
+        }
+        Matcher url = at(URL_USERINFO, value, start);
+        if (url.lookingAt()) {
+            end = Math.max(end, url.end());
+            if (replacement == null) {
+                replacement = ShipLocalStamp.REDACTED + "@";
+            }
+        }
+        if (literalPattern != null) {
+            Matcher literal = at(literalPattern, value, start);
+            if (literal.lookingAt()) {
+                end = Math.max(end, literal.end());
+                if (replacement == null) {
+                    replacement = ShipLocalStamp.REDACTED;
+                }
+            }
+        }
+        if (literalPattern != null
+                && !ShipLocalStamp.REDACTED.equals(replacement)
+                && literalPattern.matcher(replacement).find()) {
+            replacement = ShipLocalStamp.REDACTED;
+        }
+        return new RedactionMatch(start, end, replacement);
     }
 
-    private static String boundedReplacement(Matcher match) {
-        String assignmentValue = match.group("assignment");
-        if (assignmentValue != null) {
-            Matcher assignment = SENSITIVE_ASSIGNMENT.matcher(assignmentValue);
-            if (assignment.matches()) {
-                return redactedAssignment(assignment);
-            }
-        }
-        String authorizationValue = match.group("authorization");
-        if (authorizationValue != null) {
-            Matcher authorization = AUTHORIZATION_SCHEME.matcher(authorizationValue);
-            if (authorization.matches()) {
-                return authorization.group(1) + " " + ShipLocalStamp.REDACTED;
-            }
-        }
-        String urlValue = match.group("url");
-        if (urlValue != null) {
-            Matcher url = URL_USERINFO.matcher(urlValue);
-            if (url.matches()) {
-                return url.group(1) + ShipLocalStamp.REDACTED + "@";
-            }
-        }
-        return ShipLocalStamp.REDACTED;
+    private static Matcher at(Pattern pattern, String value, int start) {
+        return pattern.matcher(value)
+                .region(start, value.length())
+                .useTransparentBounds(true);
     }
 
     private static void appendPrefix(
             StringBuilder target, String value, int start, int maximumCharacters) {
-        int end = Math.min(value.length(), start + maximumCharacters);
+        int end = start + Math.min(maximumCharacters, value.length() - start);
         if (end > start
                 && end < value.length()
                 && Character.isHighSurrogate(value.charAt(end - 1))
@@ -883,6 +903,9 @@ final class LocalCommandRunner {
     }
 
     record RetainedLog(Path path, String digest, long size) {
+    }
+
+    private record RedactionMatch(int start, int end, String replacement) {
     }
 
 }

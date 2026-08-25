@@ -307,10 +307,42 @@ class LocalCommandRunnerTest {
             String content = Files.readString(retained.path());
 
             assertTrue(Files.size(retained.path()) <= maximumBytes);
-            assertTrue(content.contains("https://<redacted>@"));
+            assertTrue(content.contains("<redacted>@"));
+            if (secrets.isEmpty()) {
+                assertTrue(content.contains("https://<redacted>@"));
+            } else {
+                assertFalse(content.contains("https"));
+            }
             assertFalse(content.contains("user"));
             assertFalse(content.contains("hunter2pass"));
         }
+    }
+
+    @Test
+    void mergesOverlappingCredentialRedactions() throws Exception {
+        List<String> output = List.of(
+                "prefix https://user:hunter2@host",
+                "token=https://user,hunter2@host",
+                "Bearer https://user,hunter2@host",
+                "https://user:hunter2@host",
+                "token=hunter2");
+        List<String> secrets = List.of("prefix https", "https", "oken");
+        List<String> expected = List.of(
+                "<redacted>://<redacted>@host",
+                "<redacted>host",
+                "Bearer <redacted>host",
+                "<redacted>://<redacted>@host",
+                "<redacted>");
+
+        assertEquals(expected, LocalCommandRunner.redactArguments(output, secrets));
+
+        LocalCommandRunner.RetainedLog retained = LocalCommandRunner.retain(
+                String.join("\n", output).getBytes(StandardCharsets.UTF_8),
+                evidenceDirectory,
+                ".stdout.log",
+                4096,
+                secrets);
+        assertEquals(String.join("\n", expected), Files.readString(retained.path()));
     }
 
     @Test
