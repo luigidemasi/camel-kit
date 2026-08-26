@@ -65,7 +65,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           copilot -p "$(< /tmp/website-impact-prompt.txt)" -s --no-ask-user \
-            --model=claude-haiku-4.5 --no-auto-update \
+            --model=auto --no-auto-update \
             --no-custom-instructions \
             --available-tools=ask_user --disable-builtin-mcps \
             > /tmp/website-impact-result.json
