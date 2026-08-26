@@ -51,7 +51,7 @@ public final class ShipCoordinator {
 
     private static final long ABORT_POLL_MILLIS = 50;
     private static final int MAX_BRIEFING_BYTES = 16 * 1024 * 1024;
-    private static final int PLAN_CONTRACT_VERSION = 1;
+    private static final int PLAN_CONTRACT_VERSION = 2;
     private static final String MANIFEST_SCHEMA_RESOURCE
             = "/ship/schema/artifact-manifest.schema.json";
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -838,7 +838,9 @@ public final class ShipCoordinator {
                     .append(
                             ". Copy every fixed field exactly and replace the empty routes array "
                             + "with one object per planned route using fields routeId, routePath, "
-                            + "and citrusTestPath. For each route, routePath's file name must "
+                            + "and citrusTestPath. Use the exact canonical project-relative routePath "
+                            + "from the plan; use only the file name when the route is at project root. "
+                            + "For each route, routePath's file name must "
                             + "equal <routeId>.camel.yaml and citrusTestPath must equal "
                             + "test/<routeId>.camel.it.yaml. Sort routes canonically by routeId, "
                             + "then routePath, then citrusTestPath.\n");

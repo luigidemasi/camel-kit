@@ -527,6 +527,18 @@ class ArtifactValidatorTest {
     }
 
     @Test
+    void rejectsRoutePathThatDiffersFromApprovedPolicy() throws Exception {
+        writeSpringProject("${spring.boot.version}");
+
+        ArtifactValidationResult result = ArtifactValidator.validate(
+                project,
+                springManifest(),
+                springPolicy(CITRUS_VERSION, "orders.camel.yaml"));
+
+        assertTrue(hasError(result, "approved-policy-routes", null));
+    }
+
+    @Test
     void rejectsCitrusVersionThatDiffersFromApprovedPolicy() throws Exception {
         writeSpringProject("${spring.boot.version}");
 
@@ -752,12 +764,19 @@ class ArtifactValidatorTest {
     }
 
     private static ArtifactPolicy springPolicy(String citrusVersion) {
+        return springPolicy(
+                citrusVersion,
+                "src/main/resources/routes/orders.camel.yaml");
+    }
+
+    private static ArtifactPolicy springPolicy(
+            String citrusVersion, String routePath) {
         return new ArtifactPolicy(
                 "spring-boot", "4.21.0", "4.21.0", "4.1.0", "yaml", "simple",
                 citrusVersion, CitrusDependencyPolicy.required(citrusVersion),
                 JavaPolicy.FORBIDDEN, List.of(),
                 List.of(new RouteContract(
-                        "orders", "src/main/resources/routes/orders.camel.yaml",
+                        "orders", routePath,
                         "test/orders.camel.it.yaml")),
                 true, true);
     }

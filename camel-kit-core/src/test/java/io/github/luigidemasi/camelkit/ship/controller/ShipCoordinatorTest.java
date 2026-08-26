@@ -792,6 +792,8 @@ class ShipCoordinatorTest {
                 inputDirectory, "artifact-policy-");
         assertTrue(Files.readString(fixture.resolve("prompt"))
                 .contains(policyContract.toString()));
+        assertTrue(Files.readString(fixture.resolve("prompt"))
+                .contains("exact canonical project-relative routePath"));
         var fixedPolicy = new ObjectMapper().readTree(
                 Files.readAllBytes(policyContract));
         assertEquals(distribution.camelMainVersion(),
@@ -974,6 +976,73 @@ class ShipCoordinatorTest {
                 failed.stage(Stage.EXECUTE).status());
         assertTrue(failed.message().contains(
                 "invalid plan result"));
+    }
+
+    @Test
+    void planContractUpgradeRestartsLegacyDurablePlanResult()
+            throws Exception {
+        Path metadata = Files.createDirectories(project.resolve(".camel-kit"));
+        Files.writeString(
+                metadata.resolve("pipeline.json"),
+                "{\"mode\":\"manual\",\"activePipeline\":\"149-coordinator\"}\n");
+        Path documents = Files.createDirectories(
+                project.resolve("docs/camel-kit/149-coordinator"));
+        Files.writeString(documents.resolve("design-spec.md"), "Imported design");
+        writeWorkerResult("Implementation plan", mainPolicy());
+        ShipRun run = controller.startFrom(
+                project,
+                Stage.PLAN,
+                Oversight.ALWAYS,
+                List.of());
+        ShipRun planned = coordinator.run(run.id());
+        assertEquals(RunStatus.PAUSED, planned.status());
+        assertEquals(Stage.EXECUTE, planned.currentStage());
+
+        Path runDirectory = state.resolve(run.id());
+        Path policyContract = fileWithPrefix(
+                runDirectory.resolve("inputs"), "artifact-policy-");
+        String legacyDigest = ShipDigest.sha256(
+                (planned.stage(Stage.PLAN).inputDigest()
+                 + "\nplan:1:"
+                 + ShipDigest.sha256(Files.readAllBytes(policyContract)))
+                        .getBytes(StandardCharsets.UTF_8));
+        Path markers = runDirectory.resolve("sessions/.camel-kit-results");
+        Path currentMarker = fileWithPrefix(
+                markers, run.id() + "-plan-");
+        String currentDigest = new ObjectMapper()
+                .readTree(currentMarker.toFile())
+                .path("inputDigest")
+                .textValue();
+        assertNotEquals(legacyDigest, currentDigest);
+        Files.writeString(
+                currentMarker,
+                Files.readString(currentMarker)
+                        .replace(currentDigest, legacyDigest));
+        String legacyMarkerName = run.id() + "-plan-"
+                                  + legacyDigest.substring("sha256:".length())
+                                  + "-1.json";
+        Path legacyMarker = currentMarker.resolveSibling(legacyMarkerName);
+        Files.move(currentMarker, legacyMarker);
+        Request legacyRequest = new Request(
+                run.id(),
+                Stage.PLAN,
+                1,
+                project,
+                runDirectory.resolve("sessions"),
+                runDirectory.resolve("evidence/plan-1"),
+                legacyDigest,
+                true,
+                "Recover a legacy PLAN contract result.");
+        assertTrue(worker.recover(legacyRequest).isPresent());
+        Files.writeString(fixture.resolve("mode"), "nonzero\n");
+
+        ShipRun restarted = coordinator.resume(run.id(), List.of());
+
+        assertEquals(RunStatus.FAILED, restarted.status());
+        assertEquals(Stage.PLAN, restarted.currentStage());
+        assertEquals(2, restarted.stage(Stage.PLAN).attempts());
+        assertEquals(StageStatus.PENDING,
+                restarted.stage(Stage.EXECUTE).status());
     }
 
     @Test
