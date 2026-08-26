@@ -79,21 +79,7 @@ public final class ShipController {
 
     ShipController(
                    Path stateRoot, Clock clock, Map<String, String> environment) {
-        this(
-             stateRoot,
-             ShipRunStore.defaultProjectRegistryRoot(),
-             clock,
-             environment);
-    }
-
-    ShipController(
-                   Path stateRoot,
-                   Path projectRegistryRoot,
-                   Clock clock,
-                   Map<String, String> environment) {
-        this.store = new ShipRunStore(
-                Objects.requireNonNull(stateRoot, "state root"),
-                Objects.requireNonNull(projectRegistryRoot, "project registry root"));
+        this.store = new ShipRunStore(Objects.requireNonNull(stateRoot, "state root"));
         this.clock = Objects.requireNonNull(clock, "clock");
         this.environment = Map.copyOf(
                 Objects.requireNonNull(environment, "environment"));
@@ -1493,12 +1479,7 @@ public final class ShipController {
 
     private static Path privateDirectory(Path parent, String name)
             throws IOException {
-        Path root = parent.toAbsolutePath().normalize();
-        Path directory = root.resolve(name).normalize();
-        if (!root.equals(directory.getParent())
-                || Files.isSymbolicLink(directory)) {
-            throw new IOException("Ship worker directory escaped its private parent");
-        }
+        Path directory = parent.resolve(name);
         if (!Files.exists(directory, LinkOption.NOFOLLOW_LINKS)) {
             Files.createDirectory(
                     directory,
@@ -1514,11 +1495,7 @@ public final class ShipController {
                     "Ship worker directory must be a private real directory: "
                                   + directory);
         }
-        Path real = directory.toRealPath(LinkOption.NOFOLLOW_LINKS);
-        if (!real.getParent().equals(root.toRealPath(LinkOption.NOFOLLOW_LINKS))) {
-            throw new IOException("Ship worker directory escaped its private parent");
-        }
-        return real;
+        return directory.toRealPath(LinkOption.NOFOLLOW_LINKS);
     }
 
     private static ArtifactRef requireExecuteRoot(

@@ -21,7 +21,7 @@ import io.github.luigidemasi.camelkit.ship.security.ProjectSnapshot.FileEntry;
 import io.github.luigidemasi.camelkit.ship.security.ShipSecureFilesystem.SecureRoot;
 import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy.Classification;
 
-/** Captures and compares project trees through the read-only secure Ship filesystem boundary. */
+/** Captures and compares project trees through the bounded read-only Ship filesystem boundary. */
 final class ProjectSnapshotService {
 
     private final ShipTreePolicy policy;
@@ -151,14 +151,14 @@ final class ProjectSnapshotService {
         return materialized;
     }
 
-    /** Reads one bounded material file through the descriptor-relative project boundary. */
+    /** Reads one bounded material file within the project boundary. */
     byte[] readMaterial(Path root, String relativePath, int maximumBytes) throws IOException {
         try (SecureRoot secure = ShipSecureFilesystem.open(root, "Ship material read", policy)) {
             return secure.readMaterialBytes(relativePath, maximumBytes);
         }
     }
 
-    /** Reads one bounded volatile file through the descriptor-relative project boundary. */
+    /** Reads one bounded volatile file within the project boundary. */
     byte[] readVolatile(Path root, String relativePath, int maximumBytes) throws IOException {
         try (SecureRoot secure = ShipSecureFilesystem.open(root, "Ship volatile read", policy)) {
             return secure.readVolatileBytes(relativePath, maximumBytes);

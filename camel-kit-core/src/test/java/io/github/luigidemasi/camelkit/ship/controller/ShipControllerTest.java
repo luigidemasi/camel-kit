@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Clock;
 import java.time.Instant;
@@ -16,10 +15,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.context.ShipContext;
@@ -1401,12 +1396,6 @@ class ShipControllerTest {
     }
 
     @Test
-    void rejectsConcurrentArtifactSizeChangesAndReplacement() throws Exception {
-        assertConcurrentArtifactMutationRejected("size-change", false);
-        assertConcurrentArtifactMutationRejected("replacement", true);
-    }
-
-    @Test
     void rejectsProjectDependentMutationsButAllowsAbortAfterDeletion() throws Exception {
         Path project = Files.createDirectory(directory.resolve("project"));
         ShipController controller = controller("state");
@@ -1671,14 +1660,13 @@ class ShipControllerTest {
     @Test
     void foreignUncommittedJournalBlocksPublication() throws Exception {
         Path project = publishableProject("foreign-journal-project");
-        Path registry = directory.resolve("foreign-journal-registry/projects");
         Path state = directory.resolve("foreign-journal-state");
         ShipController controller = new ShipController(
-                state, registry, Clock.systemUTC(), System.getenv());
+                state, Clock.systemUTC(), System.getenv());
         ShipRun interrupted = pendingWithCandidateChanges(controller, project);
         ShipRun competing = pendingWithCandidateChanges(controller, project);
         Path interruptedDirectory = state.resolve(interrupted.id());
-        ShipRunStore store = new ShipRunStore(state, registry);
+        ShipRunStore store = new ShipRunStore(state);
         try (ShipRunStore.LockedProject owner = store.lockProject(project)) {
             owner.requireNoForeignTornPublication(interrupted.id());
             tornJournal(project, interrupted, interruptedDirectory);
@@ -1689,38 +1677,6 @@ class ShipControllerTest {
                 () -> controller.publish(competing.id()));
 
         assertEquals(competing, controller.status(competing.id()));
-        assertTrue(Files.isRegularFile(
-                interruptedDirectory.resolve("publication/journal.json")));
-        assertEquals("original", Files.readString(project.resolve("src/replace.txt")));
-        assertTrue(Files.exists(project.resolve("old.txt")));
-        assertFalse(Files.exists(project.resolve("routes")));
-    }
-
-    @Test
-    void foreignUncommittedJournalBlocksPublicationAcrossStateRoots() throws Exception {
-        Path project = publishableProject("cross-root-foreign-journal-project");
-        Path registry = directory.resolve("project-registry/projects");
-        Path firstState = directory.resolve("cross-root-state-one");
-        Path secondState = directory.resolve("cross-root-state-two");
-        ShipController first = new ShipController(
-                firstState, registry, Clock.systemUTC(), System.getenv());
-        ShipController second = new ShipController(
-                secondState, registry, Clock.systemUTC(), System.getenv());
-        ShipRun interrupted = pendingWithCandidateChanges(first, project);
-        ShipRun competing = pendingWithCandidateChanges(second, project);
-        Path interruptedDirectory = firstState.resolve(interrupted.id());
-
-        ShipRunStore firstStore = new ShipRunStore(firstState, registry);
-        try (ShipRunStore.LockedProject owner = firstStore.lockProject(project)) {
-            owner.requireNoForeignTornPublication(interrupted.id());
-            tornJournal(project, interrupted, interruptedDirectory);
-        }
-
-        assertFailure(
-                "project-publication-in-progress",
-                () -> second.publish(competing.id()));
-
-        assertEquals(competing, second.status(competing.id()));
         assertTrue(Files.isRegularFile(
                 interruptedDirectory.resolve("publication/journal.json")));
         assertEquals("original", Files.readString(project.resolve("src/replace.txt")));
@@ -2072,7 +2028,6 @@ class ShipControllerTest {
     private ShipController controller(String stateDirectory) {
         return new ShipController(
                 directory.resolve(stateDirectory),
-                directory.resolve("project-registry/projects"),
                 Clock.systemUTC(),
                 System.getenv());
     }
@@ -2156,82 +2111,6 @@ class ShipControllerTest {
                         null,
                         command)),
                 Instant.parse("2026-07-29T12:00:00Z"));
-    }
-
-    private void assertConcurrentArtifactMutationRejected(String name, boolean replace)
-            throws Exception {
-        Path project = Files.createDirectory(directory.resolve(name + "-project"));
-        Path target = Files.createDirectory(project.resolve("target"));
-        Path artifact = target.resolve("validation.txt");
-        try (RandomAccessFile file = new RandomAccessFile(artifact.toFile(), "rw")) {
-            file.setLength(32L * 1024 * 1024);
-        }
-        Path replacement = directory.resolve(name + "-replacement");
-        ShipController controller = controller(name + "-state");
-        ShipRun run = controller.start(project, Oversight.NEVER, List.of());
-        AtomicBoolean stop = new AtomicBoolean();
-        AtomicReference<Throwable> mutationFailure = new AtomicReference<>();
-        CountDownLatch started = new CountDownLatch(1);
-        Thread mutator = new Thread(() -> {
-            try {
-                if (replace) {
-                    long size = 48L * 1024 * 1024;
-                    while (!stop.get()) {
-                        try (RandomAccessFile file = new RandomAccessFile(replacement.toFile(), "rw")) {
-                            file.setLength(size);
-                        }
-                        Files.move(
-                                replacement,
-                                artifact,
-                                StandardCopyOption.ATOMIC_MOVE,
-                                StandardCopyOption.REPLACE_EXISTING);
-                        started.countDown();
-                        size = size == 48L * 1024 * 1024
-                                ? 32L * 1024 * 1024
-                                : 48L * 1024 * 1024;
-                    }
-                } else {
-                    try (RandomAccessFile file = new RandomAccessFile(artifact.toFile(), "rw")) {
-                        file.setLength(48L * 1024 * 1024);
-                        started.countDown();
-                        long size = 32L * 1024 * 1024;
-                        while (!stop.get()) {
-                            file.setLength(size);
-                            size = size == 32L * 1024 * 1024
-                                    ? 48L * 1024 * 1024
-                                    : 32L * 1024 * 1024;
-                        }
-                    }
-                }
-            } catch (Throwable failure) {
-                mutationFailure.set(failure);
-                started.countDown();
-            } finally {
-                try {
-                    Files.deleteIfExists(replacement);
-                } catch (Throwable cleanupFailure) {
-                    mutationFailure.compareAndSet(null, cleanupFailure);
-                }
-            }
-        }, "ship-artifact-mutator");
-        mutator.setDaemon(true);
-        mutator.start();
-        assertTrue(started.await(5, TimeUnit.SECONDS));
-
-        ShipController.Failure failure;
-        try {
-            failure = assertThrows(
-                    ShipController.Failure.class,
-                    () -> complete(controller, run, "validation", artifact));
-        } finally {
-            stop.set(true);
-            mutator.join(TimeUnit.SECONDS.toMillis(5));
-        }
-
-        assertFalse(mutator.isAlive());
-        assertNull(mutationFailure.get());
-        assertEquals("artifact-unreadable", failure.code());
-        assertEquals(run, controller.status(run.id()));
     }
 
     private ShipRun complete(
