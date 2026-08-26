@@ -530,8 +530,9 @@ final class ShipPublicationService {
         requireNoForeignAddedDirectoryContent(project, classified);
         startRecovery(runDirectory, journal, recoveryStarted);
 
-        // Make candidate-side directories writable before removing candidate additions. The
-        // marker makes this private work mode an explicit crash-recoverable journal state.
+        // Make every replacement directory and every present candidate-added directory owner-writable
+        // so their children can be deleted or restored. The recovery marker makes this private work mode
+        // an explicit crash-recoverable journal state.
         for (Classified item : classified) {
             Entry entry = item.entry();
             if (entry.kind() == Kind.DIRECTORY
