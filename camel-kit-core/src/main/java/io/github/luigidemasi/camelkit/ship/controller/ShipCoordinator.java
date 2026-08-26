@@ -838,7 +838,9 @@ public final class ShipCoordinator {
                     .append(
                             ". Copy every fixed field exactly and replace the empty routes array "
                             + "with one object per planned route using fields routeId, routePath, "
-                            + "and citrusTestPath. For each route, routePath's file name must "
+                            + "and citrusTestPath. Use the exact canonical project-relative routePath "
+                            + "from the plan; use only the file name when the route is at project root. "
+                            + "For each route, routePath's file name must "
                             + "equal <routeId>.camel.yaml and citrusTestPath must equal "
                             + "test/<routeId>.camel.it.yaml. Sort routes canonically by routeId, "
                             + "then routePath, then citrusTestPath.\n");

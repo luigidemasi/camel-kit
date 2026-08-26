@@ -792,6 +792,8 @@ class ShipCoordinatorTest {
                 inputDirectory, "artifact-policy-");
         assertTrue(Files.readString(fixture.resolve("prompt"))
                 .contains(policyContract.toString()));
+        assertTrue(Files.readString(fixture.resolve("prompt"))
+                .contains("exact canonical project-relative routePath"));
         var fixedPolicy = new ObjectMapper().readTree(
                 Files.readAllBytes(policyContract));
         assertEquals(distribution.camelMainVersion(),
