@@ -17,7 +17,7 @@ class McpConfigGenerator {
 
     private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
 
-    void generate(InitContext ctx, WorkflowManifest workflow) {
+    void generate(InitContext ctx, WorkflowManifest workflow) throws InvalidAgentConfigurationException {
         try {
             Path configFile = ctx.projectDir().resolve(ctx.agent().mcpConfigPath());
             if (configFile.getParent() != null) {
@@ -36,6 +36,8 @@ class McpConfigGenerator {
             }
 
             ctx.printer().println(AnsiColors.green("✓") + " MCP config created for " + ctx.agent().name());
+        } catch (InvalidAgentConfigurationException e) {
+            throw e;
         } catch (Exception e) {
             throw new IllegalStateException("Could not create MCP config: " + e.getMessage(), e);
         }

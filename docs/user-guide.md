@@ -848,7 +848,7 @@ MCP is auto-configured during `camel-kit init`. The init command creates agent-s
 - **GitHub Copilot CLI:** `.github/mcp.json`
 - **Pi:** `.mcp.json` via `pi-mcp-adapter`
 - **Qwen:** `.qwen/settings.json`
-- **OpenCode:** `opencode.json`
+- **OpenCode:** `opencode.json` (default)
 
 GitHub Copilot CLI workspaces also get `.github/copilot-instructions.md`, `.github/skills/`, `.github/agents/`, and `.github/hooks/camel-kit-safety.json`. Internal guide skills copied for custom-agent use are marked so Copilot does not directly or automatically invoke them. The generated hook denies obvious destructive or secret-sensitive shell commands such as `git push`, broad `rm -rf`, `chmod 777`, and reads of common secret files, while leaving normal Copilot permissions in place. Workspace MCP servers from `.github/mcp.json` load only after the repository folder is trusted.
 

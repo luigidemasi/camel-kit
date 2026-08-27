@@ -1,10 +1,17 @@
 package io.github.luigidemasi.camelkit.command;
 
+import java.nio.file.Path;
+
 import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
+import io.github.luigidemasi.camelkit.generator.InvalidAgentConfigurationException;
 import io.github.luigidemasi.camelkit.output.Printer;
+import io.github.luigidemasi.camelkit.service.InitRequest;
+import io.github.luigidemasi.camelkit.service.InitResult;
+import io.github.luigidemasi.camelkit.service.InitService;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -97,6 +104,40 @@ class InitCommandTest {
         assertTrue(output.contains("$camel-start"));
         assertTrue(output.contains("/mcp"));
         assertFalse(output.contains("/camel-start"));
+    }
+
+    @Test
+    void invalidAgentConfigurationPrintsOneErrorLine(@TempDir Path tempDir) throws Exception {
+        CapturingPrinter printer = new CapturingPrinter();
+        CamelKitMain main = new CamelKitMain() {
+            @Override
+            public void printBanner() {
+                // Keep this command-level error-path test independent of terminal image support.
+            }
+        };
+        main.disableTui();
+        main.setOut(printer);
+        InitService failingService = new InitService() {
+            @Override
+            public InitResult initialize(InitRequest request) throws Exception {
+                throw new InvalidAgentConfigurationException(
+                        "existing opencode.json is not valid JSON or JSONC");
+            }
+        };
+        InitCommand command = new InitCommand(main, failingService);
+        command.projectName = tempDir.resolve("orders").toString();
+        command.ai = "opencode";
+        command.citrusVersion = "default";
+        command.noFetch = true;
+
+        int exitCode = command.doCall();
+
+        assertEquals(1, exitCode);
+        assertEquals(1, printer.output().lines()
+                .filter(line -> line.contains("existing opencode.json"))
+                .count());
+        assertFalse(printer.output().contains("InvalidAgentConfigurationException"));
+        assertFalse(printer.output().contains("\tat "));
     }
 
     private static final class CapturingPrinter implements Printer {

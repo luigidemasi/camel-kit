@@ -57,13 +57,21 @@ final class PersonaResourceInstaller {
     static Optional<String> targetDirectory(InitContext ctx) {
         Set<String> directories = AgentRegistry.descriptor(ctx.agentName()).templates().stream()
                 .filter(PersonaResourceInstaller::isPersonaTemplate)
-                .map(template -> Path.of(template.target()).getParent().toString())
+                .map(template -> parentTarget(template.target()))
                 .collect(Collectors.toSet());
         if (directories.size() > 1) {
             throw new IllegalStateException(
                     "Agent descriptor '" + ctx.agentName() + "' registers personas in multiple directories");
         }
         return directories.stream().findFirst();
+    }
+
+    static String parentTarget(String target) {
+        int separator = target.lastIndexOf('/');
+        if (separator < 1) {
+            throw new IllegalStateException("Persona target must include a parent directory: " + target);
+        }
+        return target.substring(0, separator);
     }
 
     static boolean isPersonaTemplate(AgentDescriptor.TemplateInstall template) {

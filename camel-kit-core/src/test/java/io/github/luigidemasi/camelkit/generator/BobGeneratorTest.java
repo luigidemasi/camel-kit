@@ -2,6 +2,7 @@ package io.github.luigidemasi.camelkit.generator;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -96,16 +97,9 @@ class BobGeneratorTest {
     @Test
     void switchingFromBob2RemovesOnlyBob2ModeRules() throws Exception {
         new Bob2Generator().generate(createContext("bob2"));
-        Map<String, String> bob2Rules = Map.of(
-                "camel-brainstorm", "brainstorm.md",
-                "camel-plan", "plan.md",
-                "camel-implement", "implement.md",
-                "camel-execute", "execute.md",
-                "camel-validate", "validate.md",
-                "camel-test", "test.md",
-                "camel-debug", "debug.md");
-        for (Map.Entry<String, String> rule : bob2Rules.entrySet()) {
-            Path file = tempDir.resolve(".bob/rules-" + rule.getKey()).resolve(rule.getValue());
+        List<String> bob2Rules = registeredModeRules("bob2");
+        for (String rule : bob2Rules) {
+            Path file = tempDir.resolve(legacyModeRule(rule));
             Files.createDirectories(file.getParent());
             Files.writeString(file, "obsolete Bob 2 rule");
         }
@@ -120,14 +114,16 @@ class BobGeneratorTest {
 
         new BobGenerator().generate(createContext());
 
-        bob2Rules.forEach((slug, file) -> {
-            assertFalse(Files.exists(tempDir.resolve(".bob/rules-" + slug).resolve(file)), slug);
-            assertFalse(Files.exists(tempDir.resolve(".bob/rules-" + slug + "-mode").resolve(file)), slug);
+        bob2Rules.forEach(rule -> {
+            assertFalse(Files.exists(tempDir.resolve(legacyModeRule(rule))), rule);
+            assertFalse(Files.exists(tempDir.resolve(rule)), rule);
         });
         assertTrue(Files.isRegularFile(
                 tempDir.resolve(".bob/rules-camel-plan-mode/plan-structure.md")));
-        assertFalse(Files.exists(tempDir.resolve(".bob/agents/camel-worker.md")));
-        assertFalse(Files.exists(tempDir.resolve(".bob/agents/camel-reviewer.md")));
+        AgentRegistry.descriptor("bob2").templates().stream()
+                .map(template -> template.target())
+                .filter(target -> target.startsWith(".bob/agents/") || target.startsWith(".bob/personas/"))
+                .forEach(target -> assertFalse(Files.exists(tempDir.resolve(target)), target));
         assertEquals("user agent", Files.readString(agentNeighbor));
         try (var personas = Files.list(tempDir.resolve(".bob/personas"))) {
             assertEquals(Set.of("keep.md"),
@@ -136,6 +132,17 @@ class BobGeneratorTest {
         assertEquals("user persona", Files.readString(personaNeighbor));
         assertEquals("user rule", Files.readString(neighbor));
         assertEquals("user unsuffixed rule", Files.readString(unsuffixedNeighbor));
+    }
+
+    private List<String> registeredModeRules(String agentName) {
+        return AgentRegistry.descriptor(agentName).templates().stream()
+                .map(template -> template.target())
+                .filter(target -> target.startsWith(".bob/rules-") && target.contains("-mode/"))
+                .toList();
+    }
+
+    private String legacyModeRule(String target) {
+        return target.replace("-mode/", "/");
     }
 
     @Test

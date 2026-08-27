@@ -406,8 +406,10 @@ class ShippedAssetStructureTest {
                 agentName + " re-init must preserve unrelated neighboring files");
 
         if (Set.of("bob", "bob2").contains(agentName)) {
+            assertFalse(Files.exists(ctx.projectDir().resolve(".bob/rules-camel-ship/ship.md")),
+                    agentName + " re-init must remove the retired Ship mode rule");
             assertTrue(Files.isRegularFile(ctx.projectDir().resolve(".bob/rules-camel-ship/keep.md")),
-                    "Bob2 re-init must preserve unrelated neighboring rules");
+                    agentName + " re-init must preserve unrelated neighboring rules");
         }
         if (shipSkillOnly) {
             assertFalse(Files.exists(ctx.commandsDir().resolve("camel-ship.md")),

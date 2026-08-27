@@ -375,7 +375,7 @@ malformed YAML fail during registry loading with a descriptor-specific error.
 | GitHub Copilot CLI | `templates/copilot/` + shared `agents/` | `.github/copilot-instructions.md` + `.github/agents/` + hooks + `.github/camel-kit-personas/` | `.github/mcp.json` | `.github/skills/` |
 | Pi | `templates/pi/` + shared `agents/` | `AGENTS.md` + `.pi/prompts/` + guard extension + `.pi/camel-kit-personas/` | `.mcp.json` | `.pi/skills/` |
 | Qwen | `templates/qwen/` + shared `agents/` | `QWEN.md` + bounded leaves + `.qwen/camel-kit-personas/` | `.qwen/settings.json` | `.qwen/skills/` |
-| OpenCode | `templates/opencode/` + shared `agents/` | `AGENTS.md` + permission-based agents + `.opencode/camel-kit-personas/` | `opencode.json` | `.opencode/skills/` |
+| OpenCode | `templates/opencode/` + shared `agents/` | `AGENTS.md` + permission-based agents + `.opencode/camel-kit-personas/` | `opencode.json` (default) | `.opencode/skills/` |
 
 ### Resource Consistency Contract
 

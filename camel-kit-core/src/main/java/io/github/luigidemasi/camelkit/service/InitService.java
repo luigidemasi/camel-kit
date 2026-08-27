@@ -16,6 +16,7 @@ import io.github.luigidemasi.camelkit.catalog.CitrusSchemaDownloader;
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.config.DistributionConfig;
+import io.github.luigidemasi.camelkit.generator.AgentGenerator;
 import io.github.luigidemasi.camelkit.generator.AgentGeneratorFactory;
 import io.github.luigidemasi.camelkit.generator.InitContext;
 import io.github.luigidemasi.camelkit.generator.QuteTemplateEngine;
@@ -53,7 +54,13 @@ public class InitService {
         Path docsDir = targetDir.resolve("docs");
         String citrusVersion = request.resolvedCitrusVersion();
 
+        InitContext genCtx = new InitContext(
+                agent, request.agentName(), commandsDir,
+                skillsDir, targetDir,
+                request.commandPrefix(), request.distribution(), request.printer());
+        AgentGenerator generator = AgentGeneratorFactory.create(request.agentName());
         requireRealAgentDirectories(targetDir, skillsDir, commandsDir);
+        generator.preflight(genCtx);
 
         List<Path> createdPaths = new ArrayList<>();
         List<InitWarning> warnings = new ArrayList<>();
@@ -74,11 +81,7 @@ public class InitService {
         progress.finishTask();
 
         progress.startTask("\uD83E\uDD16", "Generating " + agent.name() + " workspace");
-        InitContext genCtx = new InitContext(
-                agent, request.agentName(), commandsDir,
-                skillsDir, targetDir,
-                request.commandPrefix(), request.distribution(), request.printer());
-        AgentGeneratorFactory.create(request.agentName()).generate(genCtx);
+        generator.generate(genCtx);
         progress.finishTask();
 
         progress.startTask("\uD83D\uDD0C", "Configuring Maven wrapper");

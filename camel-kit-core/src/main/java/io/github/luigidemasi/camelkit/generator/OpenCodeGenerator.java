@@ -18,6 +18,11 @@ public class OpenCodeGenerator extends DefaultGenerator {
     private final QuteTemplateEngine templateEngine = new QuteTemplateEngine();
 
     @Override
+    public void preflight(InitContext ctx) throws Exception {
+        new OpenCodeConfigMerger().validateExisting(ctx.projectDir().resolve(ctx.agent().mcpConfigPath()));
+    }
+
+    @Override
     public void generate(InitContext ctx) throws Exception {
         // Run default generation (commands, skills, MCP config)
         super.generate(ctx);

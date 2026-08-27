@@ -7,11 +7,13 @@ import java.util.List;
 import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.config.AgentGeneratorStrategy;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
+import io.github.luigidemasi.camelkit.generator.InvalidAgentConfigurationException;
 import io.github.luigidemasi.camelkit.output.Printer;
 import io.github.luigidemasi.camelkit.service.InitGraphSummary;
 import io.github.luigidemasi.camelkit.service.InitProgress;
 import io.github.luigidemasi.camelkit.service.InitReporter;
 import io.github.luigidemasi.camelkit.service.InitRequest;
+import io.github.luigidemasi.camelkit.service.InitResult;
 import io.github.luigidemasi.camelkit.service.InitService;
 import io.github.luigidemasi.camelkit.service.InitWarning;
 import io.github.luigidemasi.camelkit.tui.InitTuiView;
@@ -176,7 +178,13 @@ public class InitCommand extends CamelKitCommand {
                 initProgress(),
                 initReporter());
 
-        var result = initService.initialize(request);
+        final InitResult result;
+        try {
+            result = initService.initialize(request);
+        } catch (InvalidAgentConfigurationException e) {
+            printer().println(red("Error: " + e.getMessage()));
+            return 1;
+        }
         printSummary(result.projectName(), result.agent().name(), result.citrusSchemaCount());
         printNextSteps(result.projectName(), result.agent().name(), result.agentName());
         return 0;

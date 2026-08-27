@@ -106,17 +106,21 @@ class DoctorServiceTest {
                 {
                   "mcpServers": {
                     "camel": {"command": "jbang", "autoApprove": [%s], "alwaysAllow": [%s]},
-                    "camel-knowledge": {"command": "jbang", "autoApprove": [%s], "alwaysAllow": [%s]}
+                    "camel-knowledge": {"command": "jbang", "autoApprove": [%s], "alwaysAllow": [%s]},
+                    "citrus": {"command": "jbang", "autoApprove": [%s], "alwaysAllow": [%s]}
                   }
                 }
                 """, jsonArray(EXPECTATIONS.camelMcpTools()), jsonArray(EXPECTATIONS.camelMcpTools()),
-                jsonArray(EXPECTATIONS.knowledgeMcpTools()), jsonArray(EXPECTATIONS.knowledgeMcpTools())));
+                jsonArray(EXPECTATIONS.knowledgeMcpTools()), jsonArray(EXPECTATIONS.knowledgeMcpTools()),
+                jsonArray(EXPECTATIONS.citrusMcpTools()), jsonArray(EXPECTATIONS.citrusMcpTools())));
 
         DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
 
         assertFalse(result.hasFailures(), result.findings().toString());
         assertTrue(hasFinding(result, DoctorFinding.Status.WARN, "mcp",
                 "Qwen MCP server 'camel' uses the legacy approval-field schema", "includeTools"));
+        assertFalse(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "tool allowlists match", null));
     }
 
     @Test
@@ -139,6 +143,27 @@ class DoctorServiceTest {
     }
 
     @Test
+    void qwenMalformedCurrentToolFilterIsNotDowngradedToLegacy() throws Exception {
+        createHealthyWorkspace(tempDir, QWEN);
+        writeMcpConfig(tempDir, QWEN, """
+                {
+                  "mcpServers": {
+                    "camel": {"command": "jbang", "includeTools": null, "autoApprove": []},
+                    "camel-knowledge": {"command": "jbang", "includeTools": [], "autoApprove": []}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "MCP server 'camel' has invalid includeTools array", "Regenerate"));
+        assertFalse(hasFinding(result, DoctorFinding.Status.WARN, "mcp",
+                "Qwen MCP server 'camel' uses the legacy approval-field schema", null));
+    }
+
+    @Test
     void qwenExplicitNullTrustIsEquivalentToAbsent() throws Exception {
         createHealthyWorkspace(tempDir, QWEN);
         Path config = tempDir.resolve(".qwen/settings.json");
@@ -158,11 +183,13 @@ class DoctorServiceTest {
                 {
                   "mcp": {
                     "camel": {"type": "local", "autoApprove": [%s], "alwaysAllow": [%s]},
-                    "camel-knowledge": {"type": "local", "autoApprove": [%s], "alwaysAllow": [%s]}
+                    "camel-knowledge": {"type": "local", "autoApprove": [%s], "alwaysAllow": [%s]},
+                    "citrus": {"type": "local", "autoApprove": [%s], "alwaysAllow": [%s]}
                   }
                 }
                 """, jsonArray(EXPECTATIONS.camelMcpTools()), jsonArray(EXPECTATIONS.camelMcpTools()),
-                jsonArray(EXPECTATIONS.knowledgeMcpTools()), jsonArray(EXPECTATIONS.knowledgeMcpTools())));
+                jsonArray(EXPECTATIONS.knowledgeMcpTools()), jsonArray(EXPECTATIONS.knowledgeMcpTools()),
+                jsonArray(EXPECTATIONS.citrusMcpTools()), jsonArray(EXPECTATIONS.citrusMcpTools())));
 
         DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
 
@@ -171,6 +198,713 @@ class DoctorServiceTest {
                 "contains unsupported field autoApprove", "regenerate"));
         assertTrue(hasFinding(result, DoctorFinding.Status.WARN, "mcp",
                 "Legacy OpenCode config has no supported permission", "approval prompts"));
+        assertFalse(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "tool calls retain OpenCode permission prompts", null));
+    }
+
+    @Test
+    void mixedOpenCodeSchemasOnlyDowngradePermissionsForTheirLegacyServer() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "mcp": {
+                    "camel": {"type": "local", "autoApprove": []},
+                    "camel-knowledge": {"type": "local"},
+                    "citrus": {"type": "local"}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.WARN, "mcp",
+                "Legacy OpenCode config has no supported permission for 'camel_*'", "approval prompts"));
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "OpenCode permission 'camel-knowledge_*' must be 'ask'", "permission prompts"));
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "OpenCode permission 'citrus_*' must be 'ask'", "permission prompts"));
+    }
+
+    @Test
+    void currentOpenCodePermissionNotAskStillFails() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "camel_*": "allow",
+                    "camel-knowledge_*": "ask",
+                    "citrus_*": "ask"
+                  },
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"},
+                    "citrus": {"type": "local"},
+                    "custom": {"type": "local", "autoApprove": ["custom_tool"]}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "OpenCode permission namespace 'camel_*' must end with a namespace-wide 'ask' rule",
+                "permission prompts"));
+        assertFalse(hasFinding(result, DoctorFinding.Status.WARN, "mcp",
+                "Legacy OpenCode config has no supported permission for 'camel_*'", null));
+        assertFalse(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "tool calls retain OpenCode permission prompts", null));
+    }
+
+    @Test
+    void laterOpenCodeWildcardCannotOverrideManagedPermissionPrompts() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "camel_*": "ask",
+                    "camel-knowledge_*": "ask",
+                    "citrus_*": "ask",
+                    "*": "deny"
+                  },
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"},
+                    "citrus": {"type": "local"}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "OpenCode permission namespace 'camel_*' must end with a namespace-wide 'ask' rule",
+                "permission prompts"));
+        assertFalse(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "tool calls retain OpenCode permission prompts", null));
+    }
+
+    @Test
+    void higherPrecedenceOpenCodeWildcardCannotOverrideLowerManagedPermissions() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        Files.writeString(tempDir.resolve("opencode.jsonc"), """
+                {
+                  // Loaded after opencode.json.
+                  "permission": {"*": "deny"},
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "OpenCode permission namespace 'camel_*' must end with a namespace-wide 'ask' rule",
+                "permission prompts"));
+    }
+
+    @Test
+    void doctorNormalizesScalarPermissionBeforeMergingOpenCodeLayers() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "*": "allow",
+                    "camel_*": "ask",
+                    "camel-knowledge_*": "ask",
+                    "citrus_*": "ask"
+                  },
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"},
+                    "citrus": {"type": "local"}
+                  }
+                }
+                """);
+        Files.writeString(tempDir.resolve("opencode.jsonc"), "{\"permission\": \"deny\"}");
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "tool calls retain OpenCode permission prompts", "No action required."));
+    }
+
+    @Test
+    void objectWildcardAskIsAValidOpenCodePromptPolicy() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {"*": {"*": "ask"}},
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"},
+                    "citrus": {"type": "local"}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "tool calls retain OpenCode permission prompts", "No action required."));
+    }
+
+    @Test
+    void doctorEvaluatesOverridesAgainstOpenCodesPrefixedMcpToolNames() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "camel_*": "ask",
+                    "camel-knowledge_*": "ask",
+                    "citrus_*": "ask",
+                    "camel-knowledge_camel_docs_search": "allow"
+                  },
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "OpenCode permission namespace 'camel-knowledge_*' must end with a namespace-wide 'ask' rule",
+                "permission prompts"));
+    }
+
+    @Test
+    void futureOpenCodeToolOverrideCannotBypassPermissionPrompts() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "camel_*": "ask",
+                    "camel-knowledge_*": "ask",
+                    "citrus_*": "ask",
+                    "camel_future_tool": "allow"
+                  },
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"},
+                    "citrus": {"type": "local"}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "OpenCode permission namespace 'camel_*' must end with a namespace-wide 'ask' rule",
+                "permission prompts"));
+    }
+
+    @Test
+    void futureOpenCodeToolWildcardCannotBypassPermissionPrompts() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "*": "ask",
+                    "camel_future_*": "deny"
+                  },
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"},
+                    "citrus": {"type": "local"}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "OpenCode permission namespace 'camel_*' must end with a namespace-wide 'ask' rule",
+                "permission prompts"));
+    }
+
+    @Test
+    void broadNestedOpenCodeAskDoesNotHideAFutureToolOverride() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "*": {"*": "ask"},
+                    "camel_future_external": "allow"
+                  },
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"},
+                    "citrus": {"type": "local"}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "OpenCode permission namespace 'camel_*' must end with a namespace-wide 'ask' rule",
+                "permission prompts"));
+    }
+
+    @Test
+    void currentToolOnlyOpenCodeRulesDoNotCoverFutureTools() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "camel_camel_*": "ask",
+                    "camel-knowledge_*": "ask",
+                    "citrus_*": "ask"
+                  },
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"},
+                    "citrus": {"type": "local"}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "OpenCode permission namespace 'camel_*' must end with a namespace-wide 'ask' rule",
+                "permission prompts"));
+    }
+
+    @Test
+    void unrelatedOpenCodePermissionAfterManagedRulesStillPasses() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "camel_*": "ask",
+                    "camel-knowledge_*": "ask",
+                    "citrus_*": "ask",
+                    "bash": "allow"
+                  },
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"},
+                    "citrus": {"type": "local"}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "tool calls retain OpenCode permission prompts", "No action required."));
+    }
+
+    @Test
+    void laterOverlappingOpenCodeAskStillPasses() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "camel_*": "ask",
+                    "camel-knowledge_*": "ask",
+                    "citrus_*": "ask",
+                    "camel_future_*": "ask"
+                  },
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"},
+                    "citrus": {"type": "local"}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "tool calls retain OpenCode permission prompts", "No action required."));
+    }
+
+    @Test
+    void impossibleOpenCodeToolNameOverrideStillPasses() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "camel_*": "ask",
+                    "camel-knowledge_*": "ask",
+                    "citrus_*": "ask",
+                    "camel_future/path": "allow"
+                  },
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"},
+                    "citrus": {"type": "local"}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "tool calls retain OpenCode permission prompts", "No action required."));
+    }
+
+    @Test
+    void doctorMatchesOpenCodesOptionalTrailingArgumentWildcard() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "camel_*": "ask",
+                    "camel-knowledge_*": "ask",
+                    "citrus_*": "ask",
+                    "camel_* *": "allow"
+                  },
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"},
+                    "citrus": {"type": "local"}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "OpenCode permission namespace 'camel_*' must end with a namespace-wide 'ask' rule",
+                "permission prompts"));
+    }
+
+    @Test
+    void namespaceWideOpenCodeOptionalTrailingArgumentAskPasses() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "camel_* *": "ask",
+                    "camel-knowledge_*": "ask",
+                    "citrus_*": "ask"
+                  },
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"},
+                    "citrus": {"type": "local"}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "tool calls retain OpenCode permission prompts", "No action required."));
+    }
+
+    @Test
+    void repeatedOptionalOpenCodeSuffixDoesNotFakeNamespaceCoverage() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "camel_camel_*": "ask",
+                    "camel_* * *": "ask",
+                    "camel-knowledge_*": "ask",
+                    "citrus_*": "ask"
+                  },
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"},
+                    "citrus": {"type": "local"}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "OpenCode permission namespace 'camel_*' must end with a namespace-wide 'ask' rule",
+                "final namespace-wide ask rule"));
+    }
+
+    @Test
+    void partialOpenCodeAskDoesNotRestoreNamespacePolicy() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "*": "ask",
+                    "camel_future_tool": "allow",
+                    "camel_future_*": "ask"
+                  },
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"},
+                    "citrus": {"type": "local"}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "OpenCode permission namespace 'camel_*' must end with a namespace-wide 'ask' rule",
+                "final namespace-wide ask rule"));
+    }
+
+    @Test
+    void healthyOpenCodeJsoncWorkspacePassesDoctor() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        Path json = tempDir.resolve("opencode.json");
+        String generated = Files.readString(json);
+        Files.delete(json);
+        Files.writeString(tempDir.resolve("opencode.jsonc"),
+                "// Project-level OpenCode configuration.\n"
+                                                             + generated.substring(0, generated.lastIndexOf('}'))
+                                                             + ",\n}\n");
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "tool calls retain OpenCode permission prompts", "No action required."));
+    }
+
+    @Test
+    void doctorChecksTheEffectiveOpenCodeConfigurationAcrossAllProjectFiles() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        Files.writeString(tempDir.resolve("opencode.json"), """
+                {
+                  "permission": {"camel_*": "allow", "camel-knowledge_*": "ask"},
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"},
+                    "citrus": {"type": "local"}
+                  }
+                }
+                """);
+        Files.writeString(tempDir.resolve("opencode.jsonc"), """
+                {
+                  // JSONC has precedence over the root JSON file.
+                  "permission": {"camel_*": "ask", "camel-knowledge_*": "deny"},
+                }
+                """);
+        Files.writeString(tempDir.resolve(".opencode/opencode.json"), """
+                {"permission": {"camel-knowledge_*": "ask", "citrus_*": "deny"}}
+                """);
+        Files.writeString(tempDir.resolve(".opencode/opencode.jsonc"), """
+                {
+                  // The .opencode JSONC file has the final project-level value.
+                  "permission": {"citrus_*": "ask"},
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "tool calls retain OpenCode permission prompts", "No action required."));
+        assertTrue(result.findings().stream()
+                .anyMatch(finding -> finding.status() == DoctorFinding.Status.PASS
+                        && "mcp".equals(finding.category())
+                        && ".opencode/opencode.jsonc".equals(finding.path())));
+    }
+
+    @Test
+    void doctorRejectsInvalidLowerPrecedenceOpenCodeConfig() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        String validConfig = Files.readString(tempDir.resolve("opencode.json"));
+        Files.writeString(tempDir.resolve("opencode.json"), "{} {}");
+        Files.writeString(tempDir.resolve(".opencode/opencode.jsonc"), validConfig);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(result.findings().stream()
+                .anyMatch(finding -> finding.status() == DoctorFinding.Status.FAIL
+                        && "mcp".equals(finding.category())
+                        && "opencode.json".equals(finding.path())
+                        && finding.message().contains("not valid JSON or JSONC")));
+    }
+
+    @Test
+    void doctorTreatsAnEmptyLowerOpenCodeConfigAsAnEmptyLayer() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        String validConfig = Files.readString(tempDir.resolve("opencode.json"));
+        Files.writeString(tempDir.resolve("opencode.json"), "");
+        Files.writeString(tempDir.resolve("opencode.jsonc"), validConfig);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "tool calls retain OpenCode permission prompts", "No action required."));
+    }
+
+    @Test
+    void unrelatedOpenCodeLegacyFieldsDoNotDowngradeMissingPermissions() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "camel-knowledge_*": "ask",
+                    "citrus_*": "ask"
+                  },
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"},
+                    "custom": {"type": "local", "alwaysAllow": ["custom_tool"]}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "OpenCode permission 'camel_*' must be 'ask'", "permission prompts"));
+        assertFalse(hasFinding(result, DoctorFinding.Status.WARN, "mcp",
+                "Legacy OpenCode config has no supported permission", null));
+    }
+
+    @Test
+    void ignoredManagedOpenCodeFieldsSuppressTheSuccessPass() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "camel_*": "ask",
+                    "camel-knowledge_*": "ask",
+                    "citrus_*": "ask"
+                  },
+                  "mcp": {
+                    "camel": {"type": "local", "autoApprove": []},
+                    "camel-knowledge": {"type": "local"},
+                    "citrus": {"type": "local"}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.WARN, "mcp",
+                "contains unsupported field autoApprove", "regenerate"));
+        assertFalse(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "uses supported server fields", null));
+    }
+
+    @Test
+    void missingOpenCodeCitrusServerFails() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "camel_*": "ask",
+                    "camel-knowledge_*": "ask",
+                    "citrus_*": "ask"
+                  },
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "MCP server 'citrus' is missing", "Regenerate"));
+        assertFalse(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "uses supported server fields", null));
+    }
+
+    @Test
+    void ignoredCitrusOpenCodeFieldsSuppressTheSuccessPass() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "camel_*": "ask",
+                    "camel-knowledge_*": "ask",
+                    "citrus_*": "ask"
+                  },
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"},
+                    "citrus": {"type": "local", "autoApprove": []}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.WARN, "mcp",
+                "OpenCode MCP server 'citrus' contains unsupported field autoApprove", "regenerate"));
+        assertFalse(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "uses supported server fields", null));
+    }
+
+    @Test
+    void legacyOpenCodeExplicitNullPermissionStillFails() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "camel_*": null
+                  },
+                  "mcp": {
+                    "camel": {"type": "local", "autoApprove": []},
+                    "camel-knowledge": {"type": "local", "alwaysAllow": []},
+                    "citrus": {"type": "local", "alwaysAllow": []}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "OpenCode permission namespace 'camel_*' must end with a namespace-wide 'ask' rule",
+                "permission prompts"));
+        assertFalse(hasFinding(result, DoctorFinding.Status.WARN, "mcp",
+                "Legacy OpenCode config has no supported permission for 'camel_*'", null));
+    }
+
+    @Test
+    void legacyOpenCodeNonObjectPermissionStillFails() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": [],
+                  "mcp": {
+                    "camel": {"type": "local", "autoApprove": []},
+                    "camel-knowledge": {"type": "local", "alwaysAllow": []}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "OpenCode permission must be an object", "permission field"));
+        assertFalse(hasFinding(result, DoctorFinding.Status.WARN, "mcp",
+                "Legacy OpenCode config has no supported permission", null));
     }
 
     @Test
@@ -288,6 +1022,11 @@ class DoctorServiceTest {
                       "type": "stdio",
                       "command": "jbang",
                       "tools": ["*"]
+                    },
+                    "citrus": {
+                      "type": "stdio",
+                      "command": "jbang",
+                      "tools": ["*"]
                     }
                   }
                 }
@@ -299,6 +1038,8 @@ class DoctorServiceTest {
         assertTrue(hasFinding(result, DoctorFinding.Status.WARN, "mcp",
                 "MCP server 'camel' tools field allows all tools with '*'",
                 "Prefer the generated Camel-Kit tool allowlist"));
+        assertFalse(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "tool allowlists match", null));
     }
 
     @Test
@@ -316,11 +1057,17 @@ class DoctorServiceTest {
                       "type": "stdio",
                       "command": "jbang",
                       "tools": "%s"
+                    },
+                    "citrus": {
+                      "type": "stdio",
+                      "command": "jbang",
+                      "tools": "%s"
                     }
                   }
                 }
                 """, String.join(",", EXPECTATIONS.camelMcpTools()),
-                String.join(",", EXPECTATIONS.knowledgeMcpTools())));
+                String.join(",", EXPECTATIONS.knowledgeMcpTools()),
+                String.join(",", EXPECTATIONS.citrusMcpTools())));
 
         DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
 
@@ -371,6 +1118,10 @@ class DoctorServiceTest {
                     "camel-knowledge": {
                       "command": "jbang",
                       "directTools": true
+                    },
+                    "citrus": {
+                      "command": "jbang",
+                      "directTools": true
                     }
                   }
                 }
@@ -382,6 +1133,8 @@ class DoctorServiceTest {
         assertTrue(hasFinding(result, DoctorFinding.Status.WARN, "mcp",
                 "MCP server 'camel' directTools promotes all tools",
                 "Prefer the generated Camel-Kit tool allowlist"));
+        assertFalse(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "tool allowlists match", null));
     }
 
     @Test

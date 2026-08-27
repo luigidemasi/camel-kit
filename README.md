@@ -196,7 +196,7 @@ cd my-integration
 | GitHub Copilot CLI | `--ai copilot` | `.github/copilot-instructions.md` + `.github/agents/` + `.github/skills/` | `.github/mcp.json` |
 | Pi | `--ai pi` | `AGENTS.md` + `.pi/skills/` + `.pi/prompts/` + guard extension/policy | `.mcp.json` via `pi-mcp-adapter` |
 | Qwen | `--ai qwen` | `QWEN.md` + `.qwen/commands/` + `.qwen/skills/` + `.qwen/agents/` + `.qwen/camel-kit-personas/` | `.qwen/settings.json` |
-| OpenCode | `--ai opencode` | `AGENTS.md` + `.opencode/commands/` + `.opencode/skills/` + `.opencode/agents/` + `.opencode/camel-kit-personas/` | `opencode.json` |
+| OpenCode | `--ai opencode` | `AGENTS.md` + `.opencode/commands/` + `.opencode/skills/` + `.opencode/agents/` + `.opencode/camel-kit-personas/` | `opencode.json` (default) |
 
 Most targets receive the shared skill guides plus agent-specific traits. Bob 1 legacy is the exception: it runs without subagents and replaces the shared pipeline skills with monolithic gate variants. Bob 2 keeps the shared skills and uses native subagents. Codex CLI and GitHub Copilot CLI use native project skills and custom agents instead of Camel-Kit slash-command stubs. Pi uses native project skills and prompt templates, with MCP provided by `pi-mcp-adapter`. [Architecture Guide →](docs/architecture.md)
 

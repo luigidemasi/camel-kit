@@ -2,6 +2,7 @@ package io.github.luigidemasi.camelkit.generator;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -95,14 +96,9 @@ class Bob2GeneratorTest {
     @Test
     void switchingFromBob1RemovesOnlyBob1ModeRules() throws Exception {
         new BobGenerator().generate(createContext("bob"));
-        Map<String, String> bob1Rules = Map.of(
-                "camel-brainstorm", "interview-gates.md",
-                "camel-plan", "plan-structure.md",
-                "camel-implement", "implementation.md",
-                "camel-validate", "validation.md",
-                "camel-test", "testing.md");
-        for (Map.Entry<String, String> rule : bob1Rules.entrySet()) {
-            Path file = tempDir.resolve(".bob/rules-" + rule.getKey()).resolve(rule.getValue());
+        List<String> bob1Rules = registeredModeRules("bob");
+        for (String rule : bob1Rules) {
+            Path file = tempDir.resolve(legacyModeRule(rule));
             Files.createDirectories(file.getParent());
             Files.writeString(file, "obsolete Bob 1 rule");
         }
@@ -113,9 +109,9 @@ class Bob2GeneratorTest {
 
         new Bob2Generator().generate(createContext());
 
-        bob1Rules.forEach((slug, file) -> {
-            assertFalse(Files.exists(tempDir.resolve(".bob/rules-" + slug).resolve(file)), slug);
-            assertFalse(Files.exists(tempDir.resolve(".bob/rules-" + slug + "-mode").resolve(file)), slug);
+        bob1Rules.forEach(rule -> {
+            assertFalse(Files.exists(tempDir.resolve(legacyModeRule(rule))), rule);
+            assertFalse(Files.exists(tempDir.resolve(rule)), rule);
         });
         assertTrue(Files.isRegularFile(tempDir.resolve(".bob/rules-camel-plan-mode/plan.md")));
         assertTrue(Files.isRegularFile(tempDir.resolve(".bob/agents/camel-worker.md")));
@@ -123,6 +119,17 @@ class Bob2GeneratorTest {
         assertTrue(Files.isRegularFile(tempDir.resolve(".bob/personas/catalog-researcher.md")));
         assertEquals("user rule", Files.readString(neighbor));
         assertEquals("user unsuffixed rule", Files.readString(unsuffixedNeighbor));
+    }
+
+    private List<String> registeredModeRules(String agentName) {
+        return AgentRegistry.descriptor(agentName).templates().stream()
+                .map(template -> template.target())
+                .filter(target -> target.startsWith(".bob/rules-") && target.contains("-mode/"))
+                .toList();
+    }
+
+    private String legacyModeRule(String target) {
+        return target.replace("-mode/", "/");
     }
 
     @Test

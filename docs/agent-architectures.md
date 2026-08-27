@@ -453,9 +453,11 @@ questions, arguments, and phase handoffs. Users can also invoke bounded subagent
 | `templates/mcp-configs/opencode-mcp.json` | Supported MCP server fields plus top-level `ask` patterns for all three server tool namespaces |
 
 Camel-Kit generates `AGENTS.md` through the shared generator flow. Its compact bootstrap points to `/camel-start`, which loads the full context through progressive skill loading.
-When `opencode.json` already exists, init preserves unrelated root settings, permission entries, and MCP servers while
-replacing Camel-Kit's managed permissions and server definitions. Invalid or structurally conflicting JSON fails without
-changing the existing file.
+When any supported project configuration already exists (`opencode.json`, `opencode.jsonc`,
+`.opencode/opencode.json`, or `.opencode/opencode.jsonc`), init preserves unrelated root settings, permission entries,
+and MCP servers while removing lower-precedence copies of Camel-Kit's managed entries and writing the current definitions
+to the highest-precedence existing file. JSON and JSONC are supported; invalid or structurally conflicting configuration
+fails before any workspace file is changed. When none exists, init creates `opencode.json`.
 
 No `.opencodeignore` -- OpenCode uses `.gitignore` for file exclusion (simpler than Qwen/Gemini).
 

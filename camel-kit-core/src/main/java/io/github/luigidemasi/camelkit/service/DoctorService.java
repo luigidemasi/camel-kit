@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -14,12 +15,14 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentDescriptor;
 import io.github.luigidemasi.camelkit.config.AgentGeneratorStrategy;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
+import io.github.luigidemasi.camelkit.config.OpenCodeProjectConfig;
 import io.github.luigidemasi.camelkit.graph.GraphBuildResult;
 import io.github.luigidemasi.camelkit.graph.GraphBuilder;
 import io.github.luigidemasi.camelkit.graph.ParserDiagnostic;
@@ -28,6 +31,7 @@ import io.github.luigidemasi.camelkit.util.ProcessRunner;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.tomlj.Toml;
 import org.tomlj.TomlArray;
 import org.tomlj.TomlParseResult;
@@ -39,7 +43,9 @@ import org.tomlj.TomlTable;
 public class DoctorService {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper OPENCODE_MAPPER = OpenCodeProjectConfig.newJsonMapper();
     private static final Duration PREREQUISITE_TIMEOUT = Duration.ofSeconds(3);
+    private static final Set<String> OPENCODE_PERMISSION_ACTIONS = Set.of("allow", "ask", "deny");
 
     private static final List<String> REQUIRED_CONFIG_KEYS = List.of(
             "project.name", "project.command-prefix", "project.runtime", "project.camelVersion",
@@ -450,27 +456,38 @@ public class DoctorService {
                     "Fix agent.name in .camel-kit/config.properties."));
             return;
         }
-        if (!Files.isRegularFile(mcpFile)) {
-            findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
-                    "MCP config is missing for agent '" + agentName + "'",
-                    "Run camel-kit init --here --ai " + agentName + " --force to regenerate MCP configuration."));
-            return;
-        }
-
-        AgentConfig configuredAgent = AgentRegistry.get(normalizedAgentName);
-        if (configuredAgent != null && "toml".equals(configuredAgent.mcpConfigFormat())) {
-            checkCodexMcp(root, mcpFile, findings);
-            return;
-        }
 
         JsonNode rootNode;
-        try {
-            rootNode = MAPPER.readTree(mcpFile.toFile());
-        } catch (IOException e) {
-            findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
-                    "MCP config is not valid JSON: " + e.getMessage(),
-                    "Fix the JSON syntax or regenerate the MCP config with camel-kit init --here --force."));
-            return;
+        if (openCodeSchema) {
+            OpenCodeConfiguration openCode = readOpenCodeConfiguration(root, mcpFile, findings);
+            if (openCode == null) {
+                return;
+            }
+            mcpFile = openCode.file();
+            rootNode = openCode.root();
+        } else {
+            if (!Files.isRegularFile(mcpFile)) {
+                findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                        "MCP config is missing for agent '" + agentName + "'",
+                        "Run camel-kit init --here --ai " + agentName
+                                                                               + " --force to regenerate MCP configuration."));
+                return;
+            }
+
+            AgentConfig configuredAgent = AgentRegistry.get(normalizedAgentName);
+            if (configuredAgent != null && "toml".equals(configuredAgent.mcpConfigFormat())) {
+                checkCodexMcp(root, mcpFile, findings);
+                return;
+            }
+
+            try {
+                rootNode = MAPPER.readTree(mcpFile.toFile());
+            } catch (IOException e) {
+                findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                        "MCP config is not valid JSON: " + e.getMessage(),
+                        "Fix the JSON syntax or regenerate the MCP config with camel-kit init --here --force."));
+                return;
+            }
         }
 
         JsonNode servers = rootNode.has("mcp") ? rootNode.path("mcp") : rootNode.path("mcpServers");
@@ -481,15 +498,21 @@ public class DoctorService {
             return;
         }
 
+        int findingsBeforeServerChecks = findings.size();
         boolean camelOk = checkMcpServer(
                 root, mcpFile, servers, "camel", expectations.camelMcpTools(), copilotToolsSchema,
                 piDirectToolsSchema, qwenIncludeToolsSchema, openCodeSchema, findings);
         boolean knowledgeOk = checkMcpServer(
                 root, mcpFile, servers, "camel-knowledge", expectations.knowledgeMcpTools(), copilotToolsSchema,
                 piDirectToolsSchema, qwenIncludeToolsSchema, openCodeSchema, findings);
+        boolean citrusOk = checkMcpServer(
+                root, mcpFile, servers, "citrus", expectations.citrusMcpTools(), copilotToolsSchema,
+                piDirectToolsSchema, qwenIncludeToolsSchema, openCodeSchema, findings);
         boolean openCodePermissionsOk = !openCodeSchema
-                || checkOpenCodePermissions(root, mcpFile, rootNode, isLegacyOpenCodeConfig(servers), findings);
-        if (camelOk && knowledgeOk && openCodePermissionsOk) {
+                || checkOpenCodePermissions(root, mcpFile, rootNode, servers, findings);
+        boolean warned = findings.subList(findingsBeforeServerChecks, findings.size()).stream()
+                .anyMatch(finding -> finding.status() == DoctorFinding.Status.WARN);
+        if (camelOk && knowledgeOk && citrusOk && openCodePermissionsOk && !warned) {
             String message = openCodeSchema
                     ? "OpenCode MCP config uses supported server fields; tool calls retain OpenCode permission prompts"
                     : "MCP config exists and tool allowlists match Camel-Kit expectations";
@@ -497,6 +520,88 @@ public class DoctorService {
                     message,
                     "No action required."));
         }
+    }
+
+    private OpenCodeConfiguration readOpenCodeConfiguration(
+            Path root, Path defaultFile, List<DoctorFinding> findings) {
+        ObjectNode effective = OPENCODE_MAPPER.createObjectNode();
+        Path effectiveFile = null;
+        for (Path candidate : OpenCodeProjectConfig.files(root)) {
+            if (!Files.exists(candidate, LinkOption.NOFOLLOW_LINKS)) {
+                continue;
+            }
+            if (!Files.isRegularFile(candidate, LinkOption.NOFOLLOW_LINKS)) {
+                findings.add(DoctorFinding.fail("mcp", relativize(root, candidate),
+                        "OpenCode configuration must be a regular file",
+                        "Replace it with a regular JSON or JSONC file, then re-run camel-kit doctor."));
+                return null;
+            }
+
+            JsonNode parsed;
+            try {
+                byte[] content = Files.readAllBytes(candidate);
+                parsed = content.length == 0
+                        ? OPENCODE_MAPPER.createObjectNode()
+                        : OPENCODE_MAPPER.readTree(content);
+            } catch (IOException e) {
+                findings.add(DoctorFinding.fail("mcp", relativize(root, candidate),
+                        "OpenCode configuration is not valid JSON or JSONC: " + e.getMessage(),
+                        "Fix the syntax or regenerate the OpenCode config with camel-kit init --here --force."));
+                return null;
+            }
+            if (parsed == null || !parsed.isObject()) {
+                findings.add(DoctorFinding.fail("mcp", relativize(root, candidate),
+                        "OpenCode configuration must be a JSON object",
+                        "Fix the configuration or regenerate it with camel-kit init --here --force."));
+                return null;
+            }
+            if (!hasValidOpenCodeFields(root, candidate, parsed, findings)) {
+                return null;
+            }
+            ObjectNode layer = ((ObjectNode) parsed).deepCopy();
+            OpenCodeProjectConfig.normalizeScalarPermission(layer);
+            mergeJsonObjects(effective, layer);
+            effectiveFile = candidate;
+        }
+
+        if (effectiveFile == null) {
+            findings.add(DoctorFinding.fail("mcp", relativize(root, defaultFile),
+                    "MCP config is missing for agent 'opencode'",
+                    "Run camel-kit init --here --ai opencode --force to regenerate MCP configuration."));
+            return null;
+        }
+        return new OpenCodeConfiguration(effectiveFile, effective);
+    }
+
+    private boolean hasValidOpenCodeFields(
+            Path root, Path file, JsonNode config, List<DoctorFinding> findings) {
+        JsonNode permission = config.get("permission");
+        if (permission != null && !permission.isObject()
+                && !(permission.isTextual() && OPENCODE_PERMISSION_ACTIONS.contains(permission.asText()))) {
+            findings.add(DoctorFinding.fail("mcp", relativize(root, file),
+                    "OpenCode permission must be an object or one of allow, ask, deny",
+                    "Fix the permission field or regenerate the OpenCode config."));
+            return false;
+        }
+        JsonNode mcp = config.get("mcp");
+        if (mcp != null && !mcp.isObject()) {
+            findings.add(DoctorFinding.fail("mcp", relativize(root, file),
+                    "OpenCode mcp must be an object",
+                    "Fix the mcp field or regenerate the OpenCode config."));
+            return false;
+        }
+        return true;
+    }
+
+    private void mergeJsonObjects(ObjectNode target, ObjectNode source) {
+        source.fields().forEachRemaining(entry -> {
+            JsonNode existing = target.get(entry.getKey());
+            if (existing != null && existing.isObject() && entry.getValue().isObject()) {
+                mergeJsonObjects((ObjectNode) existing, (ObjectNode) entry.getValue());
+            } else {
+                target.set(entry.getKey(), entry.getValue().deepCopy());
+            }
+        });
     }
 
     private void checkCodexMcp(Path root, Path mcpFile, List<DoctorFinding> findings) {
@@ -633,20 +738,24 @@ public class DoctorService {
     private boolean checkQwenTools(
             Path root, Path mcpFile, String serverName, JsonNode server, Set<String> expected,
             List<DoctorFinding> findings) {
-        JsonNode includeTools = server.path("includeTools");
+        JsonNode includeTools = server.get("includeTools");
         boolean valid;
-        if (includeTools.isArray()) {
+        if (includeTools != null && includeTools.isArray()) {
             Set<String> actual = new LinkedHashSet<>();
             includeTools.forEach(value -> actual.add(value.asText()));
             valid = checkToolSet(root, mcpFile, serverName, "includeTools", actual, expected, false, findings);
-        } else if (server.path("autoApprove").isArray() || server.path("alwaysAllow").isArray()) {
+        } else if (includeTools == null
+                && (server.path("autoApprove").isArray() || server.path("alwaysAllow").isArray())) {
             findings.add(DoctorFinding.warn("mcp", relativize(root, mcpFile),
                     "Qwen MCP server '" + serverName + "' uses the legacy approval-field schema",
                     "Regenerate the Qwen config to add the supported includeTools filter."));
             valid = true;
         } else {
             findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
-                    "MCP server '" + serverName + "' is missing includeTools array",
+                    "MCP server '" + serverName + "' "
+                                                                              + (includeTools == null
+                                                                                      ? "is missing" : "has invalid")
+                                                                              + " includeTools array",
                     "Regenerate the MCP config with camel-kit init --here --force."));
             valid = false;
         }
@@ -662,7 +771,6 @@ public class DoctorService {
 
     private boolean checkOpenCodeServer(
             Path root, Path mcpFile, String serverName, JsonNode server, List<DoctorFinding> findings) {
-        boolean valid = true;
         for (String ignoredField : List.of("autoApprove", "alwaysAllow")) {
             if (server.has(ignoredField)) {
                 findings.add(DoctorFinding.warn("mcp", relativize(root, mcpFile),
@@ -670,16 +778,31 @@ public class DoctorService {
                         "Remove the ignored field or regenerate the OpenCode MCP config."));
             }
         }
-        return valid;
+        return true;
     }
 
     private boolean checkOpenCodePermissions(
-            Path root, Path mcpFile, JsonNode config, boolean legacyConfig, List<DoctorFinding> findings) {
-        JsonNode permission = config.path("permission");
+            Path root, Path mcpFile, JsonNode config, JsonNode servers, List<DoctorFinding> findings) {
+        JsonNode permission = config.get("permission");
         boolean valid = true;
         for (String pattern : List.of("camel_*", "camel-knowledge_*", "citrus_*")) {
-            if (!"ask".equals(permission.path(pattern).asText())) {
-                if (legacyConfig) {
+            List<OpenCodePermissionResolution> resolutions = openCodeTools(pattern).stream()
+                    .map(tool -> openCodePermissionAction(permission, tool))
+                    .toList();
+            boolean knownWrong = resolutions.stream()
+                    .anyMatch(resolution -> resolution.matched() && !"ask".equals(resolution.action()));
+            boolean missing = resolutions.stream().anyMatch(resolution -> !resolution.matched());
+            boolean wrong = knownWrong || (!missing && hasUnsafeOpenCodeNamespaceOverride(permission, pattern));
+            if (wrong) {
+                findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                        "OpenCode permission namespace '" + pattern
+                                                                                  + "' must end with a namespace-wide 'ask' rule",
+                        "Add a final namespace-wide ask rule to retain MCP permission prompts, or regenerate the OpenCode config."));
+                valid = false;
+            } else if (missing) {
+                String serverName = pattern.substring(0, pattern.length() - 2);
+                JsonNode server = servers.path(serverName);
+                if (server.path("autoApprove").isArray() || server.path("alwaysAllow").isArray()) {
                     findings.add(DoctorFinding.warn("mcp", relativize(root, mcpFile),
                             "Legacy OpenCode config has no supported permission for '" + pattern + "'",
                             "Regenerate the OpenCode config to retain explicit MCP approval prompts."));
@@ -687,20 +810,218 @@ public class DoctorService {
                     findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
                             "OpenCode permission '" + pattern + "' must be 'ask'",
                             "Restore the generated MCP permission prompts or regenerate the OpenCode config."));
-                    valid = false;
                 }
+                valid = false;
             }
         }
         return valid;
     }
 
-    private boolean isLegacyOpenCodeConfig(JsonNode servers) {
-        for (JsonNode server : servers) {
-            if (server.has("autoApprove") || server.has("alwaysAllow")) {
+    private Set<String> openCodeTools(String pattern) {
+        String serverName = switch (pattern) {
+            case "camel_*" -> "camel";
+            case "camel-knowledge_*" -> "camel-knowledge";
+            case "citrus_*" -> "citrus";
+            default -> pattern.substring(0, pattern.indexOf('_'));
+        };
+        Set<String> tools = switch (pattern) {
+            case "camel_*" -> expectations.camelMcpTools();
+            case "camel-knowledge_*" -> expectations.knowledgeMcpTools();
+            case "citrus_*" -> expectations.citrusMcpTools();
+            default -> Set.of("tool");
+        };
+        if (tools.isEmpty()) {
+            return Set.of(serverName + "_tool");
+        }
+        return tools.stream()
+                .map(tool -> serverName + "_" + tool.replaceAll("[^a-zA-Z0-9_-]", "_"))
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private boolean hasUnsafeOpenCodeNamespaceOverride(JsonNode permission, String managedPattern) {
+        if (permission == null || !permission.isObject()) {
+            return false;
+        }
+
+        boolean coveredByAsk = false;
+        boolean overridden = false;
+        String managedPrefix = managedPattern.substring(0, managedPattern.length() - 1);
+        for (var rule = permission.fields(); rule.hasNext();) {
+            Map.Entry<String, JsonNode> entry = rule.next();
+            OpenCodePermissionResolution resolution = openCodeRuleAction(entry.getValue());
+            if (!resolution.matched()) {
+                continue;
+            }
+
+            if (openCodeGlobCoversPrefix(entry.getKey(), managedPrefix)) {
+                if ("ask".equals(resolution.action())) {
+                    coveredByAsk = true;
+                    overridden = false;
+                } else {
+                    coveredByAsk = false;
+                    overridden = true;
+                }
+            } else if (coveredByAsk && !"ask".equals(resolution.action())
+                    && openCodeGlobCanMatchPrefix(entry.getKey(), managedPrefix)) {
+                overridden = true;
+            }
+        }
+        return !coveredByAsk || overridden;
+    }
+
+    private boolean openCodeGlobCoversPrefix(String wildcard, String prefix) {
+        String pattern = normalizeOpenCodeToolGlob(wildcard);
+        String normalizedPrefix = prefix.replace('\\', '/');
+        if (isWindows()) {
+            pattern = pattern.toLowerCase(Locale.ROOT);
+            normalizedPrefix = normalizedPrefix.toLowerCase(Locale.ROOT);
+        }
+        if (!pattern.endsWith("*")) {
+            return false;
+        }
+        boolean[] states = openCodeGlobStatesAfterPrefix(pattern, normalizedPrefix);
+        return states[pattern.length()];
+    }
+
+    private boolean openCodeGlobCanMatchPrefix(String wildcard, String prefix) {
+        String pattern = normalizeOpenCodeToolGlob(wildcard);
+        String normalizedPrefix = prefix.replace('\\', '/');
+        if (isWindows()) {
+            pattern = pattern.toLowerCase(Locale.ROOT);
+            normalizedPrefix = normalizedPrefix.toLowerCase(Locale.ROOT);
+        }
+
+        boolean[] states = openCodeGlobStatesAfterPrefix(pattern, normalizedPrefix);
+        for (int state = 0; state < states.length; state++) {
+            if (states[state] && openCodeGlobCanFinishWithToolCharacters(pattern, state)) {
                 return true;
             }
         }
         return false;
+    }
+
+    private String normalizeOpenCodeToolGlob(String wildcard) {
+        String normalized = wildcard.replace('\\', '/');
+        return normalized.endsWith(" *")
+                ? normalized.substring(0, normalized.length() - 2)
+                : normalized;
+    }
+
+    private boolean[] openCodeGlobStatesAfterPrefix(String pattern, String prefix) {
+        boolean[] states = new boolean[pattern.length() + 1];
+        states[0] = true;
+        closeOpenCodeGlobStars(states, pattern);
+        for (char character : prefix.toCharArray()) {
+            boolean[] next = new boolean[pattern.length() + 1];
+            for (int state = 0; state < pattern.length(); state++) {
+                if (!states[state]) {
+                    continue;
+                }
+                char token = pattern.charAt(state);
+                if (token == '*') {
+                    next[state] = true;
+                } else if (token == '?' || token == character) {
+                    next[state + 1] = true;
+                }
+            }
+            closeOpenCodeGlobStars(next, pattern);
+            states = next;
+        }
+        return states;
+    }
+
+    private boolean openCodeGlobCanFinishWithToolCharacters(String pattern, int state) {
+        for (int index = state; index < pattern.length(); index++) {
+            char token = pattern.charAt(index);
+            if (token != '*' && token != '?' && !isOpenCodeToolCharacter(token)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean isOpenCodeToolCharacter(char character) {
+        return character >= 'a' && character <= 'z'
+                || character >= 'A' && character <= 'Z'
+                || character >= '0' && character <= '9'
+                || character == '_'
+                || character == '-';
+    }
+
+    private void closeOpenCodeGlobStars(boolean[] states, String pattern) {
+        for (int state = 0; state < pattern.length(); state++) {
+            if (states[state] && pattern.charAt(state) == '*') {
+                states[state + 1] = true;
+            }
+        }
+    }
+
+    private OpenCodePermissionResolution openCodePermissionAction(JsonNode permission, String tool) {
+        if (permission == null || permission.isNull()) {
+            return new OpenCodePermissionResolution(false, null);
+        }
+        if (!permission.isObject()) {
+            return new OpenCodePermissionResolution(false, null);
+        }
+
+        boolean matched = false;
+        String action = null;
+        for (var rule = permission.fields(); rule.hasNext();) {
+            Map.Entry<String, JsonNode> entry = rule.next();
+            if (openCodeWildcardMatches(tool, entry.getKey())) {
+                OpenCodePermissionResolution resolution = openCodeRuleAction(entry.getValue());
+                if (resolution.matched()) {
+                    matched = true;
+                    action = resolution.action();
+                }
+            }
+        }
+        return new OpenCodePermissionResolution(matched, action);
+    }
+
+    private OpenCodePermissionResolution openCodeRuleAction(JsonNode value) {
+        if (value.isTextual()) {
+            return new OpenCodePermissionResolution(true, value.asText());
+        }
+        if (!value.isObject()) {
+            return new OpenCodePermissionResolution(true, null);
+        }
+
+        boolean matched = false;
+        String action = null;
+        for (var nestedRule = value.fields(); nestedRule.hasNext();) {
+            Map.Entry<String, JsonNode> nested = nestedRule.next();
+            if (openCodeWildcardMatches("*", nested.getKey())) {
+                matched = true;
+                action = nested.getValue().isTextual() ? nested.getValue().asText() : null;
+            }
+        }
+        return new OpenCodePermissionResolution(matched, action);
+    }
+
+    private boolean openCodeWildcardMatches(String value, String wildcard) {
+        StringBuilder regex = new StringBuilder("^");
+        for (char character : wildcard.replace('\\', '/').toCharArray()) {
+            if (character == '*') {
+                regex.append(".*");
+            } else if (character == '?') {
+                regex.append('.');
+            } else {
+                if (".+^${}()|[]\\".indexOf(character) >= 0) {
+                    regex.append('\\');
+                }
+                regex.append(character);
+            }
+        }
+        if (regex.toString().endsWith(" .*")) {
+            regex.setLength(regex.length() - 3);
+            regex.append("( .*)?");
+        }
+        regex.append('$');
+        int flags = Pattern.DOTALL | (isWindows() ? Pattern.CASE_INSENSITIVE : 0);
+        return Pattern.compile(regex.toString(), flags)
+                .matcher(value.replace('\\', '/'))
+                .matches();
     }
 
     private boolean checkCopilotTools(
@@ -929,7 +1250,7 @@ public class DoctorService {
         addIfExists(activeFiles, root.resolve("CLAUDE.md"));
         addIfExists(activeFiles, root.resolve("GEMINI.md"));
         addIfExists(activeFiles, root.resolve("QWEN.md"));
-        addIfExists(activeFiles, root.resolve("opencode.json"));
+        OpenCodeProjectConfig.files(root).forEach(path -> addIfExists(activeFiles, path));
         if (agent != null) {
             Path commandsDir = agent.generatesCommandStubs() ? root.resolve(agent.commandDirectory()) : null;
             if (commandsDir != null && Files.isDirectory(commandsDir)) {
@@ -1030,5 +1351,11 @@ public class DoctorService {
     }
 
     record ToolResult(boolean available, String output) {
+    }
+
+    private record OpenCodeConfiguration(Path file, JsonNode root) {
+    }
+
+    private record OpenCodePermissionResolution(boolean matched, String action) {
     }
 }
