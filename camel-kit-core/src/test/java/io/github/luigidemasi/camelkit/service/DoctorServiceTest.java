@@ -14,6 +14,8 @@ import io.github.luigidemasi.camelkit.generator.InitContext;
 import io.github.luigidemasi.camelkit.output.Printer;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -21,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class DoctorServiceTest {
 
     private static final DoctorExpectations EXPECTATIONS = DoctorExpectations.loadDefault();
+    private static final String CLAUDE = AgentGeneratorStrategy.CLAUDE.descriptorValue();
     private static final String COPILOT = AgentGeneratorStrategy.COPILOT.descriptorValue();
     private static final String CODEX = AgentGeneratorStrategy.CODEX.descriptorValue();
     private static final String PI = AgentGeneratorStrategy.PI.descriptorValue();
@@ -807,14 +810,13 @@ class DoctorServiceTest {
     }
 
     @Test
-    void missingOpenCodeCitrusServerFails() throws Exception {
+    void missingCitrusServerWarnsWithoutFailing() throws Exception {
         createHealthyWorkspace(tempDir, OPENCODE);
         writeMcpConfig(tempDir, OPENCODE, """
                 {
                   "permission": {
                     "camel_*": "ask",
-                    "camel-knowledge_*": "ask",
-                    "citrus_*": "ask"
+                    "camel-knowledge_*": "ask"
                   },
                   "mcp": {
                     "camel": {"type": "local"},
@@ -825,11 +827,147 @@ class DoctorServiceTest {
 
         DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
 
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.WARN, "mcp",
+                "MCP server 'citrus' is not configured", "Regenerate"));
+        assertFalse(hasFinding(result, DoctorFinding.Status.FAIL, "mcp", "citrus", null));
+        assertFalse(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "uses supported server fields", null));
+    }
+
+    @Test
+    void preCitrusJsonWorkspaceWarnsWithoutFailing() throws Exception {
+        createHealthyWorkspace(tempDir, CLAUDE);
+        writeMcpConfig(tempDir, CLAUDE, String.format(Locale.ROOT, """
+                {
+                  "mcpServers": {
+                    "camel": {"command": "jbang", "autoApprove": [%s], "alwaysAllow": [%s]},
+                    "camel-knowledge": {"command": "jbang", "autoApprove": [%s], "alwaysAllow": [%s]}
+                  }
+                }
+                """, jsonArray(EXPECTATIONS.camelMcpTools()), jsonArray(EXPECTATIONS.camelMcpTools()),
+                jsonArray(EXPECTATIONS.knowledgeMcpTools()), jsonArray(EXPECTATIONS.knowledgeMcpTools())));
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.WARN, "mcp",
+                "MCP server 'citrus' is not configured", "Regenerate"));
+        assertFalse(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "tool allowlists match", null));
+    }
+
+    @Test
+    void doctorAttributesOpenCodePermissionFindingsToTheDefiningLayer() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "camel_*": "allow",
+                    "camel-knowledge_*": "ask",
+                    "citrus_*": "ask"
+                  },
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"},
+                    "citrus": {"type": "local"}
+                  }
+                }
+                """);
+        Files.writeString(tempDir.resolve("opencode.jsonc"), "{\"theme\": \"default\"}\n");
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(result.findings().stream().anyMatch(finding -> finding.status() == DoctorFinding.Status.FAIL
+                && "opencode.json".equals(finding.path())
+                && finding.message().contains("OpenCode permission namespace 'camel_*'")),
+                result.findings().toString());
+    }
+
+    @Test
+    void doctorTreatsAWhitespaceOnlyLowerOpenCodeConfigAsAnEmptyLayer() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        String validConfig = Files.readString(tempDir.resolve("opencode.json"));
+        Files.writeString(tempDir.resolve("opencode.json"), "\uFEFF \n\t\n");
+        Files.writeString(tempDir.resolve("opencode.jsonc"), validConfig);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "tool calls retain OpenCode permission prompts", "No action required."));
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    void doctorReadsASymlinkedOpenCodeConfig() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        Path dotfiles = Files.createDirectory(tempDir.resolve("dotfiles"));
+        Path real = Files.move(tempDir.resolve("opencode.json"), dotfiles.resolve("opencode.json"));
+        Files.createSymbolicLink(tempDir.resolve("opencode.json"), real);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
+                "tool calls retain OpenCode permission prompts", "No action required."));
+    }
+
+    @Test
+    void malformedCitrusServerStillFails() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, """
+                {
+                  "permission": {
+                    "camel_*": "ask",
+                    "camel-knowledge_*": "ask",
+                    "citrus_*": "ask"
+                  },
+                  "mcp": {
+                    "camel": {"type": "local"},
+                    "camel-knowledge": {"type": "local"},
+                    "citrus": "local"
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
         assertTrue(result.hasFailures(), result.findings().toString());
         assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
                 "MCP server 'citrus' is missing", "Regenerate"));
-        assertFalse(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
-                "uses supported server fields", null));
+        assertFalse(hasFinding(result, DoctorFinding.Status.WARN, "mcp",
+                "MCP server 'citrus' is not configured", null));
+    }
+
+    @Test
+    void doctorAttributesOpenCodeNamespaceOverridesToTheOverridingLayer() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        Files.writeString(tempDir.resolve("opencode.jsonc"), "{\"permission\": {\"*\": \"allow\"}}\n");
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(result.findings().stream().anyMatch(finding -> finding.status() == DoctorFinding.Status.FAIL
+                && "opencode.jsonc".equals(finding.path())
+                && finding.message().contains("OpenCode permission namespace 'camel_*'")),
+                result.findings().toString());
+        assertFalse(result.findings().stream().anyMatch(finding -> finding.status() == DoctorFinding.Status.FAIL
+                && "opencode.json".equals(finding.path())), result.findings().toString());
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    void doctorFailsOnADanglingOpenCodeSymlink() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        Files.createSymbolicLink(tempDir.resolve("opencode.jsonc"), tempDir.resolve("missing.json"));
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "symbolic link to a missing file", "symbolic link"));
     }
 
     @Test

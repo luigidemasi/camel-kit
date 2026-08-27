@@ -20,6 +20,8 @@ import io.github.luigidemasi.camelkit.output.Printer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -29,6 +31,13 @@ class OpenCodeGeneratorTest {
 
     @TempDir
     Path tempDir;
+
+    private static void assertManagedEntriesWritten(JsonNode config) {
+        assertEquals("ask", config.path("permission").path("camel_*").asText());
+        assertEquals("ask", config.path("permission").path("citrus_*").asText());
+        assertEquals("local", config.path("mcp").path("camel").path("type").asText());
+        assertFalse(config.path("mcp").path("camel").has("autoApprove"));
+    }
 
     private InitContext createContext() {
         return createContext("camel-kit");
@@ -280,6 +289,54 @@ class OpenCodeGeneratorTest {
     }
 
     @Test
+    void treatsAWhitespaceOnlyExistingConfigAsEmpty() throws Exception {
+        Path configFile = tempDir.resolve("opencode.jsonc");
+        Files.writeString(configFile, "\uFEFF \r\n\t\n");
+
+        OpenCodeGenerator generator = new OpenCodeGenerator();
+        generator.preflight(createContext());
+        generator.generate(createContext());
+
+        assertManagedEntriesWritten(readOpenCodeConfig(configFile));
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    void writesThroughASymlinkedConfig() throws Exception {
+        Path real = Files.createDirectory(tempDir.resolve("dotfiles")).resolve("opencode.json");
+        Files.writeString(real, "{\"permission\": {\"bash\": \"deny\"}, \"mcp\": {}}\n");
+        Path link = Files.createSymbolicLink(tempDir.resolve("opencode.json"), real);
+
+        OpenCodeGenerator generator = new OpenCodeGenerator();
+        generator.preflight(createContext());
+        generator.generate(createContext());
+
+        assertTrue(Files.isSymbolicLink(link));
+        JsonNode config = readOpenCodeConfig(real);
+        assertEquals("deny", config.path("permission").path("bash").asText());
+        assertManagedEntriesWritten(config);
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    void treatsAliasedLayersAsOneFile() throws Exception {
+        Path real = tempDir.resolve("opencode.json");
+        Files.writeString(real, "{\"permission\": {\"bash\": \"deny\"}, \"mcp\": {}}\n");
+        Files.createSymbolicLink(tempDir.resolve("opencode.jsonc"), real);
+
+        OpenCodeGenerator generator = new OpenCodeGenerator();
+        generator.preflight(createContext());
+        generator.generate(createContext());
+        String afterFirstGeneration = Files.readString(real);
+        generator.generate(createContext());
+
+        assertEquals(afterFirstGeneration, Files.readString(real));
+        JsonNode config = readOpenCodeConfig(real);
+        assertEquals("deny", config.path("permission").path("bash").asText());
+        assertManagedEntriesWritten(config);
+    }
+
+    @Test
     void leavesFreshDefaultConfigByteIdenticalOnSecondGeneration() throws Exception {
         Path configFile = tempDir.resolve("opencode.json");
         assertFalse(Files.exists(configFile));
@@ -425,9 +482,9 @@ class OpenCodeGeneratorTest {
 
         assertEquals(afterFirstGeneration, Files.readString(configFile));
         assertTrue(afterFirstGeneration.contains("// Keep compact managed comment."));
-        assertEquals("https://example.test/mcp",
-                assertDoesNotThrow(() -> readOpenCodeConfig(configFile), afterFirstGeneration)
-                        .path("mcp").path("custom").path("url").asText());
+        JsonNode config = assertDoesNotThrow(() -> readOpenCodeConfig(configFile), afterFirstGeneration);
+        assertEquals("https://example.test/mcp", config.path("mcp").path("custom").path("url").asText());
+        assertManagedEntriesWritten(config);
     }
 
     @Test
@@ -451,7 +508,7 @@ class OpenCodeGeneratorTest {
         assertTrue(afterFirstGeneration.contains("// Keep CR-only managed comment."));
         assertTrue(afterFirstGeneration.contains("\r"));
         assertFalse(afterFirstGeneration.contains("\n"));
-        assertDoesNotThrow(() -> readOpenCodeConfig(configFile), afterFirstGeneration);
+        assertManagedEntriesWritten(assertDoesNotThrow(() -> readOpenCodeConfig(configFile), afterFirstGeneration));
     }
 
     @Test
@@ -476,7 +533,7 @@ class OpenCodeGeneratorTest {
         assertTrue(afterFirstGeneration.contains("\r\n"));
         assertFalse(afterFirstGeneration.replace("\r\n", "").contains("\r"));
         assertFalse(afterFirstGeneration.replace("\r\n", "").contains("\n"));
-        assertDoesNotThrow(() -> readOpenCodeConfig(configFile), afterFirstGeneration);
+        assertManagedEntriesWritten(assertDoesNotThrow(() -> readOpenCodeConfig(configFile), afterFirstGeneration));
     }
 
     @Test
@@ -494,6 +551,7 @@ class OpenCodeGeneratorTest {
         assertTrue(content.contains("\r"));
         assertFalse(content.contains("\n"));
         assertEquals("deny", readOpenCodeConfig(configFile).path("permission").path("*").asText());
+        assertManagedEntriesWritten(readOpenCodeConfig(configFile));
     }
 
     @Test
@@ -512,6 +570,7 @@ class OpenCodeGeneratorTest {
         assertFalse(content.replace("\r\n", "").contains("\r"));
         assertFalse(content.replace("\r\n", "").contains("\n"));
         assertEquals("deny", readOpenCodeConfig(configFile).path("permission").path("*").asText());
+        assertManagedEntriesWritten(readOpenCodeConfig(configFile));
     }
 
     @Test
@@ -536,6 +595,7 @@ class OpenCodeGeneratorTest {
         JsonNode config = readOpenCodeConfig(configFile);
         assertEquals("deny", config.path("permission").path("custom").asText());
         assertEquals("remote", config.path("mcp").path("custom").path("type").asText());
+        assertManagedEntriesWritten(config);
     }
 
     @Test
@@ -558,6 +618,7 @@ class OpenCodeGeneratorTest {
         JsonNode config = readOpenCodeConfig(configFile);
         assertEquals("deny", config.path("permission").path("custom").asText());
         assertEquals("remote", config.path("mcp").path("custom").path("type").asText());
+        assertManagedEntriesWritten(config);
     }
 
     @Test

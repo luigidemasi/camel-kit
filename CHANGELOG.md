@@ -78,6 +78,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Review hardening keeps validator leaves read-only, preserves unrelated OpenCode configuration during regeneration, resolves command prefixes only in Camel-Kit-owned resources, and installs the complete persona library for every current target except the intentionally excluded Bob 1 path
   - `doctor` accepts pre-upgrade Qwen/OpenCode MCP layouts with upgrade warnings while retaining failures for malformed current layouts, and checks registered target assets for drift
   - Regeneration reports each retired generated asset it removes; switching between Bob generations now also removes the obsolete Ship mode rule symmetrically while preserving neighboring files
+  - OpenCode regeneration recognises `opencode.json`, `opencode.jsonc`, `.opencode/opencode.json`, and `.opencode/opencode.jsonc` as project layers, updates them in place (comments, trailing commas, newline style, and symbolic links preserved), moves the Camel-managed `permission` and `mcp` entries into the highest-precedence existing layer, validates every layer before writing anything, and reports a malformed file as one concise error instead of a stack trace
+  - `doctor` evaluates OpenCode permission rules per managed MCP server in OpenCode's last-match order and reports each finding against the layer that defines the rule
+  - `doctor` warns instead of failing for every JSON-config agent when a workspace generated before Citrus MCP support has no `citrus` server; a present but malformed `citrus` server still fails
 
 - **Citrus MCP startup (#147)** — downgraded the generated MCP runner from `5.0.0-M2`, which fails during Quarkus startup with an incompatible JSON Schema Generator dependency, to the verified working `5.0.0-M1` release. Citrus test schemas and dependencies remain on `5.0.0-M2`.
 

@@ -13,12 +13,16 @@ final class BobGeneratedAssetCleaner {
     }
 
     static void deleteSiblingAssets(InitContext ctx, String siblingAgent) throws IOException {
-        Set<String> currentTargets = AgentRegistry.descriptor(ctx.agentName()).templates().stream()
+        AgentDescriptor current = AgentRegistry.descriptor(ctx.agentName());
+        Set<String> currentTargets = current.templates().stream()
                 .map(AgentDescriptor.TemplateInstall::target)
                 .collect(Collectors.toSet());
+        // Skill files live in the shared skills directory and are reinstalled by the skill installer,
+        // so a sibling's gate SKILL.md targets are never retired assets of the current generation.
+        String skillsPrefix = current.skillsDirectory() + "/";
         for (AgentDescriptor.TemplateInstall template : AgentRegistry.descriptor(siblingAgent).templates()) {
             String target = template.target();
-            if (currentTargets.contains(target)) {
+            if (currentTargets.contains(target) || target.startsWith(skillsPrefix)) {
                 continue;
             }
             delete(ctx, target);

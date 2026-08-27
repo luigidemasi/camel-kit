@@ -2,6 +2,7 @@ package io.github.luigidemasi.camelkit.generator;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -119,6 +120,38 @@ class Bob2GeneratorTest {
         assertTrue(Files.isRegularFile(tempDir.resolve(".bob/personas/catalog-researcher.md")));
         assertEquals("user rule", Files.readString(neighbor));
         assertEquals("user unsuffixed rule", Files.readString(unsuffixedNeighbor));
+    }
+
+    @Test
+    void reinitializingBob2KeepsItsOwnSkillFiles() throws Exception {
+        List<String> output = new ArrayList<>();
+        Printer printer = new Printer() {
+            @Override
+            public void println() {
+            }
+
+            @Override
+            public void println(String line) {
+                output.add(line);
+            }
+
+            @Override
+            public void print(String line) {
+                output.add(line);
+            }
+        };
+        AgentConfig agent = AgentRegistry.get("bob2");
+        InitContext ctx = new InitContext(
+                agent, "bob2", tempDir.resolve(agent.folder()), tempDir.resolve(".bob/skills"), tempDir,
+                "camel-kit", printer);
+
+        new Bob2Generator().generate(ctx);
+        new Bob2Generator().generate(ctx);
+
+        assertTrue(Files.isRegularFile(tempDir.resolve(".bob/skills/camel-plan/SKILL.md")));
+        assertTrue(output.stream().noneMatch(
+                line -> line.contains("Removed retired generated asset") && line.contains(".bob/skills/")),
+                output.toString());
     }
 
     private List<String> registeredModeRules(String agentName) {

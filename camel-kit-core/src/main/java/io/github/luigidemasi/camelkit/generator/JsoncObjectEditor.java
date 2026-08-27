@@ -6,7 +6,9 @@ import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -35,7 +37,7 @@ final class JsoncObjectEditor {
         if (member == null) {
             throw new IllegalArgumentException("Missing JSONC member: " + name);
         }
-        replace(member.valueStart(), member.valueEnd(), render(value, newline(), ""));
+        replace(member.valueStart(), member.valueEnd(), render(value, newline(), leadingIndent(member.keyStart())));
     }
 
     void upsertRootMember(String name, JsonNode value) {
@@ -43,7 +45,7 @@ final class JsoncObjectEditor {
         if (member == null) {
             appendRootMember(name, value);
         } else {
-            replace(member.valueStart(), member.valueEnd(), render(value, newline(), ""));
+            replace(member.valueStart(), member.valueEnd(), render(value, newline(), leadingIndent(member.keyStart())));
         }
     }
 
@@ -88,15 +90,42 @@ final class JsoncObjectEditor {
                 .filter(member -> !removedSet.contains(member))
                 .toList();
         String commentIndent = memberIndent(object, leadingIndent(object.open()));
+        String newline = newline();
         List<Edit> edits = new ArrayList<>();
+        Map<Integer, List<Member>> removedByLine = new LinkedHashMap<>();
         for (Member member : removed) {
-            edits.add(new Edit(
-                    member.keyStart(), member.valueEnd(),
-                    preserveComments(
-                            content.substring(member.keyStart(), member.valueEnd()),
-                            commentIndent)));
-            if (member.comma() >= 0) {
-                edits.add(new Edit(member.comma(), member.comma() + 1, ""));
+            removedByLine.computeIfAbsent(lineStart(member.keyStart()), line -> new ArrayList<>()).add(member);
+        }
+        for (Map.Entry<Integer, List<Member>> line : removedByLine.entrySet()) {
+            int lineStart = line.getKey();
+            Member first = line.getValue().get(0);
+            Member last = line.getValue().get(line.getValue().size() - 1);
+            int end = last.comma() >= 0 ? last.comma() + 1 : last.valueEnd();
+            int lineEnd = end;
+            while (lineEnd < content.length() && (content.charAt(lineEnd) == ' ' || content.charAt(lineEnd) == '\t')) {
+                lineEnd++;
+            }
+            long membersOnLine = object.members().stream()
+                    .filter(member -> lineStart(member.keyStart()) == lineStart)
+                    .count();
+            if (membersOnLine == line.getValue().size() && onlyIndent(lineStart, first.keyStart())
+                    && content.startsWith(newline, lineEnd)) {
+                // The removed members owned the whole line: remove it instead of leaving indentation behind.
+                String preserved = preserveComments(content.substring(first.keyStart(), end), commentIndent);
+                if (!preserved.isEmpty()) {
+                    preserved = preserved.substring(newline.length())
+                                + (preserved.endsWith(newline) ? "" : newline);
+                }
+                edits.add(new Edit(lineStart, lineEnd + newline.length(), preserved));
+                continue;
+            }
+            for (Member member : line.getValue()) {
+                edits.add(new Edit(
+                        member.keyStart(), member.valueEnd(),
+                        preserveComments(content.substring(member.keyStart(), member.valueEnd()), commentIndent)));
+                if (member.comma() >= 0) {
+                    edits.add(new Edit(member.comma(), member.comma() + 1, ""));
+                }
             }
         }
 
@@ -188,7 +217,7 @@ final class JsoncObjectEditor {
                 preserved.append(newline()).append(indent).append(removed, cursor, end).append(newline());
                 cursor = end;
             } else if (startsComment(removed, cursor, "/*")) {
-                int end = removed.indexOf("*/", cursor + 2) + 2;
+                int end = blockCommentEnd(removed, cursor);
                 preserved.append(newline()).append(indent).append(removed, cursor, end);
                 cursor = end;
             } else if (current == '"') {
@@ -213,7 +242,7 @@ final class JsoncObjectEditor {
         int cursor = open + 1;
         while (true) {
             cursor = skipTrivia(cursor);
-            if (content.charAt(cursor) == '}') {
+            if (charAt(cursor) == '}') {
                 return new ObjectRange(open, cursor, members);
             }
 
@@ -221,20 +250,20 @@ final class JsoncObjectEditor {
             int keyEnd = scanString(content, keyStart);
             String name = unquote(content.substring(keyStart, keyEnd));
             cursor = skipTrivia(keyEnd);
-            if (content.charAt(cursor) != ':') {
+            if (charAt(cursor) != ':') {
                 throw new IllegalArgumentException("Missing JSONC member colon");
             }
             int valueStart = skipTrivia(cursor + 1);
             int valueEnd = scanValue(valueStart);
             cursor = skipTrivia(valueEnd);
             int comma = -1;
-            if (content.charAt(cursor) == ',') {
+            if (charAt(cursor) == ',') {
                 comma = cursor++;
             }
             members.add(new Member(name, keyStart, valueStart, valueEnd, comma));
             if (comma < 0) {
                 cursor = skipTrivia(cursor);
-                if (content.charAt(cursor) != '}') {
+                if (charAt(cursor) != '}') {
                     throw new IllegalArgumentException("Missing JSONC member comma");
                 }
             }
@@ -242,7 +271,7 @@ final class JsoncObjectEditor {
     }
 
     private int scanValue(int start) {
-        char first = content.charAt(start);
+        char first = charAt(start);
         if (first == '"') {
             return scanString(content, start);
         }
@@ -251,7 +280,7 @@ final class JsoncObjectEditor {
             closes.push(first == '{' ? '}' : ']');
             int cursor = start + 1;
             while (!closes.isEmpty()) {
-                char current = content.charAt(cursor);
+                char current = charAt(cursor);
                 if (current == '"') {
                     cursor = scanString(content, cursor);
                 } else if (startsComment(content, cursor, "//")) {
@@ -272,7 +301,7 @@ final class JsoncObjectEditor {
 
         int cursor = start;
         while (cursor < content.length()) {
-            char current = content.charAt(cursor);
+            char current = charAt(cursor);
             if (Character.isWhitespace(current) || current == ',' || current == '}' || current == ']'
                     || startsComment(content, cursor, "//") || startsComment(content, cursor, "/*")) {
                 return cursor;
@@ -312,7 +341,22 @@ final class JsoncObjectEditor {
     }
 
     private int blockCommentEnd(int start) {
-        return content.indexOf("*/", start + 2) + 2;
+        return blockCommentEnd(content, start);
+    }
+
+    private static int blockCommentEnd(String value, int start) {
+        int end = value.indexOf("*/", start + 2);
+        if (end < 0) {
+            throw new IllegalArgumentException("Unterminated JSONC block comment");
+        }
+        return end + 2;
+    }
+
+    private char charAt(int position) {
+        if (position >= content.length()) {
+            throw new IllegalArgumentException("Unterminated JSONC object");
+        }
+        return content.charAt(position);
     }
 
     private static int scanString(String value, int start) {

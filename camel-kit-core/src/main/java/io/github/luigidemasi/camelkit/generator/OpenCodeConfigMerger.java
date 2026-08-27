@@ -3,7 +3,6 @@ package io.github.luigidemasi.camelkit.generator;
 import java.io.IOException;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
@@ -64,7 +63,7 @@ final class OpenCodeConfigMerger {
 
     private String removeManagedEntries(String content, ObjectNode generated) throws IOException {
         String body = contentWithoutBom(content);
-        if (body.isEmpty()) {
+        if (body.isBlank()) {
             return content;
         }
         JsoncObjectEditor editor = new JsoncObjectEditor(body);
@@ -85,7 +84,7 @@ final class OpenCodeConfigMerger {
 
         String prefix = bom(existing.content());
         String content = contentWithoutBom(existing.content());
-        if (content.isEmpty()) {
+        if (content.isBlank()) {
             return prefix + pretty(generated) + System.lineSeparator();
         }
 
@@ -175,7 +174,7 @@ final class OpenCodeConfigMerger {
         }
 
         String body = contentWithoutBom(content);
-        ObjectNode existing = body.isEmpty()
+        ObjectNode existing = body.isBlank()
                 ? JSON.createObjectNode()
                 : readObject(body, "existing " + displayName(configFile), true);
         JsonNode permission = existing.get("permission");
@@ -190,23 +189,27 @@ final class OpenCodeConfigMerger {
     }
 
     private boolean hasExistingConfiguration(Path configFile) throws InvalidAgentConfigurationException {
-        if (!Files.exists(configFile, LinkOption.NOFOLLOW_LINKS)) {
+        if (!Files.exists(configFile)) {
+            if (Files.isSymbolicLink(configFile)) {
+                throw new InvalidAgentConfigurationException(
+                        "existing " + displayName(configFile) + " is a symbolic link to a missing file");
+            }
             return false;
         }
-        if (!Files.isRegularFile(configFile, LinkOption.NOFOLLOW_LINKS)) {
+        if (!Files.isRegularFile(configFile)) {
             throw new InvalidAgentConfigurationException(
                     "existing " + displayName(configFile) + " must be a regular file");
         }
         return true;
     }
 
-    private List<Path> existingConfigurationFiles(Path configFile) throws InvalidAgentConfigurationException {
+    private List<Path> existingConfigurationFiles(Path configFile) throws IOException {
         Path projectDir = configFile.getParent();
         if (projectDir == null) {
             projectDir = Path.of("");
         }
         List<Path> existing = new ArrayList<>();
-        for (Path candidate : OpenCodeProjectConfig.files(projectDir)) {
+        for (Path candidate : OpenCodeProjectConfig.existingFiles(projectDir)) {
             if (hasExistingConfiguration(candidate)) {
                 existing.add(candidate);
             }
@@ -292,11 +295,12 @@ final class OpenCodeConfigMerger {
     }
 
     private StagedWrite stage(PendingWrite write) throws IOException {
-        Path temp = Files.createTempFile(
-                write.target().getParent(), write.target().getFileName().toString(), ".tmp");
+        // Write through symbolic links so dotfile-managed configs keep their link.
+        Path target = Files.exists(write.target()) ? write.target().toRealPath() : write.target();
+        Path temp = Files.createTempFile(target.getParent(), target.getFileName().toString(), ".tmp");
         try {
             Files.writeString(temp, write.content());
-            return new StagedWrite(write.target(), temp);
+            return new StagedWrite(target, temp);
         } catch (IOException failure) {
             try {
                 Files.deleteIfExists(temp);
