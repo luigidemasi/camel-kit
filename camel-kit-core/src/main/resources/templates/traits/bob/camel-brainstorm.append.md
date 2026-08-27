@@ -5,7 +5,7 @@
 Use `switch_mode` to transition between structured interview phases:
 
 - Start in current mode for discovery
-- Switch to "camel-brainstorm" custom mode for the design interview (this loads interview-specific gates and rules)
+- Switch to `camel-brainstorm-mode` for the design interview (this loads interview-specific gates and rules)
 - The mode provides automatic gate validation — interview gates prevent advancing past incomplete phases
 
 ### Codebase Analysis for Migrations

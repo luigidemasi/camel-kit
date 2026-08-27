@@ -1,51 +1,41 @@
 ## Agent Optimization: OpenCode
 
-### LLM-Level Parallel Tool Calls
+### Generated Orchestration Contract
 
-OpenCode supports parallel tool calls at the LLM level — multiple tool call blocks in a single response execute concurrently. Leverage this for within-task parallelism:
+`/camel-execute` selects the generated primary `executor` through command frontmatter and runs in the current session. The executor then creates one layer of leaves:
 
-- Read multiple files in a single response (parallel reads)
-- Dispatch catalog verification alongside context loading
-- Run build commands alongside file generation where safe
+```text
+primary executor session -> leaf agent
+```
 
-**Note:** True async background delegation is not yet available (Issue #5887). Subagent dispatch via `task` is modal — it blocks the primary flow.
+The executor may dispatch only the generated `implementer`, `migrator`, `planner`, `researcher`, `reviewer`, and `tester` agents. Every leaf denies `task`, so it cannot create another child. This generated one-level topology does not require a development-only configuration key.
 
-### Opt-In Subagent Delegation
+OpenCode's `task` tool requires the exact lowercase agent name in `subagent_type`. It does not accept a per-call `steps` argument; each generated agent definition owns its limit. Foreground is the default. Keep every implementation, research result, and review gate in the foreground by omitting `background`.
 
-OpenCode now supports subagent-to-subagent dispatch (PR #7756) with configurable depth limits. For the executor agent dispatching implementer subagents:
+### Role Mapping
 
-- Set `task: {"*": allow}` on the executor agent only
-- Keep delegation single-hop: executor dispatches implementers and exploration agents directly; implementer subagents do not dispatch other personas (composition depth = 1)
+- General implementation and fixes: dispatch `implementer` (`steps: 50`) with the full task, complete selected persona from `.opencode/camel-kit-personas/`, design section, guides, and catalog summary.
+- Tasks whose plan `Agent` is `migration-specialist`: dispatch `migrator` (`steps: 50`) with that complete persona and task context.
+- Tasks whose plan `Agent` is `test-engineer`: dispatch `tester` (`steps: 40`) with that complete persona and task context.
+- Catalog and knowledge research: dispatch `researcher` (`steps: 30`) with the complete researcher persona and query. It is read-only and MCP-capable.
+- Adversarial, specification, and quality review: dispatch `reviewer` (`steps: 50`) with the complete selected persona, artifacts, and review contract. It is read-only.
+- Architectural re-planning: dispatch `planner` (`steps: 30`) with the affected design sections and the re-plan guide.
 
-### Step-Limited Subagents
+Do not select built-in `general`, `explore`, `plan`, or `build` for these roles. Their capabilities do not implement Camel-Kit's generated role and permission contracts.
 
-Set `steps` limits on each subagent to prevent runaway execution:
+### Parallel Waves and Ordered Gates
 
-- Implementation subagents: `steps: 100` (enough for complex route generation)
-- Spec review subagents: `steps: 50` (review is read-heavy, fewer writes)
-- Quality review subagents: `steps: 50`
-- Catalog research subagents: `steps: 30` (batch MCP calls, structured summary)
-- Knowledge research subagents: `steps: 20` (focused query, synthesized answer)
+For an independent implementation wave, issue the selected `implementer`, `migrator`, or `tester` task calls together in one response. Wait for the whole wave before review.
 
-If a subagent hits its step limit, report a warning and continue to the next task.
+The executor owns all orchestration. Because `reviewer` is a leaf, split Adversarial Code Review into explicit foreground calls:
 
-### Strategic Agent Selection
+1. Dispatch `reviewer` with the full `acr-moderator` persona for lane selection.
+2. Dispatch one `reviewer` per selected critic lane together in one response, each with that critic's full persona.
+3. Dispatch `reviewer` again with the Moderator persona and all critic outputs for synthesis.
+4. After ACR passes, dispatch the spec reviewer and then the quality reviewer in separate, ordered calls.
 
-OpenCode provides two primary agents (`Build` for code generation, `Plan` for analysis) and two subagent types (`General` for multi-step tasks, `Explore` for read-only codebase search). When dispatching subagents:
+Never ask a reviewer to dispatch a critic. Never run the spec and quality gates in parallel.
 
-- Implementation subagents: use `General` with full `edit` and `bash` permissions
-- Review subagents: use `General` with read-focused permissions
-- Catalog research: use `Explore` (read-only, MCP calls only)
-- Knowledge research: use `Explore` (read-only, MCP calls only)
-- Codebase exploration: use `Explore` (read-only, no edit or bash access)
-- Plan analysis: stays in the `Plan` primary agent (no subagent dispatch needed)
+### Inline Executor Work
 
-### Environment Probe Budget
-
-The environment probe runs before task dispatch. Budget `steps: 30` for the probe phase within Stage 2 (Execute). The probe is lightweight (skeleton generation, dependency check, Docker health poll) and should not consume the main implementation budget.
-
-If the probe triggers a re-plan loop, increase the effective Step 2 budget by `steps: 50` per re-plan round (max 3 rounds = +150 steps). Use the `General` agent type for re-planning since it involves both code reads and design spec edits.
-
-### Test Execution Agent
-
-For the verification phase (`camel test run`), use the `Build` agent type with `steps: 80` — enough for running Citrus tests, diagnosing failures, and applying fixes within the 15-iteration loop.
+The executor performs the environment probe and final internal verification directly with its own edit and bash permissions. If a subagent reaches its configured step limit, consume its summary, resolve any remaining work in the executor, and keep the required gate ordering.

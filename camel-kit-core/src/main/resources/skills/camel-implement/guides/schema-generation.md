@@ -2,7 +2,7 @@
 
 This guide generates JSON schemas. Only loaded when schemas were missing and user chose to generate them.
 
-**Context variables:** `FLOW_NAME`, `SCHEMA_DIR`.
+**Context variables:** `FLOW_NAME`, `SCHEMA_DIR` (runtime-aware optional module prefix, relative and ending in `/`).
 
 ---
 
@@ -25,7 +25,7 @@ From the design spec Source System section (Data Contract - Input):
 }
 ```
 
-**File location:** Save to `SCHEMA_DIR/{FLOW_NAME}-input.json`.
+**File location:** Save to `{SCHEMA_DIR}{FLOW_NAME}-input.json`.
 
 ## Output Schema
 
@@ -46,4 +46,4 @@ From the design spec Processing Steps or Sink System section (Data Contract - Ou
 }
 ```
 
-**File location:** Save to `SCHEMA_DIR/{FLOW_NAME}-output.json`.
+**File location:** Save to `{SCHEMA_DIR}{FLOW_NAME}-output.json`.

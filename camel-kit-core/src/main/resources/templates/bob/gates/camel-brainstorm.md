@@ -1,6 +1,6 @@
 ---
 name: camel-brainstorm
-description: Use when the user wants to create a new Camel integration, connect systems, build flows, migrate from another platform (MuleSoft, Fuse, Camel 2.x), or start any integration project — whether greenfield or migration
+description: Use when the user wants to create a new Camel integration, connect systems, build flows, migrate from another platform (MuleSoft, BizTalk, Fuse, Camel 2.x), or start any integration project — whether greenfield or migration
 ---
 
 # Camel Brainstorm — Design Pipeline (Bob)
@@ -17,13 +17,18 @@ These are the ONLY user-invocable camel-kit commands. Use these exact names if y
 
 | Command | Purpose |
 |---|---|
+| `/camel-start` | Route the request to the correct Camel-Kit workflow |
 | `/camel-brainstorm` | Interview, discovery, design spec |
+| `/camel-migrate` | Analyze and design a migration from supported source platforms |
 | `/camel-plan` | Decompose spec into implementation tasks |
-| `/camel-execute` | Implement all routes (includes validation and testing) |
+| `/camel-execute` | Implement and runtime-verify all planned routes; chained runs continue to final validation |
 | `/camel-validate` | Standalone validation pass |
 | `/camel-ship` | Delegate a Ship workflow to the registered Camel-Kit CLI |
+| `/camel-knowledge` | Query Camel documentation, catalog, releases, and security advisories |
+| `/camel-debug` | Diagnose and repair a broken Camel project outside a pipeline |
 
-Modes (`camel-implement`, `camel-test`) are internal `switch_mode` targets, NOT user-invocable commands. Never present them as commands the user should run.
+Modes (`camel-implement-mode`, `camel-test-mode`) are internal `switch_mode` targets, NOT user-invocable commands.
+Never present them as commands the user should run.
 
 ## Guide Locations
 
@@ -42,22 +47,41 @@ All guides are in `.bob/skills/`. Always use these full paths from the project r
 
 Do NOT explore or list directories to find guides — use the paths above.
 
-## Autonomous Execution Rules (Steps 14–16)
+## Autonomous Execution Rules
 
-After plan approval (Step 13), Steps 14 (Implement), 15 (Validate), and 16 (Test) execute as an **uninterrupted sequence**:
+After the design approval, planning, implementation, internal verification, and final validation execute as an **uninterrupted sequence**:
 
-1. **No pausing between steps** — After implementation, immediately validate. After validation, immediately test.
-2. **No completion summaries until ALL steps complete** — The ONLY summary is printed after Step 16 (Test) finishes.
+1. **No pausing between steps** — After implementation, immediately verify. After verification, immediately validate.
+2. **No completion summaries until ALL steps complete** — The ONLY summary is printed after final validation finishes.
 3. **No "Next Steps" blocks** — You ARE executing the next step RIGHT NOW.
-4. **No asking for confirmation** — The plan approval (Step 13) is authorization for ALL remaining steps.
+4. **No asking for confirmation** — The design approval authorizes planning and all remaining steps.
 5. **No README generation** — Do NOT generate documentation files mid-pipeline.
 
 <Steps>
 <Step>
 ## Switch to Brainstorm Mode
 
-Switch to **camel-brainstorm** mode using the mode selector or `/camel-brainstorm` command.
-This restricts your tools to read, markdown editing, MCP, and browser — preventing accidental code generation during the design phase.
+Switch to **camel-brainstorm-mode** using the mode selector or `/camel-brainstorm-mode`.
+This limits edits to design Markdown and Camel-Kit state. Command access is instruction-scoped to document metadata
+and graph operations; implementation artifacts remain prohibited during the design phase.
+</Step>
+
+<Step>
+## Detect Invocation Mode and Resolve Pipeline
+
+- With an explicit `<PIPELINE_ID>`, use standalone mode. If that pipeline already
+  has `design-spec.md`, enter amend mode: load it, ask what to change, update and
+  self-review only the affected design, request the single design approval, run
+  `{COMMAND_PREFIX} doc stale --reason "design spec amended" --cascade docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`
+  when that downstream artifact exists, then stop.
+- Without an explicit ID, use chained mode and read `activePipeline` from
+  `.camel-kit/pipeline.json` when present.
+- If neither source yields an ID, ask the user for a lowercase slug, run
+  `{COMMAND_PREFIX} nextId <slug>`, and use the returned ID.
+
+For a new or selected pipeline, create or update `.camel-kit/pipeline.json` with
+`activePipeline`, `mode: "manual"`, and the current ISO-8601 `started` timestamp.
+Create `.camel-kit/` first when needed.
 </Step>
 
 <Step>
@@ -72,7 +96,7 @@ Determine if this is a greenfield integration or a migration:
 
 **Migration indicators:**
 - "Migrate", "convert", "move from", "replace"
-- Mentions source platform: MuleSoft, Mule, Fuse, Camel 2.x, Camel 3.x
+- Mentions source platform: MuleSoft, Mule, BizTalk, Fuse, Camel 2.x, Camel 3.x
 - References existing integration files or projects
 
 If ambiguous, ask: "Are you building a new integration from scratch, or migrating an existing one from another platform?"
@@ -102,7 +126,7 @@ Understand:
 **For migration projects:**
 Read `.bob/skills/camel-brainstorm/guides/migration-discovery.md` for the discovery process.
 Scan source artifacts and detect:
-- Vendor (MuleSoft, Fuse, Camel 2.x/3.x)
+- Vendor (MuleSoft, BizTalk, Fuse, Camel 2.x/3.x)
 - Platform (Spring Boot, Karaf, Quarkus, Plain Java)
 - DSL (Java, XML, Blueprint, YAML)
 - Routes and components
@@ -154,7 +178,9 @@ Do NOT guess component names. MCP catalog is truth.
 <Step>
 ## Assemble Design Spec
 
-Read `.bob/skills/camel-brainstorm/guides/design-assembly.md` for the full assembly process.
+Read `.bob/skills/camel-brainstorm/guides/design-assembly.md` for its assembly
+format and self-review criteria only. Do not follow that guide's `Save and
+Present` section; this gate owns the one save/presentation/approval sequence.
 
 Assemble the complete design spec including:
 - Project overview
@@ -163,7 +189,8 @@ Assemble the complete design spec including:
 - Route designs
 - Non-functional requirements
 
-Save to `docs/design-spec.md`.
+Save to `docs/camel-kit/<PIPELINE_ID>/design-spec.md`.
+Run `{COMMAND_PREFIX} doc init --by camel-brainstorm docs/camel-kit/<PIPELINE_ID>/design-spec.md`.
 </Step>
 
 <Step>
@@ -193,172 +220,27 @@ If changes requested, incorporate and re-present. Only proceed after explicit "y
 ## CHECKPOINT
 
 Before proceeding to planning, this is the design approval checkpoint.
-All design decisions are locked. Create a checkpoint now.
+All design decisions are locked in `docs/camel-kit/<PIPELINE_ID>/design-spec.md`. Create a checkpoint now.
 </Step>
 
 <Step>
-## Switch to Plan Mode
+## Complete or Hand Off
 
-Switch to **camel-plan** mode.
+Do not derive a second greenfield requirements artifact, modify the approved design, or request another approval.
 
-Read `.bob/skills/camel-migrate/guides/camel-version-phase1.md` for business requirements generation (greenfield) or migration-specific business requirements guides.
-
-Generate the business requirements at `docs/camel-kit/<PIPELINE_ID>/business-requirements.md`.
-</Step>
-
-<Step>
-## Generate Technical Design
-
-Read `.bob/skills/camel-migrate/guides/camel-version-phase2.md` for design spec generation.
-
-Update the active design spec at `docs/camel-kit/<PIPELINE_ID>/design-spec.md`.
-
-For each flow, the design spec specifies:
-- Source and sink endpoints
-- Data transformations
-- Error handling
-- Component configurations
-- Test criteria
-</Step>
-
-<Step>
-## Design Approval
-
-Present the business requirements and design spec to the user.
-
-**APPROVAL GATE:**
-"The design is ready. Do you approve? (yes / changes needed)"
-
-Wait for explicit approval before proceeding.
-</Step>
-
-<Step>
-## Generate Implementation Plan
-
-Switch to **camel-plan** mode.
-
-Read `.bob/skills/camel-plan/SKILL.md` for the full planning rules.
-
-Generate a step-by-step implementation plan at `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`. The plan is a RECIPE, not the MEAL — it describes what to generate and how, NOT the generated code itself.
-
-For each flow in the design spec, create a task with:
-- Exact files to create/modify
-- Which guides to load and in what order
-- Which MCP tools to call with what parameters
-- Verification steps (commands to run, expected output)
-- Two-stage review: spec compliance first, then code quality
-
-Load the appropriate task template:
-- Greenfield: `.bob/skills/camel-plan/guides/task-template-greenfield.md`
-- Migration: `.bob/skills/camel-plan/guides/task-template-migration.md`
-
-Load decomposition rules: `.bob/skills/camel-plan/guides/task-decomposition.md`
-
-**MANDATORY:** The plan MUST include Citrus integration test tasks — ONE TASK PER ROUTE:
-- Reference guides: `.bob/skills/camel-test/guides/test-generation.md`, `test-runner.md`, `test-configuration.md`
-- Tests MUST be in Citrus YAML DSL format (NOT Java, NOT XML)
-- Test execution command: `camel test run <file>.camel.it.yaml`
-- A plan without Citrus test tasks is INCOMPLETE
-
-**APPROVAL GATE:**
-"The implementation plan is ready. Do you approve? (yes / changes needed)"
-
-Wait for explicit approval before proceeding.
-</Step>
-
-<Step>
-## Switch to Execute Mode
-
-Switch to **camel-execute** mode.
-
-**CHECKPOINT** — Create a checkpoint before starting implementation.
-
-Read `.bob/skills/camel-execute/SKILL.md` for execution rules.
-
-Before executing tasks, analyze the plan for parallel waves:
-```bash
-{COMMAND_PREFIX} plan analyze docs/camel-kit/<PIPELINE_ID>/implementation-plan.md
-```
-
-Execute tasks wave by wave. Within each wave, execute tasks sequentially (Bob executes in a single conversation). Between waves, all tasks from the previous wave must be complete before starting the next wave. This ensures correct dependency order.
-
-Execute each task in the approved implementation plan. For each task:
-1. **CHECKPOINT** before starting this task
-2. Load the guides specified in the task
-3. Implement following the plan instructions
-4. Run verification commands
-5. Two-stage review: spec compliance, then code quality
-6. Commit
-
-Read `.bob/skills/camel-implement/guides/orchestrator.md` for implementation execution rules.
-
-**CRITICAL — CONTINUATION REQUIRED:** After all routes are implemented, you MUST IMMEDIATELY proceed to the next step (Validate). Do NOT:
-- Print "Implementation complete" or any completion summary
-- Print "Next Steps" or suggest manual actions
-- Stop, pause, or ask the user what to do next
-- Generate a README or documentation
-
-Implementation is step 14 of 16. Steps 15 (Validate) and 16 (Test) are mandatory. Proceed NOW.
-</Step>
-
-<Step>
-## Validate
-
-Switch to **camel-validate** mode.
-
-Run validation against the constitution and project norms.
-Read `.bob/skills/camel-validate/SKILL.md` for validation guides and report format.
-
-If the project graph is available, run:
-`{COMMAND_PREFIX} graph project-norms` and `{COMMAND_PREFIX} graph dead-code`
-
-**Generate validation report** — save findings to `docs/validation-report-YYYY-MM-DD_HH-mm.md` using the format from `camel-validate/SKILL.md`. Use the current date and time.
-
-**After validation completes, IMMEDIATELY proceed to the next step (Test). Do NOT stop or print summaries.**
-</Step>
-
-<Step>
-## Test
-
-Switch to **camel-test** mode.
-
-**CHECKPOINT** — Create a post-implementation checkpoint.
-
-Write Citrus integration tests for all routes. Tests MUST be in **YAML DSL format** — NOT Java classes, NOT XML.
-Read these guides:
-- `.bob/skills/camel-test/guides/test-generation.md` — Citrus YAML structure, schema rules
-- `.bob/skills/camel-test/guides/test-configuration.md` — test properties, dependencies
-- `.bob/skills/camel-test/guides/test-runner.md` — how to run with `camel test run`
-
-Run tests with: `camel test run <file>.camel.it.yaml`
-Verify all tests pass.
-
-**This is the FINAL step.** Now print the completion summary:
-
-```
-===============================================================
-IMPLEMENTATION COMPLETE
-===============================================================
-
-Routes Implemented: [N]
-Validation: PASS/FAIL
-Tests: PASS/FAIL ([N] passing, [M] failing)
-
-Generated Files:
-  [list all generated files]
-
-Constitution Compliance: PASS/FAIL (all 8 rules)
-===============================================================
-```
+- **Standalone mode:** stop after confirming the approved design-spec path.
+- **Chained mode:** switch to **camel-plan-mode**, then read and follow `.bob/skills/camel-plan/SKILL.md` exactly
+  once. That gate owns plan generation and its single downstream handoff through
+  execute, verification, and validation. Do not reproduce those phases here.
 </Step>
 </Steps>
 
 ## Never
 
 - Stop after implementation to print a summary or "Next Steps"
-- Ask "Would you like me to continue?" between implement, validate, and test
-- Print "Implementation complete" before validation and testing are done
-- Skip validation or testing
+- Ask "Would you like me to continue?" between implement, verification, and validation
+- Print "Implementation complete" before verification and validation are done
+- Skip verification or validation
 - Generate a README mid-pipeline instead of continuing to the next step
 - Say "implementation has been completed" while steps remain uncompleted
 - Reference retired implementation or test commands — these commands do not exist

@@ -2,17 +2,25 @@
 
 **MANDATORY — DO NOT SKIP.** Start the application and verify it boots. If it fails, fix the error and retry. Repeat until it starts cleanly or the attempt limit is reached.
 
-**Context variables:** `FLOW_NAME`, `MODULE_DIR`, `RUNTIME`, `CAMEL_VERSION`.
+**Context variables:** `MODULE_NAME`, `MODULE_DIR`, `RUNTIME`, `CAMEL_VERSION`, `EXTERNAL_SERVICE_NAMES`, plus complete
+module `ROUTE_FILES` and `XSL_FILES` inventories for Main. `MODULE_PATH` is `.` at the project root or the relative
+module directory without a trailing slash. `MODULE_DIR` is empty at the project root or `{MODULE_PATH}/` for a nested
+module.
 
 ---
 
 ## Step 1: Start External Services
 
-If `docker-compose.yaml` exists in `MODULE_DIR`:
+If `docker-compose.yaml` exists in `MODULE_DIR`, start its external service containers before the application.
+
+For Main, the Compose file also defines the Camel application. Start only the names in `EXTERNAL_SERVICE_NAMES`; never
+run an unqualified `docker compose up -d` before `./run.sh`, because that would start the application twice:
 
 ```bash
-cd {MODULE_DIR} && docker compose up -d
+docker compose -f {MODULE_DIR}docker-compose.yaml up -d {EXTERNAL_SERVICE_NAMES}
 ```
+
+For Spring Boot/Quarkus, Compose contains external services only, so `docker compose up -d` is safe.
 
 Wait a few seconds for services to initialize before proceeding.
 
@@ -28,22 +36,34 @@ If no `docker-compose.yaml` exists, skip this step.
 
 Use a **timeout of 60 seconds**.
 
-**JBang:**
+**Main:** (the generated script runs every module route and XSLT file)
 ```bash
-cd {MODULE_DIR} && timeout 60 camel run {flow-name}.camel.yaml *.xsl application.properties 2>&1
+# Project-root module:
+timeout 60 ./run.sh 2>&1
+
+# Nested module (omit this branch at the project root):
+(cd {MODULE_PATH} && timeout 60 ./run.sh 2>&1)
 ```
 
 **Spring Boot:**
 ```bash
-cd {MODULE_DIR} && timeout 60 ./mvnw spring-boot:run 2>&1
+# Project-root POM:
+timeout 60 ./mvnw spring-boot:run 2>&1
+
+# Nested POM:
+timeout 60 ./mvnw -f {MODULE_DIR}pom.xml spring-boot:run 2>&1
 ```
-If `./mvnw` is not present, use `mvn spring-boot:run`.
+If project-root `./mvnw` is not present, use the same root/nested form with `mvn`.
 
 **Quarkus:**
 ```bash
-cd {MODULE_DIR} && timeout 60 ./mvnw quarkus:dev -Dquarkus.analytics.disabled=true -Dquarkus.console.enabled=false 2>&1
+# Project-root POM:
+timeout 60 ./mvnw quarkus:dev -Dquarkus.analytics.disabled=true -Dquarkus.console.enabled=false 2>&1
+
+# Nested POM:
+timeout 60 ./mvnw -f {MODULE_DIR}pom.xml quarkus:dev -Dquarkus.analytics.disabled=true -Dquarkus.console.enabled=false 2>&1
 ```
-If `./mvnw` is not present, use `mvn quarkus:dev`.
+If project-root `./mvnw` is not present, use the same root/nested form with `mvn`.
 
 The flags `-Dquarkus.analytics.disabled=true -Dquarkus.console.enabled=false` prevent interactive prompts that would block the process.
 
@@ -110,7 +130,7 @@ Retrying...
 If the application still fails after 6 attempts:
 
 ```
-⚠️ SMOKE TEST FAILED: {flow-name}
+⚠️ SMOKE TEST FAILED: {MODULE_NAME}
 
 The application failed to start after 6 attempts.
 
@@ -133,7 +153,7 @@ Manual investigation may be needed.
 **On success:**
 
 ```
-✅ SMOKE TEST PASSED: {flow-name}
+✅ SMOKE TEST PASSED: {MODULE_NAME}
 
 Application started successfully on {RUNTIME} runtime.
 Attempts: [N]/6
@@ -148,7 +168,7 @@ Attempts: [N]/6
 After the smoke test completes (pass or fail):
 
 ```bash
-cd {MODULE_DIR} && docker compose down
+docker compose -f {MODULE_DIR}docker-compose.yaml down
 ```
 
 Skip if docker-compose was not started in Step 1.

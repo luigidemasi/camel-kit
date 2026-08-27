@@ -99,6 +99,22 @@ class GeminiGeneratorTest {
     }
 
     @Test
+    void phaseSubAgentsCanWriteRequiredArtifacts() throws Exception {
+        InitContext ctx = createContext();
+        new GeminiGenerator().generate(ctx);
+
+        String brainstormer = Files.readString(tempDir.resolve(".gemini/agents/camel-brainstormer.md"));
+        String planner = Files.readString(tempDir.resolve(".gemini/agents/camel-planner.md"));
+        String validator = Files.readString(tempDir.resolve(".gemini/agents/camel-validator.md"));
+        assertTrue(brainstormer.contains("write_file"));
+        assertTrue(brainstormer.contains("run_shell_command"));
+        assertTrue(planner.contains("write_file"));
+        assertTrue(planner.contains("run_shell_command"));
+        assertTrue(validator.contains("write_file"));
+        assertTrue(validator.contains("report-only"));
+    }
+
+    @Test
     void generatesGeminiIgnore() throws Exception {
         InitContext ctx = createContext();
         new GeminiGenerator().generate(ctx);

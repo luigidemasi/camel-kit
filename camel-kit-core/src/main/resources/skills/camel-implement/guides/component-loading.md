@@ -3,8 +3,8 @@
 > **This guide is loaded by the runtime orchestrator.**
 > Context variables provided by the orchestrator:
 > - `FLOW_NAME` — the flow being implemented
-> - `ROUTE_DIR` — directory where `{FLOW_NAME}.camel.yaml` and XSLT files are written
-> - `ROUTE_FILE` — full path to the route file (`{ROUTE_DIR}/{FLOW_NAME}.camel.yaml`)
+> - `ROUTE_DIR` — relative optional module route prefix ending in `/`, where route and XSLT files are written
+> - `ROUTE_FILE` — full relative path to the route file (`{ROUTE_DIR}{FLOW_NAME}.camel.yaml`)
 > - `CAMEL_VERSION` — Camel version from `.camel-kit/config.properties`
 > - `RUNTIME` — from `.camel-kit/config.properties` (`project.runtime`, default: `main`)
 > - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via the version mapping table in `skills/shared/mcp-setup.md`

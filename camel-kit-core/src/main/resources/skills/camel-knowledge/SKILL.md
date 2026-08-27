@@ -63,11 +63,11 @@ camel_docs_jira_lookup(jira_id="CAMEL-22784")
 
 ## Subagent Dispatch Pattern
 
-When invoked from within another skill (not standalone), the orchestrator should dispatch knowledge queries as a `knowledge-researcher` subagent (from `agents/knowledge-researcher.md`). This keeps full MCP search results out of the orchestrator context — only the synthesized answer flows back.
+When invoked from within another skill (not standalone), the orchestrator should dispatch knowledge queries to a read-only research subagent using the `knowledge-researcher` role from `agents/knowledge-researcher.md`. This keeps full MCP search results out of the orchestrator context — only the synthesized answer flows back.
 
 **Standalone invocation** (`/camel-knowledge`): runs inline in the current context.
 
-**Pipeline invocation** (from `camel-brainstorm`, `camel-execute`, etc.): dispatch as subagent:
+**Pipeline invocation** (from `camel-brainstorm`, `camel-execute`, etc.): dispatch to the target's registered read-only research agent:
 1. Build the subagent prompt with:
    - The `knowledge-researcher` persona (full text from `agents/knowledge-researcher.md`)
    - The specific question or lookup request

@@ -6,4 +6,4 @@ Configure the implementer subagent with full `edit` and `bash` permissions (matc
 
 ### Step Limit
 
-Set `steps: 100` for each implementer subagent. This provides enough steps for complex route generation (reading guides, generating YAML, generating properties, running validation) while preventing runaway execution.
+The generated `implementer` agent owns its `steps: 50` limit. The `task` tool does not accept a per-dispatch step budget; do not add one to a task call.

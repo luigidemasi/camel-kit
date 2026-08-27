@@ -6,18 +6,22 @@ This file documents the common MCP server configuration used by all camel-kit sk
 
 ## Camel Catalog MCP Server
 
-The Camel MCP server is a Quarkus uber-jar started with `java -jar`. It is extracted to `.camel-kit/mcp/` during `camel-kit init`.
+For every supported agent target, `camel-kit init` generates an MCP configuration that launches the published runner
+coordinate with JBang. Init substitutes the version and named repository lists from `distribution.properties`; it does
+not extract runner JARs into the project.
 
-**Configuration** (`.mcp.json`):
+The target-specific JSON or TOML schema differs, but the Camel server invocation is equivalent to:
 ```json
 {
   "mcpServers": {
     "camel": {
-      "command": "java",
+      "command": "jbang",
       "args": [
-        "-Dcamel.catalog.repos=https://repo.maven.apache.org/maven2/",
+        "--repos", "{CAMEL_MCP_REPOS}",
+        "-Dcamel.catalog.repos={CAMEL_CATALOG_REPOS}",
         "-Dquarkus.log.level=WARN",
-        "-jar", ".camel-kit/mcp/camel-jbang-mcp-runner.jar"
+        "-Dquarkus.http.port=-1",
+        "org.apache.camel:camel-jbang-mcp:{CAMEL_MCP_VERSION}:runner"
       ],
       "description": "Apache Camel MCP Server"
     }
@@ -25,7 +29,15 @@ The Camel MCP server is a Quarkus uber-jar started with `java -jar`. It is extra
 }
 ```
 
-**Why `java -jar` instead of JBang:** The Quarkus runner JAR is a self-contained uber-jar. Using `java -jar` avoids JBang's `--repos` issues (replaces default repos, `mavenlocal` connector bug, SNAPSHOT resolution failures).
+All three generated servers use their configured repository lists rather than an extracted local artifact:
+
+| Server | JBang runner coordinate | Repository setting |
+|--------|--------------------------|--------------------|
+| Camel Catalog | `org.apache.camel:camel-jbang-mcp:{CAMEL_MCP_VERSION}:runner` | `{CAMEL_MCP_REPOS}` |
+| Camel-Kit Knowledge | `io.github.luigidemasi:camel-kit-knowledge-mcp:{KNOWLEDGE_VERSION}:runner` | `{KNOWLEDGE_MCP_REPOS}` |
+| Citrus | `org.citrusframework:citrus-mcp-server:{CITRUS_MCP_VERSION}:runner` | `{CITRUS_MCP_REPOS}` |
+
+Use the generated JBang configuration unchanged; do not substitute a local launch mechanism.
 
 ---
 
@@ -102,6 +114,8 @@ Use this as a fallback when the exact version doesn't matter.
 
 Version numbers are stored in `.camel-kit/config.properties`, set during initialization and updated by
 `/camel-start`-routed workflow skills when the user confirms target runtime/version choices:
+
+Example for a Quarkus project:
 
 ```properties
 project.runtime=quarkus

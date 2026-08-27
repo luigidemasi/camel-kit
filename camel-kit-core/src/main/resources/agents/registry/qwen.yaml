@@ -17,20 +17,42 @@ templates:
     target: QWEN.md
   - source: templates/qwen/qwenignore
     target: .qwenignore
-  - source: templates/qwen/agents/camel-brainstormer.md
-    target: .qwen/agents/camel-brainstormer.md
-  - source: templates/qwen/agents/camel-executor.md
-    target: .qwen/agents/camel-executor.md
   - source: templates/qwen/agents/camel-implementer.md
     target: .qwen/agents/camel-implementer.md
-  - source: templates/qwen/agents/camel-migrator.md
-    target: .qwen/agents/camel-migrator.md
-  - source: templates/qwen/agents/camel-planner.md
-    target: .qwen/agents/camel-planner.md
+  - source: templates/qwen/agents/camel-reviewer.md
+    target: .qwen/agents/camel-reviewer.md
   - source: templates/qwen/agents/camel-tester.md
     target: .qwen/agents/camel-tester.md
   - source: templates/qwen/agents/camel-validator.md
     target: .qwen/agents/camel-validator.md
+  - source: agents/acr-moderator.md
+    target: .qwen/camel-kit-personas/acr-moderator.md
+  - source: agents/catalog-researcher.md
+    target: .qwen/camel-kit-personas/catalog-researcher.md
+  - source: agents/code-quality-reviewer.md
+    target: .qwen/camel-kit-personas/code-quality-reviewer.md
+  - source: agents/critic-behavioral-equivalence.md
+    target: .qwen/camel-kit-personas/critic-behavioral-equivalence.md
+  - source: agents/critic-boundary-compliance.md
+    target: .qwen/camel-kit-personas/critic-boundary-compliance.md
+  - source: agents/critic-performance.md
+    target: .qwen/camel-kit-personas/critic-performance.md
+  - source: agents/critic-route-architecture.md
+    target: .qwen/camel-kit-personas/critic-route-architecture.md
+  - source: agents/critic-security.md
+    target: .qwen/camel-kit-personas/critic-security.md
+  - source: agents/implementation-engineer.md
+    target: .qwen/camel-kit-personas/implementation-engineer.md
+  - source: agents/integration-architect.md
+    target: .qwen/camel-kit-personas/integration-architect.md
+  - source: agents/knowledge-researcher.md
+    target: .qwen/camel-kit-personas/knowledge-researcher.md
+  - source: agents/migration-specialist.md
+    target: .qwen/camel-kit-personas/migration-specialist.md
+  - source: agents/spec-compliance-reviewer.md
+    target: .qwen/camel-kit-personas/spec-compliance-reviewer.md
+  - source: agents/test-engineer.md
+    target: .qwen/camel-kit-personas/test-engineer.md
 supportsSubagents: true
 supportsTraits: true
 capabilities:

@@ -10,7 +10,7 @@ For integration work, trust the project first, then invoke the entry skill:
 ```
 
 `/skill:camel-start` routes to the correct Camel Kit workflow skill for greenfield design, migration, planning,
-execution, validation, debugging, or Camel documentation questions.
+execution, validation, or debugging. Use the `camel-knowledge` skill directly for Camel documentation questions.
 
 ## Pi Assets
 
@@ -35,7 +35,7 @@ pi -a -p "/skill:camel-start"
 
 1. Verify all Camel components, EIPs, data formats, and endpoint options through MCP before use.
 2. Read and follow `docs/constitution.md`.
-3. Do not implement without a user-approved spec or plan.
+3. Do not implement until the design spec is user-approved and a task-based implementation plan exists.
 4. Read Camel version values only from `.camel-kit/config.properties`.
 5. Run the generated application or equivalent verification loop after implementation.
 

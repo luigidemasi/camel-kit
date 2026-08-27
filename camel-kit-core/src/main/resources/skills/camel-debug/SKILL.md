@@ -43,9 +43,11 @@ Load these shared guides at workflow start:
 - `shared/iron-laws.md` — Iron Law 1 (MCP verification) applies during diagnosis
 - `shared/mcp-setup.md` — MCP tool configuration for catalog queries
 
-## Subagent Isolation
+## Diagnostic Role Isolation
 
-Diagnosis steps (Step 3 in the workflow) MUST run as subagents to keep diagnostic output out of the main context. Only the classification result and fix recommendation flow back to the main conversation.
+Run diagnosis roles as isolated subagents when the target supports them. For
+single-conversation targets, run the same three roles sequentially inline and
+record that isolation is unavailable. Never skip a diagnostic role.
 
 | Subagent | Purpose | Input | Output |
 |----------|---------|-------|--------|

@@ -1,23 +1,24 @@
 # Endpoint & Runtime Validation Guide
 
 > **Context variables provided by master SKILL.md:**
-> - `FLOW_NAME` — the flow being validated
 > - `CAMEL_VERSION` — from `.camel-kit/config.properties`
 > - `RUNTIME` — project runtime from `.camel-kit/config.properties` (affects route file location)
 > - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via the version mapping table in `skills/shared/mcp-setup.md`
+> - `ROUTE_FILES` — exact runtime/module-aware relative route paths from the validation inventory
+> - `PROPS_FILE` — exact properties path matching the current route's module
 >
 > **Version mapping:** When calling MCP catalog tools, translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` and `platformBom` parameters using the version mapping table in `skills/shared/mcp-setup.md`.
 
 ## Stage 2: Endpoint URI Validation (MCP Enhanced)
 
-Extract all endpoint URIs from the route and validate them.
+For every exact path in `ROUTE_FILES`, extract all endpoint URIs and validate them with its matching `PROPS_FILE`.
 
 ### 2.1 Extract Endpoints
 
 Parse route YAML and extract all component URIs:
 
 ```
-Extracting endpoints from {flow-name}.camel.yaml...
+Extracting endpoints from {ROUTE_FILE}...
 
 Found endpoints:
   - kafka:{{kafka.topic.input}}
@@ -81,7 +82,7 @@ Validating component existence...
 Use Camel CLI to validate the route compiles:
 
 ```bash
-camel run --check {flow-name}.camel.yaml application.properties
+camel run --check {ROUTE_FILE} {PROPS_FILE}
 ```
 
 This validates:
@@ -96,7 +97,7 @@ Show results:
 ```
 == CAMEL RUNTIME VALIDATION ==
 
-Running: camel run --check {flow-name}.camel.yaml application.properties
+Running: camel run --check {ROUTE_FILE} {PROPS_FILE}
 
 ✅ Route compiles successfully
 ✅ Components: [kafka, sql] - all valid

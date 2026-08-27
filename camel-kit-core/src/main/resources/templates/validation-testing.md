@@ -174,14 +174,11 @@ camel export routes.camel.yaml --runtime quarkus --dir target/project
 
 ---
 
-## Integration with Validation
+## Pipeline Ownership
 
-After `/camel.validate` passes:
-```
-✅ VALIDATION PASSED
-
-Next steps:
-  1. Generate tests: /camel.test --all
-  2. Run tests: camel test run test/
-  3. Generate YAML: /camel.generate
-```
+The implementation plan includes Citrus YAML test tasks for every route.
+`camel-execute` creates the route and planned tests, then its internal
+`camel-verify` phase runs `camel test run` once after all implementation tasks.
+The final `camel-validate` phase is static and report-only; it neither generates
+tests nor application artifacts. Retired dotted generation/test commands are
+not part of this workflow.

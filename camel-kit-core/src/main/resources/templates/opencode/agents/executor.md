@@ -1,11 +1,19 @@
 ---
 name: executor
-mode: subagent
-edit: allow
-bash:
-  "*": allow
-task:
-  "*": allow
+description: Executes a ready Camel-Kit implementation plan and coordinates bounded leaves.
+mode: primary
+permission:
+  edit: allow
+  bash:
+    "*": allow
+  task:
+    "*": deny
+    implementer: allow
+    migrator: allow
+    planner: allow
+    researcher: allow
+    reviewer: allow
+    tester: allow
 steps: 100
 ---
 

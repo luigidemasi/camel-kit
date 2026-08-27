@@ -1,11 +1,11 @@
 ---
 name: camel-validate
-description: Use when you want to validate generated routes against schema, constitution rules, security best practices, and detect anti-patterns — validation only, no modifications
+description: Use when you want to validate generated routes against schema, constitution rules, security best practices, and anti-patterns — report-only validation with no application changes
 ---
 
 # Camel Validate — Validation Pipeline (Bob)
 
-Validate generated Apache Camel routes across multiple quality dimensions. This is a READ-ONLY skill — report findings without modifying files.
+Validate generated Apache Camel routes across multiple quality dimensions. This is a REPORT-ONLY skill — write the selected validation report without modifying application or test files.
 
 Follow every step in order. Do NOT skip steps.
 
@@ -19,8 +19,18 @@ All validation guides are in `.bob/skills/camel-validate/guides/`. When this fil
 <Step>
 ## Switch to Validate Mode
 
-Switch to **camel-validate** mode using the mode selector or `/camel-validate` command.
-This restricts tools to read-only operations — preventing accidental modifications during validation.
+Switch to **camel-validate-mode** using the mode selector or `/camel-validate-mode`.
+Edit tools are restricted to the final validation report. Command access is instruction-scoped to inspection,
+validation, and document metadata; it must not mutate route, configuration, or application files.
+</Step>
+
+<Step>
+## Resolve Validation Scope
+
+Use an explicit `<PIPELINE_ID>` when supplied. Otherwise read `activePipeline`
+from `.camel-kit/pipeline.json`. When neither exists, use standalone
+project-scoped mode and select the timestamped report path; do not invent a
+pipeline ID or execution-report provenance.
 </Step>
 
 <Step>
@@ -30,8 +40,12 @@ Read these files:
 1. `docs/constitution.md` — constitution rules (all 8 rules)
 2. `.camel-kit/config.properties` — Camel version, runtime, platform BOM
 3. `.camel-kit/project-graph.json` — project norms and conventions (if exists)
-4. `docs/design-spec.md` — approved design spec (if exists)
-5. `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md` — approved plan (if exists)
+4. With an active pipeline, `docs/camel-kit/<PIPELINE_ID>/design-spec.md`
+5. With an active pipeline, `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`
+6. With an active pipeline, `docs/camel-kit/<PIPELINE_ID>/execution-report.md`
+
+For standalone project validation without a pipeline, omit the pipeline artifacts
+and validate the discovered project routes directly.
 
 Load validation guides:
 - `guides/schema-validation.md` — YAML DSL schema validation rules
@@ -49,7 +63,8 @@ Find all YAML route files:
 find src/main/resources/camel -name "*.camel.yaml"
 ```
 
-List all discovered routes. If none found, report and stop.
+List all discovered routes. If none are found, record a `NO_ROUTES` result and
+continue to Generate Validation Report so the selected report is still written.
 </Step>
 
 <Step>
@@ -126,6 +141,11 @@ Check all 8 constitution rules:
 **Rule 7: Component Verification**
 - Call `camel_catalog_component_doc` for every component
 - Report unrecognized components
+
+**Rule 8: Infrastructure via Forage**
+- Verify known infrastructure uses supported `forage.*` properties where available
+- Otherwise accept component properties, or a hand-written bean with a one-line reason
+- Report unknown Forage keys and unexplained hand-written beans
 
 Report constitution violations per route.
 </Step>
@@ -212,7 +232,12 @@ Report graph analysis findings.
 <Step>
 ## Generate Validation Report
 
-Assemble all findings into a validation report at `docs/validation-report.md`:
+Select the report path before assembling findings:
+
+- With an active pipeline ID: `docs/camel-kit/<PIPELINE_ID>/validation-report.md`
+- Standalone project validation without a pipeline: `docs/validation-report-YYYY-MM-DD_HH-mm.md`
+
+Assemble all findings at that selected path:
 
 ```markdown
 # Validation Report
@@ -261,7 +286,12 @@ Assemble all findings into a validation report at `docs/validation-report.md`:
 3. **Suggestion:** Reduce complexity of order-processing route (25 steps → split into 2 routes)
 ```
 
-Save the report and present findings to the user.
+Save only the selected report file and present findings to the user.
+
+When `execution-report.md` exists, run
+`{COMMAND_PREFIX} doc init --by camel-validate --from execution-report.md <selected-report-path>`.
+Otherwise run `{COMMAND_PREFIX} doc init --by camel-validate <selected-report-path>`
+without a `from` value, even when a pipeline ID exists.
 </Step>
 
 <Step>
@@ -270,7 +300,7 @@ Save the report and present findings to the user.
 Summarize validation results:
 
 ```
-Validation complete. Report: docs/validation-report.md
+Validation complete. Report: <selected-report-path>
 
 Routes Validated: N
 Issues Found:
@@ -282,8 +312,8 @@ Constitution Compliance: PASS/FAIL
 Security Analysis: PASS/FAIL
 Overall Status: PASS/FAIL
 
-[If FAIL] Recommended next step: Fix critical issues before proceeding.
-[If PASS] All routes pass validation. Ready for testing.
+[If FAIL] Report critical findings and recommend the owning implementation path for a future correction; do not modify files or auto-transition from validation.
+[If PASS] Final static validation passed. The chained pipeline is complete.
 ```
 </Step>
 </Steps>
@@ -303,7 +333,7 @@ For MCP setup: see `shared/mcp-setup.md`
 
 ## Important
 
-This is a READ-ONLY skill. Do NOT:
+This is a REPORT-ONLY skill. Apart from writing the selected validation report, do NOT:
 - Modify route files
 - Fix validation issues
 - Generate new code

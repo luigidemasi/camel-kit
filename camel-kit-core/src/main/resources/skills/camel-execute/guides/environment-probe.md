@@ -1,6 +1,6 @@
 # Environment Probe
 
-Pre-implementation environment check. Runs BEFORE dispatching any implementer subagents. Generates a throwaway skeleton project in a temp directory and verifies that planned dependencies, external services, and the target runtime are viable.
+Pre-implementation environment check. Runs BEFORE any implementation task. Generates a throwaway skeleton project in a temp directory and verifies that planned dependencies, external services, and the target runtime are viable.
 
 **Always load `camel-execute/guides/re-plan-loop.md` alongside this guide** — it handles architectural failures that the probe cannot fix mechanically.
 
@@ -281,7 +281,7 @@ Result: {PROCEED | RE-PLAN (architectural: reason) | ESCALATE (reason)}
 |---|---|---|
 | PROCEED | All checks passed (with or without mechanical fixes) | Continue to implementer dispatch |
 | RE-PLAN | Architectural failure detected | Re-plan loop revises the design spec, re-run probe |
-| ESCALATE | Unresolvable failure (no Docker, no Maven, no JDK) | Report to user, cannot proceed automatically |
+| ESCALATE | A tool required by the selected runtime is unavailable (for example, no Maven/JDK for a Maven project or no JBang/Camel CLI for Camel Main) | Report to user, cannot proceed automatically |
 
 ---
 

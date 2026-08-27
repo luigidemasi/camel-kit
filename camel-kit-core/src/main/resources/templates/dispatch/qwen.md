@@ -1,16 +1,21 @@
 ## Dispatch
 
-For each computational step in the Guide Manifest, delegate to the corresponding pre-registered sub-agent by name.
+Run the user-invoked workflow in the primary session. This preserves `ask_user_question`, slash-command arguments,
+approval gates, and chained phase handoffs. Delegate only bounded leaf work:
 
-Example:
-- "Have the camel-brainstormer sub-agent select components. Input: {step-input-description}. Write output to {output-path}."
-- "Have the camel-brainstormer sub-agent assemble the design spec. Input: all .steps/ outputs. Write output to {final-design-spec-path}."
+- `camel-implementer` for one implementation or fix task
+- `camel-reviewer` for one read-only catalog, adversarial, specification, or quality review role
+- `camel-tester` for one isolated test task
+- `camel-validator` for one bounded validation analysis or assigned report write
+- a top-level `fork` for optional bounded factual research that benefits from inherited context
 
-Include in each delegation:
+Never delegate the complete brainstorm, plan, migrate, execute, or start workflow to a child agent. Qwen child agents
+cannot ask the user questions or execute the primary session's next slash-command handoff. Include in each leaf delegation:
+
 - The flow/task name
 - Camel version (from .camel-kit/config.properties)
 - User answers relevant to this step
 - File paths of prior step outputs (let the sub-agent read them)
 
 ### Fallback
-If the named sub-agent is not available, read the guide directly into the main context and execute its instructions inline. This uses more tokens but produces equivalent results.
+If the named leaf is not available, read the guide directly into the primary context and execute its instructions inline.

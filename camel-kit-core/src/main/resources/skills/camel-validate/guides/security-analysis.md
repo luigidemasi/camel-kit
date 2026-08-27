@@ -97,7 +97,7 @@ Recommendation: Fix warnings before production deployment
 
 ### 8.2 Fallback: Manual Anti-Pattern Detection
 
-**If tool call fails AND user requests comprehensive validation:**
+**If the tool call fails:**
 
 ```
 MCP tool call failed. Loading manual anti-pattern guide...
@@ -107,13 +107,3 @@ Running manual security checks...
 ```
 
 Then apply manual checks from anti-patterns guide.
-
-**If basic validation only:**
-
-```
-Standard validation complete.
-
-For comprehensive security analysis:
-1. Configure Camel MCP server (47 automated checks)
-2. Or run: /camel-validate {flow-name} --comprehensive
-```

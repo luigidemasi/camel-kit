@@ -2,8 +2,9 @@
 
 > **Context variables provided by master SKILL.md:**
 > - `FLOW_NAME` — the flow being tested
-> - `TEST_DIR` — resolved test file directory
+> - `TEST_DIR` — optional module prefix plus `src/test/resources/`, always relative and ending in `/`
 > - `RUNTIME` — project runtime (`main`, `spring-boot`, or `quarkus`)
+> - `EXTERNAL_INFRA` — discovered containerized databases/brokers required by this test (may be empty)
 
 ---
 
@@ -60,7 +61,8 @@ override only the broker address and test-specific offset behavior deliberately.
 
 ### 5.2 Test Dependencies
 
-Document additional test dependencies:
+For Spring Boot/Quarkus only, add required test dependencies to the module POM. The following is an example; include
+Kafka/PostgreSQL or other Testcontainers modules only when they appear in `EXTERNAL_INFRA`:
 
 ```xml
 <!-- Test Dependencies -->
@@ -82,3 +84,6 @@ Document additional test dependencies:
   <scope>test</scope>
 </dependency>
 ```
+
+For Main, do not create or modify a POM. Record required Citrus coordinates and only the Testcontainers modules present
+in `EXTERNAL_INFRA` as `run.deps` in `{TEST_DIR}jbang.properties`, following `test-generation.md`.

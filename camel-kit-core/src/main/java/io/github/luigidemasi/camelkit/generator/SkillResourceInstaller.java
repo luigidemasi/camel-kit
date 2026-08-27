@@ -138,12 +138,9 @@ class SkillResourceInstaller {
         }
         if (destination.getFileName().toString().equals("SKILL.md")) {
             boolean shipDelegate = "camel-ship".equals(destination.getParent().getFileName().toString());
-            if (shipDelegate) {
-                String content = Files.readString(destination);
-                Files.writeString(destination, content.replace("{COMMAND_PREFIX}", ctx.commandPrefix()));
-            }
-            if (AgentGeneratorStrategy.BOB2.descriptorValue().equals(ctx.agentName())) {
-                addBobReadableUserInvocableMetadata(destination);
+            if (AgentGeneratorStrategy.BOB2.descriptorValue().equals(ctx.agentName())
+                    || AgentGeneratorStrategy.QWEN.descriptorValue().equals(ctx.agentName())) {
+                addHyphenatedUserInvocableMetadata(destination);
             }
             if (AgentGeneratorStrategy.COPILOT.descriptorValue().equals(ctx.agentName())) {
                 addCopilotReadableInternalSkillMetadata(destination);
@@ -157,8 +154,27 @@ class SkillResourceInstaller {
         }
         if (destination.getFileName().toString().endsWith(".md")) {
             versionPlaceholderResolver.substitute(destination, ctx.distribution());
+            if (AgentGeneratorStrategy.QWEN.descriptorValue().equals(ctx.agentName())) {
+                PersonaResourceInstaller.rewriteReferences(destination, ".qwen/camel-kit-personas");
+            } else if (AgentGeneratorStrategy.OPENCODE.descriptorValue().equals(ctx.agentName())) {
+                PersonaResourceInstaller.rewriteReferences(destination, ".opencode/camel-kit-personas");
+            }
             if (AgentGeneratorStrategy.CODEX.descriptorValue().equals(ctx.agentName())) {
                 useCodexSkillInvocations(destination, workflow);
+            }
+        }
+    }
+
+    void resolveCommandPrefixes(InitContext ctx) throws IOException {
+        try (var files = Files.walk(ctx.skillsDir())) {
+            for (Path markdown : files.filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().endsWith(".md"))
+                    .toList()) {
+                String content = Files.readString(markdown);
+                String resolved = content.replace("{COMMAND_PREFIX}", ctx.commandPrefix());
+                if (!resolved.equals(content)) {
+                    Files.writeString(markdown, resolved);
+                }
             }
         }
     }
@@ -184,7 +200,7 @@ class SkillResourceInstaller {
         }
     }
 
-    private void addBobReadableUserInvocableMetadata(Path skillFile) throws Exception {
+    private void addHyphenatedUserInvocableMetadata(Path skillFile) throws Exception {
         String content = Files.readString(skillFile);
         String normalized = content.replace("\r\n", "\n");
         if (!normalized.startsWith("---\n") || normalized.contains("\nuser-invocable:")) {

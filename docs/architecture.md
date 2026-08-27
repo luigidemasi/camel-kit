@@ -13,7 +13,7 @@ Camel-Kit combines two mechanisms to give AI agents accurate, efficient access t
 
 Together they enable AI-powered integration development targeting Apache Camel. Skills carry the process knowledge (how to design a flow, how to generate YAML, how to validate a route), while MCP provides the data knowledge (which components exist, what options they accept, whether an endpoint URI or Citrus test action is valid).
 
-The authoritative workflow contract lives in `camel-kit-core/src/main/resources/workflow/camel-kit-workflow.yaml`. It defines command names and aliases, generated command stubs, skill visibility, pipeline stages, artifacts, transitions, MCP servers, allowed tools, and documentation references. Generator code reads this manifest for command stub generation and MCP allowlists, and tests validate skill frontmatter against it. When changing workflow behavior, update the manifest first and then update the Markdown skill bodies and docs to match.
+The authoritative workflow contract lives in `camel-kit-core/src/main/resources/workflow/camel-kit-workflow.yaml`. It defines command names and aliases, generated command stubs, skill visibility, pipeline stages, artifacts, transitions, MCP servers, allowed tools, and documentation references. Generator code reads this manifest for command stubs and for tool filters where the target runtime supports them; tests validate skill frontmatter against it. When changing workflow behavior, update the manifest first and then update the Markdown skill bodies and docs to match.
 
 ---
 
@@ -55,8 +55,8 @@ The frontmatter fields:
 - `description` -- trigger keywords that help agents match user intent to the correct skill
 - `user_invocable` -- `true` for `camel-start` (meta-router) only. Pipeline and standalone skills (Tier 1/2) still have generated entry points despite `user_invocable: false`: slash-command stubs for most agents and project skills for Codex CLI and GitHub Copilot CLI. Internal skills (`camel-verify`, `camel-design`, `camel-implement`, `camel-test`) are dispatched only by pipeline skills
 
-Agent-specific generators may add runtime aliases to copied skill files. For example, Copilot and Pi generated
-copies add `user-invocable: false` alongside Camel-Kit's source `user_invocable` metadata. Codex generated copies
+Agent-specific generators may add runtime aliases to copied skill files. For example, Copilot, Pi, and Qwen generated
+copies add `user-invocable` alongside Camel-Kit's source `user_invocable` metadata. Codex generated copies
 adapt exact `/camel-*` skill invocations to native `$camel-*` mentions while leaving file paths unchanged.
 
 ### All Skills
@@ -66,15 +66,15 @@ adapt exact `/camel-*` skill invocations to native `$camel-*` mentions while lea
 | `camel-start` | Yes | -- | Meta-router and primary entry point: detects intent, loads appropriate pipeline |
 | `camel-brainstorm` | No | `camel-start` (greenfield) | Orchestrate design phase: interview user, produce the pipeline design spec |
 | `camel-plan` | No | `camel-brainstorm` (after design approval) | Produce detailed implementation plan from approved design spec |
-| `camel-execute` | No | `camel-plan` (auto-invoked after planning) | Environment probe, dispatch sub-agents per task with two-stage review |
-| `camel-migrate` | No | `camel-start` (migration) | Migration entry point: shortcut into `camel-brainstorm` with project type pre-set |
-| `camel-verify` | No | `camel-execute` (internal sub-agent) | 3-phase runtime verification loop (build, Citrus tests, report) — runs inside execute, not as a standalone pipeline stage |
+| `camel-execute` | No | `camel-plan` (auto-invoked after planning) | Environment probe, adversarial pre-filter, then ordered spec and quality review per task |
+| `camel-migrate` | No | `camel-start` (migration) | Dedicated vendor-aware migration analysis and design stage; hands an approved design to `camel-plan` |
+| `camel-verify` | No | `camel-execute` (internal role: subagent where supported, inline otherwise) | 3-phase runtime verification loop (build, Citrus tests, report) — runs inside execute, not as a standalone pipeline stage |
 | `camel-ship` | No | -- (standalone CLI delegate) | Forwards to the configured local Ship command; the controller owns stages, run state, and oversight |
 | `camel-design` | No | `camel-brainstorm` | Guides for component selection, EIP catalog, and flow design assembly |
 | `camel-implement` | No | `camel-execute` | Guides for YAML generation, properties, Docker Compose, DataMapper |
 | `camel-validate` | No | `camel-execute` or direct invocation | Tier 1 quality gate: schema validation, endpoint verification, security analysis |
 | `camel-test` | No | `camel-execute` | Guides for route analysis and test generation with Citrus + Testcontainers |
-| `camel-knowledge` | No | `camel-brainstorm`, `camel-execute` | Routes questions to knowledge MCP tools |
+| `camel-knowledge` | No | Direct invocation; pipeline skills as needed | Routes questions to knowledge MCP tools |
 | `camel-debug` | No | `camel-start` (ad-hoc troubleshooting) | Standalone debugging: STOP → PRESERVE → DIAGNOSE → FIX → GUARD workflow |
 
 **Note:** Only `camel-start` has `user_invocable: true` in its skill metadata. Pipeline and standalone skills still have generated entry points despite `user_invocable: false`: slash-command stubs for most agents and project skills for Codex CLI and GitHub Copilot CLI. Internal skills (`camel-verify`, `camel-design`, `camel-implement`, `camel-test`) are dispatched only by pipeline skills.
@@ -162,7 +162,7 @@ The `camel-kit-graph` module builds a property graph of the project structure by
 
 **CrossLinker enhancements:** New `expandInterfaces()` pass creates `DEPENDS_ON_VIA_INTERFACE` shortcut edges across interface boundaries. This enables graph queries to traverse from interface consumers to all implementing classes without manual graph traversal. The `GraphQuery.expandWithInterfaces()` method performs BFS traversal that crosses interface boundaries, with direction-aware expansion (follows both `DEPENDS_ON` and `DEPENDS_ON_VIA_INTERFACE` edges). The interface-consumer expansion algorithm is inspired by the deterministic knowledge base (DKB) approach described in Chinthareddy, ["Reliable Graph-RAG for Codebases: AST-Derived Graphs vs LLM-Extracted Knowledge Graphs"](https://arxiv.org/pdf/2601.08773) (Jan 2026), which demonstrates that bidirectional AST-derived graph traversal with interface-boundary crossing achieves significantly higher correctness than vector-only RAG for multi-hop architectural queries on Java codebases.
 
-**RuntimeDetector utility:** Shared utility that detects runtime environment (Spring Boot, Quarkus, Camel Main, Karaf) from `MAVEN_ARTIFACT` nodes. Used by JavaGraphParser to build the framework type allowlist and by the migration-context command to classify the project runtime.
+**RuntimeDetector utility:** Shared utility that detects runtime environment (Spring Boot, Quarkus, Camel Main, Karaf) from `MAVEN_ARTIFACT` nodes. Graph construction uses it for runtime-specific property-binding analysis, and initialization persists the detected value to `.camel-kit/config.properties`. The migration-context command reads that persisted value instead of invoking `RuntimeDetector`.
 
 **Auto-detection:** When the graph builder encounters an XML file, it checks for the `mulesoft.org/schema/mule` namespace. If present, the file is routed to `MuleXmlFlowParser` instead of `CamelRouteParser`. For BizTalk projects, the builder checks for the `schemas.microsoft.com/BizTalk` namespace and file extensions (`.odx`, `.btm`, `.btp`). If detected, files are routed to `BizTalkParser`. No explicit configuration is required -- if the project contains MuleSoft or BizTalk artifacts, they are parsed automatically.
 
@@ -172,13 +172,15 @@ The `camel-kit-graph` module builds a property graph of the project structure by
 
 **DataWeave analysis:** The `DataWeaveParser` extracts version declarations, input/output content types, function definitions, and field access patterns from `.dwl` files. This helps the migration skill identify complex transformations that may need manual attention -- multi-function scripts, recursive field access, or format conversions that have no direct XSLT equivalent.
 
-**BizTalk parser architecture:** The `BizTalkParser` is a hybrid parser that delegates to 4 internal StAX-based parsers (`BizTalkOdxParser`, `BizTalkBtmParser`, `BizTalkBtpParser`, `BizTalkBindingParser`) based on file extension and content. StAX was chosen over DOM to handle large orchestration files efficiently (streaming parse instead of full in-memory tree). The parser recognizes 37 orchestration shape types (Receive, Send, Decide, Loop, Parallel, Call, Scope, etc.) and 45 functoid type mappings (string ops, math, looping, scripting, database lookup).
+#### BizTalk Parser Architecture
+
+The `BizTalkParser` is a hybrid parser that delegates to 4 internal StAX-based parsers (`BizTalkOdxParser`, `BizTalkBtmParser`, `BizTalkBtpParser`, `BizTalkBindingParser`) based on file extension and content. StAX was chosen over DOM to handle large orchestration files efficiently (streaming parse instead of full in-memory tree). The parser recognizes 38 orchestration shape element names (Receive, Send, Decide, Loop, Parallel, Call, Scope, etc.) and 45 functoid type mappings (string ops, math, looping, scripting, database lookup).
 
 **Reference implementation:** The [BizTalkMigrationStarter](https://github.com/haroldcampos/BizTalkMigrationStarter) project (BizTalk → Azure Logic Apps) provided the reference parsing patterns. Its C# `BizTalkOrchestrationParser` (ODX text extraction + XPath), `BtmParser` (functoid/link resolution), `PipelineParser` (XmlSerializer deserialization), and `BindingSnapshot` (LINQ-to-XML) were translated to Java StAX equivalents for camel-kit.
 
 ### Graph Migration Context Command
 
-The `graph migration-context` CLI command produces a comprehensive structured JSON analysis of a project's integration landscape by traversing the property graph. This context powers the migration skills by providing a complete dependency map before any transformation work begins.
+The `graph migration-context` CLI command produces bounded structured JSON from the local property graph. It traverses in both directions from one route, including interface-boundary expansion, with depth 3 by default and a hard cap of 50 expanded nodes. It therefore supplies focused local context, not a complete project dependency map.
 
 **Usage:** `camel-kit graph migration-context <routeId> [--depth N]`
 
@@ -186,16 +188,18 @@ The `graph migration-context` CLI command produces a comprehensive structured JS
 
 | Section | Content | Source |
 |---------|---------|--------|
-| `routes` | List of all Camel routes with IDs, endpoints, and processors | `CamelRouteParser` nodes |
-| `components` | Used Camel components with URIs and properties | Endpoint URI analysis |
-| `services` | Business services and their dependencies (including interface-based) | `JavaGraphParser` + `CrossLinker` |
-| `artifacts` | Maven dependencies, plugins, and runtime detection | `PomParser` + `RuntimeDetector` |
-| `properties` | Configuration properties with bean/type/property references | `ConfigParser` + `PropertyBindingParser` |
-| `warnings` | Detected migration risks (unsupported patterns, complex DI, etc.) | Cross-parser heuristics |
+| `route` | Requested route ID without the `route:` prefix | Command argument |
+| `runtime` | `project.runtime`, or `unknown` if absent | `.camel-kit/config.properties` |
+| `routes` | Reached route node IDs, source endpoints, and files | `CAMEL_ROUTE` nodes |
+| `components` | Deduplicated endpoint schemes | Reached `CAMEL_ENDPOINT` nodes |
+| `services` | Bean classes and bean names | Reached bean-marked `CLASS` nodes |
+| `artifacts` | Group ID, artifact ID, and version | Reached `MAVEN_ARTIFACT` nodes |
+| `properties` | Values and outgoing edge type/target pairs | Reached `CONFIG_PROPERTY` nodes |
+| `warnings` | Nodes inferred rather than parsed | Reached nodes marked `synthetic=true` |
 
-The command uses `GraphQuery.expandWithInterfaces()` to traverse service dependencies across interface boundaries, ensuring all implementation classes are discovered even when references only declare interfaces. Runtime detection via `RuntimeDetector` classifies the project as Spring Boot, Quarkus, Camel Main, or Karaf, informing component availability checks and migration strategy selection.
+The command uses `GraphQuery.expandWithInterfaces()` to cross interface/implementation relationships within the traversal limits. It does not call the Knowledge MCP or derive documentation, CVE, compatibility, or migration-risk findings; those require separate lookups or analysis.
 
-This graph-aware context replaces file-by-file static analysis with topology-driven dependency resolution, surfacing transitive dependencies and cross-cutting concerns that would otherwise require manual discovery.
+This graph-aware context complements file analysis with a bounded topology view of the reached graph nodes.
 
 ---
 
@@ -221,8 +225,16 @@ brainstorm / migrate
     execute
        |
        v
-   artifacts + verification report
+   artifacts + execution/verification reports
+       |
+       v
+    validate
+       |
+       v
+   validation report
 ```
+
+The design spec is the only user approval gate in the chained pipeline; planning, execution, and validation then continue automatically.
 
 The execute phase starts with an **environment probe** that validates the target environment before dispatching implementers. If architectural failures are found, a **re-plan loop** modifies affected flow design sections and re-executes (max 3 rounds).
 
@@ -232,21 +244,21 @@ artifact format -- business requirements plus an active design spec under `docs/
 
 ### How camel-execute Dispatches Work
 
-1. Read the approved implementation plan, prefer the `yaml plan-metadata` task graph, and fall back to Markdown task
+1. Read the ready implementation plan derived from the approved design, prefer the `yaml plan-metadata` task graph, and fall back to Markdown task
    parsing for older plans
-2. **Catalog research** (Step 1.5): dispatch a `catalog-researcher` sub-agent to batch-verify all MCP catalog artifacts for the wave. Only the structured summary flows back -- MCP response traces stay in the research sub-agent's context.
+2. **Catalog research** (Step 1.5): use a `catalog-researcher` sub-agent where supported to batch-verify all MCP catalog artifacts for the wave; inline targets perform the same checks in the active context.
 3. For each task:
-   - Dispatch an implementer sub-agent with full task text, design spec section, pre-verified catalog summary, and MCP parameters
-   - **Adversarial Code Review** (Step 2b.5): dispatch parallel Critic Lanes via a Moderator sub-agent to adversarially review the implementation against the design spec. Hard cap: 3 cycles.
-   - Dispatch a **spec compliance reviewer** (sub-agent) -- does the output match the design spec?
-   - If spec review passes, dispatch a **code quality reviewer** (sub-agent) -- constitution compliance, security, anti-patterns
+   - Dispatch an implementer sub-agent with full task context where supported; inline targets execute the same task in their gated session
+   - **Adversarial Code Review** (Step 2b.5): use fresh Moderator and Critic Lane contexts where supported. Bob 1 runs the same critic lenses sequentially in its accumulated session and records the missing isolation. Hard cap: 3 cycles.
+   - Run a **spec compliance review** -- does the output match the design spec? Use an isolated reviewer where supported.
+   - If spec review passes, run a **code quality review** -- constitution compliance, security, anti-patterns. Use an isolated reviewer where supported.
    - If either reviewer finds critical issues, return to the implementer for fixes, then re-review
    - Mark task complete and immediately start the next task (no pause, no user confirmation)
-4. After all tasks: dispatch a **cross-cutting review** as a sub-agent across all generated routes
-5. Dispatch the **verification phase** (`camel-verify`) as an internal sub-agent within execute (build, Citrus tests, report)
+4. After all tasks: run a **cross-cutting review** across all generated routes
+5. Run the internal **verification phase** (`camel-verify`) within execute (build, Citrus tests, report), using a sub-agent where supported
 6. Print the completion summary
 
-After execute completes, the pipeline continues to **validation** (`camel-validate`) as Stage 3 — the final quality gate.
+After execute completes, the pipeline continues to **validation** (`camel-validate`) as Phase 4 — the final static quality gate. Validation reports findings without applying fixes. Pipeline-scoped runs write `docs/camel-kit/<PIPELINE_ID>/validation-report.md`; project-scoped standalone runs with no pipeline write `docs/validation-report-YYYY-MM-DD_HH-mm.md`.
 
 For subagent-capable targets, reviews, verification, and catalog lookups run in isolated contexts and only structured reports flow back to the orchestrator. Bob 1 legacy keeps this work in one session and relies on mode gates instead.
 
@@ -256,7 +268,7 @@ The dispatch model varies by AI agent:
 
 - **Claude Code** -- dispatches fresh sub-agents per task. Each sub-agent runs in isolated context with no cross-contamination between tasks.
 - **IBM Bob 1 legacy** -- switches between custom modes and monolithic gate files with scoped tool permissions per mode.
-- **IBM Bob 2** -- uses native `spawn_subagent` (`explore` and `general`) while retaining Bob custom modes for tool restrictions.
+- **IBM Bob 2** -- uses native `spawn_subagent` with factual-discovery `explore` plus generated `camel-worker` and read/MCP-only `camel-reviewer` presets, while retaining Bob custom modes for parent-task tool restrictions.
 - **Gemini CLI, Qwen, OpenCode** -- use their native agent/delegation models with shared Camel-Kit skills and traits.
 
 ### The Design Spec Contract
@@ -357,13 +369,13 @@ malformed YAML fail during registry loading with a descriptor-specific error.
 |-------|-------------|-----------------|------------|-----------------|
 | Claude Code | `templates/claude/` | `CLAUDE.md` | `.mcp.json` | `.claude/skills/` |
 | IBM Bob 1 legacy | `templates/bob/` | `custom_modes.yaml` + rules + gates | `.bob/mcp.json` | `.bob/skills/` |
-| IBM Bob 2 | `templates/bob2/` | `custom_modes.yaml` + rules + shared skills | `.bob/mcp.json` | `.bob/skills/` |
+| IBM Bob 2 | `templates/bob2/` + shared `agents/` | modes + rules + scoped agents + role personas + shared skills | `.bob/mcp.json` | `.bob/skills/` |
 | Gemini CLI | `templates/gemini/` | `GEMINI.md` + `@file.md` imports + policies | `.gemini/settings.json` | `.gemini/skills/` |
 | OpenAI Codex CLI | `templates/codex/` | `AGENTS.md` + `.codex/agents/*.toml` | `.codex/config.toml` | `.agents/skills/` |
 | GitHub Copilot CLI | `templates/copilot/` | `.github/copilot-instructions.md` + `.github/agents/` + hooks | `.github/mcp.json` | `.github/skills/` |
 | Pi | `templates/pi/` | `AGENTS.md` + `.pi/prompts/` + guard extension | `.mcp.json` | `.pi/skills/` |
-| Qwen | `templates/qwen/` | `QWEN.md` + sub-agent definitions | `.qwen/settings.json` | `.qwen/skills/` |
-| OpenCode | `templates/opencode/` | `AGENTS.md` + permission-based agents | `opencode.json` | `.opencode/skills/` |
+| Qwen | `templates/qwen/` + shared `agents/` | `QWEN.md` + bounded leaves + `.qwen/camel-kit-personas/` | `.qwen/settings.json` | `.qwen/skills/` |
+| OpenCode | `templates/opencode/` + shared `agents/` | `AGENTS.md` + permission-based agents + `.opencode/camel-kit-personas/` | `opencode.json` | `.opencode/skills/` |
 
 ### Resource Consistency Contract
 
@@ -379,10 +391,10 @@ Historical release notes, old planning material, and archived ADR-style document
 
 ### The Equalization Layer
 
-All supported agents receive the same skills (markdown instruction files). The template layer adapts the instruction format to each agent's conventions (system prompt vs. custom modes vs. agent files), but the underlying skill content is identical. This means a fix to a skill guide benefits all agents simultaneously.
+Most supported agents receive the shared skills (markdown instruction files), with the template layer adapting them to each agent's conventions. Bob 1 legacy is the exception: because it cannot chain skill references, its registry installs seven self-contained monolithic gate variants plus shared rules. The equalization contract keeps behavior and outputs aligned even though Bob 1 does not read the same phase `SKILL.md` files.
 
 **What equalization covers:**
-- Skill content (all agents read the same `SKILL.md` and guide files)
+- Workflow content (shared skills for most agents, corresponding monolithic gates for Bob 1)
 - Iron Laws (embedded in every agent's instruction file)
 - Constitution rules (enforced identically)
 - MCP tool calls (same tools, same parameters)
@@ -397,7 +409,7 @@ All supported agents receive the same skills (markdown instruction files). The t
 
 ### Agent Traits
 
-Traits are agent-specific instruction fragments that are appended to shared skill files during `camel-kit init`. They bridge the gap between the equalization layer (identical skills) and the per-agent template layer (different dispatch models).
+Traits are agent-specific instruction fragments that are appended to generated skill files during `camel-kit init`. They bridge the gap between the equalized workflow contract and the per-agent template layer (different dispatch models).
 
 **Location:** `camel-kit-core/src/main/resources/templates/traits/{agent}/`
 
@@ -422,7 +434,7 @@ The six shared Iron Laws from `skills/shared/iron-laws.md` are embedded in or re
 
 1. **MCP Catalog Verification** -- every component, EIP, dataformat, and language must be verified via MCP before being written to any design spec or YAML file
 2. **Constitution Compliance** -- every generated route must pass all 8 constitution rules (incorporates and enforces the constitution)
-3. **No Code Without Plan & Design Approval** -- never generate implementation artifacts before the user has approved the design spec and a task-based implementation plan exists
+3. **No Code Without Design Approval and an Existing Plan** -- never generate implementation artifacts before the user has approved the design spec and a task-based implementation plan exists
 4. **Spec Compliance Before Quality** -- always run spec compliance review before code quality review; wrong order wastes effort
 5. **Adversarial Code Review** -- generated code must pass the adversarial review gate before spec compliance and quality review
 6. **Surgical Changes** -- implementation tasks must touch only what they were asked to touch
@@ -437,9 +449,13 @@ Most supported agents use native **sub-agent dispatch** or custom-agent isolatio
 
 - **Gemini CLI** -- dispatches via a unified `invoke_subagent` tool to 6 specialized sub-agents. The scheduler natively supports **parallel tool execution** via `Promise.all()` (default-parallel). However, sub-agents cannot invoke other sub-agents (hardcoded `Kind.Agent` filter), so `/camel-execute` runs in the **main agent context** where it can dispatch to all sub-agents. Within-wave parallelism is achieved through the scheduler batching multiple `invoke_subagent` calls.
 
-- **Qwen** -- dual dispatch model: **named sub-agents** (clean context, parent blocks) and **forks** (inherit parent context, run in background). The fork model enables parallel review and research tasks. Read-only tools (Read, Search, Fetch) are concurrent with a configurable cap (max 10). The `"MUST BE USED for..."` phrasing in description fields forces automatic delegation.
+- **Qwen** -- keeps brainstorm, plan, migrate, execute, validate, and start orchestration in the primary session so
+  questions, approval, arguments, and handoffs remain available. It dispatches four bounded leaves with explicit
+  `subagent_type` values for implementation, read-only research/review, testing, and validation. Gating calls set
+  `run_in_background: false`; optional top-level factual forks use `subagent_type: "fork"`. Generated leaves cannot
+  redispatch, use explicit `approvalMode: default`, and receive complete roles from `.qwen/camel-kit-personas/`.
 
-- **OpenCode** -- 7 agents with granular, per-type glob permissions. The executor agent has `task: {"*": allow}` permission. Sub-agent-to-sub-agent delegation is now opt-in (PR #7756) with configurable depth limits and call budgets. LLM-level parallel tool calls are supported. Each agent has a `steps` limit (implementer: 50, executor: 100) that triggers graceful summarization rather than hard failure.
+- **OpenCode** -- 9 generated agents with granular permissions. The `/camel-execute` command selects a primary executor in the current session; it can dispatch an explicit allowlist of implementer, migrator, bounded planner, researcher, reviewer, and tester leaves. Every leaf denies further delegation, making the generated topology one level deep, and read-only research/review roles keep implementation separate from its gates. Other interactive phase commands run in the primary session. Agent-owned `steps` limits include implementer 50, reviewer 50, and executor 100. The generated config uses supported top-level namespace patterns to prompt before Camel, Knowledge, or Citrus MCP tool calls.
 
 - **GitHub Copilot CLI** -- project skills live under `.github/skills/` and custom agents live under `.github/agents/`. Camel-Kit generates planner, implementer, tester, validator, migrator, catalog researcher, and security reviewer agents with Copilot tool aliases and MCP server prefixes. Internal guide skills copied for custom-agent use are marked `user-invocable: false` and `disable-model-invocation: true` using Copilot-readable metadata. MCP servers are committed in `.github/mcp.json` using Copilot's `tools` schema. Repository hooks under `.github/hooks/` provide a lightweight safety harness for destructive shell commands while keeping Copilot's normal permission prompts active.
 
@@ -447,23 +463,36 @@ Most supported agents use native **sub-agent dispatch** or custom-agent isolatio
 
 - **Pi** -- project skills live under `.pi/skills/` and command stubs are generated as `.pi/prompts/` prompt templates. Pi reads `AGENTS.md` natively. MCP servers are committed in `.mcp.json` for `pi-mcp-adapter` using the adapter's `directTools` allowlist schema. Internal guide skills are marked `user-invocable: false` and `disable-model-invocation: true`; Pi currently honors only the model-invocation flag. A static `.pi/extensions/camel-kit-guard.ts` extension interprets `.pi/camel-kit-guard-policy.json` to block destructive or secret-sensitive tool calls. Pi has no native subagents, so custom-agent parity is deferred.
 
-**IBM Bob 2** uses Bob's native `spawn_subagent` tool. Camel-Kit exposes this as `--ai bob2`, but generated project files still live under `.bob/` because Bob reads `.bob/commands`, `.bob/skills`, `.bob/custom_modes.yaml`, and `.bob/mcp.json`.
+**IBM Bob 2** uses Bob's native `spawn_subagent` tool. Camel-Kit exposes this as `--ai bob2`, but generated project files still live under `.bob/`: commands, skills, scoped agent presets, role personas, modes, rules, and MCP configuration.
 
-- `explore` is used for read-only research, route inspection, spec review, quality review, and MCP verification summaries.
-- `general` is used for implementation, test generation, and fix tasks that need edit or execute access.
+- `explore` is reserved for factual source search, inventory, and discovery. Its built-in raw prompt is not used for
+  recommendations or verdicts.
+- Generated `.bob/agents/camel-worker.md` handles implementation, test generation, fixes, and verification from broad
+  execute/debug orchestration modes with read, edit, execute, MCP, and skill groups. Standalone restricted implement
+  and test modes keep mutations inline instead of dispatching that broader preset; test retains its path-scoped edit
+  restriction.
+- Generated `.bob/agents/camel-reviewer.md` handles the Catalog Researcher, Knowledge Researcher, ACR phases, spec/quality review, and
+  validation reasoning with only read and MCP groups, enforcing non-mutation at the tool layer.
+- `.bob/personas/*.md` contains the complete catalog, worker, Moderator, critic, spec, quality, and supporting role
+  contracts. The parent includes the selected full text in each scoped-agent prompt; keeping these files outside
+  `.bob/agents/` prevents Bob from registering them as separate presets with unintended capabilities.
 - Multiple `spawn_subagent` calls in one parent turn run in parallel, so `/camel-execute` dispatches all independent tasks in the current `camel-kit plan analyze` wave together.
 - The parent Bob task remains the orchestrator. Subagents return summaries and must not spawn subagents.
 - Bob 2 skills are the shared Camel-Kit `SKILL.md` files with Bob 2 traits appended; Bob 2 does not replace them with monolithic gates.
 
 **IBM Bob 1 legacy (`--ai bob`)** uses a fundamentally different architecture -- the **B+A (Behavior + Advanced) hybrid with mode switching**:
 
-1. Each pipeline phase starts in **Advanced mode** (unrestricted), allowing the agent to read all skill files and project context
-2. The first instruction in the gate file switches to a **restricted custom mode** (e.g., `camel-brainstorm`, `camel-implement`) with scoped tool permissions
-3. The mode's tool group constrains what the AI can do for the remainder of that phase
+1. Each gate-backed skill starts in **Advanced mode** (unrestricted), allowing the agent to read all skill files and project context
+2. The first instruction in the gate file switches to a **restricted custom mode** (e.g., `camel-brainstorm-mode`, `camel-implement-mode`) with scoped tool permissions
+3. The mode's tool group constrains what the AI can do for the remainder of that skill invocation
 
-This means Bob 1 cannot isolate tasks into separate context windows or use independent reviewer agents. The compensation is that Bob's tool restrictions are **platform-enforced**, not instruction-based. During design, Bob's `camel-brainstorm` mode grants only `read`, `edit` (`.md` files only via `fileRegex`), `mcp`, and `browser` -- the AI physically cannot edit code files because the mode excludes the edit tool for non-markdown files. This is stricter than any instruction-based constraint, which the AI could rationalize away.
+This means Bob 1 cannot isolate tasks into separate context windows or use independent reviewer agents. Its edit tool
+is platform-scoped by mode, while its broad command group is constrained by the generated instructions. During design,
+`camel-brainstorm-mode` grants `read`, `mcp`, `browser`, scoped edits for design Markdown plus
+`.camel-kit/config.properties`, `.camel-kit/pipeline.json`, and `.camel-kit/project-snapshot.md`; commands are limited by
+instructions to pipeline metadata and read-only graph operations, and must not mutate application code.
 
-Bob 1 also requires **monolithic gate files** (one per pipeline phase, 6-10 KB each) that inline complete orchestration logic, because it cannot chain skill references across mode switches the way sub-agent-based agents load skills into fresh contexts.
+Bob 1 also requires **seven monolithic gate files** (one for each replaced skill) that inline complete orchestration logic, because it cannot chain skill references across mode switches the way sub-agent-based agents load skills into fresh contexts. Its execute gate runs adversarial critic lenses sequentially in the accumulated session and explicitly lacks fresh-context or parallel critic isolation.
 
 The trade-off table:
 
@@ -472,7 +501,7 @@ The trade-off table:
 | Context isolation | Per-task (fresh sub-agent) | Per-session (accumulated) |
 | Reviewer independence | Separate sub-agent | Same session self-reviews |
 | Tool restriction mechanism | Instruction-based / tool whitelists / policies | Platform-enforced mode tool groups |
-| Parallel execution | Claude (graph topology), Bob 2 (`spawn_subagent` in one turn), Gemini (scheduler `Promise.all()`), Codex (independent waves), Qwen (fork), OpenCode (LLM-level) | Not possible |
+| Parallel execution | Claude (graph topology), Bob 2 (`spawn_subagent` in one turn), Gemini (scheduler `Promise.all()`), Codex (independent waves), Qwen (primary-session same-turn leaves and detached forks), OpenCode (LLM-level) | Not possible |
 | Skill loading | Loaded into sub-agent context on dispatch | Inlined in monolithic gate files |
 | Template complexity | 3-12 files per agent | 17+ files (gates + rules + modes) |
 | Failure isolation | Sub-agent failure doesn't affect other tasks | Phase failure affects entire session |
@@ -483,13 +512,13 @@ The trade-off table:
 |-------|---------------|-------------------|
 | Claude Code | Parallel sub-agent dispatch | Route graph topology, research isolation, parallel fan-out, adversarial code review |
 | IBM Bob 1 legacy | B+A hybrid with custom modes | Monolithic gate files, 3 checkpoint types |
-| IBM Bob 2 | Native `spawn_subagent` plus custom modes | `explore`/`general` subagents, parallel same-turn dispatch, shared skills |
+| IBM Bob 2 | Native `spawn_subagent` plus custom modes | Capability-scoped `explore`/`camel-worker`/`camel-reviewer` dispatch, parallel same-turn calls, shared skills |
 | Gemini CLI | `invoke_subagent` + parallel scheduler | Default-parallel `Promise.all()`, TOML policy, MCP wildcards, A2A remote agents |
 | OpenAI Codex CLI | Native custom-agent dispatch | `.agents/skills`, `.codex/agents`, prompt-gated MCP tools, inherited sandbox and approvals |
 | GitHub Copilot CLI | Project skills + custom agents + hooks | `.github/skills`, `.github/agents`, `.github/mcp.json`, safety hooks |
 | Pi | Project skills + prompt templates + guard extension | `.pi/skills`, `.pi/prompts`, `.mcp.json`, `pi-mcp-adapter`, trust-gated resources |
-| Qwen | Dual dispatch (named + fork) | Fork background tasks, DashScope cache sharing, auto-delegation |
-| OpenCode | `task` child sessions + opt-in delegation | 14 permission types, glob patterns, configurable depth limits |
+| Qwen | Primary workflow + explicit bounded leaves/forks | Four scoped leaves, preserved interaction/handoffs, detached context-sharing forks |
+| OpenCode | Primary executor + `task` leaf sessions | Glob-pattern permissions and explicit leaf allowlist |
 
 For full per-agent deep dives (template files, tool restriction models, configuration examples, unique capabilities), see **[Agent Architectures](agent-architectures.md)**.
 
@@ -594,7 +623,7 @@ Separate from Camel JBang MCP, the knowledge layer runs from the `camel-kit-know
 | `camel-brainstorm` | Catalog discovery/detail tools, `camel_version_list`, `camel_docs_search` | varies |
 | `camel-migrate` | Catalog, migration, and knowledge tools | varies |
 | `camel-implement` | Catalog detail tools, route context, validation, transformation, test scaffold | varies |
-| `camel-validate` | Route validation, hardening, diagnostics, dependency/config checks | varies |
+| `camel-validate` | Static route quality, security, dependency/config checks, and reporting | varies |
 | `camel-test` | Route validation, route context, hardening analysis, component metadata, Citrus catalog/schema/docs | varies |
 | `camel-knowledge` | `camel_docs_search`, `camel_docs_component_info`, `camel_docs_cve_search`, `camel_docs_release_info`, `camel_docs_jira_lookup` | 5 |
 
@@ -615,11 +644,11 @@ If the MCP server is not available, skills fall back to local component data and
 
 ## 7. Verification Pipeline
 
-The verification pipeline (`camel-verify`) is a 3-phase feedback loop that builds and tests the generated application using Citrus integration tests. It runs as an internal sub-agent within `camel-execute`, not as a standalone pipeline stage. After verification completes inside execute, `camel-validate` runs as the final pipeline stage.
+The verification pipeline (`camel-verify`) is a 3-phase feedback loop that builds and tests the generated application using Citrus integration tests. It runs internally within `camel-execute`—in an isolated subagent when supported, or inline for single-conversation targets—not as a standalone pipeline stage. After verification completes inside execute, `camel-validate` runs as the final pipeline stage.
 
 ### Phases
 
-1. **Build Verification** -- compile the project with `./mvnw`, classify and fix build errors (skipped for JBang runtime)
+1. **Build Verification** -- compile Spring Boot or Quarkus projects with Maven and classify build errors; Camel Main runs its startup smoke test instead
 2. **Test Verification** -- run Citrus YAML integration tests via `camel test run`, classify and fix test failures. Citrus tests are self-contained: Testcontainers start external services, `camel:jbang:run` starts the Camel integration, send/receive actions validate behavior.
 3. **Report** -- structured summary of all phases, fixes applied, and issues found
 
@@ -628,8 +657,9 @@ Each phase has an independent iteration budget of **max 15 attempts**. On each i
 ### Environment Probe
 
 Before the verify loop runs, `camel-execute` performs an **environment probe** as its first step. The probe generates a
-throwaway skeleton (pom.xml, docker-compose, empty route) and checks dependency resolution, Docker service availability,
-and runtime startup. Failures are classified as **mechanical** (auto-fix and re-probe) or **architectural** (trigger
+runtime-appropriate throwaway skeleton and checks dependency resolution for Maven-based runtimes, Docker when available
+for full test verification, and required runtime startup. Non-applicable or unavailable checks are recorded as skipped.
+Failures in applicable checks are classified as **mechanical** (auto-fix and re-probe) or **architectural** (trigger
 re-plan loop). Mechanical failures route to the automated self-repair path (fix and re-probe without entering the
 re-plan loop). Architectural failures trigger the re-plan loop, which modifies affected flow design sections and
 re-executes.
@@ -646,7 +676,7 @@ Error patterns organized by fix target:
 | Build tool | `Unknown lifecycle phase` | Escalate to user |
 | Route creation | `FailedToCreateRouteException` | `camel-implement` |
 | Unknown component | `NoSuchEndpointException` | `camel-implement` |
-| Wrong endpoint options | `ResolveEndpointFailedException` | `camel-validate` |
+| Wrong endpoint options | `ResolveEndpointFailedException` | `camel-validate` static diagnosis/report, then implementation correction |
 | Missing bean | `NoSuchBeanException` | `camel-implement` |
 | Injection failure | `UnsatisfiedDependencyException` | `camel-implement` |
 | External service | `Connection refused` | Self-repair (Docker) |
@@ -662,10 +692,10 @@ Error patterns organized by fix target:
 
 ### Fix Routing
 
-Errors route to one of six destinations:
+Errors route to one of six handling destinations:
 
 1. **Self-repair** -- fix pom.xml, application.properties, or test configuration directly
-2. **camel-validate** -- route to validation skill for endpoint URI fixes
+2. **camel-validate** -- run static endpoint diagnosis and report the finding; return corrections to implementation handling
 3. **camel-implement** -- route to implementation skill for route logic fixes
 4. **camel-test** -- route to test skill for test re-generation (when the test is wrong, not the code)
 5. **re-plan** -- trigger the re-plan loop for architectural failures (modifies affected flow design sections, max 3 rounds)
@@ -761,13 +791,13 @@ Camel-Kit ships version defaults in `distribution.properties`, then persists the
 
 ### Multi-Agent Parity
 
-Skills are markdown instruction files -- the same skill works across all supported agents. Agent-specific differences (sub-agent dispatch vs. custom modes vs. inline execution) are handled by the template layer, not the skill layer. A bug fix or improvement to a guide file benefits every agent.
+Most targets use the shared markdown skills, with agent-specific differences (sub-agent dispatch vs. custom modes vs. inline execution) handled by traits and templates. Bob 1 legacy instead uses generated monolithic phase gates, so shared-skill changes must also be reflected in those gate variants to preserve parity.
 
 ### Constitution vs Iron Laws
 
 The **Constitution** defines 8 route quality rules (what makes a good route): route structure, single responsibility, separation of concerns, naming conventions, observability, external configuration, component support verification, infrastructure via Forage.
 
-The **Iron Laws** define pipeline process enforcement rules (how the pipeline operates): MCP verification, constitution compliance, no code without design approval, spec compliance before quality.
+The **Iron Laws** define six pipeline process rules (how the pipeline operates): MCP verification, constitution compliance, no code without an approved design and task plan, spec compliance before quality, adversarial review before staged review, and surgical changes.
 
 Iron Law 2 explicitly incorporates and enforces the 8 constitution rules. They are complementary, not overlapping -- the constitution says what to check, the iron laws say when and how to enforce it.
 
@@ -799,7 +829,7 @@ user_invocable: false
 | `guides/main-guide.md` | Always | Primary instruction guide |
 ```
 
-**Note:** Only `camel-start` should have `user_invocable: true`. All other skills have `user_invocable: false`. Generated command stubs and Codex/Copilot project skills still work independently of this metadata.
+**Note:** Only `camel-start` should have `user_invocable: true`. All other skills have `user_invocable: false`. Generated command stubs and Codex/Copilot project skills still work independently of this metadata; Qwen generation also emits its equivalent hyphenated `user-invocable` field.
 
 3. **Write guide files** in `guides/`. Each guide is a self-contained markdown instruction file loaded by the agent when the skill is active.
 
@@ -808,13 +838,13 @@ user_invocable: false
 5. **If registering generated command or skill entry points:** update agent-specific guidance only where the command needs custom behavior beyond the generated stub or project skill. The default generator creates command stubs from the manifest. Agent templates still need updates when they contain human-readable command tables, custom modes, policies, or sub-agent dispatch:
    - Claude Code: update `templates/claude/claude-md.md`
    - IBM Bob 1 legacy: update `templates/bob/custom_modes.yaml`, gate files, and rules directories
-   - IBM Bob 2: update `templates/bob2/custom_modes.yaml`, `templates/traits/bob2/`, and rules directories
+   - IBM Bob 2: update `agents/registry/bob2.yaml`, `Bob2Generator`, `templates/dispatch/bob2.md`, `templates/bob2/` modes/agents/rules, `templates/traits/bob2/`, and any shared `agents/*.md` installed under `.bob/personas/`
    - Gemini CLI: update `templates/gemini/gemini-md.md`
    - OpenAI Codex CLI: update `templates/codex/`, `templates/dispatch/codex.md`, and custom-agent TOML templates
    - GitHub Copilot CLI: update `templates/copilot/copilot-instructions.md`, `templates/copilot/agents-md.md`, and any affected `.github/agents` templates
    - Pi: update `templates/pi/agents-md.md`, `templates/dispatch/pi.md`, and guard policy templates when relevant
-   - Qwen: update `templates/qwen/qwen-md.md`
-   - OpenCode: update `templates/opencode/agents-md.md`
+   - Qwen: update `agents/registry/qwen.yaml`, `QwenGenerator`, `templates/qwen/agents/`, `templates/qwen/qwen-md.md`, `templates/dispatch/qwen.md`, `templates/traits/qwen/`, and the Qwen MCP config template
+   - OpenCode: update `templates/opencode/`, `templates/traits/opencode/`, the OpenCode MCP config template, and `OpenCodeGenerator`
 
 6. **If changing an agent capability:** update `agents/registry/{agent}.yaml` when skills or command directories,
    command-generation behavior, file formats, MCP config paths or formats, generator strategy, dispatch templates,
@@ -824,4 +854,4 @@ user_invocable: false
 
 8. **Update `docs/commands.md`** if the skill is user-facing.
 
-9. **Run manifest consistency tests** in `camel-kit-core` to verify generated stubs, skill metadata, and MCP allowlists still match the manifest.
+9. **Run manifest consistency tests** in `camel-kit-core` to verify generated stubs, skill metadata, and runtime-supported MCP filters still match the manifest.

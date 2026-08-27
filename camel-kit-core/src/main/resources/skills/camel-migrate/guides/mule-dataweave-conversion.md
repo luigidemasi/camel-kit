@@ -44,15 +44,14 @@ When replacing a DataWeave transformation, choose the approach based on complexi
 | Simple field rename / direct copy | `setBody` + Simple language | built-in | No external file needed. Express in design spec section 3.2 as Direct Copy rows. |
 | Single-field type coercion | Simple language expression | built-in | `${body.field}` with type conversion. |
 | Set a fixed value | `setHeader` or `setBody(constant(...))` | built-in | |
-| Complex JSON→JSON transformation | XSLT via Kaoto DataMapper | `camel-xslt-saxon` | Describe field mappings in the flow design; `camel-execute` generates XSLT. |
-| Complex XML→JSON or JSON→XML | XSLT | `camel-xslt-saxon` | |
+| Complex JSON/XML mapping | Canonical DataMapper: inline Groovy or XSLT | `camel-groovy` or `camel-xslt-saxon` | Canonicalize first. Use Groovy when both schemas are absent OR there are fewer than 20 leaf fields; use XSLT only when there are at least 20 leaf fields AND at least one schema. |
 | Conditional field selection | `choice` EIP + `setBody` | built-in | Express as routing in Section 3.3. |
 | Array/collection iteration | `split` EIP + per-item processing | built-in | Express in Section 3.5. |
 | Lookup / enrichment | `enrich` or `pollEnrich` EIP | built-in | |
-| Multi-step complex script | XSLT or Groovy script | `camel-xslt-saxon` / `camel-groovy` | Use Groovy only for logic that cannot be expressed in XSLT. Document in Section 3.2. |
+| Multi-step complex script | Canonical DataMapper or explicit route EIPs | `camel-groovy` / `camel-xslt-saxon` / built-in | Preserve the canonical engine selection and document non-mapping control flow as route EIPs. |
 
-**Rule of thumb:** If you can express it as rows in the flow-design mapping tables, do so. `camel-execute` will
-generate the XSLT automatically from those tables.
+**Rule of thumb:** Express mappings as rows, load `shared/datamapper-canonicalize.md`, and preserve its selected engine.
+Do not infer XSLT merely because a mapping table exists.
 
 ---
 
@@ -266,16 +265,17 @@ When you encounter a DataWeave script during migration analysis, follow this pro
    - Array `map` → Section 3.5
    - Type coercion (`as String`, `as Number`) → Section 3.2 Transformation column
    - Direct copy → Section 3.2 with "Direct Copy"
-4. **For scripts too complex to decompose:** Flag them with a comment in the design spec and recommend generating a Groovy or XSLT script manually. Document the intended transformation in plain English so the developer can implement it.
+4. **For scripts too complex to decompose:** Flag them in the design spec, document the intended transformation in
+   plain English, and then apply the same canonical inline-Groovy-or-XSLT selection; do not choose an engine ad hoc.
 
 ---
 
-## XSLT Generation Note
+## Canonical DataMapper Generation Note
 
-When the flow-design mapping tables are complete, `camel-execute` will read them and generate:
-- An XSLT stylesheet (for XML→XML transformations)
-- Or a Groovy script skeleton (for JSON transformations not expressible in XSLT)
-- Or simple Camel DSL `setBody`/`setHeader` calls (for simple mappings)
+When the flow-design mapping tables are complete, load `shared/datamapper-canonicalize.md`. `camel-execute` generates
+the selected inline Groovy or XSLT implementation; simple non-DataMapper operations may remain Camel DSL
+`setBody`/`setHeader` steps. Groovy is selected when both schemas are absent OR there are fewer than 20 leaf fields;
+XSLT is selected only when there are at least 20 leaf fields AND at least one schema.
 
 The richer and more complete the design spec mapping tables, the more accurate the generated implementation will be.
 

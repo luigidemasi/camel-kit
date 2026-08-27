@@ -1,5 +1,10 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "permission": {
+    "camel_*": "ask",
+    "camel-knowledge_*": "ask",
+    "citrus_*": "ask"
+  },
   "mcp": {
     "camel": {
       "type": "local",
@@ -11,9 +16,7 @@
         "-Dquarkus.http.port=-1",
         "org.apache.camel:camel-jbang-mcp:{CAMEL_MCP_VERSION}:runner"
       ],
-      "enabled": true,
-      "autoApprove": {CAMEL_TOOLS_JSON},
-      "alwaysAllow": {CAMEL_TOOLS_JSON}
+      "enabled": true
     },
     "camel-knowledge": {
       "type": "local",
@@ -23,9 +26,7 @@
         "-Dquarkus.log.level=WARN",
         "io.github.luigidemasi:camel-kit-knowledge-mcp:{KNOWLEDGE_VERSION}:runner"
       ],
-      "enabled": true,
-      "autoApprove": {KNOWLEDGE_TOOLS_JSON},
-      "alwaysAllow": {KNOWLEDGE_TOOLS_JSON}
+      "enabled": true
     },
     "citrus": {
       "type": "local",
@@ -36,9 +37,7 @@
         "-Dquarkus.http.port=-1",
         "org.citrusframework:citrus-mcp-server:{CITRUS_MCP_VERSION}:runner"
       ],
-      "enabled": true,
-      "autoApprove": {CITRUS_TOOLS_JSON},
-      "alwaysAllow": {CITRUS_TOOLS_JSON}
+      "enabled": true
     }
   }
 }

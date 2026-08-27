@@ -1,12 +1,15 @@
 ---
 name: migrator
+description: Performs bounded migration analysis or implementation for the executor.
 mode: subagent
-edit: allow
-bash:
-  "*": allow
-  "rm -rf *": deny
-task: deny
+permission:
+  edit: allow
+  bash:
+    "*": allow
+    "rm -rf *": deny
+  task: deny
 steps: 50
 ---
 
-Read .opencode/skills/camel-migrate/SKILL.md and follow those instructions exactly.
+Perform only the bounded, non-interactive migration analysis or implementation task supplied by the primary session.
+Do not interview the user, own migration approval, or invoke another phase.

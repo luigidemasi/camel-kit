@@ -411,6 +411,10 @@ public class DoctorService {
                 .equals(normalizedAgentName);
         boolean piDirectToolsSchema = AgentGeneratorStrategy.PI.descriptorValue()
                 .equals(normalizedAgentName);
+        boolean qwenIncludeToolsSchema = AgentGeneratorStrategy.QWEN.descriptorValue()
+                .equals(normalizedAgentName);
+        boolean openCodeSchema = AgentGeneratorStrategy.OPENCODE.descriptorValue()
+                .equals(normalizedAgentName);
         Path mcpFile = mcpConfigPath(root, agentName);
         if (mcpFile == null) {
             findings.add(DoctorFinding.fail("mcp", null,
@@ -451,13 +455,18 @@ public class DoctorService {
 
         boolean camelOk = checkMcpServer(
                 root, mcpFile, servers, "camel", expectations.camelMcpTools(), copilotToolsSchema,
-                piDirectToolsSchema, findings);
+                piDirectToolsSchema, qwenIncludeToolsSchema, openCodeSchema, findings);
         boolean knowledgeOk = checkMcpServer(
                 root, mcpFile, servers, "camel-knowledge", expectations.knowledgeMcpTools(), copilotToolsSchema,
-                piDirectToolsSchema, findings);
-        if (camelOk && knowledgeOk) {
+                piDirectToolsSchema, qwenIncludeToolsSchema, openCodeSchema, findings);
+        boolean openCodePermissionsOk = !openCodeSchema
+                || checkOpenCodePermissions(root, mcpFile, rootNode, findings);
+        if (camelOk && knowledgeOk && openCodePermissionsOk) {
+            String message = openCodeSchema
+                    ? "OpenCode MCP config uses supported server fields; tool calls retain OpenCode permission prompts"
+                    : "MCP config exists and tool allowlists match Camel-Kit expectations";
             findings.add(DoctorFinding.pass("mcp", relativize(root, mcpFile),
-                    "MCP config exists and tool allowlists match Camel-Kit expectations",
+                    message,
                     "No action required."));
         }
     }
@@ -565,7 +574,8 @@ public class DoctorService {
 
     private boolean checkMcpServer(
             Path root, Path mcpFile, JsonNode servers, String serverName, Set<String> expected,
-            boolean copilotToolsSchema, boolean piDirectToolsSchema, List<DoctorFinding> findings) {
+            boolean copilotToolsSchema, boolean piDirectToolsSchema, boolean qwenIncludeToolsSchema,
+            boolean openCodeSchema, List<DoctorFinding> findings) {
         JsonNode server = servers.path(serverName);
         if (!server.isObject()) {
             findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
@@ -580,10 +590,59 @@ public class DoctorService {
         if (piDirectToolsSchema) {
             return checkPiDirectTools(root, mcpFile, serverName, server, expected, findings);
         }
+        if (qwenIncludeToolsSchema) {
+            return checkQwenTools(root, mcpFile, serverName, server, expected, findings);
+        }
+        if (openCodeSchema) {
+            return checkOpenCodeServer(root, mcpFile, serverName, server, findings);
+        }
 
         boolean autoApproveOk = checkAllowlist(root, mcpFile, serverName, "autoApprove", server, expected, findings);
         boolean alwaysAllowOk = checkAllowlist(root, mcpFile, serverName, "alwaysAllow", server, expected, findings);
         return autoApproveOk && alwaysAllowOk;
+    }
+
+    private boolean checkQwenTools(
+            Path root, Path mcpFile, String serverName, JsonNode server, Set<String> expected,
+            List<DoctorFinding> findings) {
+        boolean valid = checkAllowlist(root, mcpFile, serverName, "includeTools", server, expected, findings);
+        JsonNode trust = server.get("trust");
+        if (trust != null && (!trust.isBoolean() || trust.asBoolean())) {
+            findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                    "Qwen MCP server '" + serverName + "' trust must be absent or false to preserve approval prompts",
+                    "Remove trust or set it to false, then re-run camel-kit doctor."));
+            valid = false;
+        }
+        return valid;
+    }
+
+    private boolean checkOpenCodeServer(
+            Path root, Path mcpFile, String serverName, JsonNode server, List<DoctorFinding> findings) {
+        boolean valid = true;
+        for (String ignoredField : List.of("autoApprove", "alwaysAllow")) {
+            if (server.has(ignoredField)) {
+                findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                        "OpenCode MCP server '" + serverName + "' contains unsupported field " + ignoredField,
+                        "Remove the ignored field or regenerate the OpenCode MCP config."));
+                valid = false;
+            }
+        }
+        return valid;
+    }
+
+    private boolean checkOpenCodePermissions(
+            Path root, Path mcpFile, JsonNode config, List<DoctorFinding> findings) {
+        JsonNode permission = config.path("permission");
+        boolean valid = true;
+        for (String pattern : List.of("camel_*", "camel-knowledge_*", "citrus_*")) {
+            if (!"ask".equals(permission.path(pattern).asText())) {
+                findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                        "OpenCode permission '" + pattern + "' must be 'ask'",
+                        "Restore the generated MCP permission prompts or regenerate the OpenCode config."));
+                valid = false;
+            }
+        }
+        return valid;
     }
 
     private boolean checkCopilotTools(

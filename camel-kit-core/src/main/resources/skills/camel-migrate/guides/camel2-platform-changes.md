@@ -2,7 +2,7 @@
 
 This guide covers structural and platform changes that are NOT component/EIP/format-specific. These are transformation rules applied during Phase 2 Step 2.1 of the migration.
 
-## OSGi / Blueprint → Spring Boot / Camel Main
+## OSGi / Blueprint → Camel Main, Spring Boot, or Quarkus
 
 ### Blueprint XML Removal
 
@@ -11,8 +11,8 @@ Blueprint XML (`<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0">`)
 | Blueprint Construct | Camel 4.x Equivalent |
 |--------------------|---------------------|
 | `<cm:property-placeholder persistent-id="...">` | `application.properties` file with `{{property.key}}` syntax in routes |
-| `<reference interface="com.example.MyService"/>` | Spring Boot: `@Autowired MyService` in a `@Component` class, then register in Camel registry. Camel Main: `registry.bind("myService", new MyServiceImpl())` |
-| `<bean id="myBean" class="com.example.MyBean"/>` | Spring Boot: `@Bean` method in `@Configuration` class. Camel Main: `registry.bind("myBean", new MyBean())` |
+| `<reference interface="com.example.MyService"/>` | Main: translate fully to catalog-supported YAML/Forage configuration. Spring Boot/Quarkus: use the runtime's dependency-injection facilities. |
+| `<bean id="myBean" class="com.example.MyBean"/>` | Main: translate fully to catalog-supported YAML/Forage configuration. Spring Boot/Quarkus: use a runtime configuration class. |
 | `<service interface="com.example.MyService" ref="myBean"/>` | Remove — OSGi service export not needed outside OSGi |
 | `<camelContext xmlns="http://camel.apache.org/schema/blueprint">` | YAML DSL route files (`.camel.yaml`) |
 | `<propertyPlaceholder>` inside `<camelContext>` | `application.properties` with `camel.component.*` prefix |
@@ -23,7 +23,7 @@ Map infrastructure beans (datasources, connection factories, AI model configs) t
 
 | Karaf Construct | Camel 4.x Equivalent |
 |----------------|---------------------|
-| `features.xml` / `karaf-maven-plugin` | Remove — no Karaf in 4.x. Dependencies in `pom.xml` only. |
+| `features.xml` / `karaf-maven-plugin` | Remove — no Karaf in 4.x. Main records resolved coordinates in module-root `application.properties` under `camel.jbang.dependencies`; Spring Boot/Quarkus use `pom.xml`. |
 | `maven-bundle-plugin` (OSGi headers) | Remove — no OSGi in 4.x |
 | `MANIFEST.MF` with `Import-Package` / `Export-Package` | Remove |
 | `META-INF/spring/*.xml` (Spring DM) | `application.properties` or `@Configuration` classes |
@@ -42,7 +42,7 @@ Spring XML routes wrapped in `<camelContext>` convert to standalone YAML DSL rou
 | `<from uri="timer:tick"/>` | `from: uri: timer:tick` |
 | `<to uri="log:out"/>` | `- to: uri: log:out` |
 | `<propertyPlaceholder location="classpath:app.properties"/>` | `application.properties` (auto-loaded) |
-| `<bean id="..." class="..."/>` | Spring Boot: `@Bean` in `@Configuration`. Or in YAML: use `beans:` top-level element (verify via MCP). |
+| `<bean id="..." class="..."/>` | Main: catalog-verify and translate to supported YAML/Forage configuration. Spring Boot/Quarkus: use runtime dependency injection or a catalog-verified YAML `beans:` element. |
 | `<routeContext>` (route fragments in separate files) | Include routes directly in YAML files — `routeContext` removed in 4.x |
 
 ### Property Syntax
@@ -70,9 +70,14 @@ Camel 4.x requires Jakarta EE 10 (from Java EE / javax). All Java source files i
 | `javax.annotation.*` | `jakarta.annotation.*` |
 | `javax.persistence.*` | `jakarta.persistence.*` |
 
-**Note:** This is a Java source change, not a route DSL change. Flag these in the design spec as "manual migration required: update imports javax→jakarta" but do NOT attempt to modify Java source files during route migration.
+**Runtime gate:** Retained Java source is supported only for Spring Boot or Quarkus. For Camel Main, every Java or
+Blueprint behavior must be fully translated to supported YAML/inline Groovy before planning; otherwise stop and require
+runtime reselection. For Spring Boot/Quarkus, flag required `javax` to `jakarta` adaptations in the design spec.
 
-## Maven Dependency Changes
+## Runtime Dependency Changes
+
+Camel Main records catalog-verified coordinates under `camel.jbang.dependencies` in module-root
+`application.properties` and does not generate a POM. The Maven guidance below applies only to Spring Boot/Quarkus.
 
 ### camel-core Module Split
 

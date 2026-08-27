@@ -1,6 +1,6 @@
 # Spec Compliance Reviewer — Orchestrator Guide
 
-> **Context:** Used by `camel-execute` to dispatch and handle spec-compliance-reviewer subagents.
+> **Context:** Used by `camel-execute` to run the spec-compliance-reviewer role in an isolated subagent where supported or inline otherwise.
 > **Persona:** `agents/spec-compliance-reviewer.md` — defines the reviewer's adversarial checks, finding classification, and output format.
 
 ---
@@ -14,7 +14,7 @@
    - The design spec section this task implements
    - The task's review specification
    - Any trade-offs documented by the ACR Moderator (from `guides/adversarial-code-review.md`), if ACR ran for this task
-3. Dispatch as a subagent — the reviewer runs in its own context and returns only the structured review report
+3. Use a fresh subagent when supported; otherwise review sequentially inline and record the missing isolation. Produce the same structured review report.
 
 ## Handling Review Results
 

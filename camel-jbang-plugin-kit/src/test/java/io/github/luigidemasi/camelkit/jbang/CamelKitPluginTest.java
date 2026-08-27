@@ -7,6 +7,8 @@ import java.nio.file.Path;
 
 import org.apache.camel.dsl.jbang.core.commands.CamelJBangMain;
 
+import io.github.luigidemasi.camelkit.command.doc.DocCommand;
+import io.github.luigidemasi.camelkit.command.pipeline.NextIdCommand;
 import io.github.luigidemasi.camelkit.command.ship.ShipCommand;
 
 import org.junit.jupiter.api.Test;
@@ -41,7 +43,7 @@ class CamelKitPluginTest {
     }
 
     @Test
-    void registersDoctorUnderKitCommand() {
+    void registersDocAndNextIdUnderKitCommand() {
         CamelJBangMain main = new CamelJBangMain();
         CommandLine root = new CommandLine(main);
 
@@ -49,10 +51,8 @@ class CamelKitPluginTest {
 
         CommandLine kit = root.getSubcommands().get("kit");
         assertNotNull(kit);
-        assertTrue(kit.getSubcommands().containsKey("init"));
-        assertTrue(kit.getSubcommands().containsKey("doctor"));
-        assertTrue(kit.getSubcommands().containsKey("graph"));
-        assertTrue(kit.getSubcommands().containsKey("plan"));
+        assertInstanceOf(DocCommand.class, kit.getSubcommands().get("doc").getCommand());
+        assertInstanceOf(NextIdCommand.class, kit.getSubcommands().get("nextId").getCommand());
     }
 
     @Test

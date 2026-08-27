@@ -14,15 +14,17 @@ When the implementation plan is ready:
 Plan saved. Before starting execution, how would you like to handle file edits?
 
 1. Auto-accept edits (I'll switch to auto-edit mode)
-2. Manually approve each edit (keep current mode)
+2. Manually approve each edit (switch to default mode)
 3. Refine the plan (tell me what to change)
 ```
 
 4. Based on the user's choice:
    - **Auto-accept:** Instruct the user to run `/approval-mode auto-edit` to switch to auto-edit mode. Alternatively, the user can press `Shift+Tab` to cycle modes. Confirm the mode is active, then invoke `camel-execute`. Once the mode is confirmed, `camel-execute` is invoked immediately — no additional approval prompt.
-   - **Manual:** Invoke `camel-execute` immediately (current mode stays as-is). Execution starts immediately in the current mode.
+   - **Manual:** Instruct the user to run `/approval-mode default` and confirm that mode is active, then invoke `camel-execute` immediately.
    - **Refine:** Return to plan generation with the user's feedback.
 
-### Serial Execution Reminder
+### Wave Execution Reminder
 
-After the handoff, remind the user that Qwen executes tasks serially — each task completes before the next starts. Auto-edit mode is particularly beneficial here since it avoids repeated approval prompts across many sequential tasks.
+After the handoff, explain that the executor emits one `agent` call per independent task in the same plan-analyzer wave
+and waits for all returned results before starting the dependent wave. Auto-edit mode can reduce repeated approval
+prompts across those implementation calls.

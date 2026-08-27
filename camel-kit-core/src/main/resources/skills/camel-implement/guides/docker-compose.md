@@ -2,20 +2,24 @@
 
 This guide generates `docker-compose.yaml`.
 
-**Context variables:** `FLOW_NAME`, `MODULE_DIR`, `CAMEL_VERSION`, `RUNTIME`, `DOCKER_IMAGE`.
+**Context variables:** `MODULE_NAME`, `MODULE_DIR`, `ROUTE_FILES` (all module `.camel.yaml` files), `XSL_FILES` (all
+module XSLT DataMapper files), `CAMEL_VERSION`, `RUNTIME`, `DOCKER_IMAGE`.
 
 ---
 
-Generate a `docker-compose.yaml` based on the target runtime. The purpose differs by runtime:
+Generate a `docker-compose.yaml` only when the design spec declares at least one external service dependency. If it
+does not, skip Docker Compose generation for every runtime, including Main. When generated, its purpose differs by
+runtime:
 
-- **Main:** docker-compose runs the Camel application through the Camel JBang image AND external services
+- **Main:** docker-compose runs the Camel application through the Camel JBang image alongside the required external
+  services
 - **Spring Boot / Quarkus:** docker-compose runs external services ONLY (the app runs via Maven)
 
 ---
 
 ## Main Runtime Template
 
-Use this template when `RUNTIME == main`.
+Use this template only when `RUNTIME == main` and at least one external service dependency is required.
 
 ### Mandatory Rules for the Camel Service
 
@@ -23,30 +27,37 @@ Use this template when `RUNTIME == main`.
 |------|--------|
 | Image | `apache/camel-jbang:{{CAMEL_VERSION}}` -- Docker Hub, **NOT** `ghcr.io/apache/camel-jbang` (does not exist) |
 | Entrypoint | The image entrypoint is `camel`. The `command:` must start with the subcommand `run`, **NOT** `camel run` (otherwise it becomes `camel camel run`) |
-| Route file | Mount the `.camel.yaml` file and list it in `command:` |
-| XSL files | Mount **every** `kaoto-datamapper-*.xsl` file individually (one `volumes:` entry per file) and list each in `command:` — Docker volumes do not support glob patterns. Omitting any XSL file causes `FileNotFoundException` at startup |
+| Route files | Mount **every** module `.camel.yaml` file in `ROUTE_FILES` individually and list every file in the single `command:` |
+| XSL files | Mount **every** file in `XSL_FILES` individually (one `volumes:` entry per file) and list every file in `command:` — Docker volumes do not support glob patterns. Omitting an XSL file causes `FileNotFoundException` at startup |
 | Properties | Mount `application.properties` and pass it via `--properties=` |
 | Port | Use the port from `camel.server.port` in `application.properties` |
 | External services | Add service definitions for design spec Dependencies section dependencies and use `depends_on:` from the Camel service |
 
+Expand `ROUTE_FILES` and `XSL_FILES` completely when materializing the template; never leave the `-1`/`-N`
+placeholders in generated output. If `XSL_FILES` is empty, omit its volume entries and command arguments. The single
+Camel service command must still list every route in `ROUTE_FILES`.
+
 ```yaml
 # ============================================
-# Docker Compose for {FLOW_NAME} (Main runtime)
+# Docker Compose for {MODULE_NAME} (Main runtime)
 # ============================================
 
 services:
-  {FLOW_NAME}:
+  {MODULE_NAME}:
     image: apache/camel-jbang:{{CAMEL_VERSION}}
-    container_name: {FLOW_NAME}
+    container_name: {MODULE_NAME}
     ports:
       - "{port}:{port}"
     volumes:
-      - ./{FLOW_NAME}.camel.yaml:/work/{FLOW_NAME}.camel.yaml:ro
+      - ./{route-file-1}.camel.yaml:/work/{route-file-1}.camel.yaml:ro
+      - ./{route-file-N}.camel.yaml:/work/{route-file-N}.camel.yaml:ro
       - ./application.properties:/work/application.properties:ro
-      - ./kaoto-datamapper-{id}.xsl:/work/kaoto-datamapper-{id}.xsl:ro
+      - ./{xslt-file-1}.xsl:/work/{xslt-file-1}.xsl:ro
+      - ./{xslt-file-N}.xsl:/work/{xslt-file-N}.xsl:ro
     working_dir: /work
     command: >
-      run {FLOW_NAME}.camel.yaml kaoto-datamapper-{id}.xsl
+      run {route-file-1}.camel.yaml {route-file-N}.camel.yaml
+      {xslt-file-1}.xsl {xslt-file-N}.xsl
       --properties=application.properties
     environment:
       CAMEL_SERVER_ENABLED: "true"
@@ -75,22 +86,20 @@ The Camel application is NOT included in docker-compose — it runs via `./mvnw 
 
 ```yaml
 # ============================================
-# Docker Compose for {FLOW_NAME} (External Services)
+# Docker Compose for {MODULE_NAME} (External Services)
 # ============================================
 
 services:
   # External services from design spec Dependencies section
   {external-service}:
     image: {image}
-    container_name: {FLOW_NAME}-{service-name}
+    container_name: {MODULE_NAME}-{service-name}
     ports:
       - "{service-port}:{service-port}"
     environment:
       # Service-specific env vars (e.g., POSTGRES_DB, KAFKA_AUTO_CREATE_TOPICS_ENABLE)
     restart: unless-stopped
 ```
-
----
 
 ---
 

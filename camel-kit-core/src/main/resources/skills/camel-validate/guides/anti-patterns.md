@@ -6,7 +6,8 @@
 
 ## When to Load This Guide
 
-Load when user requests comprehensive validation with anti-pattern detection, or when basic validation passes but you want to check for best practices violations.
+Always load this guide as part of validation. It supplies the manual anti-pattern checks and the fallback when MCP
+security analysis is unavailable.
 
 ---
 

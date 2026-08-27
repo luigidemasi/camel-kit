@@ -24,12 +24,12 @@ The design spec is the single source of truth for what gets built. It contains:
 
 ### For Greenfield Projects
 
-```markdown
+````markdown
 # [Project Name] — Design Spec
 
 **Date:** [YYYY-MM-DD]
 **Camel Version:** [full Maven version]
-**Runtime:** [JBang / Spring Boot / Quarkus]
+**Runtime:** [Main / Spring Boot / Quarkus]
 **Platform BOM Version:** [resolved platform BOM version]
 
 ---
@@ -89,13 +89,12 @@ The design spec is the single source of truth for what gets built. It contains:
    - Details: [configuration]
 
 **DataMapper:** (if applicable)
-- Source format: [JSON/XML]
-- Target format: [JSON/XML]
-- Approach: [A (useJsonBody) / B (header param)]
-- Field mappings:
-  | Source XPath | Target Element | Transform |
-  |-------------|---------------|-----------|
-  | [xpath] | [element] | [logic] |
+- Insert the exact canonical `### DataMapper: kaoto-datamapper-{id}` section selected by
+  `shared/datamapper-canonicalize.md`; do not invent a second mapping shape.
+- Preserve its selected engine: inline Groovy when both schemas are absent OR there are fewer than 20 leaf fields;
+  XSLT only when there are at least 20 leaf fields AND at least one schema.
+- Groovy sections include `Transformation Engine: Groovy (inline)` and `Format Pair`; XSLT sections include the
+  selected XSLT pattern/approach and structural mapping columns.
 
 **Sink:**
 - System: [name]
@@ -113,10 +112,14 @@ The design spec is the single source of truth for what gets built. It contains:
 - Circuit breaker: [yes/no — details if yes]
 
 **Configuration Properties:**
-```yaml
+```properties
 # [flow-name] properties
-[property-name]: "{{PLACEHOLDER}}"
+[property-name]=[concrete externalized value]
 ```
+
+Route YAML references every property as `{{property-name}}` for Main, Spring Boot, and Quarkus. Only when one
+`application.properties` value interpolates another property does syntax vary: `{{other.key}}` for Main and
+`${other.key}` for Spring Boot/Quarkus.
 
 [Repeat for each flow]
 
@@ -154,6 +157,12 @@ All flows in this spec are designed to comply with the 8 constitution rules:
 
 ## 6. Project Structure
 
+Plan the complete runtime-aware target tree. Entries marked Main and Spring Boot / Quarkus are mutually exclusive;
+include optional entries only when the design requires them. Global pipeline assets stay at the project root. Runtime
+artifacts live under the flow's optional `Target Module`; omit the entire `[target-module]/` level when the target is the
+project root. Pipeline reports shown below are planned downstream artifacts and do not exist yet when the design spec is
+first approved.
+
 ```
 [project-name]/
 ├── .camel-kit/
@@ -163,17 +172,39 @@ All flows in this spec are designed to comply with the 8 constitution rules:
 │   ├── constitution.md
 │   └── camel-kit/
 │       └── <PIPELINE_ID>/
-│           └── design-spec.md          ← this file
-├── src/main/resources/
-│   ├── camel/
-│   │   ├── [flow-1].camel.yaml
-│   │   ├── [flow-2].camel.yaml
-│   │   └── ...
-│   └── application.properties
-├── [xslt files if DataMapper used]
-└── pom.xml / docker-compose.yml
+│           ├── business-requirements.md       [migration only; created by camel-migrate]
+│           ├── design-spec.md                 ← this file
+│           ├── implementation-plan.md         [created by camel-plan]
+│           ├── execution-report.md            [created by camel-execute]
+│           ├── validation-report.md           [created by camel-validate]
+│           └── test-data/[flow-name]/...      [if synthetic test data is generated]
+├── .kaoto                                    [project root; exactly one; XSLT DataMapper only]
+└── [target-module]/                           [optional; omit this level for a root target]
+    ├── [flow-name].camel.yaml                 [Main]
+    ├── application.properties                [Main]
+    ├── schemas/...                           [Main; if schemas are required]
+    ├── kaoto-datamapper-[id].xsl             [Main; XSLT DataMapper only]
+    ├── src/
+    │   ├── main/resources/                    [Spring Boot / Quarkus]
+    │   │   ├── camel/
+    │   │   │   ├── [flow-name].camel.yaml
+    │   │   │   └── kaoto-datamapper-[id].xsl [XSLT DataMapper only]
+    │   │   ├── schemas/...                    [if schemas are required]
+    │   │   └── application.properties
+    │   └── test/resources/                    [all runtimes]
+    │       ├── [flow-name].camel.it.yaml
+    │       ├── test-data/...
+    │       ├── application-test.properties
+    │       └── jbang.properties               [Main only]
+    ├── pom.xml                                [Spring Boot / Quarkus only]
+    ├── mvnw                                   [Spring Boot / Quarkus]
+    ├── mvnw.cmd                               [Spring Boot / Quarkus]
+    ├── .mvn/wrapper/maven-wrapper.properties  [Spring Boot / Quarkus]
+    ├── run.sh                                 [Main only]
+    └── docker-compose.yaml                    [only when external services are required]
 ```
-```
+
+````
 
 ### For Migration Projects
 
@@ -195,7 +226,7 @@ Use the same structure but add:
 | [source] | [target] (MCP-verified) | [migration notes] |
 
 ### Platform Changes
-- [OSGi → Spring Boot/Quarkus]
+- [OSGi → selected eligible Main / Spring Boot / Quarkus runtime]
 - [Spring XML → YAML DSL]
 - [Java DSL → YAML DSL]
 

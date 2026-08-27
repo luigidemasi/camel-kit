@@ -11,18 +11,22 @@ public class OpenCodeGenerator extends DefaultGenerator {
 
     private static final String[] AGENTS = {
             "brainstormer", "planner", "implementer",
-            "validator", "tester", "migrator", "executor"
+            "validator", "tester", "migrator", "executor",
+            "researcher", "reviewer"
     };
 
-    private static final Map<String, String> COMMAND_DISPATCH = Map.of(
-            "camel-brainstorm",
-            "@brainstormer discover integration requirements and design Camel routes for this project",
-            "camel-plan", "@planner create an implementation plan with TDD task decomposition for this project",
-            "camel-validate", "@validator validate the Camel routes in this project",
-            "camel-migrate", "@migrator migrate the integrations to Apache Camel",
-            "camel-execute", "@executor execute the implementation plan for this project");
+    private static final String EXECUTE_COMMAND = """
+            ---
+            description: Execute a ready Camel-Kit implementation plan
+            agent: executor
+            subtask: false
+            ---
+
+            Execute the implementation plan for this project. Requested pipeline or plan: %s
+            """;
 
     private final QuteTemplateEngine templateEngine = new QuteTemplateEngine();
+    private final PersonaResourceInstaller personaInstaller = new PersonaResourceInstaller();
 
     @Override
     public void generate(InitContext ctx) throws Exception {
@@ -36,9 +40,10 @@ public class OpenCodeGenerator extends DefaultGenerator {
 
         // OpenCode-specific: generate agent definitions
         generateAgents(ctx);
+        personaInstaller.install(ctx, ".opencode/camel-kit-personas");
 
-        // OpenCode-specific: override commands with agent dispatch
-        overrideCommandsForAgents(ctx);
+        // OpenCode-specific: select the primary executor without losing command arguments.
+        generateExecuteCommand(ctx);
     }
 
     private void generateAgents(InitContext ctx) throws Exception {
@@ -54,11 +59,10 @@ public class OpenCodeGenerator extends DefaultGenerator {
         ctx.printer().println(AnsiColors.green("✓") + " Generated " + AGENTS.length + " OpenCode agent definitions");
     }
 
-    private void overrideCommandsForAgents(InitContext ctx) throws Exception {
-        for (Map.Entry<String, String> entry : COMMAND_DISPATCH.entrySet()) {
-            String filename = entry.getKey() + "." + ctx.agent().fileFormat();
-            Path cmdFile = ctx.commandsDir().resolve(filename);
-            Files.writeString(cmdFile, entry.getValue());
-        }
+    private void generateExecuteCommand(InitContext ctx) throws Exception {
+        String filename = "camel-execute." + ctx.agent().fileFormat();
+        Files.writeString(
+                ctx.commandsDir().resolve(filename),
+                EXECUTE_COMMAND.replace("%s", ctx.agent().argPlaceholder()));
     }
 }

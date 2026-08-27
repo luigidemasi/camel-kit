@@ -1,22 +1,28 @@
 ## Agent Optimization: Qwen Code
 
-### Fork-Based Research Isolation
+### Explicit Background Forks for Factual Research
 
-Use the fork model to isolate research tasks during brainstorming:
-
-- **Migration scanning:** Fork a research task to scan source project files while the main agent continues the interview. The fork inherits the full conversation context and runs in background.
-- **MCP catalog verification:** Fork a verification task to batch-check components via MCP while the main agent assembles design decisions.
-- **Documentation lookup:** Fork a knowledge-researcher query when the user mentions an unfamiliar protocol or system.
+Use Qwen Code's lowercase `agent` tool with `subagent_type: "fork"` only for self-contained factual research that can
+finish asynchronously while the active brainstorming agent continues the interview. Omitting `subagent_type` launches
+the regular general-purpose agent; it does not create a fork.
 
 ```text
-# Fork runs in background — parent continues interview
-Agent({
-  prompt: "[catalog-researcher persona + component list from interview answers]"
-  // No subagent_type → fork mode, inherits parent context
-})
+agent(
+  description="Verify Camel catalog",
+  prompt="[component list, Camel version, exact catalog questions, and a request for an evidence-only result]",
+  subagent_type="fork",
+  run_in_background=true,
+  fork_turns="all",
+  fork_tools=["read_file", "read_many_files", "glob", "grep_search", "web_fetch", "mcp__camel"]
+)
 ```
 
-**DashScope cache benefit:** Forks share the parent's system prompt prefix, so both hit the same cache — saving 80%+ tokens on concurrent research.
+Forks inherit the selected parent history and always run detached. Wait for the completion notification before using a
+fork's result in the design; never assume the result is available in the launching turn. A fork cannot dispatch any
+subagent, so give it one complete research task and never assign design judgment, critic orchestration, or nested work.
+
+Suitable fork work includes source inventory, independent documentation lookup, and catalog fact gathering. The primary
+session owns interview decisions, architecture trade-offs, design assembly, and the approval gate.
 
 ### Progress Tracking via todo_write
 
@@ -26,19 +32,7 @@ Use `todo_write` to track interview progress:
 - Check off each phase as it completes
 - If the interview is interrupted, the todo list shows which phases are done and where to resume
 
-### Named Subagent for Architecture Analysis
-
-For complex design decisions (multi-flow coordination, error handling strategy, migration mapping), delegate to a named subagent:
-
-```text
-Agent({
-  subagent_type: "camel-brainstormer",
-  prompt: "[integration-architect persona + specific design question + user's answers so far]"
-})
-```
-
-Named subagents block the parent — use them for design decisions that must complete before the interview continues.
-
 ### Explicit Context Passing
 
-Include the full interview state (user's answers, selected components, version decisions) in every fork and subagent prompt. Don't assume the subagent will discover context from files — pass it explicitly.
+Include the exact task, Camel version, relevant user answers, and expected evidence in every fork prompt. Use
+`fork_turns` only when inherited conversation context is actually required.

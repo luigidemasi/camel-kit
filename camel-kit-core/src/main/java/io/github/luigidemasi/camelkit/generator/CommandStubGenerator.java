@@ -41,6 +41,10 @@ class CommandStubGenerator {
         } else {
             content = "Read " + ctx.agent().skillsDirectory() + "/" + command.skill()
                       + "/SKILL.md and follow those instructions";
+            String placeholder = ctx.agent().argPlaceholder();
+            if (placeholder != null) {
+                content += ". Requested input: " + placeholder;
+            }
         }
         if ("toml".equals(ctx.agent().fileFormat())) {
             return wrapInToml(command.shortName(), content);

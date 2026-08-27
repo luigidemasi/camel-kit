@@ -1,26 +1,32 @@
 ---
 name: camel-execute
-description: Execute an approved implementation plan with two-stage review.
+description: Execute a ready implementation plan derived from an approved design with an adversarial pre-filter and ordered spec and quality review.
 user_invocable: false
 ---
 
 # Camel Execute — Phase 3 Orchestrator
 
-Execute the approved implementation plan by dispatching fresh subagents per task, with two-stage review after each.
+Execute the ready implementation plan derived from the approved design with target-appropriate task execution, an adversarial pre-filter, and ordered spec and quality review after each task.
 
 **Announce at start:** "I'm using the camel-execute skill to implement the plan."
 
-**Core principle:** Fresh subagent per task + two-stage review (spec then quality) = high quality, fast iteration.
+**Core principle:** Adversarial review first, then spec compliance, then code quality.
+
+**Capability rule:** When the target supports subagents, use the isolated roles and
+parallelism described below. When it does not, assume the same personas and run
+catalog research, implementation, critic lenses, staged reviews, cross-cutting
+review, and verification sequentially in the current session. Record the lack of
+fresh-context isolation; never skip a phase merely because dispatch is unavailable.
 
 ## When NOT to use this skill
 
-- No approved implementation plan exists — use `/camel-plan` first to create one
+- No implementation plan derived from an approved design exists — use `/camel-plan` first to create one
 - Questions about Apache Camel — use `/camel-knowledge` instead
 - Validation-only tasks (checking existing routes without changing them) — use `/camel-validate` instead
 - You need a design spec — use `/camel-brainstorm` first; this skill implements plans, not ideas
 
 <HARD-RULE>
-AUTONOMOUS EXECUTION: Execute ALL tasks from the plan using wave analysis. Run `{COMMAND_PREFIX} plan analyze` first to get parallel waves. Tasks within a wave can run in parallel if the agent supports it. Tasks across waves run sequentially (wave N completes before wave N+1 starts). If wave analysis is unavailable, fall back to sequential execution. Do NOT stop, pause, or ask the user between tasks or waves. The user approved the entire plan — that is your authorization.
+AUTONOMOUS EXECUTION: Execute ALL tasks from the plan using wave analysis. Run `{COMMAND_PREFIX} plan analyze` first to get parallel waves. Tasks within a wave can run in parallel if the agent supports it. Tasks across waves run sequentially (wave N completes before wave N+1 starts). If wave analysis is unavailable, fall back to sequential execution. Do NOT stop, pause, or ask the user between tasks or waves. The approved design and its generated implementation plan authorize all downstream tasks.
 </HARD-RULE>
 
 **Violating the letter of these rules is violating the spirit of these rules.**
@@ -62,8 +68,8 @@ Invoked directly (e.g., `/camel-execute` or `/camel-execute <PIPELINE_ID>`) in a
 digraph execute {
     rankdir=TB;
     
-    start [label="Read approved plan\nExtract all tasks", shape=box];
-    dispatch [label="Dispatch implementer\nsubagent for task N", shape=box];
+    start [label="Read ready plan\nExtract all tasks", shape=box];
+    dispatch [label="Run implementer role\nfor task N", shape=box];
     impl_status [label="Implementer\nstatus?", shape=diamond];
     answer_q [label="Answer questions\nprovide context", shape=box];
     
@@ -74,22 +80,31 @@ digraph execute {
     quality_review [label="Dispatch code-quality\nreviewer", shape=box];
     quality_pass [label="Quality review\npasses?", shape=diamond];
     quality_fix [label="Implementer fixes\nquality issues", shape=box];
+
+    acr_review [label="Adversarial review\nModerator + critics", shape=box];
+    acr_pass [label="ACR verdict\npasses?", shape=diamond];
+    acr_fix [label="Implementer fixes\nverified findings", shape=box];
     
     mark_done [label="Mark task complete", shape=box];
     more [label="More tasks?", shape=diamond];
     final [label="Final cross-cutting\nreview", shape=box];
-    verify [label="Internal verification\n(camel-verify subagent)", shape=box];
+    verify [label="Internal verification\n(camel-verify)", shape=box];
     done [label="Completion summary", shape=doublecircle];
-    next [label="Pipeline continues to\n/camel-validate (Stage 3)", shape=note, style=dashed];
+    next [label="Pipeline continues to\n/camel-validate (Phase 4)", shape=note, style=dashed];
     
     start -> dispatch;
     dispatch -> impl_status;
     impl_status -> answer_q [label="NEEDS_CONTEXT"];
     answer_q -> dispatch [label="re-dispatch"];
-    impl_status -> spec_review [label="DONE"];
-    impl_status -> spec_review [label="DONE_WITH_CONCERNS\n(note concerns)"];
+    impl_status -> acr_review [label="DONE"];
+    impl_status -> acr_review [label="DONE_WITH_CONCERNS\n(note concerns)"];
     impl_status -> dispatch [label="BLOCKED\n(change approach)"];
-    
+
+    acr_review -> acr_pass;
+    acr_pass -> acr_fix [label="FAIL"];
+    acr_fix -> acr_review [label="re-review"];
+    acr_pass -> spec_review [label="PASS or\nPASS_WITH_TRADEOFFS"];
+
     spec_review -> spec_pass;
     spec_pass -> spec_fix [label="FAIL"];
     spec_fix -> spec_review [label="re-review"];
@@ -170,9 +185,9 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces ALL six:
   `catalog-researcher` pre-verification summary satisfies this rule for the wave; otherwise implementer subagents must
   verify directly via MCP.
 - **Iron Law 2: Constitution Compliance** — quality reviewer checks all 8 constitution rules.
-- **Iron Law 3: No Code Without Plan & Design Approval** — this phase runs after the design spec is approved and planning is complete. NO code is generated during design or migration phases.
+- **Iron Law 3: No Code Without Design Approval and an Existing Plan** — this phase runs after the design spec is approved and planning is complete. NO code is generated during design or migration phases.
 - **Iron Law 4: Spec Compliance Before Quality** — ALWAYS spec review FIRST, then quality review. Never in parallel. Never reversed.
-- **Iron Law 5: Adversarial Code Review** — parallel Critic Lanes run after implementation and before Stage 1 review. Each critic operates in a fresh context with no accumulated session state.
+- **Iron Law 5: Adversarial Code Review** — Critic Lanes run after implementation and before Stage 1 review. Use parallel fresh contexts when supported; otherwise run the same lenses sequentially in the current session and record that isolation is unavailable.
 - **Iron Law 6: Surgical Changes** — TOUCH ONLY WHAT YOU’RE ASKED TO TOUCH. No unrelated refactoring or "cleanups."
 
 ### Rationalization Table
@@ -186,8 +201,8 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces ALL six:
 | "This task is too simple for two-stage review" | Simple tasks get simple reviews. But they still get reviews. |
 | "I'll dispatch multiple implementers in parallel without wave analysis" | Only parallelize within waves from `plan analyze`. Tasks in different waves may conflict. |
 | "The subagent can read the plan file itself" | Provide full task text. Don't make subagents read plan files. |
-| "I should ask before proceeding to the next task" | The user approved the ENTIRE plan. Execute ALL tasks without asking. |
-| "Let me check if the user wants to continue" | They already said yes — to the whole plan. Keep going. |
+| "I should ask before proceeding to the next task" | The approved design and generated plan authorize every task. Execute ALL tasks without asking. |
+| "Let me check if the user wants to continue" | The design approval already authorizes downstream execution. Keep going. |
 | "The input plan is stale but I'll ignore the warning" | Always warn about staleness. Execution will produce fresh output, but the user should know the plan may be outdated. |
 | "Let me summarize what was completed so far" | No mid-plan summaries. Print ONE LINE per task. Summary only at the END (Step 4). |
 | "The scaffolding phase is complete, ready for implementation" | Scaffolding is ONE task. The plan has N tasks. Execute all N. Don't stop at 1. |
@@ -199,7 +214,7 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces ALL six:
 - "I can run spec and quality reviews at the same time..."
 - "The implementer said it's done, I trust them..."
 - "I'll batch the reviews at the end..."
-- "I don't need to dispatch a subagent for this..."
+- "This target has no subagents, so I can skip a required role or review..."
 - "Would you like me to continue with Task N?"
 - "Shall I proceed with the next task?"
 - "Next Steps: Ready to proceed with..."
@@ -229,19 +244,19 @@ Extract ALL tasks with:
 
 ### Step 1.5: Pre-Implementation Catalog Research
 
-Before dispatching implementers for a wave, batch-verify all MCP catalog artifacts referenced in the wave's tasks. This keeps MCP response traces (~500 tokens each) out of the orchestrator and implementer contexts.
+Before implementing a wave, batch-verify all MCP catalog artifacts referenced in its tasks.
 
 1. Scan each task's referenced design spec section for components, EIPs, dataformats, and languages
 2. Deduplicate across tasks in the wave
-3. Dispatch a `catalog-researcher` subagent (from `agents/catalog-researcher.md`) with:
+3. Run the `catalog-researcher` role (from `agents/catalog-researcher.md`) in a fresh subagent when supported, or inline otherwise, with:
    - The deduplicated artifact list
    - Runtime and platformBom parameters
 4. Receive the structured verification summary
-5. If any artifact is NOT FOUND: flag it in the task context before dispatch — the implementer must find an alternative
+5. If any artifact is NOT FOUND: flag it in the task context before implementation — the implementer must find an alternative
 
-**The verification summary replaces per-implementer MCP lookups.** The implementer receives pre-verified catalog data and MUST use it as the source of truth for this wave. Iron Law 1 remains enforced via delegated MCP verification by `catalog-researcher`.
+**The verification summary replaces per-implementer MCP lookups.** The implementer receives pre-verified catalog data and MUST use it as the source of truth for this wave. Iron Law 1 remains enforced whether research is isolated or inline.
 
-Pass the verification summary to each implementer subagent as part of the context (see `guides/implementer-context.md`).
+Pass the verification summary into each implementation task context (see `guides/implementer-context.md`).
 
 ---
 
@@ -249,11 +264,12 @@ Pass the verification summary to each implementer subagent as part of the contex
 
 For each wave (sequential across waves, parallel within a wave for agents that support it). For single-conversation agents, execute tasks within each wave sequentially in plan order:
 
-#### 2a: Dispatch Implementer Subagent
+#### 2a: Run the Implementer Role
 
 Build the implementer prompt using `guides/implementer-context.md`.
 
-Dispatch a fresh subagent with:
+Use a fresh implementer subagent when supported; otherwise assume the persona and
+perform the task inline. In either case provide:
 - Agent persona (from `agents/[persona].md`)
 - Full task text from the plan
 - Relevant design spec section (read and include — don't make the subagent find it)
@@ -270,16 +286,16 @@ Dispatch a fresh subagent with:
 
 | Status | Action |
 |--------|--------|
-| **DONE** | Proceed to spec compliance review |
-| **DONE_WITH_CONCERNS** | Read concerns. If correctness/scope issues: address before review. If observations: note and proceed. |
-| **NEEDS_CONTEXT** | Provide missing context, re-dispatch same subagent |
+| **DONE** | Proceed to Adversarial Code Review (Step 2b.5) |
+| **DONE_WITH_CONCERNS** | Read concerns. If correctness/scope issues: address before review. If observations: note and proceed to Adversarial Code Review. |
+| **NEEDS_CONTEXT** | Provide missing context, then resume or re-dispatch the same role |
 | **BLOCKED** | Assess blocker: context problem → provide more context. Task too large → break it up. Plan wrong → note for user. |
 
 #### 2b.5: Adversarial Code Review (ACR)
 
-After the implementer reports DONE (or DONE_WITH_CONCERNS), run the Adversarial Code Review pre-filter. This dispatches parallel Critic Lanes via a Moderator subagent to catch defects before the more expensive two-stage review.
+After the implementer reports DONE (or DONE_WITH_CONCERNS), run the Adversarial Code Review pre-filter before the two-stage review.
 
-1. **Dispatch ACR Moderator** subagent (from `agents/acr-moderator.md`) with:
+1. **Run the ACR Moderator role** (from `agents/acr-moderator.md`) in a fresh subagent when supported, or inline otherwise, with:
    - The generated files (read contents, not just paths)
    - The design spec section for this task
    - Source contracts if available for migration pipelines
@@ -290,7 +306,7 @@ After the implementer reports DONE (or DONE_WITH_CONCERNS), run the Adversarial 
    - Performance — if throughput/aggregation/batch
    - Boundary Compliance — if data transformation/mapping
    - Behavioral Equivalence — if migration pipeline
-3. **Moderator dispatches critics** in parallel as fresh-context subagents (model: most capable)
+3. **Moderator runs critics** in parallel fresh contexts when supported; otherwise applies the same critic lenses sequentially in the current session and records the missing isolation
 4. **Moderator synthesizes** findings: deduplicate, prioritize, produce verdict
 5. **Handle verdict:**
    - PASS → proceed to spec compliance review (Step 2c)
@@ -305,20 +321,22 @@ See `guides/adversarial-code-review.md` for full workflow, convergence tracking,
 
 #### 2c: Spec Compliance Review (Stage 1)
 
-Dispatch spec-compliance-reviewer subagent using `guides/spec-reviewer-criteria.md`.
+Run the spec-compliance-reviewer role using `guides/spec-reviewer-criteria.md`,
+isolated when supported and inline otherwise.
 
 Provide:
 - The generated files (or paths to them)
 - The design spec section this task implements
 - The task's review specification
 
-If review FAILS: return feedback to implementer, re-dispatch implementer to fix, re-review. Loop until pass.
+If review FAILS: return feedback to implementer, re-dispatch implementer to fix, and re-review, for at most 3 review iterations. If Actionable findings persist after 3 rounds, escalate with the unresolved findings and documented trade-offs.
 
 **DO NOT proceed to quality review until spec review passes.**
 
 #### 2d: Code Quality Review (Stage 2)
 
-Dispatch code-quality-reviewer subagent using `guides/quality-reviewer-criteria.md`.
+Run the code-quality-reviewer role using `guides/quality-reviewer-criteria.md`,
+isolated when supported and inline otherwise.
 
 Provide:
 - The generated files (or paths to them)
@@ -337,9 +355,9 @@ Then IMMEDIATELY start Step 2a for the next task. No summary, no "Next Steps", n
 <HARD-RULE>
 The per-task loop is AUTOMATIC and UNINTERRUPTED.
 
-After completing a task (implement → spec review → quality review):
+After completing a task (implement → adversarial review → spec review → quality review):
 1. Print ONE LINE: `✅ Task N complete. Starting Task N+1...`
-2. IMMEDIATELY begin dispatching the next task's implementer subagent
+2. IMMEDIATELY begin the next task's implementer role
 
 Do NOT:
 - Ask "Would you like me to continue?" or "Shall I proceed with Task N?"
@@ -348,33 +366,34 @@ Do NOT:
 - Pause for confirmation between tasks
 - Say "The camel-execute/camel-migrate command has completed" (it hasn't — there are more tasks)
 
-The user approved the entire plan — that approval covers ALL tasks. Execute them ALL without interruption, following wave policy (parallel within a wave where supported, sequential across waves). The ONLY time you stop is after the LAST task, when you print the Step 4 completion summary.
+The approved design and generated implementation plan authorize ALL tasks. Execute them ALL without interruption, following wave policy (parallel within a wave where supported, sequential across waves). The ONLY time you stop is after the LAST task, when you print the Step 4 completion summary.
 </HARD-RULE>
 
-### Step 3: Final Cross-Cutting Review (Subagent-Isolated)
+### Step 3: Final Cross-Cutting Review
 
-After all tasks complete, dispatch the cross-cutting review as a subagent to keep review traces out of the orchestrator context:
+After all tasks complete, run the cross-cutting review in an isolated subagent when supported, or inline otherwise:
 
-1. Dispatch `code-quality-reviewer` subagent (from `agents/code-quality-reviewer.md`) with:
+1. Run the `code-quality-reviewer` role (from `agents/code-quality-reviewer.md`) with:
    - ALL generated route file paths
    - Constitution rules (`docs/constitution.md`)
    - Instruction to check cross-route consistency (naming conventions, property patterns, error handling consistency)
-2. The subagent checks constitution compliance across all routes (not just individually) and returns the structured review report
-3. Run the smoke test (`camel-implement/guides/smoke-test.md`). MANDATORY when `RUNTIME=main` — JBang has no compile step, so the smoke test is the only pre-delivery execution check. For spring-boot/quarkus, run it if the plan includes one. (This stays in the orchestrator context — it's a build command, not a review.)
-4. **Generate cross-cutting review report** — include the cross-route consistency findings in the Step 4 completion summary. The full validation report is generated by `/camel-validate` (Stage 3), not by this step.
+2. Check constitution compliance across all routes (not just individually) and produce the structured review report
+3. **Generate cross-cutting review report** — include the cross-route consistency findings in the Step 4 completion
+   summary. Do not run a smoke/build command here; Step 3.5 owns the single project-wide runtime verification pass. The
+   full validation report is generated by `/camel-validate` (Phase 4), not by this step.
 
-Only the structured report flows back to the orchestrator. The full review trace (file reads, MCP calls, reasoning) stays in the subagent's context.
+When isolation is supported, only the structured report flows back to the orchestrator. Inline targets retain the same evidence in the active context.
 
-### Step 3.5: Verification Phase (Subagent-Isolated)
+### Step 3.5: Verification Phase
 
-After the cross-cutting review, dispatch the full verification loop as a subagent to keep build output and fix traces out of the orchestrator context.
+After the cross-cutting review, run the full verification loop in an isolated subagent when supported, or inline otherwise.
 
-1. Dispatch a verification subagent with:
+1. Run the verification role with:
    - The `camel-verify` skill (`skills/camel-verify/SKILL.md`)
    - Both guides: `verify-loop.md` and `error-taxonomy.md`
    - Project configuration (runtime, Camel version, module path)
-2. The subagent executes the full verification loop (3 phases: build, Citrus tests, report)
-3. Only the structured verification report flows back to the orchestrator
+2. Execute the full verification loop (3 phases: build or Camel Main startup smoke, Citrus tests, report)
+3. Produce the structured verification report; when isolated, return only that report to the orchestrator
 
 **Key rules:**
 - Verification runs **once** after all tasks complete — not per-task. Camel loads all routes at startup, so per-task verification would fail on routes that depend on other not-yet-implemented routes.
@@ -404,7 +423,6 @@ Review Results:
   Code Quality: [N/N] tasks passed ([M] non-critical issues noted)
 
 Cross-Cutting Review: PASS/FAIL
-Smoke Test: PASS/FAIL/NOT_RUN
 
 Verification: PASS/PARTIAL/FAIL/NOT_RUN
   [Include the full verification report from Step 3.5]
@@ -420,18 +438,18 @@ Save the completion summary as `docs/camel-kit/<PIPELINE_ID>/execution-report.md
 
 **Post-completion transition (invocation mode dependent):**
 
-- **Chained mode:** auto-invoke `camel-validate` (the pipeline continues to Stage 3)
+- **Chained mode:** auto-invoke `camel-validate` (the pipeline continues to Phase 4)
 - **Standalone mode:** print confirmation and STOP. Do NOT auto-invoke validate.
 
 ---
 
 ## Never
 
-- Start implementation without an approved plan
+- Start implementation without a plan derived from an approved design
 - Skip reviews (spec compliance OR code quality)
 - Run reviews in parallel or reversed order
 - Dispatch implementers simultaneously outside of wave analysis — only parallelize within waves from `plan analyze`, and only for agents that support concurrent conversations
-- Make subagents read the plan file (provide full text)
+- Make an isolated role read the plan file without receiving full task context
 - Ignore subagent questions
 - Accept "close enough" on spec compliance
 - Skip re-review after fixes

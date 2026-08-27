@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
@@ -90,6 +91,46 @@ class WorkflowManifestTest {
         assertFalse(manifest.skills().isEmpty());
         assertFalse(manifest.stages().isEmpty());
         assertFalse(manifest.mcpServer("camel-knowledge").allowedTools().isEmpty());
+    }
+
+    @Test
+    void bundledDesignStagesMatchShippedArtifactContract() throws Exception {
+        WorkflowManifest manifest = WorkflowManifestLoader.loadDefault();
+        Map<String, WorkflowManifest.WorkflowStage> stages = manifest.stages().stream()
+                .collect(Collectors.toMap(WorkflowManifest.WorkflowStage::id, stage -> stage));
+
+        assertEquals(List.of("design-spec"), stages.get("brainstorm").outputs());
+        assertEquals(List.of("migration-analysis", "business-requirements", "design-spec"),
+                stages.get("migrate").outputs());
+        assertEquals(List.of("approved-design-spec"), stages.get("plan").inputs());
+        assertEquals(List.of("implementation-plan", "approved-design-spec"), stages.get("execute").inputs());
+        assertTrue(manifest.artifacts().stream()
+                .anyMatch(artifact -> "business-requirements".equals(artifact.id())
+                        && artifact.producedBy().equals(List.of("camel-migrate"))));
+        assertTrue(manifest.stages().stream()
+                .flatMap(stage -> Stream.concat(stage.inputs().stream(), stage.outputs().stream()))
+                .noneMatch(value -> value.equals("brd") || value.equals("tdds")));
+    }
+
+    @Test
+    void bundledRuntimeVerificationIsEmbeddedInExecutionReport() throws Exception {
+        WorkflowManifest manifest = WorkflowManifestLoader.loadDefault();
+        Map<String, WorkflowManifest.WorkflowStage> stages = manifest.stages().stream()
+                .collect(Collectors.toMap(WorkflowManifest.WorkflowStage::id, stage -> stage));
+
+        assertEquals(List.of("routes", "application-properties", "pom", "tests", "execution-report"),
+                stages.get("execute").outputs());
+        assertEquals(List.of("routes", "execution-report"), stages.get("validate").inputs());
+        assertTrue(stages.get("verify").outputs().isEmpty());
+        assertTrue(manifest.artifacts().stream()
+                .noneMatch(artifact -> "verification-report".equals(artifact.id())));
+
+        String executeSkill = Files.readString(resourcePath("skills/camel-execute/SKILL.md"));
+        String bobExecute = Files.readString(resourcePath("templates/bob/gates/camel-execute.md"));
+        String bobValidate = Files.readString(resourcePath("templates/bob/gates/camel-validate.md"));
+        assertTrue(executeSkill.contains("full verification report"));
+        assertTrue(bobExecute.contains("Verification Report:"));
+        assertFalse(bobValidate.contains("verification-report.md"));
     }
 
     @Test

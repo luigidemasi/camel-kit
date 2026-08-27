@@ -29,13 +29,17 @@ class DefaultGeneratorTest {
     Path tempDir;
 
     private InitContext createContext(String agentName) {
+        return createContext(agentName, tempDir, "camel-kit");
+    }
+
+    private InitContext createContext(String agentName, Path projectDir, String commandPrefix) {
         AgentConfig agent = AgentRegistry.get(agentName);
         String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf("/"));
-        Path commandsDir = tempDir.resolve(agent.folder());
-        Path skillsDir = tempDir.resolve(agentBaseFolder + "/skills");
+        Path commandsDir = projectDir.resolve(agent.folder());
+        Path skillsDir = projectDir.resolve(agentBaseFolder + "/skills");
         return new InitContext(
-                agent, agentName, commandsDir, skillsDir, tempDir,
-                "camel-kit", Printer.noop());
+                agent, agentName, commandsDir, skillsDir, projectDir,
+                commandPrefix, Printer.noop());
     }
 
     @Test
@@ -75,6 +79,29 @@ class DefaultGeneratorTest {
     }
 
     @Test
+    void substitutesStandaloneAndPluginCommandPrefixesAcrossGeneratedMarkdown() throws Exception {
+        for (String commandPrefix : List.of("camel-kit", "camel kit")) {
+            Path projectDir = tempDir.resolve(commandPrefix.contains(" ") ? "plugin" : "standalone");
+            InitContext ctx = createContext("claude", projectDir, commandPrefix);
+            new ClaudeGenerator().generate(ctx);
+
+            String execute = Files.readString(ctx.skillsDir().resolve("camel-execute/SKILL.md"));
+            assertTrue(execute.contains(commandPrefix + " plan analyze"));
+            String graphGuide = Files.readString(
+                    ctx.skillsDir().resolve("camel-brainstorm/guides/migration-graph-analysis.md"));
+            assertTrue(graphGuide.contains(commandPrefix + " graph stats"));
+
+            try (var files = Files.walk(ctx.skillsDir())) {
+                for (Path markdown : files.filter(Files::isRegularFile)
+                        .filter(path -> path.getFileName().toString().endsWith(".md"))
+                        .toList()) {
+                    assertFalse(Files.readString(markdown).contains("{COMMAND_PREFIX}"), markdown.toString());
+                }
+            }
+        }
+    }
+
+    @Test
     void generatesMcpConfig() throws Exception {
         InitContext ctx = createContext("bob");
         new DefaultGenerator().generate(ctx);
@@ -107,6 +134,12 @@ class DefaultGeneratorTest {
             } else if (PI.equals(agentName)) {
                 assertEquals(implementedKnowledgeTools, jsonArrayToList(knowledgeServer.path("directTools")),
                         agentName + " directTools must only include implemented Knowledge MCP tools");
+            } else if ("qwen".equals(agentName)) {
+                assertEquals(implementedKnowledgeTools, jsonArrayToList(knowledgeServer.path("includeTools")),
+                        agentName + " includeTools must only include implemented Knowledge MCP tools");
+            } else if ("opencode".equals(agentName)) {
+                assertFalse(knowledgeServer.has("autoApprove"));
+                assertFalse(knowledgeServer.has("alwaysAllow"));
             } else {
                 assertEquals(implementedKnowledgeTools, jsonArrayToList(knowledgeServer.path("autoApprove")),
                         agentName + " autoApprove must only include implemented Knowledge MCP tools");

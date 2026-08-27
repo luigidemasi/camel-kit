@@ -234,9 +234,29 @@ class ShippedAssetStructureTest {
                 assertFalse(Files.exists(ctx.projectDir().resolve(legacyCommands)),
                         agentName + " must not generate command scaffolding");
             }
+            assertGeneratedMarkdownResolvesCommandPrefix(agentName, ctx);
             assertGeneratedShipDelegate(agentName, ctx, shipSkillOnly);
             assertRetiredShipAssetsWereCleaned(agentName, ctx, shipSkillOnly);
             assertGeneratedMcpConfigIsValid(agentName, ctx);
+        }
+    }
+
+    private static void assertGeneratedMarkdownResolvesCommandPrefix(String agentName, InitContext ctx)
+            throws IOException {
+        try (Stream<Path> files = Files.walk(ctx.projectDir())) {
+            List<String> unresolved = files.filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().endsWith(".md"))
+                    .filter(path -> {
+                        try {
+                            return Files.readString(path).contains("{COMMAND_PREFIX}");
+                        } catch (IOException e) {
+                            throw new java.io.UncheckedIOException(e);
+                        }
+                    })
+                    .map(path -> ctx.projectDir().relativize(path).toString())
+                    .toList();
+            assertTrue(unresolved.isEmpty(),
+                    agentName + " generated Markdown retains {COMMAND_PREFIX}: " + unresolved);
         }
     }
 
@@ -541,7 +561,9 @@ class ShippedAssetStructureTest {
                 missingTraits.add(source + " did not add sentinel to generated " + targetDisplay);
             }
 
-            String traitContent = Files.readString(traitFile).strip();
+            String traitContent = Files.readString(traitFile)
+                    .replace("{COMMAND_PREFIX}", ctx.commandPrefix())
+                    .strip();
             if (!traitContent.isEmpty() && !generatedContent.contains(traitContent)) {
                 missingTraits.add(source + " content was not appended to generated " + targetDisplay);
             }

@@ -1,41 +1,15 @@
 ## Agent Optimization: OpenCode
 
-### LLM-Level Parallel Tool Calls
+### Primary-Session Brainstorming
 
-OpenCode supports parallel tool calls at the LLM level — multiple tool call blocks in a single response execute concurrently. Leverage this during brainstorming:
+`/camel-brainstorm` loads this skill in the primary session so user questions, approval, command arguments, and the plan handoff remain available. Do not delegate the complete workflow to the generated `brainstormer` subagent.
 
-- Read the input requirements file and existing design spec (if amending) in a single response
-- Load multiple guide files in parallel when entering a new interview phase
-- Run MCP catalog verification alongside design document reads
+Perform requirements discovery and the ordered interview in the primary session. The generated `brainstormer` profile is only for explicitly bounded, non-interactive discovery work and cannot own approval or phase handoff.
 
-### Agent Type for Brainstorming
+### Parallel Tool Calls
 
-Use the `Plan` agent type for the brainstorming phase:
-
-- `Plan` is optimized for structured analysis and design output
-- Read-only access prevents accidental file modifications during the interview
-- Subagent dispatch via `task` is available if needed for migration source scanning
-
-### Step Budget
-
-Budget `steps: 200` for the brainstorming phase. The interview can be lengthy — don't cut it short. Distribute steps across phases:
-
-- Discovery phase: ~80 steps (requirements gathering, migration scanning)
-- Component selection: ~60 steps (MCP catalog verification, pattern research)
-- Design assembly: ~60 steps (design spec generation, version selection)
-
-### Migration Source Scanning
-
-When the user is migrating from an existing platform, use `Explore` subagents for source analysis:
-
-- Dispatch an `Explore` subagent with `steps: 30` to scan the source project structure
-- The explorer returns a summary of classes, endpoints, and integration patterns
-- Use the summary to inform component mapping decisions during the interview
+Independent reads, searches, and MCP lookups may be issued together in one response. Keep user interview questions ordered and wait for each answer before advancing the design.
 
 ### Opt-In LSP for Design Validation
 
-If `lsp` is available and the user has an existing codebase:
-
-- Use `lsp` find-references to verify that endpoints referenced in the design actually exist
-- Use `lsp` hover to inspect types when mapping existing beans to Camel processors
-- Fall back to grep-based validation if LSP is unavailable
+If `lsp` is available and the user has an existing codebase, use it to verify referenced endpoints, bean types, and method signatures. Fall back to read and search tools when LSP is unavailable.

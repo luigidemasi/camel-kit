@@ -10,7 +10,7 @@ canonicalization). If the header says `Groovy (inline)` → load `datamapper-gro
 
 | Artifact | Step | File | Location |
 |----------|------|------|----------|
-| XSLT stylesheet | Step 3 (approach guide) | `kaoto-datamapper-{id}.xsl` | Project root (JBang) or `src/main/resources/camel/` (Spring Boot/Quarkus) |
+| XSLT stylesheet | Step 3 (approach guide) | `kaoto-datamapper-{id}.xsl` | Runtime-aware `ROUTE_DIR` from the orchestrator |
 | YAML step injection | Step 4 (approach guide) | `{flow-name}.camel.yaml` (step block added) | |
 | Kaoto metadata | Step 5 (this guide) | **`.kaoto`** (project root, exactly this name) | Project root |
 
@@ -273,7 +273,7 @@ After injecting the Camel YAML step (Step 4), verify the route YAML matches the 
 | Rule | Correct | WRONG (do NOT do this) |
 |------|---------|------------------------|
 | Filename | `.kaoto` | ~~`kaoto-datamapper-{id}.kaoto`~~, ~~`{flow-name}.kaoto`~~ |
-| Location | Project root (same directory as `.camel.yaml`) | NOT in `.camel-kit/` |
+| Location | Project root | NOT in `.camel-kit/` or a target module |
 | Format | Kaoto's internal JSON format (see template below) | NOT a custom JSON schema |
 | One file | Single `.kaoto` file for ALL DataMapper mappings in the project | NOT one file per mapping |
 
@@ -336,17 +336,19 @@ After injecting the Camel YAML step (Step 4), verify the route YAML matches the 
 
 ---
 
-## Step 6: Maven Dependency
+## Step 6: Runtime Dependency
 
 ### XSLT Engine
 
-Check `pom.xml`. If the XSLT Saxon dependency is not already declared, add the runtime-appropriate artifact:
+Declare the XSLT Saxon dependency in the selected runtime's dependency file:
 
-| Runtime | GroupId | ArtifactId |
-|---------|---------|------------|
-| Spring Boot | `org.apache.camel.springboot` | `camel-xslt-saxon-starter` |
-| Quarkus | `org.apache.camel.quarkus` | `camel-quarkus-xslt-saxon` |
-| JBang | *(auto-discovered from `xslt-saxon:` URI — no explicit dependency needed)* | |
+| Runtime | Coordinate | Declared In |
+|---------|------------|-------------|
+| Spring Boot | `org.apache.camel.springboot:camel-xslt-saxon-starter` | module `pom.xml` |
+| Quarkus | `org.apache.camel.quarkus:camel-quarkus-xslt-saxon` | module `pom.xml` |
+| Main | `org.apache.camel:camel-xslt-saxon` | module-root `application.properties` as `camel.jbang.dependencies` |
+
+Main never creates or checks a POM and does not rely on URI auto-discovery for this contract.
 
 ### Groovy Engine
 

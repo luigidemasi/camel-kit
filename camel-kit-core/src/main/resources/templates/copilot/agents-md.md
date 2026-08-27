@@ -8,7 +8,7 @@ Use `.github/copilot-instructions.md` as the primary instructions file. For inte
 
 1. Verify all Camel components, EIPs, data formats, and endpoint options through MCP before use.
 2. Read and follow `docs/constitution.md`.
-3. Do not implement without a user-approved spec or plan.
+3. Do not implement until the design spec is user-approved and a task-based plan exists.
 4. Read Camel version values only from `.camel-kit/config.properties`.
 5. Run the generated application or equivalent verification loop after implementation.
 

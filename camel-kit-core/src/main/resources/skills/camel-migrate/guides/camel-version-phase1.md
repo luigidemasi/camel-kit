@@ -155,12 +155,19 @@ Platform-specific:
 For each ⚠ flagged item, ask the user ONE question at a time:
 
 - **Removed components:** "Component `[name]` was removed in Camel [version] with no direct replacement. What should we use instead? Options: [suggest alternatives based on context]"
-- **Platform decisions:** "Your project uses Blueprint/OSGi. Target runtime options: (a) Spring Boot (recommended), (b) Camel Main (lightweight), (c) Quarkus"
+- **Platform decisions:** If all Java/Blueprint logic has a supported YAML/inline Groovy translation, offer Spring Boot,
+  Camel Main, or Quarkus. If any Java processor, bean, or configuration must remain, offer only Spring Boot or Quarkus.
 - **Business context:** Use information from the pre-populated summary. Only ask what cannot be inferred from source code.
 
 Skip questions already answered in the pre-populated summary from `camel-migrate`.
 
 **Note:** The target runtime has already been persisted to `.camel-kit/config.properties` by the `camel-migrate` orchestrator (Step 5). If the user changes their runtime preference during this phase, update `.camel-kit/config.properties` accordingly.
+
+<HARD-RULE>
+Before producing the business requirements, reject `RUNTIME=main` if any Java processor, bean, configuration class, or
+Blueprint logic still requires Java implementation. Return to runtime selection and require Spring Boot or Quarkus.
+Camel Main is allowed only when every such artifact is fully translated to supported YAML/inline Groovy.
+</HARD-RULE>
 
 ### Step 1.5 — Produce business requirements
 
@@ -209,12 +216,12 @@ The following rules from `docs/constitution.md` apply to every generated route:
 - Route IDs follow `<domain>-<action>[-<qualifier>]` naming (Naming Conventions)
 - Every route declares a `routeId` and a `description` (Observability)
 - All connection parameters externalised to `application.properties` — no hardcoded values (External Configuration)
-- Dead Letter Channel for failed messages (Error Handling — enforced by `/camel-validate`)
+- The future `/camel-validate` report should flag missing error handling where the approved design requires it
 
 ## Success Criteria
 - [ ] All [N] routes have equivalent Camel 4.x YAML route
 - [ ] All components verified against Camel [CAMEL_VERSION] catalog
-- [ ] All flows pass `/camel-validate`
+- [ ] `/camel-validate` findings are reviewed and resolved or explicitly accepted
 - [ ] Behaviour matches original routes
 
 ## Next Steps

@@ -136,7 +136,7 @@ COMPONENTS USED:
 POTENTIAL MIGRATION CONCERNS:
   - [deprecated component X → replacement Y]
   - [platform-specific feature Z]
-  - [DataWeave transformation → XSLT conversion needed]
+  - [DataWeave transformation → canonical inline Groovy or XSLT mapping needed]
   ...
 ```
 
@@ -242,7 +242,8 @@ Which platform should we target?
 [Concern N of M] — DataWeave Conversion
 
 I found DataWeave transformations in your project.
-In Camel 4.x, the equivalent approach is XSLT with the DataMapper pattern.
+Camel-Kit canonicalizes each mapping first: choose Groovy when both schemas are absent OR there are fewer than 20 leaf
+fields; choose XSLT only when there are at least 20 leaf fields AND at least one schema.
 
 I detected [N] DataWeave transformations. Do you have example input/output
 messages I can reference, or should I infer the mappings from the DataWeave code?
@@ -370,8 +371,9 @@ For EACH route to be migrated, design the Camel 4.x equivalent:
    - Map infrastructure beans (datasources, connection factories, AI model configs) through the Configuration Ladder in `skills/shared/forage.md` — prefer `forage.*` properties over `camel.beans.*` in the migration target.
 
 2. **Handle transformations:**
-   - DataWeave → XSLT: load `mule-dataweave-conversion.md`
-   - XSLT field mapping: load `shared/datamapper-canonicalize.md`
+   - Analyze DataWeave with `mule-dataweave-conversion.md`
+   - Load `shared/datamapper-canonicalize.md` before any engine-specific conversion; use its inline Groovy or XSLT
+     decision unchanged
 
 3. **Design error handling:**
    - Map source error handling to Camel equivalent

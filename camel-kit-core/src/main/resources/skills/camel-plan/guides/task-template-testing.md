@@ -7,16 +7,22 @@
 
 ## Test Task Sequence
 
-Test tasks come after all implementation and validation tasks. Generate one test task per flow.
+Test tasks come after the implementation artifacts they exercise. Generate one test task per flow.
 
 The plan MUST include testing tasks in the `yaml plan-metadata` block. Test tasks should consume the route, endpoint,
 schema, test data, bean, and external service resources they need, and provide generated `testData` and test files.
-Use `dependsOn` when a test must wait for a validation or smoke-test task even without a shared logical resource.
+Use `dependsOn` for implementation tasks whose outputs the test consumes. Do not
+depend on a separate validation or smoke-test task: `camel-execute` always runs runtime
+verification once after all planned tasks. In chained mode it then invokes static
+validation automatically; after a standalone execution, validation is an explicit next command.
 
 ### Task Template: Generate Integration Tests (per flow)
 
 ```markdown
 ### Task N: Generate Integration Tests — [flow-name]
+
+Resolve `TEST_DIR` as the optional `[MODULE_DIR]` prefix plus `src/test/resources/`. It is always relative and ends in
+`/`; omit the entire `[MODULE_DIR]` prefix when the target module is the project root.
 
 **Agent:** test-engineer
 
@@ -24,7 +30,8 @@ Use `dependsOn` when a test must wait for a validation or smoke-test task even w
 - Create: `[MODULE_DIR]src/test/resources/[flow-name].camel.it.yaml`
 - Create: `[MODULE_DIR]src/test/resources/test-data/[flow-name]-input.[ext]`
 - Create: `[MODULE_DIR]src/test/resources/test-data/[flow-name]-expected.[ext]`
-- Modify: `[MODULE_DIR]pom.xml` (add test dependencies if not present)
+- Create/Modify: `{TEST_DIR}jbang.properties` (Main only; add test dependencies if not present)
+- Modify: `[MODULE_DIR]pom.xml` (Spring Boot/Quarkus only; add test dependencies if not present)
 
 **Guides to Load:**
 - `camel-test/guides/route-analysis.md` — identify testable behaviors
@@ -50,7 +57,8 @@ Use `dependsOn` when a test must wait for a validation or smoke-test task even w
   - Mock endpoints for external systems
   - Test data preparation
 - [ ] Load test-configuration.md to set up infrastructure:
-  - Testcontainers for: [list external services]
+  - Testcontainers for: [containerized databases/brokers required by this flow]
+  - Mock endpoints for: [external HTTP/SaaS APIs and other services without a required local container]
   - Application properties override for test environment
 - [ ] Create test data files:
   - Input: representative test message in [format]
@@ -59,11 +67,13 @@ Use `dependsOn` when a test must wait for a validation or smoke-test task even w
   - Happy path — end-to-end success
   - Error handling — error triggers DLQ/retry
   - Invalid input — malformed input handled
-- [ ] Add test dependencies to pom.xml if not present:
+- [ ] For Main, add test dependencies to `{TEST_DIR}jbang.properties`; do not create a `pom.xml`
+- [ ] For Spring Boot/Quarkus, add test dependencies to `[MODULE_DIR]pom.xml` if not present:
   - `org.citrusframework:citrus-*`
   - `org.testcontainers:testcontainers`
-  - `org.testcontainers:[module]` for each external service
-- [ ] Verify: `camel test run src/test/resources/[flow-name].camel.it.yaml` passes
+  - `org.testcontainers:[module]` for each required containerized database/broker
+- [ ] Verify: `camel test run [MODULE_DIR]src/test/resources/[flow-name].camel.it.yaml` exits 0 with a passing test
+  summary; omit the entire `[MODULE_DIR]` prefix at the project root
 
 **Review:**
 - [ ] Spec compliance: tests cover all behaviors in design spec
@@ -87,7 +97,7 @@ Include these in every test task:
 
 ## Test Dependencies Reference
 
-Standard test dependencies for Camel projects:
+For Spring Boot and Quarkus projects, add standard test dependencies to `pom.xml`:
 
 ```xml
 <!-- Citrus -->
@@ -114,6 +124,9 @@ Standard test dependencies for Camel projects:
     <scope>test</scope>
 </dependency>
 ```
+
+For Main projects, declare the required artifacts through `run.deps` in `{TEST_DIR}jbang.properties` as described in
+`camel-test/guides/test-generation.md`; do not create a `pom.xml`.
 
 Add module-specific Testcontainers dependencies based on external services:
 - PostgreSQL: `org.testcontainers:postgresql`

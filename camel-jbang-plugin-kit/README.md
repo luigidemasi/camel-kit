@@ -1,91 +1,85 @@
 # Camel Kit JBang Plugin
 
-A Camel JBang plugin that provides AI-powered Camel integration design capabilities directly through the `camel` CLI.
-
-## Installation
-
-### From Maven Central (after release)
-
-```bash
-camel plugin add kit \
-  -g io.github.luigidemasi \
-  -a camel-kit-jbang-plugin \
-  -v 0.2.1 \
-  -d "Design Apache Camel Integrations with AI"
-```
-
-### Manual Configuration
-
-Add to `~/.camel-jbang-plugins.json`:
-
-```json
-{
-  "plugins": {
-    "kit": {
-      "name": "kit",
-      "command": "kit",
-      "description": "Design Apache Camel Integrations with AI",
-      "firstVersion": "4.8.0",
-      "dependency": "io.github.luigidemasi:camel-kit-jbang-plugin:0.2.1"
-    }
-  }
-}
-```
-
-## Usage
-
-Once installed, you can use camel-kit commands through the `camel` CLI:
-
-### Initialize a New Project
-
-```bash
-# Initialize in a new directory (IBM Bob 2 by default)
-camel kit init my-integration
-
-# Initialize in current directory
-camel kit init --here
-
-# Specify AI agent (bob2, bob, gemini, claude, qwen, or opencode)
-camel kit init my-integration --ai claude
-
-# Specify Camel version
-camel kit init my-integration -v 4.8.0
-```
-
-## Available Commands
-
-- `camel kit init` - Initialize a new Camel-Kit project with AI agent configuration
-- `camel kit validate` - Validate Camel routes (coming soon)
+A Camel JBang plugin that exposes Camel-Kit commands under `camel kit`.
 
 ## Requirements
 
-- Apache Camel 4.8.0 or higher
+- Apache Camel JBang 4.18.0 or higher
 - JDK 17 or higher
 
-## How It Works
+## Release Channels
 
-This plugin integrates camel-kit functionality into the Camel JBang CLI:
+| Channel | Install source | Plugin surface |
+|---------|----------------|----------------|
+| Stable `0.3.1` | Maven Central | `camel kit init`; agents `bob`, `gemini`, and `claude` |
+| Current `0.3.2-SNAPSHOT` | Source build and local Maven repository | `init`, `doctor`, `doc`, `graph`, `plan`, `nextId`, and `ship`; all nine current agents |
 
-1. **Plugin Discovery**: Uses `@CamelJBangPlugin` annotation and SPI service loading
-2. **Command Registration**: Adds `kit` subcommand to `camel` CLI at runtime
-3. **Core Integration**: Delegates to `camel-kit-core` for actual functionality
-4. **Adapter Pattern**: Bridges between Camel JBang's `CamelCommand` and camel-kit's command structure
+Use an explicit version. Maven Central's stable `0.3.1` does not provide the current-main command and agent surface.
+
+### Stable 0.3.1
+
+```bash
+camel plugin add kit \
+  --gav io.github.luigidemasi:camel-jbang-plugin-kit:0.3.1 \
+  --description "Design Apache Camel Integrations with AI"
+
+camel kit init my-integration --ai claude
+```
+
+### Current 0.3.2-SNAPSHOT from Source
+
+```bash
+git clone https://github.com/luigidemasi/camel-kit.git
+cd camel-kit
+./mvnw clean install -DskipTests
+
+camel plugin add kit \
+  --gav io.github.luigidemasi:camel-jbang-plugin-kit:0.3.2-SNAPSHOT \
+  --description "Design Apache Camel Integrations with AI"
+
+camel kit --help
+```
+
+Use `camel plugin add` rather than editing `~/.camel-jbang-plugins.json` manually; the command records the exact plugin coordinate and description.
+
+## Current Snapshot Usage
+
+```bash
+# IBM Bob 2 is the default agent
+camel kit init my-integration
+
+# Initialize in the current directory for any supported agent
+camel kit init --here --ai codex
+
+# Inspect the generated workspace
+camel kit doctor
+```
+
+The current source-built snapshot supports `bob2`, `bob`, `gemini`, `claude`, `codex`, `copilot`, `pi`, `qwen`, and `opencode`.
+
+## Current Snapshot Commands
+
+| Command | Purpose |
+|---------|---------|
+| `camel kit init` | Initialize a Camel-Kit project |
+| `camel kit doctor` | Diagnose a generated workspace |
+| `camel kit doc` | Manage pipeline document metadata and staleness |
+| `camel kit graph` | Query the project graph |
+| `camel kit plan` | Analyze implementation-plan execution waves |
+| `camel kit nextId` | Create the next pipeline ID |
+| `camel kit ship` | Run or control the local Ship workflow |
+
+Stable `0.3.1` exposes only `camel kit init`.
 
 ## Development
 
-Build the plugin:
-
-```bash
-./mvnw clean install -pl camel-kit-jbang-plugin -am
-```
-
-Test locally by adding the JAR to Camel JBang classpath or installing from local repository.
+The plugin uses `@CamelJBangPlugin` discovery and delegates its commands to `camel-kit-core`. See the [root installation guide](../README.md#release-channels) for standalone JBang options and the full current feature surface.
 
 ## Related Projects
 
-- [Camel Kit](https://github.com/luigidemasi/camel-kit) - Main camel-kit project
-- [Apache Camel](https://camel.apache.org/) - Integration framework
-- [Camel JBang](https://camel.apache.org/manual/camel-jbang.html) - Camel command-line tool
+- [Camel Kit](https://github.com/luigidemasi/camel-kit)
+- [Apache Camel](https://camel.apache.org/)
+- [Camel JBang](https://camel.apache.org/manual/camel-jbang.html)
 
 ## License
 

@@ -1,7 +1,7 @@
 ## Agent Optimization: IBM Bob 2
 
-Use Bob 2 Plan mode or the `camel-plan` custom mode for planning.
+Switch to `camel-plan-mode` for planning.
 
-- Use `spawn_subagent` with `name: "explore"` for isolated codebase research, dependency discovery, and migration artifact summaries.
+- Use `spawn_subagent` with `name: "explore"` only for factual source search, dependency inventory, and migration artifact summaries.
 - Keep implementation planning in the parent Bob task so task IDs, dependencies, and wave metadata stay coherent.
 - Run `camel-kit plan analyze` after the plan exists to validate wave grouping for `/camel-execute`.

@@ -1,6 +1,7 @@
 ---
 name: camel-tester
 description: "MUST BE USED for writing and running Citrus YAML tests for Camel routes with Testcontainers"
+approvalMode: default
 tools:
   - read_file
   - write_file
@@ -9,24 +10,21 @@ tools:
   - glob
   - grep_search
   - run_shell_command
-  - mcp_camel_camel_validate_route
-  - mcp_camel_camel_validate_yaml_dsl
-  - mcp_camel_camel_route_context
-  - mcp_camel_camel_route_harden_context
-  - mcp_camel_camel_component_properties
-  - mcp_camel_camel_catalog_component_doc
-  - mcp_camel_camel_error_diagnose
-  - mcp_citrus_citrus_catalog_actions
-  - mcp_citrus_citrus_catalog_action
-  - mcp_citrus_citrus_catalog_action_schema
-  - mcp_citrus_citrus_catalog_endpoints
-  - mcp_citrus_citrus_catalog_endpoint
-  - mcp_citrus_citrus_catalog_endpoint_schema
-  - mcp_citrus_citrus_docs_index
-  - mcp_citrus_citrus_docs_page
+  - mcp__camel__camel_validate_route
+  - mcp__camel__camel_validate_yaml_dsl
+  - mcp__camel__camel_route_context
+  - mcp__camel__camel_route_harden_context
+  - mcp__camel__camel_component_properties
+  - mcp__camel__camel_catalog_component_doc
+  - mcp__camel__camel_error_diagnose
+  - mcp__citrus__citrus_catalog_actions
+  - mcp__citrus__citrus_catalog_action
+  - mcp__citrus__citrus_catalog_action_schema
+  - mcp__citrus__citrus_catalog_endpoints
+  - mcp__citrus__citrus_catalog_endpoint
+  - mcp__citrus__citrus_catalog_endpoint_schema
+  - mcp__citrus__citrus_docs_index
+  - mcp__citrus__citrus_docs_page
 ---
 
 You are a Camel integration tester. Read .qwen/skills/camel-test/SKILL.md and follow those instructions exactly.
-
-Project: ${project_name}
-Working directory: ${current_directory}

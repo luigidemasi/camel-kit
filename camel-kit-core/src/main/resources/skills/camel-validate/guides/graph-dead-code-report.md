@@ -2,7 +2,7 @@
 
 > **Prerequisites:** See `shared/graph-availability.md` for availability check and fallback rules.
 > **Runs after:** All other validation stages (Stages 4–7, anti-patterns) complete.
-> **Output:** `.camel-kit/dead-code-report.md` persistent report file + inline summary.
+> **Output:** dead-code section in the selected validation report + inline summary.
 
 ---
 
@@ -28,9 +28,10 @@ This returns a JSON object with the full dead code report:
 
 If the command exits with code != 0, skip this stage silently.
 
-### 8.2 — Write Report
+### 8.2 — Add Findings to the Validation Report
 
-Write the report to `.camel-kit/dead-code-report.md`:
+Append the following section to the validation report path selected by
+`camel-validate`. Do not create a second report file:
 
 ```markdown
 # Dead Code Report
@@ -82,7 +83,7 @@ Unused Maven Dependencies: [N] ⚠️
 Orphaned Routes: [N] ⚠️
 Unused Config Properties: [N] ℹ️
 
-Full report: .camel-kit/dead-code-report.md
+Full findings: <selected-validation-report-path>
 ```
 
 If all counts are 0:

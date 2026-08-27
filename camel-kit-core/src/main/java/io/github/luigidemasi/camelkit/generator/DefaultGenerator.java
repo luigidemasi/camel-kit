@@ -54,6 +54,7 @@ public class DefaultGenerator implements AgentGenerator {
         generateBaseAssets(ctx, workflow);
         beforeApplyTraits(ctx);
         applyTraits(ctx, workflow);
+        skillResourceInstaller.resolveCommandPrefixes(ctx);
         generateMcpConfig(ctx, workflow);
     }
 

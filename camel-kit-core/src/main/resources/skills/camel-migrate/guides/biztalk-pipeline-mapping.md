@@ -31,11 +31,12 @@ Each pipeline contains **stages** with **components**:
 
 | Component | Camel Pattern | Camel Component | Notes |
 |---|---|---|---|
-| **XML Disassembler** | `split()` + `unmarshal().jacksonXml()` | `camel-jackson` | Splits batched XML, validates against schema. |
-| **Flat File Disassembler** | `unmarshal().flatpack()` or `unmarshal().bindy()` | `camel-flatpack` / `camel-bindy` | Parses fixed-width or delimited files. |
-| **JSON Decoder** | `unmarshal().jackson()` | `camel-jackson` | Parses JSON payload. |
+| **XML Disassembler** | Split plus Jackson XML with a required POJO/list model | `camel-jacksonxml` | Candidate for batched XML; otherwise generate a custom processor. |
+| **Flat File Disassembler** | Flatpack with a definition or Bindy with an annotated model | `camel-flatpack` / `camel-bindy` | Parses fixed-width or delimited files. |
+| **JSON Decoder** | JSON/Jackson data format | `camel-jackson` | Parses JSON payload. |
 | **XML Validator** | `to("validator:schema.xsd")` | `camel-validator` | Validates XML against XSD schema. |
-| **MIME/SMIME Decoder** | `unmarshal().mime()` | `camel-mail` | Decodes MIME/SMIME messages. |
+| **MIME Decoder** | MIME Multipart data format | `camel-mail` | Decodes MIME multipart messages. |
+| **S/MIME Decoder** | Manual, catalog-verified implementation | custom Processor | Requires certificate and keystore review. |
 | **Party Resolution** | `bean()` with lookup logic | custom Processor | Resolves party/organization from message context. |
 | **Custom Receive Component** | `process()` or Groovy | `camel-groovy` | Re-implement custom logic in Groovy or custom Processor. |
 
@@ -45,10 +46,11 @@ Each pipeline contains **stages** with **components**:
 
 | Component | Camel Pattern | Camel Component | Notes |
 |---|---|---|---|
-| **XML Assembler** | `marshal().jacksonXml()` or `aggregate()` | `camel-jackson` | Serializes to XML; use `aggregate()` for batching. |
-| **Flat File Assembler** | `marshal().flatpack()` or `marshal().bindy()` | `camel-flatpack` / `camel-bindy` | Formats as fixed-width or delimited file. |
-| **JSON Encoder** | `marshal().jackson()` | `camel-jackson` | Serializes to JSON. |
-| **MIME/SMIME Encoder** | `marshal().mime()` | `camel-mail` | Encodes as MIME/SMIME. |
+| **XML Assembler** | Jackson XML data format or aggregation | `camel-jacksonxml` | Serializes a POJO model to XML; aggregate first for batching. |
+| **Flat File Assembler** | Bindy with an annotated model or generated/custom serializer | `camel-bindy` / custom Processor | Formats fixed-width or delimited files. |
+| **JSON Encoder** | JSON/Jackson data format | `camel-jackson` | Serializes to JSON. |
+| **MIME Encoder** | MIME Multipart data format | `camel-mail` | Encodes MIME multipart messages. |
+| **S/MIME Encoder** | Manual, catalog-verified implementation | custom Processor | Requires certificate and keystore review. |
 | **Custom Send Component** | `process()` or Groovy | `camel-groovy` | Re-implement custom logic in Groovy or custom Processor. |
 
 ---

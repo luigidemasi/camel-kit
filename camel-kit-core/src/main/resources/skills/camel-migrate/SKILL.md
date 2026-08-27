@@ -17,8 +17,22 @@ You are a **Migration Specialist** that analyses existing integration artifacts,
 IRON LAW 3: NO CODE WITHOUT PLAN.
 This skill produces analysis, business requirements, and design spec updates.
 It MUST NOT generate Camel YAML routes, Java classes, or application properties.
-Implementation is strictly reserved for the `camel-execute` phase AFTER a plan is approved.
+Implementation is strictly reserved for `camel-execute`, after the design is approved and `camel-plan` has generated the implementation plan.
 </HARD-RULE>
+
+## Invocation Modes
+
+- **Chained mode (default):** selected by `camel-start`, or invoked normally as
+  `/camel-migrate`. After the complete migration design is approved, auto-invoke
+  `camel-plan`; the pipeline continues through execute and final validation.
+- **Standalone design-only mode:** invoked with a `<PIPELINE_ID>` or when the
+  caller explicitly asks for migration analysis/design without downstream
+  implementation. Write the design package and stop after its review; do not
+  auto-invoke `camel-plan`.
+
+Resolve the pipeline at start using `shared/pipeline-infrastructure.md`: prefer
+the explicit ID, otherwise use `.camel-kit/pipeline.json`; if neither exists,
+prompt for `{COMMAND_PREFIX} nextId <slug>`, then create/update pipeline state.
 
 ## When NOT to use this skill
 
@@ -30,10 +44,11 @@ Implementation is strictly reserved for the `camel-execute` phase AFTER a plan i
 ## Parameters
 
 ```
-/camel-migrate
+/camel-migrate [PIPELINE_ID]
 ```
 
-No arguments. The command asks for the path interactively.
+The optional pipeline ID selects standalone design-only mode. The command asks
+for the source-project path interactively.
 
 ---
 
@@ -146,12 +161,22 @@ Present summary. Ask only about ? Unknown and invite corrections on ~ Inferred f
 Use the community distribution matrix already written by `camel-kit init` in `.camel-kit/config.properties`.
 Do not fetch or invent Red Hat-qualified versions unless the user explicitly selects a Red Hat distribution.
 
+**Runtime safety gate:** classify every discovered Java processor, bean, configuration class, Blueprint bean/service,
+and Maven plugin or build/code-generation task as either fully translatable to supported YAML/inline Groovy or retained
+Java/build logic. Camel Main is eligible only when every such artifact is fully translated and no Maven build action is
+required. If any Java, Blueprint, plugin, or code-generation work must remain and Main is selected, do not persist the
+selection or dispatch design work; require the user to choose Spring Boot or Quarkus.
+
 **Persist to `.camel-kit/config.properties`** after confirmation:
 ```properties
 project.camelVersion={{CAMEL_VERSION}}
-project.runtime=quarkus
-project.platformBomVersion={{PLATFORM_BOM_VERSION}}
+project.runtime={{RUNTIME}}
 ```
+
+For Spring Boot, also persist `project.platformBomVersion={{PLATFORM_BOM_VERSION}}` and
+`project.springBootVersion={{SPRING_BOOT_VERSION}}`. For Quarkus, also persist
+`project.platformBomVersion={{PLATFORM_BOM_VERSION}}`. For Main, omit those companion fields; never overwrite the
+confirmed runtime with a hard-coded value.
 
 ---
 
@@ -215,9 +240,25 @@ Starting BizTalk migration...
 
 ---
 
+## Complete the Design Phase
+
+After the selected vendor's Phase 1 and Phase 2 guides finish:
+
+1. Verify that `business-requirements.md` and `design-spec.md` exist in the
+   active `docs/camel-kit/<PIPELINE_ID>/` package.
+2. Recheck the completed design before approval. If `RUNTIME == main` and any vendor guide introduced a retained Java
+   processor/bean/configuration class, Blueprint wiring, Maven plugin, or build/code-generation task, stop, require
+   Spring Boot or Quarkus, persist the reselected runtime, and rerun the affected design work. Do not present an
+   ineligible Main design for approval.
+3. Present the complete design package and request the pipeline's single explicit
+   design approval. Incorporate changes and re-present until approved.
+4. **Chained mode:** auto-invoke `camel-plan` immediately. Do not add a plan
+   approval gate or tell the user to invoke downstream commands manually.
+5. **Standalone design-only mode:** write the approved package and stop.
+
 ## Notes
 
-- This skill performs detection, scanning, and confirmation only. Vendor-specific analysis happens in guides.
+- This skill orchestrates detection, scanning, vendor-specific analysis, and the design approval; it never implements application artifacts.
 - Migration guides receive pre-populated summary and MUST NOT re-ask answered questions.
 - Output is the active Camel Kit pipeline design package, compatible with `camel-plan` and `camel-execute`.
 

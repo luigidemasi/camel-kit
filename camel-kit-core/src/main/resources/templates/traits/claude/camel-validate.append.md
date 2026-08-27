@@ -8,14 +8,6 @@ Use Claude Code's task tracking for real-time visibility during validation:
 - `TaskUpdate` to mark each dimension `in_progress` when starting and `completed` when done
 - `TaskList` to report progress after each dimension completes
 
-### Build Verification Pacing
-
-When validation includes a build verification step (`mvn verify` or `/camel-verify`):
-
-- Run the build in the foreground — builds typically complete within the 300s cache TTL
-- If the build takes longer (large projects), use `ScheduleWakeup` with `delaySeconds: 270` as a fallback heartbeat
-- Set `reason` to "waiting for Maven build to verify generated routes"
-
 ### Parallel Dimension Analysis
 
 Use the `Agent` tool to run independent validation dimensions in parallel:
@@ -44,10 +36,10 @@ Agent({
 
 Wait for both to complete, then run constitution compliance inline and merge all results into the validation report.
 
-### Structured Report via AskUserQuestion
+### Finding Clarification via AskUserQuestion
 
-When validation finds issues, use `AskUserQuestion` to present findings with actionable options:
+When a finding is ambiguous, use `AskUserQuestion` only to clarify the evidence or desired report scope. Do not offer to apply a fix from validation.
 
-- For blocking issues: "Fix automatically" / "Fix manually" / "Skip and document"
-- For suggestions: "Apply" / "Decline"
-- This is only relevant in standalone mode — in chained mode, `camel-execute` owns the transition
+- Record every confirmed issue and its recommended correction in the validation report.
+- Route changes belong to implementation handling; validation never modifies route or configuration files.
+- In chained mode, this report-only validation is the terminal Phase 4 gate.
