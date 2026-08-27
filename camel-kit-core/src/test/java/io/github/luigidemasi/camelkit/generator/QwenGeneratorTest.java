@@ -118,7 +118,7 @@ class QwenGeneratorTest {
     }
 
     @Test
-    void validatorCanWriteItsRequiredReport() throws Exception {
+    void validatorIsReadOnlyAndReturnsItsRequiredReport() throws Exception {
         InitContext ctx = createContext();
         new QwenGenerator().generate(ctx);
 
@@ -126,9 +126,9 @@ class QwenGeneratorTest {
                 tempDir.resolve(".qwen/agents/camel-validator.md"));
         assertTrue(content.contains("read_file"));
         assertTrue(content.contains("grep_search"));
-        assertTrue(content.contains("write_file"));
-        assertTrue(content.contains("edit"));
-        assertTrue(content.contains("report-only"));
+        assertFalse(content.contains("write_file"));
+        assertFalse(content.contains("\n  - edit"));
+        assertTrue(content.contains("primary session writes the report"));
         assertTrue(content.contains("mcp__camel__camel_validate_route"));
         assertTrue(content.contains("mcp__camel__camel_route_harden_context"));
         assertTrue(content.contains("mcp__camel__camel_catalog_component_doc"));

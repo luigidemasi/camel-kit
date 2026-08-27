@@ -35,7 +35,7 @@ Before every MCP catalog call, translate `CAMEL_VERSION` + `RUNTIME` to the corr
 | Camel EIP for a BizTalk orchestration shape | `camel_catalog_eips` | `camel_catalog_eip_doc` |
 | Data format for unmarshal/marshal | `camel_catalog_dataformats` | `camel_catalog_dataformat_doc` |
 | Expression language for conditions/predicates | `camel_catalog_languages` | `camel_catalog_language_doc` |
-| Migration context for mapped Camel component | `camel_rh_build_search` | — |
+| Migration context for mapped Camel component | `camel_docs_search` | — |
 
 The static `biztalk-component-mapping.md` guide provides a **starting point** (the suggested Camel component name). It does NOT replace catalog verification — always confirm availability and option names in `CAMEL_VERSION` before writing the design spec.
 

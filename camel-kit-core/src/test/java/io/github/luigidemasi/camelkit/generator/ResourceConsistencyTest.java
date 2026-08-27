@@ -9,6 +9,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -17,6 +18,7 @@ import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentGeneratorStrategy;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
+import io.github.luigidemasi.camelkit.workflow.WorkflowManifest;
 import io.github.luigidemasi.camelkit.workflow.WorkflowManifestLoader;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -210,6 +212,34 @@ class ResourceConsistencyTest {
                 assertCitrusTools(agentName, "alwaysAllow", citrusServer.get("alwaysAllow"));
             }
         }
+    }
+
+    @Test
+    void shippedSkillAndPersonaMcpToolReferencesExistInTheWorkflowManifest() throws Exception {
+        WorkflowManifest manifest = WorkflowManifestLoader.loadDefault();
+        Set<String> allowedTools = manifest.mcpServers().stream()
+                .flatMap(server -> server.allowedTools().stream())
+                .collect(Collectors.toSet());
+        Pattern toolReference = Pattern.compile("\\b(?:camel|citrus)_[a-z][a-z0-9_]*[a-z0-9]\\b");
+        Path resources = repositoryRoot().resolve("camel-kit-core/src/main/resources");
+        List<String> unknown = new ArrayList<>();
+
+        for (Path root : List.of(resources.resolve("skills"), resources.resolve("agents"))) {
+            try (Stream<Path> files = Files.walk(root)) {
+                for (Path file : files.filter(Files::isRegularFile)
+                        .filter(path -> path.getFileName().toString().endsWith(".md"))
+                        .toList()) {
+                    Matcher matcher = toolReference.matcher(Files.readString(file));
+                    while (matcher.find()) {
+                        if (!allowedTools.contains(matcher.group())) {
+                            unknown.add(resources.relativize(file) + ": " + matcher.group());
+                        }
+                    }
+                }
+            }
+        }
+
+        assertTrue(unknown.isEmpty(), "Shipped guidance references unknown MCP tools:\n" + String.join("\n", unknown));
     }
 
     @Test

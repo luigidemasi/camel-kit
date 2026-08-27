@@ -99,7 +99,7 @@ class GeminiGeneratorTest {
     }
 
     @Test
-    void phaseSubAgentsCanWriteRequiredArtifacts() throws Exception {
+    void validatorIsReadOnlyAndPrimarySessionWritesItsReport() throws Exception {
         InitContext ctx = createContext();
         new GeminiGenerator().generate(ctx);
 
@@ -110,8 +110,13 @@ class GeminiGeneratorTest {
         assertTrue(brainstormer.contains("run_shell_command"));
         assertTrue(planner.contains("write_file"));
         assertTrue(planner.contains("run_shell_command"));
-        assertTrue(validator.contains("write_file"));
-        assertTrue(validator.contains("report-only"));
+        assertFalse(validator.contains("write_file"));
+        assertFalse(validator.contains("replace"));
+        assertTrue(validator.contains("primary session"));
+
+        String command = Files.readString(ctx.commandsDir().resolve("camel-validate.toml"));
+        assertTrue(command.contains("read-only camel-validator"));
+        assertTrue(command.contains("write the returned report content"));
     }
 
     @Test

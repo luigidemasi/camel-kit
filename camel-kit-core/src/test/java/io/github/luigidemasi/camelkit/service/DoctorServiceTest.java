@@ -24,6 +24,8 @@ class DoctorServiceTest {
     private static final String COPILOT = AgentGeneratorStrategy.COPILOT.descriptorValue();
     private static final String CODEX = AgentGeneratorStrategy.CODEX.descriptorValue();
     private static final String PI = AgentGeneratorStrategy.PI.descriptorValue();
+    private static final String QWEN = AgentGeneratorStrategy.QWEN.descriptorValue();
+    private static final String OPENCODE = AgentGeneratorStrategy.OPENCODE.descriptorValue();
 
     @TempDir
     Path tempDir;
@@ -95,6 +97,92 @@ class DoctorServiceTest {
         assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "workspace",
                 "Codex custom agents are valid TOML and declare the required fields",
                 "No action required."));
+    }
+
+    @Test
+    void legacyQwenMcpSchemaWarnsWithoutFailing() throws Exception {
+        createHealthyWorkspace(tempDir, QWEN);
+        writeMcpConfig(tempDir, QWEN, String.format(Locale.ROOT, """
+                {
+                  "mcpServers": {
+                    "camel": {"command": "jbang", "autoApprove": [%s], "alwaysAllow": [%s]},
+                    "camel-knowledge": {"command": "jbang", "autoApprove": [%s], "alwaysAllow": [%s]}
+                  }
+                }
+                """, jsonArray(EXPECTATIONS.camelMcpTools()), jsonArray(EXPECTATIONS.camelMcpTools()),
+                jsonArray(EXPECTATIONS.knowledgeMcpTools()), jsonArray(EXPECTATIONS.knowledgeMcpTools())));
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.WARN, "mcp",
+                "Qwen MCP server 'camel' uses the legacy approval-field schema", "includeTools"));
+    }
+
+    @Test
+    void qwenMissingCurrentToolFilterStillFails() throws Exception {
+        createHealthyWorkspace(tempDir, QWEN);
+        writeMcpConfig(tempDir, QWEN, """
+                {
+                  "mcpServers": {
+                    "camel": {"command": "jbang"},
+                    "camel-knowledge": {"command": "jbang"}
+                  }
+                }
+                """);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
+                "MCP server 'camel' is missing includeTools array", "Regenerate"));
+    }
+
+    @Test
+    void qwenExplicitNullTrustIsEquivalentToAbsent() throws Exception {
+        createHealthyWorkspace(tempDir, QWEN);
+        Path config = tempDir.resolve(".qwen/settings.json");
+        Files.writeString(config, Files.readString(config).replaceFirst(
+                "\\\"includeTools\\\":", "\"trust\": null, \"includeTools\":"));
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertFalse(hasFinding(result, DoctorFinding.Status.FAIL, "mcp", "trust must be absent", null));
+    }
+
+    @Test
+    void legacyOpenCodeMcpSchemaWarnsWithoutFailing() throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        writeMcpConfig(tempDir, OPENCODE, String.format(Locale.ROOT, """
+                {
+                  "mcp": {
+                    "camel": {"type": "local", "autoApprove": [%s], "alwaysAllow": [%s]},
+                    "camel-knowledge": {"type": "local", "autoApprove": [%s], "alwaysAllow": [%s]}
+                  }
+                }
+                """, jsonArray(EXPECTATIONS.camelMcpTools()), jsonArray(EXPECTATIONS.camelMcpTools()),
+                jsonArray(EXPECTATIONS.knowledgeMcpTools()), jsonArray(EXPECTATIONS.knowledgeMcpTools())));
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.WARN, "mcp",
+                "contains unsupported field autoApprove", "regenerate"));
+        assertTrue(hasFinding(result, DoctorFinding.Status.WARN, "mcp",
+                "Legacy OpenCode config has no supported permission", "approval prompts"));
+    }
+
+    @Test
+    void missingRegisteredAgentTemplateProducesUpgradeWarning() throws Exception {
+        createHealthyWorkspace(tempDir, "bob2");
+        Files.delete(tempDir.resolve(".bob/agents/camel-reviewer.md"));
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+        assertTrue(hasFinding(result, DoctorFinding.Status.WARN, "workspace",
+                "Registered bob2 template assets are missing: .bob/agents/camel-reviewer.md", "--force"));
     }
 
     @Test
@@ -447,53 +535,13 @@ class DoctorServiceTest {
                 agent.folder=%s
                 """, agentName, agent.folder()));
         Files.writeString(root.resolve(".camel-kit/project-graph.json"), "{}");
-        Files.writeString(root.resolve("AGENTS.md"), "Integration work -> /camel-start\n");
         Files.writeString(root.resolve("mvnw"), "#!/bin/sh\n");
-
-        if (CODEX.equals(agentName)) {
-            InitContext context = new InitContext(
-                    agent,
-                    agentName,
-                    root.resolve(".codex/commands"),
-                    root.resolve(agent.skillsDirectory()),
-                    root,
-                    "camel-kit",
-                    Printer.noop());
-            AgentGeneratorFactory.create(agentName).generate(context);
-            return;
-        }
-
-        Path commands = root.resolve(agent.folder());
-        String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf('/'));
-        Files.createDirectories(commands);
-        for (String command : EXPECTATIONS.userCommands(agentName)) {
-            Files.writeString(commands.resolve(command + ".md"),
-                    "Read " + agentBaseFolder + "/skills/" + command + "/SKILL.md and follow those instructions\n");
-        }
-
-        Path skills = commands.getParent().resolve("skills");
-        for (String skill : EXPECTATIONS.requiredSkills()) {
-            Path skillDir = skills.resolve(skill);
-            Files.createDirectories(skillDir);
-            Files.writeString(skillDir.resolve("SKILL.md"), "# " + skill + "\n");
-        }
-
-        Path mcpFile = root.resolve(agent.mcpConfigPath());
-        Files.createDirectories(mcpFile.getParent());
-        Files.writeString(mcpFile,
-                mcpJson(agentName, EXPECTATIONS.camelMcpTools(), EXPECTATIONS.knowledgeMcpTools()));
-
-        if (PI.equals(agentName)) {
-            Files.createDirectories(root.resolve(".pi/extensions"));
-            Files.writeString(root.resolve(".pi/extensions/camel-kit-guard.ts"),
-                    "export default function camelKitGuard(pi: any) {}\n");
-            Files.writeString(root.resolve(".pi/camel-kit-guard-policy.json"), """
-                    {
-                      "version": 1,
-                      "rules": []
-                    }
-                    """);
-        }
+        Path commands = agent.generatesCommandStubs()
+                ? root.resolve(agent.commandDirectory())
+                : root.resolve(".codex/commands");
+        InitContext context = new InitContext(
+                agent, agentName, commands, root.resolve(agent.skillsDirectory()), root, "camel-kit", Printer.noop());
+        AgentGeneratorFactory.create(agentName).generate(context);
     }
 
     private void writeMcpConfig(Path root, String agentName, String content) throws Exception {
@@ -505,60 +553,6 @@ class DoctorServiceTest {
 
     private void writePiGuardPolicy(String content) throws Exception {
         Files.writeString(tempDir.resolve(".pi/camel-kit-guard-policy.json"), content);
-    }
-
-    private String mcpJson(String agentName, Collection<String> camelTools, Collection<String> knowledgeTools) {
-        if (COPILOT.equals(agentName)) {
-            return String.format(Locale.ROOT, """
-                    {
-                      "mcpServers": {
-                        "camel": {
-                          "type": "stdio",
-                          "command": "jbang",
-                          "tools": [%s]
-                        },
-                        "camel-knowledge": {
-                          "type": "stdio",
-                          "command": "jbang",
-                          "tools": [%s]
-                        }
-                      }
-                    }
-                    """, jsonArray(camelTools), jsonArray(knowledgeTools));
-        }
-        if (PI.equals(agentName)) {
-            return String.format(Locale.ROOT, """
-                    {
-                      "mcpServers": {
-                        "camel": {
-                          "command": "jbang",
-                          "directTools": [%s]
-                        },
-                        "camel-knowledge": {
-                          "command": "jbang",
-                          "directTools": [%s]
-                        }
-                      }
-                    }
-                    """, jsonArray(camelTools), jsonArray(knowledgeTools));
-        }
-        return String.format(Locale.ROOT, """
-                {
-                  "mcpServers": {
-                    "camel": {
-                      "command": "jbang",
-                      "autoApprove": [%s],
-                      "alwaysAllow": [%s]
-                    },
-                    "camel-knowledge": {
-                      "command": "jbang",
-                      "autoApprove": [%s],
-                      "alwaysAllow": [%s]
-                    }
-                  }
-                }
-                """, jsonArray(camelTools), jsonArray(camelTools),
-                jsonArray(knowledgeTools), jsonArray(knowledgeTools));
     }
 
     private String jsonArray(Collection<String> values) {

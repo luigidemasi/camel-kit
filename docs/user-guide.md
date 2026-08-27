@@ -293,9 +293,11 @@ docs/camel-kit/001-order-processing/
 
 ```bash
 # Generate a pipeline ID and create the directory
-{COMMAND_PREFIX} nextId order-processing
+camel-kit nextId order-processing
 # Output: 001-order-processing
 ```
+
+When using the Camel JBang plugin, run `camel kit nextId order-processing` instead.
 
 The pipeline state is tracked in `.camel-kit/pipeline.json`, which records the active pipeline ID. Each skill reads this file to know where to find and save artifacts.
 

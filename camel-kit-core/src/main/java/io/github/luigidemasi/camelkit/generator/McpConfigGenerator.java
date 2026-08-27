@@ -29,6 +29,8 @@ class McpConfigGenerator {
             String processed = qute.renderString(template, templateData(ctx.distribution(), workflow));
             if ("toml".equals(ctx.agent().mcpConfigFormat())) {
                 new CodexConfigMerger().merge(configFile, processed);
+            } else if ("opencode".equals(ctx.agentName())) {
+                new OpenCodeConfigMerger().merge(configFile, processed);
             } else {
                 Files.writeString(configFile, processed);
             }

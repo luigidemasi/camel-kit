@@ -30,6 +30,34 @@ templates:
     target: .github/hooks/camel-kit-safety.json
   - source: templates/copilot/agents-md.md
     target: AGENTS.md
+  - source: agents/acr-moderator.md
+    target: .github/camel-kit-personas/acr-moderator.md
+  - source: agents/catalog-researcher.md
+    target: .github/camel-kit-personas/catalog-researcher.md
+  - source: agents/code-quality-reviewer.md
+    target: .github/camel-kit-personas/code-quality-reviewer.md
+  - source: agents/critic-behavioral-equivalence.md
+    target: .github/camel-kit-personas/critic-behavioral-equivalence.md
+  - source: agents/critic-boundary-compliance.md
+    target: .github/camel-kit-personas/critic-boundary-compliance.md
+  - source: agents/critic-performance.md
+    target: .github/camel-kit-personas/critic-performance.md
+  - source: agents/critic-route-architecture.md
+    target: .github/camel-kit-personas/critic-route-architecture.md
+  - source: agents/critic-security.md
+    target: .github/camel-kit-personas/critic-security.md
+  - source: agents/implementation-engineer.md
+    target: .github/camel-kit-personas/implementation-engineer.md
+  - source: agents/integration-architect.md
+    target: .github/camel-kit-personas/integration-architect.md
+  - source: agents/knowledge-researcher.md
+    target: .github/camel-kit-personas/knowledge-researcher.md
+  - source: agents/migration-specialist.md
+    target: .github/camel-kit-personas/migration-specialist.md
+  - source: agents/spec-compliance-reviewer.md
+    target: .github/camel-kit-personas/spec-compliance-reviewer.md
+  - source: agents/test-engineer.md
+    target: .github/camel-kit-personas/test-engineer.md
 supportsSubagents: true
 supportsTraits: true
 capabilities:

@@ -180,12 +180,40 @@ public class DoctorService {
     }
 
     private void checkAgentSpecificWorkspace(Path root, AgentConfig agent, List<DoctorFinding> findings) {
+        checkRegisteredTemplates(root, agent, findings);
         if (AgentGeneratorStrategy.PI.descriptorValue().equals(agentKey(agent))) {
             checkPiGuard(root, findings);
         }
         if (AgentGeneratorStrategy.CODEX.descriptorValue().equals(agentKey(agent))) {
             checkCodexAgents(root, findings);
         }
+    }
+
+    private void checkRegisteredTemplates(Path root, AgentConfig agent, List<DoctorFinding> findings) {
+        String agentName = agentKey(agent);
+        List<String> missing = AgentRegistry.descriptor(agentName).templates().stream()
+                .map(AgentDescriptor.TemplateInstall::target)
+                .filter(target -> !target.startsWith(agent.skillsDirectory() + "/"))
+                .filter(target -> !isSeparatelyValidatedTemplate(agentName, target))
+                .filter(target -> !Files.isRegularFile(root.resolve(target)))
+                .toList();
+        if (missing.isEmpty()) {
+            findings.add(DoctorFinding.pass("workspace", null,
+                    "All registered " + agentName + " template assets are present",
+                    "No action required."));
+        } else {
+            findings.add(DoctorFinding.warn("workspace", null,
+                    "Registered " + agentName + " template assets are missing: " + String.join(", ", missing),
+                    "Regenerate the workspace with camel-kit init --here --ai " + agentName + " --force."));
+        }
+    }
+
+    private boolean isSeparatelyValidatedTemplate(String agentName, String target) {
+        return (AgentGeneratorStrategy.CODEX.descriptorValue().equals(agentName)
+                && target.startsWith(".codex/agents/"))
+                || (AgentGeneratorStrategy.PI.descriptorValue().equals(agentName)
+                        && (target.equals(".pi/extensions/camel-kit-guard.ts")
+                                || target.equals(".pi/camel-kit-guard-policy.json")));
     }
 
     private void checkCodexAgents(Path root, List<DoctorFinding> findings) {
@@ -460,7 +488,7 @@ public class DoctorService {
                 root, mcpFile, servers, "camel-knowledge", expectations.knowledgeMcpTools(), copilotToolsSchema,
                 piDirectToolsSchema, qwenIncludeToolsSchema, openCodeSchema, findings);
         boolean openCodePermissionsOk = !openCodeSchema
-                || checkOpenCodePermissions(root, mcpFile, rootNode, findings);
+                || checkOpenCodePermissions(root, mcpFile, rootNode, isLegacyOpenCodeConfig(servers), findings);
         if (camelOk && knowledgeOk && openCodePermissionsOk) {
             String message = openCodeSchema
                     ? "OpenCode MCP config uses supported server fields; tool calls retain OpenCode permission prompts"
@@ -605,9 +633,25 @@ public class DoctorService {
     private boolean checkQwenTools(
             Path root, Path mcpFile, String serverName, JsonNode server, Set<String> expected,
             List<DoctorFinding> findings) {
-        boolean valid = checkAllowlist(root, mcpFile, serverName, "includeTools", server, expected, findings);
+        JsonNode includeTools = server.path("includeTools");
+        boolean valid;
+        if (includeTools.isArray()) {
+            Set<String> actual = new LinkedHashSet<>();
+            includeTools.forEach(value -> actual.add(value.asText()));
+            valid = checkToolSet(root, mcpFile, serverName, "includeTools", actual, expected, false, findings);
+        } else if (server.path("autoApprove").isArray() || server.path("alwaysAllow").isArray()) {
+            findings.add(DoctorFinding.warn("mcp", relativize(root, mcpFile),
+                    "Qwen MCP server '" + serverName + "' uses the legacy approval-field schema",
+                    "Regenerate the Qwen config to add the supported includeTools filter."));
+            valid = true;
+        } else {
+            findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                    "MCP server '" + serverName + "' is missing includeTools array",
+                    "Regenerate the MCP config with camel-kit init --here --force."));
+            valid = false;
+        }
         JsonNode trust = server.get("trust");
-        if (trust != null && (!trust.isBoolean() || trust.asBoolean())) {
+        if (server.hasNonNull("trust") && (!trust.isBoolean() || trust.asBoolean())) {
             findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
                     "Qwen MCP server '" + serverName + "' trust must be absent or false to preserve approval prompts",
                     "Remove trust or set it to false, then re-run camel-kit doctor."));
@@ -621,28 +665,42 @@ public class DoctorService {
         boolean valid = true;
         for (String ignoredField : List.of("autoApprove", "alwaysAllow")) {
             if (server.has(ignoredField)) {
-                findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                findings.add(DoctorFinding.warn("mcp", relativize(root, mcpFile),
                         "OpenCode MCP server '" + serverName + "' contains unsupported field " + ignoredField,
                         "Remove the ignored field or regenerate the OpenCode MCP config."));
-                valid = false;
             }
         }
         return valid;
     }
 
     private boolean checkOpenCodePermissions(
-            Path root, Path mcpFile, JsonNode config, List<DoctorFinding> findings) {
+            Path root, Path mcpFile, JsonNode config, boolean legacyConfig, List<DoctorFinding> findings) {
         JsonNode permission = config.path("permission");
         boolean valid = true;
         for (String pattern : List.of("camel_*", "camel-knowledge_*", "citrus_*")) {
             if (!"ask".equals(permission.path(pattern).asText())) {
-                findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
-                        "OpenCode permission '" + pattern + "' must be 'ask'",
-                        "Restore the generated MCP permission prompts or regenerate the OpenCode config."));
-                valid = false;
+                if (legacyConfig) {
+                    findings.add(DoctorFinding.warn("mcp", relativize(root, mcpFile),
+                            "Legacy OpenCode config has no supported permission for '" + pattern + "'",
+                            "Regenerate the OpenCode config to retain explicit MCP approval prompts."));
+                } else {
+                    findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                            "OpenCode permission '" + pattern + "' must be 'ask'",
+                            "Restore the generated MCP permission prompts or regenerate the OpenCode config."));
+                    valid = false;
+                }
             }
         }
         return valid;
+    }
+
+    private boolean isLegacyOpenCodeConfig(JsonNode servers) {
+        for (JsonNode server : servers) {
+            if (server.has("autoApprove") || server.has("alwaysAllow")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean checkCopilotTools(

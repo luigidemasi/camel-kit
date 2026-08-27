@@ -11,7 +11,7 @@ permission:
     ".camel-kit/project-snapshot.md": allow
   bash:
     "*": ask
-    "camel-kit *": allow
+    "{COMMAND_PREFIX} *": allow
   task: deny
 steps: 200
 ---

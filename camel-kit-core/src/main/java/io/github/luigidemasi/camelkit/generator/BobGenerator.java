@@ -3,7 +3,6 @@ package io.github.luigidemasi.camelkit.generator;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import io.github.luigidemasi.camelkit.util.TemplateUtils;
@@ -13,22 +12,6 @@ public class BobGenerator extends DefaultGenerator {
     private static final String[] BOB2_PROJECT_AGENT_FILES = {
             "camel-worker.md", "camel-reviewer.md"
     };
-
-    private static final List<String> BOB2_PERSONA_FILES = List.of(
-            "acr-moderator.md",
-            "catalog-researcher.md",
-            "code-quality-reviewer.md",
-            "critic-behavioral-equivalence.md",
-            "critic-boundary-compliance.md",
-            "critic-performance.md",
-            "critic-route-architecture.md",
-            "critic-security.md",
-            "implementation-engineer.md",
-            "integration-architect.md",
-            "knowledge-researcher.md",
-            "migration-specialist.md",
-            "spec-compliance-reviewer.md",
-            "test-engineer.md");
 
     private static final String[] SKILLS_WITH_GATES = {
             "camel-migrate", "camel-brainstorm", "camel-implement",
@@ -61,29 +44,30 @@ public class BobGenerator extends DefaultGenerator {
         Map<String, Object> templateData = new HashMap<>(
                 Map.of(
                         "COMMAND_PREFIX", ctx.commandPrefix()));
+        GeneratedAssetCleaner.deleteRegularFile(ctx, ctx.projectDir().resolve(".bob/rules-camel-ship/ship.md"));
         for (Map.Entry<String, String> rule : RULE_MODE_FILES.entrySet()) {
             GeneratedAssetCleaner.deleteRegularFile(
-                    ctx.projectDir(), ctx.projectDir()
+                    ctx, ctx.projectDir()
                             .resolve(".bob/rules-" + rule.getKey())
                             .resolve(rule.getValue()));
         }
         for (Map.Entry<String, String> rule : BOB2_RULE_MODE_FILES.entrySet()) {
             GeneratedAssetCleaner.deleteRegularFile(
-                    ctx.projectDir(), ctx.projectDir()
+                    ctx, ctx.projectDir()
                             .resolve(".bob/rules-" + rule.getKey())
                             .resolve(rule.getValue()));
             GeneratedAssetCleaner.deleteRegularFile(
-                    ctx.projectDir(), ctx.projectDir()
+                    ctx, ctx.projectDir()
                             .resolve(".bob/rules-" + rule.getKey() + "-mode")
                             .resolve(rule.getValue()));
         }
         for (String agentFile : BOB2_PROJECT_AGENT_FILES) {
             GeneratedAssetCleaner.deleteRegularFile(
-                    ctx.projectDir(), ctx.projectDir().resolve(".bob/agents").resolve(agentFile));
+                    ctx, ctx.projectDir().resolve(".bob/agents").resolve(agentFile));
         }
-        for (String personaFile : BOB2_PERSONA_FILES) {
+        for (String persona : PersonaResourceInstaller.PERSONAS) {
             GeneratedAssetCleaner.deleteRegularFile(
-                    ctx.projectDir(), ctx.projectDir().resolve(".bob/personas").resolve(personaFile));
+                    ctx, ctx.projectDir().resolve(".bob/personas").resolve(persona + ".md"));
         }
         // Bob-specific: generate custom modes
         generateCustomModes(ctx);

@@ -24,14 +24,14 @@ class TraitApplicator {
         for (String skillName : skillNames) {
             String traitResourcePath = traitsBasePath + skillName + ".append.md";
             Path targetSkillMd = ctx.skillsDir().resolve(skillName + "/SKILL.md");
-            if (appendTraitIfExists(traitResourcePath, targetSkillMd, ctx.agentName())) {
+            if (appendTraitIfExists(traitResourcePath, targetSkillMd, ctx)) {
                 traitCount++;
             }
 
             traitCount += applyGuideTraits(
                     traitsBasePath + skillName + "/",
                     ctx.skillsDir().resolve(skillName + "/guides/"),
-                    ctx.agentName());
+                    ctx);
         }
 
         if (traitCount > 0) {
@@ -40,37 +40,42 @@ class TraitApplicator {
         }
     }
 
-    private int applyGuideTraits(String traitDirPath, Path guidesDir, String agentName) throws Exception {
+    private int applyGuideTraits(String traitDirPath, Path guidesDir, InitContext ctx) throws Exception {
         int count = 0;
         for (String traitFileName : TemplateUtils.listTemplateFiles(traitDirPath, APPEND_TRAIT_SUFFIX)) {
             String guideName = stripAppendSuffix(traitFileName);
             String traitResourcePath = traitDirPath + guideName + APPEND_TRAIT_SUFFIX;
             Path targetGuide = guidesDir.resolve(guideName + ".md");
-            if (appendTraitIfExists(traitResourcePath, targetGuide, agentName)) {
+            if (appendTraitIfExists(traitResourcePath, targetGuide, ctx)) {
                 count++;
             }
         }
         return count;
     }
 
-    private boolean appendTraitIfExists(String traitResourcePath, Path targetFile, String agentName) throws Exception {
+    private boolean appendTraitIfExists(String traitResourcePath, Path targetFile, InitContext ctx) throws Exception {
         if (!Files.exists(targetFile)) {
             return false;
         }
         String traitContent;
         try {
-            traitContent = TemplateUtils.readTemplate(traitResourcePath);
+            traitContent = TemplateUtils.readTemplate(traitResourcePath)
+                    .replace("{COMMAND_PREFIX}", ctx.commandPrefix());
+            var personaDirectory = PersonaResourceInstaller.targetDirectory(ctx);
+            if (personaDirectory.isPresent()) {
+                traitContent = PersonaResourceInstaller.rewriteReferences(traitContent, personaDirectory.get());
+            }
         } catch (IOException e) {
             return false;
         }
 
-        String sentinel = "<!-- TRAIT:" + agentName + " -->";
+        String sentinel = "<!-- TRAIT:" + ctx.agentName() + " -->";
         String existing = Files.readString(targetFile);
         if (existing.contains(sentinel)) {
             return false;
         }
 
-        String closeSentinel = "<!-- /TRAIT:" + agentName + " -->";
+        String closeSentinel = "<!-- /TRAIT:" + ctx.agentName() + " -->";
         Files.writeString(targetFile,
                 existing + "\n---\n\n" + sentinel + "\n" + traitContent + "\n" + closeSentinel + "\n");
         return true;

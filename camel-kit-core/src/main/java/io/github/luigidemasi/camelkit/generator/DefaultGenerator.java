@@ -48,13 +48,12 @@ public class DefaultGenerator implements AgentGenerator {
         for (WorkflowManifest.WorkflowCommand command : workflow.generatedCommandStubs()) {
             if (command.isSkillOnly(ctx.agentName())) {
                 GeneratedAssetCleaner.deleteRegularFile(
-                        ctx.projectDir(), ctx.commandsDir().resolve(command.name() + "." + ctx.agent().fileFormat()));
+                        ctx, ctx.commandsDir().resolve(command.name() + "." + ctx.agent().fileFormat()));
             }
         }
         generateBaseAssets(ctx, workflow);
         beforeApplyTraits(ctx);
         applyTraits(ctx, workflow);
-        skillResourceInstaller.resolveCommandPrefixes(ctx);
         generateMcpConfig(ctx, workflow);
     }
 
@@ -70,6 +69,7 @@ public class DefaultGenerator implements AgentGenerator {
             commandStubGenerator.generate(ctx, workflow);
         }
         skillResourceInstaller.install(ctx, workflow);
+        new PersonaResourceInstaller().install(ctx);
     }
 
     protected void beforeApplyTraits(InitContext ctx) throws Exception {

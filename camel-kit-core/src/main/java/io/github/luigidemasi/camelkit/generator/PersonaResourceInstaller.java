@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -30,11 +31,15 @@ final class PersonaResourceInstaller {
 
     private final TemplateResourceCopier copier = new TemplateResourceCopier();
 
-    void install(InitContext ctx, String targetDirectory) throws IOException {
+    void install(InitContext ctx) throws IOException {
         AgentDescriptor descriptor = AgentRegistry.descriptor(ctx.agentName());
         List<AgentDescriptor.TemplateInstall> personaTemplates = descriptor.templates().stream()
-                .filter(template -> template.target().startsWith(targetDirectory + "/"))
+                .filter(PersonaResourceInstaller::isPersonaTemplate)
                 .toList();
+        if (personaTemplates.isEmpty()) {
+            return;
+        }
+        String targetDirectory = targetDirectory(ctx).orElseThrow();
         Set<String> registeredPersonas = personaTemplates.stream()
                 .map(template -> Path.of(template.target()).getFileName().toString().replaceFirst("\\.md$", ""))
                 .collect(Collectors.toSet());
@@ -49,8 +54,33 @@ final class PersonaResourceInstaller {
         }
     }
 
+    static Optional<String> targetDirectory(InitContext ctx) {
+        Set<String> directories = AgentRegistry.descriptor(ctx.agentName()).templates().stream()
+                .filter(PersonaResourceInstaller::isPersonaTemplate)
+                .map(template -> Path.of(template.target()).getParent().toString())
+                .collect(Collectors.toSet());
+        if (directories.size() > 1) {
+            throw new IllegalStateException(
+                    "Agent descriptor '" + ctx.agentName() + "' registers personas in multiple directories");
+        }
+        return directories.stream().findFirst();
+    }
+
+    static boolean isPersonaTemplate(AgentDescriptor.TemplateInstall template) {
+        Path source = Path.of(template.source());
+        return source.getNameCount() == 2 && "agents".equals(source.getName(0).toString())
+                && source.getFileName().toString().endsWith(".md");
+    }
+
     static void rewriteReferences(Path markdown, String targetDirectory) throws IOException {
         String content = Files.readString(markdown);
+        String rewritten = rewriteReferences(content, targetDirectory);
+        if (!rewritten.equals(content)) {
+            Files.writeString(markdown, rewritten);
+        }
+    }
+
+    static String rewriteReferences(String content, String targetDirectory) {
         String rewritten = content
                 .replace("`agents/`", "`" + targetDirectory + "/`")
                 .replace("agents/[persona].md", targetDirectory + "/[persona].md")
@@ -60,8 +90,6 @@ final class PersonaResourceInstaller {
                     "agents/" + persona + ".md",
                     targetDirectory + "/" + persona + ".md");
         }
-        if (!rewritten.equals(content)) {
-            Files.writeString(markdown, rewritten);
-        }
+        return rewritten;
     }
 }

@@ -8,7 +8,7 @@ permission:
     "docs/camel-kit/**": allow
   bash:
     "*": ask
-    "camel-kit *": allow
+    "{COMMAND_PREFIX} *": allow
   task: deny
 steps: 30
 ---

@@ -102,6 +102,18 @@ class DefaultGeneratorTest {
     }
 
     @Test
+    void leavesCommandPlaceholdersInUserSkillsUnchanged() throws Exception {
+        InitContext ctx = createContext("claude");
+        Path userSkill = ctx.skillsDir().resolve("custom/SKILL.md");
+        Files.createDirectories(userSkill.getParent());
+        Files.writeString(userSkill, "Document the literal {COMMAND_PREFIX} token");
+
+        new ClaudeGenerator().generate(ctx);
+
+        assertEquals("Document the literal {COMMAND_PREFIX} token", Files.readString(userSkill));
+    }
+
+    @Test
     void generatesMcpConfig() throws Exception {
         InitContext ctx = createContext("bob");
         new DefaultGenerator().generate(ctx);

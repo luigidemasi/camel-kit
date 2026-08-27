@@ -9,8 +9,8 @@ permission:
     "docs/validation-report-*.md": allow
   bash:
     "*": ask
-    "mvn *": allow
-    "camel-kit *": allow
+    "./mvnw *": allow
+    "{COMMAND_PREFIX} *": allow
   task: deny
 steps: 20
 ---

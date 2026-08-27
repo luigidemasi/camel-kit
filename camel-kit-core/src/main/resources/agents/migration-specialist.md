@@ -45,7 +45,7 @@ You are dispatched for migration-specific tasks:
 
 - `camel_catalog_component_doc` — verify target component exists and get exact options
 - `camel_catalog_eip_doc` — verify EIP availability in target version
-- `camel_graph_analyze` — analyze project structure for large-scale migrations
+- `camel_migration_analyze` — analyze Maven project runtime and dependency migration needs
 
 ## Guides You Reference
 

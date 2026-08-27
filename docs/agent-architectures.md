@@ -304,8 +304,6 @@ Gemini subagents use server-scoped MCP wildcards -- no other agent supports this
 name: camel-validator
 tools:
   - read_file
-  - write_file
-  - replace
   - glob
   - grep_search
   - run_shell_command
@@ -315,6 +313,7 @@ timeout_mins: 20
 ```
 
 Server-scoped wildcards automatically include new tools when a configured MCP server adds them. Different subagents can have different MCP server access (e.g., validator gets catalog while tester gets catalog plus Citrus).
+The validator returns a complete report to the primary session, which owns the final report write.
 
 ### Path-Scoped Edits via Policy Engine
 
@@ -396,7 +395,7 @@ hyphenated `user-invocable` metadata, so guide-only skills do not become acciden
 | `camel-implementer` | One implementation or fix task | Inherited implementation tools and MCP access | `agent` explicitly disallowed |
 | `camel-reviewer` | Catalog research and adversarial/spec/quality roles | Read/search and exact Camel/Knowledge MCP tools | No write, shell, user-question, or agent tool |
 | `camel-tester` | One isolated test task | Read/write/shell plus exact Camel/Citrus MCP test tools | `agent` is not allowlisted |
-| `camel-validator` | One report-producing validation task | Read/search/shell/MCP plus report writes | `agent` is not allowlisted |
+| `camel-validator` | One report-producing validation task | Read/search/shell/MCP; the primary session writes its returned report | No write or `agent` tool |
 
 All leaves set `approvalMode: default`; the plan handoff explicitly asks the user to select and confirm either
 `auto-edit` or `default` before execution.
@@ -454,6 +453,9 @@ questions, arguments, and phase handoffs. Users can also invoke bounded subagent
 | `templates/mcp-configs/opencode-mcp.json` | Supported MCP server fields plus top-level `ask` patterns for all three server tool namespaces |
 
 Camel-Kit generates `AGENTS.md` through the shared generator flow. Its compact bootstrap points to `/camel-start`, which loads the full context through progressive skill loading.
+When `opencode.json` already exists, init preserves unrelated root settings, permission entries, and MCP servers while
+replacing Camel-Kit's managed permissions and server definitions. Invalid or structurally conflicting JSON fails without
+changing the existing file.
 
 No `.opencodeignore` -- OpenCode uses `.gitignore` for file exclusion (simpler than Qwen/Gemini).
 

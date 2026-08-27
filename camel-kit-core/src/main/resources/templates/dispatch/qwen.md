@@ -6,7 +6,7 @@ approval gates, and chained phase handoffs. Delegate only bounded leaf work:
 - `camel-implementer` for one implementation or fix task
 - `camel-reviewer` for one read-only catalog, adversarial, specification, or quality review role
 - `camel-tester` for one isolated test task
-- `camel-validator` for one bounded validation analysis or assigned report write
+- `camel-validator` for one bounded, read-only validation analysis; the primary session writes the returned report
 - a top-level `fork` for optional bounded factual research that benefits from inherited context
 
 Never delegate the complete brainstorm, plan, migrate, execute, or start workflow to a child agent. Qwen child agents

@@ -24,13 +24,17 @@ class OpenCodeGeneratorTest {
     Path tempDir;
 
     private InitContext createContext() {
+        return createContext("camel-kit");
+    }
+
+    private InitContext createContext(String commandPrefix) {
         AgentConfig agent = AgentRegistry.get("opencode");
         String agentBaseFolder = agent.folder().substring(0, agent.folder().lastIndexOf("/"));
         Path commandsDir = tempDir.resolve(agent.folder());
         Path skillsDir = tempDir.resolve(agentBaseFolder + "/skills");
         return new InitContext(
                 agent, "opencode", commandsDir, skillsDir, tempDir,
-                "camel-kit", Printer.noop());
+                commandPrefix, Printer.noop());
     }
 
     @Test
@@ -199,6 +203,43 @@ class OpenCodeGeneratorTest {
     }
 
     @Test
+    void mergesManagedOpenCodeConfigWithoutDiscardingUserSettings() throws Exception {
+        Files.writeString(tempDir.resolve("opencode.json"), """
+                {
+                  "theme": "custom",
+                  "permission": {"bash": "deny", "camel_*": "allow"},
+                  "mcp": {
+                    "custom": {"type": "remote", "url": "https://example.test/mcp"},
+                    "camel": {"type": "local", "autoApprove": ["legacy"]}
+                  }
+                }
+                """);
+
+        new OpenCodeGenerator().generate(createContext());
+
+        JsonNode config = new ObjectMapper().readTree(tempDir.resolve("opencode.json").toFile());
+        assertEquals("custom", config.path("theme").asText());
+        assertEquals("deny", config.path("permission").path("bash").asText());
+        assertEquals("ask", config.path("permission").path("camel_*").asText());
+        assertEquals("https://example.test/mcp", config.path("mcp").path("custom").path("url").asText());
+        assertFalse(config.path("mcp").path("camel").has("autoApprove"));
+    }
+
+    @Test
+    void rendersLeafCommandAllowlistForPluginPrefix() throws Exception {
+        new OpenCodeGenerator().generate(createContext("camel kit"));
+
+        for (String name : new String[]{"brainstormer", "planner", "validator"}) {
+            String content = Files.readString(tempDir.resolve(".opencode/agents/" + name + ".md"));
+            assertTrue(content.contains("\"camel kit *\": allow"), name);
+            assertFalse(content.contains("camel-kit *"), name);
+        }
+        String validator = Files.readString(tempDir.resolve(".opencode/agents/validator.md"));
+        assertTrue(validator.contains("\"./mvnw *\": allow"));
+        assertFalse(validator.contains("\"mvn *\": allow"));
+    }
+
+    @Test
     void generatedTraitsUseAvailableAgentsAndOwnedStepLimits() throws Exception {
         InitContext ctx = createContext();
         new OpenCodeGenerator().generate(ctx);
@@ -291,6 +332,8 @@ class OpenCodeGeneratorTest {
                 ctx.commandsDir().resolve("camel-execute.md"));
         assertTrue(execute.contains("agent: executor"));
         assertTrue(execute.contains("subtask: false"));
+        assertTrue(execute.contains(
+                "description: \"Execute a ready implementation plan derived from an approved design with an adversarial pre-filter and ordered spec and quality review.\""));
         assertTrue(execute.contains("$ARGUMENTS"));
         assertFalse(execute.contains("@executor"));
     }

@@ -22,8 +22,8 @@ class GeneratedAssetCleanerTest {
         Path retired = Files.writeString(project.resolve("retired.md"), "generated");
         Path foreignDirectory = Files.createDirectory(project.resolve("foreign.md"));
 
-        GeneratedAssetCleaner.deleteRegularFile(project, retired);
-        GeneratedAssetCleaner.deleteRegularFile(project, foreignDirectory);
+        assertTrue(GeneratedAssetCleaner.deleteRegularFile(project, retired));
+        assertFalse(GeneratedAssetCleaner.deleteRegularFile(project, foreignDirectory));
 
         assertFalse(Files.exists(retired));
         assertTrue(Files.isDirectory(foreignDirectory));

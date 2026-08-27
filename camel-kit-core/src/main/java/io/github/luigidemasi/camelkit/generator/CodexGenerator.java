@@ -53,6 +53,9 @@ public class CodexGenerator extends DefaultGenerator {
 
         int customAgents = 0;
         for (AgentDescriptor.TemplateInstall template : descriptor.templates()) {
+            if (PersonaResourceInstaller.isPersonaTemplate(template)) {
+                continue;
+            }
             Path target = ctx.projectDir().resolve(template.target());
             if (AGENTS_TEMPLATE.equals(template.source())) {
                 Files.writeString(target, templateEngine.render(

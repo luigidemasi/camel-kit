@@ -17,7 +17,6 @@ public class QwenGenerator extends DefaultGenerator {
     };
 
     private final QuteTemplateEngine templateEngine = new QuteTemplateEngine();
-    private final PersonaResourceInstaller personaInstaller = new PersonaResourceInstaller();
 
     @Override
     public void generate(InitContext ctx) throws Exception {
@@ -34,7 +33,6 @@ public class QwenGenerator extends DefaultGenerator {
 
         // Qwen-specific: generate bounded leaf definitions
         generateSubAgents(ctx);
-        personaInstaller.install(ctx, ".qwen/camel-kit-personas");
 
         // Qwen-specific: generate .qwenignore
         generateQwenIgnore(ctx);
@@ -63,8 +61,7 @@ public class QwenGenerator extends DefaultGenerator {
     private void removeRetiredSubAgents(InitContext ctx) throws Exception {
         Path agentsDir = ctx.projectDir().resolve(".qwen/agents");
         for (String agentName : RETIRED_SUB_AGENTS) {
-            GeneratedAssetCleaner.deleteRegularFile(
-                    ctx.projectDir(), agentsDir.resolve(agentName + ".md"));
+            GeneratedAssetCleaner.deleteRegularFile(ctx, agentsDir.resolve(agentName + ".md"));
         }
     }
 

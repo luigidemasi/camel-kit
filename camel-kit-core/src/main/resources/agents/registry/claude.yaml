@@ -17,6 +17,34 @@ templates:
     target: CLAUDE.md
   - source: templates/claude/settings.json
     target: .claude/settings.json
+  - source: agents/acr-moderator.md
+    target: .claude/camel-kit-personas/acr-moderator.md
+  - source: agents/catalog-researcher.md
+    target: .claude/camel-kit-personas/catalog-researcher.md
+  - source: agents/code-quality-reviewer.md
+    target: .claude/camel-kit-personas/code-quality-reviewer.md
+  - source: agents/critic-behavioral-equivalence.md
+    target: .claude/camel-kit-personas/critic-behavioral-equivalence.md
+  - source: agents/critic-boundary-compliance.md
+    target: .claude/camel-kit-personas/critic-boundary-compliance.md
+  - source: agents/critic-performance.md
+    target: .claude/camel-kit-personas/critic-performance.md
+  - source: agents/critic-route-architecture.md
+    target: .claude/camel-kit-personas/critic-route-architecture.md
+  - source: agents/critic-security.md
+    target: .claude/camel-kit-personas/critic-security.md
+  - source: agents/implementation-engineer.md
+    target: .claude/camel-kit-personas/implementation-engineer.md
+  - source: agents/integration-architect.md
+    target: .claude/camel-kit-personas/integration-architect.md
+  - source: agents/knowledge-researcher.md
+    target: .claude/camel-kit-personas/knowledge-researcher.md
+  - source: agents/migration-specialist.md
+    target: .claude/camel-kit-personas/migration-specialist.md
+  - source: agents/spec-compliance-reviewer.md
+    target: .claude/camel-kit-personas/spec-compliance-reviewer.md
+  - source: agents/test-engineer.md
+    target: .claude/camel-kit-personas/test-engineer.md
 supportsSubagents: true
 supportsTraits: true
 capabilities:

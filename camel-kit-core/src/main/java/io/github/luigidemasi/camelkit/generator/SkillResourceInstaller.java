@@ -153,11 +153,10 @@ class SkillResourceInstaller {
             }
         }
         if (destination.getFileName().toString().endsWith(".md")) {
-            versionPlaceholderResolver.substitute(destination, ctx.distribution());
-            if (AgentGeneratorStrategy.QWEN.descriptorValue().equals(ctx.agentName())) {
-                PersonaResourceInstaller.rewriteReferences(destination, ".qwen/camel-kit-personas");
-            } else if (AgentGeneratorStrategy.OPENCODE.descriptorValue().equals(ctx.agentName())) {
-                PersonaResourceInstaller.rewriteReferences(destination, ".opencode/camel-kit-personas");
+            versionPlaceholderResolver.substitute(destination, ctx.distribution(), ctx.commandPrefix());
+            var personaDirectory = PersonaResourceInstaller.targetDirectory(ctx);
+            if (personaDirectory.isPresent()) {
+                PersonaResourceInstaller.rewriteReferences(destination, personaDirectory.get());
             }
             if (AgentGeneratorStrategy.CODEX.descriptorValue().equals(ctx.agentName())) {
                 useCodexSkillInvocations(destination, workflow);
@@ -165,24 +164,10 @@ class SkillResourceInstaller {
         }
     }
 
-    void resolveCommandPrefixes(InitContext ctx) throws IOException {
-        try (var files = Files.walk(ctx.skillsDir())) {
-            for (Path markdown : files.filter(Files::isRegularFile)
-                    .filter(path -> path.getFileName().toString().endsWith(".md"))
-                    .toList()) {
-                String content = Files.readString(markdown);
-                String resolved = content.replace("{COMMAND_PREFIX}", ctx.commandPrefix());
-                if (!resolved.equals(content)) {
-                    Files.writeString(markdown, resolved);
-                }
-            }
-        }
-    }
-
     void removeRetiredShipGuides(InitContext ctx) throws IOException {
         Path guides = ctx.skillsDir().resolve("camel-ship/guides");
         for (String guide : RETIRED_SHIP_GUIDES) {
-            GeneratedAssetCleaner.deleteRegularFile(ctx.projectDir(), guides.resolve(guide));
+            GeneratedAssetCleaner.deleteRegularFile(ctx, guides.resolve(guide));
         }
     }
 
