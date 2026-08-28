@@ -19,14 +19,30 @@ All planning guides are in `.bob/skills/camel-plan/guides/`. When this file says
 <Step>
 ## Switch to Plan Mode
 
-Switch to **camel-plan** mode using the mode selector or `/camel-plan` command.
-This restricts your tools to prevent accidental implementation during the planning phase.
+Switch to **camel-plan-mode** using the mode selector or `/camel-plan-mode`.
+This limits edits to planning Markdown and Camel-Kit state. Command access is instruction-scoped to document metadata
+and staleness operations; implementation artifacts remain prohibited during the planning phase.
+</Step>
+
+<Step>
+## Detect Invocation Mode
+
+- **Chained mode:** activated by `camel-brainstorm` or `camel-migrate` after
+  design approval. Inherit their pipeline ID and continue automatically to
+  `camel-execute` after writing the plan.
+- **Standalone mode:** invoked directly as `/camel-plan` or with a pipeline ID.
+  Write the plan and stop; standalone mode suppresses automatic transitions.
+
+For standalone mode, use the explicit `<PIPELINE_ID>` when supplied; otherwise
+read `activePipeline` from `.camel-kit/pipeline.json`. If neither identifies an
+existing pipeline with `design-spec.md`, stop and direct the user to
+`camel-brainstorm`; do not create an empty pipeline for standalone planning.
 </Step>
 
 <Step>
 ## Verify Approved Design Spec Exists
 
-Read `docs/design-spec.md` (or the specified design spec path).
+Read `docs/camel-kit/<PIPELINE_ID>/design-spec.md` (or the specified design spec path).
 
 If the spec hasn't been approved, STOP and return to camel-brainstorm.
 The plan is based on an APPROVED design spec only.
@@ -37,9 +53,8 @@ The plan is based on an APPROVED design spec only.
 
 If the design spec covers multiple independent subsystems or has more than ~10 flows, suggest breaking into separate plans — one per subsystem or logical group.
 
-Each plan should produce working, testable software on its own.
-
-Wait for user confirmation on scope before proceeding.
+Each plan should produce working, testable software on its own. Record the
+decomposition in the plan and continue without adding another approval gate.
 </Step>
 
 <Step>
@@ -69,7 +84,7 @@ For each task, specify:
 - Which MCP tools to call and with what parameters
 - Which constitution rules to check
 - How to verify completion (commands to run, expected output)
-- Two-stage review specification (spec compliance then code quality)
+- Ordered review specification (same-session adversarial pre-filter, then spec compliance, then code quality)
 </Step>
 
 <Step>
@@ -91,7 +106,7 @@ Use this format:
 
 **Tech Stack:** Apache Camel [version], [runtime], [key components]
 
-**Design Spec:** `docs/design-spec.md` (approved [date])
+**Design Spec:** `docs/camel-kit/<PIPELINE_ID>/design-spec.md` (approved [date])
 
 ---
 
@@ -121,7 +136,7 @@ tasks:
 
 ### Task N: [Component/Flow Name]
 
-**Agent:** [agent persona to dispatch]
+**Role:** [agent persona to assume in the current Bob session]
 
 **Files:**
 - Create: `exact/path/to/file`
@@ -143,6 +158,7 @@ tasks:
 - [ ] **Step N:** Verify: [exact command to run and expected output]
 
 **Review:**
+- [ ] Adversarial pre-filter: [applicable critic lenses and evidence to inspect]
 - [ ] Spec compliance: [what to check — components match design spec, structure correct, properties complete]
 - [ ] Code quality: [what to check — constitution rules, security, anti-patterns]
 ````
@@ -156,47 +172,26 @@ Scan the plan for:
 1. **Spec coverage:** Can every flow in the design spec be mapped to a task? List any gaps.
 2. **Placeholder scan:** Search for "TBD", "TODO", "fill in", "similar to Task N". Fix them.
 3. **Guide consistency:** Do all tasks reference the correct guide paths?
-4. **Review completeness:** Does every implementation task have both spec compliance and code quality review steps?
+4. **Review completeness:** Does every implementation task specify the same-session adversarial pre-filter followed by spec compliance and code quality review?
 5. **Verification completeness:** Does every task have a verification step with an exact command and expected output?
 
 Fix any issues inline.
+
+Run `{COMMAND_PREFIX} doc init --by camel-plan --from design-spec.md docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`.
+If an execution report already exists, run
+`{COMMAND_PREFIX} doc stale --reason "implementation plan regenerated" --cascade docs/camel-kit/<PIPELINE_ID>/execution-report.md`.
 </Step>
 
 <Step>
-## Plan Approval
+## Complete or Hand Off
 
-Present the complete implementation plan to the user.
-
-**APPROVAL GATE — Do NOT proceed without explicit approval:**
-"Do you approve this plan? (yes / changes needed)"
-
-If changes requested, incorporate and re-present. Only proceed after explicit "yes" or "approved".
-</Step>
-
-<Step>
-## CHECKPOINT
-
-Before proceeding to execution, this is the plan approval checkpoint.
-All implementation tasks are locked. Create a checkpoint now.
-</Step>
-
-<Step>
-## Switch to Execute Mode
-
-Switch to **camel-execute** mode.
-
-Execute the approved implementation plan task-by-task with two-stage review:
-1. Spec compliance review (does it match the design spec?)
-2. Code quality review (does it follow constitution rules?)
-
-For each task:
-1. **CHECKPOINT** before starting
-2. Implement per the task instructions
-3. Run spec compliance review
-4. Run code quality review
-5. Mark complete and move to next task
-
-Do NOT pause between tasks. Execute ALL tasks sequentially without interruption.
+- **Standalone mode:** write the plan and stop. Do not transition.
+- **Chained mode:** switch to **camel-execute-mode**, read
+  `.bob/skills/camel-execute/SKILL.md`, and follow that full gate without
+  abbreviation. It owns the environment probe, every task's same-session
+  adversarial/spec/quality review stack, cross-cutting review, internal
+  verification, reports, checkpoint, and final report-only validation. Do not
+  pause or request another approval.
 </Step>
 </Steps>
 
@@ -208,7 +203,7 @@ Do NOT pause between tasks. Execute ALL tasks sequentially without interruption.
 - Which MCP tools to call and with what parameters
 - Which constitution rules to check
 - How to verify the task is complete (commands to run, expected output)
-- Two-stage review specification per task
+- Same-session adversarial pre-filter plus ordered spec and quality review per task
 
 ## What Does NOT Go in the Plan
 
@@ -225,4 +220,5 @@ The plan is a RECIPE, not the MEAL.
 Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
 
 - **Iron Law 3: No Code Without Spec Approval** — The plan is based on an APPROVED design spec.
-- **Iron Law 4: Spec Compliance Before Quality** — The plan MUST specify two-stage review for every implementation task: spec compliance first, then quality.
+- **Iron Law 4: Spec Compliance Before Quality** — The plan MUST specify spec compliance before quality for every implementation task.
+- **Iron Law 5: Adversarial Code Review** — The plan MUST place Bob 1's same-session critic-lens pre-filter before staged review and require the isolation limitation to be recorded.

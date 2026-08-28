@@ -9,6 +9,7 @@ section that `camel-execute` uses to generate Kaoto-compatible transformations.
 - The DataWeave script(s) for the current flow (already analyzed by `mule-dataweave-conversion.md`)
 - The Mule flow name and its Camel equivalent name
 - The Mule project directory structure
+- `RUNTIME` and target module from `.camel-kit/config.properties` and the migration design
 
 ---
 
@@ -68,8 +69,12 @@ Which schema file corresponds to the source payload?  [path or "none"]
 Which schema file corresponds to the target output?   [path or "none"]
 ```
 
-**If a schema is selected:** record path relative to project root. It will be copied to the Camel project root alongside the `.camel.yaml` files.
-**If no schema is available:** keep the format detected in Step 1 (`JSON_SCHEMA` or `XML_SCHEMA`) — the schema path is `"none"` but the type reflects the actual data format. Field names will be taken from Step 3 inference. The canonicalize guide computes XPaths from field names without needing schema files.
+**If a schema is selected:** record its path relative to the project root. Plan the target under `{module}/schemas/` for
+Main or `{module}/src/main/resources/schemas/` for Spring Boot/Quarkus. Route files go under `{module}/` for Main or
+`{module}/src/main/resources/camel/` for Spring Boot/Quarkus.
+**If no schema is available:** keep the format detected in Step 1 (`JSON_SCHEMA` or `XML_SCHEMA`) — the schema path is
+`"none"` but the type reflects the actual data format. Field names come from Step 3 inference. Canonicalization retains
+semantic paths for Groovy or computes XPaths for XSLT without requiring schema files.
 
 **`Primitive` is only correct when the data is a truly scalar value** (a single string, number, or boolean — not a JSON object or XML document). If the DataWeave script accesses `payload.field` or `payload.obj.field`, the format is structured and the type must be `JSON_SCHEMA` or `XML_SCHEMA`, even without a schema file.
 
@@ -221,7 +226,8 @@ Load `skills/shared/datamapper-canonicalize.md` and follow all steps, passing:
 - The flow name
 
 The shared guide will:
-1. Choose the transformation engine (Groovy for < 20 fields or no schemas, XSLT otherwise)
+1. Choose Groovy when both schemas are absent OR there are fewer than 20 leaf fields; choose XSLT only when there are
+   at least 20 leaf fields AND at least one schema
 2. If XSLT: compute Source XPaths and Target Elements for each field; if Groovy: prepare simplified semantic table
 3. Present the enriched mapping table for user confirmation
 4. Write the canonical `### DataMapper:` section to the design spec (with empty mapping guard)

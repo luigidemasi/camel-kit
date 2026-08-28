@@ -1,5 +1,5 @@
 customModes:
-  - slug: camel-brainstorm
+  - slug: camel-brainstorm-mode
     name: "Camel Brainstorm"
     description: "Design Camel integrations and migrations without implementation edits."
     roleDefinition: >
@@ -10,23 +10,27 @@ customModes:
       Use this mode for greenfield integration discovery, migration analysis,
       business-requirements creation, and design-spec refinement before implementation.
     customInstructions: >
-      Do not generate implementation artifacts. Use the camel-brainstorm skill for
-      phase behavior. Use explore subagents for self-contained codebase or migration
-      source discovery when a summary is enough.
+      Do not generate implementation artifacts. Use the active design skill for phase
+      behavior: camel-brainstorm for greenfield work or camel-migrate for migration.
+      Use explore subagents only for factual codebase or migration-source discovery
+      when a summary is enough. Use camel-reviewer with the generated Knowledge
+      Researcher persona for read-only MCP knowledge lookup; keep design judgment
+      in the parent task.
     groups:
       - read
       - - edit
-        - fileRegex: ".*\\.(md|txt)$"
-          description: Markdown and text files only
+        - fileRegex: "^(?:\\./)?(docs/.*\\.(md|txt)|\\.camel-kit/(config\\.properties|pipeline\\.json|project-snapshot\\.md))$"
+          description: Design artifacts and Camel-Kit pipeline state only
+      - execute
       - mcp
       - skill
       - todo
       - artifact
       - subagent
       - mode
-    allowedSubagents: [explore]
+    allowedSubagents: [explore, camel-reviewer]
 
-  - slug: camel-plan
+  - slug: camel-plan-mode
     name: "Camel Plan"
     description: "Create task-based Camel implementation plans."
     roleDefinition: >
@@ -37,12 +41,14 @@ customModes:
       and wave metadata before code generation starts.
     customInstructions: >
       Plans include exact files, commands, expected results, and
-      wave metadata. Use explore subagents for isolated codebase research.
+      wave metadata. Use explore subagents only for factual codebase and dependency
+      inventories; keep planning judgment in the parent task.
     groups:
       - read
       - - edit
-        - fileRegex: ".*\\.(md|txt)$"
-          description: Markdown and text files only
+        - fileRegex: "^(?:\\./)?docs/camel-kit/[^/]+/.*\\.md$"
+          description: Selected pipeline planning artifacts only
+      - execute
       - mcp
       - skill
       - todo
@@ -51,18 +57,18 @@ customModes:
       - mode
     allowedSubagents: [explore]
 
-  - slug: camel-implement
+  - slug: camel-implement-mode
     name: "Camel Implement"
     description: "Generate Camel route and application artifacts."
     roleDefinition: >
       You are a Camel implementation engineer generating route, configuration,
-      dependency, and support files from an approved plan and design spec.
+      dependency, and support files from a ready plan and approved design spec.
     whenToUse: >
       Use this mode for focused implementation tasks delegated by camel-execute.
     customInstructions: >
       Verify Camel components through MCP before use. Prefer precise edits such
-      as insert_content or apply_diff for existing files. Do not spawn subagents
-      from inside implementation subagent work.
+      as insert_content or apply_diff for existing files. Use explore only for
+      factual source lookup, and do not spawn subagents from inside worker tasks.
     groups:
       - read
       - edit
@@ -73,21 +79,23 @@ customModes:
       - artifact
       - subagent
       - mode
-    allowedSubagents: [explore, general]
+    allowedSubagents: [explore]
 
-  - slug: camel-execute
+  - slug: camel-execute-mode
     name: "Camel Execute"
     description: "Orchestrate implementation waves with Bob 2 subagents."
     roleDefinition: >
-      You are the parent Bob orchestration task for approved implementation
-      plans. You dispatch independent implementation, testing, and review work
+      You are the parent Bob orchestration task for ready implementation plans
+      derived from approved designs. You dispatch independent implementation, testing, and review work
       while keeping orchestration state in the main conversation.
     whenToUse: >
-      Use this mode when an approved implementation plan is ready for execution.
+      Use this mode when an implementation plan derived from an approved design is ready for execution.
     customInstructions: >
       Use camel-kit plan analyze to identify waves. Spawn independent tasks in
-      the same wave in one turn so Bob runs them in parallel. Use explore for
-      read-only review and general for implementation, testing, and fixes.
+      the same wave in one turn so Bob runs them in parallel. The parent coordinates
+      fresh, phase-specific calls for ACR lane selection, critics, synthesis, and spec
+      review. Use camel-reviewer for every research or judgment role, camel-worker for
+      implementation, testing, fixes, and verification, and explore only for factual discovery.
     groups:
       - read
       - edit
@@ -98,9 +106,9 @@ customModes:
       - artifact
       - subagent
       - mode
-    allowedSubagents: [explore, general]
+    allowedSubagents: [explore, camel-worker, camel-reviewer]
 
-  - slug: camel-validate
+  - slug: camel-validate-mode
     name: "Camel Validate"
     description: "Validate generated Camel routes and write validation reports."
     roleDefinition: >
@@ -109,14 +117,14 @@ customModes:
     whenToUse: >
       Use this mode after execute or for standalone static quality analysis.
     customInstructions: >
-      Report findings with severity. Use explore subagents for isolated route,
-      MCP, security, or graph analysis. Write only validation report markdown
-      and metadata updates required by the shared skill.
+      Report findings with severity. Use camel-reviewer subagents for isolated route,
+      security, or graph analysis, including MCP calls needed by those review roles.
+      Write only validation report markdown and metadata updates required by the shared skill.
     groups:
       - read
       - - edit
-        - fileRegex: ".*\\.(md|txt)$"
-          description: Markdown and text files only
+        - fileRegex: "^(?:\\./)?docs/(camel-kit/[^/]+/validation-report\\.md|validation-report-[^/]+\\.md)$"
+          description: Selected validation report only
       - execute
       - mcp
       - skill
@@ -124,9 +132,9 @@ customModes:
       - artifact
       - subagent
       - mode
-    allowedSubagents: [explore]
+    allowedSubagents: [camel-reviewer]
 
-  - slug: camel-test
+  - slug: camel-test-mode
     name: "Camel Test"
     description: "Generate and run Camel route tests."
     roleDefinition: >
@@ -136,13 +144,16 @@ customModes:
       Use this mode for focused test generation or test-fix tasks delegated by
       camel-execute.
     customInstructions: >
-      Follow the design spec. Keep test files under test/ unless the plan specifies another
-      path. Use general subagents only for self-contained test or fix tasks.
+      Follow the design spec. Write tests to the runtime-specific test directory selected
+      by the plan. Perform test generation and fixes inline so this mode's path-scoped
+      edit restriction remains enforced; use camel-reviewer for read-only test analysis.
+      Return test evidence to camel-execute for its pipeline execution-report; do not
+      create a standalone test report.
     groups:
       - read
       - - edit
-        - fileRegex: "(^test/|.*\\.test\\..*|.*Test\\.java$|.*\\.md$)"
-          description: Test and markdown files only
+        - fileRegex: "(^(.*/)?src/test/resources/|^(.*/)?pom\\.xml$)"
+          description: Runtime-aware Citrus test resources and dependency descriptor only
       - execute
       - mcp
       - skill
@@ -150,9 +161,9 @@ customModes:
       - artifact
       - subagent
       - mode
-    allowedSubagents: [explore, general]
+    allowedSubagents: [camel-reviewer]
 
-  - slug: camel-debug
+  - slug: camel-debug-mode
     name: "Camel Debug"
     description: "Diagnose and fix broken Camel routes."
     roleDefinition: >
@@ -162,9 +173,8 @@ customModes:
       Use this mode for ad-hoc broken-route troubleshooting outside a normal
       pipeline run.
     customInstructions: >
-      Use explore subagents for route analysis, MCP verification, and log
-      classification. Use general only after a fix is approved or clearly
-      requested.
+      Use camel-reviewer for route analysis, MCP verification, and log classification.
+      Use camel-worker only after a fix is approved or clearly requested.
     groups:
       - read
       - edit
@@ -175,4 +185,4 @@ customModes:
       - artifact
       - subagent
       - mode
-    allowedSubagents: [explore, general]
+    allowedSubagents: [camel-worker, camel-reviewer]

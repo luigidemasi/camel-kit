@@ -85,50 +85,17 @@ Every integration goes through this process. A single-route REST-to-database flo
 ```dot
 digraph brainstorm {
     rankdir=TB;
-    
+
     start [label="User request received", shape=doublecircle];
-    detect [label="Detect: greenfield\nor migration?", shape=diamond];
-    
-    subgraph cluster_greenfield {
-        label="Greenfield Path";
-        gf_interview [label="Load greenfield-interview.md\nSocratic interview\n(one question at a time)", shape=box];
-    }
-    
-    subgraph cluster_migration {
-        label="Migration Path";
-        mg_discovery [label="Load migration-discovery.md\nScan artifacts, detect vendor", shape=box];
-        mg_graph [label="Project graph available?", shape=diamond];
-        mg_vendor [label="Detect vendor from\ngraph stats nodesByType", shape=diamond];
-        mg_graph_camel [label="Load migration-graph-analysis.md\nCamel graph analysis", shape=box];
-        mg_graph_mule [label="Load migration-mule-graph-analysis.md\nMuleSoft graph analysis", shape=box];
-        mg_graph_biztalk [label="Load migration-biztalk-graph-analysis.md\nBizTalk graph analysis", shape=box];
-        mg_confirm [label="Confirm analysis with user\nFill unknowns", shape=box];
-    }
-    
+    gf_interview [label="Load greenfield-interview.md\nSocratic interview\n(one question at a time)", shape=box];
     version [label="Load version-selection.md\nCamel version selection", shape=box];
     design [label="Load design-assembly.md\nAssemble design spec", shape=box];
     review [label="Self-review spec\n(placeholders, consistency)", shape=box];
     user_approve [label="User reviews and\napproves spec?", shape=diamond];
     plan [label="YOU invoke camel-plan\n(automatic, not manual)", shape=doublecircle];
-    
-    start -> detect;
-    detect -> gf_interview [label="greenfield"];
-    detect -> mg_discovery [label="migration"];
-    
+
+    start -> gf_interview;
     gf_interview -> version;
-    
-    mg_discovery -> mg_graph;
-    mg_graph -> mg_vendor [label="yes"];
-    mg_graph -> mg_confirm [label="no"];
-    mg_vendor -> mg_graph_camel [label="CAMEL_ROUTE"];
-    mg_vendor -> mg_graph_mule [label="MULE_FLOW"];
-    mg_vendor -> mg_graph_biztalk [label="BIZTALK_ORCHESTRATION"];
-    mg_vendor -> mg_confirm [label="unknown"];
-    mg_graph_camel -> mg_confirm;
-    mg_graph_mule -> mg_confirm;
-    mg_graph_biztalk -> mg_confirm;
-    mg_confirm -> version;
-    
     version -> design;
     design -> review;
     review -> user_approve;
@@ -152,7 +119,9 @@ In **standalone mode** (including amend mode), write the output artifact and STO
 Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
 
 - **Iron Law 1: MCP Catalog Verification** — Every component, EIP, dataformat, and language in the design spec MUST be MCP-verified before inclusion. You do NOT guess component names.
-- **Iron Law 3: No Code Without Plan & Design Approval** — NEVER generate implementation artifacts (YAML, Java) during this phase. Brainstorming produces business requirements and a design spec, not code.
+- **Iron Law 3: No Code Without Design Approval and an Existing Plan** — NEVER generate implementation artifacts
+  (YAML, Java) during this phase. Brainstorming produces one greenfield design spec, not code or migration business
+  requirements.
 - **Iron Law 5: Adversarial Code Review** — while no code is generated here, the adversarial mindset applies to the design: assume the design will fail and look for gaps.
 
 ### Rationalization Table
@@ -164,7 +133,6 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
 | "I know which components to use" | You know training data. MCP catalog is truth. Verify. |
 | "The user is in a hurry, I'll skip the interview" | Rushed design = rework. The interview saves time. |
 | "I can design and plan in parallel to be efficient" | Iron Law 3: design spec approved BEFORE planning begins. |
-| "The migration source tells me everything I need" | Source artifacts show WHAT exists, not what the user WANTS. Confirm. |
 | "I'll verify components later during implementation" | Wrong design spec → wrong plan → wrong code. Verify NOW. |
 | "I'll ask all clarification questions at once to save time" | Batching questions overwhelms the user and hides dependencies between answers. ONE question at a time. |
 | "I'll tell the user to run camel-plan next" | NO. In chained mode, YOU invoke camel-plan automatically. In standalone mode, STOP after writing output. |
@@ -178,7 +146,6 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
 - "Let me just start writing the design spec..."
 - "This component probably exists..."
 - "I can skip a few interview questions..."
-- "The migration is straightforward, I don't need to confirm..."
 - "I'll present the spec and move on quickly..."
 - "I'll ask all the clarification questions at once to save time..."
 - "Before I proceed, I need to clarify a few things: 1. ... 2. ... 3. ..."
@@ -186,28 +153,10 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
 
 ---
 
-## Detection Logic
+## Scope
 
-Determine the project type from the user's request:
-
-**Greenfield indicators:**
-- "Create", "build", "connect", "integrate", "new project"
-- No existing source artifacts mentioned
-- Describes desired end state, not existing state
-
-**Migration indicators:**
-- "Migrate", "convert", "move from", "replace"
-- Mentions source platform: MuleSoft, Mule, Fuse, Camel 2.x, Camel 3.x
-- References existing integration files or projects
-- "Upgrade" from older Camel version
-
-**If ambiguous:** Ask the user:
-```
-Are you building a new integration from scratch, or migrating an existing one from another platform?
-
-1. New integration (greenfield)
-2. Migration from existing platform
-```
+This skill is greenfield-only. `camel-start` routes migration and upgrade requests to `camel-migrate`; do not detect,
+scan, or execute a migration branch here.
 
 ---
 
@@ -216,18 +165,16 @@ Are you building a new integration from scratch, or migrating an existing one fr
 You MUST complete these items in order:
 
 1. **Detect invocation mode** — check for `<PIPELINE_ID>` argument and existing `design-spec.md` (see Invocation Modes above). If amend mode, skip to the Amend Mode section.
-2. **Detect project type** — greenfield or migration
-3. **Resolve pipeline** — read `shared/pipeline-infrastructure.md` for pipeline resolution logic. If no active pipeline exists, prompt the user to run `{COMMAND_PREFIX} nextId <slug>` to create one. The pipeline ID determines where artifacts are saved.
-4. **Load context** — read `docs/constitution.md` (if it exists), `.camel-kit/config.properties` (if it exists)
-5. **Run interview/discovery** — first read `shared/discovery-completeness.md`, then load the appropriate guide:
-   - Greenfield: `guides/greenfield-interview.md`
-   - Migration: `guides/migration-discovery.md`
-6. **Select Camel version** — load `guides/version-selection.md`
-7. **Design flows** — for each flow, load relevant `camel-design/` guides (component selection, EIPs, data formats, error handling, security, resilience)
-8. **Assemble design spec** — load `guides/design-assembly.md`
-9. **Self-review spec** — scan for placeholders, contradictions, unverified components
-10. **User reviews spec** — present spec, wait for explicit approval (Iron Law 3)
-11. **Transition** — depends on invocation mode:
+2. **Resolve pipeline** — read `shared/pipeline-infrastructure.md` for pipeline resolution logic. If no active pipeline exists, prompt the user to run `{COMMAND_PREFIX} nextId <slug>` to create one. The pipeline ID determines where artifacts are saved.
+3. **Load context** — read `docs/constitution.md` (if it exists), `.camel-kit/config.properties` (if it exists)
+4. **Run greenfield interview** — first read `shared/discovery-completeness.md`, then load
+   `guides/greenfield-interview.md`
+5. **Select Camel version** — load `guides/version-selection.md`
+6. **Design flows** — for each flow, load relevant `camel-design/` guides (component selection, EIPs, data formats, error handling, security, resilience)
+7. **Assemble design spec** — load `guides/design-assembly.md`
+8. **Self-review spec** — scan for placeholders, contradictions, unverified components
+9. **User reviews spec** — present spec, wait for explicit approval (Iron Law 3)
+10. **Transition** — depends on invocation mode:
     - **Chained mode:** YOU invoke the `camel-plan` skill automatically (do NOT tell the user to run it)
     - **Standalone mode:** write output artifact, print confirmation, STOP
 
@@ -252,7 +199,6 @@ Pass `runtime` and the full `platformBom` GAV (derived from `.camel-kit/config.p
 **Read at start (if they exist):**
 1. `docs/constitution.md` — constitution rules. If missing, copy from `templates/constitution.md`.
 2. `.camel-kit/config.properties` — project config (Camel version, runtime). May not exist yet.
-3. `docs/camel-kit/<PIPELINE_ID>/business-requirements.md` — existing business requirements (if resuming a project).
 
 ---
 

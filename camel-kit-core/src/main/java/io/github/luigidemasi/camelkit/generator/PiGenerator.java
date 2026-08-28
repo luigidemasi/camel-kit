@@ -37,6 +37,9 @@ public class PiGenerator extends DefaultGenerator {
 
         boolean generatedGuard = false;
         for (AgentDescriptor.TemplateInstall template : descriptor.templates()) {
+            if (PersonaResourceInstaller.isPersonaTemplate(template)) {
+                continue;
+            }
             Path target = ctx.projectDir().resolve(template.target());
             Path parent = target.getParent();
             if (parent != null) {

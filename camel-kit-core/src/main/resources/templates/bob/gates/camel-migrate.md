@@ -1,6 +1,6 @@
 ---
 name: camel-migrate
-description: Use when the user wants to migrate an existing integration from MuleSoft, Fuse, or older Camel versions to Apache Camel 4.x
+description: Use when the user wants to migrate an existing MuleSoft, BizTalk, Fuse, or older Camel integration to Apache Camel 4.x
 ---
 
 # Camel Migrate — Migration Pipeline (Bob)
@@ -20,22 +20,39 @@ Guides are spread across skill directories. Always use these full paths from the
 
 Do NOT explore or list directories to find guides — use the paths above.
 
-## Autonomous Execution Rules (Steps 12–14)
+## Autonomous Execution Rules
 
-After plan approval (Step 11), Steps 12 (Implement), 13 (Validate), and 14 (Test) execute as an **uninterrupted sequence**:
+After design approval, planning, implementation, internal verification, and final validation execute as an **uninterrupted sequence**:
 
-1. **No pausing between steps** — After implementation, immediately validate. After validation, immediately test.
-2. **No completion summaries until ALL steps complete** — The ONLY summary is printed after Step 14 (Test) finishes.
+1. **No pausing between steps** — After implementation, immediately verify. After verification, immediately validate.
+2. **No completion summaries until ALL steps complete** — The ONLY summary is printed after final validation finishes.
 3. **No "Next Steps" blocks** — You ARE executing the next step RIGHT NOW.
-4. **No asking for confirmation** — The plan approval (Step 11) is authorization for ALL remaining steps.
+4. **No asking for confirmation** — The design approval authorizes planning and all downstream work.
 5. **No README generation** — Do NOT generate documentation files mid-pipeline.
 
 <Steps>
 <Step>
 ## Switch to Brainstorm Mode
 
-Switch to **camel-brainstorm** mode using the mode selector or `/camel-brainstorm` command.
-This restricts your tools to read, markdown editing, MCP, and browser — preventing accidental code generation during the design phase.
+Switch to **camel-brainstorm-mode** using the mode selector or `/camel-brainstorm-mode`.
+This limits edits to design Markdown and Camel-Kit state. Command access is instruction-scoped to document metadata
+and graph operations; implementation artifacts remain prohibited during the design phase.
+</Step>
+
+<Step>
+## Detect Invocation Mode and Resolve Pipeline
+
+- With an explicit `<PIPELINE_ID>`, use standalone design-only mode and resolve
+  that pipeline directory directly.
+- Without an explicit ID, use chained mode and read `activePipeline` from
+  `.camel-kit/pipeline.json` when present.
+- If neither source yields an ID, ask the user for a lowercase slug, run
+  `{COMMAND_PREFIX} nextId <slug>`, and use the returned ID.
+
+Create or update `.camel-kit/pipeline.json` with `activePipeline`,
+`mode: "manual"`, and the current ISO-8601 `started` timestamp. If standalone
+mode updates an existing migration design, mark its downstream plan stale after
+the approved update and stop instead of chaining.
 </Step>
 
 <Step>
@@ -45,6 +62,7 @@ Read `.bob/skills/camel-brainstorm/guides/migration-discovery.md` for the full d
 
 Scan the source project for integration artifacts. Detect:
 - Vendor (MuleSoft, Fuse, Camel 2.x/3.x)
+- Microsoft BizTalk (`.odx`, `.btm`, `.btp`, `.btproj`, or BizTalk XML namespaces)
 - Platform (Spring Boot, Karaf, Quarkus, Plain Java)
 - DSL (Java, XML, Blueprint, YAML)
 - Routes (count, IDs, endpoints)
@@ -110,20 +128,42 @@ Read `.bob/skills/camel-brainstorm/guides/migration-discovery.md` Step 6 for com
 For migration-specific mappings, read the appropriate guide:
 - MuleSoft: `.bob/skills/camel-migrate/guides/mule-component-mapping.md`
 - Camel 2.x: `.bob/skills/camel-migrate/guides/camel2-component-mapping.md`, `.bob/skills/camel-migrate/guides/camel2-eip-mapping.md`, `.bob/skills/camel-migrate/guides/camel2-dataformat-mapping.md`, `.bob/skills/camel-migrate/guides/camel2-language-mapping.md`
+- BizTalk: `.bob/skills/camel-migrate/guides/biztalk-component-mapping.md`, `.bob/skills/camel-migrate/guides/biztalk-map-conversion.md`, `.bob/skills/camel-migrate/guides/biztalk-expression-mapping.md`, `.bob/skills/camel-migrate/guides/biztalk-pipeline-mapping.md`
 
 Verify EVERY component via MCP: `camel_catalog_component_doc`.
 </Step>
 
 <Step>
+## Generate the Vendor Design Package
+
+Run the detected vendor's two guides in order before requesting design approval:
+
+- MuleSoft: `mulesoft-phase1.md`, then `mulesoft-phase2.md`
+- Camel/Fuse: `camel-version-phase1.md`, then `camel-version-phase2.md`
+- BizTalk: `biztalk-phase1.md`, then `biztalk-phase2.md`
+
+Phase 1 writes `docs/camel-kit/<PIPELINE_ID>/business-requirements.md`.
+Phase 2 writes the catalog-verified
+`docs/camel-kit/<PIPELINE_ID>/design-spec.md`. Load the vendor's mapping,
+conversion, and platform guides when directed by those phase guides.
+</Step>
+
+<Step>
 ## Assemble and Present Design Spec
 
-Read `.bob/skills/camel-brainstorm/guides/design-assembly.md` for the full assembly process.
+Read `.bob/skills/camel-brainstorm/guides/design-assembly.md` for its assembly
+format and self-review criteria only. Do not follow that guide's `Save and
+Present` section; this gate owns the one save/presentation/approval sequence.
 
 Assemble the migration design spec including:
 - Migration context (source → target)
 - All concern decisions
 - Component mappings
 - Route designs
+
+Save it to `docs/camel-kit/<PIPELINE_ID>/design-spec.md` before presenting it.
+Run `{COMMAND_PREFIX} doc init --by camel-migrate docs/camel-kit/<PIPELINE_ID>/business-requirements.md`, then
+`{COMMAND_PREFIX} doc init --by camel-migrate --from business-requirements.md docs/camel-kit/<PIPELINE_ID>/design-spec.md`.
 
 Present the complete spec to the user.
 
@@ -141,111 +181,23 @@ All design decisions are locked. Create a checkpoint now.
 </Step>
 
 <Step>
-## Switch to Plan Mode
+## Complete or Hand Off
 
-Switch to **camel-plan** mode. Read `.bob/skills/camel-migrate/guides/camel-version-phase1.md` for business requirements generation.
-
-Generate the business requirements at `docs/camel-kit/<PIPELINE_ID>/business-requirements.md`.
-</Step>
-
-<Step>
-## Generate Technical Design
-
-Read `.bob/skills/camel-migrate/guides/camel-version-phase2.md` for design spec generation.
-
-Update the active migration design spec at `docs/camel-kit/<PIPELINE_ID>/design-spec.md`.
-</Step>
-
-<Step>
-## Plan Approval
-
-Present the business requirements and design spec to the user.
-
-**APPROVAL GATE:**
-"The migration plan is ready. Do you approve? (yes / changes needed)"
-
-Wait for explicit approval before proceeding.
-</Step>
-
-<Step>
-## Switch to Implement Mode and Execute
-
-Switch to **camel-implement** mode.
-
-**CHECKPOINT** — Create a checkpoint before starting implementation.
-
-Implement each route following the active design spec. For each route:
-1. **CHECKPOINT** before starting this route
-2. Read the route's design spec section
-3. Write the failing test
-4. Implement the YAML route
-5. Run tests
-6. Commit
-
-Read `.bob/skills/camel-migrate/guides/camel2-platform-changes.md` for platform migration steps (pom.xml, config files).
-
-**CRITICAL — CONTINUATION REQUIRED:** After all routes are implemented, you MUST IMMEDIATELY proceed to the next step (Validate). Do NOT:
-- Print "Migration implementation complete" or any completion summary
-- Print "Next Steps" or suggest manual actions
-- Stop, pause, or ask the user what to do next
-- Generate a README or migration documentation
-
-Implementation is step 12 of 14. Steps 13 (Validate) and 14 (Test) are mandatory. Proceed NOW.
-</Step>
-
-<Step>
-## Validate
-
-Switch to **camel-validate** mode.
-
-Run validation against the constitution and project norms.
-Report findings without modifying files.
-
-If the project graph is available, run:
-`{COMMAND_PREFIX} graph project-norms` and `{COMMAND_PREFIX} graph dead-code`
-
-**After validation completes, IMMEDIATELY proceed to the next step (Test). Do NOT stop or print summaries.**
-</Step>
-
-<Step>
-## Test
-
-Switch to **camel-test** mode.
-
-**CHECKPOINT** — Create a post-migration checkpoint.
-
-Write and run integration tests for all migrated routes.
-Verify all tests pass.
-
-**This is the FINAL step.** Now print the migration completion summary:
-
-```
-===============================================================
-MIGRATION COMPLETE
-===============================================================
-
-Source: [vendor] [version]
-Target: Apache Camel [version] on [runtime]
-
-Migrated Routes: [N]
-Validation: PASS/FAIL
-Tests: PASS/FAIL ([N] passing, [M] failing)
-
-Generated Files:
-  [list all generated files]
-
-Constitution Compliance: PASS/FAIL (all 8 rules)
-===============================================================
-```
+- **Standalone design-only mode:** confirm the approved design package paths and
+  stop. Do not transition.
+- **Chained mode:** switch to **camel-plan-mode**, then read and follow
+  `.bob/skills/camel-plan/SKILL.md` exactly once. That gate owns plan generation
+  and its single downstream handoff through execute, verification, and
+  validation. Do not reproduce those phases here.
 </Step>
 </Steps>
 
 ## Never
 
 - Stop after implementation to print a summary or "Next Steps"
-- Ask "Would you like me to continue?" between implement, validate, and test
-- Print "Migration complete" before validation and testing are done
-- Skip validation or testing
+- Ask "Would you like me to continue?" between implement, verification, and validation
+- Print "Migration complete" before verification and validation are done
+- Skip verification or validation
 - Generate a README mid-pipeline instead of continuing to the next step
 - Say "migration has been completed" while steps remain uncompleted
 
@@ -268,3 +220,9 @@ Constitution Compliance: PASS/FAIL (all 8 rules)
 | `.bob/skills/camel-migrate/guides/camel2-eip-mapping.md` | Camel 2.x → 4.x EIPs |
 | `.bob/skills/camel-migrate/guides/camel2-language-mapping.md` | Camel 2.x → 4.x languages |
 | `.bob/skills/camel-migrate/guides/camel2-platform-changes.md` | Platform migration guide |
+| `.bob/skills/camel-migrate/guides/biztalk-phase1.md` | BizTalk business analysis |
+| `.bob/skills/camel-migrate/guides/biztalk-phase2.md` | BizTalk technical design |
+| `.bob/skills/camel-migrate/guides/biztalk-component-mapping.md` | BizTalk adapter and shape mappings |
+| `.bob/skills/camel-migrate/guides/biztalk-map-conversion.md` | BizTalk map conversion |
+| `.bob/skills/camel-migrate/guides/biztalk-expression-mapping.md` | BizTalk expression conversion |
+| `.bob/skills/camel-migrate/guides/biztalk-pipeline-mapping.md` | BizTalk pipeline conversion |

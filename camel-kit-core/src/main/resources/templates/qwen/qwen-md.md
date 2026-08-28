@@ -2,13 +2,12 @@
 
 See `AGENTS.md` for skill routing, iron laws, and project rules.
 
-## Sub-Agent Pipeline
+## Workflow and Leaf Agents
 
-Tasks are automatically delegated to specialized sub-agents based on the type of work:
-- **camel-brainstormer** — discovery and requirements gathering
-- **camel-planner** — implementation planning with design-spec decomposition
+Slash-command workflows run in the primary session so interviews, approvals, arguments, and phase handoffs remain available.
+They may delegate bounded work to these generated agents:
+
 - **camel-implementer** — route implementation and code generation
-- **camel-validator** — quality validation and analysis
+- **camel-reviewer** — read-only catalog research and isolated review roles
+- **camel-validator** — read-only validation analysis that returns its complete report to the primary session
 - **camel-tester** — test creation and execution
-- **camel-migrator** — migration from other platforms
-- **camel-executor** — orchestrated plan execution

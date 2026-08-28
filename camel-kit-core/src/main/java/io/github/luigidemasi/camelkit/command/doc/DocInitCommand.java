@@ -24,7 +24,7 @@ public class DocInitCommand implements Callable<Integer> {
     @Option(names = "--by", required = true, description = "Skill that generated this artifact")
     String by;
 
-    @Option(names = "--from", required = true, description = "Source artifact this was generated from")
+    @Option(names = "--from", description = "Source artifact this was generated from (omit for root artifacts)")
     String from;
 
     @CommandLine.Spec

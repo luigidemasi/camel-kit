@@ -105,9 +105,9 @@ camel-kit/
 │       │   ├── camel-migrate/     # Migration orchestrator
 │       │   ├── camel-verify/      # Runtime verification
 │       │   ├── camel-implement/   # YAML generation (internal)
-│       │   ├── camel-validate/    # Quality review (internal)
+│       │   ├── camel-validate/    # Tier 1 user-facing static quality gate
 │       │   ├── camel-test/        # Test generation (internal)
-│       │   ├── camel-knowledge/   # Camel docs (internal)
+│       │   ├── camel-knowledge/   # Tier 2 user-facing Camel docs utility
 │       │   └── shared/            # Shared guides (iron laws, DataMapper, MCP)
 │       └── templates/           # Agent-specific instruction templates
 │           ├── bob/             # IBM Project Bob
@@ -379,11 +379,11 @@ Each guide in `guides/` is a self-contained markdown file loaded by the agent wh
 
 ### 4. Register the Skill
 
-- **If user-invocable:** update agent templates for all 5 agents (Claude, Bob, Gemini, Qwen, OpenCode) to register the slash command
+- **If user-facing:** update the workflow manifest and generated-command/skill tests; each target emits the surface its registry supports
 - **If internal:** update the parent skill's SKILL.md to reference your new guides
-- Update `docs/commands.md` if user-invocable
+- Update `docs/commands.md` if user-facing
 
-See [Architecture Guide](docs/architecture.md#9-how-to-add-a-skill) for the full process.
+See [Architecture Guide](docs/architecture.md#10-how-to-add-a-skill) for the full process.
 
 ### 5. Add Agent Traits (Optional)
 

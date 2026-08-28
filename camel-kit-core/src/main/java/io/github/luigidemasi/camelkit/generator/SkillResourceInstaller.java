@@ -138,12 +138,9 @@ class SkillResourceInstaller {
         }
         if (destination.getFileName().toString().equals("SKILL.md")) {
             boolean shipDelegate = "camel-ship".equals(destination.getParent().getFileName().toString());
-            if (shipDelegate) {
-                String content = Files.readString(destination);
-                Files.writeString(destination, content.replace("{COMMAND_PREFIX}", ctx.commandPrefix()));
-            }
-            if (AgentGeneratorStrategy.BOB2.descriptorValue().equals(ctx.agentName())) {
-                addBobReadableUserInvocableMetadata(destination);
+            if (AgentGeneratorStrategy.BOB2.descriptorValue().equals(ctx.agentName())
+                    || AgentGeneratorStrategy.QWEN.descriptorValue().equals(ctx.agentName())) {
+                addHyphenatedUserInvocableMetadata(destination);
             }
             if (AgentGeneratorStrategy.COPILOT.descriptorValue().equals(ctx.agentName())) {
                 addCopilotReadableInternalSkillMetadata(destination);
@@ -156,7 +153,11 @@ class SkillResourceInstaller {
             }
         }
         if (destination.getFileName().toString().endsWith(".md")) {
-            versionPlaceholderResolver.substitute(destination, ctx.distribution());
+            versionPlaceholderResolver.substitute(destination, ctx.distribution(), ctx.commandPrefix());
+            var personaDirectory = PersonaResourceInstaller.targetDirectory(ctx);
+            if (personaDirectory.isPresent()) {
+                PersonaResourceInstaller.rewriteReferences(destination, personaDirectory.get());
+            }
             if (AgentGeneratorStrategy.CODEX.descriptorValue().equals(ctx.agentName())) {
                 useCodexSkillInvocations(destination, workflow);
             }
@@ -166,7 +167,7 @@ class SkillResourceInstaller {
     void removeRetiredShipGuides(InitContext ctx) throws IOException {
         Path guides = ctx.skillsDir().resolve("camel-ship/guides");
         for (String guide : RETIRED_SHIP_GUIDES) {
-            GeneratedAssetCleaner.deleteRegularFile(ctx.projectDir(), guides.resolve(guide));
+            GeneratedAssetCleaner.deleteRegularFile(ctx, guides.resolve(guide));
         }
     }
 
@@ -184,7 +185,7 @@ class SkillResourceInstaller {
         }
     }
 
-    private void addBobReadableUserInvocableMetadata(Path skillFile) throws Exception {
+    private void addHyphenatedUserInvocableMetadata(Path skillFile) throws Exception {
         String content = Files.readString(skillFile);
         String normalized = content.replace("\r\n", "\n");
         if (!normalized.startsWith("---\n") || normalized.contains("\nuser-invocable:")) {

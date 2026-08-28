@@ -47,4 +47,15 @@ class VersionPlaceholderResolverTest {
 
         assertEquals(original, Files.readString(mdFile), "File without version placeholders must not change");
     }
+
+    @Test
+    void substitutesCommandPrefixWhenProvided() throws Exception {
+        Path mdFile = tempDir.resolve("command.md");
+        Files.writeString(mdFile, "Run {COMMAND_PREFIX} graph stats");
+
+        new VersionPlaceholderResolver().substitute(
+                mdFile, DistributionConfig.loadFromClasspathOrDefaults(), "camel kit");
+
+        assertEquals("Run camel kit graph stats", Files.readString(mdFile));
+    }
 }

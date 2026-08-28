@@ -11,7 +11,9 @@ import org.apache.camel.dsl.jbang.core.common.Plugin;
 
 import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.command.DoctorCommand;
+import io.github.luigidemasi.camelkit.command.doc.DocCommand;
 import io.github.luigidemasi.camelkit.command.graph.GraphCommand;
+import io.github.luigidemasi.camelkit.command.pipeline.NextIdCommand;
 import io.github.luigidemasi.camelkit.command.plan.PlanCommand;
 import io.github.luigidemasi.camelkit.command.ship.ShipCommand;
 
@@ -31,8 +33,10 @@ public class CamelKitPlugin implements Plugin {
         CommandLine kitCommand = new CommandLine(new KitCommand(main))
                 .addSubcommand("init", new CommandLine(new KitInitCommand(main, camelKitMain)))
                 .addSubcommand("doctor", new CommandLine(new DoctorCommand(camelKitMain)))
+                .addSubcommand("doc", new CommandLine(new DocCommand()))
                 .addSubcommand("graph", new CommandLine(new GraphCommand()))
                 .addSubcommand("plan", new CommandLine(new PlanCommand()))
+                .addSubcommand("nextId", new NextIdCommand())
                 .addSubcommand("ship", new CommandLine(new ShipCommand()));
 
         commandLine.addSubcommand("kit", kitCommand);

@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **GitHub Copilot CLI AI target (`--ai copilot`)** — added a first-class Copilot CLI target that generates GitHub-native project assets.
   - New `copilot` agent registry descriptor, generator strategy, and `CopilotGenerator`
   - Generated workspaces include `.github/copilot-instructions.md`, `.github/skills/`, `.github/agents/`, `.github/mcp.json`, and `.github/hooks/camel-kit-safety.json`
-  - Copilot MCP config uses the documented `tools` schema while `doctor` continues to validate existing `autoApprove`/`alwaysAllow` configs for other agents; wildcard Copilot tool filters produce a least-privilege warning
+  - Copilot MCP config uses the documented `tools` schema; Qwen uses `includeTools`, OpenCode retains permission prompts without ignored approval fields, and `doctor` validates each target's runtime-supported contract
   - Internal Copilot guide skills are marked so Copilot does not directly or automatically invoke them
   - README, command reference, user guide, architecture docs, agent architecture guide, and changelog document the Copilot target and skill-based invocation model
 
@@ -63,16 +63,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Bob 2 documentation describes native subagents and no longer inherits broad "Bob does not support subagents" language
   - The "Adding a New Agent" architecture guide now includes registry descriptor and `camel-kit doctor` validation steps
 
-- **Progressive skill loading via meta-router** — introduced `/camel-start` as the single auto-discovered skill that routes users into two pipelines (greenfield: brainstorm → plan → execute → verify, migration: migrate → plan → execute → verify). All other skills set to `user_invocable: false` — slash commands still work as on-demand loaders. Context baseline reduced from ~1,260 to ~110 tokens (91% reduction).
+- **Progressive skill loading via meta-router** — introduced `/camel-start` as the single auto-discovered skill that routes users into two four-stage pipelines (greenfield: brainstorm → plan → execute → validate, migration: migrate → plan → execute → validate). All other skills set to `user_invocable: false` — slash commands still work as on-demand loaders. Runtime `camel-verify` runs internally during execute. Context baseline reduced from ~1,260 to ~110 tokens (91% reduction).
   - New `camel-start/SKILL.md` with decision tree, "When NOT to use" table, pipeline overview, and Tier 2 utility references
   - AGENTS.md rewritten to ultra-minimal bootstrap (~80 tokens): compressed iron laws + entry point directive
-  - Skill tiering: Tier 1 (pipeline: brainstorm, migrate, plan, execute, verify), Tier 2 (utilities: validate, ship, knowledge), Internal (guide libraries: design, implement, test)
+  - Skill tiering: pipeline commands (brainstorm or migrate, plan, execute, validate), standalone utilities (ship, knowledge, debug), and internal guide libraries (design, implement, test, verify)
 
 ### Removed
 
 - **`/camel-flow` skill** — redundant 14-line redirect to `/camel-brainstorm` with greenfield preset, now handled by `/camel-start` routing
 
 ### Fixed
+
+- **Camel plugin command parity and public documentation (#193)** — registered `doc` and `nextId` under `camel kit`, added a direct standalone/plugin parity regression, and aligned stable-versus-snapshot installation, prerequisites, workflow, graph, Knowledge, agent, and Ship documentation.
+  - Review hardening keeps validator leaves read-only, preserves unrelated OpenCode configuration during regeneration, resolves command prefixes only in Camel-Kit-owned resources, and installs the complete persona library for every current target except the intentionally excluded Bob 1 path
+  - `doctor` accepts pre-upgrade Qwen/OpenCode MCP layouts with upgrade warnings while retaining failures for malformed current layouts, and checks registered target assets for drift
+  - Regeneration reports each retired generated asset it removes; switching between Bob generations now also removes the obsolete Ship mode rule symmetrically while preserving neighboring files
+  - OpenCode regeneration recognises `opencode.json`, `opencode.jsonc`, `.opencode/opencode.json`, and `.opencode/opencode.jsonc` as project layers, updates them in place (comments, trailing commas, newline style, and symbolic links preserved), moves the Camel-managed `permission` and `mcp` entries into the highest-precedence existing layer, validates every layer before writing anything, and reports a malformed file as one concise error instead of a stack trace
+  - `doctor` evaluates OpenCode permission rules per managed MCP server in OpenCode's last-match order and reports each finding against the layer that defines the rule
+  - `doctor` warns instead of failing for every JSON-config agent when a workspace generated before Citrus MCP support has no `citrus` server; a present but malformed `citrus` server still fails
 
 - **Citrus MCP startup (#147)** — downgraded the generated MCP runner from `5.0.0-M2`, which fails during Quarkus startup with an incompatible JSON Schema Generator dependency, to the verified working `5.0.0-M1` release. Citrus test schemas and dependencies remain on `5.0.0-M2`.
 
@@ -102,12 +110,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **IBM Bob 2 AI target (`--ai bob2`)** — added a new Bob 2 target while preserving `--ai bob` as the IBM Bob 1 legacy path.
   - New `bob2` agent registry descriptor, generator strategy, and `Bob2Generator`
-  - Bob 2 workspaces still generate under `.bob/` with `.bob/commands`, `.bob/skills`, `.bob/custom_modes.yaml`, and `.bob/mcp.json`
+  - Bob 2 workspaces still generate under `.bob/` with `.bob/commands`, `.bob/skills`, capability-scoped `.bob/agents`, role text under `.bob/personas`, `.bob/custom_modes.yaml`, and `.bob/mcp.json`
   - Bob 2 custom modes use the current Bob 2 tool groups (`read`, `edit`, `execute`, `mcp`, `skill`, `todo`, `artifact`, `subagent`, `mode`) with `allowedSubagents`
-  - New Bob 2 rules, dispatch template, and traits for native `spawn_subagent` orchestration with `explore`, `general`, and `fork_context`
+  - New Bob 2 rules, dispatch template, and traits for native `spawn_subagent` orchestration with factual-discovery `explore`, generated `camel-worker` and read/MCP-only `camel-reviewer` presets, and `fork_context`
   - Bob 2 command stubs include markdown frontmatter from workflow metadata, including `description` and argument hints
   - Bob 2 generated skills keep the shared `SKILL.md` content and append Bob 2 traits instead of replacing skills with Bob 1 monolithic gates
-  - Bob 2 skill metadata includes Bob-readable `user-invocable` aliases while preserving existing metadata for other agents
+  - Bob 2 and Qwen skill copies include their runtime-readable `user-invocable` aliases while preserving source metadata
 
 - **Bob 2 coverage and regression tests** — added registry, factory, generator, command-frontmatter, skill-metadata, custom-mode, doctor, and CLI default tests for Bob 2, plus explicit guards that legacy Bob 1 output remains unchanged.
 
@@ -183,22 +191,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `BobGenerator` passes distribution values to Qute templates
   - `InitCommand` and catalog classes read Maven repo URLs from `DistributionConfig`
 
-- **Multi-agent parity** — expanded from 3 to 5 supported AI agents
+- **Multi-agent parity** — expanded the supported AI targets while preserving shared workflow and output contracts
   - Added Qwen (`--ai qwen`) and OpenCode (`--ai opencode`)
-  - Skills-based equalization layer: same skill guides work across all agents
-  - Agent-specific generators: `ClaudeGenerator` (CLAUDE.md + parallel dispatch), `BobGenerator` (5 modes + monolithic skills), `GeminiGenerator` (@imports + policies + subagents), `QwenGenerator` (sub-agent auto-delegation), `OpenCodeGenerator` (permission-based agents)
+  - Skills-based equalization layer: most targets consume shared skills; Bob 1 legacy installs self-contained monolithic gates with the same contracts
+  - Agent-specific generators: `ClaudeGenerator` (CLAUDE.md + parallel dispatch), `BobGenerator` (modes + monolithic gates), `GeminiGenerator` (@imports + policies + subagents), `QwenGenerator` (primary workflows + bounded leaves), `OpenCodeGenerator` (primary executor + permission-bounded leaves)
   - `AgentGenerator` interface with `AgentGeneratorFactory` routing
   - `QuteTemplateEngine` for agent-specific template rendering (replaced `String.replace()`)
   - `InitContext` carries distribution and agent info through the init pipeline
   - Iron laws embedded in each agent's instruction file
   - Platform-specific dispatch block templates appended to SKILL.md during init
-  - Pre-registered Qwen sub-agent definitions generated at init time
+  - Qwen generates four bounded leaves plus a non-auto-discovered persona library; interactive workflows remain in the primary session
 
-- **Iron laws** — 5 non-negotiable pipeline rules enforced across all skills
+- **Iron laws** — 6 non-negotiable pipeline rules enforced across all skills
   1. MCP Catalog Verification — every component verified via MCP before use
-  2. Constitution Compliance — every route passes all 7 constitution rules
-  4. No Code Without Spec Approval — brainstorm → approval → plan → approval → execute
-  5. Spec Compliance Before Quality — two-stage review in correct order
+  2. Constitution Compliance — every route passes all 8 constitution rules
+  3. No Code Without Design Approval and an Existing Plan — one design approval authorizes plan and execution
+  4. Spec Compliance Before Quality — ordered review in the correct sequence
+  5. Adversarial Code Review — critic lanes run before spec and quality review
+  6. Surgical Changes — implementation tasks touch only their requested scope
 
 - **Migration support expanded** — `/camel-migrate` now handles Apache Camel 2.x/3.x and JBoss Fuse migrations in addition to MuleSoft Mule
 
@@ -255,7 +265,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Apache Camel MCP Server Integration**
   - Automatic project-specific MCP configuration during `camel-kit init`
-  - Support for multiple AI agents: Claude Code (`.mcp.json`), IBM Bob (`.bob/mcp.json`), Gemini CLI (`.gemini/mcp.json`), Qwen, OpenCode
+  - Agent-specific paths include Claude Code (`.mcp.json`), IBM Bob (`.bob/mcp.json`), Gemini CLI (`.gemini/settings.json`), Qwen (`.qwen/settings.json`), and OpenCode (`opencode.json`)
   - 15 MCP tools available, 7 actively used across skills
   - Real-time catalog queries: `camel_catalog_components`, `camel_catalog_component_doc`
   - Route validation: `camel_validate_route`, `camel_route_context`
@@ -266,7 +276,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Skills-based architecture with MCP integration**
   - Converted 5 commands to skills standard with YAML frontmatter and metadata
   - Commands now use kebab-case naming: `/camel-project`, `/camel-flow`, `/camel-implement`, `/camel-validate`, `/camel-test`
-  - All skills are user-invocable and discoverable by AI agents
+  - `camel-start` is the auto-discovered entry point; generated commands expose public pipeline and utility skills while internal guides remain hidden
   - On-demand guide loading for token optimization (60-70% token savings)
   - Bundled component skills structure for offline use
 
@@ -310,11 +320,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Template engine migrated to Qute** — all templates migrated from `String.replace()` to Qute engine (`qute-core` dependency); supports conditional blocks, loops, and distribution-aware rendering
 
-- **Documentation rewritten** — all docs updated to reflect the 3-phase orchestrated pipeline, user-invocable workflows, AI-agent targets, Groovy DataMapper, and runtime verification
+- **Documentation rewritten** — all docs updated to reflect the four-stage orchestrated pipeline, user-invocable workflows, AI-agent targets, Groovy DataMapper, and internal runtime verification
 
 - **`/camel-project` deprecated** — replaced by `/camel-brainstorm`
 
-- **`/camel-knowledge` internalized** — now used by pipeline skills, no longer user-invocable
+- **`/camel-knowledge` progressive-loaded** — available through its generated command and used internally by pipeline skills without automatic skill discovery
 
 - **Constitution is now a static file — no generation step**
   - Removed Step 1.5 (Produce Constitution) from `camel-migrate-mule/SKILL.md`
@@ -519,7 +529,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`camel-kit agents` command** - Agent information available via `--help`
 - **`camel-kit version` command** - Use `camel-kit --help` for version info
 
-## [0.1.3] - 2025-02-13
+## 0.1.3 - 2025-02-13
 
 ### Added
 
@@ -534,7 +544,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Identifies required vs optional options from `properties[*].required`
   - Determines option placement: `kind: "path"` in URI, `kind: "parameter"` in parameters block
 
-## [0.1.2] - 2025-02-13
+## 0.1.2 - 2025-02-13
 
 ### Added
 
@@ -561,7 +571,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed Citrus `camel.jbang.run` YAML schema
 - Fixed `onException` YAML syntax: `handled` requires expression format, not boolean
 
-## [0.1.1] - 2025-02-12
+## 0.1.1 - 2025-02-12
 
 ### Added
 
@@ -585,7 +595,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed obsolete `/camel-init` command (replaced by CLI `camel-kit init`)
 - Removed separate `/camel-route` command (merged into `/camel-flow`)
 
-## [0.1.0] - 2024-XX-XX
+## 0.1.0 - 2024-XX-XX
 
 ### Added
 
@@ -612,9 +622,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [Unreleased]: https://github.com/luigidemasi/camel-kit/compare/camel-kit-0.3.1...HEAD
 [0.3.1]: https://github.com/luigidemasi/camel-kit/compare/camel-kit-0.3.0...camel-kit-0.3.1
-[0.3.0]: https://github.com/luigidemasi/camel-kit/compare/v0.2.0...camel-kit-0.3.0
-[0.2.0]: https://github.com/luigidemasi/camel-kit/compare/v0.1.3...v0.2.0
-[0.1.3]: https://github.com/luigidemasi/camel-kit/compare/v0.1.2...v0.1.3
-[0.1.2]: https://github.com/luigidemasi/camel-kit/compare/v0.1.1...v0.1.2
-[0.1.1]: https://github.com/luigidemasi/camel-kit/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/luigidemasi/camel-kit/releases/tag/v0.1.0
+[0.3.0]: https://github.com/luigidemasi/camel-kit/compare/camel-kit-0.2.0...camel-kit-0.3.0
+[0.2.0]: https://github.com/luigidemasi/camel-kit/tree/camel-kit-0.2.0

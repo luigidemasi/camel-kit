@@ -205,7 +205,7 @@ generated:
 ### CLI Commands
 
 ```bash
-{COMMAND_PREFIX} doc init --by <skill> --from <source> <file>  # Add provenance metadata
+{COMMAND_PREFIX} doc init --by <skill> [--from <source>] <file> # Add metadata; omit --from for root artifacts
 {COMMAND_PREFIX} doc check <file>                              # Query staleness → JSON
 {COMMAND_PREFIX} doc stale --reason "..." [--cascade] <file>   # Mark stale
 {COMMAND_PREFIX} doc unstale <file>                            # Clear staleness
@@ -237,7 +237,7 @@ Exit code 0 for successful execution regardless of staleness. Non-zero for error
 
 ### Skill Contract
 
-- Each pipeline skill writes frontmatter when generating artifacts (documents are "born with metadata") — run `{COMMAND_PREFIX} doc init --by <skill> --from <source> <file>` after saving
+- Each pipeline skill writes frontmatter when generating artifacts (documents are "born with metadata") — run `{COMMAND_PREFIX} doc init --by <skill> [--from <source>] <file>` after saving; omit `--from` when no actual source artifact exists
 - Skills call `{COMMAND_PREFIX} doc check` via tool call instead of scanning text
 - `--reason` is required on `doc stale` for audit trail
 

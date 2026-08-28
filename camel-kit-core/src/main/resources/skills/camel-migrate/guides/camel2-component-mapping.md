@@ -37,7 +37,7 @@ These renames happened in Camel 4.0.
 |---------------|---------------|-------|
 | `direct-vm` | `direct` | Cross-CamelContext `direct-vm` removed. Use `direct` (single context). |
 | `vm` | `seda` | Cross-CamelContext `vm` removed. Use `seda` (single context). |
-| `dozer` | *(removed)* | Dozer component removed. Use DataMapper/XSLT via `camel-xslt-saxon`. |
+| `dozer` | *(removed)* | Extract the semantic mapping, then use the canonical inline Groovy or XSLT DataMapper selected by `shared/datamapper-canonicalize.md`. |
 
 ## Removed Components — No Direct Replacement
 

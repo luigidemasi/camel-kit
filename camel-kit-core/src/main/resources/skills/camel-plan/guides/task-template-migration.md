@@ -11,8 +11,10 @@ Migration projects follow the same basic sequence as greenfield, but add migrati
 
 The plan still MUST emit the `yaml plan-metadata` block described in `task-template-greenfield.md` and
 `task-decomposition.md`. Migration tasks should use metadata to expose dependencies that are otherwise hidden:
-- Java adaptation tasks provide `beans` or processor class names consumed by route YAML tasks.
-- DataWeave/XSLT conversion tasks provide `schemas` or `routeContracts` consumed by route YAML tasks.
+- Java adaptation tasks (Spring Boot/Quarkus only) provide `beans` or processor class names consumed by route YAML
+  tasks.
+- The standard route task owns the selected inline Groovy or XSLT DataMapper implementation and its metadata; do not
+  emit a second migration-specific mapping task.
 - Component mapping tasks can provide `routeContracts` consumed by route generation and validation tasks.
 - Platform setup tasks provide `properties`, `externalServices`, and dependency readiness consumed by later tasks.
 
@@ -20,7 +22,10 @@ The plan still MUST emit the `yaml plan-metadata` block described in `task-templ
 
 These tasks are added to the standard greenfield sequence:
 
-### Task Template: Copy/Adapt Java Sources
+### Task Template: Copy/Adapt Java Sources (Spring Boot/Quarkus only)
+
+Do not emit this task for Camel Main. If Java processors, beans, or configuration must remain after migration, the
+design is not eligible for Camel Main and must return to runtime selection before planning.
 
 ```markdown
 ### Task N: Adapt Java Sources — [flow-name]
@@ -42,7 +47,8 @@ These tasks are added to the standard greenfield sequence:
   - Deprecated API replacements
   - Updated Processor/Exchange interface methods
 - [ ] Adapt package structure to target project
-- [ ] Verify: `javac` compilation check (if build tool available)
+- [ ] Verify: `./mvnw -f [MODULE_DIR]pom.xml -DskipTests compile` exits 0 with `BUILD SUCCESS`; omit the entire
+  `[MODULE_DIR]` prefix when the POM is at the project root
 
 **Review:**
 - [ ] Spec compliance: all Java sources from spec adapted
@@ -78,38 +84,6 @@ These tasks are added to the standard greenfield sequence:
 - [ ] All target components verified in catalog
 ```
 
-### Task Template: Convert DataWeave to XSLT
-
-```markdown
-### Task N: Convert DataWeave — [flow-name]
-
-**Agent:** migration-specialist
-
-**Files:**
-- Create: `[ROUTE_DIR]kaoto-datamapper-[id].xsl`
-
-**Guides to Load:**
-- `camel-migrate/guides/mule-dataweave-conversion.md`
-- `camel-migrate/guides/datamapper-migrate.md`
-- `shared/datamapper-canonicalize.md`
-- `camel-implement/guides/datamapper-approach-[a|b].md`
-- `camel-implement/guides/datamapper-validation.md`
-
-**Design Spec Section:** Section 3, Flow: [flow-name], DataMapper subsection
-
-- [ ] Read DataWeave source from design spec
-- [ ] Map DataWeave expressions to XPath/XSLT equivalents
-- [ ] Pre-compute source XPaths and target elements using canonicalize guide
-- [ ] Select XSLT approach (A or B) per design spec
-- [ ] Generate XSLT using the appropriate approach guide skeleton
-- [ ] Self-validate: XSLT covers all field mappings from spec
-- [ ] Verify: `test -f [ROUTE_DIR]kaoto-datamapper-[id].xsl`
-
-**Review:**
-- [ ] Spec compliance: all DataWeave mappings covered in XSLT
-- [ ] Code quality: valid XSLT, correct XPath expressions
-```
-
 ### Task Template: Platform Migration Artifacts
 
 ```markdown
@@ -118,41 +92,40 @@ These tasks are added to the standard greenfield sequence:
 **Agent:** migration-specialist
 
 **Files:**
-- Create/Modify: `pom.xml` (new BOM, NO parent POM, updated dependencies)
+- Create/Modify: `[MODULE_DIR]application.properties` (Main only; `camel.jbang.dependencies`)
+- Modify: `[MODULE_DIR]pom.xml` (Spring Boot/Quarkus only; scaffold-owned POM, update dependencies/plugins/config)
 - Create: platform-specific config files
 
 **Guides to Load:**
 - `camel-migrate/guides/camel2-platform-changes.md`
-- `camel-implement/guides/maven-dependencies.md`
-- `camel-implement/guides/pom-spring-boot.md` (if Spring Boot target)
-- `camel-implement/guides/pom-quarkus.md` (if Quarkus target)
-
-**POM Template Files (MUST READ AND COPY):**
-- If Quarkus: `templates/pom-quarkus.xml` — copy verbatim, replace only `[PLACEHOLDER]` values
-- If Spring Boot: `templates/pom-spring-boot.xml` — copy verbatim, replace only `[PLACEHOLDER]` values
+- `camel-implement/guides/properties-generation.md` (Main)
+- `camel-implement/guides/maven-dependencies.md` (Spring Boot/Quarkus)
 
 <HARD-RULE>
-Do NOT generate the POM from scratch. COPY the template file and replace ONLY the bracketed placeholders. The template already has the correct groupIds, artifactIds, repositories, and plugins.
+For Main, do NOT create a POM; write resolved dependencies to `camel.jbang.dependencies` in the module-root
+`application.properties`. For Spring Boot/Quarkus, the scaffold task is the sole POM creator. Modify that existing POM
+only for design-required dependencies, plugins, and configuration; never create or replace it here.
 </HARD-RULE>
 
 **Design Spec Section:** Section 7, Platform Changes
 
-- [ ] Create new `pom.xml` using the TEMPLATE-COPY approach:
-  - If Quarkus: Read the file `templates/pom-quarkus.xml`, copy it verbatim to `pom.xml`
-  - If Spring Boot: Read the file `templates/pom-spring-boot.xml`, copy it verbatim to `pom.xml`
-  - Replace ONLY these placeholders: `[PROJECT_GROUP_ID]`, `[PROJECT_ARTIFACT_ID]`, `[PROJECT_VERSION]`, `[PROJECT_NAME]`, `[PLATFORM_BOM_VERSION]` (and `[SPRING_BOOT_VERSION]` for Spring Boot)
-  - Get `[PLATFORM_BOM_VERSION]` from the design spec header `platformBomVersion` field
-  - Do NOT modify any other values in the template (groupIds, artifactIds, repositories, plugins)
-  - Add project-specific dependencies in the DEPENDENCIES section
+- [ ] For Main, create/update module-root `application.properties` with catalog-verified
+  `camel.jbang.dependencies`; do not create `pom.xml`
+- [ ] For Spring Boot/Quarkus, read the scaffold-owned `[MODULE_DIR]pom.xml` and add only catalog-verified project
+  dependencies plus design-required migration plugins/configuration
 - [ ] Convert platform-specific configuration:
-  - [OSGi features → Maven dependencies]
+  - [OSGi features → `camel.jbang.dependencies` for Main or Maven dependencies for Spring Boot/Quarkus]
   - [Spring XML context → application.properties]
-  - [Blueprint beans → CDI/Spring beans]
-- [ ] Verify: `mvn dependency:tree` shows correct dependencies
+  - [Blueprint beans → supported YAML/inline Groovy for Main or CDI/Spring beans for Spring Boot/Quarkus]
+- [ ] For Main, run
+  `grep -F 'camel.jbang.dependencies=' [MODULE_DIR]application.properties`; require exit 0 and confirm the matched value
+  contains every catalog-verified coordinate
+- [ ] For Spring Boot/Quarkus, run `./mvnw -f [MODULE_DIR]pom.xml dependency:tree` (omit the module prefix when the POM
+  is at the project root); require exit 0 and confirm the output contains every catalog-verified dependency coordinate
 
 **Review:**
 - [ ] Spec compliance: platform changes match spec Section 7
-- [ ] Code quality: valid POM structure, correct BOM usage
+- [ ] Code quality: no POM for Main; valid POM structure and correct BOM usage for Spring Boot/Quarkus
 ```
 
 ---
@@ -161,15 +134,19 @@ Do NOT generate the POM from scratch. COPY the template file and replace ONLY th
 
 Follow the migration ordering from the design spec:
 
-1. **Scaffold** — project structure, POM with target BOM
-2. **Platform migration setup** — BOM changes, platform config
+1. **Scaffold** — project structure; POM with target BOM for Spring Boot/Quarkus only
+2. **Platform migration setup** — runtime-specific dependencies and platform config
 3. **Component mapping verification** — all target components MCP-verified
 4. **Per route (leaf routes first):**
-   a. DataWeave → XSLT conversion (if applicable)
-   b. Java source adaptation (if applicable)
-   c. Route YAML generation
-   d. Properties generation
-5. **Docker Compose** — consolidated for all flows
-6. **Validation** — all routes
-7. **Smoke test**
-8. **Testing** — integration tests for migrated routes
+   a. Java source adaptation (if applicable; Spring Boot/Quarkus only)
+   b. Route YAML generation, including the approved DataMapper engine and artifacts when applicable
+   c. Properties generation
+5. **Main run script** — one module-wide task from `task-template-greenfield.md`, Main only, after every route/XSL file
+   is known
+6. **Docker Compose** — one consolidated task only when the design lists external services
+7. **Testing** — one Citrus YAML integration-test task per migrated route
+
+After these tasks, `camel-execute` performs the cross-cutting review and its
+internal build-or-smoke plus Citrus verification once. Chained execution then
+continues to the final report-only `/camel-validate` phase; neither verification
+nor static validation is a separate implementation-plan task.

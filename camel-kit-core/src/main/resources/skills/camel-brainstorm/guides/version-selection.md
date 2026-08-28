@@ -106,14 +106,30 @@ not supported by this distribution.
 
 ## Step 4: Store in Config
 
-Append the selected values to `.camel-kit/config.properties`:
+Append only the selected runtime's values to `.camel-kit/config.properties`.
+
+For Main:
+
+```properties
+project.runtime=main
+project.camelVersion={{SELECTED_CAMEL_MAIN_VERSION}}
+```
+
+For Spring Boot:
+
+```properties
+project.runtime=spring-boot
+project.camelVersion={{SELECTED_CAMEL_SPRING_BOOT_VERSION}}
+project.platformBomVersion={{SELECTED_SPRING_BOOT_BOM_VERSION}}
+project.springBootVersion={{SELECTED_SPRING_BOOT_VERSION}}
+```
+
+For Quarkus:
 
 ```properties
 project.runtime=quarkus
-project.camelVersion={CAMEL_QUARKUS_VERSION}
-project.platformBomVersion={QUARKUS_PLATFORM_VERSION}
-# Spring Boot only:
-# project.springBootVersion=<Spring Boot framework version from the Step 2 mapping for the selected Camel version>
+project.camelVersion={{SELECTED_CAMEL_QUARKUS_VERSION}}
+project.platformBomVersion={{SELECTED_QUARKUS_PLATFORM_VERSION}}
 ```
 
 These values are the single source of truth for all subsequent skills.

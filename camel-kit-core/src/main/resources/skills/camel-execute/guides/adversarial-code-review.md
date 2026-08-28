@@ -1,6 +1,6 @@
 # Adversarial Code Review
 
-Parallel adversarial review for implementation output. Dispatches a Moderator subagent that dynamically selects and runs specialized Critic Lanes, each in a fresh context with no accumulated session state.
+Adversarial review for implementation output. A Moderator dynamically selects and runs specialized Critic Lanes in parallel fresh contexts when supported, or sequentially inline otherwise.
 
 **Load this guide during Step 2b.5 of `camel-execute`.** Replaces the former doubt-driven review.
 
@@ -10,7 +10,7 @@ Parallel adversarial review for implementation output. Dispatches a Moderator su
 
 The default review posture ("does this match the spec?") catches compliance errors but misses overconfident assumptions. Adversarial Code Review (ACR) uses **identity-separated Critic Lanes** — each with a specialized adversarial constitution — to catch what a single generic reviewer would miss. It runs post-implementation, before the two-stage review, as a pre-filter.
 
-**Key principle from ACR:** The agent that wrote the code is compromised. Each Critic operates in a fresh context with only the relevant design spec section and the artifact — no accumulated session reasoning, no implementer explanations.
+**Key principle from ACR:** The implementation must be challenged through independent critic lenses. Each Critic uses only the relevant design spec section and artifact. Prefer fresh contexts; when the target cannot create them, run the lenses sequentially and record that limitation.
 
 ---
 
@@ -19,9 +19,9 @@ The default review posture ("does this match the spec?") catches compliance erro
 | Constraint | Value |
 |---|---|
 | Maximum ACR cycles | 3 per task |
-| Critic context | Fresh — no accumulated session context |
-| Critic dispatch | Subagent (not inline in orchestrator) |
-| Moderator dispatch | Subagent (keeps review traces out of orchestrator context) |
+| Critic context | Fresh when supported; same-session fallback recorded otherwise |
+| Critic execution | Parallel subagents when supported; sequential inline fallback |
+| Moderator execution | Subagent when supported; inline fallback |
 | Modifiable artifacts | None — critics report findings, implementer fixes |
 | Escalation target | User (after 3 cycles without convergence) |
 
@@ -31,16 +31,16 @@ The default review posture ("does this match the spec?") catches compliance erro
 
 After the implementer reports DONE (or DONE_WITH_CONCERNS), run this workflow.
 
-### Step 1: Dispatch Moderator
+### Step 1: Run Moderator
 
-Dispatch the `acr-moderator` subagent (from `agents/acr-moderator.md`) with:
+Run the `acr-moderator` role (from `agents/acr-moderator.md`) in a fresh subagent when supported, or inline otherwise, with:
 
 1. The implementer's generated files (read contents, not just paths)
 2. The design spec section for this task (the contract)
 3. Source contracts if available for migration pipelines (WSDL, OpenAPI, XSD)
 4. The implementer's status and any concerns
 
-The Moderator performs lane selection, dispatches critics in parallel, and returns a unified synthesis report with a verdict.
+The Moderator performs lane selection, runs critics in parallel where supported or sequentially otherwise, and returns a unified synthesis report with a verdict.
 
 **Model selection:** Standard model for Moderator (triage + synthesis). Most capable model for each Critic (deep adversarial reasoning).
 

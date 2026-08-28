@@ -9,6 +9,7 @@ import java.util.Properties;
 
 import io.github.luigidemasi.camelkit.CamelKitMain;
 import io.github.luigidemasi.camelkit.config.DistributionConfig;
+import io.github.luigidemasi.camelkit.generator.InvalidAgentConfigurationException;
 import io.github.luigidemasi.camelkit.output.Printer;
 
 import org.junit.jupiter.api.Test;
@@ -79,11 +80,19 @@ class InitServiceTest {
     @Test
     @EnabledOnOs(OS.LINUX)
     void rejectsSymlinkedAgentRootsBeforeWritingOutsideTheProject() throws Exception {
-        for (String agentName : List.of("claude", "bob2")) {
+        for (String agentName : List.of("claude", "bob2", "opencode")) {
             Path targetDir = Files.createDirectory(tempDir.resolve(agentName));
             Path outside = Files.createDirectory(tempDir.resolve(agentName + "-outside"));
             Files.writeString(outside.resolve("keep.md"), "outside");
-            Files.createSymbolicLink(targetDir.resolve("claude".equals(agentName) ? ".claude" : ".bob"), outside);
+            if ("opencode".equals(agentName)) {
+                Files.writeString(outside.resolve("opencode.jsonc"), "{} {}");
+            }
+            String agentRoot = switch (agentName) {
+                case "claude" -> ".claude";
+                case "bob2" -> ".bob";
+                default -> ".opencode";
+            };
+            Files.createSymbolicLink(targetDir.resolve(agentRoot), outside);
             List<String> before = snapshot(outside);
 
             IOException failure = assertThrows(
@@ -212,6 +221,88 @@ class InitServiceTest {
 
         assertEquals("Unknown agent: unknown-agent", error.getMessage());
         assertFalse(Files.exists(targetDir));
+    }
+
+    @Test
+    void invalidOpenCodeConfigFailsBeforeWritingAnyWorkspaceFiles() throws Exception {
+        Path targetDir = Files.createDirectory(tempDir.resolve("orders"));
+        Files.writeString(targetDir.resolve("opencode.json"), "{} {}");
+        List<String> before = snapshot(targetDir);
+
+        InvalidAgentConfigurationException failure = assertThrows(
+                InvalidAgentConfigurationException.class,
+                () -> new InitService().initialize(
+                        request(targetDir, "opencode", InitProgress.noop(), InitReporter.noop())));
+
+        assertTrue(failure.getMessage().contains("existing opencode.json"));
+        assertEquals(before, snapshot(targetDir));
+        assertFalse(Files.exists(targetDir.resolve("AGENTS.md")));
+        assertFalse(Files.exists(targetDir.resolve(".camel-kit")));
+        assertFalse(Files.exists(targetDir.resolve(".opencode")));
+    }
+
+    @Test
+    void invalidOpenCodeConfigCandidateFailsBeforeWritingAnyWorkspaceFiles() throws Exception {
+        List<String> configFiles = List.of(
+                "opencode.json",
+                "opencode.jsonc",
+                ".opencode/opencode.json",
+                ".opencode/opencode.jsonc");
+        for (int i = 0; i < configFiles.size(); i++) {
+            Path targetDir = Files.createDirectory(tempDir.resolve("orders-" + i));
+            Path validFile = targetDir.resolve("opencode.json".equals(configFiles.get(i))
+                    ? "opencode.jsonc"
+                    : "opencode.json");
+            Files.writeString(validFile, "{}");
+            Path invalidFile = targetDir.resolve(configFiles.get(i));
+            Files.createDirectories(invalidFile.getParent());
+            Files.writeString(invalidFile, "{} {}");
+            List<String> before = snapshot(targetDir);
+
+            InvalidAgentConfigurationException failure = assertThrows(
+                    InvalidAgentConfigurationException.class,
+                    () -> new InitService().initialize(
+                            request(targetDir, "opencode", InitProgress.noop(), InitReporter.noop())),
+                    configFiles.get(i));
+
+            assertTrue(failure.getMessage().contains(configFiles.get(i)), failure.getMessage());
+            assertEquals(before, snapshot(targetDir), configFiles.get(i));
+            assertFalse(Files.exists(targetDir.resolve("AGENTS.md")), configFiles.get(i));
+            assertFalse(Files.exists(targetDir.resolve(".camel-kit")), configFiles.get(i));
+        }
+    }
+
+    @Test
+    void nonRegularOpenCodeConfigFailsBeforeWritingAnyWorkspaceFiles() throws Exception {
+        Path targetDir = Files.createDirectory(tempDir.resolve("orders"));
+        Files.createDirectory(targetDir.resolve("opencode.json"));
+        List<String> before = snapshot(targetDir);
+
+        InvalidAgentConfigurationException failure = assertThrows(
+                InvalidAgentConfigurationException.class,
+                () -> new InitService().initialize(
+                        request(targetDir, "opencode", InitProgress.noop(), InitReporter.noop())));
+
+        assertEquals("existing opencode.json must be a regular file", failure.getMessage());
+        assertEquals(before, snapshot(targetDir));
+    }
+
+    @Test
+    void structurallyInvalidOpenCodeConfigFailsBeforeWritingAnyWorkspaceFiles() throws Exception {
+        Path targetDir = Files.createDirectory(tempDir.resolve("orders-structural"));
+        Files.writeString(targetDir.resolve("opencode.json"), "{\"permission\": []}");
+        List<String> before = snapshot(targetDir);
+
+        InvalidAgentConfigurationException failure = assertThrows(
+                InvalidAgentConfigurationException.class,
+                () -> new InitService().initialize(
+                        request(targetDir, "opencode", InitProgress.noop(), InitReporter.noop())));
+
+        assertEquals("existing opencode.json field 'permission' must be an object", failure.getMessage());
+        assertEquals(before, snapshot(targetDir));
+        assertFalse(Files.exists(targetDir.resolve("AGENTS.md")));
+        assertFalse(Files.exists(targetDir.resolve(".camel-kit")));
+        assertFalse(Files.exists(targetDir.resolve(".opencode")));
     }
 
     @Test

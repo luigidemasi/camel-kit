@@ -122,6 +122,14 @@ class CopilotGeneratorTest {
         assertTrue(implementer.contains("\"execute\""));
         assertTrue(implementer.contains("\"camel/*\""));
 
+        String planner = Files.readString(tempDir.resolve(".github/agents/camel-planner.agent.md"));
+        assertTrue(planner.contains("\"edit\""));
+        assertTrue(planner.contains("\"execute\""));
+
+        String validator = Files.readString(tempDir.resolve(".github/agents/camel-validator.agent.md"));
+        assertFalse(validator.contains("\"edit\""));
+        assertTrue(validator.contains("primary\nsession writes the selected validation report"));
+
         String securityReviewer = Files.readString(tempDir.resolve(".github/agents/camel-security-reviewer.agent.md"));
         assertFalse(securityReviewer.contains("\"edit\""));
         assertFalse(securityReviewer.contains("\"execute\""));

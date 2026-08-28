@@ -38,7 +38,7 @@ This guide maps MuleSoft Mule components to their Apache Camel equivalents. It i
 | Async | 3.x / 4.x | `threads` EIP | built-in | `threads().poolSize(N)` for async processing. |
 | Sub Flow | 3.x / 4.x | `direct:` route | `camel-direct` | `direct:sub-flow-name` as both producer and consumer URI. |
 | Flow Reference | 3.x / 4.x | `.to("direct:route-name")` | `camel-direct` | References another route by direct URI. |
-| DataWeave Transform | 3.x / 4.x | XSLT or Kaoto DataMapper | `camel-xslt-saxon` | See `mule-dataweave-conversion.md` for mapping strategy. |
+| DataWeave Transform | 3.x / 4.x | Inline Groovy or XSLT DataMapper | built-in (Groovy) / `camel-xslt-saxon` (XSLT) | Canonicalize first: Groovy when both schemas are absent OR fewer than 20 leaf fields; XSLT only for at least 20 leaf fields AND at least one schema. |
 | Logger | 3.x / 4.x | `log` EIP | built-in | `.log(LoggingLevel.INFO, "message")` |
 | Set Payload | 3.x / 4.x | `setBody` EIP | built-in | `.setBody(constant("value"))` or `.setBody(simple("${header.X}"))` |
 | Set Variable | 3.x / 4.x | `setHeader` EIP | built-in | Mule variables map to Camel exchange headers. |

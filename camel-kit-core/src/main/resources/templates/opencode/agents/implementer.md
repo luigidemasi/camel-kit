@@ -1,11 +1,13 @@
 ---
 name: implementer
+description: Implements a bounded Camel task for the executor.
 mode: subagent
-edit: allow
-bash:
-  "*": allow
-  "rm -rf *": deny
-task: deny
+permission:
+  edit: allow
+  bash:
+    "*": allow
+    "rm -rf *": deny
+  task: deny
 steps: 50
 ---
 

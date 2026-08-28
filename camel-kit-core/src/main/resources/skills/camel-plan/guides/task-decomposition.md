@@ -29,18 +29,24 @@ Bad tasks:
 Tasks follow dependency order within each flow:
 
 1. **Scaffold** (project structure, POM, config) — no dependencies
-2. **DataMapper XSLT** (if needed) — before route, because route references XSLT files
-3. **Route YAML** — depends on scaffold, DataMapper
+2. **Missing schemas** (conditional) — one per-flow schema task only when the approved design requires generation;
+   provides schemas consumed by the route
+3. **Route YAML** — depends on scaffold/required schemas and owns the selected inline Groovy or XSLT DataMapper
+   implementation
 4. **Application properties** — depends on route (needs to know property names)
-5. **Docker Compose** — depends on route (needs to know external services)
-6. **Maven dependencies** (Spring Boot/Quarkus only) — depends on route
-7. **Validation** — depends on all files being generated
-8. **Testing** — depends on validation passing
+5. **Maven dependencies** (Spring Boot/Quarkus only) — depends on route
+6. **Integration tests** — one Citrus YAML task per route, after that route's implementation artifacts exist
 
 Cross-flow tasks come after all flows:
-- Cross-cutting validation (constitution compliance across all routes)
-- Docker Compose consolidation (merge per-flow compose files)
-- Integration tests
+- Exactly one module-wide Main `run.sh` task after every route/XSL artifact is known; omit it for Spring Boot/Quarkus
+- Exactly one Docker Compose task, only when at least one flow requires an external service; it consumes the complete
+  module route/XSL inventory and all external-service requirements (never create per-flow Compose files)
+- Integration tests whose dependencies span multiple flows
+
+Do not add a static validation task or a separate smoke-test task. After all
+planned implementation and test-generation tasks, `camel-execute` owns the
+cross-cutting review and internal runtime verification; chained execution then
+continues to the report-only `/camel-validate` Phase 4.
 
 ---
 

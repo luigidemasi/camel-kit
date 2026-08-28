@@ -17,24 +17,56 @@ description: IBM Bob 2 with native skills and subagents
 generatorStrategy: bob2
 dispatchTemplatePath: templates/dispatch/bob2.md
 templates:
+  - source: templates/bob2/agents/camel-worker.md
+    target: .bob/agents/camel-worker.md
+  - source: templates/bob2/agents/camel-reviewer.md
+    target: .bob/agents/camel-reviewer.md
+  - source: agents/acr-moderator.md
+    target: .bob/personas/acr-moderator.md
+  - source: agents/catalog-researcher.md
+    target: .bob/personas/catalog-researcher.md
+  - source: agents/code-quality-reviewer.md
+    target: .bob/personas/code-quality-reviewer.md
+  - source: agents/critic-behavioral-equivalence.md
+    target: .bob/personas/critic-behavioral-equivalence.md
+  - source: agents/critic-boundary-compliance.md
+    target: .bob/personas/critic-boundary-compliance.md
+  - source: agents/critic-performance.md
+    target: .bob/personas/critic-performance.md
+  - source: agents/critic-route-architecture.md
+    target: .bob/personas/critic-route-architecture.md
+  - source: agents/critic-security.md
+    target: .bob/personas/critic-security.md
+  - source: agents/implementation-engineer.md
+    target: .bob/personas/implementation-engineer.md
+  - source: agents/integration-architect.md
+    target: .bob/personas/integration-architect.md
+  - source: agents/knowledge-researcher.md
+    target: .bob/personas/knowledge-researcher.md
+  - source: agents/migration-specialist.md
+    target: .bob/personas/migration-specialist.md
+  - source: agents/spec-compliance-reviewer.md
+    target: .bob/personas/spec-compliance-reviewer.md
+  - source: agents/test-engineer.md
+    target: .bob/personas/test-engineer.md
   - source: templates/bob2/custom_modes.yaml
     target: .bob/custom_modes.yaml
   - source: templates/bob2/rules/iron-laws.md
     target: .bob/rules/iron-laws.md
   - source: templates/bob2/rules-camel-brainstorm/brainstorm.md
-    target: .bob/rules-camel-brainstorm/brainstorm.md
+    target: .bob/rules-camel-brainstorm-mode/brainstorm.md
   - source: templates/bob2/rules-camel-plan/plan.md
-    target: .bob/rules-camel-plan/plan.md
+    target: .bob/rules-camel-plan-mode/plan.md
   - source: templates/bob2/rules-camel-implement/implement.md
-    target: .bob/rules-camel-implement/implement.md
+    target: .bob/rules-camel-implement-mode/implement.md
   - source: templates/bob2/rules-camel-execute/execute.md
-    target: .bob/rules-camel-execute/execute.md
+    target: .bob/rules-camel-execute-mode/execute.md
   - source: templates/bob2/rules-camel-validate/validate.md
-    target: .bob/rules-camel-validate/validate.md
+    target: .bob/rules-camel-validate-mode/validate.md
   - source: templates/bob2/rules-camel-test/test.md
-    target: .bob/rules-camel-test/test.md
+    target: .bob/rules-camel-test-mode/test.md
   - source: templates/bob2/rules-camel-debug/debug.md
-    target: .bob/rules-camel-debug/debug.md
+    target: .bob/rules-camel-debug-mode/debug.md
 supportsSubagents: true
 supportsTraits: true
 capabilities:

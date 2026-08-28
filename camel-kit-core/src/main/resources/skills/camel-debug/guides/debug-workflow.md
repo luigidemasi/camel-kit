@@ -67,10 +67,15 @@ This is the core diagnostic phase. **Run diagnosis steps as subagents** to keep 
 
 Attempt to reproduce the reported symptom:
 
+For Spring Boot or Quarkus, resolve the affected module's `MAVEN_COMPILE_CMD` from the project root using the same
+rules as `camel-verify/guides/verify-loop.md`: `{MAVEN_CMD} compile -q` for a root POM, or
+`{MAVEN_CMD} -f {MODULE_DIR}pom.xml compile -q` for a nested module. Do not change directory before using the
+project-root wrapper. Camel Main uses its runtime/startup command instead of Maven compilation.
+
 | Symptom Type | Reproduction Command |
 |---|---|
-| Build failure | `{MAVEN_CMD} compile -q` |
-| Startup error | `{MAVEN_CMD} compile -q`, then check for `FailedToCreateRouteException` patterns |
+| Build failure | `{MAVEN_COMPILE_CMD}` |
+| Startup error | Run the applicable module-aware build or Main startup command, then check for `FailedToCreateRouteException` patterns |
 | Runtime exception | Ask user to share the failing scenario or trigger |
 | Wrong output | Ask user for expected vs actual output |
 | Intermittent | Ask user for conditions under which it fails |

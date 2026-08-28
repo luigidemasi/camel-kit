@@ -23,7 +23,7 @@ mechanically — the component, pattern, or dependency is structurally wrong and
 
 ## Approval Boundary
 
-The user's approved implementation plan authorizes normal task execution and the bounded automatic re-plan loop
+The approved design and its generated implementation plan authorize normal task execution and the bounded automatic re-plan loop
 described here. It does **not** authorize unlimited design changes. Stop and ask the user when the round limit is
 reached, the same failure class repeats, or no MCP-verified alternative exists.
 
@@ -118,9 +118,19 @@ Update ONLY the affected sections. Preserve all other sections verbatim.
 **MCP verification:** [catalog query result confirming alternative exists]
 ```
 
-### Step 4: Re-Execute Affected Tasks
+### Step 4: Regenerate the Plan and Re-Execute Affected Tasks
 
-Re-execute ONLY the tasks that depend on the changed design spec sections. Do NOT re-run the entire implementation plan.
+Never execute tasks copied from the stale original plan after Step 3 changes the design.
+
+1. Mark `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md` stale with `{COMMAND_PREFIX} doc stale --reason
+   "design changed by re-plan" <plan-path>`.
+2. Invoke `camel-plan` as the plan owner to regenerate the affected task definitions and the matching `yaml
+   plan-metadata` entries from the updated design. Preserve unaffected tasks verbatim, but replace every task whose
+   inputs, files, catalog calls, or dependencies changed.
+3. Run `{COMMAND_PREFIX} doc init --by camel-plan --from design-spec.md <plan-path>`, then run
+   `{COMMAND_PREFIX} doc unstale <plan-path>` after successful regeneration.
+4. Run `{COMMAND_PREFIX} plan analyze <plan-path>` again and use the refreshed waves/dependencies.
+5. Re-execute only the regenerated affected tasks and their newly identified dependents. Do not re-run unaffected work.
 
 | Re-Plan Trigger Source | Re-Execution Sequence |
 |---|---|
@@ -148,7 +158,7 @@ while round < 3:
     1. Identify affected scope (Step 1)
     2. Find alternative via MCP (Step 2)
     3. Modify the design spec (Step 3)
-    4. Re-execute affected tasks (Step 4)
+    4. Regenerate affected plan tasks/metadata, re-analyze waves, and execute the refreshed tasks (Step 4)
     5. Re-verify (Step 5)
     6. If verification passes -> EXIT loop (continue pipeline)
     7. Classify the new failure
@@ -193,6 +203,7 @@ Include only the rounds that were actually executed. If the loop short-circuited
 - Modify the business requirements (`docs/camel-kit/<PIPELINE_ID>/business-requirements.md`)
 - Re-plan more than 3 times
 - Re-run the entire implementation plan for a design-spec-scoped change
+- Reuse an affected task from the stale pre-change plan
 - Skip the re-verify step after re-planning
 - Skip MCP verification when selecting alternatives (Iron Law 1 still applies)
 - Modify design spec sections unrelated to the failure

@@ -10,19 +10,11 @@ import io.github.luigidemasi.camelkit.util.AnsiColors;
 public class QwenGenerator extends DefaultGenerator {
 
     private static final String[] SUB_AGENTS = {
-            "camel-brainstormer", "camel-planner", "camel-implementer",
-            "camel-validator", "camel-tester", "camel-migrator", "camel-executor"
+            "camel-implementer", "camel-reviewer", "camel-validator", "camel-tester"
     };
-
-    private static final Map<String, String> COMMAND_DISPATCH = Map.of(
-            "camel-brainstorm",
-            "Delegate to the camel-brainstormer sub-agent: discover integration requirements and design Camel routes for this project",
-            "camel-plan",
-            "Delegate to the camel-planner sub-agent: create an implementation plan with TDD task decomposition for this project",
-            "camel-validate", "Delegate to the camel-validator sub-agent: validate the Camel routes in this project",
-            "camel-migrate", "Delegate to the camel-migrator sub-agent: migrate the integrations to Apache Camel",
-            "camel-execute",
-            "Delegate to the camel-executor sub-agent: execute the implementation plan for this project");
+    private static final String[] RETIRED_SUB_AGENTS = {
+            "camel-brainstormer", "camel-planner", "camel-migrator", "camel-executor"
+    };
 
     private final QuteTemplateEngine templateEngine = new QuteTemplateEngine();
 
@@ -37,14 +29,14 @@ public class QwenGenerator extends DefaultGenerator {
         // Qwen-specific: generate QWEN.md at project root
         generateQwenMd(ctx, data);
 
-        // Qwen-specific: generate sub-agent definitions
+        removeRetiredSubAgents(ctx);
+
+        // Qwen-specific: generate bounded leaf definitions
         generateSubAgents(ctx);
 
         // Qwen-specific: generate .qwenignore
         generateQwenIgnore(ctx);
 
-        // Qwen-specific: override commands with sub-agent dispatch
-        overrideCommandsForSubAgents(ctx);
     }
 
     private void generateQwenMd(InitContext ctx, Map<String, Object> data) throws Exception {
@@ -66,16 +58,16 @@ public class QwenGenerator extends DefaultGenerator {
                 .println(AnsiColors.green("✓") + " Generated " + SUB_AGENTS.length + " Qwen sub-agent definitions");
     }
 
+    private void removeRetiredSubAgents(InitContext ctx) throws Exception {
+        Path agentsDir = ctx.projectDir().resolve(".qwen/agents");
+        for (String agentName : RETIRED_SUB_AGENTS) {
+            GeneratedAssetCleaner.deleteRegularFile(ctx, agentsDir.resolve(agentName + ".md"));
+        }
+    }
+
     private void generateQwenIgnore(InitContext ctx) throws Exception {
         copyTemplateResource("templates/qwen/qwenignore",
                 ctx.projectDir().resolve(".qwenignore"));
     }
 
-    private void overrideCommandsForSubAgents(InitContext ctx) throws Exception {
-        for (Map.Entry<String, String> entry : COMMAND_DISPATCH.entrySet()) {
-            String filename = entry.getKey() + "." + ctx.agent().fileFormat();
-            Path cmdFile = ctx.commandsDir().resolve(filename);
-            Files.writeString(cmdFile, entry.getValue());
-        }
-    }
 }

@@ -55,6 +55,21 @@ Invoked directly by the user: `/camel-validate` or `/camel-validate <PIPELINE_ID
 
 Provides the domain knowledge guides needed to validate generated Apache Camel routes across multiple quality dimensions. These guides are referenced by the `code-quality-reviewer` and `test-engineer` agent personas.
 
+## Runtime Path Inventory (MANDATORY)
+
+Before loading validation stages, read `project.runtime` and every flow's `Target Module`. Build an exact inventory for
+each module using the same optional relative module prefix as `camel-implement/guides/orchestrator.md`:
+
+- Main: `ROUTE_FILES` is every `{MODULE_PREFIX}*.camel.yaml`; `PROPS_FILE` is
+  `{MODULE_PREFIX}application.properties`.
+- Spring Boot/Quarkus: `ROUTE_FILES` is every
+  `{MODULE_PREFIX}src/main/resources/camel/*.camel.yaml`; `PROPS_FILE` is
+  `{MODULE_PREFIX}src/main/resources/application.properties`.
+
+`{MODULE_PREFIX}` is empty at the project root or is the relative target module plus trailing `/`; it is never `/`.
+Record resolved file paths, not bare flow names. Pass the exact `ROUTE_FILES` and matching `PROPS_FILE` to
+`schema-validation.md`, `endpoint-validation.md`, and all later checks, and iterate every route in every module.
+
 ## Pipeline Resolution
 
 Before running validation, resolve the active pipeline using `shared/pipeline-infrastructure.md`:
@@ -99,7 +114,7 @@ staleness:
 generated:
   at: "<current ISO-8601 timestamp>"
   by: camel-validate
-  from: execution-report.md
+  # Add `from: execution-report.md` only when that file actually exists.
 ---
 # Validation Report
 
@@ -157,7 +172,12 @@ ALWAYS generate the validation report.
 This creates an audit trail of validation results over time.
 </HARD-RULE>
 
-**Add frontmatter metadata** — run `{COMMAND_PREFIX} doc init --by camel-validate --from execution-report.md <validation-report.md>` to add provenance metadata. This is idempotent — if frontmatter already exists, it is preserved.
+**Add frontmatter metadata:**
+
+- When `execution-report.md` exists: run `{COMMAND_PREFIX} doc init --by camel-validate --from execution-report.md <validation-report.md>`.
+- Otherwise: run `{COMMAND_PREFIX} doc init --by camel-validate <validation-report.md>`; do not add false `from` provenance merely because a pipeline ID exists.
+
+Both commands are idempotent; existing frontmatter is preserved.
 
 ## Iron Laws
 

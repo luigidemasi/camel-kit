@@ -10,4 +10,4 @@ When generating implementation artifacts, instruct the implementer to use `inser
 
 ### Mode Context
 
-Instruct the implementer to check the current mode rules (`rules-camel-implement/implementation.md`) before generating code. The rules contain project-specific constraints loaded by the mode system.
+Instruct the implementer to check the current mode rules (`.bob/rules-camel-implement-mode/implementation.md`) before generating code. The rules contain project-specific constraints loaded by the mode system.

@@ -2,4 +2,4 @@
 
 ### Gate-Based Plan Quality
 
-The gate file (`gates/camel-plan.md`) validates plan completeness before the mode system transitions to execute. Let the gate handle validation rather than adding manual quality checks at the end of planning.
+The generated `.bob/skills/camel-plan/SKILL.md` validates plan completeness before the mode system transitions to execute. Let the gate handle validation rather than adding manual quality checks at the end of planning.

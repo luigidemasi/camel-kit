@@ -28,7 +28,7 @@ This guide maps Microsoft BizTalk adapters and components to their Apache Camel 
 | WCF-NetTcp | `netty` | `camel-netty` | Binary TCP protocol. Requires custom codec. |
 | SOAP (receive) | `platform-http` + `cxf` (consumer) | `camel-platform-http`, `camel-cxf` | WSDL-first SOAP services. |
 | SOAP (send) | `cxf` (producer) | `camel-cxf` | |
-| HTTP (receive) | `platform-http` (consumer) | `camel-platform-http` | Preferred for Quarkus/Spring Boot. |
+| HTTP (receive) | `platform-http` (consumer) | `camel-platform-http` | Supported on Main, Spring Boot, and Quarkus; use the selected runtime's server properties. |
 | HTTP (send) | `http` (producer) | `camel-http` | Use `http://` URI scheme. |
 | HTTPS (receive) | `platform-http` with SSL | `camel-platform-http` | Configure SSL via `application.properties`. |
 | HTTPS (send) | `https` (producer) | `camel-http` | Use `https://` URI scheme. |
@@ -91,7 +91,7 @@ Record the decision and use the selected component in Phase 2.
 | **Send Shape** | `to(...)` | Producer endpoint. |
 | **Construct Message Shape** | `setBody` EIP | Message construction. |
 | **Message Assignment Shape** | `setBody` / `setHeader` EIP | Variable assignment. |
-| **Transform Shape** | XSLT or `unmarshal`/`marshal` | Map transformation. See `biztalk-map-conversion.md`. |
+| **Transform Shape** | Canonical inline Groovy or XSLT DataMapper | Extract map semantics, then preserve the engine selected by `shared/datamapper-canonicalize.md`; see `biztalk-map-conversion.md`. |
 | **Decide Shape** | `choice` EIP | Content-Based Router (CBR). |
 | **Switch Shape** | `choice` EIP | Multiple `when` branches. |
 | **Loop Shape** | `loop` EIP | Fixed iteration count. |
@@ -183,7 +183,7 @@ Your choice?
 | Message Context Property | `message(BTS.MessageID)` | Exchange Property (`exchangeProperty.MessageID`) | Survives routing slips. |
 | Promoted Property | `message(namespace.PropertyName)` | Exchange Header (`header.PropertyName`) | Promoted from message. |
 | Distinguished Field | `message.field1` | `${body.field1}` | Direct field access in message body. |
-| Port Configuration | Static value | `{{PLACEHOLDER}}` in `application.properties` | External configuration. |
+| Port Configuration | Static value | Route YAML uses `{{property.key}}`; `application.properties` stores a concrete `property.key=value` | The route placeholder is identical on every runtime. Only property-to-property interpolation differs: Main `{{other.key}}`, Spring Boot/Quarkus `${other.key}`. |
 
 ---
 

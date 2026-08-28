@@ -11,6 +11,7 @@ This document is the reference for all Camel-Kit commands: the `camel-kit` CLI, 
   - [camel-kit doc](#camel-kit-doc)
   - [camel-kit nextId](#camel-kit-nextid)
 - [Slash Commands](#slash-commands)
+  - [/camel-start](#camel-start)
   - [/camel-brainstorm](#camel-brainstorm)
   - [/camel-plan](#camel-plan)
   - [/camel-execute](#camel-execute)
@@ -24,6 +25,8 @@ This document is the reference for all Camel-Kit commands: the `camel-kit` CLI, 
 ---
 
 ## CLI Commands
+
+This reference describes the current `0.3.2-SNAPSHOT` line. Any `camel kit` form requires a plugin built from current source; published stable `0.3.1` exposes only `camel kit init` with the `bob`, `gemini`, and `claude` targets.
 
 These commands are run in your terminal.
 
@@ -183,6 +186,8 @@ Any property from `distribution.properties` can be overridden at layers 2 or 3. 
 
 **Output:**
 
+The tree below is a union reference. `init` creates the shared project files plus only the agent-native assets selected by `--ai`; it does not generate all target layouts together.
+
 Creates the following structure:
 
 ```
@@ -206,7 +211,7 @@ my-integration/
 │   └── templates/               # Reference templates
 ├── .mcp.json                    # Claude Code or Pi MCP configuration
 ├── .bob/mcp.json                # IBM Bob MCP configuration
-├── .gemini/mcp.json             # Gemini CLI MCP configuration
+├── .gemini/settings.json        # Gemini CLI MCP configuration
 ├── AGENTS.md                    # Codex CLI, Pi, or OpenCode project instructions
 ├── .agents/skills/              # Codex CLI project skills
 ├── .codex/config.toml           # Codex CLI project MCP configuration
@@ -217,8 +222,8 @@ my-integration/
 ├── .github/skills/              # GitHub Copilot CLI project skills
 ├── .github/hooks/               # GitHub Copilot CLI safety hooks
 ├── .pi/                         # Pi skills, prompt templates, and guard extension
-├── .qwen/mcp.json               # Qwen MCP configuration
-└── .opencode/mcp.json           # OpenCode MCP configuration
+├── .qwen/settings.json          # Qwen MCP configuration
+└── opencode.json                # OpenCode MCP configuration
 ```
 
 The MCP configuration file created depends on the `--ai` option chosen.
@@ -266,7 +271,7 @@ camel kit doctor --json
 
 **Checks:**
 
-`doctor` validates `.camel-kit/config.properties`, selected agent command stubs when that target uses them, skill directories and `SKILL.md` files, user-invocable command exposure, agent MCP config, MCP tool allowlists, graph availability, command prefix configuration, Java/Maven/JBang prerequisites, and common stale references in active generated files. For Codex, it parses `.codex/config.toml`, checks all three exact MCP allowlists and prompt approval modes, and verifies that every generated custom-agent TOML file declares `name`, `description`, and `developer_instructions`. Internal skills such as `camel-verify` must exist as skills, but must not be exposed as user command stubs.
+`doctor` validates `.camel-kit/config.properties`, selected agent command stubs when that target uses them, skill directories and `SKILL.md` files, registered workspace templates, user-invocable command exposure, runtime-supported MCP filtering and permission fields, graph availability, command prefix configuration, Java/Maven/JBang prerequisites, and common stale references in active generated files. For Codex, it parses `.codex/config.toml`, checks all three exact MCP allowlists and prompt approval modes, and verifies that every generated custom-agent TOML file declares `name`, `description`, and `developer_instructions`. For Qwen it checks `includeTools` and prompt-preserving `trust`; for OpenCode it checks the generated server-tool `ask` patterns. Legacy Qwen/OpenCode configurations that predate those fields produce upgrade warnings rather than failures, while malformed current configurations fail. Internal skills such as `camel-verify` must exist as skills, but must not be exposed as user command stubs.
 
 Findings are printed as `PASS`, `WARN`, or `FAIL`. Missing external prerequisites are warnings so automated checks do not depend on the local machine having every optional tool installed. Broken generated workspace artifacts are failures and produce a non-zero exit code.
 
@@ -296,7 +301,7 @@ camel-kit graph <subcommand> [options]
 
 **migration-context command:**
 
-The `migration-context` command performs BFS expansion from a route through interface boundaries (REST endpoints, queues, beans, config) to collect the complete migration context.
+The `migration-context` command performs a bounded, bidirectional BFS expansion from a route, including interface-boundary expansion. It reads only the local project graph, defaults to depth 3, and returns at most 50 expanded nodes; it is not a complete dependency map.
 
 ```bash
 camel-kit graph migration-context <routeId> [--depth N]
@@ -311,7 +316,7 @@ camel-kit graph migration-context <routeId> [--depth N]
 
 **Output format:**
 
-Returns structured JSON with the complete context needed for migration analysis:
+Returns structured JSON for the nodes reached within those bounds:
 
 ```json
 {
@@ -320,7 +325,7 @@ Returns structured JSON with the complete context needed for migration analysis:
   "components": ["kafka", "http", "bean"],
   "routes": [
     {
-      "id": "processOrders",
+      "id": "route:processOrders",
       "from": "kafka:orders",
       "file": "src/main/resources/routes/orders.camel.yaml"
     }
@@ -357,13 +362,7 @@ Returns structured JSON with the complete context needed for migration analysis:
 }
 ```
 
-**Use case:**
-
-The `/camel-migrate` skill uses this command during migration analysis:
-
-1. Graph expansion identifies all routes, components, services, and artifacts connected to the target route
-2. Component list is passed to `camel_docs_component_info` MCP tool for documentation lookup
-3. Migration skill receives both structural context (from graph) and semantic context (from MCP) for accurate migration planning
+The command reports reached routes, endpoint schemes, bean classes, Maven artifacts, configuration properties, and synthetic-node warnings. `runtime` comes from `project.runtime` in `.camel-kit/config.properties`, or is `unknown` when that value is unavailable. The command makes no MCP calls; callers that need documentation or security context must query the Knowledge MCP separately.
 
 **Example:**
 
@@ -431,7 +430,7 @@ camel-kit doc <subcommand> [options]
 
 | Subcommand | Description |
 |------------|-------------|
-| `init --by <skill> --from <source> <file>` | Add provenance frontmatter metadata to a document |
+| `init --by <skill> [--from <source>] <file>` | Add generation frontmatter; omit `--from` for root artifacts |
 | `check <file>` | Query document staleness status — outputs JSON to stdout |
 | `stale --reason "..." [--cascade] <file>` | Mark a document as stale |
 | `unstale <file>` | Clear staleness from a document |
@@ -491,7 +490,7 @@ When `--cascade` is used, the command walks sibling files in the same directory.
 | Option | Required | Description |
 |--------|----------|-------------|
 | `--by <skill>` | Yes | Skill that generated this artifact (e.g., `camel-plan`) |
-| `--from <source>` | Yes | Source artifact this was generated from (e.g., `design-spec.md`) |
+| `--from <source>` | No | Actual source artifact this was generated from; omit for root artifacts |
 
 `doc init` is idempotent — if the file already has frontmatter, it is preserved unchanged. This makes it safe to call unconditionally after every save.
 
@@ -500,6 +499,9 @@ When `--cascade` is used, the command walks sibling files in the same directory.
 ```bash
 # Add provenance metadata after generating an artifact
 camel-kit doc init --by camel-plan --from design-spec.md docs/camel-kit/001-order-processing/implementation-plan.md
+
+# Initialize a root artifact with no upstream document
+camel-kit doc init --by camel-brainstorm docs/camel-kit/001-order-processing/design-spec.md
 
 # Check if a document is stale
 camel-kit doc check docs/camel-kit/001-order-processing/implementation-plan.md
@@ -524,14 +526,30 @@ camel-kit doc unstale docs/camel-kit/001-order-processing/implementation-plan.md
 
 These commands are used inside your AI coding assistant after project initialization. The entry point is `/camel-start`, which routes to the right pipeline skill. Skills are organized into tiers:
 
-The machine-readable source of truth for command names, generated stubs, skill visibility, pipeline stages, transitions, artifacts, and MCP tool allowlists is `camel-kit-core/src/main/resources/workflow/camel-kit-workflow.yaml`. Generated command stubs and consistency tests read that manifest; update it before changing this reference text or any skill frontmatter.
+The machine-readable source of truth for command names, generated stubs, skill visibility, pipeline stages, transitions, artifacts, and MCP tool filters is `camel-kit-core/src/main/resources/workflow/camel-kit-workflow.yaml`. Generated command stubs and consistency tests read that manifest; update it before changing this reference text or any skill frontmatter.
 
-**Tier 1 — Pipeline:** `/camel-brainstorm`, `/camel-plan`, `/camel-execute`, `/camel-migrate`, `/camel-validate` — the five pipeline steps, invoked via the `/camel-start` decision tree or directly via slash command.
+**Tier 1 — Pipeline:** `/camel-brainstorm`, `/camel-migrate`, `/camel-plan`, `/camel-execute`, `/camel-validate` — five skills implementing a four-stage pipeline, with brainstorm and migrate as alternative Design-stage entries. Invoke them via the `/camel-start` decision tree or directly via slash command.
 
 **Tier 2 — Standalone utilities:** `/camel-ship`, `/camel-knowledge`, `/camel-debug` — can be invoked at any point. Ship delegates to a separate local controller and does not use the manual pipeline state as its run state.
 
-**Internal skill libraries:** `camel-implement`, `camel-verify`, `camel-test`, `camel-design` — subagent-only,
-dispatched automatically by pipeline skills. Not exposed as direct slash-command stubs.
+**Internal skill libraries:** `camel-implement`, `camel-verify`, `camel-test`, `camel-design` — invoked automatically by pipeline skills, using isolated subagents where supported and same-session execution otherwise. Not exposed as direct slash-command stubs.
+
+---
+
+### /camel-start
+
+**Purpose:** Route an integration request to the first applicable Camel-Kit skill.
+
+The router evaluates the request in this order:
+
+1. Existing MuleSoft, BizTalk, Fuse, or Camel 2.x/3.x source → `/camel-migrate`
+2. Approved design spec → `/camel-plan`
+3. Implementation plan ready to execute → `/camel-execute`
+4. Generated routes needing static quality analysis → `/camel-validate`
+5. Build, startup, or runtime failure outside a pipeline → `/camel-debug`
+6. New or unclear integration work → `/camel-brainstorm`
+
+Greenfield and migration pipelines then converge on plan → execute → validate. Runtime verification (`camel-verify`) runs inside execute rather than as a separate pipeline stage.
 
 ---
 
@@ -616,8 +634,8 @@ When invoked with a `<PIPELINE_ID>` argument:
    - Two-stage review specification (spec compliance, then code quality)
    - Verification commands with expected output
 4. **Self-review** -- checks spec coverage, scans for placeholders, validates guide references
-5. **User approval** -- presents the plan and waits for explicit approval
-6. **Automatic transition** -- after approval, invokes `/camel-execute` automatically
+5. **Write plan** -- saves the reviewed implementation plan
+6. **Automatic transition** -- in chained mode, invokes `/camel-execute` without a second approval gate; standalone mode stops after writing the plan
 
 The plan is a recipe, not the meal -- it contains instructions on how to generate code, not the generated code itself.
 
@@ -652,9 +670,9 @@ first. Markdown-only plans remain supported for older artifacts.
 
 ### /camel-execute
 
-**Purpose:** Execute the approved implementation plan by dispatching subagents per task with two-stage review after each.
+**Purpose:** Execute the implementation plan produced from an approved design, with isolated implementation and review where the selected agent supports it.
 
-**When to use:** After `/camel-plan` has produced an approved implementation plan. Usually invoked automatically by `/camel-plan`, but can also be run directly if a plan already exists.
+**When to use:** After `/camel-plan` has produced an implementation plan. Usually invoked automatically by `/camel-plan`, but can also be run directly if a plan already exists.
 
 **Produces:**
 - Route YAML files (`*.camel.yaml`)
@@ -663,7 +681,7 @@ first. Markdown-only plans remain supported for older artifacts.
 - XSLT/DataMapper transformations
 - Docker Compose files (if external services needed)
 - Citrus test files
-- Verification report
+- Execution and verification reports
 
 **Example:**
 
@@ -673,15 +691,17 @@ first. Markdown-only plans remain supported for older artifacts.
 
 **How it works:**
 
-1. **Read plan** -- extracts all tasks from `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`
-2. **Per-task loop** (autonomous, uninterrupted -- the user approved the entire plan):
-   - **Dispatch implementer** -- fresh subagent with full task context, guide paths, and MCP parameters
+1. **Analyze plan and environment** -- derives dependency waves and probes the target environment before implementation, automatically repairing mechanical failures or re-planning bounded architectural failures
+2. **Catalog research** -- batch-verifies the Camel artifacts needed by each wave before implementers run
+3. **Per-task loop** (autonomous, uninterrupted -- design approval authorizes downstream work):
+   - **Dispatch implementer** -- fresh subagent where supported, with full task context, guide paths, and the catalog summary
+   - **Adversarial code review** -- independent moderator and critic contexts where supported, or a same-session sequential critic-lens fallback on single-conversation targets such as Bob 1 and Pi, review the implementation with fixes and up to three cycles
    - **Spec compliance review** -- verifies the generated artifacts match the design spec exactly
    - **Code quality review** -- checks constitution rules, security, and anti-patterns
    - If review fails, the implementer fixes and re-submits until both reviews pass
-3. **Cross-cutting review** -- after all tasks complete, reviews all generated routes together for consistency
-4. **Verification phase** -- dispatches `/camel-verify` internally (build, start, diagnose, fix). Verification is optional -- failure does not block completion
-5. **Completion summary** -- reports task status, review results, and verification outcome
+4. **Cross-cutting review** -- after all tasks complete, reviews all generated routes together for consistency
+5. **Verification phase** -- dispatches `/camel-verify` internally (build, Citrus tests, report). Verification failures are reported but do not block completion
+6. **Completion summary** -- writes the execution report and reports task, review, and verification outcomes
 
 After `/camel-execute` completes, the pipeline continues to `/camel-validate` as the final quality gate.
 
@@ -693,6 +713,7 @@ After `/camel-execute` completes, the pipeline continues to `/camel-validate` as
 | IBM Bob 1 legacy | Switches between custom modes and monolithic gate files |
 | IBM Bob 2 | Uses native `spawn_subagent` plus Bob custom modes and shared skills |
 | Gemini CLI, Qwen, OpenCode | Use their native agent/delegation models with shared Camel-Kit skills |
+| Pi | Runs the same implementation and review roles sequentially inline and records unavailable fresh-context isolation |
 
 **Orchestrated internal skills:**
 
@@ -703,7 +724,6 @@ During execution, `/camel-execute` dispatches these internal skills as needed. T
 | `camel-implement` | Generate Camel YAML DSL routes from the approved design spec and implementation plan |
 | `/camel-verify` | Runtime verification loop: build, start, diagnose errors, apply fixes |
 | `camel-test` | Generate Citrus integration tests |
-| `/camel-knowledge` | Query documentation for component support and guidance |
 
 ---
 
@@ -736,7 +756,9 @@ MuleSoft migrations benefit from automatic project graph analysis. The graph det
 
 **How it works:**
 
-This is a shortcut into `/camel-brainstorm` with the project type pre-set to **migration**. It runs a two-phase analysis:
+This is the dedicated migration design orchestrator. It runs vendor-specific
+two-phase analysis and converges with the greenfield workflow only after the
+design package is approved, when it hands off to `/camel-plan`:
 
 **Phase 1 -- Discovery and confirmation:**
 
@@ -809,10 +831,13 @@ For connectors with no direct equivalent, the command stops and asks the user be
 **When to use:** After `/camel-execute` completes, or whenever generated routes need quality validation outside a controller-owned Ship run.
 
 **Produces:**
-- Validation report saved to `docs/validation-report-YYYY-MM-DD_HH-mm.md`
+- Pipeline-scoped report at `docs/camel-kit/<PIPELINE_ID>/validation-report.md` when pipeline context exists
+- Timestamped project-scoped report at `docs/validation-report-YYYY-MM-DD_HH-mm.md` when no pipeline exists
 - Categorized findings: PASS / FAIL / WARN per quality dimension
 - Constitution compliance check (all 8 rules)
 - Recommendations for priority fixes
+
+Validation is static and report-only: it does not modify routes or fix the findings it reports.
 
 **Example:**
 ```
@@ -859,7 +884,7 @@ The registered command is `camel-kit ship` when Camel-Kit is installed standalon
 
 Runtime and configuration options apply only when starting or resuming a workflow. Repeat the same `-c` and `-p` options when resuming a run that used overrides.
 
-The current worker requires a Linux host, Pi, and Node. Deterministic validation commands run in a separate JVM launched by the controller with a pinned, controller-resolved classpath, a scrubbed environment, and a frozen read-only copy of the accepted project tree; network access during validation is avoided by replacing every non-direct Camel endpoint with an in-memory stub, not by OS-level sandboxing. Missing executables fail with installation guidance; an unrecognized Pi or Node version is reported as experimental and runs only with `--accept-experimental`.
+The current worker requires a Linux host, Pi, and Node. Its accepted project contract currently supports the Camel Main runtime and Camel YAML DSL routes named `<routeId>.camel.yaml`, with matching Citrus tests at `test/<routeId>.camel.it.yaml`. Spring Boot and Quarkus Ship projects are rejected until deterministic evidence support is available for those runtimes. Deterministic validation commands run in a separate JVM launched by the controller with a pinned, controller-resolved classpath, a scrubbed environment, and a frozen read-only copy of the accepted project tree; network access during validation is avoided by replacing every non-direct Camel endpoint with an in-memory stub, not by OS-level sandboxing. Missing executables fail with installation guidance; an unrecognized Pi or Node version is reported as experimental and runs only with `--accept-experimental`.
 
 **Oversight:**
 
@@ -948,11 +973,11 @@ GitHub Copilot CLI now uses its native `.github/skills/` surface exclusively. Ol
 
 1. **STOP** -- gather context (runtime, Camel version, error message, recent changes). Do NOT modify files yet.
 2. **PRESERVE** -- capture current state via `git status`/`git diff`. Warn if uncommitted changes exist.
-3. **DIAGNOSE** -- reproduce the error, classify it against the error taxonomy, verify components via MCP catalog, inspect route structure. Diagnosis steps run as subagents to keep verbose output out of the main context.
+3. **DIAGNOSE** -- reproduce the error, classify it against the error taxonomy, verify components via MCP catalog, inspect route structure. Diagnosis roles run in isolated subagents where supported or sequentially inline otherwise.
 4. **FIX** -- explain the proposed fix, apply minimal targeted changes, verify the fix resolves the issue. Up to 5 fix attempts before escalating.
 5. **GUARD** -- suggest a preventive measure (test, validation rule, CI check) to prevent recurrence.
 
-**Error classification:** Reuses the same 14-pattern error taxonomy as `/camel-verify`:
+**Error classification:** Reuses the same structured error taxonomy as `/camel-verify`:
 
 | Category | Examples | Fix Target |
 |---|---|---|
@@ -963,7 +988,7 @@ GitHub Copilot CLI now uses its native `.github/skills/` surface exclusively. Ol
 | External service | `Connection refused` | Fix service configuration |
 | Unclassified | No matching pattern | Escalate to user |
 
-**Subagent isolation:** Diagnosis dispatches three subagents (route analyzer, MCP verifier, log analyzer) to keep raw diagnostic output out of the main conversation. Only the structured diagnosis report flows back.
+**Diagnostic isolation:** Diagnosis uses three roles (route analyzer, MCP verifier, log analyzer) in isolated subagents where supported. Single-conversation targets run them sequentially inline and record the limitation.
 
 ---
 
@@ -985,11 +1010,11 @@ No direct user invocation. `/camel-execute` dispatches this skill internally dur
 
 **How it works (3-phase loop):**
 
-1. **Build Verification** -- compiles the project with `./mvnw` (skipped for JBang runtime). Classifies build errors and auto-fixes (missing dependencies, version conflicts) or routes to internal implementation/validation handling. Up to 15 iterations.
+1. **Build Verification** -- compiles Spring Boot and Quarkus projects with `./mvnw`; Camel Main runs its startup smoke test instead. Classifies failures and auto-fixes missing dependencies/version conflicts or routes to internal implementation/validation handling. Up to 15 iterations.
 2. **Test Verification** -- runs Citrus integration tests via `camel test run`. Citrus tests are self-contained: Testcontainers start external services, `camel:jbang:run` starts the Camel integration, send/receive actions validate behavior. Classifies test failures and routes to internal implementation handling, internal test regeneration, or self-repair. Up to 15 iterations.
 3. **Report** -- structured summary with phase outcomes, fixes applied, and issues found.
 
-**Error classification (14 patterns):**
+**Error classification:**
 
 | Category | Examples | Fix Target |
 |---|---|---|
@@ -999,7 +1024,7 @@ No direct user invocation. `/camel-execute` dispatches this skill internally dur
 | Build tool | Unknown lifecycle phase, missing plugin | Escalate to user |
 | Route creation | `FailedToCreateRouteException` | Internal implementation handling (re-generate route) |
 | Unknown component | `NoSuchEndpointException` | Internal implementation handling |
-| Wrong endpoint options | `ResolveEndpointFailedException` | `/camel-validate` |
+| Wrong endpoint options | `ResolveEndpointFailedException` | `/camel-validate` static diagnosis, then `camel-implement` correction |
 | Missing bean | `NoSuchBeanException` | Internal implementation handling |
 | Injection failure | `UnsatisfiedDependencyException` | Internal implementation handling |
 | External service | `Connection refused` | Self-repair (restart Docker service) |
@@ -1040,7 +1065,7 @@ camel-kit init my-project --ai claude
 /camel-ship --start-from plan             # Import the active manual design and begin planning
 
 # Migration
-/camel-migrate                           # Analyze legacy project → auto plan → auto execute
+/camel-migrate                           # Analyze legacy project → auto plan → auto execute → auto validate
 
 # Validate (standalone, any project)
 /camel-validate                          # Validate routes in current project

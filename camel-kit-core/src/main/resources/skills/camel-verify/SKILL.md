@@ -8,15 +8,15 @@ user_invocable: false
 
 Runtime verification feedback loop. Builds, tests, diagnoses, fixes, and retries in a structured 3-phase loop:
 
-1. **Build Verification** — compile the project, classify and fix build errors
+1. **Build / Startup Smoke Verification** — compile Spring Boot or Quarkus projects; for Camel Main, run the startup smoke test instead
 2. **Test Verification** — run Citrus integration tests via `camel test run`, classify and fix test failures
 3. **Report** — structured summary of all phases, fixes applied, and issues found
 
-Each phase retries up to 15 times with error classification and fix routing to existing skills (`camel-validate`, `camel-implement`, `camel-test`, or self-repair). Persistent architectural failures trigger automatic re-planning via `camel-execute/guides/re-plan-loop.md`. Graceful degradation when tools (Maven, Docker, `camel test` CLI) are unavailable.
+Maven compilation and Citrus testing retry up to 15 times; Camel Main startup retries up to 6 times, and persistent error classes can promote earlier. Report generation does not retry. Error classification routes fixes to existing skills (`camel-validate`, `camel-implement`, `camel-test`, or self-repair), while persistent architectural failures trigger automatic re-planning via `camel-execute/guides/re-plan-loop.md`. Graceful degradation applies when required tools are unavailable.
 
 ## Invocation
 
-- **Internal only** — dispatched as a subagent by `camel-execute` after all implementation tasks complete
+- **Internal only** — run by `camel-execute` after all implementation tasks, in an isolated subagent where supported or inline otherwise
 - This skill is NOT user-invocable. It runs as part of the execute phase, not as a standalone pipeline stage.
 
 ## Prerequisites

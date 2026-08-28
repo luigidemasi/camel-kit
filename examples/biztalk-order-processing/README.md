@@ -77,5 +77,5 @@ This example covers common BizTalk patterns:
 ## References
 
 - [Camel Kit BizTalk Migration Guide](../../docs/architecture.md#biztalk-parser-architecture)
-- [BizTalk Component Mapping Reference](../../.claude/skills/camel-migrate/guides/biztalk-component-mapping.md)
+- [BizTalk Component Mapping Reference](../../camel-kit-core/src/main/resources/skills/camel-migrate/guides/biztalk-component-mapping.md)
 - [Apache Camel Documentation](https://camel.apache.org/)

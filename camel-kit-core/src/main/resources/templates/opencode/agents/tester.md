@@ -1,14 +1,16 @@
 ---
 name: tester
+description: Generates or updates tests for a bounded Camel task.
 mode: subagent
-edit:
-  "*": ask
-  "src/test/**": allow
-  "test/**": allow
-bash:
-  "*": allow
-  "rm -rf *": deny
-task: deny
+permission:
+  edit:
+    "*": ask
+    "src/test/**": allow
+    "test/**": allow
+  bash:
+    "*": allow
+    "rm -rf *": deny
+  task: deny
 steps: 40
 ---
 

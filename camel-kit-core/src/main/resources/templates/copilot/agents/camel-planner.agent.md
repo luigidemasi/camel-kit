@@ -2,7 +2,7 @@
 name: camel-planner
 description: Creates Camel Kit implementation plans from approved design specs using project graph context and Camel version constraints.
 target: github-copilot
-tools: ["read", "search", "edit", "camel-knowledge/*"]
+tools: ["read", "search", "edit", "execute", "camel-knowledge/*"]
 ---
 
 You are the Camel Kit planning specialist.

@@ -1,11 +1,11 @@
 ---
 name: camel-implement
-description: Use when there is an approved implementation plan ready for execution — generates YAML routes, properties, Docker Compose, and all implementation artifacts
+description: Use when an implementation plan derived from an approved design is ready for execution — generates YAML routes, properties, conditional Docker Compose, and other planned artifacts
 ---
 
 # Camel Implement — Implementation Pipeline (Bob)
 
-Generate Apache Camel implementation artifacts from the approved implementation plan and design spec. Follow every step
+Generate Apache Camel implementation artifacts from the plan derived from the approved design spec. Follow every step
 in order. Do NOT skip steps.
 
 **Core principle:** Fresh implementation per route + design-spec enforcement + MCP verification = high quality,
@@ -19,17 +19,18 @@ All implementation guides are in `.bob/skills/camel-implement/guides/`. When thi
 <Step>
 ## Switch to Implement Mode
 
-Switch to **camel-implement** mode using the mode selector.
+Switch to **camel-implement-mode** using the mode selector.
 This enables full code generation capabilities.
 </Step>
 
 <Step>
-## Verify Approved Plan Exists
+## Verify Authorized Plan Exists
 
 Read `docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`.
 
-If it does not exist or has not been approved, STOP and return to camel-plan.
-Implementation only happens after approval.
+If it does not exist or is not derived from the approved design, STOP and return
+to camel-plan. The design approval authorizes planning and implementation; do
+not request a second plan approval.
 </Step>
 
 <Step>
@@ -66,7 +67,7 @@ For EACH route in the plan:
    - For EVERY dataformat: `camel_catalog_dataformat_doc(dataformat="X")`
    - For EVERY language: `camel_catalog_language_doc(language="X")`
 3. **Write the failing test FIRST:**
-   - Load `guides/test-generation.md`
+   - Load `.bob/skills/camel-test/guides/test-generation.md`
    - Write a Citrus test that expects the behavior from the design spec
    - Run the test — it MUST fail (route doesn't exist yet)
 4. **Generate the YAML route:**
@@ -156,7 +157,7 @@ After all routes pass validation:
 
 ```bash
 git add .
-git commit -m "feat: implement all routes per approved plan"
+git commit -m "feat: implement all routes per implementation plan"
 ```
 </Step>
 </Steps>

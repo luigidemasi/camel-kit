@@ -17,7 +17,7 @@ All testing guides are in `.bob/skills/camel-test/guides/`. When this file says 
 <Step>
 ## Switch to Test Mode
 
-Switch to **camel-test** mode using the mode selector.
+Switch to **camel-test-mode** using the mode selector.
 This enables test generation and execution capabilities.
 </Step>
 
@@ -218,8 +218,8 @@ If tests FAIL:
 1. Read the failure message
 2. Check if route implementation is correct (compare with the design spec)
 3. Check if test expectations are correct
-4. Fix the issue (route OR test)
-5. Re-run tests
+4. If the test is wrong, fix only the test and re-run it
+5. If the route is wrong, report the implementation defect to the owning `camel-execute`/`camel-implement` path; do not edit route files in `camel-test-mode`
 
 Do NOT proceed until all tests pass.
 </Step>

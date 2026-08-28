@@ -21,12 +21,12 @@ Provides the domain knowledge guides needed to generate Apache Camel implementat
 | `guides/yaml-catalog-rules.md` | Always | Catalog-driven YAML generation rules |
 | `guides/component-loading.md` | Always | Component dependency resolution and loading |
 | `guides/properties-generation.md` | Always | application.properties generation |
-| `guides/maven-dependencies.md` | Always | POM dependency management |
+| `guides/maven-dependencies.md` | Spring Boot/Quarkus only | POM dependency management |
 | `guides/pom-spring-boot.md` | When runtime is Spring Boot | POM structure for Camel on Spring Boot |
 | `guides/pom-quarkus.md` | When runtime is Quarkus | POM structure for Camel on Quarkus |
 | `guides/route-validation.md` | Always (final step) | Self-validation before completion |
 | `guides/docker-compose.md` | When external services needed | Docker Compose service definitions |
-| `guides/run-script.md` | When run script needed | Run/launch script generation |
+| `guides/run-script.md` | Main only, after all module routes are known | Module-wide run/launch script generation |
 | `guides/schema-generation.md` | When JSON/XML schemas needed | Schema file generation |
 | `guides/datamapper-approach-a.md` | When DataMapper with XSLT engine, useJsonBody | XSLT generation — Approach A |
 | `guides/datamapper-approach-b.md` | When DataMapper with XSLT engine, header param | XSLT generation — Approach B |

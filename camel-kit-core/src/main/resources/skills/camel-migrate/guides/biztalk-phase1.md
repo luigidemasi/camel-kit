@@ -44,7 +44,7 @@ The outputs use the active Camel Kit pipeline package, making them compatible wi
 - Read the confirmed analysis summary passed by `camel-migrate` (contains vendor, purpose, SLA, security, failure behaviour, deployment target, API compatibility)
 
 **Conditional:**
-- Read `.camel-kit/constitution.md` if it exists (for reference — do not generate or modify it)
+- Read `docs/constitution.md` if it exists (for reference — do not generate or modify it)
 
 ---
 
@@ -191,18 +191,18 @@ Create `docs/camel-kit/<PIPELINE_ID>/business-requirements.md` using the followi
 
 ## Best Practices
 
-If `.camel-kit/constitution.md` exists, the following rules from it apply to every generated route:
+If `docs/constitution.md` exists, the following rules from it apply to every generated route:
 - One Camel route per BizTalk orchestration (Single Responsibility)
 - Route IDs follow `<domain>-<action>[-<qualifier>]` naming (Naming Conventions)
 - Every route declares a `routeId` and a `description` (Observability)
 - All connection parameters externalised to `application.properties` — no hardcoded values (External Configuration)
-- Dead Letter Channel for failed messages (Error Handling — enforced by `/camel-validate`)
+- The future `/camel-validate` report should flag missing error handling where the approved design requires it
 
 ## Success Criteria
 
 - [ ] All [N] BizTalk orchestrations have an equivalent Camel route
 - [ ] Proprietary adapter replacements are documented and agreed
-- [ ] All routes pass `/camel-validate`
+- [ ] `/camel-validate` findings are reviewed and resolved or explicitly accepted
 - [ ] SLA requirements are met under load
 
 ## Next Steps

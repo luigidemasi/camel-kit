@@ -22,15 +22,15 @@ templates:
   - source: templates/bob/rules/iron-laws.md
     target: .bob/rules/iron-laws.md
   - source: templates/bob/rules-camel-brainstorm/interview-gates.md
-    target: .bob/rules-camel-brainstorm/interview-gates.md
+    target: .bob/rules-camel-brainstorm-mode/interview-gates.md
   - source: templates/bob/rules-camel-plan/plan-structure.md
-    target: .bob/rules-camel-plan/plan-structure.md
+    target: .bob/rules-camel-plan-mode/plan-structure.md
   - source: templates/bob/rules-camel-implement/implementation.md
-    target: .bob/rules-camel-implement/implementation.md
+    target: .bob/rules-camel-implement-mode/implementation.md
   - source: templates/bob/rules-camel-validate/validation.md
-    target: .bob/rules-camel-validate/validation.md
+    target: .bob/rules-camel-validate-mode/validation.md
   - source: templates/bob/rules-camel-test/testing.md
-    target: .bob/rules-camel-test/testing.md
+    target: .bob/rules-camel-test-mode/testing.md
   - source: templates/bob/gates/camel-brainstorm.md
     target: .bob/skills/camel-brainstorm/SKILL.md
   - source: templates/bob/gates/camel-execute.md

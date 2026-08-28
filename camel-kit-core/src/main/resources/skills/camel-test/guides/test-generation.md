@@ -2,7 +2,9 @@
 
 > **Context variables provided by master SKILL.md:**
 > - `FLOW_NAME` — the flow being tested
-> - `TEST_DIR` — resolved test file directory
+> - `TEST_DIR` — optional module prefix plus `src/test/resources/`, always relative and ending in `/`
+> - `ROUTE_DIR` — runtime-aware optional module route prefix, always relative and ending in `/`
+> - `RUNTIME` — `main`, `spring-boot`, or `quarkus`
 > - `TARGET_MODULE` — from the design spec flow overview (empty for single-project)
 > - `CITRUS_VERSION` — from `.camel-kit/config.properties`
 > - `CITRUS_MCP_VERSION` — from `.camel-kit/config.properties` or generated MCP server coordinate
@@ -159,9 +161,9 @@ actions:
       jbang:
         run:
           integration:
-            file: "{ROUTE_DIR}/{FLOW_NAME}.camel.yaml"
+            file: "{ROUTE_DIR}{FLOW_NAME}.camel.yaml"
           systemProperties:
-            file: "{TEST_DIR}/application-test.properties"
+            file: "{TEST_DIR}application-test.properties"
 
   # Echo test start
   - echo:
@@ -488,9 +490,10 @@ Validating test against Citrus schema...
 | No timeout | `receive:` without timeout | Add `timeout: 10000` |
 | Wrong endpoint type | Generic `endpoint:` | Specific `kafka:`, `http:`, `sql:` |
 
-### JBang Test Dependencies
+### Runtime-Specific Test Dependencies
 
-For test execution via `camel test run`, create or update `test/jbang.properties` alongside the test YAML files:
+For Main only, create or update `{TEST_DIR}jbang.properties` alongside the test YAML files for execution via
+`camel test run`:
 
 ```properties
 run.deps=org.citrusframework:citrus-camel:{CITRUS_VERSION},\
@@ -508,6 +511,10 @@ Add component-specific test dependencies as needed:
 
 Use `:RELEASE` for Testcontainers modules unless the project already pins a Testcontainers version in its build. Do not
 emit placeholder tokens in `jbang.properties`.
+
+For Spring Boot/Quarkus, do not create `jbang.properties`; add the corresponding test-scoped dependencies to the
+module POM as described in `test-configuration.md`. In every runtime, add Testcontainers dependencies only for
+discovered containerized infrastructure used by the generated test.
 
 ---
 

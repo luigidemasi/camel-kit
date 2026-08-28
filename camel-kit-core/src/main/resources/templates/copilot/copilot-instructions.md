@@ -9,10 +9,12 @@ For integration work, use the `/camel-start` project skill first. It routes to t
 - `camel-brainstorm` for new integration design.
 - `camel-migrate` for MuleSoft, BizTalk, Fuse, Camel 2.x, or Camel 3.x migrations.
 - `camel-plan` for approved design specs that need implementation plans.
-- `camel-execute` for approved plans that need implementation and verification.
+- `camel-execute` for ready plans derived from approved designs that need implementation and verification.
 - `camel-validate` for route quality, correctness, security, and anti-pattern checks.
 - `camel-debug` for ad-hoc build, startup, or runtime failures.
-- `camel-knowledge` for Apache Camel documentation, component, CVE/security-advisory, and version questions.
+
+Use `camel-knowledge` directly for Apache Camel documentation, component,
+CVE/security-advisory, and version questions; `/camel-start` does not route knowledge queries.
 
 Use `/skills list` if you need to inspect project skills.
 
@@ -27,7 +29,7 @@ Use `/skills list` if you need to inspect project skills.
 
 1. Verify all Camel components, EIPs, data formats, and endpoint options through MCP before using them.
 2. Read and follow `docs/constitution.md`.
-3. Do not implement without a user-approved design spec or implementation plan.
+3. Do not implement until the design spec is user-approved and a task-based implementation plan exists.
 4. Read Camel versions only from `.camel-kit/config.properties`.
 5. After implementation, run the generated application or an equivalent verification loop and write the required report.
 

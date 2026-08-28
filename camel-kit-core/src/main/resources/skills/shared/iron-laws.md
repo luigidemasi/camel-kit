@@ -50,23 +50,25 @@ The 8 rules are absolute. They apply to every route, every time, regardless of c
 
 ---
 
-## Iron Law 3: No Code Without Plan & Design Approval
+## Iron Law 3: No Code Without Design Approval and an Existing Plan
 
 ```
 NEVER GENERATE IMPLEMENTATION ARTIFACTS BEFORE THE USER HAS APPROVED THE DESIGN SPEC
 AND A TASK-BASED IMPLEMENTATION PLAN HAS BEEN GENERATED.
 ```
 
-The pipeline is: Brainstorm (Design) → Plan → Execute.
+The pipeline is: Brainstorm (Design) → Plan → Execute → Validate.
 1. **Understand:** Brainstorm produces a design spec. The user reviews and approves it.
 2. **Decompose:** Planning breaks the approved design into discrete, atomic tasks.
 3. **Implement:** Only during the execution phase are implementation artifacts (YAML, Java, etc.) generated.
+4. **Assess:** Validate performs a terminal, report-only quality assessment after execution and internal verification.
 
 **Gate function:**
 1. BRAINSTORM produces business requirements and a design spec.
 2. USER reviews and explicitly approves ("approved", "looks good", "go ahead", etc.).
 3. ONLY THEN invoke camel-plan to produce an implementation plan.
 4. EXECUTE phase (camel-execute) runs the actual code generation per task.
+5. VALIDATE phase (camel-validate) diagnoses and reports final quality findings without changing implementation artifacts.
 
 **NO "HELPFUL" CODE GEN:** Skills like `camel-migrate` or `camel-brainstorm` MUST NOT generate final routes or
 application code. They generate business requirements and design specs. Implementation is reserved for the execution
@@ -93,17 +95,18 @@ If spec compliance fails, the output is wrong regardless of quality.
 
 ```
 EVERY GENERATED CODE ARTIFACT MUST PASS AN ADVERSARIAL CODE REVIEW.
-PARALLEL CRITIC LANES RUN AFTER IMPLEMENTATION AND BEFORE STAGE 1 REVIEW.
-EACH CRITIC OPERATES IN A FRESH CONTEXT WITH NO ACCUMULATED SESSION STATE.
+CRITIC LANES RUN AFTER IMPLEMENTATION AND BEFORE STAGE 1 REVIEW.
+USE PARALLEL FRESH CONTEXTS WHEN SUPPORTED; OTHERWISE RUN THE SAME LENSES INLINE
+AND RECORD THAT FRESH-CONTEXT ISOLATION IS UNAVAILABLE.
 ```
 
-Adversarial Code Review (ACR) is the "Adversarial Gate" that runs after implementation but BEFORE spec compliance review. It dispatches a Moderator that dynamically selects specialized Critic Lanes (Route Architecture, Security, Performance, Boundary Compliance, Behavioral Equivalence), each running in a fresh-context subagent.
+Adversarial Code Review (ACR) is the "Adversarial Gate" that runs after implementation but BEFORE spec compliance review. A Moderator dynamically selects specialized Critic Lanes (Route Architecture, Security, Performance, Boundary Compliance, Behavioral Equivalence). Use fresh-context subagents where supported; single-conversation targets apply the same lanes sequentially and record the missing isolation.
 
 **Gate function:**
 1. Implementer completes code generation.
-2. Dispatch the **ACR Moderator** subagent with the code and the relevant design spec section.
+2. Run the **ACR Moderator** role with the code and the relevant design spec section.
 3. Moderator selects Critic Lanes based on design spec content.
-4. Each Critic runs adversarially in its own fresh context — no accumulated session state.
+4. Each Critic runs adversarially in its own fresh context when supported, or sequentially inline otherwise.
 5. Moderator synthesizes findings: deduplicate, prioritize, produce verdict.
 6. If FAIL (actionable findings) → return to implementer for fix. Max 3 cycles.
 7. If PASS or PASS_WITH_TRADEOFFS → proceed to Stage 1 Review (Iron Law 4).

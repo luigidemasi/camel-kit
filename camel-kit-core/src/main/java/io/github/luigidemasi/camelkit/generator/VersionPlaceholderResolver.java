@@ -18,8 +18,15 @@ class VersionPlaceholderResolver {
     }
 
     void substitute(Path mdFile, DistributionConfig dist) throws IOException {
+        substitute(mdFile, dist, null);
+    }
+
+    void substitute(Path mdFile, DistributionConfig dist, String commandPrefix) throws IOException {
         String content = Files.readString(mdFile);
         Map<String, String> versionData = buildVersionTemplateData(dist);
+        if (commandPrefix != null) {
+            versionData.put("COMMAND_PREFIX", commandPrefix);
+        }
 
         Matcher matcher = INSTALL_TIME_PLACEHOLDER.matcher(content);
         StringBuffer rendered = new StringBuffer(content.length());

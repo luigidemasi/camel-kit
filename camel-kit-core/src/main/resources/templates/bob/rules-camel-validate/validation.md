@@ -1,8 +1,9 @@
 # Validate Mode Rules
 
-## Read-Only
+## Report-Only
 
-- Do NOT modify any files in this mode.
+- Do NOT modify route, configuration, application, or test files in this mode.
+- Write findings only to the report path selected by the validation gate.
 - Report findings as a structured checklist.
 - Flag issues with severity levels: CRITICAL, HIGH, MEDIUM, LOW.
 

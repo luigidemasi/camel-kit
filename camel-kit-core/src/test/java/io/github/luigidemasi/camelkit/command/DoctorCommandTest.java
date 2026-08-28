@@ -56,7 +56,7 @@ class DoctorCommandTest {
         Files.writeString(tempDir.resolve(".bob/commands/camel-verify.md"), "internal command should not exist");
         Files.delete(tempDir.resolve(".bob/skills/camel-start/SKILL.md"));
         Files.writeString(tempDir.resolve(".bob/mcp.json"), mcpJson(List.of("camel_catalog_components", "extra_tool"),
-                EXPECTATIONS.knowledgeMcpTools()));
+                EXPECTATIONS.knowledgeMcpTools(), EXPECTATIONS.citrusMcpTools()));
 
         RunResult result = runDoctor("--project-dir", tempDir.toString());
 
@@ -233,7 +233,10 @@ class DoctorCommandTest {
 
         Files.createDirectories(root.resolve(".bob"));
         Files.writeString(root.resolve(".bob/mcp.json"),
-                mcpJson(EXPECTATIONS.camelMcpTools(), EXPECTATIONS.knowledgeMcpTools()));
+                mcpJson(
+                        EXPECTATIONS.camelMcpTools(),
+                        EXPECTATIONS.knowledgeMcpTools(),
+                        EXPECTATIONS.citrusMcpTools()));
     }
 
     private void writeConfig(String config) throws Exception {
@@ -279,7 +282,10 @@ class DoctorCommandTest {
         return merged.toString();
     }
 
-    private String mcpJson(Collection<String> camelTools, Collection<String> knowledgeTools) {
+    private String mcpJson(
+            Collection<String> camelTools,
+            Collection<String> knowledgeTools,
+            Collection<String> citrusTools) {
         return String.format(Locale.ROOT, """
                 {
                   "mcpServers": {
@@ -292,11 +298,17 @@ class DoctorCommandTest {
                       "command": "jbang",
                       "autoApprove": [%s],
                       "alwaysAllow": [%s]
+                    },
+                    "citrus": {
+                      "command": "jbang",
+                      "autoApprove": [%s],
+                      "alwaysAllow": [%s]
                     }
                   }
                 }
                 """, jsonArray(camelTools), jsonArray(camelTools),
-                jsonArray(knowledgeTools), jsonArray(knowledgeTools));
+                jsonArray(knowledgeTools), jsonArray(knowledgeTools),
+                jsonArray(citrusTools), jsonArray(citrusTools));
     }
 
     private String jsonArray(Collection<String> values) {

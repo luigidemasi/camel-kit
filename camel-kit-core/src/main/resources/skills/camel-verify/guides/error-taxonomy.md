@@ -22,21 +22,21 @@ If no pattern matches → the error is **Unclassified** → escalate to the user
 Each entry follows this structure:
 
 - **Pattern:** regex or string to match in log output
-- **Phase:** Build | Startup
+- **Phase:** Build/smoke | Test
 - **Category:** the error family
 - **Fix target:** Self-repair | camel-validate | camel-implement | camel-test | re-plan | Escalate
 - **Fix action:** what to do
 
 ---
 
-## Build Errors (Phase 2)
+## Build Errors (Phase 1)
 
-These errors appear during `./mvnw compile`.
+These errors appear during the module-aware `MAVEN_COMPILE_CMD` resolved by `verify-loop.md`.
 
 ### Missing Camel Component Dependency
 
 **Pattern:** `java.lang.ClassNotFoundException: org.apache.camel.component.{name}` or `package org.apache.camel.component.{name} does not exist`
-**Phase:** Build
+**Phase:** Build/smoke
 **Category:** Missing dependency
 **Fix target:** Self-repair
 **Fix action:** Add the Camel component dependency to pom.xml. The artifact name depends on the runtime:
@@ -52,7 +52,7 @@ No `<version>` tag for Quarkus/Spring Boot — the BOM manages versions. For JBa
 ### Missing Third-Party Dependency
 
 **Pattern:** `cannot find symbol: class {ClassName}` where the class is NOT in `org.apache.camel` packages
-**Phase:** Build
+**Phase:** Build/smoke
 **Category:** Third-party dependency
 **Fix target:** Self-repair
 **Fix action:** Read the import statement for the missing class, determine the Maven coordinates (groupId:artifactId), and add to pom.xml `<dependencies>`. For JBang, add to `camel.jbang.dependencies` in `application.properties`.
@@ -60,7 +60,7 @@ No `<version>` tag for Quarkus/Spring Boot — the BOM manages versions. For JBa
 ### Version Incompatibility
 
 **Pattern:** `java.lang.NoSuchMethodError` or `java.lang.AbstractMethodError`
-**Phase:** Build
+**Phase:** Build/smoke
 **Category:** Version incompatibility
 **Fix target:** Self-repair
 **Fix action:** Check the Camel BOM version in pom.xml. Ensure all Camel dependencies use the same version managed by the BOM. If a third-party dependency conflicts, check for a compatible version. Look for mixed artifact versions.
@@ -68,21 +68,21 @@ No `<version>` tag for Quarkus/Spring Boot — the BOM manages versions. For JBa
 ### Missing Maven Plugin
 
 **Pattern:** `Unknown lifecycle phase` or `Could not find goal`
-**Phase:** Build
+**Phase:** Build/smoke
 **Category:** Build tool
 **Fix target:** Escalate
 **Fix action:** Maven plugin issues typically require manual intervention. Report the missing plugin and suggest checking pom.xml `<build><plugins>` section. Do NOT attempt to add plugins automatically — plugin configuration is too varied.
 
 ---
 
-## Startup Errors (Phase 3)
+## Startup Errors (Phase 1 smoke or Phase 2 test startup)
 
-These errors appear during `./mvnw quarkus:dev` or `./mvnw spring-boot:run` or `camel run`.
+These errors appear during the runtime and module-aware startup or smoke command selected by the verification loop.
 
 ### Route Creation Failure
 
 **Pattern:** `org.apache.camel.FailedToCreateRouteException`
-**Phase:** Startup
+**Phase:** Build/smoke or test
 **Category:** Route creation
 **Fix target:** camel-implement
 **Fix action:** The route YAML is structurally broken. Identify the affected flow from the route ID in the exception
@@ -92,12 +92,12 @@ the affected flow's route YAML from the design spec. Do NOT re-generate the enti
 ### Unknown Component
 
 **Pattern:** `org.apache.camel.NoSuchEndpointException` or `Cannot find component '{name}'`
-**Phase:** Startup
+**Phase:** Build/smoke or test
 **Category:** Component/endpoint
 **Fix target:** camel-implement
 **Fix action:** The component URI in the route YAML references a component that Camel cannot find. Possible causes:
 1. Component name is misspelled in the YAML
-2. Component dependency is missing from pom.xml (check Phase 2 first)
+2. Component dependency is missing from pom.xml (check Phase 1 first)
 3. Component does not exist in this Camel version
 
 Re-check the design spec Source/Sink sections for the correct component name. Verify against MCP catalog via
@@ -106,15 +106,15 @@ Re-check the design spec Source/Sink sections for the correct component name. Ve
 ### Wrong Endpoint Options
 
 **Pattern:** `org.apache.camel.ResolveEndpointFailedException`
-**Phase:** Startup
+**Phase:** Build/smoke or test
 **Category:** Component/endpoint
-**Fix target:** camel-validate
-**Fix action:** The component endpoint options are invalid for this Camel version. Load `camel-validate` and re-validate the component options against the MCP catalog (`camel_catalog_component_doc`). Common cause: option names changed between Camel versions.
+**Fix target:** camel-validate → camel-implement
+**Fix action:** The component endpoint options are invalid for this Camel version. Load `camel-validate` to diagnose and report the invalid options against the MCP catalog (`camel_catalog_component_doc`). Then load `camel-implement` to correct only the affected flow before retrying. Common cause: option names changed between Camel versions.
 
 ### Missing Bean
 
 **Pattern:** `org.apache.camel.NoSuchBeanException`
-**Phase:** Startup
+**Phase:** Build/smoke or test
 **Category:** Bean/injection
 **Fix target:** camel-implement
 **Fix action:** A bean referenced in the route YAML does not exist in the application context. Re-generate the bean class with the correct annotation:
@@ -124,7 +124,7 @@ Re-check the design spec Source/Sink sections for the correct component name. Ve
 ### Spring/CDI Injection Failure
 
 **Pattern:** `UnsatisfiedDependencyException` or `AmbiguousResolutionException`
-**Phase:** Startup
+**Phase:** Build/smoke or test
 **Category:** Bean/injection
 **Fix target:** camel-implement
 **Fix action:** Dependency injection wiring is wrong. For Spring Boot, this often means a missing `*-starter` dependency (the auto-configuration class isn't on the classpath). For Quarkus, check CDI scope annotations. Re-generate the bean with correct annotations and verify the dependency is in pom.xml.
@@ -132,21 +132,28 @@ Re-check the design spec Source/Sink sections for the correct component name. Ve
 ### External Service Connection
 
 **Pattern:** `Connection refused` or `java.net.ConnectException` or `ConnectionException`
-**Phase:** Startup
+**Phase:** Build/smoke or test
 **Category:** External service
 **Fix target:** Self-repair
 **Fix action:** An external service (database, message broker, etc.) is not reachable at the configured host:port.
 
-1. If Docker is available and docker-compose.yaml exists → `docker compose restart {service}`
-2. If Docker is available but no docker-compose.yaml → load `camel-implement/guides/docker-compose.md` to generate one, then `docker compose up -d`
-3. If Docker is not available → report which service and port are unreachable. Suggest the user start the service manually.
+Apply a phase-aware repair:
+
+1. **Phase 1 build/startup smoke:** if an approved `docker-compose.yaml` exists, inspect it and restart only the named
+   failing service. If it does not exist, report the missing runtime service configuration; do not invent Compose unless
+   the approved design explicitly declares that external service.
+2. **Phase 2 Citrus test:** inspect the failing test. Repair its declared Testcontainers action, test properties, or
+   external-API mock/WireMock endpoint as appropriate. Never generate Docker Compose merely because a test connection
+   failed.
+3. If the required runtime is unavailable, report the unreachable service and port and record the affected check as
+   skipped or failed according to the phase contract.
 
 Identify the service from the port number or connection URL in the error message.
 
 ### Quarkus Build-Time Augmentation Error
 
 **Pattern:** `io.quarkus.builder.BuildException`
-**Phase:** Startup (Quarkus only — appears during `quarkus:dev` augmentation phase)
+**Phase:** Build/smoke or test (Quarkus only — appears during augmentation)
 **Category:** Build tool
 **Fix target:** Escalate
 **Fix action:** Quarkus augmentation errors are complex and varied. Report the full error to the user. Common causes include:
@@ -156,14 +163,14 @@ Identify the service from the port number or connection URL in the error message
 
 ---
 
-## Runtime Errors (Phase 3 — during log capture)
+## Runtime Errors (Phase 2 — during Citrus test execution)
 
 These errors appear after the application starts but during the log capture window (message processing failures).
 
 ### Expression Evaluation Failure
 
 **Pattern:** `org.apache.camel.language.ExpressionEvaluationException` or `groovy.lang.GroovyRuntimeException` or `javax.script.ScriptException`
-**Phase:** Startup (runtime)
+**Phase:** Test
 **Category:** Expression/language
 **Fix target:** camel-implement
 **Fix action:** An inline expression (Groovy, Simple, XPath) failed during message processing. This is common with DataMapper Groovy scripts.
@@ -176,7 +183,7 @@ For Simple or XPath expressions: check the expression syntax in the route YAML a
 ### Type Conversion Error
 
 **Pattern:** `org.apache.camel.TypeConversionException` or `org.apache.camel.InvalidPayloadException`
-**Phase:** Startup (runtime)
+**Phase:** Test
 **Category:** Type conversion
 **Fix target:** camel-implement
 **Fix action:** Data type mismatch between components in the route. Check the design spec Source/Sink sections for
@@ -186,7 +193,7 @@ source/target formats and ensure the route has appropriate marshal/unmarshal ste
 ### XSLT Transformation Error
 
 **Pattern:** `net.sf.saxon.trans.XPathException` or `javax.xml.transform.TransformerException`
-**Phase:** Startup (runtime)
+**Phase:** Test
 **Category:** Transformation
 **Fix target:** camel-implement
 **Fix action:** The XSLT stylesheet has an error. Re-run `datamapper-validation.md` to verify the XSLT against design
@@ -314,7 +321,7 @@ re-executes. Maximum 3 re-plan rounds.
 ### JBang
 
 - **Run command:** `camel run *.camel.yaml *.xsl application.properties`
-- **No build step:** JBang compiles at runtime — Phase 2 (build) is **skipped entirely** for JBang
+- **Phase 1 path:** Camel Main/JBang uses its startup smoke test instead of a Maven compile step
 - **Dependencies:** declared in `application.properties` as `camel.jbang.dependencies=org.apache.camel:camel-{name}` (comma-separated for multiple)
 - **Auto-discovery limitation:** JBang auto-discovers components from `to:` URIs but NOT from inline language expressions in `transform:` blocks. Groovy language requires explicit `camel.jbang.dependencies=org.apache.camel:camel-groovy`
 - **Success pattern:** `Routes startup` or `Total X routes started`

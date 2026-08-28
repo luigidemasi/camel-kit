@@ -1,6 +1,6 @@
 # Code Quality Reviewer — Orchestrator Guide
 
-> **Context:** Used by `camel-execute` to dispatch and handle code-quality-reviewer subagents.
+> **Context:** Used by `camel-execute` to run the code-quality-reviewer role in an isolated subagent where supported or inline otherwise.
 > **Persona:** `agents/code-quality-reviewer.md` — defines the reviewer's checks, issue categories, and output format.
 
 ---
@@ -13,7 +13,7 @@
    - The generated files (or paths to them)
    - Constitution rules to check (read `docs/constitution.md`)
    - Security and anti-pattern checks
-3. Dispatch as a subagent — the reviewer runs in its own context and returns only the structured review report
+3. Use a fresh subagent when supported; otherwise review sequentially inline and record the missing isolation. Produce the same structured review report.
 
 ## Failure Handling
 

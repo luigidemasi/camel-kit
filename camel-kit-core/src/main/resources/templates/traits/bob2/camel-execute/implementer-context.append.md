@@ -10,4 +10,4 @@ When generating implementation artifacts, prefer targeted Bob 2 edit tools:
 
 ### Subagent Boundary
 
-When this guide is used inside a `general` implementation subagent, complete only the assigned task and return a concise summary. Do not call `spawn_subagent`; the parent Bob task owns orchestration and parallel dispatch.
+When this guide is used inside a `camel-worker` implementation subagent, complete only the assigned task and return a concise summary. Do not call `spawn_subagent`; the parent Bob task owns orchestration and parallel dispatch.

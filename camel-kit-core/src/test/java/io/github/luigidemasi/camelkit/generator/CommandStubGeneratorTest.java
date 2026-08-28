@@ -36,6 +36,7 @@ class CommandStubGeneratorTest {
         String content = Files.readString(startCommand);
         assertTrue(content.contains("description = \"Camel-Kit start command\""));
         assertTrue(content.contains("Read .gemini/skills/camel-start/SKILL.md and follow those instructions"));
+        assertTrue(content.contains("Requested input: {{args}}"));
     }
 
     @Test
@@ -67,7 +68,8 @@ class CommandStubGeneratorTest {
 
         String content = Files.readString(executeCommand);
         assertTrue(content.startsWith("---\n"));
-        assertTrue(content.contains("description: \"Execute an approved implementation plan with two-stage review.\""));
+        assertTrue(content.contains(
+                "description: \"Execute a ready implementation plan derived from an approved design with an adversarial pre-filter and ordered spec and quality review.\""));
         assertTrue(content.contains("argument-hint: \"<pipeline-id-or-plan>\""));
         assertTrue(content.contains("Read .bob/skills/camel-execute/SKILL.md and follow those instructions"));
     }

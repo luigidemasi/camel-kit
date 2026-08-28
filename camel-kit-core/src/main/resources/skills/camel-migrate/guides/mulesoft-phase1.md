@@ -143,13 +143,13 @@ The following rules from `docs/constitution.md` apply to every generated route:
 - Route IDs follow `<domain>-<action>[-<qualifier>]` naming (Naming Conventions)
 - Every route declares a `routeId` and a `description` (Observability)
 - All connection parameters externalised to `application.properties` — no hardcoded values (External Configuration)
-- Dead Letter Channel for failed messages (Error Handling — enforced by `/camel-validate`)
+- The future `/camel-validate` report should flag missing error handling where the approved design requires it
 
 ## Success Criteria
 
 - [ ] All [N] Mule flows have an equivalent Camel route
 - [ ] Proprietary connector replacements are documented and agreed
-- [ ] All flows pass `/camel-validate`
+- [ ] `/camel-validate` findings are reviewed and resolved or explicitly accepted
 - [ ] SLA requirements are met under load
 
 ## Next Steps

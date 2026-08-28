@@ -234,9 +234,73 @@ class ShippedAssetStructureTest {
                 assertFalse(Files.exists(ctx.projectDir().resolve(legacyCommands)),
                         agentName + " must not generate command scaffolding");
             }
+            assertGeneratedMarkdownResolvesCommandPrefix(agentName, ctx);
+            assertGeneratedPersonaReferencesResolve(agentName, ctx);
             assertGeneratedShipDelegate(agentName, ctx, shipSkillOnly);
             assertRetiredShipAssetsWereCleaned(agentName, ctx, shipSkillOnly);
             assertGeneratedMcpConfigIsValid(agentName, ctx);
+        }
+    }
+
+    private static void assertGeneratedPersonaReferencesResolve(String agentName, InitContext ctx) throws IOException {
+        if ("bob".equals(agentName)) {
+            assertTrue(PersonaResourceInstaller.targetDirectory(ctx).isEmpty(),
+                    "Bob 1 persona generation is intentionally out of scope");
+            return;
+        }
+
+        String targetDirectory = PersonaResourceInstaller.targetDirectory(ctx).orElseThrow();
+        Path personas = ctx.projectDir().resolve(targetDirectory);
+        Set<String> installed;
+        try (Stream<Path> files = Files.list(personas)) {
+            installed = files.filter(Files::isRegularFile)
+                    .map(path -> path.getFileName().toString().replaceFirst("\\.md$", ""))
+                    .collect(Collectors.toSet());
+        }
+        assertEquals(Set.copyOf(PersonaResourceInstaller.PERSONAS), installed,
+                agentName + " must install the complete persona library");
+
+        for (Path root : List.of(ctx.skillsDir(), personas)) {
+            try (Stream<Path> files = Files.walk(root)) {
+                for (Path file : files.filter(Files::isRegularFile)
+                        .filter(path -> path.getFileName().toString().endsWith(".md"))
+                        .toList()) {
+                    String content = Files.readString(file);
+                    for (String persona : PersonaResourceInstaller.PERSONAS) {
+                        Matcher barePersona = Pattern
+                                .compile("(?<![A-Za-z0-9._/-])agents/" + Pattern.quote(persona) + "\\.md")
+                                .matcher(content);
+                        assertFalse(barePersona.find(), () -> agentName + " retains bare persona " + persona + " in "
+                                                              + file + ": "
+                                                              + content.substring(Math.max(0, barePersona.start() - 20),
+                                                                      Math.min(content.length(),
+                                                                              barePersona.end() + 20)));
+                    }
+                    assertFalse(Pattern.compile("(?<![A-Za-z0-9._/-])agents/\\[persona]\\.md")
+                            .matcher(content).find(), file.toString());
+                    assertFalse(Pattern.compile("(?<![A-Za-z0-9._/-])agents/critic-<lane>\\.md")
+                            .matcher(content).find(), file.toString());
+                }
+            }
+        }
+    }
+
+    private static void assertGeneratedMarkdownResolvesCommandPrefix(String agentName, InitContext ctx)
+            throws IOException {
+        try (Stream<Path> files = Files.walk(ctx.projectDir())) {
+            List<String> unresolved = files.filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().endsWith(".md"))
+                    .filter(path -> {
+                        try {
+                            return Files.readString(path).contains("{COMMAND_PREFIX}");
+                        } catch (IOException e) {
+                            throw new java.io.UncheckedIOException(e);
+                        }
+                    })
+                    .map(path -> ctx.projectDir().relativize(path).toString())
+                    .toList();
+            assertTrue(unresolved.isEmpty(),
+                    agentName + " generated Markdown retains {COMMAND_PREFIX}: " + unresolved);
         }
     }
 
@@ -248,7 +312,7 @@ class ShippedAssetStructureTest {
         }
         Files.writeString(guidesDir.resolve("keep.md"), "user-owned neighboring file");
 
-        if ("bob2".equals(ctx.agentName())) {
+        if (Set.of("bob", "bob2").contains(ctx.agentName())) {
             Path rulesDir = ctx.projectDir().resolve(".bob/rules-camel-ship");
             Files.createDirectories(rulesDir);
             Files.writeString(rulesDir.resolve("ship.md"), "legacy generated rule");
@@ -341,9 +405,11 @@ class ShippedAssetStructureTest {
         assertTrue(Files.isRegularFile(guidesDir.resolve("keep.md")),
                 agentName + " re-init must preserve unrelated neighboring files");
 
-        if ("bob2".equals(agentName)) {
+        if (Set.of("bob", "bob2").contains(agentName)) {
+            assertFalse(Files.exists(ctx.projectDir().resolve(".bob/rules-camel-ship/ship.md")),
+                    agentName + " re-init must remove the retired Ship mode rule");
             assertTrue(Files.isRegularFile(ctx.projectDir().resolve(".bob/rules-camel-ship/keep.md")),
-                    "Bob2 re-init must preserve unrelated neighboring rules");
+                    agentName + " re-init must preserve unrelated neighboring rules");
         }
         if (shipSkillOnly) {
             assertFalse(Files.exists(ctx.commandsDir().resolve("camel-ship.md")),
@@ -541,7 +607,13 @@ class ShippedAssetStructureTest {
                 missingTraits.add(source + " did not add sentinel to generated " + targetDisplay);
             }
 
-            String traitContent = Files.readString(traitFile).strip();
+            String traitContent = Files.readString(traitFile)
+                    .replace("{COMMAND_PREFIX}", ctx.commandPrefix())
+                    .strip();
+            var personaDirectory = PersonaResourceInstaller.targetDirectory(ctx);
+            if (personaDirectory.isPresent()) {
+                traitContent = PersonaResourceInstaller.rewriteReferences(traitContent, personaDirectory.get());
+            }
             if (!traitContent.isEmpty() && !generatedContent.contains(traitContent)) {
                 missingTraits.add(source + " content was not appended to generated " + targetDisplay);
             }

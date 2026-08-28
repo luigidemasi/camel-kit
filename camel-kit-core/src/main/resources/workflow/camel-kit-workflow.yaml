@@ -44,7 +44,7 @@ commands:
     generated_stub: true
     user_facing: true
     tier: pipeline
-    description: "Execute an approved implementation plan with two-stage review."
+    description: "Execute a ready implementation plan derived from an approved design with an adversarial pre-filter and ordered spec and quality review."
     standalone: true
     chained: true
   - name: camel-validate
@@ -165,7 +165,7 @@ stages:
     standalone: true
     chained: true
     inputs: [user-request, project-context]
-    outputs: [design-spec, brd, tdds]
+    outputs: [design-spec]
     transitions: [plan]
   - id: migrate
     skill: camel-migrate
@@ -173,14 +173,14 @@ stages:
     standalone: true
     chained: true
     inputs: [source-integration-artifacts, project-context]
-    outputs: [migration-analysis, design-spec, brd, tdds]
+    outputs: [migration-analysis, business-requirements, design-spec]
     transitions: [plan]
   - id: plan
     skill: camel-plan
     kind: planning
     standalone: true
     chained: true
-    inputs: [approved-design-spec, brd, tdds]
+    inputs: [approved-design-spec]
     outputs: [implementation-plan, wave-analysis]
     transitions: [execute]
   - id: execute
@@ -188,15 +188,15 @@ stages:
     kind: implementation
     standalone: true
     chained: true
-    inputs: [approved-implementation-plan, tdds]
-    outputs: [routes, application-properties, pom, tests, execution-report, verification-report]
+    inputs: [implementation-plan, approved-design-spec]
+    outputs: [routes, application-properties, pom, tests, execution-report]
     transitions: [validate]
   - id: validate
     skill: camel-validate
     kind: quality-gate
     standalone: true
     chained: true
-    inputs: [routes, execution-report, verification-report]
+    inputs: [routes, execution-report]
     outputs: [validation-report]
     transitions: []
   - id: debug
@@ -213,10 +213,14 @@ stages:
     standalone: false
     chained: true
     inputs: [generated-application, tests]
-    outputs: [verification-report]
+    outputs: []
     transitions: [execute, validate]
 
 artifacts:
+  - id: business-requirements
+    path: docs/camel-kit/<pipeline-id>/business-requirements.md
+    produced_by: [camel-migrate]
+    consumed_by: []
   - id: design-spec
     path: docs/camel-kit/<pipeline-id>/design-spec.md
     produced_by: [camel-brainstorm, camel-migrate]
@@ -229,10 +233,6 @@ artifacts:
     path: docs/camel-kit/<pipeline-id>/execution-report.md
     produced_by: [camel-execute]
     consumed_by: [camel-validate]
-  - id: verification-report
-    path: docs/camel-kit/<pipeline-id>/verification-report.md
-    produced_by: [camel-verify]
-    consumed_by: [camel-execute, camel-validate]
   - id: validation-report
     path: docs/camel-kit/<pipeline-id>/validation-report.md
     produced_by: [camel-validate]

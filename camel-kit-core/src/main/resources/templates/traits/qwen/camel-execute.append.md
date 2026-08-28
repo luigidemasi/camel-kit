@@ -1,77 +1,99 @@
 ## Agent Optimization: Qwen Code
 
-### Fork-Based Background Tasks
+### Canonical Agent Dispatch
 
-Qwen Code's dual dispatch enables parallel background work via the **fork model**:
+Use Qwen Code's lowercase `agent` tool. Always supply `subagent_type`:
 
-- **Named subagents** (`subagent_type` provided): clean context, parent blocks until completion. Use for implementation tasks that need focused context.
-- **Forks** (`subagent_type` omitted): inherit parent's full conversation context, run in background while parent continues. Use for research isolation and review tasks.
+- A registered name such as `camel-implementer` starts a clean-context regular subagent.
+- `general-purpose` starts the built-in regular agent for a supplied research or review persona.
+- `fork` explicitly starts a context-inheriting detached fork. Omitting `subagent_type` starts `general-purpose`, not a fork.
 
-### Catalog Research via Fork
+Top-level regular subagents run in the background by default. Set `run_in_background: false` for every catalog,
+implementation, adversarial, spec, quality, fix, or verification call whose result gates the next pipeline step.
 
-Before dispatching implementers for a wave, fork a catalog verification task:
+### Catalog Research
 
-```text
-# Fork runs in background — parent continues to next instruction
-Agent({
-  prompt: "[catalog-researcher persona + artifact list + runtime + platformBom]"
-  // No subagent_type → fork mode, inherits parent context, runs in background
-})
-```
-
-The fork verifies all MCP catalog artifacts and writes results to a temporary file. The parent reads the results before dispatching implementers.
-
-**DashScope cache benefit:** The fork shares the parent's exact system prompt prefix, so both the fork and parent hit the same cache — saving 80%+ tokens.
-
-### Implementation Task Dispatch
-
-Named subagent dispatch for implementation tasks (parent blocks until complete):
+Before implementation, run the mandatory Catalog Researcher as a foreground regular agent and pass the full role,
+artifact list, runtime, platform BOM, Camel version, exact MCP tool names, and required output contract:
 
 ```text
-Agent({
-  subagent_type: "camel-implementer",
-  prompt: "[full task text + design spec + pre-verified catalog summary]"
-})
+agent(
+  description="Verify Camel catalog",
+  prompt="[Catalog Researcher persona + artifact list + runtime + platformBom + Camel version]",
+  subagent_type="camel-reviewer",
+  run_in_background=false
+)
 ```
 
-Execute tasks sequentially within a wave (named subagents are blocking). Across waves, respect dependency ordering.
+Do not start implementation until this result returns and passes its required checks.
 
-### Fork-Based Review Parallelism
+### Implementation Waves
 
-After an implementer completes, use forks for the ACR critic spot-checks while preparing the spec review prompt:
+For every independent task in the current `camel-kit plan analyze` wave, emit one call in the same turn so Qwen can run
+the calls concurrently. Select the leaf from the plan's `Agent` field:
+
+- `test-engineer` -> `camel-tester`
+- every other implementation role, including `migration-specialist` -> `camel-implementer`
+
+Include the full selected persona from `.qwen/camel-kit-personas/` in the prompt. Each call starts a clean-context leaf
+and returns its result before review begins:
 
 ```text
-# Fork 1: dispatch ACR Moderator for adversarial review (background)
-Agent({
-  prompt: "[ACR Moderator — lane selection, critic dispatch, synthesis]"
-})
-
-# Meanwhile, prepare spec review context (foreground)
-# Read generated files, load design spec section...
-
-# Then dispatch spec review as named subagent (blocking)
-Agent({
-  subagent_type: "camel-validator",
-  prompt: "[spec compliance review]"
-})
+agent(
+  description="Implement task <ID>",
+  prompt="[complete selected persona + full task text + design spec section + catalog summary + output paths + verification commands]",
+  subagent_type="camel-implementer",
+  run_in_background=false
+)
 ```
 
-**Fork recursion constraint:** Fork children cannot create further forks (enforced via `AsyncLocalStorage`). Named subagents dispatched from a fork are fine.
+For a `test-engineer` task, use the same call shape with `subagent_type="camel-tester"` and a test-focused description.
+Each call must contain exactly one registered subagent name.
 
-### Progress Tracking via todo_write
+Wait for every task in the wave, then review each result. Do not start a dependent wave early.
 
-Use `todo_write` to maintain a visible progress list:
+### Parent-Owned Adversarial and Staged Review
 
-- At the start of execution, write all tasks as unchecked items
-- Check off each task as it completes spec compliance and quality review
-- This provides the user with a real-time progress view
+Regular agents can return a gating result, but a fork cannot dispatch any subagent. The active executor therefore owns
+the entire review sequence:
 
-### Explicit Context Passing
+1. Call `camel-reviewer` in the foreground with the ACR Moderator persona for Phase 1 lane selection only.
+2. Emit one foreground `camel-reviewer` call per selected critic lane in the same turn; each prompt contains exactly
+   one critic persona and forbids edits, command execution, and further dispatch.
+3. Call a fresh foreground `camel-reviewer` agent with the Moderator persona for Phase 2 synthesis only.
+4. After the adversarial verdict passes, call `camel-reviewer` in the foreground with the complete spec-compliance persona.
+5. Only after spec compliance passes, call a fresh `camel-reviewer` with the complete code-quality persona.
+6. Return verified failures to a foreground `camel-implementer`, then repeat the applicable review stage.
 
-Include explicit file paths to prior outputs in each subagent prompt — don't assume the subagent will discover them.
+Include `run_in_background=false` in every call above. Do not ask a fork or critic to spawn the next phase.
 
-### Environment Probe Checkpoint
+### Optional Detached Discovery
 
-- Run the probe as the first task in the execution sequence
-- Write a checkpoint to `.camel-kit/pipeline.json` after the probe passes
-- If the probe triggers a re-plan loop, track each re-plan round as a separate todo item
+Use an explicit fork only for independent factual discovery whose result does not gate the current turn:
+
+```text
+agent(
+  description="Inventory related routes",
+  prompt="[one evidence-only discovery task]",
+  subagent_type="fork",
+  run_in_background=true,
+  fork_turns="3",
+  fork_tools=["read_file", "read_many_files", "glob", "grep_search"]
+)
+```
+
+Forks deliver results through a later completion notification. Wait for that notification before consuming the result,
+and never assign implementation, ACR orchestration, spec review, or quality review to a fork.
+
+### Progress and Context
+
+- Use `todo_write` to track tasks, reviews, fixes, and completed waves.
+- Include explicit file paths and output contracts in every regular-agent prompt; regular agents do not inherit parent history.
+- Run the environment probe before the first implementation call and checkpoint `.camel-kit/pipeline.json` after it passes.
+- If the probe triggers re-planning, track each round separately and do not dispatch implementation until the plan is ready.
+
+### Primary-Owned Runtime Verification
+
+This overrides the shared isolation preference for Qwen. After all implementation and review work, run the internal
+`camel-verify` skill directly in the primary executor session. Do not delegate verification to the implementation,
+review, test, or validation leaves. The primary owns build/start commands, fixes, and the final verification summary.

@@ -268,6 +268,21 @@ class DocCommandsTest {
     }
 
     @Test
+    void initAllowsRootArtifactWithoutSource() throws Exception {
+        Path file = writeDoc("design-spec.md", "# Design Spec\n");
+
+        int code = runInit("--by", "camel-brainstorm", file.toString());
+        assertEquals(0, code);
+
+        String yaml = FrontmatterHandler.extractFrontmatterYaml(Files.readString(file));
+        GeneratedInfo generated = FrontmatterHandler.parseGenerated(yaml);
+        assertNotNull(generated);
+        assertEquals("camel-brainstorm", generated.getBy());
+        assertNull(generated.getFrom());
+        assertFalse(yaml.contains("from:"));
+    }
+
+    @Test
     void initIsIdempotent() throws Exception {
         String content = FrontmatterHandler.writeFrontmatter(
                 StalenessInfo.stale("old reason", "2026-05-13T10:00:00Z"),

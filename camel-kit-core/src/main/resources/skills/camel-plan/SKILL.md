@@ -64,7 +64,7 @@ digraph plan {
     start [label="Approved design spec\nreceived", shape=doublecircle];
     scope [label="Scope check:\nsingle spec or\ndecompose?", shape=diamond];
     decompose [label="Suggest breaking into\nsub-project plans", shape=box];
-    load_template [label="Load task template:\ngreenfield / migration / testing", shape=box];
+    load_template [label="Load primary task template:\ngreenfield or migration\n+ testing template", shape=box];
     decompose_tasks [label="Load task-decomposition.md\nBreak into bite-sized tasks", shape=box];
     generate [label="Generate plan document\nwith checklist tasks", shape=box];
     self_review [label="Self-review:\nspec coverage, placeholders,\nconsistency", shape=box];
@@ -147,10 +147,16 @@ The plan is a RECIPE, not the MEAL.
 
 ## Task Structure
 
-Load the appropriate task template:
+Load one primary implementation template and the testing template:
+
 - Greenfield: `guides/task-template-greenfield.md`
-- Migration: `guides/task-template-migration.md`
-- Testing: `guides/task-template-testing.md`
+- Migration: `guides/task-template-migration.md` (plus the standard greenfield sequence it extends)
+- Every normal greenfield or migration plan: also load `guides/task-template-testing.md` and emit one Citrus test task
+  per flow after the implementation artifacts it consumes
+
+Use `task-template-testing.md` without a primary implementation template only when the caller explicitly requests a
+testing-only plan for already-existing routes. Never treat testing as an alternative that can be omitted from a normal
+implementation plan.
 
 Load decomposition rules: `guides/task-decomposition.md`
 

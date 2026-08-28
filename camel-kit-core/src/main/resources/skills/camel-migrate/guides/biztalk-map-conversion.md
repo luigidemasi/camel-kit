@@ -18,27 +18,20 @@ BizTalk maps are XSLT-based transformations with a visual designer that uses **f
 
 ---
 
-## Decision Matrix: Which Camel Technology to Use
+## Semantic Extraction Before Engine Selection
 
-Choose the Camel approach based on the functoid pattern complexity:
+Do not select an implementation engine per functoid. First extract one complete semantic mapping from the `.btm`:
 
-| Functoid Pattern | Camel Technology | Camel Component | Notes |
-|---|---|---|---|
-| **Direct link** (simple field copy) | `setBody` + Simple language | built-in | No external file needed. Express in design spec section 3.2 as Direct Copy rows. |
-| **String Concatenate** | Simple language or XSLT | built-in / `camel-xslt-saxon` | Use Simple for single concat; XSLT for complex. |
-| **String Upper/Lower/Trim** | Simple language or XSLT | built-in / `camel-xslt-saxon` | Simple: `${body.field.toUpperCase()}` or XSLT `upper-case()`. |
-| **String functions** (Substring, Find, Replace) | XSLT | `camel-xslt-saxon` | Use XSLT `substring()`, `contains()`, `replace()`. |
-| **Math functoids** (Add, Multiply, Divide, etc.) | XSLT | `camel-xslt-saxon` | Use XSLT arithmetic expressions. |
-| **Logical functoids** (AND, OR, NOT, comparisons) | `choice` EIP + Simple predicates | built-in | Express as routing in design spec section 3.3. |
-| **Looping functoid** | `split` EIP | built-in | `split(xpath("//item"))` for XML collections. |
-| **Database Lookup functoid** | `enrich` EIP + `sql` component | `camel-sql` | Express in design spec section 3.5 as enrichment step. |
-| **Scripting functoid** (C#/VB code) | **Flag for manual review** | Groovy or `camel-groovy` | Suggest Groovy as replacement. Document intent in design spec. |
-| **Value Mapping functoid** | XSLT `xsl:choose` | `camel-xslt-saxon` | Lookup table mapping. |
-| **Complex multi-functoid chain** | XSLT via Kaoto DataMapper | `camel-xslt-saxon` | Describe field mappings in the flow design; `camel-execute` generates XSLT. |
-| **Mass Copy functoid** | Direct body forwarding | built-in | No transformation needed — pass body unchanged. |
-| **Iteration functoid** | `split` EIP + per-item processing | built-in | Express in design spec section 3.5 as collection mapping. |
-| **Nil Value functoid** | XSLT with `xsi:nil="true"` | `camel-xslt-saxon` | Generate `<element xsi:nil="true"/>` in XSLT. |
-| **Record Count functoid** | XSLT `count()` | `camel-xslt-saxon` | Use `count(//element)` in XSLT. |
+- Direct links, string/math/value/default/nil/count functoids become typed field-mapping expressions.
+- Looping and iteration become collection mappings unless they control the route itself.
+- Logical functoids become conditional mappings; only route-level branching becomes a Camel `choice` EIP.
+- Database lookups and other external calls become explicit route enrichment steps, not DataMapper expressions.
+- Scripting functoids retain their source code and intended input/output semantics for review.
+
+After all fields, types, collection relationships, schema paths, and ambiguities are recorded, load
+`shared/datamapper-canonicalize.md` exactly once for the complete map. Preserve its decision: inline Groovy when both
+schemas are absent OR there are fewer than 20 leaf fields; XSLT only when there are at least 20 leaf fields AND at least
+one schema. Existing custom XSLT remains XSLT and is reviewed/adapted rather than reselected.
 
 ---
 
@@ -90,7 +83,8 @@ Choose the Camel approach based on the functoid pattern complexity:
 |---|---|---|---|---|
 | `Quantity`, `UnitPrice` | `LineTotal` | `Quantity * UnitPrice` | Number | Multiply functoid |
 
-**Note:** Express arithmetic in the Transformation column. The XSLT will use `<xsl:value-of select="Quantity * UnitPrice"/>`.
+**Note:** Express arithmetic in the Transformation column. The selected canonical engine implements that semantic
+expression.
 
 ---
 
@@ -155,10 +149,12 @@ public string FormatPhoneNumber(string input) {
 |---|---|---|---|---|
 | `PhoneNumber` | `FormattedPhone` | **Manual Review Required** — Custom C# logic: remove `-` and spaces | String | Scripting functoid |
 
-**Flag for Manual Review:** Add a required custom implementation action in the design spec:
+**Flag for Manual Review:** Preserve the semantic input/output behavior and original code in the design spec:
 
 ```markdown
-> **Manual Review Required:** The BizTalk map contains a scripting functoid with custom C# code. This logic must be re-implemented in Groovy or as a custom Camel Processor. Original C# code:
+> **Manual Review Required:** The BizTalk map contains a scripting functoid with custom C# code. Canonicalize its
+> mapping semantics with the complete map. If logic outside the selected DataMapper engine must remain as a custom
+> processor, Camel Main is ineligible and the runtime must be Spring Boot or Quarkus. Original C# code:
 > ```csharp
 > public string FormatPhoneNumber(string input) {
 >     return input.Replace("-", "").Replace(" ", "");
@@ -166,7 +162,7 @@ public string FormatPhoneNumber(string input) {
 > ```
 ```
 
-**Suggested Groovy Replacement:**
+**Illustrative replacement only when the canonical engine is Groovy:**
 
 ```groovy
 exchange.in.setBody(exchange.in.getBody().replaceAll("[-\\s]", ""))
@@ -192,7 +188,7 @@ exchange.in.setBody(exchange.in.getBody().replaceAll("[-\\s]", ""))
 | `StatusCode == "I"` | `StatusCode` | `Status` | `"INACTIVE"` | — | Value Mapping functoid |
 | `StatusCode == "P"` | `StatusCode` | `Status` | `"PENDING"` | — | Value Mapping functoid |
 
-Alternatively, use XSLT `<xsl:choose>` for cleaner implementation:
+Only when the approved design selects XSLT (or preserves existing custom XSLT), it may express this semantic as:
 
 ```xml
 <xsl:choose>
@@ -215,7 +211,8 @@ Alternatively, use XSLT `<xsl:choose>` for cleaner implementation:
 |---|---|---|---|---|
 | `Address/*` | `ShippingAddress/*` | Mass Copy (entire subtree) | Complex | Mass Copy functoid |
 
-**Implementation Note:** Use XSLT `<xsl:copy-of select="Address"/>` or document as a direct body copy in Camel if the entire message is being forwarded.
+**Implementation Note:** Record the subtree-copy semantic for the canonical engine, or document a direct body copy in
+Camel if the entire message is forwarded.
 
 ---
 
@@ -229,7 +226,7 @@ Alternatively, use XSLT `<xsl:choose>` for cleaner implementation:
 |---|---|---|---|---|
 | `OptionalField` | `OptionalField` | Set `xsi:nil="true"` if missing | String (nullable) | Nil Value functoid |
 
-**XSLT Equivalent:**
+**Only when XSLT is selected or preserved:**
 
 ```xml
 <OptionalField xsi:nil="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/>
@@ -257,36 +254,38 @@ When you encounter a BizTalk map (`.btm` file) during migration analysis, follow
 2. **Extract source and target schemas** — listed in `<SrcSchemaReference>` and `<TgtSchemaReference>`.
 3. **Parse functoids** — located in `<Functoid>` elements. Read the actual `FunctoidType`, `FID`, `Name`, and related attributes from the map; do not infer function identity from a hardcoded numeric table alone.
 4. **Trace links** — `<Link>` elements connect source fields, functoids, and target fields via `<SourceID>` and `<TargetID>`.
-5. **Classify each functoid using the Decision Matrix** above.
+5. **Classify each functoid semantically** using the rules above; do not select Groovy or XSLT yet.
 6. **For scripting functoids:** Extract the inline script code from the `<Script>` element, flag for manual review, and suggest Groovy as a replacement.
 7. **Document in design spec section 3.2–3.6 tables** using the pattern examples above.
+8. **Count all source and target leaf fields**, record whether each schema is present, then canonicalize the complete
+   map once with `shared/datamapper-canonicalize.md` and insert its exact selected DataMapper section.
 
 ---
 
 ## Functoid Types Quick Reference
 
-| BizTalk Functoid Pattern | Camel Equivalent |
+| BizTalk Functoid Pattern | Semantic Target Before Canonicalization |
 |---|---|
-| String Concatenate | Simple or XSLT `concat()` |
-| Uppercase / Lowercase | XSLT `upper-case()` / `lower-case()` |
+| String Concatenate | Typed concatenation mapping |
+| Uppercase / Lowercase | Typed string-function mapping |
 | Logical comparison / AND / OR / NOT | `choice` EIP + Simple predicate |
 | Looping / Iteration | `split` EIP |
 | Database Lookup | `enrich` EIP + `sql` |
-| Scripting | Groovy or custom Processor |
-| Value Mapping | XSLT `xsl:choose` |
-| Mass Copy | XSLT `xsl:copy-of` |
-| Record Count | XSLT `count()` |
-| Nil Value | XSLT `xsi:nil="true"` |
+| Scripting | Preserved code plus reviewed input/output semantics |
+| Value Mapping | Conditional/value-table mapping |
+| Mass Copy | Subtree-copy mapping |
+| Record Count | Collection-count mapping |
+| Nil Value | Nullable/default mapping |
 
 See Microsoft BizTalk Server documentation and the map's own metadata for authoritative functoid identifiers.
 
 ---
 
-## XSLT Generation Note
+## Conditional Engine Generation
 
-When the flow-design mapping tables are complete, `camel-execute` will read them and generate:
-- An XSLT stylesheet for the transformation
-- Or a Groovy script skeleton (for complex logic not expressible in XSLT)
+When the flow-design mapping tables are complete, `shared/datamapper-canonicalize.md` selects the engine and
+`camel-execute` generates that exact inline Groovy or XSLT implementation. The engine decision is based on schemas and
+leaf-field count, not on individual functoid names.
 
 The richer and more complete the design spec mapping tables, the more accurate the generated implementation will be.
 
@@ -296,12 +295,12 @@ The richer and more complete the design spec mapping tables, the more accurate t
 
 | BizTalk Feature | Complexity | Recommended Approach |
 |---|---|---|
-| **Scripting functoid** (C#/VB code) | High | Re-implement in Groovy or custom Processor. Flag for manual review. |
+| **Scripting functoid** (C#/VB code) | High | Preserve semantics/code, canonicalize with the complete map, and flag any remaining custom processor for runtime-safe review. |
 | **Custom XSLT** (inline or external) | Medium | Review and adapt to Camel XSLT component. |
 | **Database Lookup functoid** | Medium | Implement as `enrich` EIP + `sql` component. Document SQL query in the design spec. |
 | **External Assembly call** | High | Must be re-implemented; discuss with development team. |
-| **Cumulative functoids** (running totals) | High | Implement as custom Processor or Groovy script. |
-| **Index functoid** | Low | Use XSLT `position()` function. |
+| **Cumulative functoids** (running totals) | High | Preserve the running-total semantic for canonicalization; flag any remaining custom processor for runtime-safe review. |
+| **Index functoid** | Low | Record the collection-index semantic for the selected engine. |
 | **Iteration functoid** | Medium | Use `split` EIP with per-item processing. |
 
 When these patterns are found, record a required custom implementation action in the relevant design spec section and
@@ -312,8 +311,8 @@ flag it for development team attention.
 ## Notes
 
 - Always verify component names in the MCP catalog before writing design spec entries (using `camel_catalog_component_doc`). Pass `runtime` and the full `platformBom` GAV (derived from `.camel-kit/config.properties` per `shared/mcp-setup.md` — the file stores bare versions, not the GAV) on every call, and check the echoed `camelVersion` matches the project version (Iron Law 1).
-- BizTalk maps are XSLT-based — most functoids map cleanly to XSLT functions.
-- Scripting functoids MUST be flagged for manual review and suggested Groovy replacements.
+- BizTalk maps are XSLT-based source artifacts, but new implementations follow the canonical Groovy-or-XSLT rule.
+- Scripting functoids MUST be flagged for manual review; do not select Groovy before complete-map canonicalization.
 - Database Lookup functoids require `enrich` EIP + `sql` component in Camel.
-- Complex multi-functoid chains should be expressed as field mapping rows in the flow design; `camel-execute` will
-  generate the XSLT.
+- Complex multi-functoid chains should be expressed as semantic field-mapping rows; `camel-execute` generates the
+  canonical engine selected for the complete map.

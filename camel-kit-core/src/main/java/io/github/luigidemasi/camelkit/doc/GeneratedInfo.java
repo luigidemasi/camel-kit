@@ -1,5 +1,8 @@
 package io.github.luigidemasi.camelkit.doc;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class GeneratedInfo {
 
     private String at;

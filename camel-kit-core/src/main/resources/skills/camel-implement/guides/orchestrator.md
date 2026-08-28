@@ -10,37 +10,38 @@ This guide defines file paths and execution order for the implementation pipelin
 > **Context variables from master SKILL.md:**
 > - `RUNTIME` — `main` (default Camel Main packaging), `spring-boot`, or `quarkus`
 > - `FLOW_NAME`, `CAMEL_VERSION`, `TARGET_MODULE`
+> - `MODULE_NAME`, plus complete module `ROUTE_FILES` and `XSL_FILES` inventories for consolidated runtime artifacts
 > - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via `skills/shared/mcp-setup.md`
 
-**Migration design specs:** If the active flow design contains a "Migrated From" field, Java source files, WSDL/XSD
-files, or Maven plugin configuration, handle them as additional artifacts alongside the standard pipeline steps. Copy
-referenced files to `TARGET_MODULE`, create Java classes, and configure pom.xml as specified in the design spec. Do NOT
-skip the standard pipeline — migration flows still need route YAML, properties, docker-compose, and all other standard
-artifacts.
+**Migration design specs:** If the active flow design contains a "Migrated From" field, handle its additional artifacts
+alongside the standard pipeline steps. Camel Main designs must already have translated all Java/Blueprint logic to
+supported YAML/inline Groovy. Retained Java classes, dependency-injection configuration, or Maven plugins require Spring
+Boot or Quarkus. Do NOT skip the standard pipeline — migration flows still need route YAML, properties, and every
+conditional artifact required by their design.
 
 ---
 
 ## File Path Table
 
-Resolve paths based on runtime:
+Resolve paths based on runtime. Define `{MODULE_PREFIX}` as the `Target Module` plus one trailing `/` when the target
+module is non-empty. At the project root, `{MODULE_PREFIX}` is the empty string; omit the whole prefix (never resolve it
+to `/`).
 
 | File Type | Main (JBang CLI) | Spring Boot / Quarkus |
 |-----------|------------------|-----------------------|
-| `{flow-name}.camel.yaml` | `{module}/` | `{module}/src/main/resources/camel/` |
-| `kaoto-datamapper-*.xsl` | `{module}/` | `{module}/src/main/resources/camel/` |
-| `application.properties` | `{module}/` | `{module}/src/main/resources/` |
-| `schemas/{flow-name}-*.json` | `{module}/schemas/` | `{module}/src/main/resources/schemas/` |
-| `docker-compose.yaml` | `{module}/` | `{module}/` |
-| `.kaoto` | `{module}/` | `{module}/` |
-| `run.sh` (main runtime only) | `{module}/` | N/A |
-
-Where `{module}` is the `Target Module` from the design spec flow overview. For single-project setups, `{module}` is empty (files go in project root).
+| `{flow-name}.camel.yaml` | `{MODULE_PREFIX}` | `{MODULE_PREFIX}src/main/resources/camel/` |
+| `kaoto-datamapper-*.xsl` | `{MODULE_PREFIX}` | `{MODULE_PREFIX}src/main/resources/camel/` |
+| `application.properties` | `{MODULE_PREFIX}` | `{MODULE_PREFIX}src/main/resources/` |
+| `schemas/{flow-name}-*.json` | `{MODULE_PREFIX}schemas/` | `{MODULE_PREFIX}src/main/resources/schemas/` |
+| `docker-compose.yaml` | `{MODULE_PREFIX}` | `{MODULE_PREFIX}` |
+| `.kaoto` (XSLT DataMapper only) | Project root | Project root |
+| `run.sh` (main runtime only) | `{MODULE_PREFIX}` | N/A |
 
 Assign these as context variables for all subsequent steps:
 - `ROUTE_DIR` — route/datamapper location from table above
 - `PROPS_DIR` — application.properties location from table above
 - `SCHEMA_DIR` — schemas location from table above
-- `MODULE_DIR` = `{module}/`
+- `MODULE_DIR` = `{MODULE_PREFIX}`
 
 ---
 
@@ -58,9 +59,11 @@ Assign these as context variables for all subsequent steps:
 
 **IF** the active flow design contains `### DataMapper: kaoto-datamapper-{id}` sections:
 - Load `guides/datamapper-validation.md` (shared — Steps 1, 1.5, 2, 3.5, 5-7)
-- Based on XSLT Approach in the design spec:
-  - Approach A or N/A → also load `guides/datamapper-approach-a.md` (Steps 3, 4)
-  - Approach B → also load `guides/datamapper-approach-b.md` (Steps 3, 4)
+- Branch first on the design spec's Transformation Engine:
+  - `Groovy (inline)` → load `guides/datamapper-groovy.md` (Steps 3, 4)
+  - `XSLT` or absent → branch on XSLT Approach:
+    - Approach A or N/A → load `guides/datamapper-approach-a.md` (Steps 3, 4)
+    - Approach B → load `guides/datamapper-approach-b.md` (Steps 3, 4)
 - Pass: `FLOW_NAME`, file locations from the table above
 
 **SKIP** if no DataMapper sections exist in the design spec.
@@ -92,23 +95,28 @@ Assign these as context variables for all subsequent steps:
 
 The properties validation gate (properties-generation.md §5.4) is part of this step's completion criteria — Step 3 is not complete until `camel_configuration_validate` passes or the documented manual fallback is recorded.
 
-### Step 4: Docker Compose (ALWAYS)
+### Step 4: Docker Compose (CONDITIONAL)
 
+**IF** the design spec lists one or more external service dependencies:
 - Load `guides/docker-compose.md`
 - Pass:
-  - `FLOW_NAME`
+  - `MODULE_NAME`
   - `MODULE_DIR`
+  - `ROUTE_FILES` (every module `.camel.yaml` file)
+  - `XSL_FILES` (every module XSLT DataMapper file; may be empty)
   - `CAMEL_VERSION`
   - `RUNTIME`
   - `DOCKER_IMAGE`:
     - Main: `apache/camel-jbang:{CAMEL_VERSION}`
     - Spring Boot / Quarkus: application-specific (built from project, not a generic Camel image)
 
+**SKIP** if the design spec has no external service dependencies, regardless of runtime.
+
 ### Step 5: Runtime-Specific Artifacts (ALWAYS)
 
 **Main runtime:**
 - Load `guides/run-script.md`
-- Pass: `FLOW_NAME`, `MODULE_DIR`
+- Pass: `MODULE_NAME`, `MODULE_DIR`, `ROUTE_FILES` (every module route), `XSL_FILES` (every module XSLT file)
 
 **Spring Boot / Quarkus:**
 - Load `guides/maven-dependencies.md`
@@ -118,13 +126,22 @@ The properties validation gate (properties-generation.md §5.4) is part of this 
 
 **IF** the active flow design contains a "Migrated From" field (migration scenario):
 
-1. **Java source files:** If the design spec references Java processors, beans, or configuration classes, create them in `{module}/src/main/java/` using the package structure from the design spec. For migration, copy the logic from the source and adapt it to Camel 4.x (jakarta imports, updated API calls).
+0. **Runtime safety:** If `RUNTIME == main` and the design retains any Java processor, bean, configuration class,
+   Blueprint wiring, or Maven plugin, STOP. Return to migration runtime selection and require Spring Boot or Quarkus.
 
-2. **Non-route files:** If the design spec references WSDL, XSD, or other resource files, copy them to `{module}/src/main/resources/` preserving the directory structure specified in the design spec.
+1. **Java source files (Spring Boot/Quarkus only):** If the design spec references Java processors, beans, or
+   configuration classes, create them in `{MODULE_PREFIX}src/main/java/` using the package structure from the design
+   spec.
+   Copy the logic from the source and adapt it to Camel 4.x (Jakarta imports, updated API calls).
 
-3. **Maven plugins:** If the design spec specifies build plugins (e.g., CXF codegen, JAXB), add them to the `<build><plugins>` section of `{module}/pom.xml`.
+2. **Non-route files:** Copy WSDL, XSD, and other resources to the runtime-aware paths specified in the approved design,
+   preserving its directory structure.
 
-4. **CDI/Spring configuration:** If the design spec specifies configuration classes or bean definitions beyond `application.properties`, create them.
+3. **Maven plugins (Spring Boot/Quarkus only):** Add required build plugins (for example CXF codegen or JAXB) to the
+   `<build><plugins>` section of `{MODULE_PREFIX}pom.xml`.
+
+4. **Dependency-injection configuration (Spring Boot/Quarkus only):** Create configuration classes or bean definitions
+   beyond `application.properties` only when the approved design specifies them.
 
 **SKIP** if the design spec does not contain a "Migrated From" field.
 
@@ -165,11 +182,11 @@ Verify these files exist and are non-empty:
 
 | Check | Path | Condition |
 |-------|------|-----------|
-| Route YAML | `{ROUTE_DIR}/{flow-name}.camel.yaml` | MUST exist, MUST be non-empty |
-| Properties | `{PROPS_DIR}/application.properties` | MUST exist |
-| Docker Compose | `{MODULE_DIR}/docker-compose.yaml` | MUST exist and be non-empty if the design spec lists external services |
-| Maven POM | `{MODULE_DIR}/pom.xml` | MUST exist and be non-empty (Spring Boot / Quarkus only) |
-| Run script | `{MODULE_DIR}/run.sh` | MUST exist (main runtime only) |
+| Route YAML | `{ROUTE_DIR}{flow-name}.camel.yaml` | MUST exist, MUST be non-empty |
+| Properties | `{PROPS_DIR}application.properties` | MUST exist |
+| Docker Compose | `{MODULE_DIR}docker-compose.yaml` | MUST exist and be non-empty if the design spec lists external services |
+| Maven POM | `{MODULE_DIR}pom.xml` | MUST exist and be non-empty (Spring Boot / Quarkus only) |
+| Run script | `{MODULE_DIR}run.sh` | MUST exist (main runtime only) |
 
 **If the route YAML does not exist or is empty, STOP.** Do not show the Implementation Summary. Go back to Step 2 (Route Generation) and actually generate the file. This check exists because the most common failure mode is the AI reading guides without executing them.
 
@@ -194,7 +211,7 @@ Completion Gate:
   Files:
     ✓ {flow-name}.camel.yaml exists ({N} lines)
     ✓ application.properties exists
-    ✓ docker-compose.yaml exists
+    ✓ docker-compose.yaml exists [IF Step 4 ran]
     ✓ pom.xml exists [Spring Boot/Quarkus]
   Design Spec Conformance:
     ✓ Source: [component] matches design spec
@@ -212,7 +229,7 @@ If `.camel-kit/project-graph.json` already exists (adding to existing project or
 Note: The project graph may be stale — it was built before this
 implementation. Run `{COMMAND_PREFIX} init --force` with the current
 project settings to rebuild it before the
-post-execute validation and testing phases.
+execute phase's final runtime verification and the Phase 4 static validation.
 ```
 
 If no graph exists: skip silently. No suggestion.
@@ -252,7 +269,7 @@ Generated Files:
     Bean definitions: [list beans]
     Route placeholders: [count]
 
-  ✓ docker-compose.yaml
+  ✓ docker-compose.yaml [IF Step 4 ran]
     Location: {MODULE_DIR}
     Services: [list services]
 
@@ -261,7 +278,7 @@ Generated Files:
     Executable script to start integration
 
   ✓ Maven dependencies added to pom.xml [Spring Boot/Quarkus only — IF Step 5 ran]
-    Location: {MODULE_DIR}/pom.xml
+    Location: {MODULE_DIR}pom.xml
 
   ✓ schemas/{flow-name}-input.json [IF Step 7 ran]
     Location: {SCHEMA_DIR}
@@ -296,7 +313,8 @@ NEXT STEPS
 
 2. Continue with remaining implementation tasks
 
-3. After all tasks complete, /camel-validate runs as the
-   final pipeline quality gate (Stage 3)
+3. After all tasks complete, runtime verification runs once.
+   In a chained pipeline, /camel-validate then runs automatically;
+   after standalone execution, invoke it explicitly.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```

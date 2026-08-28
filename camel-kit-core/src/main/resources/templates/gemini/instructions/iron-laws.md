@@ -2,7 +2,7 @@
 
 1. **MCP Catalog Verification** — Every component, EIP, dataformat, and language MUST be verified via MCP catalog before use. You do NOT guess component names.
 2. **Constitution Enforcement** — Read and follow `docs/constitution.md` in every skill phase.
-3. **No Code Without Plan & Spec Approval** — NEVER generate implementation artifacts before the user has approved the design spec AND a task-based implementation plan exists.
+3. **No Code Without Design Approval and an Existing Plan** — NEVER generate implementation artifacts before the user has approved the design spec AND a task-based implementation plan exists.
 4. **Adversarial Code Review** — Every generated code artifact must pass an adversarial code review before proceeding to Stage 1 and Stage 2 reviews. Parallel Critic Lanes run in fresh contexts with no accumulated session state.
 5. **Version Lock** — Always use the Camel version from `.camel-kit/config.properties` (`project.camelVersion`). This is the single source of truth. Never guess a version from training data.
 6. **Surgical Changes** — TOUCH ONLY WHAT YOU’RE ASKED TO TOUCH. Don’t refactor adjacent systems. Don’t remove code you don’t fully understand. Don’t brush against a TODO and decide to rewrite the file.

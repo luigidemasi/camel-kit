@@ -41,14 +41,32 @@ class CommandStubGenerator {
         } else {
             content = "Read " + ctx.agent().skillsDirectory() + "/" + command.skill()
                       + "/SKILL.md and follow those instructions";
+            String placeholder = ctx.agent().argPlaceholder();
+            if (placeholder != null) {
+                content += ". Requested input: " + placeholder;
+            }
         }
         if ("toml".equals(ctx.agent().fileFormat())) {
             return wrapInToml(command.shortName(), content);
+        }
+        if ("opencode".equals(ctx.agentName()) && "camel-execute".equals(command.name())) {
+            return wrapInOpenCodeMarkdown(command, content);
         }
         if ("bob2".equals(ctx.agentName())) {
             return wrapInBobMarkdown(command, content);
         }
         return content;
+    }
+
+    private String wrapInOpenCodeMarkdown(WorkflowCommand command, String content) {
+        return String.format(Locale.ROOT, """
+                ---
+                description: "%s"
+                agent: executor
+                subtask: false
+                ---
+                %s
+                """, yamlDoubleQuoted(command.description()), content);
     }
 
     private String wrapInBobMarkdown(WorkflowCommand command, String content) {

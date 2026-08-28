@@ -1,8 +1,8 @@
 # Schema Validation Guide
 
 > **Context variables provided by master SKILL.md:**
-> - `FLOW_NAME` — the flow being validated
 > - `CAMEL_VERSION` — from `.camel-kit/config.properties`
+> - `ROUTE_FILES` — exact runtime/module-aware relative route paths from the validation inventory
 
 ## Stage 1: YAML Schema Validation
 
@@ -23,65 +23,61 @@ URL: https://raw.githubusercontent.com/apache/camel/camel-{{CAMEL_VERSION}}/dsl/
 
 ### 1.2 Validate YAML Files
 
-For each `*.camel.yaml` file (or specified flow):
+For each exact path in `ROUTE_FILES`:
 
 ```
 Running YAML Schema Validation...
 
 ./mvnw org.apache.camel:camel-yaml-dsl-validator:{{CAMEL_VERSION}}:validate \
-  -Dcamel.validator.files={flow-name}.camel.yaml
+  -Dcamel.validator.files={ROUTE_FILE}
 ```
 
 Parse output:
 - `BUILD SUCCESS` → Schema valid → Continue to Stage 2
-- `BUILD FAILURE` → Schema errors → Auto-fix and retry
+- `BUILD FAILURE` → Record schema errors and recommended corrections in the validation report, then continue without modifying the route
 
-### 1.3 Auto-Fix Common Schema Errors
+### 1.3 Report Common Schema Corrections
 
-If validation errors found, attempt auto-fix:
+If validation errors are found, report the applicable correction without applying it:
 
-| Error Pattern | Auto-Fix |
-|--------------|----------|
+| Error Pattern | Recommended Correction |
+|--------------|------------------------|
 | `handled: true` (boolean) | Convert to `{ constant: { expression: "true" } }` |
 | `continued: true` (boolean) | Convert to `{ constant: { expression: "true" } }` |
 | `datasource:` (wrong case) | Rename to `dataSource:` |
 | Missing `uri:` wrapper | Wrap in `{ uri: "..." }` |
 | Wrong exception format | Convert to array `[ "..." ]` |
 
-Show auto-fix report:
+Show the finding in the validation report:
 
 ```
 == YAML SCHEMA VALIDATION ==
 
-Validating {flow-name}.camel.yaml...
+Validating {ROUTE_FILE}...
 
 ❌ Error 1: Property 'handled' at line 25
    Expected: object (expression)
    Found: boolean
-   → AUTO-FIX: Converting 'handled: true' to expression format
+   → RECOMMENDATION: Convert 'handled: true' to expression format
 
 ❌ Error 2: Unknown property 'datasource' at line 42
    Did you mean: 'dataSource'?
-   → AUTO-FIX: Renaming to 'dataSource'
+   → RECOMMENDATION: Rename to 'dataSource'
 
-Applying fixes to {flow-name}.camel.yaml...
-Re-validating...
-
-✅ {flow-name}.camel.yaml: Valid YAML syntax
-✅ {flow-name}.camel.yaml: Schema validation passed (2 errors fixed)
+Result: FAIL (2 schema errors reported; no route files modified)
 ```
 
-### 1.4 Manual Fix Required
+### 1.4 Additional Correction Required
 
-If error cannot be auto-fixed:
+If no common correction applies, record the error and a targeted recommendation:
 
 ```
-❌ Error: Cannot auto-fix
+❌ Error: Correction requires implementation work
 
 Property 'customProcessor' references bean not defined
 
-Manual fix required:
-  First check the Configuration Ladder (`skills/shared/forage.md`): if a Forage factory covers the bean, the fix is `forage.X.<domain>.*` keys, not `camel.beans.*`.
-  Add bean definition to application.properties:
+Recommended implementation correction:
+  First check the Configuration Ladder (`skills/shared/forage.md`): if a Forage factory covers the bean, recommend `forage.X.<domain>.*` keys rather than `camel.beans.*`.
+  Otherwise recommend adding the justified bean definition to application.properties:
   camel.beans.customProcessor=#class:com.example.MyProcessor
 ```

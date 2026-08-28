@@ -12,19 +12,11 @@ Note: `lsp` is experimental and may not be available. If `lsp` calls fail, fall 
 
 ### Path-Scoped Safety
 
-Configure the validator with read-only permissions:
+The generated validator is configured with report-only permissions:
 
 - Read: `**/*.yaml`, `**/*.xml`, `**/*.properties`, `**/*.java`, `**/*.groovy`
-- Write: none (validation is read-only)
+- Write: only the pipeline or standalone validation report selected by the skill
 
-This prevents the validator from accidentally modifying files.
-
-### Citrus Test Validation
-
-When the verification loop runs `camel test run`, the validator can optionally enrich Citrus test results with LSP analysis when LSP is available and configured:
-
-- Use `lsp` go-to-definition to verify bean references flagged in test failures
-- Use `lsp` find-references to check whether a route endpoint is actually called by the test
-- This provides deeper diagnostic information alongside Citrus assertion messages
-
-LSP availability is not guaranteed — fall back to standard test output if LSP calls fail.
+This prevents the validator from modifying application or test files while still
+allowing the required findings report. Runtime Citrus analysis belongs to the
+internal verification loop inside `camel-execute`, not this static phase.
