@@ -1040,9 +1040,12 @@ public final class ShipCoordinator {
     }
 
     private String truncate(String value) {
-        String message = value == null || value.isBlank()
-                ? "Ship stage failed"
+        String message = value == null
+                ? ""
                 : value.replace('\0', ' ').strip();
+        if (message.isBlank()) {
+            message = "Ship stage failed";
+        }
         if (ChangedWorkspaceSecretScanner.containsSensitiveValue(
                 message.getBytes(StandardCharsets.UTF_8), environment)) {
             return "Failed";

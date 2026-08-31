@@ -50,6 +50,7 @@ import io.github.luigidemasi.camelkit.ship.worker.PiWorker.Outcome;
 import io.github.luigidemasi.camelkit.ship.worker.PiWorker.Request;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
@@ -203,6 +204,31 @@ class ShipCoordinatorTest {
                 List.of(sessionId(run)),
                 Files.readAllLines(fixture.resolve("session-ids")));
         assertFalse(Files.exists(fixture.resolve("resumed-sessions")));
+    }
+
+    @Test
+    void recoveredDurableNulFailureUsesFallbackWithoutWedging()
+            throws Exception {
+        ShipRun run = designRun(List.of(
+                new ShipContext.TextInput("recover failed result")));
+        Files.writeString(fixture.resolve("mode"), "stop-error\n");
+        Path marker = seedDurableResult(run, Outcome.FAILED);
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode document = (ObjectNode) mapper.readTree(marker.toFile());
+        ((ObjectNode) document.path("result"))
+                .put("failure", String.valueOf('\0'));
+        mapper.writerWithDefaultPrettyPrinter()
+                .writeValue(marker.toFile(), document);
+
+        ShipRun failed = coordinator.run(run.id());
+
+        assertEquals(RunStatus.FAILED, failed.status());
+        assertEquals(StageStatus.FAILED,
+                failed.stage(Stage.DESIGN).status());
+        assertEquals(1, failed.stage(Stage.DESIGN).attempts());
+        assertEquals("Ship stage failed", failed.message());
+        assertEquals(failed, controller.status(run.id()));
+        assertEquals(failed, coordinator.run(run.id()));
     }
 
     @Test
@@ -1427,7 +1453,12 @@ class ShipCoordinatorTest {
         Files.writeString(file, content);
     }
 
-    private void seedDurableResult(ShipRun run) throws Exception {
+    private Path seedDurableResult(ShipRun run) throws Exception {
+        return seedDurableResult(run, Outcome.SUCCEEDED);
+    }
+
+    private Path seedDurableResult(ShipRun run, Outcome expected)
+            throws Exception {
         StageAttempt attempt = controller.prepareAttempt(run.id());
         Request request = new Request(
                 run.id(),
@@ -1439,8 +1470,11 @@ class ShipCoordinatorTest {
                 run.stage(Stage.DESIGN).inputDigest(),
                 true,
                 "Seed the exact durable controller attempt.");
-        assertEquals(Outcome.SUCCEEDED, worker.run(request).outcome());
-        assertTrue(worker.recover(request).isPresent());
+        assertEquals(expected, worker.run(request).outcome());
+        assertEquals(expected, worker.recover(request).orElseThrow().outcome());
+        return fileWithPrefix(
+                request.sessionDirectory().resolve(".camel-kit-results"),
+                sessionId(run));
     }
 
     private String retainedEvidence(ShipRun run) throws IOException {

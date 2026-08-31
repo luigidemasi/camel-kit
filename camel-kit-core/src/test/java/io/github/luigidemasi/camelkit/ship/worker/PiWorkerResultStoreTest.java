@@ -207,6 +207,34 @@ class PiWorkerResultStoreTest {
     }
 
     @Test
+    void rejectsOversizedWarningAsUntrustedMarker() throws Exception {
+        Path sessions = Files.createDirectory(directory.resolve("sessions"));
+        PiWorker.Request request = request(RUN_A, sessions);
+        PiWorker.Result original = result("warning");
+        PiWorker.Result experimental = new PiWorker.Result(
+                original.outcome(),
+                ShipLocalStamp.Support.EXPERIMENTAL,
+                original.version(),
+                "experimental",
+                original.node(),
+                original.assistantText(),
+                original.failure(),
+                original.evidence());
+        write(request, experimental);
+        Path marker = marker(sessions);
+        Files.writeString(
+                marker,
+                Files.readString(marker).replace(
+                        "\"warning\" : \"experimental\"",
+                        "\"warning\" : \"" + "x".repeat(4097) + "\""));
+
+        assertTrue(assertThrows(
+                PiWorker.UntrustedResultException.class,
+                () -> PiWorkerResultStore.read(request))
+                .getMessage().contains("malformed"));
+    }
+
+    @Test
     void rejectsEvidenceLogsOutsideTheirDirectory() throws Exception {
         Path sessions = Files.createDirectory(directory.resolve("sessions"));
         PiWorker.Request request = request(RUN_A, sessions);
