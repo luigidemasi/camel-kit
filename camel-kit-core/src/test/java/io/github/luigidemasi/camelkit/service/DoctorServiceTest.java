@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentGeneratorStrategy;
@@ -13,6 +14,8 @@ import io.github.luigidemasi.camelkit.generator.AgentGeneratorFactory;
 import io.github.luigidemasi.camelkit.generator.InitContext;
 import io.github.luigidemasi.camelkit.output.Printer;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
@@ -22,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class DoctorServiceTest {
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final DoctorExpectations EXPECTATIONS = DoctorExpectations.loadDefault();
     private static final String CLAUDE = AgentGeneratorStrategy.CLAUDE.descriptorValue();
     private static final String COPILOT = AgentGeneratorStrategy.COPILOT.descriptorValue();
@@ -810,7 +814,7 @@ class DoctorServiceTest {
     }
 
     @Test
-    void missingCitrusServerWarnsWithoutFailing() throws Exception {
+    void preCitrusOpenCodeWorkspaceWarnsWithoutFailing() throws Exception {
         createHealthyWorkspace(tempDir, OPENCODE);
         writeMcpConfig(tempDir, OPENCODE, """
                 {
@@ -833,10 +837,19 @@ class DoctorServiceTest {
         assertFalse(hasFinding(result, DoctorFinding.Status.FAIL, "mcp", "citrus", null));
         assertFalse(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
                 "uses supported server fields", null));
+
+        markCitrusMcpGenerated(tempDir);
+        DoctorResult currentResult = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(currentResult.hasFailures(), currentResult.findings().toString());
+        assertTrue(hasFinding(currentResult, DoctorFinding.Status.FAIL, "mcp",
+                "MCP server 'citrus' is missing", "Regenerate"));
+        assertFalse(hasFinding(currentResult, DoctorFinding.Status.WARN, "mcp",
+                "MCP server 'citrus' is not configured", null));
     }
 
     @Test
-    void preCitrusJsonWorkspaceWarnsWithoutFailing() throws Exception {
+    void missingCitrusServerWarnsOnlyForPreCitrusJsonWorkspace() throws Exception {
         createHealthyWorkspace(tempDir, CLAUDE);
         writeMcpConfig(tempDir, CLAUDE, String.format(Locale.ROOT, """
                 {
@@ -855,6 +868,47 @@ class DoctorServiceTest {
                 "MCP server 'citrus' is not configured", "Regenerate"));
         assertFalse(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
                 "tool allowlists match", null));
+
+        markCitrusMcpGenerated(tempDir);
+        DoctorResult currentResult = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(currentResult.hasFailures(), currentResult.findings().toString());
+        assertTrue(hasFinding(currentResult, DoctorFinding.Status.FAIL, "mcp",
+                "MCP server 'citrus' is missing", "Regenerate"));
+        assertFalse(hasFinding(currentResult, DoctorFinding.Status.WARN, "mcp",
+                "MCP server 'citrus' is not configured", null));
+    }
+
+    @Test
+    void citrusToolAllowlistMismatchFailsForEachJsonAllowlistSchema() throws Exception {
+        Map<String, List<String>> schemas = Map.of(
+                "bob", List.of("autoApprove", "alwaysAllow"),
+                COPILOT, List.of("tools"),
+                PI, List.of("directTools"),
+                QWEN, List.of("includeTools"));
+
+        for (Map.Entry<String, List<String>> schema : schemas.entrySet()) {
+            String agentName = schema.getKey();
+            Path root = tempDir.resolve(agentName);
+            createHealthyWorkspace(root, agentName);
+            Path mcpFile = root.resolve(AgentRegistry.get(agentName).mcpConfigPath());
+            ObjectNode config = (ObjectNode) MAPPER.readTree(mcpFile.toFile());
+            ObjectNode citrus = (ObjectNode) config.path(AgentRegistry.get(agentName).mcpServerContainerKey())
+                    .path("citrus");
+            schema.getValue().forEach(field -> citrus.putArray(field).add("unexpected_tool"));
+            MAPPER.writeValue(mcpFile.toFile(), config);
+
+            DoctorResult mismatched = new DoctorService().inspect(new DoctorRequest(root));
+
+            assertTrue(mismatched.hasFailures(), agentName + ": " + mismatched.findings());
+            for (String field : schema.getValue()) {
+                assertTrue(hasFinding(mismatched, DoctorFinding.Status.FAIL, "mcp",
+                        "MCP server 'citrus' " + field + " has missing", "update the allowlist"),
+                        agentName + ": " + mismatched.findings());
+            }
+            assertTrue(hasFinding(mismatched, DoctorFinding.Status.FAIL, "mcp",
+                    "extra unexpected_tool", null), agentName + ": " + mismatched.findings());
+        }
     }
 
     @Test
@@ -1440,6 +1494,11 @@ class DoctorServiceTest {
         Path mcpFile = root.resolve(agent.mcpConfigPath());
         Files.createDirectories(mcpFile.getParent());
         Files.writeString(mcpFile, content);
+    }
+
+    private void markCitrusMcpGenerated(Path root) throws Exception {
+        Path configFile = root.resolve(".camel-kit/config.properties");
+        Files.writeString(configFile, Files.readString(configFile) + "citrus.mcp.version=test\n");
     }
 
     private void writePiGuardPolicy(String content) throws Exception {

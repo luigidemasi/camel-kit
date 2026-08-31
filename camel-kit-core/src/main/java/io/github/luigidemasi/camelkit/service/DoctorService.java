@@ -508,12 +508,12 @@ public class DoctorService {
                 root, mcpFile, servers, "camel-knowledge", expectations.knowledgeMcpTools(), copilotToolsSchema,
                 piDirectToolsSchema, qwenIncludeToolsSchema, openCodeSchema, findings);
         boolean citrusOk;
-        if (servers.has("citrus")) {
+        if (servers.has("citrus") || config.containsKey("citrus.mcp.version")) {
             citrusOk = checkMcpServer(
                     root, mcpFile, servers, "citrus", expectations.citrusMcpTools(), copilotToolsSchema,
                     piDirectToolsSchema, qwenIncludeToolsSchema, openCodeSchema, findings);
         } else {
-            // Workspaces generated before the Citrus MCP server existed stay valid.
+            // Pre-Citrus workspaces have no persisted Citrus MCP version and stay valid.
             findings.add(DoctorFinding.warn("mcp", relativize(root, mcpFile),
                     "MCP server 'citrus' is not configured; camel-test cannot verify Citrus actions",
                     "Regenerate the MCP config with camel-kit init --here --force to add the Citrus MCP server."));
