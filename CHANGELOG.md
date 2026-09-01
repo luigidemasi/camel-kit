@@ -74,6 +74,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Citrus MCP Doctor validation (#146)** — `doctor` now fails when persisted Citrus metadata or a post-Citrus-only JSON agent proves that the generated `citrus` server is required; legacy-capable agents without that metadata retain the actionable pre-Citrus regeneration warning.
+
 - **Camel plugin command parity and public documentation (#193)** — registered `doc` and `nextId` under `camel kit`, added a direct standalone/plugin parity regression, and aligned stable-versus-snapshot installation, prerequisites, workflow, graph, Knowledge, agent, and Ship documentation.
   - Review hardening keeps validator leaves read-only, preserves unrelated OpenCode configuration during regeneration, resolves command prefixes only in Camel-Kit-owned resources, and installs the complete persona library for every current target except the intentionally excluded Bob 1 path
   - `doctor` accepts pre-upgrade Qwen/OpenCode MCP layouts with upgrade warnings while retaining failures for malformed current layouts, and checks registered target assets for drift
