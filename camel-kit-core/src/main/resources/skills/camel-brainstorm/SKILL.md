@@ -168,11 +168,12 @@ You MUST complete these items in order:
 2. **Resolve pipeline** — read `shared/pipeline-infrastructure.md` for pipeline resolution logic. If no active pipeline exists, prompt the user to run `{COMMAND_PREFIX} nextId <slug>` to create one. The pipeline ID determines where artifacts are saved.
 3. **Load context** — read `docs/constitution.md` (if it exists), `.camel-kit/config.properties` (if it exists)
 4. **Run greenfield interview** — first read `shared/discovery-completeness.md`, then load
-   `guides/greenfield-interview.md`
+   `guides/greenfield-interview.md`; capture explicit scope boundaries and the reason for every exclusion
 5. **Select Camel version** — load `guides/version-selection.md`
 6. **Design flows** — for each flow, load relevant `camel-design/` guides (component selection, EIPs, data formats, error handling, security, resilience)
 7. **Assemble design spec** — load `guides/design-assembly.md`
-8. **Self-review spec** — scan for placeholders, contradictions, unverified components
+8. **Self-review spec** — scan for placeholders, contradictions, unverified components, and any flow that crosses an
+   explicit `Not Doing (and Why)` boundary
 9. **User reviews spec** — present spec, wait for explicit approval (Iron Law 3)
 10. **Transition** — depends on invocation mode:
     - **Chained mode:** YOU invoke the `camel-plan` skill automatically (do NOT tell the user to run it)

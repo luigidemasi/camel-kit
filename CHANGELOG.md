@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Explicit design scope boundaries** — greenfield design specs now record a top-level `Not Doing (and Why)` section
+  with a concrete reason for every excluded capability. Brainstorm captures these boundaries during the interview, and
+  execution passes them to implementers and spec-compliance reviewers so excluded features are treated as scope
+  violations instead of opportunistic improvements.
+
 - **OpenAI Codex CLI AI target (`--ai codex`)** — added a first-class Codex target with native repository assets.
   - Generated workspaces include `AGENTS.md`, `.agents/skills/`, `.codex/config.toml`, and seven `.codex/agents/*.toml` roles without an unused command directory
   - Codex skill references use native `$camel-*` invocation, with `/skills`, `$camel-start`, and `/mcp` guidance

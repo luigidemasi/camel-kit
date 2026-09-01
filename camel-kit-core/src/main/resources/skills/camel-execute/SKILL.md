@@ -201,6 +201,7 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces ALL six:
 | "This task is too simple for two-stage review" | Simple tasks get simple reviews. But they still get reviews. |
 | "I'll dispatch multiple implementers in parallel without wave analysis" | Only parallelize within waves from `plan analyze`. Tasks in different waves may conflict. |
 | "The subagent can read the plan file itself" | Provide full task text. Don't make subagents read plan files. |
+| "This extra feature is an obvious improvement" | Read `Not Doing (and Why)` first. An explicit exclusion is an approved scope boundary, not an invitation to improve it. |
 | "I should ask before proceeding to the next task" | The approved design and generated plan authorize every task. Execute ALL tasks without asking. |
 | "Let me check if the user wants to continue" | The design approval already authorizes downstream execution. Keep going. |
 | "The input plan is stale but I'll ignore the warning" | Always warn about staleness. Execution will produce fresh output, but the user should know the plan may be outdated. |
@@ -242,6 +243,12 @@ Extract ALL tasks with:
 - Design spec section reference
 - Review specification
 
+Also read the complete global `## Not Doing (and Why)` section from the approved design spec. Before considering any
+capability beyond a task's explicit requirements, compare it with this list. Never implement a listed exclusion; if a
+task conflicts with one, report `BLOCKED` and name the plan/spec contradiction instead of silently overriding the
+approved design. If a legacy approved spec has no such section, do not invent one during execution; Iron Law 6 still
+prohibits extras.
+
 ### Step 1.5: Pre-Implementation Catalog Research
 
 Before implementing a wave, batch-verify all MCP catalog artifacts referenced in its tasks.
@@ -272,6 +279,7 @@ Use a fresh implementer subagent when supported; otherwise assume the persona an
 perform the task inline. In either case provide:
 - Agent persona (from `agents/[persona].md`)
 - Full task text from the plan
+- Complete global `## Not Doing (and Why)` section
 - Relevant design spec section (read and include — don't make the subagent find it)
 - Guide file paths to load
 - MCP tool parameters (runtime, platformBom)
@@ -326,6 +334,7 @@ isolated when supported and inline otherwise.
 
 Provide:
 - The generated files (or paths to them)
+- The complete global `## Not Doing (and Why)` section
 - The design spec section this task implements
 - The task's review specification
 
@@ -452,6 +461,7 @@ Save the completion summary as `docs/camel-kit/<PIPELINE_ID>/execution-report.md
 - Make an isolated role read the plan file without receiving full task context
 - Ignore subagent questions
 - Accept "close enough" on spec compliance
+- Add or retain a capability explicitly excluded by `## Not Doing (and Why)`
 - Skip re-review after fixes
 - Move to next task with open issues
 - Stop or pause between tasks to ask the user

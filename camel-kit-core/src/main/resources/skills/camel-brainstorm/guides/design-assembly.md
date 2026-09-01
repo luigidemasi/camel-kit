@@ -15,6 +15,7 @@ The design spec is the single source of truth for what gets built. It contains:
 - Technical decisions (version, runtime, error handling)
 - Configuration properties
 - MCP verification evidence
+- Explicit scope boundaries (what will not be built, and why)
 
 **Iron Law 3 reminder:** The user MUST explicitly approve this spec before `camel-plan` is invoked.
 
@@ -31,6 +32,17 @@ The design spec is the single source of truth for what gets built. It contains:
 **Camel Version:** [full Maven version]
 **Runtime:** [Main / Spring Boot / Quarkus]
 **Platform BOM Version:** [resolved platform BOM version]
+
+## Not Doing (and Why)
+
+[The entries below are good examples only. Replace them with the project-specific exclusions captured during discovery
+(greenfield interview Q14). Every entry must name a useful adjacent capability and give a concrete reason for excluding
+it. If the user identified no exclusions, write
+`- **None identified** — No deliberate exclusions remain after the scope interview.`]
+
+- **Dead letter queue** — Adds complexity; start with simple error logging and add a DLQ in iteration 2 if needed
+- **Schema registry integration** — The source topic uses plain JSON, not Avro, so there is no schema evolution concern
+- **Multi-tenant partitioning** — This is a single-tenant deployment, so a partition strategy is out of scope
 
 ---
 
@@ -208,7 +220,9 @@ first approved.
 
 ### For Migration Projects
 
-Use the same structure but add:
+Use the same six numbered sections but add Section 7 below. Include the global `## Not Doing (and Why)` preface only
+when migration discovery explicitly captured project-specific exclusions; do not infer exclusions from omitted or
+absent source features.
 
 ```markdown
 ---
@@ -254,6 +268,10 @@ After assembling the spec, check:
 5. **Property completeness:** Does every externalized value have a property name?
 6. **Flow completeness:** Does each flow from the interview have a design section?
 7. **Decision rationale:** Does every component and EIP selection have Rationale and Constraints filled in? Generic answers like "best fit" are not sufficient — explain the specific technical reasons.
+8. **Scope boundaries:** For every greenfield spec, and for a migration spec only when discovery explicitly captured
+   exclusions, does `## Not Doing (and Why)` contain only project-specific exclusions with a concrete reason for each
+   one? Remove the template examples, and verify that no flow implements an excluded capability. Do not invent a
+   migration exclusion solely to populate this section.
 
 Fix any issues inline.
 

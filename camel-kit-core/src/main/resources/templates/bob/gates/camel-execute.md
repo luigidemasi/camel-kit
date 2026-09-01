@@ -77,6 +77,11 @@ Parse the plan and extract:
 - Design spec section reference per task
 - Review specification per task
 
+Read the complete global `## Not Doing (and Why)` section from the approved design spec. It applies to every task in
+the queue. If a legacy approved spec has no such section, do not invent one during execution; the no-extras rule still
+applies. If a plan task requires a listed exclusion, stop and escalate the plan/spec contradiction; do not silently skip
+the task or implement the exclusion.
+
 Create a task execution queue with all tasks in order.
 </Step>
 
@@ -91,6 +96,7 @@ For EACH task in the queue:
 
 **Step 1: Read Task Context**
 - Read the full task text from the plan
+- Read `## Not Doing (and Why)` before considering any capability beyond the task
 - Read the relevant design spec section (if specified)
 - Load project context (config.properties, constitution.md)
 
@@ -111,6 +117,7 @@ Follow the task's step-by-step instructions. For implementation tasks:
    - For EVERY language: `camel_catalog_language_doc`
 
 2. **Generate artifacts:**
+   - Do not generate any behavior, component, route, or file that implements a listed `Not Doing` exclusion
    - YAML routes: follow `.bob/skills/camel-implement/guides/yaml-structure.md` and `.bob/skills/camel-implement/guides/yaml-catalog-rules.md`
    - Properties: follow `.bob/skills/camel-implement/guides/properties-generation.md`
    - POM: follow `.bob/skills/camel-implement/guides/maven-dependencies.md`
@@ -151,6 +158,7 @@ Check:
 - Is the data flow correct (source → transformations → sink)?
 - Are all properties defined?
 - Are all error handlers specified in the design spec present?
+- Does the implementation avoid every capability listed in `## Not Doing (and Why)`? Any violation is Actionable.
 
 If spec review FAILS:
 1. Identify the gap

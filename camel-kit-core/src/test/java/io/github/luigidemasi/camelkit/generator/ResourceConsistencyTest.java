@@ -284,6 +284,48 @@ class ResourceConsistencyTest {
     }
 
     @Test
+    void explicitScopeBoundariesSurviveDesignAndExecutionHandoff() throws IOException {
+        Path root = repositoryRoot().resolve("camel-kit-core/src/main/resources");
+        String interview = Files.readString(root.resolve(
+                "skills/camel-brainstorm/guides/greenfield-interview.md"));
+        String designAssembly = Files.readString(root.resolve(
+                "skills/camel-brainstorm/guides/design-assembly.md"));
+        String flowAssembly = Files.readString(root.resolve(
+                "skills/camel-design/guides/tdd-assembly.md"));
+        String execute = Files.readString(root.resolve("skills/camel-execute/SKILL.md"));
+        String implementerContext = Files.readString(root.resolve(
+                "skills/camel-execute/guides/implementer-context.md"));
+        String specCriteria = Files.readString(root.resolve(
+                "skills/camel-execute/guides/spec-reviewer-criteria.md"));
+        String specPersona = Files.readString(root.resolve("agents/spec-compliance-reviewer.md"));
+        String bobBrainstorm = Files.readString(root.resolve("templates/bob/gates/camel-brainstorm.md"));
+        String bobExecute = Files.readString(root.resolve("templates/bob/gates/camel-execute.md"));
+        int scopeStart = designAssembly.indexOf("\n## Not Doing (and Why)\n");
+        int scopeEnd = designAssembly.indexOf("\n## 1. Executive Summary\n");
+
+        assertTrue(interview.contains("Which useful, adjacent capabilities are we explicitly not building"));
+        assertTrue(interview.contains("project.notDoing"));
+        assertTrue(scopeStart >= 0);
+        assertTrue(scopeEnd > scopeStart);
+        String scopeTemplate = designAssembly.substring(scopeStart, scopeEnd);
+        assertTrue(scopeTemplate.contains("- **Dead letter queue**"));
+        assertTrue(scopeTemplate.contains("- **Schema registry integration**"));
+        assertTrue(scopeTemplate.contains("- **Multi-tenant partitioning**"));
+        assertTrue(designAssembly.contains("for a migration spec only when discovery explicitly captured"));
+        assertTrue(flowAssembly.contains("read the global `## Not Doing (and Why)` section"));
+        assertTrue(implementerContext.contains("## Design Spec — Not Doing (and Why)"));
+        assertTrue(implementerContext.contains("report `BLOCKED` and name the plan/spec contradiction"));
+        assertTrue(execute.contains("Never implement a listed exclusion"));
+        assertTrue(execute.contains("report `BLOCKED` and name the plan/spec contradiction"));
+        assertTrue(specCriteria.contains("is an **Actionable** scope violation"));
+        assertTrue(specPersona.contains("Classify every excluded capability that was implemented as **Actionable**"));
+        assertTrue(bobBrainstorm.contains("Explicit scope boundaries and the reason for each excluded capability"));
+        assertTrue(bobBrainstorm.contains("`## Not Doing (and Why)` scope boundaries"));
+        assertTrue(bobExecute.contains("Read `## Not Doing (and Why)` before considering any capability"));
+        assertTrue(bobExecute.contains("Any violation is Actionable"));
+    }
+
+    @Test
     void dockerComposeGenerationIsConditionalForEveryRuntime() throws IOException {
         Path root = repositoryRoot().resolve("camel-kit-core/src/main/resources");
         String composeGuide = Files.readString(root.resolve(

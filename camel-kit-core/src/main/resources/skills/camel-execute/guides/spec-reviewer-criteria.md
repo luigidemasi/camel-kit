@@ -12,6 +12,8 @@
    - The persona text (full — do not summarize)
    - The generated files (or paths to them)
    - The design spec section this task implements
+   - The complete global `## Not Doing (and Why)` section from the design spec, or an explicit note that the approved
+     legacy spec does not contain one
    - The task's review specification
    - Any trade-offs documented by the ACR Moderator (from `guides/adversarial-code-review.md`), if ACR ran for this task
 3. Use a fresh subagent when supported; otherwise review sequentially inline and record the missing isolation. Produce the same structured review report.
@@ -19,6 +21,9 @@
 ## Handling Review Results
 
 The spec reviewer classifies each finding as **Actionable**, **Trade-off**, or **Noise**.
+
+Implementing any capability explicitly listed in `## Not Doing (and Why)` is an **Actionable** scope violation. It is
+not a quality improvement or a trade-off; the implementation must remove it or the approved design must be amended.
 
 | Finding classification | Orchestrator action |
 |---|---|

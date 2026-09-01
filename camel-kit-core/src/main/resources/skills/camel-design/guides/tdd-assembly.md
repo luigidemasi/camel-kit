@@ -13,6 +13,12 @@ Read the active pipeline ID from `.camel-kit/pipeline.json`, then load:
 Do not create standalone per-flow design documents. The active design spec is the single source of truth for planning,
 execution, validation, and verification.
 
+## Scope Boundary
+
+Before expanding a flow design, read the global `## Not Doing (and Why)` section. Do not design or propose a listed
+capability. If a flow requirement conflicts with an explicit exclusion, return the spec to `camel-brainstorm` amend mode
+so the user can resolve the boundary; never silently remove or override it.
+
 ## Constitution Gate Check
 
 Before updating the design spec, verify each flow design against the constitution:

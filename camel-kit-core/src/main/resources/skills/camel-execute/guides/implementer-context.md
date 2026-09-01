@@ -27,13 +27,26 @@ Include the FULL task text from the plan. Do not summarize. Do not paraphrase.
 
 #### 3. Design Spec Context
 
-Read the relevant design spec section and include it directly:
+Read the global `## Not Doing (and Why)` section and the relevant flow section. Include both directly, even when the
+global section says that no exclusions were identified:
 
 ```
+## Design Spec — Not Doing (and Why)
+
+[full text of the global scope-boundary section from docs/camel-kit/<PIPELINE_ID>/design-spec.md]
+
 ## Design Spec — Flow: [flow-name]
 
 [full text of the flow design from docs/camel-kit/<PIPELINE_ID>/design-spec.md Section 3]
 ```
+
+If a legacy approved spec has no `## Not Doing (and Why)` section, include `Not present in approved design spec` in its
+place and continue to enforce the task text and Iron Law 6. Do not invent exclusions or amend the approved spec during
+execution.
+
+Before adding any capability beyond the task text, consult the global scope boundaries. Never implement a listed
+exclusion. If the task conflicts with one, report `BLOCKED` and name the plan/spec contradiction instead of overriding
+the approved design.
 
 #### 4. Project Configuration
 
@@ -100,6 +113,7 @@ If no pre-verification was run (e.g., single-task wave with few components), inc
    (If a pre-verified catalog summary is provided above, trust it — do not re-verify.)
 2. EVERY route MUST pass all 8 constitution rules
 3. Generate ONLY what the task specifies — no extras
+4. Do NOT implement anything listed in the design spec's Not Doing section
 
 Read `shared/iron-laws.md` for full details and rationalization defense.
 ```

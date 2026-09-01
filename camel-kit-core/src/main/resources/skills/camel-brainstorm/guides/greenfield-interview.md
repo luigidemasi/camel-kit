@@ -294,6 +294,18 @@ Are there any other constraints or requirements we haven't covered?
 
 Record: `project.constraints`
 
+### Question 14: Scope Boundaries
+
+```
+Which useful, adjacent capabilities are we explicitly not building in this iteration, and why?
+
+For each exclusion, name the capability and the concrete reason for leaving it out.
+Or type "none" if no deliberate exclusions remain after the interview.
+```
+
+Record: `project.notDoing` as a list of excluded capabilities and reasons. If the user answers "none", record
+`None identified` rather than inventing exclusions.
+
 ---
 
 ## MCP Component Verification
