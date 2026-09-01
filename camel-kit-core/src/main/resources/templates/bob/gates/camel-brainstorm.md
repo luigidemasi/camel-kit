@@ -139,7 +139,8 @@ Confirm all findings with the user.
 **Persist findings to disk:** After confirming, create the `docs/` directory if it does not exist, then write a structured summary to `docs/interview-notes.md`:
 - Systems identified and their roles
 - Data flow requirements and key decisions
-- Explicit scope boundaries and the reason for each excluded capability
+- Explicit scope boundaries and the reason for each excluded capability (greenfield, or migration only when explicitly
+  captured during discovery)
 - Components discussed and their MCP verification status
 - Migration concerns (if migration)
 
@@ -189,7 +190,8 @@ Assemble the complete design spec including:
 - Component selections (all MCP-verified)
 - Route designs
 - Non-functional requirements
-- `## Not Doing (and Why)` scope boundaries
+- `## Not Doing (and Why)` scope boundaries for greenfield, or for migration only when discovery explicitly captured
+  project-specific exclusions; never infer migration exclusions from absent source features
 
 Save to `docs/camel-kit/<PIPELINE_ID>/design-spec.md`.
 Run `{COMMAND_PREFIX} doc init --by camel-brainstorm docs/camel-kit/<PIPELINE_ID>/design-spec.md`.
@@ -203,7 +205,8 @@ Scan the design spec for:
 - Unverified components (did you call MCP for every one?)
 - Contradictions between requirements and design
 - Missing error handling or security considerations
-- Template examples left in `## Not Doing (and Why)`, missing reasons, or a flow that implements an exclusion
+- For greenfield, or migration with explicitly captured exclusions: template examples left in `## Not Doing (and Why)`,
+  missing reasons, or a flow that implements an exclusion
 
 Fix any issues inline.
 </Step>

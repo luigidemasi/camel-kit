@@ -17,7 +17,8 @@ execution, validation, and verification.
 
 Before expanding a flow design, read the global `## Not Doing (and Why)` section. Do not design or propose a listed
 capability. If a flow requirement conflicts with an explicit exclusion, return the spec to `camel-brainstorm` amend mode
-so the user can resolve the boundary; never silently remove or override it.
+so the user can resolve the boundary; never silently remove or override it. If a legacy approved spec has no such
+section, do not invent one; continue with the existing design-derived, no-extras behavior.
 
 ## Constitution Gate Check
 
