@@ -284,6 +284,60 @@ class ResourceConsistencyTest {
     }
 
     @Test
+    void explicitScopeBoundariesSurviveDesignAndExecutionHandoff() throws IOException {
+        Path root = repositoryRoot().resolve("camel-kit-core/src/main/resources");
+        String interview = Files.readString(root.resolve(
+                "skills/camel-brainstorm/guides/greenfield-interview.md"));
+        String designAssembly = Files.readString(root.resolve(
+                "skills/camel-brainstorm/guides/design-assembly.md"));
+        String flowAssembly = Files.readString(root.resolve(
+                "skills/camel-design/guides/tdd-assembly.md"));
+        String plan = Files.readString(root.resolve("skills/camel-plan/SKILL.md"));
+        String execute = Files.readString(root.resolve("skills/camel-execute/SKILL.md"));
+        String implementerContext = Files.readString(root.resolve(
+                "skills/camel-execute/guides/implementer-context.md"));
+        String specCriteria = Files.readString(root.resolve(
+                "skills/camel-execute/guides/spec-reviewer-criteria.md"));
+        String specPersona = Files.readString(root.resolve("agents/spec-compliance-reviewer.md"));
+        String bobBrainstorm = Files.readString(root.resolve("templates/bob/gates/camel-brainstorm.md"));
+        String bobPlan = Files.readString(root.resolve("templates/bob/gates/camel-plan.md"));
+        String bobExecute = Files.readString(root.resolve("templates/bob/gates/camel-execute.md"));
+        int scopeStart = designAssembly.indexOf("\n## Not Doing (and Why)\n");
+        int scopeEnd = designAssembly.indexOf("\n## 1. Executive Summary\n");
+        String normalizedPlan = plan.replaceAll("\\s+", " ");
+        String normalizedBobBrainstorm = bobBrainstorm.replaceAll("\\s+", " ");
+
+        assertTrue(interview.contains("Which useful, adjacent capabilities are we explicitly not building"));
+        assertTrue(interview.contains("project.notDoing"));
+        assertTrue(scopeStart >= 0);
+        assertTrue(scopeEnd > scopeStart);
+        String scopeTemplate = designAssembly.substring(scopeStart, scopeEnd);
+        assertTrue(scopeTemplate.contains("- **Dead letter queue**"));
+        assertTrue(scopeTemplate.contains("- **Schema registry integration**"));
+        assertTrue(scopeTemplate.contains("- **Multi-tenant partitioning**"));
+        assertTrue(designAssembly.contains("for a migration spec only when discovery explicitly captured"));
+        assertTrue(flowAssembly.contains("read the global `## Not Doing (and Why)` section"));
+        assertTrue(flowAssembly.contains("legacy approved spec has no such"));
+        assertTrue(flowAssembly.contains("design-derived, no-extras behavior"));
+        assertTrue(normalizedPlan.contains("Do not create a task or acceptance criterion for any listed exclusion"));
+        assertTrue(implementerContext.contains("## Design Spec — Not Doing (and Why)"));
+        assertTrue(implementerContext.contains("report `BLOCKED` and name the plan/spec contradiction"));
+        assertTrue(execute.contains("Never implement a listed exclusion"));
+        assertTrue(execute.contains("report `BLOCKED` and name the plan/spec contradiction"));
+        assertTrue(specCriteria.contains("is an **Actionable** scope violation"));
+        assertTrue(specPersona.contains("Classify every excluded capability that was implemented as **Actionable**"));
+        assertTrue(bobBrainstorm.contains("Explicit scope boundaries and the reason for each excluded capability"));
+        assertTrue(bobBrainstorm.contains("`## Not Doing (and Why)` scope boundaries"));
+        assertTrue(normalizedBobBrainstorm.contains("migration only when explicitly captured during discovery"));
+        assertTrue(normalizedBobBrainstorm.contains("never infer migration exclusions from absent source features"));
+        assertTrue(
+                normalizedBobBrainstorm.contains("For greenfield, or migration with explicitly captured exclusions"));
+        assertTrue(bobPlan.contains("Do not create a task or acceptance criterion for a listed"));
+        assertTrue(bobExecute.contains("Read `## Not Doing (and Why)` before considering any capability"));
+        assertTrue(bobExecute.contains("Any violation is Actionable"));
+    }
+
+    @Test
     void dockerComposeGenerationIsConditionalForEveryRuntime() throws IOException {
         Path root = repositoryRoot().resolve("camel-kit-core/src/main/resources");
         String composeGuide = Files.readString(root.resolve(

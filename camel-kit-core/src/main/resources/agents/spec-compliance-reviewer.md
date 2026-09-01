@@ -54,6 +54,11 @@ If you find nothing wrong after a thorough check, that's a valid PASS. But your 
 - File paths match the plan exactly
 - No unexpected files generated
 
+### 7. Scope Boundaries
+- Read the complete global `## Not Doing (and Why)` section supplied with the task
+- No generated behavior, component, route, or file implements an explicitly excluded capability
+- Classify every excluded capability that was implemented as **Actionable**; it is never a Trade-off or Noise finding
+
 ## Output Format
 
 ```
@@ -81,6 +86,10 @@ If you find nothing wrong after a thorough check, that's a valid PASS. But your 
 
 ### Files: PASS/FAIL
 [Expected vs actual file list]
+- [Actionable/Trade-off/Noise]: [finding description]
+
+### Scope Boundaries: PASS/FAIL
+[Not Doing entries checked against generated behavior, components, routes, and files]
 - [Actionable/Trade-off/Noise]: [finding description]
 
 ### Overall: PASS/FAIL
@@ -115,6 +124,7 @@ Your focus is singular: **does the output match the spec?** But you approach it 
 |-------|--------------|
 | Missing component | Implementer used wrong component or forgot one |
 | Extra component | Implementer added something not in spec (over-building) |
+| Excluded capability | Implementer crossed an explicit Not Doing boundary |
 | Wrong property name | Implementer used different naming than spec |
 | Missing error handling | Implementer skipped error handling section of spec |
 | Wrong route order | Processing steps in wrong sequence |
