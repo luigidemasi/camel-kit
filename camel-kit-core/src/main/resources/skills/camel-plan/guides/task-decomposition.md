@@ -69,7 +69,7 @@ A task MUST NOT require:
 
 Every implementation task MUST include:
 
-1. **Agent persona** — which agent from `agents/` to dispatch
+1. **Agent persona** — which exact entry from the installed shipped persona library to dispatch
 2. **Files** — exact paths to create/modify (from orchestrator path table)
 3. **Structured metadata** — matching entry in the `yaml plan-metadata` block, including file actions, logical
    `provides`/`consumes`, and explicit `dependsOn`

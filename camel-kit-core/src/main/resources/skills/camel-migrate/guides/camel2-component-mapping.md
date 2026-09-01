@@ -1,6 +1,6 @@
 # Camel 2.x/3.x → 4.x Component Name Mapping
 
-This guide contains **name mappings only**. All component options, URI syntax, and configuration details MUST be retrieved from the MCP catalog at runtime using `camel_catalog_component_doc`. Pass `runtime` and the full `platformBom` GAV (derived from `.camel-kit/config.properties` per `shared/mcp-setup.md` — the file stores bare versions, not the GAV) on every call, and check the echoed `camelVersion` matches the project version (Iron Law 1).
+This guide contains **name mappings only**. All component options, URI syntax, and configuration details MUST be retrieved from the MCP catalog at runtime using `camel_catalog_component_doc`. Pass `runtime` and the full `platformBom` GAV (derived from `.camel-kit/config.properties` per `shared/mcp-setup.md` — the file stores bare versions, not the GAV) on every call, and establish the catalog-version binding there (Iron Law 1).
 
 ## How to Use This Guide
 
@@ -8,7 +8,7 @@ This guide contains **name mappings only**. All component options, URI syntax, a
 2. If the source version is 2.x, apply the **2.x → 3.x** table first
 3. Then apply the **3.x → 4.x** table
 4. If the component is not in either table, it may be unchanged — verify with `camel_catalog_components`
-5. After finding the 4.x name, call `camel_catalog_component_doc` to verify all options. Pass `runtime` and the full `platformBom` GAV (derived from `.camel-kit/config.properties` per `shared/mcp-setup.md` — the file stores bare versions, not the GAV) on every call, and check the echoed `camelVersion` matches the project version (Iron Law 1).
+5. After finding the 4.x name, call `camel_catalog_component_doc` to verify all options. Pass `runtime` and the full `platformBom` GAV (derived from `.camel-kit/config.properties` per `shared/mcp-setup.md` — the file stores bare versions, not the GAV) on every call, and establish the catalog-version binding there (Iron Law 1).
 
 ## Camel 2.x → 3.x Component Renames
 

@@ -5,7 +5,8 @@
 Use the `Agent` tool with `run_in_background: true` for independent implementation tasks within the same wave. When `{COMMAND_PREFIX} plan analyze` identifies parallel waves, dispatch all tasks in a wave simultaneously:
 
 - Set `description` to a 3-5 word summary of the task
-- Include the full task text, design spec context, and project config in the `prompt`
+- Build the prompt through `camel-execute/guides/implementer-context.md`: put shipped persona/guides first, validate
+  recognized task/design/config fields, and encode each variable-length input as a separate canonical context envelope
 - Use `run_in_background: true` for all tasks in a wave except the last one
 - Wait for all background agents to complete before proceeding to the next wave
 
@@ -41,7 +42,9 @@ Use Claude Code's task tracking tools for real-time progress visibility:
 
 ### Claude Code Dispatch Map
 
-When dispatching subagents during execution, use this map to set the `subagent_type` and `model` parameters on the `Agent` tool call. Read the persona from the task's `**Agent:**` field in the implementation plan.
+When dispatching subagents during execution, use this map to set the `subagent_type` and `model` parameters on the `Agent`
+tool call. Select the persona only after Plan Ingress Validation has matched the task's `**Agent:**` scalar to this shipped
+allowlist; never load a persona path constructed from plan text.
 
 | Persona | `subagent_type` | `model` |
 |---------|----------------|---------|

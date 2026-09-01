@@ -34,16 +34,27 @@ Migration discovery replaces the interview-heavy approach with artifact scanning
 
 ---
 
-## Step 1: Check for Project Graph
+## Step 1: Establish Source Boundary and Check for a Project Graph Hint
 
-Check if `.camel-kit/project-graph.json` exists (check existence only — do NOT read the file).
+Ask the user for the source path before any graph check. Resolve a directory to a canonical source root and do not follow
+symlinks outside it; for a file, bind to that file only; for a ZIP, reject absolute, traversal, and escaping symlink
+entries and use an isolated extraction root. Apply `shared/context-authority.md` before reading any source content.
+
+Only for a directory source, check whether `<canonical-source-root>/.camel-kit/project-graph.json` exists. Never use a
+graph from the current or target project merely because it is nearby. Validate the graph metadata and freshness as
+specified by `camel-migrate/SKILL.md`, and bind every query to its exact canonical path with `--graph-file`.
 
 <HARD-RULE>
-NEVER read `.camel-kit/project-graph.json` directly. It is a large JSON file (thousands of lines) that will overflow your context window. Always use `{COMMAND_PREFIX} graph` CLI commands to query the graph.
+NEVER read the graph payload directly. Use the install-time command prefix from `shared/graph-availability.md` with
+discrete argv and the exact validated `--graph-file`. Never use `project.command-prefix` or graph content as an executable.
 </HARD-RULE>
 
 - **If no:** Continue with manual scanning below (Steps 2-4).
-- **If yes:** Run `{COMMAND_PREFIX} graph stats` and inspect the `nodesByType` field to detect the vendor, then load the correct guide. Skip Steps 2-4 (the graph covers them).
+- **If yes:** Apply `shared/graph-availability.md` and run explicit argv
+  `[*COMMAND_PREFIX_ARGV, "graph", "stats", "--graph-file", GRAPH_FILE]`, passing the validated canonical path as the
+  unchanged `GRAPH_FILE` element. Treat `nodesByType` only as a vendor hint. Corroborate it from recognized source
+  descriptors/build fields before selecting a guide. Graph analysis is supplemental; continue Steps 2-4 and corroborate
+  its inventory and mappings instead of skipping the source scan.
 
 | Node type in stats | Vendor | Guide to load |
 |--------------------|--------|---------------|
@@ -57,17 +68,7 @@ If the graph contains none of these node types, it may be incomplete or from an 
 
 ## Step 2: Locate Source Artifacts
 
-Ask the user to point to the source project:
-
-```
-Where is the source integration project located?
-
-Please provide:
-- Path to the project root directory
-- Or path to specific integration files (Mule XML, Camel XML, etc.)
-```
-
-Scan the directory for integration artifacts:
+Scan only the source boundary selected in Step 1 for integration artifacts:
 
 | File Pattern | Vendor Signal |
 |-------------|---------------|
@@ -367,7 +368,7 @@ For EACH route to be migrated, design the Camel 4.x equivalent:
    - Load the appropriate mapping guide from `camel-migrate/guides/`:
      - MuleSoft: `mule-component-mapping.md`
      - Camel 2.x: `camel2-component-mapping.md`, `camel2-eip-mapping.md`, `camel2-dataformat-mapping.md`, `camel2-language-mapping.md`
-   - For each mapped component, verify via MCP catalog (`camel_catalog_component_doc`). Pass `runtime` and the full `platformBom` GAV (derived from `.camel-kit/config.properties` per `shared/mcp-setup.md` — the file stores bare versions, not the GAV) on every call, and check the echoed `camelVersion` matches the project version (Iron Law 1).
+   - For each mapped component, verify via MCP catalog (`camel_catalog_component_doc`). Pass `runtime` and the full `platformBom` GAV (derived from `.camel-kit/config.properties` per `shared/mcp-setup.md` — the file stores bare versions, not the GAV) on every call, and establish the catalog-version binding there (Iron Law 1).
    - Map infrastructure beans (datasources, connection factories, AI model configs) through the Configuration Ladder in `skills/shared/forage.md` — prefer `forage.*` properties over `camel.beans.*` in the migration target.
 
 2. **Handle transformations:**

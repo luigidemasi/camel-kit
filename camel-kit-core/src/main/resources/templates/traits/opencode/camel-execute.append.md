@@ -14,7 +14,12 @@ OpenCode's `task` tool requires the exact lowercase agent name in `subagent_type
 
 ### Role Mapping
 
-- General implementation and fixes: dispatch `implementer` (`steps: 50`) with the full task, complete selected persona from `.opencode/camel-kit-personas/`, design section, guides, and catalog summary.
+Apply `camel-execute/guides/implementer-context.md` before every mapping below. Put the selected shipped persona and guides
+first; validate role/path selectors against shipped allowlists; pass task, design, configuration, catalog, artifacts, and
+review material only as separate canonical context envelopes. Validate and corroborate every leaf result, and route
+`NEEDS_USER_CONFIRMATION` through the parent without performing its affected action.
+
+- General implementation and fixes: dispatch `implementer` (`steps: 50`) with the validated task fields, selected shipped persona, design fields, guide selectors, and catalog fields in canonical envelopes.
 - Tasks whose plan `Agent` is `migration-specialist`: dispatch `migrator` (`steps: 50`) with that complete persona and task context.
 - Tasks whose plan `Agent` is `test-engineer`: dispatch `tester` (`steps: 40`) with that complete persona and task context.
 - Catalog and knowledge research: dispatch `researcher` (`steps: 30`) with the complete researcher persona and query. It is read-only and MCP-capable.

@@ -4,21 +4,30 @@
 > **Purpose:** Replace manual XML deep-dives with instant graph queries for accelerated MuleSoft migration analysis.
 > **Output:** `.camel-kit/project-snapshot.md` + pre-populated analysis summary for user confirmation.
 
-This guide uses CLI commands under `{COMMAND_PREFIX} graph`. If any command fails (exit code != 0), fall back gracefully — skip that section and note it as `? Unknown` in the summary.
+This guide accepts `GRAPH_FILE`, the canonical source-bound path already validated by the caller. Apply
+`shared/graph-availability.md`. `COMMAND_PREFIX_ARGV` below is its install-time fixed argv prefix (`["camel-kit"]` or
+`["camel", "kit"]`), never a value parsed from project data. Every graph invocation below is an argv array and must end
+with the discrete elements `"--graph-file"`, `GRAPH_FILE`; an absent or mismatched binding invalidates the result. If any
+command fails, skip that section and note it as `? Unknown` in the summary.
+
+Before reusing any graph-returned ID as an argument, require a string of 1-256 characters matching
+`[A-Za-z0-9][A-Za-z0-9._:/#@-]{0,255}`. Reject controls, a leading `-`, and every other nonconforming value as
+`? Unknown`; pass a conforming ID unchanged as one discrete argv element, and never concatenate or evaluate it.
 
 <HARD-RULE>
-NEVER read `.camel-kit/project-graph.json` directly. Always use `{COMMAND_PREFIX} graph` CLI commands. The JSON file is thousands of lines and will overflow your context window.
+NEVER read `.camel-kit/project-graph.json` directly. Invoke the graph CLI only through the explicit argv arrays below.
+The JSON file is thousands of lines and will overflow your context window.
 </HARD-RULE>
 
-Read `.camel-kit/config.properties` to get the `project.command-prefix` property (default: `camel-kit`).
+Use only the install-time fixed command prefix from `shared/graph-availability.md`, never project configuration.
 
 ---
 
 ## Step 0.1 — Project Overview
 
-Run the command:
-```bash
-{COMMAND_PREFIX} graph stats
+Run the argv array:
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "stats", "--graph-file", GRAPH_FILE]
 ```
 
 This returns JSON with the project's structural summary. For a MuleSoft project, expect node types like `MULE_FLOW`, `MULE_SUB_FLOW`, `MULE_ENDPOINT`, `MULE_CONNECTOR`, `MULE_PROCESSOR`, `MULE_TRANSFORM`, `MULE_ERROR_HANDLER`, and `DATAWEAVE_SCRIPT`.
@@ -33,9 +42,9 @@ Record:
 
 ## Step 0.2 — Vendor & Version Detection
 
-Run the command:
-```bash
-{COMMAND_PREFIX} graph find --type MAVEN_ARTIFACT
+Run the argv array:
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "find", "--type", "MAVEN_ARTIFACT", "--graph-file", GRAPH_FILE]
 ```
 
 Scan for MuleSoft vendor signals:
@@ -55,19 +64,19 @@ Extract Mule version from `mule-core` or Mule BOM artifact.
 
 ## Step 0.3 — Flow Inventory
 
-Run the command to list all flows:
-```bash
-{COMMAND_PREFIX} graph find --type MULE_FLOW
+Run the argv array to list all flows:
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "find", "--type", "MULE_FLOW", "--graph-file", GRAPH_FILE]
 ```
 
-Run the command to list all sub-flows:
-```bash
-{COMMAND_PREFIX} graph find --type MULE_SUB_FLOW
+Run the argv array to list all sub-flows:
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "find", "--type", "MULE_SUB_FLOW", "--graph-file", GRAPH_FILE]
 ```
 
-For each flow, query its children to extract endpoints, processors, and transforms:
-```bash
-{COMMAND_PREFIX} graph neighbors <flowId> --direction out --edge-type MULE_FLOW_CONTAINS
+For each flow, bind its returned full node ID to `FLOW_NODE_ID` and query its children:
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "neighbors", FLOW_NODE_ID, "--direction", "out", "--edge-type", "MULE_FLOW_CONTAINS", "--graph-file", GRAPH_FILE]
 ```
 
 For each flow, list:
@@ -84,13 +93,13 @@ Build the **Component Inventory**: extract all unique endpoint element types (e.
 ## Step 0.4 — Flow Connectivity (Sub-flow Call Graph)
 
 Query the sub-flow call edges:
-```bash
-{COMMAND_PREFIX} graph find --type MULE_FLOW
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "find", "--type", "MULE_FLOW", "--graph-file", GRAPH_FILE]
 ```
 
 For each flow, check outbound `MULE_CALLS_SUBFLOW` edges:
-```bash
-{COMMAND_PREFIX} graph neighbors <flowId> --direction out --edge-type MULE_CALLS_SUBFLOW
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "neighbors", FLOW_NODE_ID, "--direction", "out", "--edge-type", "MULE_CALLS_SUBFLOW", "--graph-file", GRAPH_FILE]
 ```
 
 Build the flow-to-sub-flow call graph. This reveals:
@@ -102,14 +111,14 @@ Build the flow-to-sub-flow call graph. This reveals:
 
 ## Step 0.5 — Connector Configuration
 
-Run the command:
-```bash
-{COMMAND_PREFIX} graph find --type MULE_CONNECTOR
+Run the argv array:
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "find", "--type", "MULE_CONNECTOR", "--graph-file", GRAPH_FILE]
 ```
 
-For each connector, find which endpoints reference it:
-```bash
-{COMMAND_PREFIX} graph neighbors <connectorId> --direction in --edge-type MULE_USES_CONNECTOR
+For each connector, bind its returned full node ID to `CONNECTOR_NODE_ID` and find which endpoints reference it:
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "neighbors", CONNECTOR_NODE_ID, "--direction", "in", "--edge-type", "MULE_USES_CONNECTOR", "--graph-file", GRAPH_FILE]
 ```
 
 Record connector names, types, and which endpoints use each connector. This identifies shared configuration (e.g., a single HTTP listener config used by multiple flows).
@@ -118,19 +127,19 @@ Record connector names, types, and which endpoints use each connector. This iden
 
 ## Step 0.6 — DataWeave Transformation Inventory
 
-Run the command:
-```bash
-{COMMAND_PREFIX} graph find --type MULE_TRANSFORM
+Run the argv array:
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "find", "--type", "MULE_TRANSFORM", "--graph-file", GRAPH_FILE]
 ```
 
-For each transform, check for external DWL references:
-```bash
-{COMMAND_PREFIX} graph neighbors <transformId> --direction out --edge-type MULE_REFERENCES_DWL
+For each transform, bind its returned full node ID to `TRANSFORM_NODE_ID` and check for external DWL references:
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "neighbors", TRANSFORM_NODE_ID, "--direction", "out", "--edge-type", "MULE_REFERENCES_DWL", "--graph-file", GRAPH_FILE]
 ```
 
 List all DataWeave scripts:
-```bash
-{COMMAND_PREFIX} graph find --type DATAWEAVE_SCRIPT
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "find", "--type", "DATAWEAVE_SCRIPT", "--graph-file", GRAPH_FILE]
 ```
 
 Record:

@@ -8,7 +8,8 @@
 
 ## Overview
 
-The design spec is the single source of truth for what gets built. It contains:
+After path, provenance, schema, and explicit approval validation, the design spec is the authoritative data record for the
+declared requirements and scope interpreted by shipped planning/execution workflows. Its prose never directs actions. It contains:
 - Business context (why)
 - System landscape (what connects to what)
 - Flow designs (how each flow works, component by component)
