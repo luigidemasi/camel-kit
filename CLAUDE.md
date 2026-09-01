@@ -11,7 +11,8 @@ Companion (separate repo, independent version line): `camel-kit-knowledge`.
 |--------|----------------|
 | `camel-kit-main` | JBang entry point (`src/main/jbang/main/CamelKit.java`) |
 | `camel-kit-core` | CLI commands, config, init/trait machinery; all skills + templates resources |
-| `camel-kit-graph` | Project graph analysis — 9 parsers (JavaClass, CamelRoute, MavenPom, Properties, DockerCompose, OpenAPI, MuleXmlFlow, DataWeave, BizTalk) |
+| `camel-kit-graph` | Project graph analysis — 9 parsers (Pom, Java, Groovy, XML, Mule, DataWeave, BizTalk, YAML, Config) |
+| `camel-kit-ship-resolver` | Classloader-isolated Maven Resolver for Ship evidence |
 | `camel-jbang-plugin-kit` | Camel JBang plugin |
 
 `camel-kit-dispatch/` exists on disk but is **not in the Maven reactor** — do not
@@ -37,8 +38,8 @@ Rules:
 - **Never hardcode versions** — reference `distribution.properties` (repo root;
   single source of truth for all version pins, copied into the JAR).
 - `skills/shared/` guides feed multiple skills — check every caller before editing.
-- A new **user-invocable** skill must be registered in ALL 8 agent templates:
-  `templates/{bob,bob2,claude,copilot,gemini,opencode,pi,qwen}/` and added to
+- A new **user-invocable** skill must be registered in ALL 9 agent templates:
+  `templates/{bob,bob2,claude,codex,copilot,gemini,opencode,pi,qwen}/` and added to
   `docs/commands.md`.
 - Agent traits: `templates/traits/{agent}/{skill}.append.md` — no code registration
   needed. `ShippedAssetStructureTest` enforces the contract; run it after any
