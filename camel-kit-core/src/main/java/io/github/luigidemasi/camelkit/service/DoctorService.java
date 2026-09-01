@@ -45,6 +45,13 @@ public class DoctorService {
     private static final String NESTED_RULE = "\n";
     private static final ObjectMapper OPENCODE_MAPPER = OpenCodeProjectConfig.newJsonMapper();
     private static final Duration PREREQUISITE_TIMEOUT = Duration.ofSeconds(3);
+    private static final Set<String> PRE_CITRUS_JSON_AGENTS = Set.of(
+            AgentGeneratorStrategy.BOB.descriptorValue(),
+            AgentGeneratorStrategy.BOB2.descriptorValue(),
+            AgentGeneratorStrategy.CLAUDE.descriptorValue(),
+            AgentGeneratorStrategy.GEMINI.descriptorValue(),
+            AgentGeneratorStrategy.OPENCODE.descriptorValue(),
+            AgentGeneratorStrategy.QWEN.descriptorValue());
     private static final Set<String> OPENCODE_PERMISSION_ACTIONS = Set.of("allow", "ask", "deny");
 
     private static final List<String> REQUIRED_CONFIG_KEYS = List.of(
@@ -507,13 +514,16 @@ public class DoctorService {
         boolean knowledgeOk = checkMcpServer(
                 root, mcpFile, servers, "camel-knowledge", expectations.knowledgeMcpTools(), copilotToolsSchema,
                 piDirectToolsSchema, qwenIncludeToolsSchema, openCodeSchema, findings);
+        boolean citrusOptional = PRE_CITRUS_JSON_AGENTS.contains(normalizedAgentName)
+                && !config.containsKey("citrus.version")
+                && !config.containsKey("citrus.mcp.version");
         boolean citrusOk;
-        if (servers.has("citrus")) {
+        if (servers.has("citrus") || !citrusOptional) {
             citrusOk = checkMcpServer(
                     root, mcpFile, servers, "citrus", expectations.citrusMcpTools(), copilotToolsSchema,
                     piDirectToolsSchema, qwenIncludeToolsSchema, openCodeSchema, findings);
         } else {
-            // Workspaces generated before the Citrus MCP server existed stay valid.
+            // Only legacy-capable JSON agents without persisted Citrus metadata reach this branch.
             findings.add(DoctorFinding.warn("mcp", relativize(root, mcpFile),
                     "MCP server 'citrus' is not configured; camel-test cannot verify Citrus actions",
                     "Regenerate the MCP config with camel-kit init --here --force to add the Citrus MCP server."));
