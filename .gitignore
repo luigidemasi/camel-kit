@@ -74,6 +74,7 @@ instance/
 docs/_build/
 docs/plans/
 docs/superpowers/
+docs/reviews/
 
 # PyBuilder
 .pybuilder/
