@@ -318,12 +318,77 @@
                 </executions>
             </plugin>
             <plugin>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <inherited>false</inherited>
+                <executions>
+                    <execution>
+                        <id>sync-jbang-launcher-versions</id>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <replaceregexp
+                                    file="${maven.multiModuleProjectDirectory}/camel-kit-main/src/main/jbang/main/CamelKit.java"
+                                    match="(camel[.]kit[.]version:)[^}]+"
+                                    replace="\1${project.version}"
+                                    byline="true"
+                                    encoding="UTF-8" />
+                                <replaceregexp
+                                    file="${maven.multiModuleProjectDirectory}/camel-kit-main/dist/CamelKit.java"
+                                    match="(camel[.]kit[.]version:)[^}]+"
+                                    replace="\1${project.version}"
+                                    byline="true"
+                                    encoding="UTF-8" />
+                                <chmod
+                                    file="${maven.multiModuleProjectDirectory}/camel-kit-main/dist/CamelKit.java"
+                                    perm="u+x" />
+                                <fail message="JBang launcher fallbacks do not match Maven project version ${project.version}">
+                                    <condition>
+                                        <not>
+                                            <and>
+                                                <resourcecontains
+                                                    resource="${maven.multiModuleProjectDirectory}/camel-kit-main/src/main/jbang/main/CamelKit.java"
+                                                    substring="camel.kit.version:${project.version}}" />
+                                                <resourcecontains
+                                                    resource="${maven.multiModuleProjectDirectory}/camel-kit-main/dist/CamelKit.java"
+                                                    substring="camel.kit.version:${project.version}}" />
+                                            </and>
+                                        </not>
+                                    </condition>
+                                </fail>
+                            </target>
+                        </configuration>
+                    </execution>
+                    <!-- Maven Release commits its POM file set plus files already staged in Git. -->
+                    <execution>
+                        <id>stage-jbang-launcher-versions</id>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <exec executable="git" dir="${maven.multiModuleProjectDirectory}" failonerror="true">
+                                    <arg value="add" />
+                                    <arg value="-f" />
+                                    <arg value="--" />
+                                    <arg value="camel-kit-main/src/main/jbang/main/CamelKit.java" />
+                                    <arg value="camel-kit-main/dist/CamelKit.java" />
+                                </exec>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-release-plugin</artifactId>
                 <version>3.2.0</version>
                 <configuration>
                     <useReleaseProfile>false</useReleaseProfile>
                     <releaseProfiles>release</releaseProfiles>
+                    <preparationGoals>antrun:run@sync-jbang-launcher-versions clean verify antrun:run@stage-jbang-launcher-versions</preparationGoals>
+                    <completionGoals>-N antrun:run@sync-jbang-launcher-versions antrun:run@stage-jbang-launcher-versions</completionGoals>
                 </configuration>
             </plugin>
             <plugin>

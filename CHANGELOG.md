@@ -74,6 +74,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **JBang launcher release synchronization (#145)** — Maven release preparation now keeps both tracked launcher fallbacks aligned with the release version and the following development snapshot.
+
 - **Citrus MCP Doctor validation (#146)** — `doctor` now fails when persisted Citrus metadata or a post-Citrus-only JSON agent proves that the generated `citrus` server is required; legacy-capable agents without that metadata retain the actionable pre-Citrus regeneration warning.
 
 - **Camel plugin command parity and public documentation (#193)** — registered `doc` and `nextId` under `camel kit`, added a direct standalone/plugin parity regression, and aligned stable-versus-snapshot installation, prerequisites, workflow, graph, Knowledge, agent, and Ship documentation.
