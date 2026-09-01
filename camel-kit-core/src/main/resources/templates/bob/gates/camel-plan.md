@@ -55,6 +55,10 @@ If the design spec covers multiple independent subsystems or has more than ~10 f
 
 Each plan should produce working, testable software on its own. Record the
 decomposition in the plan and continue without adding another approval gate.
+
+Read the global `## Not Doing (and Why)` section when present. Do not create a task or acceptance criterion for a listed
+exclusion. If another part of the approved design requires one, stop and require the design contradiction to be resolved
+and re-approved before planning. For a legacy approved spec without the section, retain the existing no-extras behavior.
 </Step>
 
 <Step>

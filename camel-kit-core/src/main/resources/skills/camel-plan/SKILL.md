@@ -122,6 +122,11 @@ Read `shared/iron-laws.md` for the full Iron Laws. This phase enforces:
 
 If the design spec covers multiple independent subsystems or has more than ~10 flows, suggest breaking into separate plans — one per subsystem or logical group. Each plan should produce working, testable software on its own.
 
+Before decomposing the approved design, read its global `## Not Doing (and Why)` section when present. Do not create a
+task or acceptance criterion for any listed exclusion. If another part of the approved design requires an excluded
+capability, stop and require the design contradiction to be resolved and re-approved before planning. A legacy approved
+spec without this section keeps the existing design-derived, no-extras behavior.
+
 ---
 
 ## Plan Content Rules
@@ -140,6 +145,7 @@ If the design spec covers multiple independent subsystems or has more than ~10 f
 - Generated Java code
 - Generated POM dependencies
 - Any artifact that the execution phase produces
+- Any capability listed in the approved design's `## Not Doing (and Why)` section
 
 The plan is a RECIPE, not the MEAL.
 
