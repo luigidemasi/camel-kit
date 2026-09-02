@@ -779,6 +779,20 @@ behavioral analysis between them, then converges with the greenfield workflow af
 2. Records each interface and behavior separately as `Confirmed`, `Inferred`, or `Unknown`
 3. Preserves evidence gaps, impact, validation, ownership, and disposition without assuming project-wide compatibility
 
+**Migration strategy -- Safe traffic seam:**
+
+1. Classifies each independently switchable scope as `Incremental candidate`, `Single cutover required`, or
+   `Undetermined - evidence needed`
+2. Reconciles every discovered ingress and source-audit entry root into exactly one non-overlapping scope
+3. Keeps incomplete, conflicting, `TBD`, stale, or merely structural operational evidence undetermined
+4. Provides incremental or strangler guidance only when the existing controllable seam is currently confirmed and the
+   target conditions are confirmed design constraints with pre-cutover validation obligations; this is candidacy, not
+   cutover readiness
+5. Selects a single cutover only when a named validated source and operational-control boundary has a closed,
+   operator-confirmed inventory and complete confirmed evidence proves every seam candidate inside it absent or unsafe
+6. Records the result in the business requirements under `Migration Strategy` and carries the resulting obligations
+   into the design under `Migration Strategy Constraints`
+
 **Phase 2 -- Design:**
 
 1. Maps each source component to its catalog-verified Camel equivalent
@@ -789,7 +803,7 @@ behavioral analysis between them, then converges with the greenfield workflow af
 
 After the package is assembled, one design approval covers the business requirements, migration analysis, and design
 spec; the pipeline then transitions automatically to `/camel-plan`. Package approval does not authorize excluding or
-retiring source artifacts.
+retiring source artifacts, provisioning infrastructure, deployment, traffic cutover, or operating rollback.
 
 **Mule-to-Camel component mapping highlights:**
 

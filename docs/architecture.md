@@ -67,7 +67,7 @@ adapt exact `/camel-*` skill invocations to native `$camel-*` mentions while lea
 | `camel-brainstorm` | No | `camel-start` (greenfield) | Orchestrate design phase: interview user, produce the pipeline design spec |
 | `camel-plan` | No | `camel-brainstorm` (after design approval) | Produce detailed implementation plan from approved design spec |
 | `camel-execute` | No | `camel-plan` (auto-invoked after planning) | Environment probe, adversarial pre-filter, then ordered spec and quality review per task |
-| `camel-migrate` | No | `camel-start` (migration) | Dedicated vendor-aware migration analysis and design stage; hands an approved design to `camel-plan` |
+| `camel-migrate` | No | `camel-start` (migration) | Vendor-aware risk, retirement, and safe-seam analysis plus design; hands an approved design to `camel-plan` |
 | `camel-verify` | No | `camel-execute` (internal role: subagent where supported, inline otherwise) | 3-phase runtime verification loop (build, Citrus tests, report) — runs inside execute, not as a standalone pipeline stage |
 | `camel-ship` | No | -- (standalone CLI delegate) | Forwards to the configured local Ship command; the controller owns stages, run state, and oversight |
 | `camel-design` | No | `camel-brainstorm` | Guides for component selection, EIP catalog, and flow design assembly |
@@ -240,8 +240,10 @@ The execute phase starts with an **environment probe** that validates the target
 
 Entry points diverge (`camel-brainstorm` for greenfield, `camel-migrate` for migration). Greenfield produces the active
 design spec; migration also produces business requirements and an evidence-qualified `migration-analysis.md` before its
-design spec. Both converge on the same approved design-spec contract, so `camel-plan` and `camel-execute` work
-identically afterward.
+design spec. Migration strategy is classified per independently switchable scope as `Incremental candidate`, `Single
+cutover required`, or `Undetermined - evidence needed`, after every discovered ingress/root is reconciled into exactly
+one non-overlapping scope. Both pipelines converge on the same approved design-spec contract, so `camel-plan` and
+`camel-execute` work identically afterward.
 
 ### How camel-execute Dispatches Work
 
@@ -278,8 +280,15 @@ Both `camel-brainstorm` (greenfield) and `camel-migrate` (migration) produce the
 `docs/camel-kit/<PIPELINE_ID>/design-spec.md`. Migration first materializes `business-requirements.md` and
 `migration-analysis.md`; every unresolved behavioral-risk `MIG-###` and source-retirement `SRC-###` finding becomes a
 scope constraint, validation obligation, or unresolved decision. Package approval does not authorize excluding or
-retiring source artifacts. The design spec remains the contract consumed by `camel-plan`, so the implementation
-pipeline converges after design approval.
+retiring source artifacts. The business requirements add `Migration Strategy`, and the design adds `Migration Strategy
+Constraints`: incomplete or conflicting evidence remains `Undetermined - evidence needed`, incremental or strangler
+guidance requires current confirmation of an existing controllable traffic seam plus confirmed target design constraints
+and pre-cutover validation obligations. The classification establishes design candidacy, not cutover readiness.
+`Single cutover required` needs a closed, operator-confirmed ingress/control inventory plus complete confirmed evidence
+that every seam candidate inside named validated source and operational-control boundaries is absent or unsafe. Anything
+unconfirmed or outside those boundaries remains undetermined. Package approval covers analysis and design only; it does not authorize
+infrastructure provisioning, deployment, traffic cutover, or operating rollback. The design spec remains the contract
+consumed by `camel-plan`, so the implementation pipeline converges after design approval.
 
 ---
 
@@ -738,7 +747,7 @@ This scans `docs/camel-kit/` for existing directories, finds the max ID, and cre
 ```text
 docs/camel-kit/<PIPELINE_ID>/
   business-requirements.md <- migrate output only
-  migration-analysis.md    <- migrate evidence, risk register, and source-retirement candidate audit only
+  migration-analysis.md    <- migrate evidence, risk register, retirement audit, and safe-seam strategy analysis only
   design-spec.md           <- brainstorm or migrate output
   implementation-plan.md   <- plan output
   execution-report.md      <- execute output

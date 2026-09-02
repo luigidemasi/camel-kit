@@ -1,9 +1,10 @@
 # Camel Version Migration — Phase 2: Design Spec Generation
 
 > **Context variables:** `CAMEL_VERSION`, `RUNTIME`, `PLATFORM_BOM` from `.camel-kit/config.properties`
-> **Prerequisite:** Phase 1 (`camel-version-phase1.md`), the shared behavioral analysis, and the source-retirement audit
-> must be complete: `business-requirements.md` and `migration-analysis.md` exist in
-> `docs/camel-kit/<PIPELINE_ID>/`, and the analysis contains `## Source-Retirement Candidate Audit`.
+> **Prerequisite:** Phase 1 (`camel-version-phase1.md`), the shared behavioral analysis, the source-retirement audit,
+> and the deferred migration-strategy pass must be complete. `business-requirements.md` and `migration-analysis.md`
+> must exist in `docs/camel-kit/<PIPELINE_ID>/`; the business requirements must contain `## Migration Strategy`, and
+> the analysis must contain `## Behavioral Assumptions and Risks` and `## Source-Retirement Candidate Audit`.
 
 ## Phase 2 — Integration Architect
 
@@ -23,9 +24,16 @@ Re-read:
   stop and ask for the target version rather than consuming prose.
 - All guide files loaded in Phase 1 (keep in context)
 
-Before designing routes, map every `Inferred` or `Unknown` `MIG-###` row and every `Retirement candidate`,
-`Broken reference`, or `Unknown` `SRC-###` row to an explicit scope constraint, validation requirement, or unresolved
-decision. Preserve each ID and status; Phase 2 must not silently resolve or exclude it.
+Before designing routes, preserve every migration-strategy scope and every supporting `MIG-###` and `SRC-###` evidence
+ID and status. Preserve each scope's exact classification (`Incremental candidate`, `Single cutover required`, or
+`Undetermined - evidence needed`). Map each `Undetermined - evidence needed` gap to a blocking unresolved obligation in
+the design. Map every other `Inferred` or `Unknown` `MIG-###` row and `Retirement candidate`, `Broken reference`, or
+`Unknown` `SRC-###` row to an explicit constraint, validation requirement, or unresolved decision. Concrete incremental or strangler design is
+allowed only for an `Incremental candidate` whose eight required operational-seam facts all have `Confirmed` evidence.
+Confirmed target-side conditions are design obligations with pre-cutover validation, not claims that the target is
+deployed or cutover-ready.
+Never reclassify from topology or inferred data. Phase 2 and design approval do not authorize any deployment, cutover,
+rollback, or traffic action.
 
 Before writing a plan-ready design, recheck runtime safety. If `RUNTIME == main` and any implementation action still
 requires a Java processor, bean, configuration class, Blueprint wiring, or Maven plugin, **STOP** and return to runtime
@@ -225,6 +233,17 @@ Do NOT ask about:
 - Route structure (preserved from source)
 
 ### Step 2.3 — Update Design Spec
+
+Before the per-route sections, create or replace this package-level subsection in
+`docs/camel-kit/<PIPELINE_ID>/design-spec.md`, with one row per business-requirements strategy scope:
+
+```markdown
+### Migration Strategy Constraints
+
+| Scope | Covered Ingress IDs | Classification | Design Obligation | Evidence IDs |
+|---|---|---|---|---|
+| [scope] | [same non-overlapping ingress IDs from business requirements] | [exact classification from business requirements] | [confirmed seam constraint, bounded single-cutover constraint, or blocking unresolved evidence requirement] | [MIG-###, SRC-###] |
+```
 
 For each route, update the relevant `### Flow: {flow-name}` section in
 `docs/camel-kit/<PIPELINE_ID>/design-spec.md` with the migration design details:

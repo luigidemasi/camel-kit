@@ -86,7 +86,8 @@ class MigrationOperationsContractTest {
             assertContainsAll(normalizeMarkdown(resource(phase2)),
                     "docs/camel-kit/<PIPELINE_ID>/migration-analysis.md",
                     "`Inferred` or `Unknown` `MIG-###`",
-                    "must not silently resolve or exclude it");
+                    "explicit constraint, validation requirement, or unresolved decision",
+                    "Never reclassify from topology or inferred data");
         }
 
         String compatibilityContracts = String.join("\n",
@@ -163,7 +164,7 @@ class MigrationOperationsContractTest {
                                 + "After Phase 1 and before Phase 2 |";
         assertContainsAll(migrate,
                 sharedAuditRow,
-                "run `migration-analysis.md` first, then `source-retirement-audit.md` against its output");
+                "Run the behavioral-risk pass in `migration-analysis.md` first");
         assertOrdered(migrate,
                 "| A1 | guides/mulesoft-phase1.md",
                 sharedAuditRow,
@@ -193,11 +194,12 @@ class MigrationOperationsContractTest {
             assertContainsAll(normalizeMarkdown(resource(phase2)),
                     "source-retirement audit",
                     "must be complete",
-                    "analysis contains `## Source-Retirement Candidate Audit`",
-                    "every `Inferred` or `Unknown` `MIG-###` row and every `Retirement candidate`, `Broken reference`, "
-                                                                                + "or `Unknown` `SRC-###` row",
-                    "explicit scope constraint, validation requirement, or unresolved decision",
-                    "Preserve each ID and status; Phase 2 must not silently resolve or exclude it");
+                    "analysis must contain `## Behavioral Assumptions and Risks` and "
+                                        + "`## Source-Retirement Candidate Audit`",
+                    "`Inferred` or `Unknown` `MIG-###` row",
+                    "`Retirement candidate`, `Broken reference`, or `Unknown` `SRC-###` row",
+                    "explicit constraint, validation requirement, or unresolved decision",
+                    "preserve every migration-strategy scope");
         }
 
         String camelGraph = resource("skills/camel-brainstorm/guides/migration-graph-analysis.md")
@@ -267,6 +269,257 @@ class MigrationOperationsContractTest {
                     validationResource + " must qualify candidate coverage");
             assertFalse(validationCandidates.contains("They may be safe to remove."));
             assertFalse(validationCandidates.contains("✅ No dead code detected."));
+        }
+    }
+
+    @Test
+    void migrationStrategyGuidanceRequiresConfirmedSafeTrafficSeams() throws Exception {
+        String rawAnalysis = resource("skills/camel-migrate/guides/migration-analysis.md");
+        String analysis = normalizeMarkdown(rawAnalysis);
+        String migrate = normalizeMarkdown(resource("skills/camel-migrate/SKILL.md"));
+        String bobMigrate = normalizeMarkdown(resource("templates/bob/gates/camel-migrate.md"));
+        int outputStart = rawAnalysis.indexOf("> **Output:**");
+        int outputEnd = rawAnalysis.indexOf("\n\n", outputStart);
+        assertTrue(outputStart >= 0 && outputEnd > outputStart, "Migration analysis must declare its outputs");
+        assertEquals(
+                "**Output:** `docs/camel-kit/<PIPELINE_ID>/migration-analysis.md` and the `## Migration Strategy` "
+                     + "section in `docs/camel-kit/<PIPELINE_ID>/business-requirements.md`.",
+                normalizeMarkdown(rawAnalysis.substring(outputStart, outputEnd)),
+                "Migration analysis must declare exactly its two outputs");
+
+        assertContainsAll(analysis,
+                "`docs/camel-kit/<PIPELINE_ID>/migration-analysis.md` and the `## Migration Strategy` section in "
+                                    + "`docs/camel-kit/<PIPELINE_ID>/business-requirements.md`",
+                "Classify independently switchable ingress scopes",
+                "shared state, correlation, ordering, or transaction boundaries",
+                "reconcile every discovered ingress and every corroborated entry root into exactly one non-overlapping "
+                                                                                  + "scope",
+                "The external traffic control and the owner authorized to operate it",
+                "A deterministic routing or partition unit that selects old versus new processing",
+                "Mutually exclusive old/new ownership of each selected unit",
+                "An aligned state and correlation boundary, including in-flight work",
+                "Delivery and ordering implications while traffic is divided or switched",
+                "Duplicate-delivery exposure and the applicable idempotency control",
+                "Comparable legacy-versus-target telemetry for validating the switched unit",
+                "A rollback signal and reversible traffic control owned by an identified operator",
+                "Reference existing `MIG-###` and `SRC-###` rows as evidence rather than copying their claims",
+                "append one independently testable `MIG-###` row with its actual evidence status",
+                "Preserve existing IDs and do not convert an `Inferred` or `Unknown` fact to `Confirmed`",
+                "Static source structure, configuration, or graph evidence can show that a mechanism is declared, but "
+                                                                                                           + "by itself is at most `Inferred` evidence that the external control is currently operative",
+                "A documented capability, stale configuration, or unobserved binding is not operational corroboration",
+                "current runtime, deployment, infrastructure, or monitoring corroboration tied to the named control "
+                                                                                                                        + "boundary",
+                "explicit operator confirmation that identifies the scope, control, and current owner",
+                "This pass runs before target design and deployment",
+                "it is not a claim that the target is deployed or that cutover is ready",
+                "explicit, evidence-backed design constraints approved by their named operator or owner",
+                "each with a concrete pre-cutover validation obligation",
+                "Do not require an undeployed target to provide runtime proof",
+                "After appending or changing seam rows, recompute `## Validation Summary` over every `MIG-###` row",
+                "Rebuild `## Design Obligations` so every new seam row is carried",
+                "Size, route count, topology, graph availability, and dependency order are not traffic seams");
+
+        String decisionRules = analysis.substring(analysis.indexOf("Classify each scope in this order:"));
+        assertOrdered(decisionRules,
+                "`Undetermined - evidence needed`",
+                "`Incremental candidate`",
+                "`Single cutover required`");
+        assertContainsAll(analysis,
+                "`Undetermined - evidence needed` — use when any required fact is missing or conflicting, or has "
+                                    + "`Inferred` or `Unknown` evidence",
+                "`Incremental candidate` — use only when the existing seam/control is currently confirmed, all eight "
+                                                                          + "feasibility facts or target design constraints are `Confirmed`",
+                "The classification is design candidacy, not cutover readiness",
+                "`Single cutover required` — use only for a named scope whose validated source boundary and "
+                                                                                 + "corresponding operational traffic-control boundary have a closed ingress/control inventory",
+                "complete current `Confirmed` evidence proves every seam candidate within those boundaries absent or "
+                                                                                                                                                                                 + "unsafe",
+                "Anything outside either boundary or not currently confirmed remains `Undetermined - evidence needed`",
+                "These three values are a closed taxonomy; do not invent or emit a fourth classification",
+                "| Evidence scenario | Classification | Required result |",
+                "Current, `Confirmed` evidence establishes the existing seam/control, and every other feasibility fact "
+                                                                            + "is confirmed as current behavior or an explicit target design constraint with pre-cutover "
+                                                                            + "validation | `Incremental candidate`",
+                "Complete, current, `Confirmed` operational evidence proves all seam candidates absent or unsafe "
+                                                                                                                      + "inside named, validated source and operational-control boundaries with a closed, "
+                                                                                                                      + "operator-confirmed inventory | `Single cutover required`",
+                "Any required evidence is missing, conflicting, `Inferred`, `Unknown`, `TBD`, outside the boundaries, "
+                                                                                                                                                                                    + "or scope grouping is uncertain | `Undetermined - evidence needed`",
+                "A `TBD` value for any of the eight required facts makes that fact incomplete, forces the scope to "
+                                                                                                                                                                                                                                                           + "`Undetermined - evidence needed`, and suppresses incremental/strangler guidance");
+
+        assertContainsAll(analysis,
+                "Apache Camel",
+                "operator-controlled gateway or load-balancer split for HTTP/REST/CXF",
+                "deterministic JMS selector or Kafka partition",
+                "mutually exclusive source directory or pre-consumption source-side routing predicate",
+                "`direct:`, `seda:`, or `vm:` links",
+                "graph edges",
+                "a shared consumer group",
+                "an in-route predicate after consumption",
+                "scheduled `timer:`/`quartz:`/`scheduler:` work",
+                "competing consumers on the same directory or database poll",
+                "MuleSoft",
+                "operator-controlled gateway, proxy, or listener split",
+                "mutually exclusive selector, partition, source directory, or pre-consumption source-side routing "
+                                                                         + "predicate",
+                "`flow-ref`, sub-flow structure",
+                "a shared listener or queue",
+                "an in-flow predicate after consumption",
+                "scheduler activation",
+                "competing file/database pollers",
+                "Microsoft BizTalk",
+                "Operator-controlled external routing or a mutually exclusive Receive Location or subscription filter",
+                "deployment bindings used only as corroboration",
+                "Binding data by itself",
+                "an enable/disable capability by itself",
+                "Direct Binding",
+                "Call Orchestration",
+                "duplicate consumers of the same source",
+                "missing bindings/assemblies");
+
+        assertContainsAll(analysis,
+                "In `business-requirements.md`, create or replace only `## Migration Strategy`; preserve every other "
+                                    + "Phase 1 heading and body unchanged",
+                "| Scope | Covered Ingress IDs | Classification | Traffic Seam | Evidence IDs | Conditions / Blocking "
+                                                                            + "Gaps |",
+                "[Incremental candidate/Single cutover required/Undetermined - evidence needed]",
+                "[confirmed external control and routing unit; Confirmed absent/unsafe within named validated "
+                                                                                                  + "boundaries; or Unknown]",
+                "Add the following subsection only when at least one scope is an `Incremental candidate`",
+                "### Incremental / Strangler Guidance",
+                "Do not add incremental/strangler guidance for `Single cutover required` or "
+                                                        + "`Undetermined - evidence needed` scopes",
+                "### Migration Strategy Constraints",
+                "| Scope | Covered Ingress IDs | Classification | Design Obligation | Evidence IDs |",
+                "An `Incremental candidate` permits design guidance only for its confirmed existing seam and target "
+                                                                                                       + "constraints",
+                "does not claim that those constraints are implemented or that cutover is ready",
+                "`Undetermined - evidence needed` blocks a concrete incremental or single-cutover choice",
+                "Phase 2 must not derive a different classification from topology or silently discard a `MIG-###` or "
+                                                                                                           + "`SRC-###` obligation");
+        assertFalse(analysis.contains("None proven"),
+                "The traffic-seam cell must distinguish bounded proof from missing evidence");
+
+        String manifest = migrate.substring(migrate.indexOf("## Guide Manifest"));
+        assertOrdered(manifest,
+                "selected vendor's Phase 1",
+                "behavioral risk pass",
+                "source-retirement audit",
+                "deferred migration-strategy pass",
+                "Only then dispatch the selected vendor's Phase 2");
+        assertContainsAll(migrate,
+                "Never dispatch Phase 2 directly from Phase 1 or before all three R1 passes finish",
+                "`business-requirements.md` with `## Migration Strategy` and `design-spec.md` with "
+                                                                                                     + "`### Migration Strategy Constraints`",
+                "uses exactly `Incremental candidate`, `Single cutover required`, or `Undetermined - evidence needed`",
+                "design preserves that classification plus its `MIG-###` and `SRC-###` evidence IDs",
+                "`Covered Ingress IDs` form an exact, non-overlapping partition of every enumerated ingress/root "
+                                                                                                      + "`MIG-###` and `SRC-###` ID",
+                "the design preserves the identical scope-to-ID mapping",
+                "A missing, duplicated, or reassigned business-requirements ID requires rerunning the deferred strategy "
+                                                                          + "pass; a design mismatch requires rerunning Phase 2",
+                "Only a scope classified `Incremental candidate` from complete, Confirmed safe-seam evidence may "
+                                                                                                                                  + "receive concrete incremental or strangler guidance",
+                "`Undetermined - evidence needed` blocks that guidance");
+
+        String r1Allowlist = "The R1 write allowlist contains exactly the validated `business-requirements.md` and "
+                             + "`migration-analysis.md` paths; no other artifact may be written";
+        assertContainsAll(migrate, r1Allowlist);
+        assertContainsAll(bobMigrate, r1Allowlist);
+
+        String bobPackage = bobMigrate.substring(bobMigrate.indexOf("## Generate the Vendor Design Package"));
+        assertOrdered(bobPackage,
+                "Run the detected vendor's Phase 1 guide first",
+                "Next read `.bob/skills/camel-migrate/guides/migration-analysis.md`",
+                "Then read `.bob/skills/camel-migrate/guides/source-retirement-audit.md`",
+                "return to the deferred migration-strategy pass",
+                "Only after the deferred strategy pass finishes");
+        assertContainsAll(bobMigrate,
+                "classifies each independently switchable scope as exactly `Incremental candidate`, "
+                                      + "`Single cutover required`, or `Undetermined - evidence needed`",
+                "Concrete `### Incremental / Strangler Guidance` is allowed only for a scope classified "
+                                                                                                          + "`Incremental candidate` from complete, Confirmed safe-seam evidence",
+                "`Undetermined - evidence needed` blocks that guidance",
+                "`business-requirements.md` must have `## Migration Strategy` and `design-spec.md` must have "
+                                                                         + "`### Migration Strategy Constraints`",
+                "`Covered Ingress IDs` form an exact, non-overlapping partition of every enumerated ingress/root "
+                                                                                                                   + "`MIG-###` and `SRC-###` ID",
+                "the design preserves the identical scope-to-ID mapping",
+                "preserve its classification plus supporting `MIG-###` and `SRC-###` evidence IDs");
+
+        for (String phase2 : List.of(
+                "skills/camel-migrate/guides/mulesoft-phase2.md",
+                "skills/camel-migrate/guides/camel-version-phase2.md",
+                "skills/camel-migrate/guides/biztalk-phase2.md")) {
+            String guide = normalizeMarkdown(resource(phase2));
+            assertContainsAll(guide,
+                    "the deferred migration-strategy pass must be complete",
+                    "the business requirements must contain `## Migration Strategy`",
+                    "the analysis must contain `## Behavioral Assumptions and Risks` and "
+                                                                                      + "`## Source-Retirement Candidate Audit`",
+                    "preserve every migration-strategy scope",
+                    "`Incremental candidate`, `Single cutover required`, or `Undetermined - evidence needed`",
+                    "every supporting `MIG-###` and `SRC-###` evidence ID and status",
+                    "Concrete incremental or strangler design is allowed only for an `Incremental candidate` whose "
+                                                                                       + "eight required operational-seam facts all have `Confirmed` evidence",
+                    "Confirmed target-side conditions are design obligations with pre-cutover validation, not claims "
+                                                                                                                                                                + "that the target is deployed or cutover-ready",
+                    "### Migration Strategy Constraints",
+                    "| Scope | Covered Ingress IDs | Classification | Design Obligation | Evidence IDs |",
+                    "same non-overlapping ingress IDs from business requirements",
+                    "with one row per business-requirements strategy scope");
+        }
+
+        for (String dispatchTemplate : List.of(
+                "templates/dispatch/bob.md",
+                "templates/dispatch/claude.md",
+                "templates/dispatch/copilot.md",
+                "templates/dispatch/gemini.md")) {
+            String dispatch = normalizeMarkdown(resource(dispatchTemplate));
+            assertContainsAll(dispatch,
+                    "{output-paths}",
+                    "owning skill",
+                    "exactly that step's declared output path or paths");
+            assertFalse(dispatch.contains("{output-path}"),
+                    dispatchTemplate + " must not restore the singular output placeholder");
+            assertFalse(dispatch.contains("required output path"),
+                    dispatchTemplate + " must not restore the singular output prose");
+            assertFalse(dispatch.contains("R1"),
+                    dispatchTemplate + " must not leak camel-migrate-specific dispatch rules");
+        }
+
+        String initRequirements = "doc init --by camel-migrate docs/camel-kit/<PIPELINE_ID>/business-requirements.md";
+        String initAnalysis = "doc init --by camel-migrate --from business-requirements.md "
+                              + "docs/camel-kit/<PIPELINE_ID>/migration-analysis.md";
+        String initDesign = "doc init --by camel-migrate --from migration-analysis.md "
+                            + "docs/camel-kit/<PIPELINE_ID>/design-spec.md";
+        String staleAnalysis = "doc stale --reason \"business requirements changed\" --cascade "
+                               + "docs/camel-kit/<PIPELINE_ID>/migration-analysis.md";
+        String unstaleAnalysis = "doc unstale docs/camel-kit/<PIPELINE_ID>/migration-analysis.md";
+        String staleDesign = "doc stale --reason \"migration analysis changed\" --cascade "
+                             + "docs/camel-kit/<PIPELINE_ID>/design-spec.md";
+        String unstaleDesign = "doc unstale docs/camel-kit/<PIPELINE_ID>/design-spec.md";
+        for (String orchestrator : List.of(migrate, bobMigrate)) {
+            assertOrdered(orchestrator,
+                    initRequirements,
+                    initAnalysis,
+                    initDesign,
+                    "`doc init` initializes new metadata only",
+                    staleAnalysis,
+                    "genuinely rerun all three R1 passes",
+                    unstaleAnalysis,
+                    "Keep the cascade-staled design stale",
+                    staleDesign,
+                    "After, and only after, Phase 2 has genuinely regenerated",
+                    unstaleDesign,
+                    "Never clear staleness merely because initialization ran");
+            assertContainsAll(orchestrator,
+                    "rerun the responsible pass: behavioral risk for `MIG-###` evidence",
+                    "source retirement for `SRC-###` evidence",
+                    "deferred strategy for the business-requirements strategy and guidance",
+                    "Phase 2 for design constraints");
         }
     }
 

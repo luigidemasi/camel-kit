@@ -290,6 +290,8 @@ class ShippedAssetStructureTest {
         String analysis = Files.readString(analysisGuide);
         String retirement = Files.readString(retirementGuide);
         String entrypoint = Files.readString(ctx.skillsDir().resolve("camel-migrate/SKILL.md"));
+        String normalizedAnalysis = analysis.replaceAll("\\s+", " ");
+        String normalizedEntrypoint = entrypoint.replaceAll("\\s+", " ");
         assertTrue(analysis.contains("## Behavioral Assumptions and Risks"),
                 agentName + " must install the evidence-qualified risk contract");
         assertTrue(retirement.contains("## Source-Retirement Candidate Audit"),
@@ -305,6 +307,42 @@ class ShippedAssetStructureTest {
                 agentName + " migration entrypoint must use the installed analysis guide");
         assertTrue(entrypoint.contains("source-retirement-audit.md"),
                 agentName + " migration entrypoint must use the installed source-retirement audit guide");
+        for (String heading : List.of(
+                "## Migration Strategy",
+                "### Incremental / Strangler Guidance",
+                "### Migration Strategy Constraints")) {
+            assertTrue(normalizedAnalysis.contains(heading),
+                    agentName + " migration analysis must retain strategy heading " + heading);
+        }
+        for (String classification : List.of(
+                "`Incremental candidate`", "`Single cutover required`", "`Undetermined - evidence needed`")) {
+            assertTrue(normalizedAnalysis.contains(classification),
+                    agentName + " migration analysis must retain strategy classification " + classification);
+            assertTrue(normalizedEntrypoint.contains(classification),
+                    agentName + " migration entrypoint must enforce strategy classification " + classification);
+        }
+        boolean verifiesCanonicalStrategyArtifacts = normalizedEntrypoint.contains(
+                "`business-requirements.md` with `## Migration Strategy` and `design-spec.md` with "
+                                                                                   + "`### Migration Strategy Constraints`");
+        boolean verifiesBobStrategyArtifacts = normalizedEntrypoint.contains(
+                "`business-requirements.md` must have `## Migration Strategy` and `design-spec.md` must have "
+                                                                             + "`### Migration Strategy Constraints`");
+        assertTrue(verifiesCanonicalStrategyArtifacts || verifiesBobStrategyArtifacts,
+                agentName + " migration entrypoint must enforce both strategy artifacts");
+        assertTrue(normalizedEntrypoint.contains(
+                "Only a scope classified `Incremental candidate` from complete, Confirmed safe-seam evidence may "
+                                                 + "receive concrete incremental or strangler guidance"),
+                agentName + " migration entrypoint must gate incremental guidance on confirmed safe-seam evidence");
+        assertTrue(normalizedEntrypoint.contains("`Undetermined - evidence needed` blocks that guidance"),
+                agentName + " migration entrypoint must block guidance when seam evidence is undetermined");
+        assertTrue(normalizedEntrypoint.contains("`MIG-###` and `SRC-###` evidence IDs"),
+                agentName + " migration entrypoint must preserve strategy evidence IDs");
+        assertTrue(normalizedEntrypoint.contains(
+                "The R1 write allowlist contains exactly the validated `business-requirements.md` and "
+                                                 + "`migration-analysis.md` paths; no other artifact may be written"),
+                agentName + " migration entrypoint must retain the exact two-path R1 write allowlist");
+        assertFalse(entrypoint.contains("{output-path}"),
+                agentName + " migration dispatch must not retain the contradictory singular output placeholder");
     }
 
     private static void assertGeneratedContextAuthority(String agentName, InitContext ctx) throws Exception {

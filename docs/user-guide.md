@@ -515,6 +515,17 @@ without one, bounded source scanning produces the same coverage, reachability, b
 evidence-gap sections. Candidates remain in scope unless a specific user-approved exclusion is backed by named owner
 and runtime validation evidence; approving the package alone is not that decision.
 
+**Migration strategy** -- classifies each independently switchable scope as `Incremental candidate`, `Single cutover
+required`, or `Undetermined - evidence needed`, after reconciling every discovered ingress/root into exactly one
+non-overlapping scope. Incomplete, conflicting, `TBD`, or merely structural operational evidence stays undetermined.
+Incremental or strangler guidance is included only when the existing controllable seam is currently confirmed and the
+target conditions are confirmed design constraints with pre-cutover validation obligations. This identifies design
+candidacy, not cutover readiness. `Single cutover required` needs a named validated source and operational-control
+boundary with a closed, operator-confirmed inventory plus complete confirmed evidence that every seam candidate inside
+it is absent or unsafe; anything outside or unconfirmed remains undetermined. The business
+requirements record the result under `Migration Strategy`, and the design carries it into `Migration Strategy
+Constraints`.
+
 **Phase 2: Integration Architect** -- maps each source component to its Camel equivalent, converts transformations (e.g., DataWeave to field mapping tables), and asks only what the source artifacts cannot answer (authentication details, retry strategy, missing endpoint URLs).
 
 ### Output
@@ -527,6 +538,8 @@ The migration produces business requirements, the behavioral analysis, and a des
 ```
 
 The migration output is fully compatible with the greenfield pipeline. From the plan phase onward, there is no difference between a migrated project and a greenfield project.
+Approving the migration package approves analysis and design only; it does not authorize infrastructure provisioning,
+deployment, traffic cutover, or operating rollback.
 
 ---
 
