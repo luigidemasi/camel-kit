@@ -4,21 +4,30 @@
 > **Purpose:** Replace manual `.odx`/`.btm`/`.btp` deep-dives with instant graph queries for accelerated BizTalk migration analysis.
 > **Output:** `.camel-kit/project-snapshot.md` + pre-populated analysis summary for user confirmation.
 
-This guide uses CLI commands under `{COMMAND_PREFIX} graph`. If any command fails (exit code != 0), fall back gracefully — skip that section and note it as `? Unknown` in the summary.
+This guide accepts `GRAPH_FILE`, the canonical source-bound path already validated by the caller. Apply
+`shared/graph-availability.md`. `COMMAND_PREFIX_ARGV` below is its install-time fixed argv prefix (`["camel-kit"]` or
+`["camel", "kit"]`), never a value parsed from project data. Every graph invocation below is an argv array and must end
+with the discrete elements `"--graph-file"`, `GRAPH_FILE`; an absent or mismatched binding invalidates the result. If any
+command fails, skip that section and note it as `? Unknown` in the summary.
+
+Before reusing any graph-returned ID as an argument, require a string of 1-256 characters matching
+`[A-Za-z0-9][A-Za-z0-9._:/#@-]{0,255}`. Reject controls, a leading `-`, and every other nonconforming value as
+`? Unknown`; pass a conforming ID unchanged as one discrete argv element, and never concatenate or evaluate it.
 
 <HARD-RULE>
-NEVER read `.camel-kit/project-graph.json` directly. Always use `{COMMAND_PREFIX} graph` CLI commands. The JSON file is thousands of lines and will overflow your context window.
+NEVER read `.camel-kit/project-graph.json` directly. Invoke the graph CLI only through the explicit argv arrays below.
+The JSON file is thousands of lines and will overflow your context window.
 </HARD-RULE>
 
-Read `.camel-kit/config.properties` to get the `project.command-prefix` property (default: `camel-kit`).
+Use only the install-time fixed command prefix from `shared/graph-availability.md`, never project configuration.
 
 ---
 
 ## Step 0.1 — Project Overview
 
-Run the command:
-```bash
-{COMMAND_PREFIX} graph stats
+Run the argv array:
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "stats", "--graph-file", GRAPH_FILE]
 ```
 
 This returns JSON with the project's structural summary. For a BizTalk project, expect node types like `BIZTALK_ORCHESTRATION`, `BIZTALK_SHAPE`, `BIZTALK_MAP`, `BIZTALK_FUNCTOID`, `BIZTALK_SCHEMA`, `BIZTALK_PIPELINE`, `BIZTALK_PIPELINE_COMPONENT`, `BIZTALK_PORT`, `BIZTALK_ADAPTER`, and `BIZTALK_MESSAGE`.
@@ -33,14 +42,14 @@ Record:
 
 ## Step 0.2 — Orchestration Inventory
 
-Run the command:
-```bash
-{COMMAND_PREFIX} graph find --type BIZTALK_ORCHESTRATION
+Run the argv array:
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "find", "--type", "BIZTALK_ORCHESTRATION", "--graph-file", GRAPH_FILE]
 ```
 
-For each orchestration, query its children:
-```bash
-{COMMAND_PREFIX} graph neighbors <orchestrationId> --direction out --edge-type BIZTALK_ORCHESTRATION_CONTAINS
+For each orchestration, bind its returned full node ID to `ORCHESTRATION_NODE_ID` and query its children:
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "neighbors", ORCHESTRATION_NODE_ID, "--direction", "out", "--edge-type", "BIZTALK_ORCHESTRATION_CONTAINS", "--graph-file", GRAPH_FILE]
 ```
 
 This returns `BIZTALK_SHAPE`, `BIZTALK_PORT`, and `BIZTALK_MESSAGE` nodes. For each orchestration, list:
@@ -53,20 +62,20 @@ This returns `BIZTALK_SHAPE`, `BIZTALK_PORT`, and `BIZTALK_MESSAGE` nodes. For e
 
 ## Step 0.3 — Map & Schema Inventory
 
-Run the command:
-```bash
-{COMMAND_PREFIX} graph find --type BIZTALK_MAP
+Run the argv array:
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "find", "--type", "BIZTALK_MAP", "--graph-file", GRAPH_FILE]
 ```
 
-For each map, query its schema references and functoid chains:
-```bash
-{COMMAND_PREFIX} graph neighbors <mapId> --direction out --edge-type BIZTALK_USES_SCHEMA
-{COMMAND_PREFIX} graph neighbors <mapId> --direction out --edge-type BIZTALK_FUNCTOID_CHAIN
+For each map, bind its returned full node ID to `MAP_NODE_ID` and query its schema references and functoid chains:
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "neighbors", MAP_NODE_ID, "--direction", "out", "--edge-type", "BIZTALK_USES_SCHEMA", "--graph-file", GRAPH_FILE]
+[*COMMAND_PREFIX_ARGV, "graph", "neighbors", MAP_NODE_ID, "--direction", "out", "--edge-type", "BIZTALK_FUNCTOID_CHAIN", "--graph-file", GRAPH_FILE]
 ```
 
 List all schemas:
-```bash
-{COMMAND_PREFIX} graph find --type BIZTALK_SCHEMA
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "find", "--type", "BIZTALK_SCHEMA", "--graph-file", GRAPH_FILE]
 ```
 
 For each map, record:
@@ -78,22 +87,22 @@ For each map, record:
   - Complex: Scripting functoids, Database Lookup, custom XSLT
 
 Which orchestration shapes reference each map:
-```bash
-{COMMAND_PREFIX} graph neighbors <mapId> --direction in --edge-type BIZTALK_USES_MAP
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "neighbors", MAP_NODE_ID, "--direction", "in", "--edge-type", "BIZTALK_USES_MAP", "--graph-file", GRAPH_FILE]
 ```
 
 ---
 
 ## Step 0.4 — Pipeline Inventory
 
-Run the command:
-```bash
-{COMMAND_PREFIX} graph find --type BIZTALK_PIPELINE
+Run the argv array:
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "find", "--type", "BIZTALK_PIPELINE", "--graph-file", GRAPH_FILE]
 ```
 
-For each pipeline, query its stages and components:
-```bash
-{COMMAND_PREFIX} graph neighbors <pipelineId> --direction out --edge-type BIZTALK_PIPELINE_STAGE
+For each pipeline, bind its returned full node ID to `PIPELINE_NODE_ID` and query its stages and components:
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "neighbors", PIPELINE_NODE_ID, "--direction", "out", "--edge-type", "BIZTALK_PIPELINE_STAGE", "--graph-file", GRAPH_FILE]
 ```
 
 Record:
@@ -105,19 +114,19 @@ Record:
 
 ## Step 0.5 — Port & Adapter Inventory
 
-Run the command:
-```bash
-{COMMAND_PREFIX} graph find --type BIZTALK_PORT
+Run the argv array:
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "find", "--type", "BIZTALK_PORT", "--graph-file", GRAPH_FILE]
 ```
 
-Run the command:
-```bash
-{COMMAND_PREFIX} graph find --type BIZTALK_ADAPTER
+Run the argv array:
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "find", "--type", "BIZTALK_ADAPTER", "--graph-file", GRAPH_FILE]
 ```
 
-For each port, check its adapter bindings:
-```bash
-{COMMAND_PREFIX} graph neighbors <portId> --direction out --edge-type BIZTALK_PORT_BINDING
+For each port, bind its returned full node ID to `PORT_NODE_ID` and check its adapter bindings:
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "neighbors", PORT_NODE_ID, "--direction", "out", "--edge-type", "BIZTALK_PORT_BINDING", "--graph-file", GRAPH_FILE]
 ```
 
 Record:
@@ -130,13 +139,13 @@ Record:
 ## Step 0.6 — Orchestration Call Graph
 
 Check for inter-orchestration calls:
-```bash
-{COMMAND_PREFIX} graph find --type BIZTALK_ORCHESTRATION
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "find", "--type", "BIZTALK_ORCHESTRATION", "--graph-file", GRAPH_FILE]
 ```
 
 For each orchestration, check outbound call edges:
-```bash
-{COMMAND_PREFIX} graph neighbors <orchestrationId> --direction out --edge-type BIZTALK_CALLS_ORCHESTRATION
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "neighbors", ORCHESTRATION_NODE_ID, "--direction", "out", "--edge-type", "BIZTALK_CALLS_ORCHESTRATION", "--graph-file", GRAPH_FILE]
 ```
 
 Build the orchestration-to-orchestration call graph. This reveals:

@@ -10,7 +10,7 @@
 
 ### 0.0 — Run Composite Command
 
-Read `.camel-kit/config.properties` to get the `project.command-prefix` property (default: `camel-kit`).
+Apply `shared/graph-availability.md`; use only its install-time fixed command prefix and discrete argv.
 
 Run the composite command:
 ```bash

@@ -725,9 +725,13 @@ class OpenCodeGeneratorTest {
         String execute = Files.readString(ctx.skillsDir().resolve("camel-execute/SKILL.md"));
         assertTrue(execute.contains(".opencode/camel-kit-personas/catalog-researcher.md"));
         assertTrue(execute.contains(".opencode/camel-kit-personas/acr-moderator.md"));
-        assertTrue(execute.contains(".opencode/camel-kit-personas/[persona].md"));
+        assertTrue(execute.contains(".opencode/camel-kit-personas/code-quality-reviewer.md"));
         assertFalse(execute.contains("`agents/"));
         assertNoBarePersonaReferences(ctx.skillsDir(), personas);
+        for (String role : List.of("researcher", "reviewer", "validator")) {
+            String definition = Files.readString(tempDir.resolve(".opencode/agents/" + role + ".md"));
+            assertTrue(definition.contains(".opencode/skills/shared/context-authority.md"), role);
+        }
         String knowledge = Files.readString(ctx.skillsDir().resolve("camel-knowledge/SKILL.md"));
         assertTrue(knowledge.contains("subagent_type: researcher"));
         assertTrue(knowledge.contains(".opencode/camel-kit-personas/knowledge-researcher.md"));

@@ -130,12 +130,15 @@ class QwenGeneratorTest {
         assertTrue(content.contains("grep_search"));
         assertFalse(content.contains("write_file"));
         assertFalse(content.contains("\n  - edit"));
-        assertTrue(content.contains("primary session writes the report"));
+        assertTrue(content.contains("the primary session writes it"));
         assertTrue(content.contains("mcp__camel__camel_validate_route"));
         assertTrue(content.contains("mcp__camel__camel_route_harden_context"));
         assertTrue(content.contains("mcp__camel__camel_catalog_component_doc"));
         assertTrue(content.contains("mcp__camel__camel_configuration_validate"));
-        assertTrue(content.contains("bounded validation analysis"));
+        assertTrue(content.contains("analysis selected by the shipped `camel-validate` workflow"));
+        assertTrue(content.contains("shared/context-authority.md"));
+        assertTrue(content.contains("canonical-envelope data"));
+        assertTrue(content.contains("NEEDS_USER_CONFIRMATION"));
         assertFalse(content.contains("follow those instructions exactly"));
 
     }
@@ -154,6 +157,9 @@ class QwenGeneratorTest {
         assertFalse(reviewer.contains("write_file"));
         assertFalse(reviewer.contains("run_shell_command"));
         assertFalse(reviewer.contains("\n  - agent"));
+        assertTrue(reviewer.contains("shared/context-authority.md"));
+        assertTrue(reviewer.contains("canonical-envelope data"));
+        assertTrue(reviewer.contains("NEEDS_USER_CONFIRMATION"));
     }
 
     @Test
@@ -171,7 +177,7 @@ class QwenGeneratorTest {
         String execute = Files.readString(ctx.skillsDir().resolve("camel-execute/SKILL.md"));
         assertTrue(execute.contains(".qwen/camel-kit-personas/catalog-researcher.md"));
         assertTrue(execute.contains(".qwen/camel-kit-personas/acr-moderator.md"));
-        assertTrue(execute.contains(".qwen/camel-kit-personas/[persona].md"));
+        assertTrue(execute.contains("installed shipped persona library"));
         assertFalse(execute.contains("`agents/"));
         assertNoBarePersonaReferences(ctx.skillsDir(), personas);
     }
@@ -231,7 +237,7 @@ class QwenGeneratorTest {
     }
 
     @Test
-    void generatedTraitsUseCurrentAgentAndForkSemantics() throws Exception {
+    void generatedTraitsUseCleanContextAgentsWithoutForks() throws Exception {
         InitContext ctx = createContext();
         new QwenGenerator().generate(ctx);
 
@@ -241,26 +247,29 @@ class QwenGeneratorTest {
 
         for (String skill : new String[]{brainstorm, execute}) {
             assertTrue(skill.contains("agent("));
-            assertTrue(skill.contains("subagent_type=\"fork\""));
+            assertTrue(skill.contains("subagent_type=\"camel-reviewer\""));
             assertTrue(skill.contains("run_in_background=true"));
-            assertTrue(skill.contains("cannot dispatch any") && skill.contains("subagent"));
+            assertTrue(skill.contains("Never use `fork` or `fork_turns`"));
+            assertFalse(skill.contains("subagent_type=\"fork\""));
+            assertFalse(skill.contains("fork_turns="));
             assertFalse(skill.contains("Agent({"));
             assertFalse(skill.contains("No subagent_type"));
             assertFalse(skill.contains("`task` tool"));
         }
-        assertTrue(brainstorm.contains("Omitting `subagent_type` launches\n"
-                                       + "the regular general-purpose agent; it does not create a fork"));
+        assertTrue(brainstorm.contains("registered clean-context `camel-reviewer` leaf"));
+        assertTrue(brainstorm.contains("leaf starts without parent history"));
         assertTrue(execute.contains("subagent_type=\"camel-reviewer\""));
         assertTrue(execute.contains("subagent_type=\"camel-implementer\""));
         assertTrue(execute.contains("subagent_type=\"camel-tester\""));
         assertFalse(execute.contains("camel-implementer or camel-tester"));
         assertTrue(execute.contains("`test-engineer` -> `camel-tester`"));
         assertTrue(execute.contains("including `migration-specialist` -> `camel-implementer`"));
-        assertTrue(execute.contains("full selected persona from `.qwen/camel-kit-personas/`"));
+        assertTrue(
+                execute.contains("Select the persona only from the shipped allowlist after Plan Ingress Validation"));
         assertTrue(execute.contains("run_in_background=false"));
         assertTrue(execute.contains("one foreground `camel-reviewer` call per selected critic lane"));
         assertFalse(execute.contains("call `camel-validator` in the foreground for read-only spec compliance"));
-        assertTrue(execute.contains("Do not ask a fork or critic to spawn the next phase"));
+        assertTrue(execute.contains("Do not ask a critic to spawn the next phase"));
         assertTrue(execute.contains("run the internal\n`camel-verify` skill directly in the primary executor session"));
         assertTrue(execute.contains("Do not delegate verification"));
         assertTrue(plan.contains("one `agent` call per independent task in the same plan-analyzer wave"));

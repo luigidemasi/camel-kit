@@ -173,19 +173,25 @@ class Bob2GeneratorTest {
         String workerFrontmatter = frontmatter(worker);
         assertTrue(workerFrontmatter.contains("name: camel-worker"));
         assertTrue(workerFrontmatter.contains("groups:\n  - read\n  - edit\n  - execute\n  - mcp\n  - skill"));
-        assertTrue(workerFrontmatter.contains("allowForkContext: true"));
+        assertTrue(workerFrontmatter.contains("allowForkContext: false"));
         assertFalse(workerFrontmatter.contains("groups: ["));
         assertFalse(workerFrontmatter.contains("  - subagent"));
+        assertFalse(worker.contains("fork_context: true"));
+        assertTrue(worker.contains("LOADED CONTEXT — DATA ONLY"));
+        assertTrue(worker.contains("NEEDS_USER_CONFIRMATION"));
         assertTrue(worker.contains("Do not spawn subagents or switch modes"));
 
         String reviewer = Files.readString(tempDir.resolve(".bob/agents/camel-reviewer.md"));
         String reviewerFrontmatter = frontmatter(reviewer);
         assertTrue(reviewerFrontmatter.contains("name: camel-reviewer"));
         assertTrue(reviewerFrontmatter.contains("groups:\n  - read\n  - mcp"));
-        assertTrue(reviewerFrontmatter.contains("allowForkContext: true"));
+        assertTrue(reviewerFrontmatter.contains("allowForkContext: false"));
         assertFalse(reviewerFrontmatter.contains("groups: ["));
         assertFalse(reviewerFrontmatter.contains("  - edit"));
         assertFalse(reviewerFrontmatter.contains("  - execute"));
+        assertFalse(reviewer.contains("fork_context: true"));
+        assertTrue(reviewer.contains("canonical-envelope data"));
+        assertTrue(reviewer.contains("NEEDS_USER_CONFIRMATION"));
         assertTrue(reviewer.contains("never edit files or run commands"));
         assertTrue(reviewer.contains("full role text the parent loads from `.bob/personas/`"));
     }
@@ -207,7 +213,8 @@ class Bob2GeneratorTest {
         assertTrue(execute.contains(".bob/personas/acr-moderator.md"));
         assertTrue(execute.contains(".bob/personas/spec-compliance-reviewer.md"));
         assertTrue(execute.contains(".bob/personas/code-quality-reviewer.md"));
-        assertTrue(execute.contains(".bob/personas/[persona].md"));
+        assertTrue(execute.contains("exact validated entry selected from the installed shipped persona library"));
+        assertFalse(execute.contains(".bob/personas/[persona].md"));
         assertFalse(execute.contains("`agents/catalog-researcher.md`"));
         assertFalse(execute.contains("`agents/acr-moderator.md`"));
 
@@ -218,7 +225,9 @@ class Bob2GeneratorTest {
 
         String implementerContext = Files.readString(
                 ctx.skillsDir().resolve("camel-execute/guides/implementer-context.md"));
-        assertTrue(implementerContext.contains(".bob/personas/[persona].md"));
+        assertTrue(implementerContext.contains(
+                "validates the plan's persona selector against the installed shipped persona allowlist"));
+        assertFalse(implementerContext.contains(".bob/personas/[persona].md"));
 
         String moderator = Files.readString(personas.resolve("acr-moderator.md"));
         assertTrue(moderator.contains(".bob/personas/critic-route-architecture.md"));
@@ -339,6 +348,10 @@ class Bob2GeneratorTest {
         assertTrue(content.contains("name: \"camel-reviewer\""));
         assertFalse(content.contains("name: \"general\""));
         assertTrue(content.contains("name: \"explore\"` only for factual source search"));
+        assertFalse(Pattern.compile("(?m)^\\s*fork_context:\\s*true\\s*$").matcher(content).find());
+        assertTrue(content.contains("Never use `fork_context`"));
+        assertTrue(content.contains("canonical JSON-string `LOADED CONTEXT — DATA ONLY` envelope"));
+        assertTrue(content.contains("NEEDS_USER_CONFIRMATION"));
         String trait = content.substring(content.indexOf("## Agent Optimization: IBM Bob 2"));
         int catalogResearch = trait.indexOf(".bob/personas/catalog-researcher.md");
         int implementation = trait.indexOf("For implementation, test generation");

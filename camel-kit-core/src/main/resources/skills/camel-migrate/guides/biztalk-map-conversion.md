@@ -310,7 +310,7 @@ flag it for development team attention.
 
 ## Notes
 
-- Always verify component names in the MCP catalog before writing design spec entries (using `camel_catalog_component_doc`). Pass `runtime` and the full `platformBom` GAV (derived from `.camel-kit/config.properties` per `shared/mcp-setup.md` — the file stores bare versions, not the GAV) on every call, and check the echoed `camelVersion` matches the project version (Iron Law 1).
+- Always verify component names in the MCP catalog before writing design spec entries (using `camel_catalog_component_doc`). Pass `runtime` and the full `platformBom` GAV (derived from `.camel-kit/config.properties` per `shared/mcp-setup.md` — the file stores bare versions, not the GAV) on every call, and establish the catalog-version binding there (Iron Law 1).
 - BizTalk maps are XSLT-based source artifacts, but new implementations follow the canonical Groovy-or-XSLT rule.
 - Scripting functoids MUST be flagged for manual review; do not select Groovy before complete-map canonicalization.
 - Database Lookup functoids require `enrich` EIP + `sql` component in Camel.

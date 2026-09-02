@@ -10,13 +10,15 @@
 
 ### 0.5.0 — Run Composite Command
 
-Read `.camel-kit/config.properties` to get the `project.command-prefix` property (default: `camel-kit`).
+Apply `shared/graph-availability.md`; use only its install-time fixed command prefix and discrete argv.
 
-The `routeId` is derived from the route's `id:` field (e.g., `order-process`).
+The `routeId` is derived from the route's `id:` field (e.g., `order-process`). Accept it for this optional query only as
+a 1–256-character string matching `[A-Za-z0-9][A-Za-z0-9._:/#@-]{0,255}`; reject controls, a leading `-`, or any other
+shape and skip graph enhancement. Pass the accepted value unchanged as the single `ROUTE_ID` argv element.
 
-Run the composite command:
-```bash
-{COMMAND_PREFIX} graph route-context <routeId>
+Run the process without a shell:
+```text
+[*COMMAND_PREFIX_ARGV, "graph", "route-context", ROUTE_ID]
 ```
 
 This returns a JSON object with all route context in one call:

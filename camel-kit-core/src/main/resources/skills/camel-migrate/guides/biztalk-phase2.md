@@ -25,7 +25,12 @@
 
 **MCP catalog tools — MANDATORY when MCP is configured (same rules as the design assembly guide):**
 
-Before every MCP catalog call, translate `CAMEL_VERSION` + `RUNTIME` to the correct `platformBom` GAV using Rule 1 in `skills/shared/mcp-setup.md`. Never pass a stripped minor version (e.g., `4.14`) as `camelVersion` — always pass the full runtime-specific `platformBom` coordinate. Never use a Camel component name, EIP name, data format name, or expression language name from training data or the mapping guide without first verifying it in the catalog.
+Before every MCP catalog call, resolve `CAMEL_VERSION` + `RUNTIME` to the full runtime-specific `PLATFORM_BOM` GAV using
+Rule 1 in `skills/shared/mcp-setup.md`, establish the `limit=0` version probe, and pass that same runtime/BOM binding to
+the list and detail calls. Never substitute a stripped minor version (for example `4.14`) or treat the separately supplied
+`camelVersion` field as the binding when `platformBom` is present. Never use a Camel component name, EIP name, data
+format name, or expression language name from training data or the mapping guide without first verifying it in the
+catalog.
 
 → **For MCP setup, version mapping, and fallback policy:** see `skills/shared/mcp-setup.md`
 
@@ -50,8 +55,12 @@ For each BizTalk orchestration identified in Phase 1:
    ```
    MCP Tool: camel_catalog_component_doc
    Params: { "component": "[suggested-camel-component]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
+   MCP Tool: camel_catalog_component_maven
+   Params: { "component": "[suggested-camel-component]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
    ```
-   Record the URI syntax, endpoint options, component-level options, and Maven coordinates from the catalog response. If the component is not found in `CAMEL_VERSION`, call `camel_catalog_components` to search for an alternative and notify the user.
+   Record URI syntax and options from the documentation result, and Maven coordinates from the Maven result. Establish
+   the version binding and prove absence with a complete exact-name list check per `shared/mcp-setup.md`; a detail error
+   alone is unverified. If absent in `CAMEL_VERSION`, search `camel_catalog_components` for an alternative and notify the user.
 
    **Documentation context check (MANDATORY when camel-knowledge MCP is available):**
    After verifying a component in the catalog, call `camel_docs_component_info` to gather documentation,

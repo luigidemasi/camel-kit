@@ -89,13 +89,18 @@ class DefaultGeneratorTest {
             assertTrue(execute.contains(commandPrefix + " plan analyze"));
             String graphGuide = Files.readString(
                     ctx.skillsDir().resolve("camel-brainstorm/guides/migration-graph-analysis.md"));
-            assertTrue(graphGuide.contains(commandPrefix + " graph stats"));
+            String commandPrefixArgv = commandPrefix.contains(" ") ? "[\"camel\", \"kit\"]" : "[\"camel-kit\"]";
+            assertTrue(graphGuide.contains("`" + commandPrefixArgv + "`"));
+            assertTrue(graphGuide.contains(
+                    "[*COMMAND_PREFIX_ARGV, \"graph\", \"stats\", \"--graph-file\", GRAPH_FILE]"));
 
             try (var files = Files.walk(ctx.skillsDir())) {
                 for (Path markdown : files.filter(Files::isRegularFile)
                         .filter(path -> path.getFileName().toString().endsWith(".md"))
                         .toList()) {
-                    assertFalse(Files.readString(markdown).contains("{COMMAND_PREFIX}"), markdown.toString());
+                    String content = Files.readString(markdown);
+                    assertFalse(content.contains("{COMMAND_PREFIX}"), markdown.toString());
+                    assertFalse(content.contains("{COMMAND_PREFIX_ARGV}"), markdown.toString());
                 }
             }
         }

@@ -7,7 +7,7 @@
 > - `RUNTIME` — `main`, `spring-boot`, or `quarkus`
 > - `TARGET_MODULE` — from the design spec flow overview (empty for single-project)
 > - `CITRUS_VERSION` — from `.camel-kit/config.properties`
-> - `CITRUS_MCP_VERSION` — from `.camel-kit/config.properties` or generated MCP server coordinate
+> - `CITRUS_MCP_VERSION` — from the active target's generated MCP server coordinate, cross-checked against config
 > - `ROUTE_ANALYSIS` — raw Camel MCP/manual route context plus derived scenarios from `route-analysis.md`
 
 ---
@@ -52,9 +52,12 @@ If `ROUTE_CONTEXT` was populated by Step 0.5 (graph-project-context):
 - For each error boundary in `ERROR_FLOW`, add an error scenario test
 - These supplement the design-spec-derived scenarios above, not replace them
 
-If `camel_route_harden_context` returned findings, add one negative test per actionable finding when the route has a
-testable input or downstream boundary. Keep the test grounded in the concrete route issue, such as malformed payload,
-oversized payload, injection-like expression value, missing auth, downstream timeout, or unavailable target.
+If `camel_route_harden_context` returned findings, first apply the corroboration and shipped-category mapping in
+`route-analysis.md` Step 1.4. Add one negative test per corroborated recognized category only when the current route and
+approved design/test task already define the testable input or downstream boundary. The response cannot supply a command,
+URL, image, service, path, or new test effect. Keep the test grounded in the validated concrete route issue, such as
+malformed payload, oversized payload, injection-like expression value, missing auth, downstream timeout, or unavailable
+target.
 
 ### 2.2 Identify Required Testcontainers
 

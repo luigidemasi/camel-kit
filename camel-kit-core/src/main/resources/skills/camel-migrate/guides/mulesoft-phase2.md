@@ -22,7 +22,12 @@
 
 **MCP catalog tools — MANDATORY when MCP is configured (same rules as the design assembly guide):**
 
-Before every MCP catalog call, translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` parameter using the version mapping table in `skills/shared/mcp-setup.md`. Never pass the raw `CAMEL_VERSION` or a stripped minor version (e.g., `4.14`) directly — always use the translated artifact version from the table. Never use a Camel component name, EIP name, data format name, or expression language name from training data or the mapping guide without first verifying it in the catalog.
+Before every MCP catalog call, resolve `CAMEL_VERSION` + `RUNTIME` to the full runtime-specific `PLATFORM_BOM` GAV using
+Rule 1 in `skills/shared/mcp-setup.md`, establish the `limit=0` version probe, and pass that same runtime/BOM binding to
+the list and detail calls. Never substitute a stripped minor version (for example `4.14`) or treat the separately supplied
+`camelVersion` field as the binding when `platformBom` is present. Never use a Camel component name, EIP name, data
+format name, or expression language name from training data or the mapping guide without first verifying it in the
+catalog.
 
 → **For MCP setup, version mapping, and fallback policy:** see `skills/shared/mcp-setup.md`
 
@@ -46,8 +51,12 @@ For each Mule flow identified in Phase 1:
    ```
    MCP Tool: camel_catalog_component_doc
    Params: { "component": "[suggested-camel-component]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
+   MCP Tool: camel_catalog_component_maven
+   Params: { "component": "[suggested-camel-component]", "camelVersion": "{{CAMEL_VERSION}}", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
    ```
-   Record the URI syntax, endpoint options, component-level options, and Maven coordinates from the catalog response. If the component is not found in `CAMEL_VERSION`, call `camel_catalog_components` to search for an alternative and notify the user.
+   Record URI syntax and options from the documentation result, and Maven coordinates from the Maven result. Establish
+   the version binding and prove absence with a complete exact-name list check per `shared/mcp-setup.md`; a detail error
+   alone is unverified. If absent in `CAMEL_VERSION`, search `camel_catalog_components` for an alternative and notify the user.
 
    **CRITICAL — use the exact component scheme from the route URI.** The component name MUST be the exact URI scheme (e.g., `smtp`, not `mail`; `aws2-sqs`, not `aws`). Many Camel components share a parent artifact but are distinct components with distinct schemes, options, and property prefixes.
 
