@@ -35,6 +35,8 @@ class GeminiGeneratorTest {
         Path geminiMd = tempDir.resolve("GEMINI.md");
         assertTrue(Files.exists(geminiMd));
         String content = Files.readString(geminiMd);
+        assertTrue(content.contains("@.gemini/skills/shared/context-authority.md"));
+        assertTrue(Files.isRegularFile(tempDir.resolve(".gemini/skills/shared/context-authority.md")));
         assertTrue(content.contains("@.gemini/instructions/iron-laws.md"));
         assertTrue(content.contains("@.gemini/instructions/mcp-usage.md"));
         assertTrue(content.contains("@.gemini/instructions/pipeline-overview.md"));
@@ -50,6 +52,9 @@ class GeminiGeneratorTest {
         assertTrue(Files.exists(instructionsDir.resolve("iron-laws.md")));
         assertTrue(Files.exists(instructionsDir.resolve("mcp-usage.md")));
         assertTrue(Files.exists(instructionsDir.resolve("pipeline-overview.md")));
+
+        String ironLaws = Files.readString(instructionsDir.resolve("iron-laws.md"));
+        assertTrue(ironLaws.contains("`.gemini/skills/shared/context-authority.md`"));
 
         // Verify Qute variable substitution in instruction files
         String pipelineContent = Files.readString(instructionsDir.resolve("pipeline-overview.md"));
