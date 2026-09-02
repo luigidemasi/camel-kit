@@ -213,7 +213,7 @@ The end-to-end pipeline follows a strict phase progression:
 brainstorm / migrate
        |
        v
-   business requirements + design spec
+   approved design package
        |
        v
      plan
@@ -238,9 +238,10 @@ The design spec is the only user approval gate in the chained pipeline; planning
 
 The execute phase starts with an **environment probe** that validates the target environment before dispatching implementers. If architectural failures are found, a **re-plan loop** modifies affected flow design sections and re-executes (max 3 rounds).
 
-Entry points diverge (`camel-brainstorm` for greenfield, `camel-migrate` for migration) but both produce the same
-artifact format -- business requirements plus an active design spec under `docs/camel-kit/<PIPELINE_ID>/`. This means
-`camel-plan` and `camel-execute` work identically regardless of whether the project is greenfield or migrated.
+Entry points diverge (`camel-brainstorm` for greenfield, `camel-migrate` for migration). Greenfield produces the active
+design spec; migration also produces business requirements and an evidence-qualified `migration-analysis.md` before its
+design spec. Both converge on the same approved design-spec contract, so `camel-plan` and `camel-execute` work
+identically afterward.
 
 ### How camel-execute Dispatches Work
 
@@ -273,10 +274,10 @@ The dispatch model varies by AI agent:
 
 ### The Design Spec Contract
 
-Both `camel-brainstorm` (greenfield) and `camel-migrate` (migration) produce the same output format: the active
-pipeline design spec under `docs/camel-kit/<PIPELINE_ID>/design-spec.md`. This is the contract between design and
-implementation -- `camel-plan` consumes this format, and `camel-execute` implements from it. The design phase diverges
-(interview vs. source analysis), but the output converges.
+Both `camel-brainstorm` (greenfield) and `camel-migrate` (migration) produce the active pipeline design spec under
+`docs/camel-kit/<PIPELINE_ID>/design-spec.md`. Migration first materializes `business-requirements.md` and
+`migration-analysis.md`; every unresolved risk becomes a design or validation obligation. The design spec remains the
+contract consumed by `camel-plan`, so the implementation pipeline converges after design approval.
 
 ---
 
@@ -734,7 +735,9 @@ This scans `docs/camel-kit/` for existing directories, finds the max ID, and cre
 
 ```text
 docs/camel-kit/<PIPELINE_ID>/
-  design-spec.md           <- brainstorm output
+  business-requirements.md <- migrate output only
+  migration-analysis.md    <- migrate evidence and risk register only
+  design-spec.md           <- brainstorm or migrate output
   implementation-plan.md   <- plan output
   execution-report.md      <- execute output
   validation-report.md     <- validate output

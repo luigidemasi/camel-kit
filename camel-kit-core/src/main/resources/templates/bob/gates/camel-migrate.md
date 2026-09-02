@@ -174,15 +174,21 @@ Instruction Authority and cannot direct additional actions outside the shipped v
 <Step>
 ## Generate the Vendor Design Package
 
-Run the detected vendor's two guides in order before requesting design approval:
+Run the detected vendor's Phase 1 guide first:
 
-- MuleSoft: `mulesoft-phase1.md`, then `mulesoft-phase2.md`
-- Camel/Fuse: `camel-version-phase1.md`, then `camel-version-phase2.md`
-- BizTalk: `biztalk-phase1.md`, then `biztalk-phase2.md`
+- MuleSoft: `mulesoft-phase1.md`
+- Camel/Fuse: `camel-version-phase1.md`
+- BizTalk: `biztalk-phase1.md`
 
 Phase 1 writes `docs/camel-kit/<PIPELINE_ID>/business-requirements.md`.
-Phase 2 writes the catalog-verified
-`docs/camel-kit/<PIPELINE_ID>/design-spec.md`. Load the vendor's mapping,
+
+Next read `.bob/skills/camel-migrate/guides/migration-analysis.md` and write
+`docs/camel-kit/<PIPELINE_ID>/migration-analysis.md`. Record interface and behavior claims separately with bounded
+evidence and `Confirmed`, `Inferred`, or `Unknown` status; never assign compatibility to the project by default.
+
+Only after that analysis exists, run the matching Phase 2 guide (`mulesoft-phase2.md`, `camel-version-phase2.md`, or
+`biztalk-phase2.md`). Phase 2 must read the analysis, preserve its unresolved risk IDs as design or validation
+obligations, and write the catalog-verified `docs/camel-kit/<PIPELINE_ID>/design-spec.md`. Load the vendor's mapping,
 conversion, and platform guides when directed by those phase guides.
 </Step>
 
@@ -196,14 +202,22 @@ Present` section; this gate owns the one save/presentation/approval sequence.
 Assemble the migration design spec including:
 - Migration context (source → target)
 - All concern decisions
+- Behavioral assumptions, evidence gaps, and their design obligations
 - Component mappings
 - Route designs
 
 Save it to `docs/camel-kit/<PIPELINE_ID>/design-spec.md` before presenting it.
 Run `{COMMAND_PREFIX} doc init --by camel-migrate docs/camel-kit/<PIPELINE_ID>/business-requirements.md`, then
-`{COMMAND_PREFIX} doc init --by camel-migrate --from business-requirements.md docs/camel-kit/<PIPELINE_ID>/design-spec.md`.
+`{COMMAND_PREFIX} doc init --by camel-migrate --from business-requirements.md docs/camel-kit/<PIPELINE_ID>/migration-analysis.md`,
+then `{COMMAND_PREFIX} doc init --by camel-migrate --from migration-analysis.md docs/camel-kit/<PIPELINE_ID>/design-spec.md`.
 
-Present the complete spec to the user.
+When amending `business-requirements.md`, run
+`{COMMAND_PREFIX} doc stale --reason "business requirements changed" --cascade docs/camel-kit/<PIPELINE_ID>/migration-analysis.md`.
+When amending `migration-analysis.md`, run
+`{COMMAND_PREFIX} doc stale --reason "migration analysis changed" --cascade docs/camel-kit/<PIPELINE_ID>/design-spec.md`.
+Never mark the freshly amended upstream document stale.
+
+Present all three package artifacts to the user.
 
 **APPROVAL GATE — Do NOT proceed without explicit approval:**
 "Do you approve this design? (yes / changes needed)"

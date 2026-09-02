@@ -39,7 +39,8 @@ This skill supports two invocation modes (see `shared/pipeline-infrastructure.md
 
 ### Chained Mode (default)
 
-Auto-invoked by `camel-brainstorm` after design spec approval. The design spec content is available in conversation context. After planning, auto-invokes `camel-execute`.
+Auto-invoked by `camel-brainstorm` or `camel-migrate` after design spec approval. The design spec content is available
+in conversation context. After planning, auto-invokes `camel-execute`.
 
 ### Standalone Mode
 
@@ -47,16 +48,16 @@ Invoked directly (e.g., `/camel-plan` or `/camel-plan <PIPELINE_ID>`) in a new s
 
 **Detection at start:**
 
-1. If auto-invoked by brainstorm in this conversation → **chained mode**
+1. If auto-invoked by brainstorm or migrate in this conversation → **chained mode**
 2. If invoked independently and `design-spec.md` exists in the pipeline directory → **standalone mode**
-3. If `design-spec.md` does not exist → error: "No design spec found. Run /camel-brainstorm first."
+3. If `design-spec.md` does not exist → error: "No design spec found. Run /camel-brainstorm or /camel-migrate first."
 
 **Standalone behavior:**
 
 - Read `design-spec.md` from disk as the input
-- Run `{COMMAND_PREFIX} doc check <file>` and validate its `camel-brainstorm` provenance. If it is stale or provenance is
-  missing/mismatched, stop and ask whether to amend/re-approve it, abort, or plan from that exact revision; do not proceed
-  until the user confirms the specific action
+- Run `{COMMAND_PREFIX} doc check <file>` and validate provenance from `camel-brainstorm` or `camel-migrate`. If it is
+  stale or provenance is missing/mismatched, stop and ask whether to amend/re-approve it, abort, or plan from that exact
+  revision; do not proceed until the user confirms the specific action
 - Execute the full planning workflow
 - Write `implementation-plan.md` to the pipeline directory
 - Do NOT auto-invoke `camel-execute` (standalone mode suppresses auto-transitions)

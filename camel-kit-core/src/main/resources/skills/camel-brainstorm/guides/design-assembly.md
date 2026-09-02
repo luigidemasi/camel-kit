@@ -186,6 +186,7 @@ first approved.
 │   └── camel-kit/
 │       └── <PIPELINE_ID>/
 │           ├── business-requirements.md       [migration only; created by camel-migrate]
+│           ├── migration-analysis.md           [migration only; evidence-qualified risks and gaps]
 │           ├── design-spec.md                 ← this file
 │           ├── implementation-plan.md         [created by camel-plan]
 │           ├── execution-report.md            [created by camel-execute]

@@ -502,15 +502,20 @@ camel-kit init my-migration --ai claude --source-platform biztalk
 
 ### How It Works
 
-The command scans all project artifacts, detects the source platform automatically, and runs a two-phase analysis:
+The command scans all project artifacts, detects the source platform automatically, and builds one migration package:
 
 **Phase 1: Business Analyst** -- reads all source files and builds a complete inventory of flows and connectors. Identifies which components have direct Camel equivalents and which are proprietary (e.g., Anypoint MQ). For proprietary connectors, it presents alternatives and lets you decide. Then it asks only the business questions the source code cannot answer -- purpose, SLAs, compliance requirements.
+
+**Behavioral analysis** -- materializes `migration-analysis.md` between the two vendor phases. It records each behavioral
+assumption, evidence gap, and risk as `Confirmed`, `Inferred`, or `Unknown`, with its evidence, impact, validation,
+owner, and disposition. It never treats the whole migration as API-compatible by default.
 
 **Phase 2: Integration Architect** -- maps each source component to its Camel equivalent, converts transformations (e.g., DataWeave to field mapping tables), and asks only what the source artifacts cannot answer (authentication details, retry strategy, missing endpoint URLs).
 
 ### Output
 
-The migration produces business requirements and a design spec in the same format as `/camel-brainstorm`. This means the rest of the pipeline is identical:
+The migration produces business requirements, the behavioral analysis, and a design spec compatible with
+`/camel-brainstorm`. This means the rest of the pipeline is identical:
 
 ```
 /camel-migrate  -->  /camel-plan  -->  /camel-execute  -->  /camel-validate

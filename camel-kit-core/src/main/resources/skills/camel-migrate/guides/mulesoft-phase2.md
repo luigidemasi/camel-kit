@@ -1,8 +1,8 @@
 # MuleSoft Migration — Phase 2: Design Spec Generation
 
 > **Context variables:** `CAMEL_VERSION`, `RUNTIME`, `PLATFORM_BOM` from `.camel-kit/config.properties`
-> **Prerequisite:** Phase 1 (`mulesoft-phase1.md`) must be complete — business requirements written to
-> `docs/camel-kit/<PIPELINE_ID>/business-requirements.md`
+> **Prerequisite:** Phase 1 (`mulesoft-phase1.md`) and the shared behavioral analysis must be complete:
+> `business-requirements.md` and `migration-analysis.md` exist in `docs/camel-kit/<PIPELINE_ID>/`.
 
 ## Phase 2 — Integration Architect
 
@@ -11,6 +11,7 @@
 **ALWAYS load at the start of Phase 2:**
 - Load `skills/camel-migrate/guides/mule-dataweave-conversion.md` — required for DataWeave analysis
 - Re-read `docs/camel-kit/<PIPELINE_ID>/business-requirements.md`
+- Re-read `docs/camel-kit/<PIPELINE_ID>/migration-analysis.md`
 - Read `docs/constitution.md` if it exists (for reference)
 - Re-read `.camel-kit/config.properties` — **REQUIRED**: extract `project.camelVersion` as `CAMEL_VERSION` and `project.runtime` as `RUNTIME`. If the file does not exist, ask the user for the Camel version before proceeding.
 
@@ -21,6 +22,9 @@
 - `skills/camel-design/guides/monitoring.md` — if observability requirements exist
 
 **MCP catalog tools — MANDATORY when MCP is configured (same rules as the design assembly guide):**
+
+Before designing flows, map every `Inferred` or `Unknown` `MIG-###` row to an explicit design constraint, validation
+requirement, or unresolved decision. Preserve the risk ID and status; Phase 2 must not silently declare it resolved.
 
 Before every MCP catalog call, resolve `CAMEL_VERSION` + `RUNTIME` to the full runtime-specific `PLATFORM_BOM` GAV using
 Rule 1 in `skills/shared/mcp-setup.md`, establish the `limit=0` version probe, and pass that same runtime/BOM binding to
@@ -285,6 +289,7 @@ Migration analysis complete.
 
 Created files:
 - docs/camel-kit/<PIPELINE_ID>/business-requirements.md
+- docs/camel-kit/<PIPELINE_ID>/migration-analysis.md
 - docs/camel-kit/<PIPELINE_ID>/design-spec.md
 
 Status: Ready for the single design-approval review.

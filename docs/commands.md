@@ -733,7 +733,8 @@ During execution, `/camel-execute` dispatches these internal skills as needed. T
 
 **When to use:** When you have an existing MuleSoft, Camel 2.x/3.x, JBoss Fuse, or BizTalk project to migrate.
 
-**Produces:** Same as `/camel-brainstorm` -- business requirements and an active design spec tailored to the migration.
+**Produces:** Business requirements, an evidence-qualified migration analysis, and an active design spec tailored to
+the migration.
 
 **Example:**
 
@@ -756,9 +757,8 @@ MuleSoft migrations benefit from automatic project graph analysis. The graph det
 
 **How it works:**
 
-This is the dedicated migration design orchestrator. It runs vendor-specific
-two-phase analysis and converges with the greenfield workflow only after the
-design package is approved, when it hands off to `/camel-plan`:
+This is the dedicated migration design orchestrator. It runs vendor-specific discovery and design with a shared
+behavioral analysis between them, then converges with the greenfield workflow after the complete package is approved:
 
 **Phase 1 -- Discovery and confirmation:**
 
@@ -768,14 +768,21 @@ design package is approved, when it hands off to `/camel-plan`:
 4. Confirms the summary with the user; only asks about genuine gaps
 5. Walks through each migration concern one at a time (deprecated components, platform changes, DataWeave conversions, proprietary connectors)
 
+**Behavioral analysis -- Evidence and risk register:**
+
+1. Writes `migration-analysis.md` from Phase 1 source findings and the business requirements
+2. Records each interface and behavior separately as `Confirmed`, `Inferred`, or `Unknown`
+3. Preserves evidence gaps, impact, validation, ownership, and disposition without assuming project-wide compatibility
+
 **Phase 2 -- Design:**
 
 1. Maps each source component to its catalog-verified Camel equivalent
 2. Converts DataWeave transformations into design spec field mapping tables
 3. Asks only what the source artifacts cannot answer
-4. Produces business requirements and one active design spec covering all flows
+4. Produces one active design spec covering all flows and carries unresolved risk IDs into its validation obligations
 
-After both phases, the pipeline continues the same as greenfield: version selection, design assembly, user approval, then automatic transition to `/camel-plan`.
+After the package is assembled, one design approval covers the business requirements, migration analysis, and design
+spec; the pipeline then transitions automatically to `/camel-plan`.
 
 **Mule-to-Camel component mapping highlights:**
 

@@ -173,7 +173,7 @@ stages:
     standalone: true
     chained: true
     inputs: [source-integration-artifacts, project-context]
-    outputs: [migration-analysis, business-requirements, design-spec]
+    outputs: [business-requirements, migration-analysis, design-spec]
     transitions: [plan]
   - id: plan
     skill: camel-plan
@@ -219,6 +219,10 @@ stages:
 artifacts:
   - id: business-requirements
     path: docs/camel-kit/<pipeline-id>/business-requirements.md
+    produced_by: [camel-migrate]
+    consumed_by: []
+  - id: migration-analysis
+    path: docs/camel-kit/<pipeline-id>/migration-analysis.md
     produced_by: [camel-migrate]
     consumed_by: []
   - id: design-spec

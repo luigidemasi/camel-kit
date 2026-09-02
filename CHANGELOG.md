@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Evidence-qualified migration analysis (#78)** — `camel-migrate` now materializes `migration-analysis.md` between
+  vendor discovery and design. The register records independently testable behavioral assumptions and evidence gaps as
+  Confirmed, Inferred, or Unknown, and carries unresolved risks into Phase 2 instead of assuming API compatibility.
+
 - **Explicit design scope boundaries** — greenfield design specs now record a top-level `Not Doing (and Why)` section
   with a concrete reason for every excluded capability. Brainstorm captures these boundaries during the interview, and
   planning omits excluded work while execution passes the boundaries to implementers and spec-compliance reviewers, so

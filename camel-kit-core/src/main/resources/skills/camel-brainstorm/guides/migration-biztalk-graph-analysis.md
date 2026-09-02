@@ -245,7 +245,7 @@ Pipelines:           [P] pipeline(s) detected
 Failure Behaviour:   [inferred from error handler shapes]
 Target Camel:        Camel version (default: latest)
 Target Runtime:      [to be selected]
-API Compatibility:   Assumed (same HTTP paths, queue names, contracts)
+Compatibility Evidence: [Confirmed/Inferred/Unknown per interface; graph shape alone is insufficient]
 Project Layout:      [single or multi from graph]
 Flows to migrate:    ALL ([N] orchestrations with migration ordering)
 ===========================================================

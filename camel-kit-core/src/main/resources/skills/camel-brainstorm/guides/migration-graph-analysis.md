@@ -221,7 +221,7 @@ Source Product:      [product or Community]
 Failure Behaviour:   [inferred from error handler patterns]
 Target Camel:        Camel version (default: latest)
 Target Runtime:      [inferred from platform detection]
-API Compatibility:   Assumed (same HTTP paths, queue names, contracts)
+Compatibility Evidence: [Confirmed/Inferred/Unknown per interface; graph shape alone is insufficient]
 Project Layout:      [single or multi from graph]
 Routes to migrate:   ALL ([N] routes detected with migration ordering)
 ===========================================================

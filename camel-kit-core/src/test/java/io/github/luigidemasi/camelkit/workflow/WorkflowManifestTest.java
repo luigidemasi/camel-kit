@@ -100,13 +100,20 @@ class WorkflowManifestTest {
                 .collect(Collectors.toMap(WorkflowManifest.WorkflowStage::id, stage -> stage));
 
         assertEquals(List.of("design-spec"), stages.get("brainstorm").outputs());
-        assertEquals(List.of("migration-analysis", "business-requirements", "design-spec"),
+        assertEquals(List.of("business-requirements", "migration-analysis", "design-spec"),
                 stages.get("migrate").outputs());
         assertEquals(List.of("approved-design-spec"), stages.get("plan").inputs());
         assertEquals(List.of("implementation-plan", "approved-design-spec"), stages.get("execute").inputs());
         assertTrue(manifest.artifacts().stream()
                 .anyMatch(artifact -> "business-requirements".equals(artifact.id())
                         && artifact.producedBy().equals(List.of("camel-migrate"))));
+        WorkflowManifest.WorkflowArtifact migrationAnalysis = manifest.artifacts().stream()
+                .filter(artifact -> "migration-analysis".equals(artifact.id()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("docs/camel-kit/<pipeline-id>/migration-analysis.md", migrationAnalysis.path());
+        assertEquals(List.of("camel-migrate"), migrationAnalysis.producedBy());
+        assertTrue(migrationAnalysis.consumedBy().isEmpty());
         assertTrue(manifest.stages().stream()
                 .flatMap(stage -> Stream.concat(stage.inputs().stream(), stage.outputs().stream()))
                 .noneMatch(value -> value.equals("brd") || value.equals("tdds")));

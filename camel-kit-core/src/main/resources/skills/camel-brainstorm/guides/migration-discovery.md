@@ -121,7 +121,7 @@ Source DSL:          [Java DSL (N routes), XML (N routes), etc.]
 Failure Behaviour:   [inferred from error handler patterns]
 Target Camel:        Camel version (to be selected)
 Target Runtime:      [suggested based on source platform]
-API Compatibility:   Assumed (same HTTP paths, queue names, contracts)
+Compatibility Evidence: [Confirmed/Inferred/Unknown per interface; never assumed project-wide]
 Routes to migrate:   ALL ([N] routes detected)
 ===========================================================
 

@@ -272,12 +272,23 @@ class ShippedAssetStructureTest {
                         agentName + " must not generate command scaffolding");
             }
             assertGeneratedContextAuthority(agentName, ctx);
+            assertGeneratedMigrationAnalysisGuide(agentName, ctx);
             assertGeneratedMarkdownResolvesCommandPrefix(agentName, ctx);
             assertGeneratedPersonaReferencesResolve(agentName, ctx);
             assertGeneratedShipDelegate(agentName, ctx, shipSkillOnly);
             assertRetiredShipAssetsWereCleaned(agentName, ctx, shipSkillOnly);
             assertGeneratedMcpConfigIsValid(agentName, ctx);
         }
+    }
+
+    private static void assertGeneratedMigrationAnalysisGuide(String agentName, InitContext ctx) throws Exception {
+        Path guide = ctx.skillsDir().resolve("camel-migrate/guides/migration-analysis.md");
+        assertTrue(Files.isRegularFile(guide), agentName + " must install the migration analysis guide");
+        assertTrue(Files.readString(guide).contains("## Behavioral Assumptions and Risks"),
+                agentName + " must install the evidence-qualified risk contract");
+        assertTrue(Files.readString(ctx.skillsDir().resolve("camel-migrate/SKILL.md"))
+                .contains("migration-analysis.md"),
+                agentName + " migration entrypoint must use the installed analysis guide");
     }
 
     private static void assertGeneratedContextAuthority(String agentName, InitContext ctx) throws Exception {

@@ -237,6 +237,42 @@ class DocCommandsTest {
         assertFalse(FrontmatterHandler.hasFrontmatter(unrelatedContent));
     }
 
+    @Test
+    void migrationProvenanceCascadesFromTheFirstDownstreamArtifact() throws Exception {
+        Path requirements = writeDoc("business-requirements.md",
+                FrontmatterHandler.writeFrontmatter(
+                        StalenessInfo.fresh(),
+                        new GeneratedInfo("2026-05-13T08:00:00Z", "camel-migrate", null),
+                        "# Business Requirements\n"));
+        Path analysis = writeDoc("migration-analysis.md",
+                FrontmatterHandler.writeFrontmatter(
+                        StalenessInfo.fresh(),
+                        new GeneratedInfo("2026-05-13T09:00:00Z", "camel-migrate", "business-requirements.md"),
+                        "# Migration Analysis\n"));
+        Path design = writeDoc("design-spec.md",
+                FrontmatterHandler.writeFrontmatter(
+                        StalenessInfo.fresh(),
+                        new GeneratedInfo("2026-05-13T10:00:00Z", "camel-migrate", "migration-analysis.md"),
+                        "# Design Spec\n"));
+        Path plan = writeDoc("implementation-plan.md",
+                FrontmatterHandler.writeFrontmatter(
+                        StalenessInfo.fresh(),
+                        new GeneratedInfo("2026-05-13T11:00:00Z", "camel-plan", "design-spec.md"),
+                        "# Plan\n"));
+
+        assertEquals(0, runStale("--reason", "business requirements changed", "--cascade", analysis.toString()));
+
+        assertFalse(staleness(requirements).isStale(), "The amended upstream document remains current");
+        assertTrue(staleness(analysis).isStale());
+        assertTrue(staleness(design).isStale());
+        assertTrue(staleness(plan).isStale());
+    }
+
+    private static StalenessInfo staleness(Path file) throws Exception {
+        return FrontmatterHandler.parseStaleness(
+                FrontmatterHandler.extractFrontmatterYaml(Files.readString(file)));
+    }
+
     private int runInit(String... args) {
         StringWriter out = new StringWriter();
         StringWriter err = new StringWriter();
