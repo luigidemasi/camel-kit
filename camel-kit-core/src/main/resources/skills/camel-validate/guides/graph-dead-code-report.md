@@ -1,4 +1,4 @@
-# Dead Code Report — Validation
+# Dead Code Candidate Report — Validation
 
 > **Prerequisites:** See `shared/graph-availability.md` for availability check and fallback rules.
 > **Runs after:** All other validation stages (Stages 4–7, anti-patterns) complete.
@@ -6,7 +6,7 @@
 
 ---
 
-## Stage 8: Dead Code Analysis
+## Stage 8: Structural Retirement-Candidate Analysis
 
 ### 8.1 — Run Analysis
 
@@ -17,10 +17,11 @@ Run the command:
 {COMMAND_PREFIX} graph dead-code
 ```
 
-This returns a JSON object with the full dead code report:
+This returns the existing JSON schema. Treat every entry as a structural candidate within graph coverage, not as proof
+that code or configuration is dead or safe to remove:
 ```json
 {
-  "unusedDependencies": [...],
+  "unusedArtifacts": [...],
   "orphanedRoutes": [...],
   "unusedProperties": [...]
 }
@@ -34,7 +35,7 @@ Append the following section to the validation report path selected by
 `camel-validate`. Do not create a second report file:
 
 ```markdown
-# Dead Code Report
+# Dead Code Candidate Report
 
 Generated: [timestamp]
 Graph: .camel-kit/project-graph.json
@@ -49,7 +50,8 @@ Graph: .camel-kit/project-graph.json
 
 ## Unused Maven Dependencies
 
-These Camel dependencies are declared in pom.xml but no route endpoint uses them. They may be safe to remove.
+These Camel dependencies are declared in pom.xml but no graph-covered route endpoint uses them. Confirm build,
+configuration, custom-code, and runtime usage before changing the dependency.
 
 | GroupId | ArtifactId | Version | Action |
 |---------|-----------|---------|--------|
@@ -57,7 +59,8 @@ These Camel dependencies are declared in pom.xml but no route endpoint uses them
 
 ## Orphaned Routes
 
-These routes consume from internal endpoints (direct:/seda:) but no other route produces to them. They may be dead code or missing a producer.
+These routes consume from internal endpoints (`direct:`/`seda:`) but no graph-covered route produces to them. They are
+candidates for source-owner review and may instead have a dynamic, external, unsupported, or missing producer.
 
 | Route ID | From Endpoint | Possible Cause |
 |----------|--------------|----------------|
@@ -65,7 +68,8 @@ These routes consume from internal endpoints (direct:/seda:) but no other route 
 
 ## Unused Configuration Properties
 
-These camel.* properties don't match any endpoint's component scheme. They may be leftover from removed routes.
+These `camel.*` properties do not match an endpoint component scheme within graph coverage. Confirm all configuration
+and runtime consumers before changing them.
 
 | Property | Value | File |
 |----------|-------|------|
@@ -77,7 +81,7 @@ These camel.* properties don't match any endpoint's component scheme. They may b
 Display inline after the anti-pattern summary:
 
 ```
-== DEAD CODE ANALYSIS ==
+== STRUCTURAL RETIREMENT-CANDIDATE ANALYSIS ==
 
 Unused Maven Dependencies: [N] ⚠️
 Orphaned Routes: [N] ⚠️
@@ -89,7 +93,7 @@ Full findings: <selected-validation-report-path>
 If all counts are 0:
 
 ```
-== DEAD CODE ANALYSIS ==
+== STRUCTURAL RETIREMENT-CANDIDATE ANALYSIS ==
 
-✅ No dead code detected.
+No structural candidates found in available graph coverage.
 ```

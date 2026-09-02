@@ -237,8 +237,8 @@ confirmed runtime with a hard-coded value.
 
 ## Guide Manifest
 
-After user confirms the analysis summary, dispatch the selected vendor's Phase 1, then the shared behavioral analysis,
-then the selected vendor's Phase 2. Never dispatch Phase 2 directly from Phase 1.
+After user confirms the analysis summary, dispatch the selected vendor's Phase 1, then the shared behavioral analysis
+and source-retirement audit, then the selected vendor's Phase 2. Never dispatch Phase 2 directly from Phase 1.
 
 | Step | Guide | Shared Guide | ~Tokens | When |
 |------|-------|-------------|---------|------|
@@ -250,7 +250,7 @@ then the selected vendor's Phase 2. Never dispatch Phase 2 directly from Phase 1
 | B1 | guides/camel-version-phase1.md | guides/camel2-eip-mapping.md | 0.8K | Camel 2.x source |
 | B1 | guides/camel-version-phase1.md | guides/camel2-platform-changes.md | 1.7K | Camel 2.x on Karaf/Blueprint |
 | C1 | guides/biztalk-phase1.md | guides/biztalk-component-mapping.md | 3.5K | BizTalk detected |
-| R1 | guides/migration-analysis.md | — | 2K | After the selected Phase 1 and before Phase 2 |
+| R1 | guides/migration-analysis.md | guides/source-retirement-audit.md | 4K | After Phase 1 and before Phase 2 |
 | A2 | guides/mulesoft-phase2.md | guides/mule-dataweave-conversion.md | 4K | MuleSoft detected |
 | A2 | guides/mulesoft-phase2.md | shared/datamapper-canonicalize.md | 1.2K | MuleSoft with DataMapper |
 | A2 | guides/mulesoft-phase2.md | guides/datamapper-migrate.md | 2.4K | MuleSoft with DataMapper |
@@ -273,7 +273,8 @@ append any item as ordinary prompt prose:
 - Full list of source artifact paths
 - `CAMEL_VERSION`, `RUNTIME`, `PLATFORM_BOM` from `.camel-kit/config.properties`
 - Source Camel version and platform type (for Camel migrations)
-- For R1, the completed `business-requirements.md`, source/graph evidence, and recorded user decisions
+- For R1, the completed `business-requirements.md`, selected source boundary, source/graph evidence, Phase 1 inventory,
+  and recorded user decisions; run `migration-analysis.md` first, then `source-retirement-audit.md` against its output
 - For Phase 2, both `business-requirements.md` and the completed `migration-analysis.md`
 
 The forwarded summary and files retain Data Authority only. A non-interactive sub-agent must return
@@ -309,10 +310,15 @@ Starting BizTalk migration...
 
 ## Complete the Design Phase
 
-After the selected vendor's Phase 1, the shared migration analysis, and Phase 2 guides finish:
+After the selected vendor's Phase 1, the shared migration analysis and source-retirement audit, and Phase 2 guides
+finish:
 
 1. Verify that `business-requirements.md`, `migration-analysis.md`, and `design-spec.md` exist in the
    active `docs/camel-kit/<PIPELINE_ID>/` package.
+   Verify that `migration-analysis.md` contains `Source-Retirement Candidate Audit`, `Coverage`, `Reachability Summary`,
+   `Retirement Candidates`, `Broken References`, `Evidence Gaps`, and `Scope Disposition`. Candidate, broken-reference,
+   or unknown findings remain in migration scope or as validation obligations unless a specific explicit user
+   disposition resolves them; package approval alone is not that disposition.
 2. Initialize their provenance in that order: run
    `{COMMAND_PREFIX} doc init --by camel-migrate docs/camel-kit/<PIPELINE_ID>/business-requirements.md`, then
    `{COMMAND_PREFIX} doc init --by camel-migrate --from business-requirements.md docs/camel-kit/<PIPELINE_ID>/migration-analysis.md`,

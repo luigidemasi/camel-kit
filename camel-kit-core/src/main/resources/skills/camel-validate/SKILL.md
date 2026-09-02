@@ -100,7 +100,7 @@ When invoked standalone without pipeline context (project-scoped), fall back to 
 | `guides/security-analysis.md` | Always | Security checks catalog (credentials, TLS, headers) |
 | `guides/anti-patterns.md` | Always | Anti-pattern detection catalog |
 | `guides/graph-project-context.md` | When `.camel-kit/project-graph.json` exists | Project norms for validation thresholds |
-| `guides/graph-dead-code-report.md` | When `.camel-kit/project-graph.json` exists | Dead code analysis and report |
+| `guides/graph-dead-code-report.md` | When `.camel-kit/project-graph.json` exists | Structural retirement candidates |
 
 ## Validation Report
 

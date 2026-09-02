@@ -265,8 +265,9 @@ business-requirements.md -> migration-analysis.md -> design-spec.md -> implement
 
 Initialize the business requirements as the root, the analysis from `business-requirements.md`, and the design spec
 from `migration-analysis.md`. When business requirements are amended, mark `migration-analysis.md` stale with
-`--cascade`; when the behavioral analysis is amended, mark `design-spec.md` stale with `--cascade`. Target only the first
-downstream artifact so the freshly updated upstream document remains current.
+`--cascade`; when the migration analysis (behavioral risks or source-retirement audit) is amended, mark `design-spec.md`
+stale with `--cascade`. Target only the first downstream artifact so the freshly updated upstream document remains
+current.
 
 ### Detecting Staleness
 

@@ -276,8 +276,10 @@ The dispatch model varies by AI agent:
 
 Both `camel-brainstorm` (greenfield) and `camel-migrate` (migration) produce the active pipeline design spec under
 `docs/camel-kit/<PIPELINE_ID>/design-spec.md`. Migration first materializes `business-requirements.md` and
-`migration-analysis.md`; every unresolved risk becomes a design or validation obligation. The design spec remains the
-contract consumed by `camel-plan`, so the implementation pipeline converges after design approval.
+`migration-analysis.md`; every unresolved behavioral-risk `MIG-###` and source-retirement `SRC-###` finding becomes a
+scope constraint, validation obligation, or unresolved decision. Package approval does not authorize excluding or
+retiring source artifacts. The design spec remains the contract consumed by `camel-plan`, so the implementation
+pipeline converges after design approval.
 
 ---
 
@@ -736,7 +738,7 @@ This scans `docs/camel-kit/` for existing directories, finds the max ID, and cre
 ```text
 docs/camel-kit/<PIPELINE_ID>/
   business-requirements.md <- migrate output only
-  migration-analysis.md    <- migrate evidence and risk register only
+  migration-analysis.md    <- migrate evidence, risk register, and source-retirement candidate audit only
   design-spec.md           <- brainstorm or migrate output
   implementation-plan.md   <- plan output
   execution-report.md      <- execute output

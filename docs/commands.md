@@ -755,6 +755,11 @@ the migration.
 
 MuleSoft migrations benefit from automatic project graph analysis. The graph detects MuleSoft XML files via namespace sniffing (`mulesoft.org/schema/mule`) and parses all flows, sub-flows, connectors, endpoints, transforms, error handlers, and DataWeave scripts into graph nodes. The migration skill gets instant flow topology -- connectors used per flow, sub-flow call chains, DataWeave complexity -- without manual XML deep-dives. DataWeave `.dwl` files are analyzed for function definitions, field access patterns, and content types to identify complex transformations that need manual attention.
 
+The migration package also records a source-retirement candidate audit in `migration-analysis.md`. A valid graph
+accelerates that audit, but bounded source scanning emits the same coverage, reachability, candidate, broken-reference,
+and evidence-gap sections when no graph is usable. A candidate means complete supported source closure found no path
+from a corroborated entry root; it is not proof that the source is dead or safe to remove.
+
 **How it works:**
 
 This is the dedicated migration design orchestrator. It runs vendor-specific discovery and design with a shared
@@ -779,10 +784,12 @@ behavioral analysis between them, then converges with the greenfield workflow af
 1. Maps each source component to its catalog-verified Camel equivalent
 2. Converts DataWeave transformations into design spec field mapping tables
 3. Asks only what the source artifacts cannot answer
-4. Produces one active design spec covering all flows and carries unresolved risk IDs into its validation obligations
+4. Produces one active design spec covering all flows and carries unresolved `MIG-###` and source-retirement `SRC-###`
+   IDs into scope constraints, validation obligations, or unresolved decisions
 
 After the package is assembled, one design approval covers the business requirements, migration analysis, and design
-spec; the pipeline then transitions automatically to `/camel-plan`.
+spec; the pipeline then transitions automatically to `/camel-plan`. Package approval does not authorize excluding or
+retiring source artifacts.
 
 **Mule-to-Camel component mapping highlights:**
 

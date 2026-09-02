@@ -510,6 +510,11 @@ The command scans all project artifacts, detects the source platform automatical
 assumption, evidence gap, and risk as `Confirmed`, `Inferred`, or `Unknown`, with its evidence, impact, validation,
 owner, and disposition. It never treats the whole migration as API-compatible by default.
 
+The same artifact includes a source-retirement candidate audit. A usable graph accelerates and corroborates the audit;
+without one, bounded source scanning produces the same coverage, reachability, broken-reference, candidate, and
+evidence-gap sections. Candidates remain in scope unless a specific user-approved exclusion is backed by named owner
+and runtime validation evidence; approving the package alone is not that decision.
+
 **Phase 2: Integration Architect** -- maps each source component to its Camel equivalent, converts transformations (e.g., DataWeave to field mapping tables), and asks only what the source artifacts cannot answer (authentication details, retry strategy, missing endpoint URLs).
 
 ### Output
@@ -624,7 +629,7 @@ When working with existing projects -- whether migrating from another platform, 
 |-----------|-------------|---------------|
 | **Route flow tracing** | Follows the complete message path through a route chain, including cross-route links via `direct:`, `seda:`, and `vm:` endpoints | Understanding how data flows end-to-end through a multi-route integration |
 | **Impact analysis** | Traces upstream and downstream dependencies of any node -- a route, a class, a configuration property | Before changing a shared bean or endpoint, knowing which routes will be affected |
-| **Dead code detection** | Identifies unused Maven dependencies, orphaned routes (not referenced by any other route), and stale configuration properties | Cleaning up projects after incremental changes, catching leftover artifacts from migration |
+| **Retirement-candidate detection** | Reports graph-covered unused-dependency, unreferenced-route, and stale-property candidates for owner validation | Reviewing possible leftovers without claiming they are dead or safe to remove |
 | **Route topology mapping** | Maps route-to-route connections to determine which routes are independent | Claude uses this to dispatch independent routes to parallel subagents during `/camel-execute` |
 | **Project norm extraction** | Computes statistical norms from the codebase -- naming patterns, error handling coverage, route complexity (P75 step count) | Validation uses project-specific thresholds instead of hardcoded defaults |
 | **DI-aware dependency tracking** | Detects dependency injection annotations (@Inject, @Autowired, @Value, @ConfigProperty) and creates USES_TYPE edges for injected fields and constructor parameters | Understanding which services are injected into routes, processors, or beans -- traces dependencies across interface boundaries |
@@ -637,10 +642,16 @@ When working with existing projects -- whether migrating from another platform, 
 
 The graph is consumed transparently by multiple skills:
 
-- **`/camel-validate`** -- Validation thresholds adapt to the project's actual patterns. A route with 15 steps is acceptable in a project where existing routes average 12 steps, but flagged in a project where they average 5. Dead code detection finds unused dependencies and orphaned routes.
+- **`/camel-validate`** -- Validation thresholds adapt to the project's actual patterns. A route with 15 steps is
+  acceptable in a project where existing routes average 12 steps, but flagged in a project where they average 5. The
+  graph check reports structural retirement candidates and its coverage limits rather than proving code is dead.
 - **`camel-implement`** -- The AI matches the project's existing conventions (naming patterns, bean reuse, dependency versions) rather than inventing new ones.
 - **`camel-test`** -- Route topology awareness lets the AI understand upstream and downstream dependencies, generating tests that cover integration points rather than just individual routes.
-- **`/camel-migrate`** -- A full-project graph analysis in Phase 0 detects structural concerns (circular dependencies, deeply nested route chains, unused components) before any code is translated. Per-route impact analysis in Phase 2 identifies cross-cutting concerns for each route being migrated. For MuleSoft projects, the graph automatically parses all Mule XML flows, sub-flows, connectors, and DataWeave scripts -- giving the migration skill instant flow topology without manual XML deep-dives. For BizTalk projects, the graph parses orchestrations, maps, pipelines, and bindings -- detecting adapters, functoid types, shape patterns, and pipeline components automatically.
+- **`/camel-migrate`** -- Phase 0 uses graph evidence to accelerate structural analysis before any code is translated,
+  then reconciles it with bounded source scans. Per-route impact analysis in Phase 2 identifies cross-cutting concerns
+  for each route being migrated. MuleSoft graph support parses XML flows, sub-flows, connectors, and DataWeave scripts;
+  BizTalk graph support parses orchestrations, maps, pipelines, and bindings. Missing graph nodes or edges remain
+  evidence gaps rather than proving that source is unused.
 
 ### Graph Commands
 

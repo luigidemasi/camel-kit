@@ -1,8 +1,9 @@
 # MuleSoft Migration — Phase 2: Design Spec Generation
 
 > **Context variables:** `CAMEL_VERSION`, `RUNTIME`, `PLATFORM_BOM` from `.camel-kit/config.properties`
-> **Prerequisite:** Phase 1 (`mulesoft-phase1.md`) and the shared behavioral analysis must be complete:
-> `business-requirements.md` and `migration-analysis.md` exist in `docs/camel-kit/<PIPELINE_ID>/`.
+> **Prerequisite:** Phase 1 (`mulesoft-phase1.md`), the shared behavioral analysis, and the source-retirement audit must
+> be complete: `business-requirements.md` and `migration-analysis.md` exist in `docs/camel-kit/<PIPELINE_ID>/`, and the
+> analysis contains `## Source-Retirement Candidate Audit`.
 
 ## Phase 2 — Integration Architect
 
@@ -23,8 +24,9 @@
 
 **MCP catalog tools — MANDATORY when MCP is configured (same rules as the design assembly guide):**
 
-Before designing flows, map every `Inferred` or `Unknown` `MIG-###` row to an explicit design constraint, validation
-requirement, or unresolved decision. Preserve the risk ID and status; Phase 2 must not silently declare it resolved.
+Before designing flows, map every `Inferred` or `Unknown` `MIG-###` row and every `Retirement candidate`,
+`Broken reference`, or `Unknown` `SRC-###` row to an explicit scope constraint, validation requirement, or unresolved
+decision. Preserve each ID and status; Phase 2 must not silently resolve or exclude it.
 
 Before every MCP catalog call, resolve `CAMEL_VERSION` + `RUNTIME` to the full runtime-specific `PLATFORM_BOM` GAV using
 Rule 1 in `skills/shared/mcp-setup.md`, establish the `limit=0` version probe, and pass that same runtime/BOM binding to

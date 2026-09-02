@@ -79,3 +79,6 @@ row. If a blocking gap prevents a safe design choice, return to the user with th
 
 After writing the document, return its path and counts by status to `camel-migrate`. Do not present it for a separate
 approval: it is reviewed with the complete migration design package at the existing single design-approval gate.
+
+Next, read `source-retirement-audit.md` and append its required `## Source-Retirement Candidate Audit` section to this
+same artifact. Do not start Phase 2 until both analysis sections are complete.

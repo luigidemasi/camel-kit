@@ -272,7 +272,7 @@ class ShippedAssetStructureTest {
                         agentName + " must not generate command scaffolding");
             }
             assertGeneratedContextAuthority(agentName, ctx);
-            assertGeneratedMigrationAnalysisGuide(agentName, ctx);
+            assertGeneratedMigrationOperationsGuides(agentName, ctx);
             assertGeneratedMarkdownResolvesCommandPrefix(agentName, ctx);
             assertGeneratedPersonaReferencesResolve(agentName, ctx);
             assertGeneratedShipDelegate(agentName, ctx, shipSkillOnly);
@@ -281,14 +281,30 @@ class ShippedAssetStructureTest {
         }
     }
 
-    private static void assertGeneratedMigrationAnalysisGuide(String agentName, InitContext ctx) throws Exception {
-        Path guide = ctx.skillsDir().resolve("camel-migrate/guides/migration-analysis.md");
-        assertTrue(Files.isRegularFile(guide), agentName + " must install the migration analysis guide");
-        assertTrue(Files.readString(guide).contains("## Behavioral Assumptions and Risks"),
+    private static void assertGeneratedMigrationOperationsGuides(String agentName, InitContext ctx) throws Exception {
+        Path analysisGuide = ctx.skillsDir().resolve("camel-migrate/guides/migration-analysis.md");
+        Path retirementGuide = ctx.skillsDir().resolve("camel-migrate/guides/source-retirement-audit.md");
+        assertTrue(Files.isRegularFile(analysisGuide), agentName + " must install the migration analysis guide");
+        assertTrue(Files.isRegularFile(retirementGuide), agentName + " must install the source-retirement audit guide");
+
+        String analysis = Files.readString(analysisGuide);
+        String retirement = Files.readString(retirementGuide);
+        String entrypoint = Files.readString(ctx.skillsDir().resolve("camel-migrate/SKILL.md"));
+        assertTrue(analysis.contains("## Behavioral Assumptions and Risks"),
                 agentName + " must install the evidence-qualified risk contract");
-        assertTrue(Files.readString(ctx.skillsDir().resolve("camel-migrate/SKILL.md"))
-                .contains("migration-analysis.md"),
+        assertTrue(retirement.contains("## Source-Retirement Candidate Audit"),
+                agentName + " must install the source-retirement report contract");
+        for (String classification : List.of(
+                "`Reachable`", "`Retirement candidate`", "`Broken reference`", "`Unknown`")) {
+            assertTrue(retirement.contains(classification),
+                    agentName + " source-retirement audit must retain classification " + classification);
+        }
+        assertTrue(retirement.contains("SRC-###"),
+                agentName + " source-retirement audit must retain stable source IDs");
+        assertTrue(entrypoint.contains("migration-analysis.md"),
                 agentName + " migration entrypoint must use the installed analysis guide");
+        assertTrue(entrypoint.contains("source-retirement-audit.md"),
+                agentName + " migration entrypoint must use the installed source-retirement audit guide");
     }
 
     private static void assertGeneratedContextAuthority(String agentName, InitContext ctx) throws Exception {

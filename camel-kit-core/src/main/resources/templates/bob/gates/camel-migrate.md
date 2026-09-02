@@ -186,10 +186,15 @@ Next read `.bob/skills/camel-migrate/guides/migration-analysis.md` and write
 `docs/camel-kit/<PIPELINE_ID>/migration-analysis.md`. Record interface and behavior claims separately with bounded
 evidence and `Confirmed`, `Inferred`, or `Unknown` status; never assign compatibility to the project by default.
 
+Then read `.bob/skills/camel-migrate/guides/source-retirement-audit.md` and update the
+`Source-Retirement Candidate Audit` section in `migration-analysis.md`. Produce the same coverage, reachability,
+candidate, broken-reference, and evidence-gap sections with or without a graph. A candidate is not dead code, a
+deletion recommendation, or permission to omit it.
+
 Only after that analysis exists, run the matching Phase 2 guide (`mulesoft-phase2.md`, `camel-version-phase2.md`, or
-`biztalk-phase2.md`). Phase 2 must read the analysis, preserve its unresolved risk IDs as design or validation
-obligations, and write the catalog-verified `docs/camel-kit/<PIPELINE_ID>/design-spec.md`. Load the vendor's mapping,
-conversion, and platform guides when directed by those phase guides.
+`biztalk-phase2.md`). Phase 2 must read the analysis, preserve unresolved `MIG-###` and `SRC-###` IDs as scope or
+validation obligations, and write the catalog-verified `docs/camel-kit/<PIPELINE_ID>/design-spec.md`. Load the vendor's
+mapping, conversion, and platform guides when directed by those phase guides.
 </Step>
 
 <Step>
@@ -203,6 +208,7 @@ Assemble the migration design spec including:
 - Migration context (source → target)
 - All concern decisions
 - Behavioral assumptions, evidence gaps, and their design obligations
+- Source-retirement candidates, broken references, coverage, and scope dispositions
 - Component mappings
 - Route designs
 

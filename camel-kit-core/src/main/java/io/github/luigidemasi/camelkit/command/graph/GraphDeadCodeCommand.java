@@ -6,7 +6,7 @@ import io.github.luigidemasi.camelkit.graph.query.DeadCodeAnalyzer;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import picocli.CommandLine.Command;
 
-@Command(name = "dead-code", description = "Detect unused deps, orphaned routes, stale config")
+@Command(name = "dead-code", description = "Report graph-covered structural retirement candidates")
 public class GraphDeadCodeCommand extends GraphQueryCommand {
 
     @Override
