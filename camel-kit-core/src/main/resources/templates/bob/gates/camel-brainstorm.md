@@ -92,9 +92,11 @@ and graph operations; implementation artifacts remain prohibited during the desi
 
 - With an explicit `<PIPELINE_ID>`, use standalone mode. If that pipeline already
   has `design-spec.md`, enter amend mode: load it, ask what to change, update and
-  self-review only the affected design, request the single design approval, run
-  `{COMMAND_PREFIX} doc stale --reason "design spec amended" --cascade docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`
-  when that downstream artifact exists, then stop.
+  self-review only the affected design, request the single design approval, then
+  stale each existing direct child separately:
+  - `{COMMAND_PREFIX} doc stale --reason "design spec amended" --cascade docs/camel-kit/<PIPELINE_ID>/migration-runbook.md`
+  - `{COMMAND_PREFIX} doc stale --reason "design spec amended" --cascade docs/camel-kit/<PIPELINE_ID>/implementation-plan.md`
+  Never target the freshly amended design itself, then stop.
 - Without an explicit ID, use chained mode and read `activePipeline` from
   `.camel-kit/pipeline.json` when present.
 - If neither source yields an ID, ask the user for a lowercase slug, run

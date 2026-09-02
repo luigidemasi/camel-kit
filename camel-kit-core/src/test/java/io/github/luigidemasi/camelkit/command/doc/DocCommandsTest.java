@@ -254,18 +254,69 @@ class DocCommandsTest {
                         StalenessInfo.fresh(),
                         new GeneratedInfo("2026-05-13T10:00:00Z", "camel-migrate", "migration-analysis.md"),
                         "# Design Spec\n"));
+        Path runbook = writeDoc("migration-runbook.md",
+                FrontmatterHandler.writeFrontmatter(
+                        StalenessInfo.fresh(),
+                        new GeneratedInfo("2026-05-13T11:00:00Z", "camel-migrate", "design-spec.md"),
+                        "# Migration Runbook\n"));
         Path plan = writeDoc("implementation-plan.md",
                 FrontmatterHandler.writeFrontmatter(
                         StalenessInfo.fresh(),
-                        new GeneratedInfo("2026-05-13T11:00:00Z", "camel-plan", "design-spec.md"),
+                        new GeneratedInfo("2026-05-13T12:00:00Z", "camel-plan", "design-spec.md"),
                         "# Plan\n"));
+        Path report = writeDoc("execution-report.md",
+                FrontmatterHandler.writeFrontmatter(
+                        StalenessInfo.fresh(),
+                        new GeneratedInfo("2026-05-13T13:00:00Z", "camel-execute", "implementation-plan.md"),
+                        "# Report\n"));
 
         assertEquals(0, runStale("--reason", "business requirements changed", "--cascade", analysis.toString()));
 
         assertFalse(staleness(requirements).isStale(), "The amended upstream document remains current");
         assertTrue(staleness(analysis).isStale());
         assertTrue(staleness(design).isStale());
+        assertTrue(staleness(runbook).isStale());
         assertTrue(staleness(plan).isStale());
+        assertTrue(staleness(report).isStale());
+    }
+
+    @Test
+    void directDesignAmendmentStalesBothChildrenWhileKeepingDesignCurrent() throws Exception {
+        Path design = writeDoc("design-spec.md",
+                FrontmatterHandler.writeFrontmatter(
+                        StalenessInfo.fresh(),
+                        new GeneratedInfo("2026-05-13T10:00:00Z", "camel-migrate", "migration-analysis.md"),
+                        "# Design Spec\n"));
+        Path runbook = writeDoc("migration-runbook.md",
+                FrontmatterHandler.writeFrontmatter(
+                        StalenessInfo.fresh(),
+                        new GeneratedInfo("2026-05-13T11:00:00Z", "camel-migrate", "design-spec.md"),
+                        "# Migration Runbook\n"));
+        Path plan = writeDoc("implementation-plan.md",
+                FrontmatterHandler.writeFrontmatter(
+                        StalenessInfo.fresh(),
+                        new GeneratedInfo("2026-05-13T12:00:00Z", "camel-plan", "design-spec.md"),
+                        "# Plan\n"));
+        Path report = writeDoc("execution-report.md",
+                FrontmatterHandler.writeFrontmatter(
+                        StalenessInfo.fresh(),
+                        new GeneratedInfo("2026-05-13T13:00:00Z", "camel-execute", "implementation-plan.md"),
+                        "# Report\n"));
+
+        assertEquals(0, runStale("--reason", "design spec changed", "--cascade", runbook.toString()));
+        assertFalse(staleness(design).isStale(), "The amended design remains current");
+        assertTrue(staleness(runbook).isStale());
+        assertFalse(staleness(plan).isStale(), "The implementation branch is independent of the runbook");
+        assertFalse(staleness(report).isStale());
+
+        assertEquals(0, runStale("--reason", "design spec changed", "--cascade", plan.toString()));
+
+        assertFalse(staleness(design).isStale(), "The amended design remains current");
+        assertTrue(staleness(runbook).isStale());
+        assertTrue(staleness(plan).isStale());
+        StalenessInfo reportInfo = staleness(report);
+        assertTrue(reportInfo.isStale());
+        assertTrue(reportInfo.getReason().contains("implementation-plan.md"));
     }
 
     private static StalenessInfo staleness(Path file) throws Exception {

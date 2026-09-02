@@ -19,7 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Undetermined - evidence needed`: incremental guidance requires current confirmation of an existing controllable seam
   plus confirmed target constraints and pre-cutover validations. It identifies design candidacy, not cutover readiness.
   A single cutover requires a closed, operator-confirmed ingress/control inventory and complete confirmed evidence that
-  every seam candidate inside its named source and operational boundaries is absent or unsafe.
+  every seam candidate inside its named source and operational boundaries is absent or unsafe. After design,
+  `camel-migrate` also produces `migration-runbook.md` with deployment, cutover, validation, rollback, reconciliation,
+  soak, and source-retirement decision steps. Missing operational facts use
+  `Unknown — operator decision required: <missing fact>` instead of invented values. Package approval does not
+  authorize provisioning, deployment, cutover, traffic switching, rollback, reconciliation, or source retirement;
+  retirement remains a separate named operator decision after validation, reconciliation, and soak have passed.
 
 - **Explicit design scope boundaries** — greenfield design specs now record a top-level `Not Doing (and Why)` section
   with a concrete reason for every excluded capability. Brainstorm captures these boundaries during the interview, and

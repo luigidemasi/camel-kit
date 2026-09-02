@@ -284,11 +284,14 @@ class ShippedAssetStructureTest {
     private static void assertGeneratedMigrationOperationsGuides(String agentName, InitContext ctx) throws Exception {
         Path analysisGuide = ctx.skillsDir().resolve("camel-migrate/guides/migration-analysis.md");
         Path retirementGuide = ctx.skillsDir().resolve("camel-migrate/guides/source-retirement-audit.md");
+        Path runbookGuide = ctx.skillsDir().resolve("camel-migrate/guides/migration-runbook.md");
         assertTrue(Files.isRegularFile(analysisGuide), agentName + " must install the migration analysis guide");
         assertTrue(Files.isRegularFile(retirementGuide), agentName + " must install the source-retirement audit guide");
+        assertTrue(Files.isRegularFile(runbookGuide), agentName + " must install the migration runbook guide");
 
         String analysis = Files.readString(analysisGuide);
         String retirement = Files.readString(retirementGuide);
+        String runbook = Files.readString(runbookGuide);
         String entrypoint = Files.readString(ctx.skillsDir().resolve("camel-migrate/SKILL.md"));
         String normalizedAnalysis = analysis.replaceAll("\\s+", " ");
         String normalizedEntrypoint = entrypoint.replaceAll("\\s+", " ");
@@ -307,6 +310,27 @@ class ShippedAssetStructureTest {
                 agentName + " migration entrypoint must use the installed analysis guide");
         assertTrue(entrypoint.contains("source-retirement-audit.md"),
                 agentName + " migration entrypoint must use the installed source-retirement audit guide");
+        assertTrue(entrypoint.contains("migration-runbook.md"),
+                agentName + " migration entrypoint must use the installed runbook guide");
+        assertEquals(Files.readString(resourcePath("skills/camel-migrate/guides/migration-runbook.md")), runbook,
+                agentName + " must install the complete migration runbook contract byte-for-byte");
+        for (String heading : List.of(
+                "## Scope and Ownership",
+                "## Prerequisites",
+                "## Configuration and Data Readiness",
+                "## Deployment Sequence",
+                "## Cutover Entry Criteria, Actions, and Exit Criteria",
+                "## Operational Validation",
+                "## Rollback Triggers, Actions, and Verification",
+                "## Data and Message Reconciliation",
+                "## Ownership and Escalation",
+                "## Soak Criteria",
+                "## Source-Retirement Decision",
+                "## Unresolved Operator Decisions")) {
+            assertTrue(runbook.contains(heading), agentName + " migration runbook must retain heading " + heading);
+        }
+        assertTrue(runbook.contains("Unknown — operator decision required: <missing fact>"),
+                agentName + " migration runbook must retain the exact unknown-fact sentinel");
         for (String heading : List.of(
                 "## Migration Strategy",
                 "### Incremental / Strangler Guidance",

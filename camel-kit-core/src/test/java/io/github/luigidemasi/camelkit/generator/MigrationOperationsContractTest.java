@@ -160,7 +160,7 @@ class MigrationOperationsContractTest {
                 "### Evidence Gaps",
                 "### Scope Disposition");
 
-        String sharedAuditRow = "| R1 | guides/migration-analysis.md | guides/source-retirement-audit.md | 4K | "
+        String sharedAuditRow = "| R1 | guides/migration-analysis.md | guides/source-retirement-audit.md | 5.2K | "
                                 + "After Phase 1 and before Phase 2 |";
         assertContainsAll(migrate,
                 sharedAuditRow,
@@ -521,6 +521,181 @@ class MigrationOperationsContractTest {
                     "deferred strategy for the business-requirements strategy and guidance",
                     "Phase 2 for design constraints");
         }
+    }
+
+    @Test
+    void migrationRunbookIsEvidenceQualifiedAndOperationallyBounded() throws Exception {
+        String rawRunbook = resource("skills/camel-migrate/guides/migration-runbook.md");
+        String runbook = normalizeMarkdown(rawRunbook);
+
+        assertContainsAll(runbook,
+                "**Output:** `docs/camel-kit/<PIPELINE_ID>/migration-runbook.md`",
+                "Use only evidence-qualified inputs",
+                "Copy every migration-strategy scope and its exact `Incremental candidate`, `Single cutover required`, "
+                                                      + "or `Undetermined - evidence needed` classification",
+                "Preserve every referenced `MIG-###` and `SRC-###` ID and its status",
+                "For `Single cutover required`, also preserve the exact named validated source boundary, named "
+                                                                                       + "operational-control boundary, and evidence for the closed operator-confirmed ingress and "
+                                                                                       + "control inventory",
+                "required boundary, closed-inventory evidence, or upstream section is missing or inconsistent, stop",
+                "`Incremental candidate` means only that a confirmed existing seam and confirmed design constraints "
+                                                                                                                      + "permit a conditional incremental design",
+                "Recheck that the seam is currently operative and that every target constraint is implemented and "
+                                                                                                                                                                   + "validated before documenting an executable cutover action",
+                "`Single cutover required` is a bounded strategy classification. It does not prove that deployment, "
+                                                                                                                                                                                                                                  + "cutover, or rollback is safe or ready",
+                "`Undetermined - evidence needed` receives no concrete cutover or traffic-switching procedure",
+                "Never invent commands, endpoints, thresholds, durations, contacts, owners, or environment values",
+                "Never copy credentials; record validated secret references only",
+                "Package approval does not authorize provisioning, deployment, cutover, traffic switching, rollback, "
+                                                                                   + "reconciliation, or source retirement",
+                "Each operational action needs separate authorization from the named operator at execution time",
+                "| Scope | Covered Ingress IDs | Classification | Validated Source Boundary | "
+                                                                                                                  + "Operational-Control Boundary | Closed Inventory Evidence |",
+                "Confine every single-cutover procedure and criterion to its preserved named validated source and "
+                                                                                                                                                                                  + "operational-control boundaries and closed inventory",
+                "anything outside or not covered by those bounds remains `Undetermined - evidence needed` and receives "
+                                                                                                                                                                                                                                           + "no concrete cutover action",
+                "`Unknown — operator decision required: <missing fact>`",
+                "Do not replace it with `TBD`, a guessed default, an example value, or an unqualified blank",
+                "This table is the normative missing-input",
+                "required Single-cutover boundaries/closed-inventory evidence | Stop; rerun the responsible analysis "
+                                                             + "or Phase 2 pass",
+                "a sentinel is never valid in those fields for `Single cutover required`; missing evidence invalidates "
+                                                                                  + "the upstream classification and stops runbook generation",
+                "Source retirement is a separate named operator decision after operational validation, reconciliation, "
+                                                                                                                                                + "and soak criteria have passed",
+                "Neither `Retirement candidate`, a successful cutover, elapsed soak time, nor package approval "
+                                                                                                                                                                                   + "authorizes removal",
+                "The runbook never deletes, disables, or modifies source artifacts");
+
+        long tableColumns = 0;
+        int tableRow = 0;
+        int lineNumber = 0;
+        for (String line : rawRunbook.split("\\R")) {
+            lineNumber++;
+            if (!line.startsWith("|")) {
+                tableRow = 0;
+                continue;
+            }
+            long columns = line.chars().filter(character -> character == '|').count();
+            if (tableRow == 0) {
+                tableColumns = columns;
+            } else {
+                assertEquals(tableColumns, columns,
+                        "Runbook table row " + lineNumber + " must match its header column count");
+            }
+            if (tableRow == 1) {
+                assertTrue(line.matches("\\|(?:-+\\|)+"),
+                        "Runbook table row " + lineNumber + " must be a Markdown delimiter");
+            }
+            tableRow++;
+        }
+
+        int runbookBodyStart = rawRunbook.indexOf("\n## Scope and Ownership\n");
+        assertTrue(runbookBodyStart >= 0, "Migration runbook must contain its ordered output template");
+        String runbookBody = rawRunbook.substring(runbookBodyStart);
+        assertOrdered(runbookBody,
+                "## Scope and Ownership",
+                "## Prerequisites",
+                "## Configuration and Data Readiness",
+                "## Deployment Sequence",
+                "## Cutover Entry Criteria, Actions, and Exit Criteria",
+                "## Operational Validation",
+                "## Rollback Triggers, Actions, and Verification",
+                "## Data and Message Reconciliation",
+                "## Ownership and Escalation",
+                "## Soak Criteria",
+                "## Source-Retirement Decision",
+                "## Unresolved Operator Decisions");
+    }
+
+    @Test
+    void migrationRunbookGenerationAndStalenessFollowTheDesignBranch() throws Exception {
+        String migrate = normalizeMarkdown(resource("skills/camel-migrate/SKILL.md"));
+        String bobMigrate = normalizeMarkdown(resource("templates/bob/gates/camel-migrate.md"));
+        String infrastructure = normalizeMarkdown(resource("skills/shared/pipeline-infrastructure.md"));
+        String brainstorm = normalizeMarkdown(resource("skills/camel-brainstorm/SKILL.md"));
+        String bobBrainstorm = normalizeMarkdown(resource("templates/bob/gates/camel-brainstorm.md"));
+        String replan = normalizeMarkdown(resource("skills/camel-execute/guides/re-plan-loop.md"));
+        String initRunbook = "doc init --by camel-migrate --from design-spec.md "
+                             + "docs/camel-kit/<PIPELINE_ID>/migration-runbook.md";
+
+        assertContainsAll(migrate,
+                "| R2 | guides/migration-runbook.md | — | 3.5K | After Phase 2 and final runtime-eligibility recheck |");
+        assertContainsAll(bobMigrate,
+                "| `.bob/skills/camel-migrate/guides/migration-runbook.md` | Deployment, cutover, rollback, and "
+                                      + "retirement runbook |");
+        String canonicalCompletion = migrate.substring(migrate.indexOf("## Complete the Design Phase"));
+        assertOrdered(canonicalCompletion,
+                "Recheck the completed design before approval",
+                "Read `guides/migration-runbook.md`, then generate and validate",
+                initRunbook,
+                "Present `business-requirements.md`, `migration-analysis.md`, `design-spec.md`, and "
+                             + "`migration-runbook.md` together exactly once");
+        String bobPackage = bobMigrate.substring(bobMigrate.indexOf("## Generate the Vendor Design Package"));
+        assertOrdered(bobPackage,
+                "Recheck the completed design before generating the runbook",
+                "Read `.bob/skills/camel-migrate/guides/migration-runbook.md`, then generate and validate",
+                initRunbook,
+                "Present `business-requirements.md`, `migration-analysis.md`, `design-spec.md`, and "
+                             + "`migration-runbook.md` together exactly once");
+
+        for (String entrypoint : List.of(canonicalCompletion, bobPackage)) {
+            assertContainsAll(entrypoint,
+                    "from the validated final business requirements, migration analysis, design, target configuration, "
+                                          + "current operational evidence, and explicit operator decisions",
+                    "exact `Incremental candidate`, `Single cutover required`, or `Undetermined - evidence needed` "
+                                                                                                             + "classification",
+                    "every referenced `MIG-###` and `SRC-###` ID and its `Confirmed`, `Inferred`, or `Unknown` evidence "
+                                                                                                                                 + "status",
+                    "For `Single cutover required`, also preserve its exact named validated source boundary, named "
+                                                                                                                                             + "operational-control boundary, and closed operator-confirmed ingress/control inventory "
+                                                                                                                                             + "evidence; never emit a procedure outside those bounds",
+                    "`Unknown — operator decision required: <missing fact>`",
+                    "never invent commands, endpoints, thresholds, durations, contacts, owners, or environment values, "
+                                                                              + "and never copy credential material",
+                    "Record validated secret references only",
+                    "doc unstale docs/camel-kit/<PIPELINE_ID>/migration-runbook.md",
+                    "does not authorize provisioning, deployment, cutover, traffic switching, rollback, reconciliation, "
+                                                                                     + "or source retirement");
+        }
+
+        assertContainsAll(infrastructure,
+                "business-requirements.md -> migration-analysis.md -> design-spec.md",
+                "design-spec.md -> migration-runbook.md",
+                "design-spec.md -> implementation-plan.md",
+                "Initialize both `migration-runbook.md` and `implementation-plan.md` from `design-spec.md`",
+                "When `design-spec.md` itself is amended, mark each existing direct child separately with `--cascade`",
+                "Do not target the freshly amended design: `doc stale` marks its target as well as its descendants");
+        assertFalse(infrastructure.contains("migration-runbook.md -> implementation-plan.md"),
+                "The implementation plan must remain a direct child of the design spec");
+
+        assertContainsAll(brainstorm,
+                "doc stale --reason \"design spec amended\" --cascade <migration-runbook-path>",
+                "doc stale --reason \"design spec amended\" --cascade <implementation-plan-path>",
+                "separately for each existing direct child",
+                "without marking the amended design itself stale");
+        assertContainsAll(bobBrainstorm,
+                "doc stale --reason \"design spec amended\" --cascade "
+                                         + "docs/camel-kit/<PIPELINE_ID>/migration-runbook.md",
+                "doc stale --reason \"design spec amended\" --cascade "
+                                                                                                + "docs/camel-kit/<PIPELINE_ID>/implementation-plan.md",
+                "stale each existing direct child separately",
+                "Never target the freshly amended design itself");
+
+        assertOrdered(replan,
+                "doc stale --reason \"design changed by re-plan\" --cascade <migration-runbook-path>",
+                "doc stale --reason \"design changed by re-plan\" --cascade <implementation-plan-path>",
+                "doc init --by camel-plan --from design-spec.md <plan-path>",
+                "doc unstale <plan-path>",
+                "If `migration-runbook.md` existed in Step 1, leave it stale");
+        assertContainsAll(replan,
+                "report that `camel-migrate` must regenerate it before it is used for deployment, cutover, rollback, "
+                                  + "reconciliation, soak, or source retirement");
+        String replanNever = replan.substring(replan.indexOf("## Never"));
+        assertContainsAll(replanNever,
+                "Regenerate or clear staleness from `migration-runbook.md` during re-planning");
     }
 
     private static String resource(String name) throws Exception {

@@ -256,7 +256,7 @@ Graph: .camel-kit/project-graph.json
 |--------|-------------|--------|
 | [scheme] | [count] | [route list] |
 
-## Candidate Dependency Ordering
+## Migration Ordering
 1. [routeId] (leaf under supported static source traversal)
 2. [routeId] (depends on [N])
 ...

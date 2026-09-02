@@ -24,6 +24,7 @@ docs/camel-kit/<PIPELINE_ID>/
   business-requirements.md <- written by migrate only
   migration-analysis.md    <- written by migrate only, after business requirements
   design-spec.md           <- written by brainstorm or migrate
+  migration-runbook.md     <- written by migrate only, after the design spec
   implementation-plan.md   <- written by plan
   execution-report.md      <- written by execute
   validation-report.md     <- written by validate
@@ -87,9 +88,10 @@ For manual pipelines (`mode = "manual"`), stage is determined by which artifacts
 | `design-spec.md` + `implementation-plan.md` + `execution-report.md` | Execution complete |
 | All four (`+ validation-report.md`) | Pipeline complete |
 
-Migration packages add `business-requirements.md` and `migration-analysis.md` before `design-spec.md`. Neither of those
-files alone means design is complete: a migration reaches the design-complete stage only when all three exist and the
-complete package has passed the single design-approval gate.
+Migration packages add `business-requirements.md` and `migration-analysis.md` before `design-spec.md`, then add
+`migration-runbook.md` from the completed design. None of the earlier files alone means design is complete: a migration
+reaches the design-complete stage only when all four exist and the complete package has passed the single
+design-approval gate.
 
 ---
 
@@ -162,7 +164,7 @@ The skill is invoked independently (new session, CI/CD, or manual re-entry). No 
 | Skill | Required Input Artifact | Output Artifact |
 |---|---|---|
 | brainstorm | _(none — starts from scratch or amends existing)_ | `design-spec.md` |
-| migrate | selected source artifacts | `business-requirements.md`, `migration-analysis.md`, `design-spec.md` |
+| migrate | selected source artifacts | `business-requirements.md`, `migration-analysis.md`, `design-spec.md`, `migration-runbook.md` |
 | plan | `design-spec.md` | `implementation-plan.md` |
 | execute | `implementation-plan.md` | `execution-report.md` |
 | validate | `execution-report.md` (or generated routes in `src/`) | `validation-report.md` |
@@ -257,17 +259,23 @@ Exit code 0 for successful execution regardless of staleness. Non-zero for error
 - Skills call `{COMMAND_PREFIX} doc check` via tool call instead of scanning text
 - `--reason` is required on `doc stale` for audit trail
 
-Migration documents use this single-parent provenance chain:
+Migration documents use this provenance graph:
 
 ```text
-business-requirements.md -> migration-analysis.md -> design-spec.md -> implementation-plan.md
+business-requirements.md -> migration-analysis.md -> design-spec.md
+design-spec.md -> migration-runbook.md
+design-spec.md -> implementation-plan.md
 ```
 
 Initialize the business requirements as the root, the analysis from `business-requirements.md`, and the design spec
-from `migration-analysis.md`. When business requirements are amended, mark `migration-analysis.md` stale with
-`--cascade`; when the migration analysis (behavioral risks or source-retirement audit) is amended, mark `design-spec.md`
-stale with `--cascade`. Target only the first downstream artifact so the freshly updated upstream document remains
-current.
+from `migration-analysis.md`. Initialize both `migration-runbook.md` and `implementation-plan.md` from
+`design-spec.md`. When business requirements are amended, mark `migration-analysis.md` stale with `--cascade`; when the
+migration analysis (behavioral risks or source-retirement audit) is amended, mark `design-spec.md` stale with
+`--cascade`. These upstream cascades reach both design children.
+
+When `design-spec.md` itself is amended, mark each existing direct child separately with `--cascade`: first
+`migration-runbook.md`, then `implementation-plan.md`. Do not target the freshly amended design: `doc stale` marks its
+target as well as its descendants.
 
 ### Detecting Staleness
 
@@ -278,18 +286,22 @@ Run `{COMMAND_PREFIX} doc check <file>` and inspect the JSON output. If `stale` 
 
 ### Applying Staleness — Amendments
 
-When a skill amends an upstream artifact (partial edit, not a full regeneration), it must mark downstream outputs stale:
+When a skill amends an upstream artifact (partial edit, not a full regeneration), it must mark each existing direct
+downstream output stale. For the branched migration design:
 
 ```bash
-{COMMAND_PREFIX} doc stale --reason "<description>" --cascade <first-downstream-artifact>
+{COMMAND_PREFIX} doc stale --reason "<description>" --cascade <migration-runbook-path>
+{COMMAND_PREFIX} doc stale --reason "<description>" --cascade <implementation-plan-path>
 ```
 
-This marks the downstream artifact and all further-downstream artifacts (via `generated.from` chain) as stale. Do NOT mark the freshly amended artifact itself stale — it was just updated and is current.
+Each command marks its target and all further-downstream artifacts (via `generated.from`) stale. Run commands only for
+children that exist. Do NOT mark the freshly amended artifact itself stale — it was just updated and is current.
 
 ### Clearing Staleness — Regeneration
 
 When a skill regenerates an artifact (full re-run of a pipeline stage):
 
-1. The regenerated artifact is written with fresh frontmatter (`stale: false`)
-2. Mark downstream artifacts stale (they were generated from the previous version)
-3. The staleness on further-downstream artifacts remains until those stages are also re-run
+1. Fully regenerate and save the artifact; run `doc init` when it is new (`doc init` does not reset existing metadata)
+2. Mark each existing direct downstream artifact stale (it was generated from the previous version)
+3. After successful regeneration, run `doc unstale` on the regenerated artifact only
+4. The staleness on downstream artifacts remains until those stages are also re-run

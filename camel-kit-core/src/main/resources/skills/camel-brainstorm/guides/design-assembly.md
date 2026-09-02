@@ -188,6 +188,7 @@ first approved.
 │           ├── business-requirements.md       [migration only; created by camel-migrate]
 │           ├── migration-analysis.md           [migration only; risks, gaps, and source-retirement candidates]
 │           ├── design-spec.md                 ← this file
+│           ├── migration-runbook.md           [migration only; created by camel-migrate from design-spec.md]
 │           ├── implementation-plan.md         [created by camel-plan]
 │           ├── execution-report.md            [created by camel-execute]
 │           ├── validation-report.md           [created by camel-validate]
@@ -219,6 +220,9 @@ first approved.
 ```
 
 ````
+
+For migration packages, provenance runs from `business-requirements.md` to `migration-analysis.md` to
+`design-spec.md`, then branches to the independently generated `migration-runbook.md` and `implementation-plan.md`.
 
 ### For Migration Projects
 
