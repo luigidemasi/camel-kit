@@ -264,6 +264,7 @@ Validate → Enrich → Transform → Route → Operate
 4. Bundled defaults: `application-default.properties`
 
 **Best Practices**:
-- Never hardcode secrets; use `{{ENV_VAR}}` placeholders
+- Never hardcode secrets; resolve them with Camel placeholder functions such as `{{env:DATABASE_PASSWORD}}` or a
+  secrets-manager function
 - Document all required configuration in `.env.example`
 - Use profiles for environment-specific config

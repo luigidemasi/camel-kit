@@ -91,14 +91,18 @@ Shared guides live at `camel-kit-core/src/main/resources/skills/shared/` and are
 | `flow-test-data.md` | Test data generation patterns for flow design |
 | `mcp-setup.md` | MCP version mapping and connection parameters |
 | `graph-availability.md` | Graph MCP server availability detection |
-| `mulesoft-graph.md` | MuleSoft graph node types and auto-detection |
-| `biztalk-phase1.md`, `biztalk-phase2.md`, `biztalk-component-mapping.md`, `biztalk-map-conversion.md`, `biztalk-expression-mapping.md`, `biztalk-pipeline-mapping.md` | BizTalk migration guides (adapter mappings, orchestration shape to EIP, functoid to Camel patterns, pipeline component mapping) |
+| `context-authority.md` | Data versus instruction authority for every loaded context, response, and handoff |
+| `discovery-completeness.md` | Shared discovery and completeness semantics for brainstorm interviews and Ship discovery |
+| `forage.md` | Forage configuration-driven infrastructure beans and the configuration ladder |
+| `pipeline-infrastructure.md` | File-based pipeline handoff, artifact provenance, and staleness conventions |
 | `yaml-structure.md` | YAML DSL structure rules and Kaoto compatibility |
 | `yaml-components.md` | Component URI syntax and parameter rules |
 | `yaml-examples.md` | Reference YAML patterns for common integrations |
 | `patterns-foundational.md` | Foundational EIP patterns (content-based routing, splitter, aggregator) |
 | `patterns-error-handling.md` | Error handling patterns (dead letter channel, retry, circuit breaker) |
 | `patterns-deployment.md` | Deployment patterns (health checks, graceful shutdown, scaling) |
+
+Vendor migration guides (MuleSoft and BizTalk phases and mappings) live under `skills/camel-migrate/guides/`, not in `shared/`.
 
 ### Project Graph Parsers
 

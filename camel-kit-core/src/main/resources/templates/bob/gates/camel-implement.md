@@ -159,7 +159,7 @@ Also verify these quality checks (anti-pattern catalog):
 - **Structured Logging** — all routes log at entry/exit with correlation ID
 - **Idempotency** — stateful routes use `idempotentConsumer`
 - **Circuit Breaker** — HTTP calls have resilience patterns
-- **TLS Everywhere** — all HTTP endpoints use HTTPS
+- **TLS Everywhere** — all HTTP endpoints use HTTPS (except localhost); AMQP endpoints use TLS
 
 If any rule or check is violated, fix immediately before proceeding.
 </Step>

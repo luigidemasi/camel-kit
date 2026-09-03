@@ -50,6 +50,9 @@ class ResourceConsistencyTest {
             new StalePattern(
                     "invented message size property",
                     Pattern.compile("\\b(http\\.maxRequestSize|kafka\\.maxMessageSize)\\b")),
+            new StalePattern(
+                    "invented validation property",
+                    Pattern.compile("\\bvalidation\\.(failOnError|schema\\.location)\\b")),
             new StalePattern("/camel-design", Pattern.compile("(?<![\\w-])/camel-design\\b")),
             new StalePattern("camel_knowledge_search", Pattern.compile("\\bcamel_knowledge_search\\b")),
             new StalePattern("camel_docs_component", Pattern.compile("\\bcamel_docs_component\\b")),

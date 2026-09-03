@@ -273,12 +273,7 @@ If the design spec requires input validation:
     uri: "bean-validator:validate"
 ```
 
-**Configuration:**
-```properties
-# Validation settings
-validation.failOnError=true
-validation.schema.location=schemas/{flow-name}-input.json
-```
+Size limits at the ingress and the canonical validation snippets: `shared/camel-security-checklist.md` rule 4.
 
 **Dependencies:**
 ```xml

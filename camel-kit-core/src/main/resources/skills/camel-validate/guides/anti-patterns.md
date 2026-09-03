@@ -431,14 +431,15 @@ After scanning, show summary:
 Critical (Must Fix):
   ❌ Hardcoded credentials at line 42
   ❌ God route: 25 processing steps
-  ❌ No input validation
+  ❌ Plain HTTP to external system at line 12
 
 Warnings (Recommended):
   ⚠️ No correlation ID generation
   ⚠️ No circuit breaker for external calls
   ⚠️ Logging full body may expose PII
   ⚠️ No connection pooling
-  ⚠️ Plain text communication (HTTP, no Kafka SSL)
+  ⚠️ Kafka SSL not enabled
+  ⚠️ No input validation (schema, size limits)
 
 Best Practices (Optional):
   ℹ️ Consider batching for high volume

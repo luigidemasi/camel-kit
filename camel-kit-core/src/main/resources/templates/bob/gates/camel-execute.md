@@ -219,6 +219,7 @@ Check security:
 - No hardcoded credentials
 - No sensitive data in logs
 - Input validation present
+- Authentication on external endpoints
 
 Check anti-patterns:
 - Polling frequency reasonable
