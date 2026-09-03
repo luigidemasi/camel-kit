@@ -483,7 +483,10 @@ Exit code 0 for successful execution regardless of staleness. Non-zero for error
 
 **Cascade behavior:**
 
-When `--cascade` is used, the command walks sibling files in the same directory. For each file whose `generated.from` matches the target filename, it marks that file stale and recursively continues down the chain.
+`doc stale` always marks its target. When `--cascade` is used, the command also walks sibling files in the same
+directory. For each file whose `generated.from` matches the target filename, it marks that file stale and recursively
+continues down the chain. After regenerating a design, do not target the fresh `design-spec.md`; mark each existing direct
+child separately. Migration designs have two such children: `migration-runbook.md` and `implementation-plan.md`.
 
 **`doc init` options:**
 
@@ -500,14 +503,18 @@ When `--cascade` is used, the command walks sibling files in the same directory.
 # Add provenance metadata after generating an artifact
 camel-kit doc init --by camel-plan --from design-spec.md docs/camel-kit/001-order-processing/implementation-plan.md
 
+# Record the independent migration runbook branch
+camel-kit doc init --by camel-migrate --from design-spec.md docs/camel-kit/002-legacy-orders/migration-runbook.md
+
 # Initialize a root artifact with no upstream document
 camel-kit doc init --by camel-brainstorm docs/camel-kit/001-order-processing/design-spec.md
 
 # Check if a document is stale
 camel-kit doc check docs/camel-kit/001-order-processing/implementation-plan.md
 
-# Mark stale with cascade to all downstream artifacts
-camel-kit doc stale --reason "design spec was amended" --cascade docs/camel-kit/001-order-processing/design-spec.md
+# After amending a migration design, stale each existing direct child separately
+camel-kit doc stale --reason "design spec was amended" --cascade docs/camel-kit/002-legacy-orders/migration-runbook.md
+camel-kit doc stale --reason "design spec was amended" --cascade docs/camel-kit/002-legacy-orders/implementation-plan.md
 
 # Clear staleness after regeneration
 camel-kit doc unstale docs/camel-kit/001-order-processing/implementation-plan.md
@@ -733,7 +740,8 @@ During execution, `/camel-execute` dispatches these internal skills as needed. T
 
 **When to use:** When you have an existing MuleSoft, Camel 2.x/3.x, JBoss Fuse, or BizTalk project to migrate.
 
-**Produces:** Same as `/camel-brainstorm` -- business requirements and an active design spec tailored to the migration.
+**Produces:** Business requirements, an evidence-qualified migration analysis, an active design spec, and an operational
+migration runbook tailored to the migration.
 
 **Example:**
 
@@ -754,11 +762,15 @@ During execution, `/camel-execute` dispatches these internal skills as needed. T
 
 MuleSoft migrations benefit from automatic project graph analysis. The graph detects MuleSoft XML files via namespace sniffing (`mulesoft.org/schema/mule`) and parses all flows, sub-flows, connectors, endpoints, transforms, error handlers, and DataWeave scripts into graph nodes. The migration skill gets instant flow topology -- connectors used per flow, sub-flow call chains, DataWeave complexity -- without manual XML deep-dives. DataWeave `.dwl` files are analyzed for function definitions, field access patterns, and content types to identify complex transformations that need manual attention.
 
+The migration package also records a source-retirement candidate audit in `migration-analysis.md`. A valid graph
+accelerates that audit, but bounded source scanning emits the same coverage, reachability, candidate, broken-reference,
+and evidence-gap sections when no graph is usable. A candidate means complete supported source closure found no path
+from a corroborated entry root; it is not proof that the source is dead or safe to remove.
+
 **How it works:**
 
-This is the dedicated migration design orchestrator. It runs vendor-specific
-two-phase analysis and converges with the greenfield workflow only after the
-design package is approved, when it hands off to `/camel-plan`:
+This is the dedicated migration design orchestrator. It runs vendor-specific discovery and design with a shared
+behavioral analysis between them, then converges with the greenfield workflow after the complete package is approved:
 
 **Phase 1 -- Discovery and confirmation:**
 
@@ -768,14 +780,56 @@ design package is approved, when it hands off to `/camel-plan`:
 4. Confirms the summary with the user; only asks about genuine gaps
 5. Walks through each migration concern one at a time (deprecated components, platform changes, DataWeave conversions, proprietary connectors)
 
+**Behavioral analysis -- Evidence and risk register:**
+
+1. Writes `migration-analysis.md` from Phase 1 source findings and the business requirements
+2. Records each interface and behavior separately as `Confirmed`, `Inferred`, or `Unknown`
+3. Preserves evidence gaps, impact, validation, ownership, and disposition without assuming project-wide compatibility
+
+**Migration strategy -- Safe traffic seam:**
+
+1. Classifies each independently switchable scope as `Incremental candidate`, `Single cutover required`, or
+   `Undetermined - evidence needed`
+2. Reconciles every discovered ingress and source-audit entry root into exactly one non-overlapping scope
+3. Keeps incomplete, conflicting, `TBD`, stale, or merely structural operational evidence undetermined
+4. Provides incremental or strangler guidance only when the existing controllable seam is currently confirmed and the
+   target conditions are confirmed design constraints with pre-cutover validation obligations; this is candidacy, not
+   cutover readiness
+5. Selects a single cutover only when a named validated source and operational-control boundary has a closed,
+   operator-confirmed inventory and complete confirmed evidence proves every seam candidate inside it absent or unsafe
+6. Records the result in the business requirements under `Migration Strategy` and carries the resulting obligations
+   into the design under `Migration Strategy Constraints`
+
 **Phase 2 -- Design:**
 
 1. Maps each source component to its catalog-verified Camel equivalent
 2. Converts DataWeave transformations into design spec field mapping tables
 3. Asks only what the source artifacts cannot answer
-4. Produces business requirements and one active design spec covering all flows
+4. Produces one active design spec covering all flows and carries unresolved `MIG-###` and source-retirement `SRC-###`
+   IDs into scope constraints, validation obligations, or unresolved decisions
 
-After both phases, the pipeline continues the same as greenfield: version selection, design assembly, user approval, then automatic transition to `/camel-plan`.
+**Operational runbook:**
+
+1. After the final design and Camel Main eligibility checks, generates `migration-runbook.md` from the validated package,
+   current operational evidence, and explicit operator decisions, then registers it as a direct child of the design spec
+2. Preserves every strategy classification and `MIG-###`/`SRC-###` status without treating `Incremental candidate` or
+   `Single cutover required` as cutover readiness; undetermined scopes receive no concrete cutover procedure
+3. Covers ownership and prerequisites, configuration/data readiness, deployment, cutover, operational validation,
+   rollback, reconciliation, soak, and the source-retirement decision
+4. Writes every missing operational fact exactly as `Unknown — operator decision required: <missing fact>` instead of
+   inventing commands, endpoints, thresholds, durations, contacts, owners, environment values, or credentials; secret
+   material is never copied, and only validated secret references may be recorded
+
+The artifact chain is `business-requirements.md -> migration-analysis.md -> design-spec.md`, followed by two independent
+children: `migration-runbook.md` from `camel-migrate` and `implementation-plan.md` from `camel-plan`. The plan does not
+consume the runbook. If a design changes, both existing children are marked stale separately; re-planning refreshes only
+the plan, so a stale runbook must be regenerated by `camel-migrate` before operational use.
+
+After the package is assembled, one approval covers the business requirements, migration analysis, design spec, and
+runbook for progression into `/camel-plan`. It does not resolve recorded unknowns or authorize source exclusions,
+infrastructure provisioning, deployment, cutover, traffic switching, rollback, message/data reconciliation, or source
+retirement. Every operational action needs the named operator's separate execution-time authorization. Retirement
+requires a separate named operator decision after operational validation, reconciliation, and soak have passed.
 
 **Mule-to-Camel component mapping highlights:**
 

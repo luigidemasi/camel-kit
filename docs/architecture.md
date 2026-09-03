@@ -67,7 +67,7 @@ adapt exact `/camel-*` skill invocations to native `$camel-*` mentions while lea
 | `camel-brainstorm` | No | `camel-start` (greenfield) | Orchestrate design phase: interview user, produce the pipeline design spec |
 | `camel-plan` | No | `camel-brainstorm` (after design approval) | Produce detailed implementation plan from approved design spec |
 | `camel-execute` | No | `camel-plan` (auto-invoked after planning) | Environment probe, adversarial pre-filter, then ordered spec and quality review per task |
-| `camel-migrate` | No | `camel-start` (migration) | Dedicated vendor-aware migration analysis and design stage; hands an approved design to `camel-plan` |
+| `camel-migrate` | No | `camel-start` (migration) | Vendor-aware risk, retirement, and safe-seam analysis plus design; hands an approved design to `camel-plan` |
 | `camel-verify` | No | `camel-execute` (internal role: subagent where supported, inline otherwise) | 3-phase runtime verification loop (build, Citrus tests, report) — runs inside execute, not as a standalone pipeline stage |
 | `camel-ship` | No | -- (standalone CLI delegate) | Forwards to the configured local Ship command; the controller owns stages, run state, and oversight |
 | `camel-design` | No | `camel-brainstorm` | Guides for component selection, EIP catalog, and flow design assembly |
@@ -213,7 +213,7 @@ The end-to-end pipeline follows a strict phase progression:
 brainstorm / migrate
        |
        v
-   business requirements + design spec
+   approved design package
        |
        v
      plan
@@ -234,13 +234,19 @@ brainstorm / migrate
    validation report
 ```
 
-The design spec is the only user approval gate in the chained pipeline; planning, execution, and validation then continue automatically.
+The approved design is the only user approval gate in the chained pipeline; planning, execution, and validation then
+continue automatically. For migration, that same gate covers the complete migration package, including its operational
+runbook, without authorizing any of the runbook's operational actions.
 
 The execute phase starts with an **environment probe** that validates the target environment before dispatching implementers. If architectural failures are found, a **re-plan loop** modifies affected flow design sections and re-executes (max 3 rounds).
 
-Entry points diverge (`camel-brainstorm` for greenfield, `camel-migrate` for migration) but both produce the same
-artifact format -- business requirements plus an active design spec under `docs/camel-kit/<PIPELINE_ID>/`. This means
-`camel-plan` and `camel-execute` work identically regardless of whether the project is greenfield or migrated.
+Entry points diverge (`camel-brainstorm` for greenfield, `camel-migrate` for migration). Greenfield produces the active
+design spec; migration also produces business requirements and an evidence-qualified `migration-analysis.md` before its
+design spec, then registers `migration-runbook.md` as a direct child of that design. Migration strategy is classified
+per independently switchable scope as `Incremental candidate`, `Single cutover required`, or
+`Undetermined - evidence needed`, after every discovered ingress/root is reconciled into exactly one non-overlapping
+scope. Both pipelines converge on the same approved design-spec contract, so `camel-plan` and `camel-execute` work
+identically afterward; the plan does not consume the runbook.
 
 ### How camel-execute Dispatches Work
 
@@ -273,10 +279,34 @@ The dispatch model varies by AI agent:
 
 ### The Design Spec Contract
 
-Both `camel-brainstorm` (greenfield) and `camel-migrate` (migration) produce the same output format: the active
-pipeline design spec under `docs/camel-kit/<PIPELINE_ID>/design-spec.md`. This is the contract between design and
-implementation -- `camel-plan` consumes this format, and `camel-execute` implements from it. The design phase diverges
-(interview vs. source analysis), but the output converges.
+Both `camel-brainstorm` (greenfield) and `camel-migrate` (migration) produce the active pipeline design spec under
+`docs/camel-kit/<PIPELINE_ID>/design-spec.md`. Migration first materializes `business-requirements.md` and
+`migration-analysis.md`; every unresolved behavioral-risk `MIG-###` and source-retirement `SRC-###` finding becomes a
+scope constraint, validation obligation, or unresolved decision. The business requirements add `Migration Strategy`,
+and the design adds `Migration Strategy Constraints`: incomplete or conflicting evidence remains
+`Undetermined - evidence needed`; incremental or strangler guidance requires current confirmation of an existing
+controllable traffic seam plus confirmed target design constraints and pre-cutover validation obligations. The
+classification establishes design candidacy, not cutover readiness. `Single cutover required` needs a closed,
+operator-confirmed ingress/control inventory plus complete confirmed evidence that every seam candidate inside named
+validated source and operational-control boundaries is absent or unsafe. Anything unconfirmed or outside those
+boundaries remains undetermined.
+
+After the final design and Camel Main eligibility checks, `camel-migrate` generates `migration-runbook.md` from the
+validated package, current operational evidence, and explicit operator decisions, then registers it as a direct child of
+the design spec. The runbook preserves every strategy classification and referenced `MIG-###`/`SRC-###` finding without
+promoting design candidacy to cutover readiness; an undetermined scope receives no concrete cutover procedure. It turns
+only evidenced facts and confirmed design constraints into deployment, cutover, operational validation, rollback,
+reconciliation, soak, and retirement decision steps. A missing operational fact is written exactly as
+`Unknown — operator decision required: <missing fact>`; commands, endpoints, thresholds, durations, contacts, owners,
+environment values, and credential values are never invented. Credential material is not copied into the artifact;
+only validated secret references may be recorded.
+
+One package approval covers the business requirements, analysis, design, and runbook for progression into planning. It
+does not authorize source exclusions, infrastructure provisioning, deployment, cutover, operating a traffic seam,
+traffic switching, rollback, message or data reconciliation, or source retirement. Retirement remains a separate,
+named operator decision after operational validation, reconciliation, and soak have passed; every operational action
+still requires the named operator's separate execution-time authorization. `camel-plan` continues to consume only the
+design spec, so the implementation pipeline converges after approval.
 
 ---
 
@@ -734,11 +764,25 @@ This scans `docs/camel-kit/` for existing directories, finds the max ID, and cre
 
 ```text
 docs/camel-kit/<PIPELINE_ID>/
-  design-spec.md           <- brainstorm output
+  business-requirements.md <- migrate output only
+  migration-analysis.md    <- migrate evidence, risk register, retirement audit, and safe-seam strategy analysis only
+  design-spec.md           <- brainstorm or migrate output
+  migration-runbook.md     <- migrate operational runbook only
   implementation-plan.md   <- plan output
   execution-report.md      <- execute output
   validation-report.md     <- validate output
 ```
+
+Migration provenance branches after design:
+
+```text
+business-requirements.md -> migration-analysis.md -> design-spec.md
+                                                       |-> migration-runbook.md
+                                                       `-> implementation-plan.md -> execution-report.md -> validation-report.md
+```
+
+The runbook and implementation plan are independent direct children of the design. `camel-migrate` owns the runbook;
+no later pipeline stage consumes it.
 
 ### Pipeline State
 
@@ -761,13 +805,24 @@ Detection is automatic: if the skill was auto-invoked in conversation context, i
 
 ### Re-iteration and Staleness
 
-When `/camel-brainstorm <PIPELINE_ID>` is invoked on a pipeline that already has a design spec, the skill enters **amend mode**: it loads the existing spec, lets the user modify it, and writes the updated version back. All downstream artifacts are marked stale via:
+When `/camel-brainstorm <PIPELINE_ID>` is invoked on a pipeline that already has a design spec, the skill enters **amend
+mode**: it loads the existing spec, lets the user modify it, and writes the updated version back. Because `doc stale`
+marks its target as well as its descendants, the freshly regenerated design is not targeted. Instead, each existing
+direct child is marked stale separately:
 
 ```bash
-camel-kit doc stale --reason "design spec was amended" --cascade design-spec.md
+camel-kit doc stale --reason "design spec was amended" --cascade docs/camel-kit/001-order-processing/migration-runbook.md
+camel-kit doc stale --reason "design spec was amended" --cascade docs/camel-kit/001-order-processing/implementation-plan.md
 ```
 
-Staleness is tracked in structured YAML frontmatter within each artifact (see [camel-kit doc](commands.md#camel-kit-doc) for the full schema and CLI reference). Skills detect staleness by running `camel-kit doc check <file>` and inspecting the JSON output.
+The runbook command applies only when that migration artifact exists; greenfield pipelines have only the plan branch.
+Changes to business requirements or migration analysis cascade through the design to both branches. Re-planning
+regenerates and clears staleness only for `implementation-plan.md`; an existing runbook stays stale until
+`camel-migrate` regenerates it for operational use.
+
+Staleness is tracked in structured YAML frontmatter within each artifact (see
+[camel-kit doc](commands.md#camel-kit-doc) for the full schema and CLI reference). Skills detect staleness by running
+`camel-kit doc check <file>` and inspecting the JSON output.
 
 For controller-owned runs, `camel-kit ship --resume <run-id>` re-reads recorded inputs and artifacts, compares their digests, and restarts the earliest stale or incomplete controller stage. It does not use manual staleness frontmatter or `.camel-kit/pipeline.json` as its run-state authority.
 

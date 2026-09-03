@@ -43,12 +43,22 @@ class GraphParameterlessCommandsTest {
     void deadCodeDetectsUnusedArtifact() throws Exception {
         JsonNode r = MAPPER.readTree(run(new GraphDeadCodeCommand()));
         assertTrue(r.get("available").asBoolean());
+        assertTrue(r.has("unusedArtifacts"));
+        assertTrue(r.has("orphanedRoutes"));
+        assertTrue(r.has("unusedProperties"));
         boolean found = false;
         for (JsonNode n : r.get("unusedArtifacts")) {
             if (n.get("id").asText().contains("camel-jdbc"))
                 found = true;
         }
         assertTrue(found, "camel-jdbc should be unused");
+    }
+
+    @Test
+    void deadCodeHelpQualifiesGraphFindingsAsCandidates() {
+        String[] description = new CommandLine(new GraphDeadCodeCommand())
+                .getCommandSpec().usageMessage().description();
+        assertArrayEquals(new String[]{"Report graph-covered structural retirement candidates"}, description);
     }
 
     private String run(GraphQueryCommand cmd) {

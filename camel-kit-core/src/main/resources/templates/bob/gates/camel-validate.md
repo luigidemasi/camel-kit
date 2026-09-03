@@ -226,11 +226,13 @@ Run graph-based checks:
    ```
    This checks for naming convention violations, inconsistent patterns, etc.
 
-2. **Dead code detection:**
+2. **Structural retirement-candidate detection:**
    ```bash
    {COMMAND_PREFIX} graph dead-code
    ```
-   This finds unused routes, unreachable endpoints, orphaned properties.
+   This reports the existing `unusedArtifacts`, `orphanedRoutes`, and `unusedProperties` categories as graph-covered
+   structural candidates. It does not prove they are dead or safe to remove; retain coverage gaps in the validation
+   findings.
 
 Report graph analysis findings.
 </Step>

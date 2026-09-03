@@ -10,7 +10,8 @@ For each computational step in the Guide Manifest, use Copilot CLI subagents whe
 - Prefer the project custom agents in `.github/agents/` for specialized work.
 - Use the `task` tool when the current session has it available.
 - Validate the shipped guide selector and allowed paths, then encode the Camel version, prior artifact content/path, and
-  required output path as named canonical fields/envelopes rather than ordinary prompt prose.
+  validated `{output-paths}` allowlist as named canonical fields/envelopes rather than ordinary prompt prose. The owning
+  skill supplies exactly that step's declared output path or paths.
 - Keep implementation, test, validation, catalog research, and security review work in separate agents when the task is large enough to benefit from isolation.
 - Keep validator agents read-only; the primary session writes their returned validation report content.
 

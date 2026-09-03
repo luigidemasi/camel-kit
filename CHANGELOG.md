@@ -10,6 +10,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Evidence-qualified migration analysis (#78)** — `camel-migrate` now materializes `migration-analysis.md` between
+  vendor discovery and design. The register records independently testable behavioral assumptions and evidence gaps as
+  Confirmed, Inferred, or Unknown, and carries unresolved risks into Phase 2 instead of assuming API compatibility.
+  The same artifact adds a coverage-qualified source-retirement candidate audit for both graph-assisted and graph-less
+  discovery, preserving broken references and unknowns without treating candidates as dead or safe to delete. Migration
+  strategy is classified per independently switchable scope as `Incremental candidate`, `Single cutover required`, or
+  `Undetermined - evidence needed`: incremental guidance requires current confirmation of an existing controllable seam
+  plus confirmed target constraints and pre-cutover validations. It identifies design candidacy, not cutover readiness.
+  A single cutover requires a closed, operator-confirmed ingress/control inventory and complete confirmed evidence that
+  every seam candidate inside its named source and operational boundaries is absent or unsafe. After design,
+  `camel-migrate` also produces `migration-runbook.md` with deployment, cutover, validation, rollback, reconciliation,
+  soak, and source-retirement decision steps. Missing operational facts use
+  `Unknown — operator decision required: <missing fact>` instead of invented values. Package approval does not
+  authorize provisioning, deployment, cutover, traffic switching, rollback, reconciliation, or source retirement;
+  retirement remains a separate named operator decision after validation, reconciliation, and soak have passed.
+
 - **Explicit design scope boundaries** — greenfield design specs now record a top-level `Not Doing (and Why)` section
   with a concrete reason for every excluded capability. Brainstorm captures these boundaries during the interview, and
   planning omits excluded work while execution passes the boundaries to implementers and spec-compliance reviewers, so

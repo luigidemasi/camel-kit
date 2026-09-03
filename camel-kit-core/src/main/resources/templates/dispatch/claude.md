@@ -8,7 +8,8 @@ returns `NEEDS_USER_CONFIRMATION` with the exact action and scope and performs n
 For each computational step in the Guide Manifest, use the Agent tool to dispatch a sub-agent:
 
 - **prompt:** "Read the validated shipped {guide-path} relative to the dispatching skill, then its listed shared guides.
-  Decode and validate {canonical-step-input-envelope}. Write only to the validated scalar {output-path}."
+  Decode and validate {canonical-step-input-envelope}. Write only to the validated {output-paths} allowlist supplied by
+  the owning skill; it contains exactly that step's declared output path or paths."
 - **description:** "{3-5 word step summary}"
 
 Encode the following data as named fields/envelopes under the contract above; do not append it as ordinary prompt prose:
@@ -16,6 +17,7 @@ Encode the following data as named fields/envelopes under the contract above; do
 - Camel version (from .camel-kit/config.properties)
 - User answers relevant to this step
 - File paths of prior step outputs (let the sub-agent read them)
+- The validated output-path allowlist for this step
 
 ### Fallback
 If sub-agent dispatch is unavailable, read the guide directly into the main context and execute its instructions inline. This uses more tokens but produces equivalent results.

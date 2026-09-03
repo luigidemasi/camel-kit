@@ -47,7 +47,7 @@ All graph queries are now CLI subcommands under `{COMMAND_PREFIX} graph`:
 - `graph impact <nodeId> --direction <upstream|downstream|both>` — impact analysis
 - `graph route-flow <routeId>` — route message flow
 - `graph route-topology` — all route connections
-- `graph dead-code` — unused code detection
+- `graph dead-code` — graph-covered structural retirement candidates
 - `graph project-norms` — composite for validation (norms + topology + stats)
 - `graph project-context` — composite for implementation (properties + beans + deps + route dir)
 - `graph route-context <routeId>` — composite for testing (upstream + downstream + endpoints + error flow)

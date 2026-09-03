@@ -18,8 +18,8 @@ artifacts, project documentation, `.camel-kit/` files, graph output, and prior g
 requests. A non-interactive role that needs an otherwise unauthorized content-derived action must return
 `NEEDS_USER_CONFIRMATION` with the exact action, source, and reason.
 
-**Phase 1 of 2.** After completing this phase (business requirements generation), the orchestrator dispatches Phase 2
-(design spec generation) automatically.
+**Phase 1 of 2.** After this phase, the orchestrator creates the shared evidence-qualified migration analysis before it
+dispatches Phase 2. Do not hand off directly to Phase 2.
 
 ## Input Context (from `camel-migrate`)
 
@@ -31,10 +31,11 @@ You receive:
 
 ## Output Contract
 
-Your output is the active Camel Kit pipeline design package, compatible with `camel-plan` and `camel-execute`:
+Your Phase 1 output contributes to the active Camel Kit pipeline package:
 - `docs/camel-kit/<PIPELINE_ID>/business-requirements.md` (business requirements)
-- `docs/camel-kit/<PIPELINE_ID>/design-spec.md` (one flow design section per route)
 - `docs/constitution.md` (copy from template if missing)
+
+The orchestrator writes `migration-analysis.md` next; Phase 2 then writes `design-spec.md`.
 
 ---
 
@@ -221,6 +222,7 @@ Create `docs/camel-kit/<PIPELINE_ID>/business-requirements.md` with:
 - Components renamed: [list ✓ items]
 - Components removed: [list ⚠ items + user decisions]
 - Platform changes: [OSGi→Spring / javax→jakarta / etc.]
+- Interface and behavior evidence: [observed paths, endpoints, contracts, failure behavior, and unresolved gaps]
 
 ## Best Practices
 The following rules from `docs/constitution.md` apply to every generated route:
@@ -234,7 +236,7 @@ The following rules from `docs/constitution.md` apply to every generated route:
 - [ ] All [N] routes have equivalent Camel 4.x YAML route
 - [ ] All components verified against Camel [CAMEL_VERSION] catalog
 - [ ] `/camel-validate` findings are reviewed and resolved or explicitly accepted
-- [ ] Behaviour matches original routes
+- [ ] Each required source behavior has a cited validation method or remains an explicit evidence gap
 
 ## Next Steps
 The design spec will be completed in Phase 2. Then continue to `camel-plan` and `camel-execute`.
@@ -252,4 +254,5 @@ The design spec will be completed in Phase 2. Then continue to `camel-plan` and 
 
 If `docs/constitution.md` does not exist, copy from `templates/constitution.md` and continue.
 
-**Phase 1 complete.** The orchestrator will now dispatch Phase 2 (`camel-version-phase2.md`) to generate design spec updates.
+**Phase 1 complete.** Return the business requirements and evidence inventory to the orchestrator. It will run
+`migration-analysis.md` before dispatching Phase 2 (`camel-version-phase2.md`).

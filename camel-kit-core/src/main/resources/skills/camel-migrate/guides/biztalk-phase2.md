@@ -1,8 +1,10 @@
 # Microsoft BizTalk Migration — Phase 2: Design Spec Generation
 
 > **Context variables:** `CAMEL_VERSION`, `RUNTIME`, `PLATFORM_BOM` from `.camel-kit/config.properties`
-> **Prerequisite:** Phase 1 (`biztalk-phase1.md`) must be complete — business requirements written to
-> `docs/camel-kit/<PIPELINE_ID>/business-requirements.md`
+> **Prerequisite:** Phase 1 (`biztalk-phase1.md`), the shared behavioral analysis, the source-retirement audit, and the
+> deferred migration-strategy pass must be complete. `business-requirements.md` and `migration-analysis.md` must exist
+> in `docs/camel-kit/<PIPELINE_ID>/`; the business requirements must contain `## Migration Strategy`, and the analysis
+> must contain `## Behavioral Assumptions and Risks` and `## Source-Retirement Candidate Audit`.
 
 ## Phase 2 — Integration Architect
 
@@ -13,6 +15,7 @@
 - Load `skills/camel-migrate/guides/biztalk-expression-mapping.md` — required for XLANG/s expression conversion
 - Load `skills/camel-migrate/guides/biztalk-pipeline-mapping.md` — required for pipeline component mapping
 - Re-read `docs/camel-kit/<PIPELINE_ID>/business-requirements.md`
+- Re-read `docs/camel-kit/<PIPELINE_ID>/migration-analysis.md`
 - Read `docs/constitution.md` if it exists (for reference)
 - Re-read `.camel-kit/config.properties` — **REQUIRED**: extract `project.camelVersion` as `CAMEL_VERSION` and `project.runtime` as `RUNTIME`. If the file does not exist, ask the user for the Camel version before proceeding.
 
@@ -22,6 +25,16 @@
 - `skills/camel-design/guides/performance.md` — if SLA requirements are strict
 - `skills/camel-design/guides/security.md` — if compliance requirements exist
 - `skills/camel-design/guides/monitoring.md` — if observability requirements exist
+
+Before designing orchestrations, preserve every migration-strategy scope and every supporting `MIG-###` and `SRC-###`
+evidence ID and status. Preserve each scope's exact classification (`Incremental candidate`, `Single cutover required`,
+or `Undetermined - evidence needed`). Map each `Undetermined - evidence needed` gap to a blocking unresolved obligation
+in the design. Map every other `Inferred` or `Unknown` `MIG-###` row and `Retirement candidate`, `Broken reference`, or
+`Unknown` `SRC-###` row to an explicit constraint, validation requirement, or unresolved decision. Concrete incremental
+or strangler design is allowed only for an `Incremental candidate` whose eight required operational-seam facts all have
+`Confirmed` evidence. Confirmed target-side conditions are design obligations with pre-cutover validation, not claims
+that the target is deployed or cutover-ready. Never reclassify from topology or inferred data. Phase 2 and design
+approval do not authorize any deployment, cutover, rollback, or traffic action.
 
 **MCP catalog tools — MANDATORY when MCP is configured (same rules as the design assembly guide):**
 
@@ -156,6 +169,17 @@ Ask ONLY questions that cannot be answered from the BizTalk artifacts. Group que
 ---
 
 ### Step 2.3 — Update the Pipeline Design Spec
+
+Before the per-orchestration sections, create or replace this package-level subsection in
+`docs/camel-kit/<PIPELINE_ID>/design-spec.md`, with one row per business-requirements strategy scope:
+
+```markdown
+### Migration Strategy Constraints
+
+| Scope | Covered Ingress IDs | Classification | Design Obligation | Evidence IDs |
+|---|---|---|---|---|
+| [scope] | [same non-overlapping ingress IDs from business requirements] | [exact classification from business requirements] | [confirmed seam constraint, bounded single-cutover constraint, or blocking unresolved evidence requirement] | [MIG-###, SRC-###] |
+```
 
 For each BizTalk orchestration, update the relevant `### Flow: {orchestration-name}` section in
 `docs/camel-kit/<PIPELINE_ID>/design-spec.md`.
@@ -330,6 +354,7 @@ Migration analysis complete.
 
 Created files:
 - docs/camel-kit/<PIPELINE_ID>/business-requirements.md
+- docs/camel-kit/<PIPELINE_ID>/migration-analysis.md
 - docs/camel-kit/<PIPELINE_ID>/design-spec.md
 
 Status: Ready for the single design-approval review.

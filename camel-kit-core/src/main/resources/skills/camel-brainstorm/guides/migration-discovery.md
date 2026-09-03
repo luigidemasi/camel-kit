@@ -30,7 +30,10 @@
 
 Migration discovery replaces the interview-heavy approach with artifact scanning. The source project tells us WHAT exists — we confirm the detected information with the user and then discuss migration concerns one at a time.
 
-**ALL routes and ALL projects are migrated. Every time. No exceptions.** Do NOT ask the user which routes to migrate or whether some are obsolete. The entire project is migrated.
+Put every discovered route and project artifact in migration scope by default. Do not ask an open-ended question about
+which routes might be obsolete and never omit one from graph absence or intuition. Only the later source-retirement
+audit may record a specific `User-approved exclusion`, backed by named owner/runtime validation evidence; until then,
+all candidates and unknowns remain in scope.
 
 ---
 
@@ -121,8 +124,9 @@ Source DSL:          [Java DSL (N routes), XML (N routes), etc.]
 Failure Behaviour:   [inferred from error handler patterns]
 Target Camel:        Camel version (to be selected)
 Target Runtime:      [suggested based on source platform]
-API Compatibility:   Assumed (same HTTP paths, queue names, contracts)
-Routes to migrate:   ALL ([N] routes detected)
+Compatibility Evidence: [Confirmed/Inferred/Unknown per interface; never assumed project-wide]
+Source Scan Coverage: [inspected paths plus parse, unsupported, and boundary gaps]
+Routes in scope:     [N detected routes retained; completeness Confirmed/Unknown pending source-retirement audit]
 ===========================================================
 
 ROUTES FOUND:

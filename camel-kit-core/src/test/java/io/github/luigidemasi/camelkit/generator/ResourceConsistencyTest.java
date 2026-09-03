@@ -708,6 +708,46 @@ class ResourceConsistencyTest {
     }
 
     @Test
+    void migrationRunbookIsAParallelDesignChildInEveryArtifactStructure() throws IOException {
+        Path skills = repositoryRoot().resolve("camel-kit-core/src/main/resources/skills");
+        String infrastructure = Files.readString(skills.resolve("shared/pipeline-infrastructure.md"));
+        String designAssembly = Files.readString(skills.resolve("camel-brainstorm/guides/design-assembly.md"));
+
+        assertContainsAll(section(infrastructure, "## Directory Layout", "## Pipeline State"),
+                "business-requirements.md",
+                "migration-analysis.md",
+                "design-spec.md",
+                "migration-runbook.md",
+                "implementation-plan.md");
+        assertContainsAll(section(infrastructure, "## Stage Detection", "## Creating pipeline.json"),
+                "business-requirements.md",
+                "migration-analysis.md",
+                "design-spec.md",
+                "migration-runbook.md",
+                "complete package");
+        assertContainsAll(section(infrastructure,
+                "**Standalone input artifacts per skill:**", "**Standalone behavior:**"),
+                "migrate",
+                "`business-requirements.md`, `migration-analysis.md`, `design-spec.md`, `migration-runbook.md`");
+
+        String provenance = section(infrastructure,
+                "Migration documents use this provenance graph:", "### Detecting Staleness");
+        assertContainsAll(provenance,
+                "business-requirements.md -> migration-analysis.md -> design-spec.md",
+                "design-spec.md -> migration-runbook.md",
+                "design-spec.md -> implementation-plan.md");
+        assertFalse(provenance.contains("migration-runbook.md -> implementation-plan.md"),
+                "Planning must consume design-spec.md directly, not the operational runbook");
+
+        assertContainsAll(section(designAssembly, "## 6. Project Structure", "## 7. Migration Context"),
+                "business-requirements.md",
+                "migration-analysis.md",
+                "design-spec.md",
+                "migration-runbook.md",
+                "implementation-plan.md");
+    }
+
+    @Test
     void planningContractsAreRuntimeAwareAndHaveSingleArtifactOwners() throws IOException {
         Path root = repositoryRoot().resolve("camel-kit-core/src/main/resources/skills");
         String plan = Files.readString(root.resolve("camel-plan/SKILL.md"));

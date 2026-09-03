@@ -22,7 +22,8 @@ You will work in two phases:
 - **Phase 1 (Business Analyst):** Deep-dive into BizTalk orchestrations, maps, pipelines, bindings; resolve proprietary adapters; fill any remaining gaps; produce business requirements.
 - **Phase 2 (Integration Architect):** Design catalog-verified Camel route architecture and produce design spec updates.
 
-**Phase 1 of 2.** After completing this phase (business requirements generation), the orchestrator dispatches Phase 2 (design spec generation) automatically.
+**Phase 1 of 2.** After this phase, the orchestrator creates the shared evidence-qualified migration analysis before it
+dispatches Phase 2. Do not hand off directly to Phase 2.
 
 The outputs use the active Camel Kit pipeline package, making them compatible with `camel-plan` and `camel-execute`.
 
@@ -41,7 +42,8 @@ The outputs use the active Camel Kit pipeline package, making them compatible wi
   - Binding files (`.xml`)
   - Project files (`.btproj`)
   - Configuration files (binding configuration)
-- Read the confirmed analysis summary passed by `camel-migrate` (contains vendor, purpose, SLA, security, failure behaviour, deployment target, API compatibility)
+- Read the confirmed analysis summary passed by `camel-migrate` (contains vendor, purpose, SLA, security, failure
+  behaviour, deployment target, and per-interface compatibility evidence)
 
 **Conditional:**
 - Read `docs/constitution.md` if it exists (for reference — do not generate or modify it)
@@ -138,7 +140,9 @@ Check the confirmed summary from `camel-migrate`. For every field still marked *
 
 **Do not ask about fields already marked ✓ Confirmed in the summary.**
 
-API compatibility is assumed by default — Camel routes will preserve the same HTTP paths, queue/topic names, and data contracts as the original BizTalk orchestrations. If the user explicitly stated otherwise during the Step 5 confirmation in `camel-migrate`, note the deviation in the business requirements.
+Do not assume API compatibility. Record each observed HTTP path and operation, port or queue/topic name, data contract,
+pipeline behavior, and relevant orchestration behavior with its source evidence. Ask about unresolved, material facts one
+at a time; otherwise preserve them as evidence gaps for `migration-analysis.md` rather than compatibility claims.
 
 If the summary has no remaining gaps, skip this step entirely.
 
@@ -187,7 +191,7 @@ Create `docs/camel-kit/<PIPELINE_ID>/business-requirements.md` using the followi
 - [From user interview: compliance, SLA, etc.]
 
 ### Migration Constraints
-- [Cut-over vs. parallel, API compatibility requirements]
+- [Observed interface/behavior evidence and unresolved compatibility gaps; no blanket compatibility claim]
 
 ## Best Practices
 
@@ -243,9 +247,10 @@ Created:
 
 Orchestrations to migrate: [list orchestration names]
 
-Starting Phase 2 — Integration Architect...
+Starting behavioral analysis...
 ```
 
-**Phase 1 complete.** The orchestrator will now dispatch Phase 2 (`biztalk-phase2.md`) to generate design spec updates.
+**Phase 1 complete.** Return the business requirements and evidence inventory to the orchestrator. It will run
+`migration-analysis.md` before dispatching Phase 2 (`biztalk-phase2.md`).
 
 ---
