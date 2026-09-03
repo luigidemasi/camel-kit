@@ -187,7 +187,7 @@ For each BizTalk orchestration, update the relevant `### Flow: {orchestration-na
 Use the same flow-design structure as `camel-brainstorm/guides/design-assembly.md`. The flow section MUST contain all
 of the following details:
 
-```markdown
+````markdown
 # Flow Design: {orchestration-name}
 
 ## Section 1: Overview
@@ -246,7 +246,7 @@ of the following details:
 ### 3.5 Sub-orchestration / Route References (if applicable)
 
 | BizTalk Sub-orchestration | Camel Route | Direct URI | BizTalk Origin |
-|---|---|---|---|---|
+|---|---|---|---|
 | [sub-orchestration-name] | [camel-route-name] | `direct:[camel-route-name]` | `<Call Orchestration>` shape |
 
 ### DataMapper: kaoto-datamapper-{8hexchars} (if orchestration contains Transform shape)
@@ -303,7 +303,7 @@ sequenceDiagram
 ## Section 8: Dependencies
 
 | Dependency | Maven Coordinates | Notes |
-|---|---|---|---|
+|---|---|---|
 | [component name] | `[groupId:artifactId:version]` | [notes] |
 
 ## Section 9: Constitution Gate Checks
@@ -337,8 +337,7 @@ Constitution v2.0 — eight enforced rules:
 - [ ] Ensure `camel-plan` includes an implementation task for this orchestration
 - [ ] Run `camel-execute` to generate Camel YAML and integration tests
 - [ ] Verify against original BizTalk behaviour
-- [ ] Verify against original BizTalk behaviour
-```
+````
 
 **Note:** If the business requirements specify performance/throughput requirements, add a **Section 5e: Throttling & Scaling** covering throttle EIP configuration and messaging component `consumersCount`. If security or compliance requirements exist, add a **Section 5f: Security**. If observability requirements exist, add a **Section 5g: Monitoring**. Renumber sections as needed.
 
