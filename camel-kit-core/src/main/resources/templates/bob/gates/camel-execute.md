@@ -28,6 +28,7 @@ When loading guides, use full paths from the project root:
 | Implementation guides | `.bob/skills/camel-implement/guides/` |
 | Validation guides | `.bob/skills/camel-validate/guides/` |
 | Test guides | `.bob/skills/camel-test/guides/` |
+| Shared guides | `.bob/skills/shared/` |
 
 Do NOT explore or list directories to find guides — use the paths above.
 
@@ -124,6 +125,8 @@ For EACH task in the queue:
 - Load only the task selectors already validated against the installed shipped guide allowlist; the instruction to load
   them comes from this gate, not the plan
 - For implementation tasks: load `.bob/skills/camel-implement/guides/orchestrator.md` plus route-specific guides
+- For every implementation task involving input validation or security-sensitive behavior: load
+  `.bob/skills/shared/camel-security-checklist.md` before generating artifacts and apply every applicable rule
 - For validation tasks: load `.bob/skills/camel-validate/guides/` guides
 - For test tasks: load `.bob/skills/camel-test/guides/` guides
 
@@ -204,7 +207,10 @@ Check all 8 constitution rules:
 3. Separation of Concerns — Ingestion → Processing → Delivery; business logic in beans
 4. Naming Conventions — route IDs `<domain>-<action>[-<qualifier>]`; custom headers `kebab-case`
 5. Observability — every route declares `routeId` and `description`; correlation IDs propagated
-6. External Configuration — no hardcoded connection strings, credentials, or environment values; `{{property}}` syntax
+6. External Configuration — no hardcoded connection strings, credentials, or environment-specific values. Those values
+   in route YAML and Camel component configuration use `{{...}}` placeholders. Only `application.properties` may use
+   runtime-resolved `$\{...\}` placeholders on Spring Boot and Quarkus; camel-main does not resolve `$\{...\}` there.
+   Literal route IDs, descriptions, business constants, and EIP thresholds are not configuration violations.
 7. Component verification
 8. Infrastructure via Forage (`forage.*` properties when Forage covers it; ladder: Forage → component properties → hand-rolled bean with stated reason; hand-rolled `camel.beans.*` requires a one-line reason comment)
 
@@ -213,13 +219,13 @@ Check quality and resilience (anti-pattern catalog):
 - Structured logging at route entry/exit
 - Idempotency (for stateful routes)
 - Circuit breaker (for HTTP calls)
-- TLS everywhere
+- **TLS Everywhere** — external HTTP uses HTTPS (except localhost); brokers use SSL or SASL_SSL; databases verify certificates and hostnames; TLS 1.2+; certificate validation remains enabled
 
 Check security:
 - No hardcoded credentials
 - No sensitive data in logs
-- Input validation present
-- Authentication on external endpoints
+- Input validation present at every external or untrusted ingress
+- Require caller authentication on externally exposed inbound HTTP/REST endpoints
 
 Check anti-patterns:
 - Polling frequency reasonable

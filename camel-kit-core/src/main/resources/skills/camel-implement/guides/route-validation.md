@@ -9,14 +9,20 @@ Always attempt `camel_validate_route` directly. If the call fails (tool not foun
 
 ---
 
-## 4.1 Validate the Full Route
+## 4.1 Validate Route Endpoints Against the Catalog
 
-Pass the **entire content** of `{FLOW_NAME}.camel.yaml` to `camel_validate_route`:
+Statically walk the YAML and collect every actual component endpoint URI from `from`, `to`, `toD`, and all other
+endpoint-bearing EIP fields, including literal endpoint expressions such as `enrich.expression.constant`. Do not rely on
+the tool's route-content extraction for completeness; it is best-effort and can miss endpoint expressions.
+
+For **each** URI in that extracted list, pass the URI and the same **entire content** of `{FLOW_NAME}.camel.yaml` to
+`camel_validate_route`. The pinned tool schema requires both fields; never use a null, empty, or dummy value.
 
 ```
 MCP Tool: camel_validate_route
 Params:
 {
+  "uri": "<current actual endpoint URI from the extracted list>",
   "route": "<full YAML file content>",
   "camelVersion": "{{CAMEL_VERSION}}",
   "platformBom": "{{PLATFORM_BOM}}",
@@ -24,9 +30,20 @@ Params:
 }
 ```
 
+Require the top-level `uri` to echo the submitted URI and its top-level `errors` to be absent or empty. Ignore the
+aggregate `valid` field: route-content processing can overwrite it. When present, `uriValidations` is only supplementary
+best-effort route-extraction evidence and may omit endpoint expressions. A successful result for one URI does not
+validate any other extracted endpoint. Continue only after every URI has an explicit successful result.
+
 **Before calling `camel_validate_route`, perform this static check (Rule 0f):**
 
-Scan every `to:` step in the generated YAML. If the `uri` value **or** any `parameters:` value contains `${...}` (a Simple language expression), the step must be rewritten as `toD` with all dynamic values inlined into the URI string — `to` never evaluates `${...}` at runtime. Fix these before validation:
+Scan every `to:` step in the generated YAML. If the `uri` value **or** any `parameters:` value contains `${...}` as a
+dynamic endpoint expression, rewrite the step as `toD` with all dynamic values inlined into the URI string — `to` never
+evaluates those endpoint expressions at runtime. Do not rewrite component-owned expression syntax: when SQL prepared
+parameters such as `:#${...}` and `:#in:${...}` appear in a `to` step, keep static `to` so the SQL component binds them
+after endpoint selection. A literal `constant` endpoint expression is likewise safe; do not wrap either form in an outer
+Simple expression or evaluate it through `toD`, which would turn data into URI/SQL text. Fix dynamic endpoint expressions
+before validation:
 
 ```yaml
 # WRONG — expression in URI or in parameters:
@@ -42,6 +59,10 @@ Scan every `to:` step in the generated YAML. If the `uri` value **or** any `para
     uri: "direct:${header.routeName}"
 - toD:
     uri: "https://{{host}}/api?q=${header.city}"
+
+# CORRECT — SQL component prepared binding remains under static to
+- to:
+    uri: "sql:SELECT * FROM customers WHERE id = :#${exchangeProperty.customerId}"
 ```
 
 Note: `{{...}}` property placeholders are resolved at startup and are safe in both `to` and `parameters:`.
@@ -55,7 +76,7 @@ The tool validates:
 
 ## 4.2 Fix -> Re-query -> Retry Loop
 
-**If validation returns errors, follow this loop — up to 3 attempts:**
+**If endpoint catalog validation returns errors, follow this loop — up to 3 attempts:**
 
 ```
 Attempt N/3: camel_validate_route returned errors:
@@ -73,14 +94,14 @@ Attempt N/3: camel_validate_route returned errors:
    ```
 2. **Identify the correct option name/value** from the catalog response — do not guess.
 3. **Apply the fix** to `{FLOW_NAME}.camel.yaml`.
-4. **Run `camel_validate_route` again** with the updated file content.
+4. **Run `camel_validate_route` again for every extracted endpoint URI** with the updated full file content.
 5. If validation passes → proceed to Step 4.3
 6. If errors remain → repeat from step 1 (up to 3 total attempts).
 
 **After 3 failed attempts:**
 
 ```
-Route validation still failing after 3 fix attempts.
+Endpoint catalog validation still failing after 3 fix attempts.
 
 Remaining errors:
 [list errors]
@@ -88,7 +109,6 @@ Remaining errors:
 These errors require manual intervention. Possible causes:
 - Component option not available in Camel {{CAMEL_VERSION}}
 - The design spec specifies a component configuration that is incompatible
-- YAML DSL syntax issue not covered by catalog validation
 
 Action required:
 1. Review the errors above
@@ -102,15 +122,14 @@ Stop and report the errors — do not generate supporting files for a route that
 ## 4.3 Validation Success
 
 ```
-=== ROUTE VALIDATION PASSED (attempt N/3) ===
+=== ENDPOINT CATALOG VALIDATION PASSED (attempt N/3) ===
 
 File: {FLOW_NAME}.camel.yaml
+  ✓ Every extracted endpoint received an explicit successful catalog result
   ✓ All component schemes valid
   ✓ All endpoint URIs valid
   ✓ All option names verified against catalog
   ✓ No unknown or misspelled options
-  ✓ Route ID present
-  ✓ Steps array format (Kaoto compatible)
 
 Proceeding to generate supporting files...
 ```
@@ -123,14 +142,15 @@ camel_validate_route call failed — skipping catalog validation.
    Run /camel-validate after implementation to catch any errors.
 ```
 
-Proceed with this warning recorded.
+Proceed with this warning recorded. If any per-endpoint call failed at the tool/transport level, name those unverified
+URIs; never report the route's endpoint catalog validation as complete.
 
 ## 4.5 Validation Fails (Final Error)
 
 ```
-ERROR: Route validation failed
+ERROR: Endpoint catalog validation failed
 
-The generated route still has validation errors.
+The generated route still has endpoint catalog errors.
 
 Last errors from MCP camel_validate_route:
 [show errors]

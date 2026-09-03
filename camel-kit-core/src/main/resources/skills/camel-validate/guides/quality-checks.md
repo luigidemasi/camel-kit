@@ -89,7 +89,7 @@ Validate all expressions used in the route:
 | Simple | `${header.X}` / `${body}` / `${exchangeProperty.X}` — verify referenced headers/properties exist in the flow. No undefined variable references. |
 | JSONPath | Must start with `$` or `$.`. Verify valid JSONPath syntax (matched brackets, valid operators). |
 | XPath | Must be well-formed XPath 1.0/2.0. Verify namespace prefixes are declared if used. |
-| Constant | Literal values only. No expression syntax inside `constant` blocks. |
+| Constant | The `constant` language does not evaluate Simple expressions. Its literal value may contain syntax owned and evaluated later by the receiving component, such as SQL prepared bindings `:#${...}` and `:#in:${...}`; do not treat those bindings as Constant-language expressions. |
 | JQ | Must start with `.` — verify valid JQ filter syntax. |
 
 ```

@@ -54,7 +54,7 @@ steps:
       pattern: "CamelHttp*"
 
   - to:
-      uri: "http:{{backend.host}}/api/endpoint"
+      uri: "https:{{backend.host}}/api/endpoint"
 ```
 
 This rule applies once per outbound HTTP call — if the route calls two different HTTP backends, add `removeHeaders` before each one.
@@ -63,7 +63,7 @@ This rule applies once per outbound HTTP call — if the route calls two differe
 
 ## Rule 0f: Use `toD` for dynamic URIs and dynamic parameters
 
-`to` resolves its URI **once at startup** as a static string. Any `${...}` Simple expression in a `to` URI **or** in its `parameters:` block is treated as a literal string and is never evaluated at runtime. This applies equally to the URI path and to every value in the `parameters:` map.
+`to` resolves its URI **once at startup** as a static string. Any `${...}` Simple expression in a `to` URI **or** in its `parameters:` block is treated as a literal string and is never evaluated at runtime. This applies equally to the URI path and to every value in the `parameters:` map. Component-owned expression syntax is different: when SQL prepared parameters such as `:#${...}` and `:#in:${...}` appear in a `to` step, keep static `to` so the SQL component binds them after endpoint selection. A literal `constant` endpoint expression is likewise safe; do not wrap either form in an outer Simple expression or evaluate it through `toD`, which would turn data into URI/SQL text.
 
 **Case 1 — dynamic expression in the URI path:**
 ```yaml
@@ -89,11 +89,15 @@ This rule applies once per outbound HTTP call — if the route calls two differe
 # CORRECT — move dynamic values into the URI string and use toD
 - toD:
     uri: "https://{{api.host}}/data/2.5/weather?q=${header.city}&appid={{api.key}}&units=metric"
+
+# CORRECT — SQL component prepared binding remains under static to
+- to:
+    uri: "sql:SELECT * FROM customers WHERE id = :#${exchangeProperty.customerId}"
 ```
 
 For HTTP calls with multiple dynamic query parameters, inline all dynamic values directly in the `toD` URI string. Static `{{placeholder}}` values may stay in the URI string or in `parameters:` — only `${expression}` values must be inlined.
 
-**Enforcement:** scan every `to:` step in the generated YAML. If the `uri` value **or** any `parameters:` value contains `${...}`, rewrite the step as `toD` with all dynamic values interpolated into the URI string. Property placeholders `{{...}}` are safe in both `to` and `parameters:` — they resolve at startup.
+**Enforcement:** scan every `to:` step in the generated YAML. If the `uri` value **or** any `parameters:` value contains `${...}` as a dynamic endpoint expression, rewrite the step as `toD` with all dynamic values interpolated into the URI string. Do not rewrite component-owned SQL prepared parameters such as `:#${...}` and `:#in:${...}`; keep those bindings in static `to` or a literal `constant` endpoint expression, never outer Simple or `toD`. Property placeholders `{{...}}` are safe in both `to` and `parameters:` — they resolve at startup.
 
 ## Rule 0g: Never `unmarshal: json:` before a JSON DataMapper step
 

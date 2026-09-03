@@ -369,7 +369,7 @@ class BobGeneratorTest {
     }
 
     @Test
-    void installsSharedSecurityChecklistForBobValidation() throws Exception {
+    void installsSharedSecurityChecklistForBobWorkflows() throws Exception {
         InitContext ctx = createContext();
         new BobGenerator().generate(ctx);
 
@@ -386,12 +386,89 @@ class BobGeneratorTest {
             assertTrue(Files.readString(installed).contains("shared/camel-security-checklist.md"), guide);
         }
 
-        // The Bob implement gate (installed as .bob/skills/camel-implement/SKILL.md) must reference the shared
-        // checklist so the implementation engineer can load it for security-sensitive steps
+        Path executeGate = tempDir.resolve(".bob/skills/camel-execute/SKILL.md");
+        String execute = Files.readString(executeGate);
+        assertTrue(execute.contains("| Shared guides | `.bob/skills/shared/` |"));
+        int loadGuides = execute.indexOf("**Step 2: Load Guides**");
+        int satisfyRequirements = execute.indexOf("**Step 3: Satisfy Validated Task Requirements**");
+        assertTrue(loadGuides >= 0 && satisfyRequirements > loadGuides);
+        String executeGuideLoading = execute.substring(loadGuides, satisfyRequirements);
+        String normalizedExecuteGuideLoading = executeGuideLoading.replaceAll("\\s+", " ");
+        assertTrue(normalizedExecuteGuideLoading.contains(
+                "every implementation task involving input validation or security-sensitive behavior: load "
+                                                          + "`.bob/skills/shared/camel-security-checklist.md` before generating artifacts"));
+
+        // Standalone implement mode must expose the same guide before optional advanced-EIP handling.
         Path implementGate = tempDir.resolve(".bob/skills/camel-implement/SKILL.md");
         assertTrue(Files.isRegularFile(implementGate));
-        assertTrue(Files.readString(implementGate).contains("shared/camel-security-checklist.md"),
-                "Bob implement gate must reference the shared security checklist for advanced-EIP validation");
+        String implement = Files.readString(implementGate);
+        int loadImplementationContext = implement.indexOf("## Load Implementation Context");
+        int implementEachRoute = implement.indexOf("## Implement Each Route");
+        int specialCases = implement.indexOf("## Special Cases");
+        assertTrue(loadImplementationContext >= 0 && implementEachRoute > loadImplementationContext
+                && specialCases > implementEachRoute);
+        int checklistReference = implement.indexOf(".bob/skills/shared/camel-security-checklist.md");
+        assertTrue(checklistReference > loadImplementationContext && checklistReference < implementEachRoute);
+        String implementContext = implement.substring(loadImplementationContext, implementEachRoute);
+        String normalizedImplementContext = implementContext.replaceAll("\\s+", " ");
+        assertTrue(normalizedImplementContext.contains(
+                "For every route involving input validation or security-sensitive behavior, load "
+                                                       + "`.bob/skills/shared/camel-security-checklist.md` before generating artifacts"));
+
+        String validate = Files.readString(tempDir.resolve(".bob/skills/camel-validate/SKILL.md"));
+        assertTrue(validate.contains("| Shared guides | `.bob/skills/shared/` |"));
+        assertTrue(validate.contains(
+                "`.bob/skills/shared/camel-security-checklist.md` — **Always**"));
+        int inventoryStart = validate.indexOf("### Runtime Path Inventory (MANDATORY)");
+        int validationGuides = validate.indexOf("Load validation guides:", inventoryStart);
+        assertTrue(inventoryStart >= 0 && validationGuides > inventoryStart);
+        String inventory = validate.substring(inventoryStart, validationGuides);
+        String normalizedInventory = inventory.replaceAll("\\s+", " ");
+        assertTrue(normalizedInventory.contains("With an active pipeline"));
+        assertTrue(normalizedInventory.contains("standalone project-scoped mode"));
+        assertTrue(normalizedInventory.contains(
+                "Main: `ROUTE_FILES` is every `{MODULE_PREFIX}*.camel.yaml`; `PROPS_FILE` is "
+                                                + "`{MODULE_PREFIX}application.properties`"));
+        assertTrue(normalizedInventory.contains(
+                "Spring Boot/Quarkus: `ROUTE_FILES` is every "
+                                                + "`{MODULE_PREFIX}src/main/resources/camel/*.camel.yaml`; `PROPS_FILE` is "
+                                                + "`{MODULE_PREFIX}src/main/resources/application.properties`"));
+        assertTrue(normalizedInventory.contains("Read every resolved route file and its matching `PROPS_FILE`"));
+        assertTrue(normalizedInventory.contains("iterate every route in every module"));
+        assertTrue(validate.contains("do not replace it with a root-only route scan"));
+        assertFalse(validate.contains("find src/main/resources/camel"));
+
+        String tlsRule
+                = "**TLS Everywhere** — external HTTP uses HTTPS (except localhost); brokers use SSL or SASL_SSL; "
+                  + "databases verify certificates and hostnames; TLS 1.2+; certificate validation remains enabled";
+        for (String gate : List.of(execute, implement, validate)) {
+            String normalizedGate = gate.replaceAll("\\s+", " ");
+            assertTrue(normalizedGate.contains(tlsRule));
+            assertTrue(normalizedGate.contains(
+                    "connection strings, credentials, or environment-specific values"));
+            assertTrue(normalizedGate.contains(
+                    "values in route YAML and Camel component configuration use `{{...}}` placeholders"));
+            assertTrue(normalizedGate
+                    .contains("Only `application.properties` may use runtime-resolved `${...}` placeholders"));
+            assertTrue(normalizedGate.contains("camel-main does not resolve `${...}` there"));
+            assertTrue(normalizedGate.contains(
+                    "Literal route IDs, descriptions, business constants, and EIP thresholds are not configuration violations"));
+            assertTrue(normalizedGate
+                    .contains("caller authentication on externally exposed inbound HTTP/REST endpoints"));
+        }
+
+        String validationRules = Files.readString(
+                tempDir.resolve(".bob/rules-camel-validate-mode/validation.md"));
+        String criticalChecklistViolation
+                = "Every confirmed violation of `.bob/skills/shared/camel-security-checklist.md` is `CRITICAL`";
+        for (String validationSurface : List.of(validate, validationRules)) {
+            String normalizedValidationSurface = validationSurface.replaceAll("\\s+", " ");
+            assertTrue(normalizedValidationSurface.contains(criticalChecklistViolation));
+            assertTrue(normalizedValidationSurface.contains("Security Analysis category `FAIL`"));
+            assertTrue(normalizedValidationSurface.contains("Overall Status `FAIL`"));
+        }
+        assertTrue(validate.contains("Rule 6 violated: Hardcoded URL"));
+        assertFalse(validate.contains("Rule 1 violated: Hardcoded URL"));
     }
 
     private void assertEditRejects(String mode, String... paths) {

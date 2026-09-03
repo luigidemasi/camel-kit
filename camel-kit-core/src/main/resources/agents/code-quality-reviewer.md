@@ -39,7 +39,7 @@ Check all 8 rules for every route:
 ### 2. Security Analysis
 
 Apply the five core rules of `shared/camel-security-checklist.md` — no hardcoded credentials, TLS everywhere, no
-sensitive data in logs, input validation at every ingress, authentication on external endpoints. That file is the
+sensitive data in logs, input validation at every external or untrusted ingress, authentication on external endpoints. That file is the
 source of truth for these checks; do not substitute a different list.
 
 ### 3. Anti-Pattern Detection

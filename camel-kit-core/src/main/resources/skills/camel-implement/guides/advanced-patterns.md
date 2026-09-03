@@ -112,7 +112,7 @@ If the design spec identifies external dependencies:
     steps:
       # External call here
       - to:
-          uri: "http://{{external.service.url}}"
+          uri: "https://{{external.service.url}}"
     onFallback:
       steps:
         # Fallback action
@@ -177,18 +177,16 @@ If the design spec Monitoring & Observability section requires correlation IDs:
     simple: "${header.X-Correlation-ID}"
 ```
 
-### 8.6 Content Enricher with Caching
+### 8.6 Content Enricher
 
-If the design spec has enrichment steps and high volume:
+If the design spec has enrichment steps:
 
 ```yaml
-# Enrich with caching
+# Enrich with a prepared SQL parameter
 - enrich:
     expression:
-      simple: "sql:SELECT name FROM customers WHERE id = ${body.customerId}"
+      constant: "sql:SELECT name FROM customers WHERE id = :#${body.customerId}"
     aggregationStrategy: "#customerEnricher"
-    cacheSize: 1000
-    cacheTimeout: 300000  # 5 minutes
 ```
 
 **Bean definition:**

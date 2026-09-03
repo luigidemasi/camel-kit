@@ -102,15 +102,34 @@ Encrypt only sensitive fields within message
 Pick one secrets manager (environment variables, Kubernetes Secrets, HashiCorp Vault, or AWS Secrets Manager), record
 it in the design spec, and reference every secret with the canonical syntax in security checklist rule 1 snippets.
 
-**Rotation:** Vault rotates secrets automatically only with a dynamic secrets engine (database, PKI, AWS, etc.) —
-static KV secrets never change unless explicitly updated. Record the secrets engine, rotation strategy, and any
-application refresh mechanism (e.g. Camel `camel.vault.hashicorp.refreshEnabled=true`) in the design spec.
+**Rotation:** Dynamic database and AWS engines issue leased credentials; a lease-aware client, agent, or operator must
+renew a renewable lease or obtain a replacement before it expires. PKI engines issue certificates with a validity
+period, so rotation requires reissuing and deploying a replacement certificate and key before expiry rather than
+renewing a secret lease. Static KV secrets change only when explicitly updated. Camel's HashiCorp refresh hook polls
+KV-v2 version metadata and reloads route/property-placeholder configuration; it does not manage dynamic-secret leases or
+PKI certificate reissuance. The hook is available in supported Camel 4.18.2, 4.18.3, and 4.21.0, but not 4.14.7. For
+Camel Main 4.18.3/4.21.0, a complete KV refresh setup includes the normal Vault connection settings plus:
+
+```properties
+camel.vault.hashicorp.refreshEnabled=true
+camel.vault.hashicorp.refreshPeriod=60000
+camel.vault.hashicorp.secrets=database,api-keys
+camel.main.context-reload-enabled=true
+```
+
+`refreshPeriod` defaults to 60000 ms. `secrets` may be omitted only when every tracked value is referenced through a
+`hashicorp:` placeholder in the default `secret` mount. For a custom mount, configure an engine-qualified entry such as
+`camel.vault.hashicorp.secrets=myengine:path/to/secret`. Other runtimes may use different property naming; verify the
+target version and runtime before emitting configuration. Context reload refreshes route/property-placeholder
+configuration, but a client, connection pool, or bean that captured an old credential must be recreated by that reload
+or explicitly restarted. Record the engine, lease or rotation strategy, bound Camel version, and application refresh
+mechanism in the design spec; on Camel 4.14.7 use an application-specific reload or restart strategy for updated KV data.
 
 ---
 
 ## Input Validation
 
-Security checklist rule 4 — schema validation at every ingress, message size limits, prepared statements, and no
+Security checklist rule 4 — schema validation at every external or untrusted ingress, message size limits, prepared statements, and no
 unsanitized external input in expressions. Snippets are in the checklist. Record in the design spec which schema
 validates each external input and where size limits are enforced.
 

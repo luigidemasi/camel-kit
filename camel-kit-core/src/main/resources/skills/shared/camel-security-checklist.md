@@ -22,11 +22,23 @@ plus the transport, logging, input-validation, and authentication rules.
 | 1 | **No hardcoded credentials** | No passwords, API keys, tokens, secrets, or `jdbc:` URLs with inline credentials in route YAML, in `application.properties` values, or as endpoint URI query parameters. Every secret is a placeholder resolved from the environment or a secrets manager (snippets below). Detection patterns: `password=`, `apiKey=`, `secret=`, `token=`, Base64 strings longer than 20 characters, `user:password@` inside a URI. |
 | 2 | **TLS everywhere** | Every HTTP endpoint outside `localhost` uses `https://`; brokers use an SSL or SASL_SSL security protocol; database URLs require TLS with certificate verification; TLS 1.2 or higher; certificate validation is never disabled. |
 | 3 | **No sensitive data in logs** | Log identifiers and selected fields, never the full `${body}` or all headers; never log `Authorization`, `X-API-Key`, `Cookie`, passwords, or tokens; log masking is enabled; PII fields are masked or omitted — canonical PII field list: `email`, `phone`, `ssn`, `creditCard` (credential keywords such as password, token, and API key are masked by default once masking is on). |
-| 4 | **Input validation at every ingress** | External input is schema-validated (`json-validator:`, `bean-validator:`, or an XML validator); message size limits are enforced at the ingress; SQL uses prepared statements; Simple, JSONPath, XPath, `toD`, `recipientList`, `routingSlip`, `dynamicRouter` expressions and scripting languages never evaluate unsanitized external input, and user input rendered into templates or scripts is escaped. |
+| 4 | **Input validation at every external or untrusted ingress** | External or newly untrusted input is schema-validated (`json-validator:`, `bean-validator:`, or an XML validator); message size limits are enforced at that ingress; trusted internal `direct:`/`seda:` hops inherit validation unless they cross a new trust boundary; SQL uses prepared statements; Simple, JSONPath, XPath, `toD`, `recipientList`, `routingSlip`, `dynamicRouter` expressions and scripting languages never evaluate unsanitized external input, and user input rendered into templates or scripts is escaped. |
 | 5 | **Authentication on external endpoints** | Every externally exposed HTTP/REST endpoint authenticates callers (OAuth2/JWT, API key, or mutual TLS); no wildcard CORS unless the design spec allows it; headers from external systems are not forwarded blindly (`removeHeaders` where the design specifies sanitization). |
 
-Severity stays phase-specific: validation reports rule 1 as a constitution FAIL and the other rules per the
-anti-pattern catalog; the reviewer and critic personas classify findings on their own scales.
+### Validation severity
+
+`camel-validate` and the Bob validation gate use one mapping for both MCP and manual fallback results:
+
+| Rule | Validation severity |
+|---|---|
+| 1. No hardcoded credentials | **FAIL** |
+| 2. TLS everywhere | **FAIL** |
+| 3. No sensitive data in logs | **FAIL** |
+| 4. Input validation at every external or untrusted ingress | **FAIL** |
+| 5. Authentication on external endpoints | **FAIL** |
+
+Every confirmed violation blocks validation until fixed. MCP availability never changes severity. Reviewer and critic
+personas may use their own output labels, but they must not downgrade a confirmed violation of these rules.
 
 ## Canonical Configuration Snippets
 
@@ -114,15 +126,47 @@ On spring-boot and quarkus the HTTP body limit is the framework server's request
 option; behind a gateway, enforce it there as well. Kafka message size is capped by the broker and topic configuration
 (`message.max.bytes` / `max.message.bytes`), outside the Camel application; the Camel producer option
 `camel.component.kafka.maxRequestSize` caps outbound records only. Broker limits are transport safeguards and do not
-bound the decoded application payload — a compressed or batch record can expand significantly after the consumer reads
-it. Before passing a Kafka-sourced message to a parser or enricher, add an explicit size check:
+bound decoded application values: they limit Kafka record-batch bytes after compression when compression is enabled.
+Camel batching is separate — with `batching=true`, Camel aggregates decoded records as `List<Exchange>`. Validate every
+record before the first parser or enricher. Use a decoded-character limit for Camel's default `StringDeserializer`, a
+byte limit for `ByteArrayDeserializer`, and fail closed for every other value type:
 
 ```java
-// In a Camel Processor
-long size = ((byte[]) exchange.getIn().getBody()).length;
-if (size > MAX_ALLOWED_BYTES) {
-    throw new IllegalArgumentException("Kafka message too large: " + size + " bytes");
+static void validateKafkaRecordValue(Object value) {
+    if (value == null) {
+        throw new IllegalArgumentException("Kafka null value/tombstone rejected by default");
+    }
+    if (value instanceof String text) {
+        int characters = text.codePointCount(0, text.length());
+        if (characters > MAX_ALLOWED_CHARACTERS) {
+            throw new IllegalArgumentException("Kafka payload too large: " + characters + " characters");
+        }
+        return;
+    }
+    if (value instanceof byte[] bytes) {
+        if (bytes.length > MAX_ALLOWED_BYTES) {
+            throw new IllegalArgumentException("Kafka payload too large: " + bytes.length + " bytes");
+        }
+        return;
+    }
+    throw new IllegalArgumentException("Define a Kafka payload-size rule for " + value.getClass().getName());
+}
+
+Object body = exchange.getMessage().getBody();
+if (body instanceof List<?> batch) {
+    for (Object item : batch) {
+        if (!(item instanceof Exchange child)) {
+            throw new IllegalArgumentException("Unexpected Kafka batch item type");
+        }
+        validateKafkaRecordValue(child.getMessage().getBody());
+    }
+} else {
+    validateKafkaRecordValue(body);
 }
 ```
 
-Never rely on a broker-side property as the sole guard against oversized application payloads.
+If a compacted-topic delete is part of the route contract, handle the null value and stop that record before invoking
+the validator or any parser; otherwise reject it as above. Apply the payload limit per record. When batch work itself
+needs a bound, configure `maxPollRecords` or separately cap `batch.size()` without replacing the per-record check. If the
+value deserializer changes, add a matching representation-specific rule. Never rely on a broker-side property as the
+sole guard against oversized application payloads.

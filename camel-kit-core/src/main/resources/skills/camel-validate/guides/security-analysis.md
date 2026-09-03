@@ -5,109 +5,48 @@
 > - `CAMEL_VERSION` — from `.camel-kit/config.properties`
 > - `RUNTIME` — project runtime from `.camel-kit/config.properties`
 > - `PLATFORM_BOM` — resolved from `CAMEL_VERSION` + `RUNTIME` via the version mapping table in `skills/shared/mcp-setup.md`
+> - `ROUTE_FILES` — exact runtime/module-aware relative route paths from the validation inventory
+> - `PROPS_FILE` — exact properties path matching the current route's module
 >
 > **Version mapping:** When calling MCP catalog tools, translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` and `platformBom` parameters using the version mapping table in `skills/shared/mcp-setup.md`.
 
-Load `shared/camel-security-checklist.md` first: the MCP check categories below map onto its five core rules, and the
-manual fallback applies the same rules.
+Load `shared/camel-security-checklist.md` first. It is authoritative; MCP output never replaces or narrows its five
+core rules.
 
 ## Stage 8: Security Analysis (MCP Enhanced)
 
-**This is the most powerful MCP integration - 47 automated security checks!**
+### 8.1 Canonical Security Analysis (Always Required)
 
-### 8.1 MCP Security Analysis
+For every exact path in `ROUTE_FILES`, apply every clause of all five checklist rules unconditionally to the route, its
+matching `PROPS_FILE`, and relevant component, bean, datasource, broker, HTTP client, and TLS configuration. Report each
+confirmed violation with the checklist's canonical severity mapping. Run this analysis whether the MCP call succeeds,
+fails, or is unavailable.
 
-**If tool call succeeds:**
+Keep authentication evidence tied to the inbound endpoint it describes. For example:
+
+- An external outbound `to: http://{{api.endpoint}}` violates the transport-security rule.
+- A distinct externally exposed inbound `from: platform-http:/orders` without caller authentication violates the
+  authentication rule.
+
+### 8.2 Supplemental MCP Evidence
+
+After the canonical analysis, request additional candidate evidence for each route:
 
 ```
-== SECURITY ANALYSIS (MCP - 47 Checks) ==
-
-Running comprehensive security scan...
-
 MCP Tool: camel_route_harden_context
 Params: {
   "route": "[route-yaml-content]",
+  "format": "yaml",
   "camelVersion": "{{CAMEL_VERSION}}",
   "platformBom": "{{PLATFORM_BOM}}",
   "runtime": "{{RUNTIME}}"
 }
-
-Analyzing route for security vulnerabilities...
 ```
 
-**MCP checks include:**
+Treat every MCP item as supplemental candidate evidence and corroborate it against the route and configuration. When a
+confirmed concern maps to a checklist rule, classify it with that rule's canonical severity. Report confirmed MCP
+concerns outside the checklist separately as non-checklist findings under the applicable validation category; do not
+invent a checklist rule or let them change the canonical security result.
 
-**Hardcoded Credentials (Critical):**
-```
-✅ No hardcoded passwords found
-✅ No API keys in route
-✅ No OAuth tokens hardcoded
-✅ No database credentials in YAML
-```
-
-**Insecure Protocols (Critical):**
-```
-❌ CRITICAL: Plain HTTP to external system detected
-   Line 42: to: http://{{api.endpoint}}
-   Risk: Unencrypted communication exposes data in transit
-   Fix: Change to https://{{api.endpoint}}
-
-✅ Kafka SSL configured
-✅ Database connections use SSL
-```
-
-**SQL Injection Risks (High Risk):**
-```
-✅ Using parameterized queries
-✅ No string concatenation in SQL
-```
-
-**Encryption Issues:**
-```
-✅ TLS/SSL enabled for messaging
-✅ Database connections encrypted
-```
-
-**Authentication:**
-```
-✅ Kafka SASL authentication configured
-⚠️ HTTP endpoint: No authentication detected
-   Consider adding OAuth2 or API key authentication
-```
-
-**PII and Sensitive Data:**
-```
-⚠️ WARNING: Logging full message body at line 28
-   Risk: May expose PII or sensitive data
-   Fix: Log only message ID or specific fields
-```
-
-**MCP Security Summary:**
-```
-== SECURITY SCAN RESULTS ==
-
-Critical Issues: 1
-  1. Plain HTTP to external system (line 42) — must fix before production
-High Risk: 0
-Warnings: 2
-  1. No authentication on HTTP endpoint (line 42)
-  2. Logging full body may expose PII (line 28)
-
-Passed Checks: 44/47
-
-Recommendation: Fix critical issues before production deployment
-```
-
-### 8.2 Fallback: Manual Anti-Pattern Detection
-
-**If the tool call fails:**
-
-```
-MCP tool call failed. Loading manual anti-pattern guide...
-→ Reading guides/anti-patterns.md
-
-Running manual security checks...
-```
-
-Then apply rules 1–4 of `shared/camel-security-checklist.md` through the manual checks in the anti-patterns guide, and
-rule 5 (authentication on external endpoints) directly from the checklist.
+If the tool call fails, note that supplemental MCP evidence is unavailable and continue the complete canonical analysis.
+Use `guides/anti-patterns.md` only for examples and non-security checks; it never narrows the checklist.

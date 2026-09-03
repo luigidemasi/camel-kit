@@ -607,11 +607,11 @@ the skills, and leaves runtime mutation/control tools out of the generated allow
 
 | Tool Name | Purpose |
 |-----------|---------|
-| `camel_validate_route` | Validate endpoint URIs and route definitions against catalog schema |
+| `camel_validate_route` | Validate one explicit endpoint URI against the bound catalog; route-content extraction is YAML-only and best-effort, so shipped guides call it once per statically extracted endpoint |
 | `camel_validate_yaml_dsl` | Validate Camel YAML DSL syntax |
 | `camel_transform_route` | Convert routes between YAML and XML formats |
 | `camel_route_context` | Extract components and EIPs from route (YAML/XML/Java) |
-| `camel_route_harden_context` | Analyze routes for security concerns (47 checks) |
+| `camel_route_harden_context` | Provide supplemental candidate evidence for route-hardening concerns |
 | `camel_route_test_scaffold` | Generate a JUnit 5 Camel route test scaffold |
 
 #### 3. Diagnostics And Configuration

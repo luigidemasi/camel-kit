@@ -34,7 +34,8 @@ self-contained in a fresh context; keep these checks aligned with that file and 
 
 ### 1. Credential Exposure
 - No hardcoded passwords, API keys, or tokens in YAML route files
-- No credentials in `application.properties` values (only `{{PLACEHOLDER}}` references)
+- No credentials in `application.properties` values; secret references use `{{...}}` on camel-main, while Spring Boot
+  and Quarkus may also use their runtime-resolved `${...}` placeholders
 - No secrets passed as URI query parameters in endpoint URIs
 - No credentials logged or exposed in `log:` EIP message patterns
 
@@ -42,6 +43,8 @@ self-contained in a fresh context; keep these checks aligned with that file and 
 - Simple language expressions do not evaluate unsanitized external input
 - JSONPATH / XPath expressions do not allow injection via message headers or body
 - `recipientList` / `routingSlip` / `dynamicRouter` / `toD` expressions do not allow destination injection from external input
+- Every SQL value derived from external input is bound as a prepared parameter; never interpolate `${body...}`, `${header...}`, `${exchangeProperty...}`, or equivalent expressions as SQL text
+- External input rendered into templates or scripts is escaped for the target language
 - `bean` method calls do not pass unvalidated input to security-sensitive operations
 
 ### 3. TLS Configuration
@@ -52,6 +55,8 @@ self-contained in a fresh context; keep these checks aligned with that file and 
 - Certificate validation is not disabled (`sslContextParameters` present where required)
 
 ### 4. Header Security
+- Logs contain identifiers or selected fields, never the full `${body}` or all headers; log masking is enabled and PII
+  is masked or omitted
 - Sensitive headers (`Authorization`, `X-API-Key`, `Cookie`) are not logged
 - Headers from external systems are not blindly forwarded to internal routes
 - `removeHeaders` pattern used where the design spec section specifies header sanitization
@@ -59,7 +64,7 @@ self-contained in a fresh context; keep these checks aligned with that file and 
 ### 5. CORS and Access Control
 - REST DSL endpoints have CORS configured per design spec section specification
 - No wildcard CORS (`*`) unless the design spec section explicitly allows it
-- Authentication/authorization present for externally-exposed endpoints
+- Caller authentication/authorization is present for externally-exposed inbound HTTP/REST endpoints
 
 ## Output Format
 

@@ -208,7 +208,7 @@ Generate the route by translating the active design spec flow section to Camel Y
          uri: "direct:process"
          steps:
            - to:
-               uri: "http:{{api.host}}"
+               uri: "https:{{api.host}}"
 
    # WRONG — global onException after a route (schema validation error)
    - route:

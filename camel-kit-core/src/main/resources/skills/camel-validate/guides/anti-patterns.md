@@ -214,7 +214,7 @@ Check: External dependency resilience
       waitDurationInOpenState: 30  # seconds
     steps:
       - to:
-          uri: "http://{{external.service.url}}"
+          uri: "https://{{external.service.url}}"
     onFallback:
       steps:
         - log:
@@ -227,6 +227,8 @@ Check: External dependency resilience
 
 Load `shared/camel-security-checklist.md`. Each anti-pattern below violates one of its five core rules; the fix
 snippets (secret references, transport security, log masking, input validation) live there and are not repeated here.
+Apply every clause of every rule and use the checklist's validation severity mapping. The examples below are
+illustrative and never narrow the canonical checks; every confirmed security-rule violation is Critical/FAIL.
 
 ### Hardcoded Credentials
 
@@ -256,11 +258,11 @@ Unencrypted network traffic:
 Check: Transport security
 - HTTP endpoints: [list]
 - Using HTTPS: [Yes/No]
-  ❌ Plain HTTP found: http://api.example.com
+  ❌ CRITICAL: Plain HTTP found: http://api.example.com
   → Change to HTTPS
 
 - Kafka SSL: [Enabled/Disabled]
-  ⚠️ Kafka SSL not enabled
+  ❌ CRITICAL: Kafka SSL not enabled
   → Enable SSL or SASL_SSL on the Kafka component for production
 ```
 
@@ -275,7 +277,7 @@ PII or secrets in logs:
 ```
 Check: Log statements for PII/secrets
 - Scanning logs for: ${body}, ${header.Authorization}, passwords
-  ⚠️ WARNING: Logging full body at line 35
+  ❌ CRITICAL: Logging full body at line 35
      May contain PII or sensitive data
   → Use selective logging or mask sensitive fields
 ```
@@ -284,22 +286,40 @@ Check: Log statements for PII/secrets
 
 ---
 
-### No Input Validation
+### No Input Validation at External or Untrusted Ingress
 
-Missing schema or size validation:
+Missing schema or size validation where external or newly untrusted input enters the flow:
 
 ```
-Check: Input validation
+Check: Input validation at every external or untrusted ingress
 - Schema validation: [Present | Missing]
 - Size limits: [Set | Not set]
-  ⚠️ No schema validation found
+  ❌ CRITICAL: No schema validation found
   → Add JSON Schema or Bean Validation
 
-  ⚠️ No message size limit
+  ❌ CRITICAL: No message size limit
   → Set maximum message size to prevent DoS
 ```
 
+Apply this check at every external or newly untrusted ingress. Internal `direct:` or `seda:` subroutes inherit validation
+from their trusted caller unless they introduce another external or untrusted boundary.
+
 **Fix:** security checklist rule 4 snippets (schema validation, size limits).
+
+---
+
+### Missing External Endpoint Authentication
+
+Externally exposed HTTP/REST endpoints without caller authentication:
+
+```
+Check: External endpoint authentication
+- Authentication: [Present | Missing]
+  ❌ CRITICAL: External HTTP endpoint has no authentication
+  → Add OAuth2/JWT, API key authentication, or mutual TLS
+```
+
+**Fix:** security checklist rule 5.
 
 ---
 
@@ -391,36 +411,28 @@ Check: Reference data lookup
   → Add caching for enrichment data
 ```
 
-**Fix:**
+**Fix with a bounded Caffeine cache:**
 ```yaml
-# Add caching to enrichment
-# NOTE: customerId is an internally-assigned identifier (not external free-text input).
-# If customerId comes from an external caller, use a named parameter in the SQL component
-# (sql:SELECT * FROM customers WHERE id = :#customerId) and set the header 'customerId'
-# from the validated body field before the sql: call.
-- enrich:
-    expression:
-      simple: "sql:SELECT * FROM customers WHERE id = ${body.customerId}"
-    aggregationStrategy: "#customerEnricher"
-    cacheSize: 1000
-    cacheTimeout: 300000  # 5 minutes
-```
+# Reject caller-controlled component headers, then preserve the validated identifier as the cache key
+- removeHeaders:
+    pattern: "CamelCaffeine*"
+- setHeader:
+    name: CamelCaffeineKey
+    simple: "${body.customerId}"
 
-**Or use Caffeine cache:**
-```yaml
-# Store in cache first (same NOTE: customerId is an internally-assigned identifier)
+# Check the cache first
 - to:
-    uri: "caffeine-cache:customerCache?action=GET&key=${body.customerId}"
+    uri: "caffeine-cache:customerCache?action=GET&maximumSize=1000"
 
 # If not in cache, fetch and store
 - choice:
     when:
-      - simple: "${body} == null"
+      - simple: "${header.CamelCaffeineActionHasResult} == false"
         steps:
           - to:
-              uri: "sql:SELECT * FROM customers WHERE id = ${body.customerId}"
+              uri: "sql:SELECT * FROM customers WHERE id = :#${header.CamelCaffeineKey}"
           - to:
-              uri: "caffeine-cache:customerCache?action=PUT&key=${body.customerId}"
+              uri: "caffeine-cache:customerCache?action=PUT&maximumSize=1000"
 ```
 
 ---
@@ -436,14 +448,15 @@ Critical (Must Fix):
   ❌ Hardcoded credentials at line 42
   ❌ God route: 25 processing steps
   ❌ Plain HTTP to external system at line 12
+  ❌ Kafka SSL not enabled
+  ❌ Logging full body may expose PII
+  ❌ External or untrusted ingress has no input validation (schema, size limits)
+  ❌ External HTTP endpoint has no authentication
 
 Warnings (Recommended):
   ⚠️ No correlation ID generation
   ⚠️ No circuit breaker for external calls
-  ⚠️ Logging full body may expose PII
   ⚠️ No connection pooling
-  ⚠️ Kafka SSL not enabled
-  ⚠️ No input validation (schema, size limits)
 
 Best Practices (Optional):
   ℹ️ Consider batching for high volume
