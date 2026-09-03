@@ -84,8 +84,8 @@ Resolve `TEST_DIR` as the optional `[MODULE_DIR]` prefix plus `src/test/resource
 
 ## Test Design Principles
 
-Every test task dispatches the `test-engineer` persona, which carries the canonical Test Design Principles
-(`agents/test-engineer.md`). Do not restate them in task files.
+The canonical Test Design Principles live in `camel-test/guides/test-generation.md`, which every test task loads at
+execution time. Do not restate them in task files.
 
 ---
 

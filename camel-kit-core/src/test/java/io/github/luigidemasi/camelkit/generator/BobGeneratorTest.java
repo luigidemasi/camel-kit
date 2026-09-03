@@ -346,6 +346,28 @@ class BobGeneratorTest {
         }
     }
 
+    @Test
+    void installsCanonicalTestDesignPrinciplesForBobTestTasks() throws Exception {
+        InitContext ctx = createContext();
+        new BobGenerator().generate(ctx);
+
+        Path guide = tempDir.resolve(".bob/skills/camel-test/guides/test-generation.md");
+        assertTrue(Files.isRegularFile(guide));
+        String guideContent = Files.readString(guide);
+        assertTrue(guideContent.contains("## Test Design Principles"));
+        for (String principle : List.of("One test = one behavior", "Realistic test data", "Infrastructure isolation",
+                "Assertion completeness", "Negative testing", "Idempotent")) {
+            assertTrue(guideContent.contains(principle), principle);
+        }
+
+        // Bob installs no persona resources, so the test task template must not point at agents/
+        Path template = tempDir.resolve(".bob/skills/camel-plan/guides/task-template-testing.md");
+        assertTrue(Files.isRegularFile(template));
+        String templateContent = Files.readString(template);
+        assertTrue(templateContent.contains("camel-test/guides/test-generation.md"));
+        assertFalse(templateContent.contains("agents/"));
+    }
+
     private void assertEditRejects(String mode, String... paths) {
         Pattern pattern = editPattern(mode);
         for (String path : paths) {

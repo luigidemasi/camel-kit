@@ -148,7 +148,7 @@ Too many small messages instead of batches:
 Check: Message granularity
 - Pattern: Individual messages vs batches
 - Volume: [N] messages expected
-  → [N > 1000/min] + Individual messages: ⚠️ WARNING
+  → [N > 100/sec] + Individual messages: ⚠️ WARNING
      Consider batching for better performance
 ```
 
