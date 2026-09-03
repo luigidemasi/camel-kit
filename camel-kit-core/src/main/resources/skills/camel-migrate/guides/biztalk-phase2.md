@@ -246,7 +246,7 @@ of the following details:
 ### 3.5 Sub-orchestration / Route References (if applicable)
 
 | BizTalk Sub-orchestration | Camel Route | Direct URI | BizTalk Origin |
-|---|---|---|---|---|
+|---|---|---|---|
 | [sub-orchestration-name] | [camel-route-name] | `direct:[camel-route-name]` | `<Call Orchestration>` shape |
 
 ### DataMapper: kaoto-datamapper-{8hexchars} (if orchestration contains Transform shape)
@@ -303,7 +303,7 @@ sequenceDiagram
 ## Section 8: Dependencies
 
 | Dependency | Maven Coordinates | Notes |
-|---|---|---|---|
+|---|---|---|
 | [component name] | `[groupId:artifactId:version]` | [notes] |
 
 ## Section 9: Constitution Gate Checks
