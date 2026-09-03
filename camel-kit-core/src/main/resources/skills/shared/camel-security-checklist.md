@@ -113,5 +113,16 @@ camel.server.maxBodySize=1048576
 On spring-boot and quarkus the HTTP body limit is the framework server's request-size setting, not a Camel component
 option; behind a gateway, enforce it there as well. Kafka message size is capped by the broker and topic configuration
 (`message.max.bytes` / `max.message.bytes`), outside the Camel application; the Camel producer option
-`camel.component.kafka.maxRequestSize` caps outbound records only. Never rely on an application-level property that
-nothing enforces.
+`camel.component.kafka.maxRequestSize` caps outbound records only. Broker limits are transport safeguards and do not
+bound the decoded application payload — a compressed or batch record can expand significantly after the consumer reads
+it. Before passing a Kafka-sourced message to a parser or enricher, add an explicit size check:
+
+```java
+// In a Camel Processor
+long size = ((byte[]) exchange.getIn().getBody()).length;
+if (size > MAX_ALLOWED_BYTES) {
+    throw new IllegalArgumentException("Kafka message too large: " + size + " bytes");
+}
+```
+
+Never rely on a broker-side property as the sole guard against oversized application payloads.

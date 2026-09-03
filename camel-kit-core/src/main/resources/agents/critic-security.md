@@ -47,6 +47,8 @@ self-contained in a fresh context; keep these checks aligned with that file and 
 ### 3. TLS Configuration
 - All HTTP/HTTPS endpoints use TLS (no plain `http://` for external systems)
 - Message broker connections use an SSL or SASL_SSL security protocol
+- Database connections require TLS with certificate and hostname verification (sslmode=verify-full or equivalent); `sslmode=require` is not sufficient
+- TLS 1.2 or higher; TLS 1.0/1.1 must not be enabled
 - Certificate validation is not disabled (`sslContextParameters` present where required)
 
 ### 4. Header Security

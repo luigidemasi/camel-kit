@@ -394,6 +394,10 @@ Check: Reference data lookup
 **Fix:**
 ```yaml
 # Add caching to enrichment
+# NOTE: customerId is an internally-assigned identifier (not external free-text input).
+# If customerId comes from an external caller, use a named parameter in the SQL component
+# (sql:SELECT * FROM customers WHERE id = :#customerId) and set the header 'customerId'
+# from the validated body field before the sql: call.
 - enrich:
     expression:
       simple: "sql:SELECT * FROM customers WHERE id = ${body.customerId}"
@@ -404,7 +408,7 @@ Check: Reference data lookup
 
 **Or use Caffeine cache:**
 ```yaml
-# Store in cache first
+# Store in cache first (same NOTE: customerId is an internally-assigned identifier)
 - to:
     uri: "caffeine-cache:customerCache?action=GET&key=${body.customerId}"
 

@@ -385,6 +385,13 @@ class BobGeneratorTest {
             assertTrue(Files.isRegularFile(installed), guide);
             assertTrue(Files.readString(installed).contains("shared/camel-security-checklist.md"), guide);
         }
+
+        // The Bob implement gate (installed as .bob/skills/camel-implement/SKILL.md) must reference the shared
+        // checklist so the implementation engineer can load it for security-sensitive steps
+        Path implementGate = tempDir.resolve(".bob/skills/camel-implement/SKILL.md");
+        assertTrue(Files.isRegularFile(implementGate));
+        assertTrue(Files.readString(implementGate).contains("shared/camel-security-checklist.md"),
+                "Bob implement gate must reference the shared security checklist for advanced-EIP validation");
     }
 
     private void assertEditRejects(String mode, String... paths) {

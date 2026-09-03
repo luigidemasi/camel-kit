@@ -124,6 +124,7 @@ For EACH route in the plan:
 **When advanced EIPs are needed:**
 - Load `guides/advanced-patterns.md`
 - Follow patterns for aggregation, splitting, content-based routing, etc.
+- If the pattern includes input validation or security-sensitive ingress: load `.bob/skills/shared/camel-security-checklist.md` for the canonical size-limit and schema snippets (rule 4)
 </Step>
 
 <Step>

@@ -39,6 +39,7 @@ independently necessary action outside this workflow.
 | `guides/datamapper-validation.md` | When DataMapper used | Pre/post validation, engine routing, metadata |
 | `guides/sequential-http-calls.md` | When chained HTTP calls needed | Sequential HTTP call patterns |
 | `guides/advanced-patterns.md` | When advanced EIPs used | Complex pattern implementation |
+| `shared/camel-security-checklist.md` | When input validation or security snippets are needed | Canonical security rules and configuration snippets |
 | `guides/smoke-test.md` | When smoke test requested | Quick validation test generation |
 | `guides/graph-project-context.md` | When `.camel-kit/project-graph.json` exists | Project conventions for consistent generation |
 

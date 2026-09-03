@@ -102,8 +102,9 @@ Encrypt only sensitive fields within message
 Pick one secrets manager (environment variables, Kubernetes Secrets, HashiCorp Vault, or AWS Secrets Manager), record
 it in the design spec, and reference every secret with the canonical syntax in security checklist rule 1 snippets.
 
-**Rotation:** Vault rotates secrets automatically; record the rotation approach of the chosen store in the design
-spec.
+**Rotation:** Vault rotates secrets automatically only with a dynamic secrets engine (database, PKI, AWS, etc.) —
+static KV secrets never change unless explicitly updated. Record the secrets engine, rotation strategy, and any
+application refresh mechanism (e.g. Camel `camel.vault.hashicorp.refreshEnabled=true`) in the design spec.
 
 ---
 

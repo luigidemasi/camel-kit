@@ -45,11 +45,11 @@ Analyzing route for security vulnerabilities...
 ✅ No database credentials in YAML
 ```
 
-**Insecure Protocols (High Risk):**
+**Insecure Protocols (Critical):**
 ```
-⚠️ WARNING: HTTP endpoint detected
+❌ CRITICAL: Plain HTTP to external system detected
    Line 42: to: http://{{api.endpoint}}
-   Risk: Unencrypted communication
+   Risk: Unencrypted communication exposes data in transit
    Fix: Change to https://{{api.endpoint}}
 
 ✅ Kafka SSL configured
@@ -86,16 +86,16 @@ Analyzing route for security vulnerabilities...
 ```
 == SECURITY SCAN RESULTS ==
 
-Critical Issues: 0
+Critical Issues: 1
+  1. Plain HTTP to external system (line 42) — must fix before production
 High Risk: 0
-Warnings: 3
-  1. HTTP instead of HTTPS (line 42)
-  2. No authentication on HTTP endpoint (line 42)
-  3. Logging full body may expose PII (line 28)
+Warnings: 2
+  1. No authentication on HTTP endpoint (line 42)
+  2. Logging full body may expose PII (line 28)
 
 Passed Checks: 44/47
 
-Recommendation: Fix warnings before production deployment
+Recommendation: Fix critical issues before production deployment
 ```
 
 ### 8.2 Fallback: Manual Anti-Pattern Detection

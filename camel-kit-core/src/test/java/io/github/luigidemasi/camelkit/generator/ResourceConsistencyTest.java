@@ -466,12 +466,20 @@ class ResourceConsistencyTest {
                 .contains("Source of truth: `shared/camel-security-checklist.md`"),
                 "The fresh-context security critic must name the checklist as its source of truth");
 
-        // The canonical snippets appear once: consumers reference the checklist instead of restating them.
+        // The canonical property snippets appear once: consumers reference the checklist instead of restating them.
+        // This protects both the checklist-only config snippets and the secret-reference placeholder examples.
+        // sslmode=verify-full is intentionally mentioned in prose in critic-security.md (not a property snippet),
+        // so it is only presence-checked above, not uniqueness-checked here.
         for (String snippet : List.of(
                 "camel.component.kafka.securityProtocol=SSL",
                 "camel.component.http.sslContextParameters=#sslContextParameters",
                 "camel.main.logMask=true",
-                "camel.main.additionalSensitiveKeywords=")) {
+                "camel.main.additionalSensitiveKeywords=",
+                "database.password={{env:DATABASE_PASSWORD}}",
+                "database.password={{secret:database-credentials/password}}",
+                "database.password={{hashicorp:secret:database#password}}",
+                "database.password={{aws:database#password}}",
+                "camel.server.maxBodySize=1048576")) {
             List<String> restated = new ArrayList<>();
             for (String scanRoot : List.of("skills", "agents")) {
                 try (Stream<Path> paths = Files.walk(root.resolve(scanRoot))) {
@@ -484,6 +492,23 @@ class ResourceConsistencyTest {
             }
             assertTrue(restated.isEmpty(), () -> "Canonical security snippet `" + snippet
                                                  + "` is restated outside the shared checklist: " + restated);
+        }
+
+        // The implementation skill manifest must reference the checklist so the implementation engineer can load it.
+        assertTrue(Files.readString(root.resolve("skills/camel-implement/SKILL.md"))
+                .contains("shared/camel-security-checklist.md"),
+                "skills/camel-implement/SKILL.md must reference the shared security checklist so the engineer can select it");
+        // Intentional critic inline subset: the critic names the checklist but does NOT restate the canonical
+        // property config snippets (it stays fresh-context by inlining only prose checks, not properties).
+        String critic = Files.readString(root.resolve("agents/critic-security.md"));
+        for (String propertySnippet : List.of(
+                "camel.component.kafka.securityProtocol=SSL",
+                "camel.component.http.sslContextParameters=",
+                "camel.main.logMask=",
+                "database.password=")) {
+            assertFalse(critic.contains(propertySnippet),
+                    "critic-security.md must not restate canonical property snippets (inline prose only): "
+                                                          + propertySnippet);
         }
     }
 
