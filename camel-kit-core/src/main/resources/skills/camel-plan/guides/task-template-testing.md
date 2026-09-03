@@ -84,14 +84,8 @@ Resolve `TEST_DIR` as the optional `[MODULE_DIR]` prefix plus `src/test/resource
 
 ## Test Design Principles
 
-Include these in every test task:
-
-1. **One test = one behavior** — each test method validates a single route behavior
-2. **Realistic test data** — use representative data, not `{"key": "value"}`
-3. **Infrastructure isolation** — Testcontainers for databases, brokers; mock endpoints for external APIs
-4. **Assertion completeness** — verify headers, body, and exchange properties
-5. **Negative testing** — test error paths, not just happy paths
-6. **Idempotent** — tests can run repeatedly with same results
+Every test task dispatches the `test-engineer` persona, which carries the canonical Test Design Principles
+(`agents/test-engineer.md`). Do not restate them in task files.
 
 ---
 

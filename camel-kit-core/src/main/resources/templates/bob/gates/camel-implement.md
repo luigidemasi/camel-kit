@@ -144,16 +144,24 @@ Load `guides/route-validation.md` and run cross-route validation:
 
 For EVERY route, verify compliance with all 8 constitution rules:
 
-1. **No Hardcoded URLs** — all endpoints use properties
-2. **Explicit Error Handling** — every route has `onException` or `doTry`
-3. **Structured Logging** — all routes log at entry/exit with correlation ID
-4. **Idempotency** — stateful routes use `idempotentConsumer`
-5. **Circuit Breaker** — HTTP calls have resilience patterns
-6. **TLS Everywhere** — all HTTP endpoints use HTTPS
+1. **Route Structure** — every route has a source (`from:`) and a final sink (`to:`); `direct:`/`seda:` sub-routes exempt
+2. **Single Responsibility** — one route = one purpose; more than 7 processing steps is a WARNING
+3. **Separation of Concerns** — Ingestion → Processing → Delivery; business logic in beans
+4. **Naming Conventions** — route IDs `<domain>-<action>[-<qualifier>]`; custom headers `kebab-case`
+5. **Observability** — every route declares `routeId` and `description`; correlation IDs propagated
+6. **External Configuration** — no hardcoded connection strings, credentials, or environment values; `{{property}}` syntax
 7. **Component Verification** — all components verified via MCP catalog
 8. **Infrastructure via Forage** — infrastructure beans declared with `forage.*` properties when Forage covers them (ladder: Forage → component properties → hand-rolled bean with stated reason); hand-rolled `camel.beans.*` requires a one-line reason comment
 
-If any rule is violated, fix immediately before proceeding.
+Also verify these quality checks (anti-pattern catalog):
+
+- **Explicit Error Handling** — every route has `onException` or `doTry`
+- **Structured Logging** — all routes log at entry/exit with correlation ID
+- **Idempotency** — stateful routes use `idempotentConsumer`
+- **Circuit Breaker** — HTTP calls have resilience patterns
+- **TLS Everywhere** — all HTTP endpoints use HTTPS
+
+If any rule or check is violated, fix immediately before proceeding.
 </Step>
 
 <Step>

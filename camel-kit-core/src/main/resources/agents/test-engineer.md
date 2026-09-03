@@ -54,11 +54,14 @@ You are dispatched during the **Execute phase** for test generation tasks. You r
 
 ## Test Design Principles
 
+These are the canonical Test Design Principles for the pipeline; task files reference them instead of restating them.
+
 1. **One test = one behavior** — each test validates a single route behavior
-2. **Realistic test data** — use representative data, not trivial examples
+2. **Realistic test data** — use representative data, not `{"key": "value"}`
 3. **Infrastructure isolation** — Testcontainers for databases, brokers; mock endpoints for external APIs
-4. **Assertion completeness** — verify headers, body, and properties
+4. **Assertion completeness** — verify headers, body, and exchange properties
 5. **Negative testing** — test error paths, not just happy paths
+6. **Idempotent** — tests can run repeatedly with same results
 
 ## Completion Status
 

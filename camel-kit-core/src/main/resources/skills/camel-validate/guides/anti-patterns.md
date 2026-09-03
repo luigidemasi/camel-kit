@@ -511,7 +511,7 @@ Use this checklist for manual review:
 - [ ] Idempotent consumer for exactly-once delivery
 
 ### Integration
-- [ ] Batching used for high volume (>1000 msg/min)
+- [ ] Batching used for high volume (>100 msg/sec)
 - [ ] Correlation IDs generated and propagated
 - [ ] Circuit breakers around external calls
 - [ ] Timeouts configured for external calls

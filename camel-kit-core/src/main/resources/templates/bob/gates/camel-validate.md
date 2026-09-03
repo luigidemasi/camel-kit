@@ -115,34 +115,34 @@ For EACH route file:
 
 Check all 8 constitution rules:
 
-**Rule 1: No Hardcoded URLs**
-- Scan for `http://`, `https://`, `jdbc:`, `amqp://` in URIs
-- All URLs must use `{{property}}` syntax
+**Rule 1: Route Structure**
+- Every route has a source (`from:`) and a final sink (`to:`)
+- `direct:`/`seda:` sub-routes may omit an external sink
+- Report pass-through routes with no processing steps (WARNING)
+
+**Rule 2: Single Responsibility**
+- One route = one purpose, explainable in one sentence
+- Report routes with more than 7 processing steps (WARNING)
+
+**Rule 3: Separation of Concerns**
+- Ingestion → Processing → Delivery decomposition
+- Business logic in beans, integration logic in routes
+- Report routes embedding business logic
+
+**Rule 4: Naming Conventions**
+- Route IDs match `<domain>-<action>[-<qualifier>]`
+- Internal endpoints use `direct:<route-id>` / `seda:<domain>-<purpose>`; custom headers `kebab-case`
+- Report non-conforming names (WARNING)
+
+**Rule 5: Observability**
+- Every route declares `routeId` and `description`
+- Correlation IDs propagated across routes
+- Report routes without `routeId` or `description`
+
+**Rule 6: External Configuration**
+- Scan for hardcoded `http://`, `https://`, `jdbc:`, `amqp://` URIs and credentials
+- All configurable values must use `{{property}}` syntax
 - Report violations with line numbers
-
-**Rule 2: Explicit Error Handling**
-- Every route must have `onException:` or `doTry:`
-- Error handlers must log exceptions
-- Report routes without error handling
-
-**Rule 3: Structured Logging**
-- Routes must log at entry with correlation ID
-- Routes must log at exit
-- Use `log:` EIP with structured format
-- Report routes without logging
-
-**Rule 4: Idempotency**
-- Routes with `file:`, `ftp:`, `sftp:`, `kafka:` consumers must use `idempotentConsumer:`
-- Report stateful routes without idempotency
-
-**Rule 5: Circuit Breaker**
-- Routes with `http:`, `https:` calls must use `circuitBreaker:` or `resilience4j:`
-- Report HTTP calls without resilience
-
-**Rule 6: TLS Everywhere**
-- All HTTP endpoints must use HTTPS (except localhost)
-- All AMQP endpoints must use TLS
-- Report insecure endpoints
 
 **Rule 7: Component Verification**
 - Call `camel_catalog_component_doc` for every component
@@ -153,7 +153,15 @@ Check all 8 constitution rules:
 - Otherwise accept component properties, or a hand-written bean with a one-line reason
 - Report unknown Forage keys and unexplained hand-written beans
 
-Report constitution violations per route.
+Check quality and resilience (anti-pattern catalog):
+
+- **Explicit Error Handling** — every route must have `onException:` or `doTry:`; error handlers must log exceptions
+- **Structured Logging** — routes log at entry and exit with correlation ID (`log:` EIP, structured format)
+- **Idempotency** — routes with `file:`, `ftp:`, `sftp:`, `kafka:` consumers must use `idempotentConsumer:`
+- **Circuit Breaker** — routes with `http:`/`https:` calls must use `circuitBreaker:` or `resilience4j:`
+- **TLS Everywhere** — all HTTP endpoints use HTTPS (except localhost); AMQP endpoints use TLS
+
+Report constitution and quality violations per route.
 </Step>
 
 <Step>

@@ -199,14 +199,21 @@ Do NOT proceed to code quality review until spec review passes.
 Load `.bob/skills/camel-execute/guides/quality-reviewer-criteria.md` (if it exists) or use these criteria:
 
 Check all 8 constitution rules:
-1. No hardcoded URLs
-2. Explicit error handling
-3. Structured logging
-4. Idempotency (for stateful routes)
-5. Circuit breaker (for HTTP calls)
-6. TLS everywhere
+1. Route Structure — every route has a source (`from:`) and a final sink (`to:`); `direct:`/`seda:` sub-routes exempt
+2. Single Responsibility — one route = one purpose; more than 7 processing steps is a WARNING
+3. Separation of Concerns — Ingestion → Processing → Delivery; business logic in beans
+4. Naming Conventions — route IDs `<domain>-<action>[-<qualifier>]`; custom headers `kebab-case`
+5. Observability — every route declares `routeId` and `description`; correlation IDs propagated
+6. External Configuration — no hardcoded connection strings, credentials, or environment values; `{{property}}` syntax
 7. Component verification
 8. Infrastructure via Forage (`forage.*` properties when Forage covers it; ladder: Forage → component properties → hand-rolled bean with stated reason; hand-rolled `camel.beans.*` requires a one-line reason comment)
+
+Check quality and resilience (anti-pattern catalog):
+- Explicit error handling — every route has `onException:` or `doTry:`
+- Structured logging at route entry/exit
+- Idempotency (for stateful routes)
+- Circuit breaker (for HTTP calls)
+- TLS everywhere
 
 Check security:
 - No hardcoded credentials
