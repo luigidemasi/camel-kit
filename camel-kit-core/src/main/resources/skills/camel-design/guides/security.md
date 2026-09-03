@@ -9,6 +9,11 @@ Load when user mentions:
 - Compliance (GDPR, HIPAA, PCI-DSS)
 - Encryption
 
+Load `shared/camel-security-checklist.md` first. It is the canonical source for the five core security rules and the
+configuration snippets (secret references, transport security, log masking, input validation). This guide covers the
+design decisions around them — which authentication method, which PII fields, which compliance regime — and records
+them in the design spec.
+
 ---
 
 ## Authentication Methods
@@ -17,11 +22,7 @@ Load when user mentions:
 
 **Use when:** Simple service-to-service auth
 
-**Storage:**
-```properties
-# NEVER hardcode!
-api.key=${vault:secret/api/credentials#key}
-```
+**Storage:** a secret reference — security checklist rule 1 snippets. Never hardcode.
 
 **Rotation:** Manual or via secrets manager
 
@@ -31,12 +32,7 @@ api.key=${vault:secret/api/credentials#key}
 
 **Use when:** Modern APIs, token-based auth
 
-**Configuration:**
-```properties
-oauth.tokenUrl=${vault:secret/oauth#tokenUrl}
-oauth.clientId=${vault:secret/oauth#clientId}
-oauth.clientSecret=${vault:secret/oauth#clientSecret}
-```
+**Configuration:** token URL, client ID, and client secret as secret references — security checklist rule 1 snippets.
 
 **Rotation:** Automatic token refresh
 
@@ -46,12 +42,8 @@ oauth.clientSecret=${vault:secret/oauth#clientSecret}
 
 **Use when:** Certificate-based, high security
 
-**Configuration:**
-```properties
-kafka.ssl.keystore.location=${vault:secret/kafka#keystorePath}
-kafka.ssl.keystore.password=${vault:secret/kafka#keystorePassword}
-kafka.ssl.truststore.location=${vault:secret/kafka#truststorePath}
-```
+**Configuration:** client keystore plus truststore (security checklist rule 2 snippets), with locations and passwords as
+secret references (rule 1 snippets).
 
 ---
 
@@ -72,30 +64,14 @@ kafka.ssl.truststore.location=${vault:secret/kafka#truststorePath}
 4. Field-level encryption for highly sensitive
 ```
 
-**Log Masking:**
-```properties
-logging.mask.fields=email,phone,ssn,creditCard
-```
+**Log Masking:** security checklist rule 3 — enable log masking and mask or omit the canonical PII fields listed there.
 
 ---
 
 ### Transport Security
 
-**Always use:**
-- HTTPS (not HTTP)
-- Kafka with SSL/SASL
-- Database with SSL
-- TLS 1.2 or higher
-
-**Configuration:**
-```properties
-# Kafka SSL
-camel.component.kafka.securityProtocol=SSL
-camel.component.kafka.sslTruststoreLocation=${vault:secret/kafka#truststore}
-
-# HTTP HTTPS only
-camel.component.http.sslContextParameters=#sslContextParameters
-```
+Security checklist rule 2 — TLS everywhere: HTTPS, broker SSL/SASL_SSL, database TLS, TLS 1.2 or higher. Configuration
+snippets are in the checklist.
 
 ---
 
@@ -123,70 +99,19 @@ Encrypt only sensitive fields within message
 
 ## Secrets Management
 
-### HashiCorp Vault
+Pick one secrets manager (environment variables, Kubernetes Secrets, HashiCorp Vault, or AWS Secrets Manager), record
+it in the design spec, and reference every secret with the canonical syntax in security checklist rule 1 snippets.
 
-**Configuration:**
-```properties
-# Reference secrets from Vault
-database.password=${vault:secret/database/credentials#password}
-api.key=${vault:secret/api/credentials#key}
-```
-
-**Rotation:** Automatic with Vault
-
----
-
-### AWS Secrets Manager
-
-**Configuration:**
-```properties
-database.password=${aws-secrets-manager:prod/database/password}
-```
-
----
-
-### Kubernetes Secrets
-
-**Configuration:**
-```properties
-database.password=${k8s-secret:database-credentials#password}
-```
+**Rotation:** Vault rotates secrets automatically; record the rotation approach of the chosen store in the design
+spec.
 
 ---
 
 ## Input Validation
 
-### Schema Validation
-
-**Always validate input:**
-```yaml
-- to:
-    uri: "json-validator:schemas/input-schema.json"
-```
-
-**Benefits:**
-- Prevent malformed data
-- Catch injection attempts
-- Enforce contracts
-
----
-
-### Size Limits
-
-```properties
-# Prevent DoS
-http.maxRequestSize=1048576  # 1MB
-kafka.maxMessageSize=1048576
-```
-
----
-
-### Sanitization
-
-**Prevent injection attacks:**
-- SQL injection: Use prepared statements
-- XPath injection: Validate/sanitize input
-- Script injection: Escape user input
+Security checklist rule 4 — schema validation at every ingress, message size limits, prepared statements, and no
+unsanitized external input in expressions. Snippets are in the checklist. Record in the design spec which schema
+validates each external input and where size limits are enforced.
 
 ---
 
@@ -248,7 +173,7 @@ kafka.maxMessageSize=1048576
 ## Security Checklist
 
 - [ ] Authentication method: [API Key | OAuth2 | mTLS]
-- [ ] Credentials stored in: [Vault | AWS Secrets Manager | K8s Secrets]
+- [ ] Credentials stored in: [Environment variables | K8s Secrets | Vault | AWS Secrets Manager]
 - [ ] Transport security: [TLS/SSL enabled]
 - [ ] PII fields identified: [list]
 - [ ] PII masked in logs: [Yes/No]

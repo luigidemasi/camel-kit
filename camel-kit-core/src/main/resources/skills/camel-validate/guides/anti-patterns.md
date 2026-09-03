@@ -225,33 +225,26 @@ Check: External dependency resilience
 
 ## Security Anti-Patterns
 
+Load `shared/camel-security-checklist.md`. Each anti-pattern below violates one of its five core rules; the fix
+snippets (secret references, transport security, log masking, input validation) live there and are not repeated here.
+
 ### Hardcoded Credentials
 
 Secrets embedded in code or config:
 
 ```
 Check: Credential management
-- Scanning for: password=, apiKey=, token=, secret=
+- Scanning route YAML and properties for hardcoded credential patterns
   ✅ No hardcoded credentials found
 
 Or:
   ❌ CRITICAL: Hardcoded credential found at line 42
      password=secretpassword
      → NEVER commit credentials to code
-     → Use ${vault:...} or secrets manager
+     → Replace with a placeholder resolved from the environment or a secrets manager
 ```
 
-**Fix:**
-```properties
-# WRONG - never do this
-database.password=secretpassword
-
-# CORRECT - use secrets manager
-database.password=${vault:secret/database#password}
-
-# Or environment variable
-database.password=${DATABASE_PASSWORD}
-```
+**Fix:** security checklist rule 1 snippets (secret references).
 
 ---
 
@@ -268,21 +261,10 @@ Check: Transport security
 
 - Kafka SSL: [Enabled/Disabled]
   ⚠️ Kafka SSL not enabled
-  → Enable SSL for production: camel.component.kafka.securityProtocol=SSL
+  → Enable SSL or SASL_SSL on the Kafka component for production
 ```
 
-**Fix:**
-```properties
-# Use HTTPS, not HTTP
-api.baseUrl=https://api.example.com
-
-# Enable Kafka SSL
-camel.component.kafka.securityProtocol=SSL
-camel.component.kafka.sslTruststoreLocation=/path/to/truststore.jks
-
-# Enable database SSL
-database.url=jdbc:postgresql://localhost:5432/db?ssl=true&sslmode=require
-```
+**Fix:** security checklist rule 2 snippets (transport security).
 
 ---
 
@@ -298,25 +280,7 @@ Check: Log statements for PII/secrets
   → Use selective logging or mask sensitive fields
 ```
 
-**Fix:**
-```yaml
-# WRONG - logs everything including PII
-- log:
-    message: "Processing: ${body}"
-
-# CORRECT - selective logging
-- log:
-    message: "Processing order: ${body.orderId} (user: ${body.userId})"
-
-# Or mask sensitive fields
-- log:
-    message: "Processing order: ${body.orderId} (email: ***@***)"
-```
-
-```properties
-# Configure log masking
-logging.mask.fields=email,phone,ssn,creditCard,password
-```
+**Fix:** security checklist rule 3 snippets (log masking, selective logging).
 
 ---
 
@@ -335,22 +299,7 @@ Check: Input validation
   → Set maximum message size to prevent DoS
 ```
 
-**Fix:**
-```yaml
-# Add schema validation
-- to:
-    uri: "json-validator:schemas/input-schema.json"
-
-# Or bean validation
-- to:
-    uri: "bean-validator:validate"
-```
-
-```properties
-# Set message size limits
-http.maxRequestSize=1048576  # 1MB
-kafka.maxMessageSize=1048576
-```
+**Fix:** security checklist rule 4 snippets (schema validation, size limits).
 
 ---
 
@@ -379,7 +328,7 @@ camel.beans.dataSource=#class:org.apache.commons.dbcp2.BasicDataSource
 camel.beans.dataSource.driverClassName=org.postgresql.Driver
 camel.beans.dataSource.url=jdbc:postgresql://localhost:5432/db
 camel.beans.dataSource.username=user
-camel.beans.dataSource.password=${vault:db#password}
+camel.beans.dataSource.password={{env:DATABASE_PASSWORD}}
 camel.beans.dataSource.initialSize=5
 camel.beans.dataSource.maxTotal=20
 camel.beans.dataSource.maxIdle=10
@@ -517,11 +466,7 @@ Use this checklist for manual review:
 - [ ] Timeouts configured for external calls
 
 ### Security
-- [ ] No hardcoded credentials anywhere
-- [ ] HTTPS used for all HTTP endpoints
-- [ ] TLS/SSL enabled for messaging (Kafka, JMS)
-- [ ] Sensitive data masked in logs
-- [ ] Input validation (schema + size limits)
+- [ ] All five `shared/camel-security-checklist.md` rules pass (credentials, TLS, logs, input, authentication)
 
 ### Performance
 - [ ] Connection pooling for databases

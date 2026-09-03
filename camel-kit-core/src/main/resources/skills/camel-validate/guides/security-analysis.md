@@ -8,6 +8,9 @@
 >
 > **Version mapping:** When calling MCP catalog tools, translate `CAMEL_VERSION` + `RUNTIME` to the correct `camelVersion` and `platformBom` parameters using the version mapping table in `skills/shared/mcp-setup.md`.
 
+Load `shared/camel-security-checklist.md` first: the MCP check categories below map onto its five core rules, and the
+manual fallback applies the same rules.
+
 ## Stage 8: Security Analysis (MCP Enhanced)
 
 **This is the most powerful MCP integration - 47 automated security checks!**
@@ -106,4 +109,5 @@ MCP tool call failed. Loading manual anti-pattern guide...
 Running manual security checks...
 ```
 
-Then apply manual checks from anti-patterns guide.
+Then apply rules 1–4 of `shared/camel-security-checklist.md` through the manual checks in the anti-patterns guide, and
+rule 5 (authentication on external endpoints) directly from the checklist.

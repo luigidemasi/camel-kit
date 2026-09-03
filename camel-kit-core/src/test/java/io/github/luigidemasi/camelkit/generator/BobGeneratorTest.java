@@ -368,6 +368,25 @@ class BobGeneratorTest {
         assertFalse(templateContent.contains("agents/"));
     }
 
+    @Test
+    void installsSharedSecurityChecklistForBobValidation() throws Exception {
+        InitContext ctx = createContext();
+        new BobGenerator().generate(ctx);
+
+        Path checklist = tempDir.resolve(".bob/skills/shared/camel-security-checklist.md");
+        assertTrue(Files.isRegularFile(checklist));
+        String content = Files.readString(checklist);
+        assertTrue(content.contains("| 1 | **No hardcoded credentials** |"));
+        assertTrue(content.contains("camel.main.logMask=true"));
+
+        // The Bob validate gate loads these guides; they must point at the installed shared checklist
+        for (String guide : List.of("security-analysis.md", "anti-patterns.md", "quality-checks.md")) {
+            Path installed = tempDir.resolve(".bob/skills/camel-validate/guides/" + guide);
+            assertTrue(Files.isRegularFile(installed), guide);
+            assertTrue(Files.readString(installed).contains("shared/camel-security-checklist.md"), guide);
+        }
+    }
+
     private void assertEditRejects(String mode, String... paths) {
         Pattern pattern = editPattern(mode);
         for (String path : paths) {

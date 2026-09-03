@@ -86,6 +86,7 @@ Shared guides live at `camel-kit-core/src/main/resources/skills/shared/` and are
 | Guide | Purpose |
 |-------|---------|
 | `iron-laws.md` | Six non-negotiable pipeline process enforcement rules |
+| `camel-security-checklist.md` | Canonical Camel security rules and configuration snippets shared by design, validation, and review |
 | `datamapper-canonicalize.md` | Engine selection and field mapping enrichment for DataMapper |
 | `flow-test-data.md` | Test data generation patterns for flow design |
 | `mcp-setup.md` | MCP version mapping and connection parameters |

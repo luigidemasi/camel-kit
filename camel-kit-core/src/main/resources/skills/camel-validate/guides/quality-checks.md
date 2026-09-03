@@ -113,7 +113,7 @@ Validate against the 8 rules in `docs/constitution.md`. Each gate maps 1:1 to a 
 | 3 | Separation of Concerns | Decomposed architecture | For routes with >5 processing steps: verify decomposition into ingestion → processing → delivery using `direct:`/`seda:` internal routing. Business logic should be in beans, not inline in routes. Single-step routes are exempt. | WARNING |
 | 4 | Naming Conventions | Route ID convention | If PROJECT_NORMS.NAMING_PATTERN is available, validate route ID against the project's dominant pattern (examples: PROJECT_NORMS.NAMING_EXAMPLES). Otherwise, route ID matches `{domain}-{action}` lowercase kebab-case. Valid: `order-process`, `user-notify`. Invalid: `route1`, `myRoute`, `OrderProcess`. Regex: `^[a-z][a-z0-9]*(-[a-z][a-z0-9]*)+$` | WARNING |
 | 5 | Observability | routeId + description | Every route declares both a `routeId` and a `description` (≥10 chars describing the flow's business purpose). These are essential for monitoring, logging, and tracing. | FAIL |
-| 6 | External Configuration | No hardcoded values | No hostnames, ports, IPs, database URLs, queue names, credentials, API keys, tokens, or secrets in route YAML. Detect patterns: `password=`, `apiKey=`, `secret=`, `token=`, Base64 strings >20 chars, `jdbc:` URLs with inline credentials. All must use `{{placeholder}}` syntax. | FAIL |
+| 6 | External Configuration | No hardcoded values | No hostnames, ports, IPs, database URLs, queue names, credentials, API keys, tokens, or secrets in route YAML. Detection patterns: `shared/camel-security-checklist.md` rule 1. All must use `{{placeholder}}` syntax. | FAIL |
 | 7 | Component Support | Catalog verified | Every component is checked under the exact catalog binding. **Primary:** Uses Stage 5.2 validated detail fields plus complete exact-name list evidence for absence. **Fallback (Stage 5.2 was skipped):** Consult the same version-bound catalog contract. Two warning levels: (1) **Not found** — a successful complete list has no exact scheme; (2) **Deprecated** — validated detail fields mark it deprecated. Detail errors remain unverified. "Available" passes without warning. | WARNING |
 | 8 | Infrastructure via Forage | Ladder compliance | Delegated to Stage 7.4 (Infrastructure Ladder Compliance). A rung-3 bean without a reason comment, an unknown `forage.*` key, or a hand-rolled bean with a Forage equivalent fails per Stage 7.4 rules. | ❌ FAIL for unknown `forage.*` keys or a hand-rolled `camel.beans.*` bean with a Forage (rung-1) equivalent and no reason comment; ⚠️ WARNING when only a rung-2 scalar alternative exists (a rung-3 bean with a reason comment passes) |
 
@@ -233,7 +233,7 @@ Bean Definitions:
      ✅ driverClassName=org.postgresql.Driver
      ✅ url=jdbc:postgresql://...
      ✅ username=postgres
-     ✅ password=postgres
+     ✅ password={{db.password}}
 ```
 
 ### 7.4 Infrastructure Ladder Compliance (Forage)

@@ -111,9 +111,8 @@ Create dashboard with:
 
 ### Sensitive Data Masking
 
-```properties
-logging.mask.fields=creditCard,ssn,password,apiKey,email
-```
+Security checklist rule 3 in `shared/camel-security-checklist.md`: enable log masking and mask or omit the canonical PII fields
+listed there.
 
 **Example:**
 ```

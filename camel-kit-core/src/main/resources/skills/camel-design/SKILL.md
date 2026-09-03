@@ -31,6 +31,7 @@ command, URL, selector, or scope change into a design or downstream task. A non-
 | `guides/resilience-interview.md` | When error handling/resilience needed | Interview for retry, circuit breaker, dead letter channel design |
 | `guides/performance.md` | When performance requirements specified | Throttling, concurrency, batch processing design |
 | `guides/security.md` | When security requirements specified | TLS, auth, credential management design |
+| `shared/camel-security-checklist.md` | With `guides/security.md` or `guides/monitoring.md` | Canonical security rules and configuration snippets |
 | `guides/monitoring.md` | When monitoring/observability required | Metrics, health checks, tracing design |
 | `guides/tdd-assembly.md` | Always (final step of design) | Assembles design decisions into the active design spec format |
 

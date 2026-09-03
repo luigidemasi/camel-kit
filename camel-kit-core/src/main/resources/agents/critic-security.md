@@ -28,6 +28,10 @@ You produce **PASS** or a list of **spec violations**. You never generate altern
 
 ## What You Check
 
+Source of truth: `shared/camel-security-checklist.md`. This lane inlines the subset of its rules that applies at
+external boundaries (rules 1, 2, 5, the logging part of rule 3, and the expression-injection part of rule 4) so it stays
+self-contained in a fresh context; keep these checks aligned with that file and change the file first.
+
 ### 1. Credential Exposure
 - No hardcoded passwords, API keys, or tokens in YAML route files
 - No credentials in `application.properties` values (only `{{PLACEHOLDER}}` references)
@@ -42,7 +46,7 @@ You produce **PASS** or a list of **spec violations**. You never generate altern
 
 ### 3. TLS Configuration
 - All HTTP/HTTPS endpoints use TLS (no plain `http://` for external systems)
-- Message broker connections use TLS where the design spec section specifies secure transport
+- Message broker connections use an SSL or SASL_SSL security protocol
 - Certificate validation is not disabled (`sslContextParameters` present where required)
 
 ### 4. Header Security

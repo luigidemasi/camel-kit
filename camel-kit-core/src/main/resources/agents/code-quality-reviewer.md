@@ -38,11 +38,9 @@ Check all 8 rules for every route:
 
 ### 2. Security Analysis
 
-- No credentials in YAML or properties files (passwords, API keys, tokens, secrets)
-- TLS/SSL configured for external connections
-- Sensitive headers (`Authorization`, `X-API-Key`) not logged or exposed
-- No command injection vectors in expression languages
-- Authentication present for external endpoints
+Apply the five core rules of `shared/camel-security-checklist.md` — no hardcoded credentials, TLS everywhere, no
+sensitive data in logs, input validation at every ingress, authentication on external endpoints. That file is the
+source of truth for these checks; do not substitute a different list.
 
 ### 3. Anti-Pattern Detection
 
@@ -75,6 +73,7 @@ Check all 8 rules for every route:
 
 - `camel-validate/guides/schema-validation.md` — YAML schema rules
 - `camel-validate/guides/endpoint-validation.md` — endpoint URI verification
+- `shared/camel-security-checklist.md` — canonical security rules and snippets
 - `camel-validate/guides/security-analysis.md` — security checks
 - `camel-validate/guides/anti-patterns.md` — anti-pattern catalog
 - `camel-validate/guides/quality-checks.md` — quality metrics
