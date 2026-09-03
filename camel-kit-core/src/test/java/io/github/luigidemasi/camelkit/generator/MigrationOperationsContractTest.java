@@ -569,28 +569,7 @@ class MigrationOperationsContractTest {
                                                                                                                                                                                    + "authorizes removal",
                 "The runbook never deletes, disables, or modifies source artifacts");
 
-        long tableColumns = 0;
-        int tableRow = 0;
-        int lineNumber = 0;
-        for (String line : rawRunbook.split("\\R")) {
-            lineNumber++;
-            if (!line.startsWith("|")) {
-                tableRow = 0;
-                continue;
-            }
-            long columns = line.chars().filter(character -> character == '|').count();
-            if (tableRow == 0) {
-                tableColumns = columns;
-            } else {
-                assertEquals(tableColumns, columns,
-                        "Runbook table row " + lineNumber + " must match its header column count");
-            }
-            if (tableRow == 1) {
-                assertTrue(line.matches("\\|(?:-+\\|)+"),
-                        "Runbook table row " + lineNumber + " must be a Markdown delimiter");
-            }
-            tableRow++;
-        }
+        assertMarkdownTableParity("Runbook", rawRunbook);
 
         int runbookBodyStart = rawRunbook.indexOf("\n## Scope and Ownership\n");
         assertTrue(runbookBodyStart >= 0, "Migration runbook must contain its ordered output template");
@@ -696,6 +675,39 @@ class MigrationOperationsContractTest {
         String replanNever = replan.substring(replan.indexOf("## Never"));
         assertContainsAll(replanNever,
                 "Regenerate or clear staleness from `migration-runbook.md` during re-planning");
+    }
+
+    @Test
+    void migrationGuideTemplateTablesKeepHeaderAndDelimiterParity() throws Exception {
+        assertMarkdownTableParity("biztalk-phase2.md",
+                resource("skills/camel-migrate/guides/biztalk-phase2.md"));
+        assertMarkdownTableParity("mulesoft-phase2.md",
+                resource("skills/camel-migrate/guides/mulesoft-phase2.md"));
+    }
+
+    private static void assertMarkdownTableParity(String resourceName, String content) {
+        long tableColumns = 0;
+        int tableRow = 0;
+        int lineNumber = 0;
+        for (String line : content.split("\\R")) {
+            lineNumber++;
+            if (!line.startsWith("|")) {
+                tableRow = 0;
+                continue;
+            }
+            long columns = line.chars().filter(character -> character == '|').count();
+            if (tableRow == 0) {
+                tableColumns = columns;
+            } else {
+                assertEquals(tableColumns, columns,
+                        resourceName + " table row " + lineNumber + " must match its header column count");
+            }
+            if (tableRow == 1) {
+                assertTrue(line.matches("\\|(?:-+\\|)+"),
+                        resourceName + " table row " + lineNumber + " must be a Markdown delimiter");
+            }
+            tableRow++;
+        }
     }
 
     private static String resource(String name) throws Exception {

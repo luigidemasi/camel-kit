@@ -145,7 +145,7 @@ For each Mule flow, update the relevant `### Flow: {flow-name}` section in
 Use the same flow-design structure as `camel-brainstorm/guides/design-assembly.md`. The flow section MUST contain all
 of the following details:
 
-```markdown
+````markdown
 # Flow Design: {flow-name}
 
 ## Section 1: Overview
@@ -293,8 +293,7 @@ Constitution v2.0 — eight enforced rules:
 - [ ] Ensure `camel-plan` includes an implementation task for this flow
 - [ ] Run `camel-execute` to generate Camel YAML and integration tests
 - [ ] Verify against original Mule behaviour
-- [ ] Verify against original Mule behaviour
-```
+````
 
 **Note:** If the business requirements specify performance/throughput requirements, add a **Section 5e: Throttling & Scaling** covering throttle EIP configuration and Kafka `consumersCount`. If security or compliance requirements exist, add a **Section 5f: Security**. If observability requirements exist, add a **Section 5g: Monitoring**. Renumber sections as needed.
 
