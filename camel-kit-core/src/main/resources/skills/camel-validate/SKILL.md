@@ -61,7 +61,7 @@ Invoked directly by the user: `/camel-validate` or `/camel-validate <PIPELINE_ID
 
 ## Purpose
 
-Provides the domain knowledge guides needed to validate generated Apache Camel routes across multiple quality dimensions. These guides are referenced by the `code-quality-reviewer` and `test-engineer` agent personas.
+Provides the domain knowledge guides needed to validate generated Apache Camel routes across multiple quality dimensions. These guides are referenced by the `code-quality-reviewer` agent persona.
 
 ## Runtime Path Inventory (MANDATORY)
 

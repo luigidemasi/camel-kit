@@ -12,6 +12,20 @@
 
 ---
 
+## Test Design Principles
+
+Canonical for the pipeline — the `test-engineer` persona and the plan's test task template point here instead of
+restating these principles.
+
+1. **One test = one behavior** — each test validates a single route behavior
+2. **Realistic test data** — use representative data, not `{"key": "value"}`
+3. **Infrastructure isolation** — Testcontainers for databases, brokers; mock endpoints for external APIs
+4. **Assertion completeness** — verify headers, body, and exchange properties
+5. **Negative testing** — test error paths, not just happy paths
+6. **Idempotent** — tests can run repeatedly with same results
+
+---
+
 ## Step 2: Test Plan Design
 
 ### 2.1 Extract Test Scenarios from the Design Spec
