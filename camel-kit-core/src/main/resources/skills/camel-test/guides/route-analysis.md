@@ -18,7 +18,7 @@
 → **For MCP setup, version mapping, and fallback policy:** see `skills/shared/mcp-setup.md`
 
 The Camel MCP server provides route analysis capabilities for this skill:
-- **Route validation** (`camel_validate_yaml_dsl`, `camel_validate_route`) - Validate syntax, endpoint URIs, and route definitions before generating tests
+- **Route validation** (`camel_validate_yaml_dsl`, `camel_validate_route`) - Validate bundled YAML syntax and catalog-bound endpoint URIs before generating tests
 - **Route context** (`camel_route_context`) - Extract components, endpoint URIs, route ids, and EIPs from routes
 - **Route hardening** (`camel_route_harden_context`) - Identify security and robustness concerns that should become negative tests
 - **Component properties** (`camel_component_properties`) - Resolve endpoint option names, defaults, and supported configuration
@@ -148,18 +148,24 @@ For Camel YAML DSL routes:
 ```
 MCP Tool: camel_validate_yaml_dsl
 Params: {
-  "route": "[route-yaml-content]",
-  "camelVersion": "{{CAMEL_VERSION}}",
-  "platformBom": "{{PLATFORM_BOM}}",
-  "runtime": "{{RUNTIME}}"
+  "route": "[route-yaml-content]"
 }
 ```
 
-For all route formats:
+This is bundled-schema syntax validation; it is not target-version/runtime catalog validation. The next calls perform
+the version-bound endpoint checks.
+
+For the YAML route:
+
+Statically collect every actual component endpoint URI from `from`, `to`, `toD`, and all other endpoint-bearing EIP
+fields, including literal endpoint expressions such as `enrich.expression.constant`. Do not rely on the tool's
+route-content extraction for completeness. Call the tool once for every URI in that list, each time with the same full
+route content:
 
 ```
 MCP Tool: camel_validate_route
 Params: {
+  "uri": "[current actual endpoint URI from the extracted list]",
   "route": "[route-content]",
   "camelVersion": "{{CAMEL_VERSION}}",
   "platformBom": "{{PLATFORM_BOM}}",
@@ -167,7 +173,13 @@ Params: {
 }
 ```
 
-If validation reports syntax, endpoint URI, or catalog errors, fix or report those route errors before generating tests.
+For every call, require the top-level `uri` to echo the submitted URI and its top-level `errors` to be absent or empty.
+Ignore the aggregate `valid` field: route-content processing can overwrite it. When present, `uriValidations` is only
+supplementary best-effort route-extraction evidence and may omit endpoint expressions. A successful call for one URI
+does not validate any other endpoint.
+
+If bundled YAML schema validation or any per-endpoint catalog validation reports errors, fix or report them before
+generating tests. `camel_validate_route` does not prove full route syntax or structure.
 
 ### 1.2 Extract Route Context
 
@@ -175,6 +187,7 @@ If validation reports syntax, endpoint URI, or catalog errors, fix or report tho
 MCP Tool: camel_route_context
 Params: {
   "route": "[route-content]",
+  "format": "yaml",
   "camelVersion": "{{CAMEL_VERSION}}",
   "platformBom": "{{PLATFORM_BOM}}",
   "runtime": "{{RUNTIME}}"
@@ -240,6 +253,7 @@ Run route hardening and convert concrete findings into negative or resilience te
 MCP Tool: camel_route_harden_context
 Params: {
   "route": "[route-content]",
+  "format": "yaml",
   "camelVersion": "{{CAMEL_VERSION}}",
   "platformBom": "{{PLATFORM_BOM}}",
   "runtime": "{{RUNTIME}}"
@@ -247,10 +261,11 @@ Params: {
 ```
 
 Examples:
-- Missing input validation → malformed payload and oversized payload tests
-- Dynamic endpoint or expression risk → injection-style input tests
-- Missing timeout or retry policy → unavailable downstream test
-- Authentication or TLS warning → invalid credential or connection failure test
+- SQL parameterization concern → injection-style input test
+- Dynamic file-path concern → traversal-style input test
+- Hardcoded credential concern → missing or invalid externalized-credential test
+- Unencrypted HTTP, FTP, or LDAP concern → secure-transport connection test
+- Command-execution concern → command-injection input test
 
 Treat each hardening item as a candidate fact, not a test instruction. Corroborate its route/component/option identity in
 the version-bound catalog and current route, then map only a category recognized in the shipped examples above to a

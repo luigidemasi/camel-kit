@@ -214,7 +214,7 @@ Check: External dependency resilience
       waitDurationInOpenState: 30  # seconds
     steps:
       - to:
-          uri: "http://{{external.service.url}}"
+          uri: "https://{{external.service.url}}"
     onFallback:
       steps:
         - log:
@@ -225,33 +225,28 @@ Check: External dependency resilience
 
 ## Security Anti-Patterns
 
+Load `shared/camel-security-checklist.md`. Each anti-pattern below violates one of its five core rules; the fix
+snippets (secret references, transport security, log masking, input validation) live there and are not repeated here.
+Apply every clause of every rule and use the checklist's validation severity mapping. The examples below are
+illustrative and never narrow the canonical checks; every confirmed security-rule violation is Critical/FAIL.
+
 ### Hardcoded Credentials
 
 Secrets embedded in code or config:
 
 ```
 Check: Credential management
-- Scanning for: password=, apiKey=, token=, secret=
+- Scanning route YAML and properties for hardcoded credential patterns
   ✅ No hardcoded credentials found
 
 Or:
   ❌ CRITICAL: Hardcoded credential found at line 42
      password=secretpassword
      → NEVER commit credentials to code
-     → Use ${vault:...} or secrets manager
+     → Replace with a placeholder resolved from the environment or a secrets manager
 ```
 
-**Fix:**
-```properties
-# WRONG - never do this
-database.password=secretpassword
-
-# CORRECT - use secrets manager
-database.password=${vault:secret/database#password}
-
-# Or environment variable
-database.password=${DATABASE_PASSWORD}
-```
+**Fix:** security checklist rule 1 snippets (secret references).
 
 ---
 
@@ -263,26 +258,15 @@ Unencrypted network traffic:
 Check: Transport security
 - HTTP endpoints: [list]
 - Using HTTPS: [Yes/No]
-  ❌ Plain HTTP found: http://api.example.com
+  ❌ CRITICAL: Plain HTTP found: http://api.example.com
   → Change to HTTPS
 
 - Kafka SSL: [Enabled/Disabled]
-  ⚠️ Kafka SSL not enabled
-  → Enable SSL for production: camel.component.kafka.securityProtocol=SSL
+  ❌ CRITICAL: Kafka SSL not enabled
+  → Enable SSL or SASL_SSL on the Kafka component for production
 ```
 
-**Fix:**
-```properties
-# Use HTTPS, not HTTP
-api.baseUrl=https://api.example.com
-
-# Enable Kafka SSL
-camel.component.kafka.securityProtocol=SSL
-camel.component.kafka.sslTruststoreLocation=/path/to/truststore.jks
-
-# Enable database SSL
-database.url=jdbc:postgresql://localhost:5432/db?ssl=true&sslmode=require
-```
+**Fix:** security checklist rule 2 snippets (transport security).
 
 ---
 
@@ -293,64 +277,49 @@ PII or secrets in logs:
 ```
 Check: Log statements for PII/secrets
 - Scanning logs for: ${body}, ${header.Authorization}, passwords
-  ⚠️ WARNING: Logging full body at line 35
+  ❌ CRITICAL: Logging full body at line 35
      May contain PII or sensitive data
   → Use selective logging or mask sensitive fields
 ```
 
-**Fix:**
-```yaml
-# WRONG - logs everything including PII
-- log:
-    message: "Processing: ${body}"
-
-# CORRECT - selective logging
-- log:
-    message: "Processing order: ${body.orderId} (user: ${body.userId})"
-
-# Or mask sensitive fields
-- log:
-    message: "Processing order: ${body.orderId} (email: ***@***)"
-```
-
-```properties
-# Configure log masking
-logging.mask.fields=email,phone,ssn,creditCard,password
-```
+**Fix:** security checklist rule 3 snippets (log masking, selective logging).
 
 ---
 
-### No Input Validation
+### No Input Validation at External or Untrusted Ingress
 
-Missing schema or size validation:
+Missing schema or size validation where external or newly untrusted input enters the flow:
 
 ```
-Check: Input validation
+Check: Input validation at every external or untrusted ingress
 - Schema validation: [Present | Missing]
 - Size limits: [Set | Not set]
-  ⚠️ No schema validation found
+  ❌ CRITICAL: No schema validation found
   → Add JSON Schema or Bean Validation
 
-  ⚠️ No message size limit
+  ❌ CRITICAL: No message size limit
   → Set maximum message size to prevent DoS
 ```
 
-**Fix:**
-```yaml
-# Add schema validation
-- to:
-    uri: "json-validator:schemas/input-schema.json"
+Apply this check at every external or newly untrusted ingress. Internal `direct:` or `seda:` subroutes inherit validation
+from their trusted caller unless they introduce another external or untrusted boundary.
 
-# Or bean validation
-- to:
-    uri: "bean-validator:validate"
+**Fix:** security checklist rule 4 snippets (schema validation, size limits).
+
+---
+
+### Missing External Endpoint Authentication
+
+Externally exposed HTTP/REST endpoints without caller authentication:
+
+```
+Check: External endpoint authentication
+- Authentication: [Present | Missing]
+  ❌ CRITICAL: External HTTP endpoint has no authentication
+  → Add OAuth2/JWT, API key authentication, or mutual TLS
 ```
 
-```properties
-# Set message size limits
-http.maxRequestSize=1048576  # 1MB
-kafka.maxMessageSize=1048576
-```
+**Fix:** security checklist rule 5.
 
 ---
 
@@ -379,7 +348,7 @@ camel.beans.dataSource=#class:org.apache.commons.dbcp2.BasicDataSource
 camel.beans.dataSource.driverClassName=org.postgresql.Driver
 camel.beans.dataSource.url=jdbc:postgresql://localhost:5432/db
 camel.beans.dataSource.username=user
-camel.beans.dataSource.password=${vault:db#password}
+camel.beans.dataSource.password={{env:DATABASE_PASSWORD}}
 camel.beans.dataSource.initialSize=5
 camel.beans.dataSource.maxTotal=20
 camel.beans.dataSource.maxIdle=10
@@ -442,32 +411,28 @@ Check: Reference data lookup
   → Add caching for enrichment data
 ```
 
-**Fix:**
+**Fix with a bounded Caffeine cache:**
 ```yaml
-# Add caching to enrichment
-- enrich:
-    expression:
-      simple: "sql:SELECT * FROM customers WHERE id = ${body.customerId}"
-    aggregationStrategy: "#customerEnricher"
-    cacheSize: 1000
-    cacheTimeout: 300000  # 5 minutes
-```
+# Reject caller-controlled component headers, then preserve the validated identifier as the cache key
+- removeHeaders:
+    pattern: "CamelCaffeine*"
+- setHeader:
+    name: CamelCaffeineKey
+    simple: "${body.customerId}"
 
-**Or use Caffeine cache:**
-```yaml
-# Store in cache first
+# Check the cache first
 - to:
-    uri: "caffeine-cache:customerCache?action=GET&key=${body.customerId}"
+    uri: "caffeine-cache:customerCache?action=GET&maximumSize=1000"
 
 # If not in cache, fetch and store
 - choice:
     when:
-      - simple: "${body} == null"
+      - simple: "${header.CamelCaffeineActionHasResult} == false"
         steps:
           - to:
-              uri: "sql:SELECT * FROM customers WHERE id = ${body.customerId}"
+              uri: "sql:SELECT * FROM customers WHERE id = :#${header.CamelCaffeineKey}"
           - to:
-              uri: "caffeine-cache:customerCache?action=PUT&key=${body.customerId}"
+              uri: "caffeine-cache:customerCache?action=PUT&maximumSize=1000"
 ```
 
 ---
@@ -482,14 +447,16 @@ After scanning, show summary:
 Critical (Must Fix):
   ❌ Hardcoded credentials at line 42
   ❌ God route: 25 processing steps
-  ❌ No input validation
+  ❌ Plain HTTP to external system at line 12
+  ❌ Kafka SSL not enabled
+  ❌ Logging full body may expose PII
+  ❌ External or untrusted ingress has no input validation (schema, size limits)
+  ❌ External HTTP endpoint has no authentication
 
 Warnings (Recommended):
   ⚠️ No correlation ID generation
   ⚠️ No circuit breaker for external calls
-  ⚠️ Logging full body may expose PII
   ⚠️ No connection pooling
-  ⚠️ Plain text communication (HTTP, no Kafka SSL)
 
 Best Practices (Optional):
   ℹ️ Consider batching for high volume
@@ -517,11 +484,7 @@ Use this checklist for manual review:
 - [ ] Timeouts configured for external calls
 
 ### Security
-- [ ] No hardcoded credentials anywhere
-- [ ] HTTPS used for all HTTP endpoints
-- [ ] TLS/SSL enabled for messaging (Kafka, JMS)
-- [ ] Sensitive data masked in logs
-- [ ] Input validation (schema + size limits)
+- [ ] All five `shared/camel-security-checklist.md` rules pass (credentials, TLS, logs, input, authentication)
 
 ### Performance
 - [ ] Connection pooling for databases

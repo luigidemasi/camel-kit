@@ -19,7 +19,15 @@ absence only through a successful complete exact-name type list.
 
 ## Guide Locations
 
-All validation guides are in `.bob/skills/camel-validate/guides/`. When this file says `guides/X.md`, read `.bob/skills/camel-validate/guides/X.md`. Do NOT explore or list directories to find guides.
+When loading guides, use full paths from the project root:
+
+| Skill | Base path |
+|---|---|
+| Validation guides | `.bob/skills/camel-validate/guides/` |
+| Shared guides | `.bob/skills/shared/` |
+
+When this file says `guides/X.md`, read `.bob/skills/camel-validate/guides/X.md`. Do NOT explore or list directories
+to find guides.
 
 <Steps>
 <Step>
@@ -53,24 +61,42 @@ Read these files:
 For standalone project validation without a pipeline, omit the pipeline artifacts
 and validate the discovered project routes directly.
 
+### Runtime Path Inventory (MANDATORY)
+
+Before loading validation stages, read `project.runtime`. With an active pipeline, also read every flow's `Target Module`
+from the design spec. In standalone project-scoped mode, derive module prefixes from the project root and modules that
+contain one of the runtime-specific route locations below; do not require pipeline artifacts.
+
+Build an exact inventory for each module using the same optional relative module prefix as
+`.bob/skills/camel-implement/guides/orchestrator.md`:
+
+- Main: `ROUTE_FILES` is every `\{MODULE_PREFIX}*.camel.yaml`; `PROPS_FILE` is
+  `\{MODULE_PREFIX}application.properties`.
+- Spring Boot/Quarkus: `ROUTE_FILES` is every
+  `\{MODULE_PREFIX}src/main/resources/camel/*.camel.yaml`; `PROPS_FILE` is
+  `\{MODULE_PREFIX}src/main/resources/application.properties`.
+
+`\{MODULE_PREFIX}` is empty at the project root or is the relative target module plus trailing `/`; it is never `/`.
+Record resolved file paths, not bare flow names. Read every resolved route file and its matching `PROPS_FILE` before any
+validation stage; if that properties file is missing, record it as missing rather than silently skipping it. Pass the
+exact `ROUTE_FILES` and matching `PROPS_FILE` to `schema-validation.md`, `endpoint-validation.md`, and all later checks,
+and iterate every route in every module.
+
 Load validation guides:
 - `guides/schema-validation.md` — YAML DSL schema validation rules
 - `guides/endpoint-validation.md` — endpoint URI validation via MCP
 - `guides/quality-checks.md` — quality metrics and thresholds
 - `guides/security-analysis.md` — security checks catalog
+- `.bob/skills/shared/camel-security-checklist.md` — **Always**; canonical security rules, detection patterns, and snippets
 - `guides/anti-patterns.md` — anti-pattern detection catalog
 </Step>
 
 <Step>
 ## Discover All Routes
 
-Find all YAML route files:
-```bash
-find src/main/resources/camel -name "*.camel.yaml"
-```
-
-List all discovered routes. If none are found, record a `NO_ROUTES` result and
-continue to Generate Validation Report so the selected report is still written.
+Use the mandatory runtime path inventory above; do not replace it with a root-only route scan. List every resolved
+`ROUTE_FILES` entry in every module together with its matching `PROPS_FILE`. If none are found, record a `NO_ROUTES`
+result and continue to Generate Validation Report so the selected report is still written.
 </Step>
 
 <Step>
@@ -141,7 +167,11 @@ Check all 8 constitution rules:
 
 **Rule 6: External Configuration**
 - Scan for hardcoded `http://`, `https://`, `jdbc:`, `amqp://` URIs and credentials
-- All configurable values must use `{{property}}` syntax
+- No hardcoded connection strings, credentials, or environment-specific values; those values in route YAML and Camel
+  component configuration use `{{...}}` placeholders
+- Only `application.properties` may use runtime-resolved `$\{...\}` placeholders on Spring Boot and Quarkus; camel-main
+  does not resolve `$\{...\}` there
+- Literal route IDs, descriptions, business constants, and EIP thresholds are not configuration violations
 - Report violations with line numbers
 
 **Rule 7: Component Verification**
@@ -159,7 +189,7 @@ Check quality and resilience (anti-pattern catalog):
 - **Structured Logging** — routes log at entry and exit with correlation ID (`log:` EIP, structured format)
 - **Idempotency** — routes with `file:`, `ftp:`, `sftp:`, `kafka:` consumers must use `idempotentConsumer:`
 - **Circuit Breaker** — routes with `http:`/`https:` calls must use `circuitBreaker:` or `resilience4j:`
-- **TLS Everywhere** — all HTTP endpoints use HTTPS (except localhost); AMQP endpoints use TLS
+- **TLS Everywhere** — external HTTP uses HTTPS (except localhost); brokers use SSL or SASL_SSL; databases verify certificates and hostnames; TLS 1.2+; certificate validation remains enabled
 
 Report constitution and quality violations per route.
 </Step>
@@ -171,13 +201,15 @@ Load `guides/security-analysis.md`.
 
 Check for:
 - Hardcoded credentials in properties or URIs
-- Missing authentication on HTTP endpoints
+- Missing caller authentication on externally exposed inbound HTTP/REST endpoints
 - Missing authorization checks
 - Insecure TLS configurations (e.g., `sslContextParameters` with weak ciphers)
 - Sensitive data in logs
-- Missing input validation
+- Missing input validation at an external or untrusted ingress
 
-Report security issues per route.
+Report security issues per route. Every confirmed violation of
+`.bob/skills/shared/camel-security-checklist.md` is `CRITICAL`, makes the Security Analysis category `FAIL`, and makes
+Overall Status `FAIL`.
 </Step>
 
 <Step>
@@ -289,7 +321,7 @@ Assemble all findings at that selected path:
 - [✗] Missing required field: `steps`
 
 #### Constitution Compliance
-- [✗] Rule 1 violated: Hardcoded URL at line 15: `http://api.example.com`
+- [✗] Rule 6 violated: Hardcoded URL at line 15: `http://api.example.com`
 - [✓] Rule 2: Error handling present
 ...
 

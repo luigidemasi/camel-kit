@@ -140,7 +140,7 @@ Declare infrastructure beans with `forage.*` properties when Forage covers them;
 ```yaml
 # security:
 #   requireTLS: true
-#   sensitiveHeaders: [Authorization, X-API-Key]
+#   sensitiveHeaders: [Authorization, X-API-Key, Cookie]
 ```
 
 Fixed field schema:

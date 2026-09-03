@@ -97,9 +97,10 @@ Apache Camel implements the Enterprise Integration Patterns from the book by Gre
 
 **Camel Implementation:**
 ```yaml
+# Bind the schema-validated identifier as a prepared SQL parameter
 - enrich:
     expression:
-      simple: "sql:SELECT name, email FROM customers WHERE id = ${body.customerId}"
+      constant: "sql:SELECT name, email FROM customers WHERE id = :#${body.customerId}"
     aggregationStrategy: "#customerEnricher"
 ```
 
@@ -311,7 +312,7 @@ errorHandler:
       failureRateThreshold: 50
       waitDurationInOpenState: 30  # seconds
     steps:
-      - to: "http:{{external.api}}"
+      - to: "https:{{external.api}}"
     onFallback:
       steps:
         - setBody:

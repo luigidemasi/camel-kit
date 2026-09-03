@@ -53,6 +53,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Shared Camel security checklist (#205)** — the security rules restated across the design guide, the validation
+  guides, and the review personas now have one canonical source, `skills/shared/camel-security-checklist.md`. The
+  consumers reference it instead of restating the rules, the drifted vault-reference and log-masking snippets are
+  reconciled, and the canonical snippets use documented Camel placeholder functions and component options. The
+  remaining restatements in the implement advanced-patterns guide, the foundational pattern guides, the constitution
+  example, and the Bob gate templates are aligned with it.
+
 - **Ship VALIDATE runs evidence commands as direct JVMs — Bubblewrap is no longer required** — the OS-level sandbox was removed from VALIDATE in line with the Ship product boundary. Evidence commands now launch as direct child JVMs on a frozen read-only copy of the accepted candidate tree, with a scrubbed environment and a command-private home and temporary directory; network access during validation is avoided by replacing every non-direct Camel endpoint with an in-memory stub, not by OS-level sandboxing.
   - Linux hosts no longer need `bwrap` for `camel-kit ship`; the authenticated Pi/Linux live gate likewise runs without it
   - The internal attestation stack, the Maven Central double-download verification, and the redundant catalog artifact reader were removed with it; catalog evidence keeps its digest and length checks

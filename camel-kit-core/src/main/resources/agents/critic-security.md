@@ -28,9 +28,14 @@ You produce **PASS** or a list of **spec violations**. You never generate altern
 
 ## What You Check
 
+Source of truth: `shared/camel-security-checklist.md`. This lane inlines the subset of its rules that applies at
+external boundaries (rules 1, 2, 5, the logging part of rule 3, and the expression-injection part of rule 4) so it stays
+self-contained in a fresh context; keep these checks aligned with that file and change the file first.
+
 ### 1. Credential Exposure
 - No hardcoded passwords, API keys, or tokens in YAML route files
-- No credentials in `application.properties` values (only `{{PLACEHOLDER}}` references)
+- No credentials in `application.properties` values; secret references use `{{...}}` on camel-main, while Spring Boot
+  and Quarkus may also use their runtime-resolved `${...}` placeholders
 - No secrets passed as URI query parameters in endpoint URIs
 - No credentials logged or exposed in `log:` EIP message patterns
 
@@ -38,14 +43,20 @@ You produce **PASS** or a list of **spec violations**. You never generate altern
 - Simple language expressions do not evaluate unsanitized external input
 - JSONPATH / XPath expressions do not allow injection via message headers or body
 - `recipientList` / `routingSlip` / `dynamicRouter` / `toD` expressions do not allow destination injection from external input
+- Every SQL value derived from external input is bound as a prepared parameter; never interpolate `${body...}`, `${header...}`, `${exchangeProperty...}`, or equivalent expressions as SQL text
+- External input rendered into templates or scripts is escaped for the target language
 - `bean` method calls do not pass unvalidated input to security-sensitive operations
 
 ### 3. TLS Configuration
 - All HTTP/HTTPS endpoints use TLS (no plain `http://` for external systems)
-- Message broker connections use TLS where the design spec section specifies secure transport
+- Message broker connections use an SSL or SASL_SSL security protocol
+- Database connections require TLS with certificate and hostname verification (sslmode=verify-full or equivalent); `sslmode=require` is not sufficient
+- TLS 1.2 or higher; TLS 1.0/1.1 must not be enabled
 - Certificate validation is not disabled (`sslContextParameters` present where required)
 
 ### 4. Header Security
+- Logs contain identifiers or selected fields, never the full `${body}` or all headers; log masking is enabled and PII
+  is masked or omitted
 - Sensitive headers (`Authorization`, `X-API-Key`, `Cookie`) are not logged
 - Headers from external systems are not blindly forwarded to internal routes
 - `removeHeaders` pattern used where the design spec section specifies header sanitization
@@ -53,7 +64,7 @@ You produce **PASS** or a list of **spec violations**. You never generate altern
 ### 5. CORS and Access Control
 - REST DSL endpoints have CORS configured per design spec section specification
 - No wildcard CORS (`*`) unless the design spec section explicitly allows it
-- Authentication/authorization present for externally-exposed endpoints
+- Caller authentication/authorization is present for externally-exposed inbound HTTP/REST endpoints
 
 ## Output Format
 

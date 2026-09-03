@@ -55,6 +55,9 @@ Load core guides:
 - `guides/component-loading.md` — component dependency resolution
 - `guides/properties-generation.md` — application.properties generation
 - `guides/maven-dependencies.md` — POM dependency management
+
+For every route involving input validation or security-sensitive behavior, load
+`.bob/skills/shared/camel-security-checklist.md` before generating artifacts and apply every applicable rule.
 </Step>
 
 <Step>
@@ -149,7 +152,10 @@ For EVERY route, verify compliance with all 8 constitution rules:
 3. **Separation of Concerns** — Ingestion → Processing → Delivery; business logic in beans
 4. **Naming Conventions** — route IDs `<domain>-<action>[-<qualifier>]`; custom headers `kebab-case`
 5. **Observability** — every route declares `routeId` and `description`; correlation IDs propagated
-6. **External Configuration** — no hardcoded connection strings, credentials, or environment values; `{{property}}` syntax
+6. **External Configuration** — no hardcoded connection strings, credentials, or environment-specific values. Those
+   values in route YAML and Camel component configuration use `{{...}}` placeholders. Only `application.properties` may
+   use runtime-resolved `$\{...\}` placeholders on Spring Boot and Quarkus; camel-main does not resolve `$\{...\}` there.
+   Literal route IDs, descriptions, business constants, and EIP thresholds are not configuration violations.
 7. **Component Verification** — all components verified via MCP catalog
 8. **Infrastructure via Forage** — infrastructure beans declared with `forage.*` properties when Forage covers them (ladder: Forage → component properties → hand-rolled bean with stated reason); hand-rolled `camel.beans.*` requires a one-line reason comment
 
@@ -159,7 +165,8 @@ Also verify these quality checks (anti-pattern catalog):
 - **Structured Logging** — all routes log at entry/exit with correlation ID
 - **Idempotency** — stateful routes use `idempotentConsumer`
 - **Circuit Breaker** — HTTP calls have resilience patterns
-- **TLS Everywhere** — all HTTP endpoints use HTTPS
+- **TLS Everywhere** — external HTTP uses HTTPS (except localhost); brokers use SSL or SASL_SSL; databases verify certificates and hostnames; TLS 1.2+; certificate validation remains enabled
+- **Authentication** — require caller authentication on externally exposed inbound HTTP/REST endpoints
 
 If any rule or check is violated, fix immediately before proceeding.
 </Step>
@@ -212,4 +219,5 @@ For MCP setup, version mapping, and fallback policy: see `shared/mcp-setup.md`
 | `guides/datamapper-validation.md` | When DataMapper used |
 | `guides/sequential-http-calls.md` | When chained HTTP calls needed |
 | `guides/advanced-patterns.md` | When advanced EIPs used |
+| `.bob/skills/shared/camel-security-checklist.md` | When input validation or security-sensitive behavior is involved |
 | `guides/graph-project-context.md` | When `.camel-kit/project-graph.json` exists |

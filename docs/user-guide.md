@@ -891,7 +891,7 @@ Camel-Kit integrates with the Apache Camel MCP (Model Context Protocol) server t
 | Data format catalog | Verify data formats (JSON, XML, CSV, etc.) |
 | Language catalog | Verify expression languages (Simple, Groovy, XPath, etc.) |
 | Route validation | Check endpoint URIs against the catalog schema, catch typos |
-| Security analysis | 47 automated security checks for credentials, encryption, authentication |
+| Security analysis | Supplemental route-hardening concerns for corroboration against the canonical checklist |
 
 ### Configuration
 
