@@ -348,6 +348,16 @@ class DistributionConfigTest {
                 bundled.springBootMappings().get(bundled.camelSpringbootVersion()));
     }
 
+    @Test
+    void snapshotKnowledgeMcpUsesSnapshotRepository() {
+        DistributionConfig config = DistributionConfig.loadBundled();
+        assertTrue(
+                !config.knowledgeMcpVersion().endsWith("-SNAPSHOT")
+                        || config.knowledgeMcpRepos().contains(
+                                "central_snap=https://central.sonatype.com/repository/maven-snapshots/"),
+                "SNAPSHOT Knowledge MCP versions require the Central Portal snapshots repository");
+    }
+
     private static Properties bundledProperties() throws java.io.IOException {
         Properties properties = new Properties();
         try (InputStream input = DistributionConfigTest.class.getClassLoader()
