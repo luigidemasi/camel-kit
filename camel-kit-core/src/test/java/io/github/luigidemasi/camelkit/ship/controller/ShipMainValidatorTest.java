@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest;
 import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest.DeclaredArtifact;
@@ -44,6 +45,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ShipMainValidatorTest {
 
     private static final String RUN_ID = "ship-" + "a".repeat(32);
+    private static final String CAMEL_VERSION = DistributionConfig.loadBundled().camelMainVersion();
     private static final String CITRUS_VERSION = "5.0.0-M2";
     private static final List<String> CITRUS_DEPENDENCIES
             = CitrusDependencyPolicy.required(CITRUS_VERSION);
@@ -103,7 +105,7 @@ class ShipMainValidatorTest {
                 .allMatch(tool -> tool.support() == Support.UNTESTED
                         && tool.message() != null));
         assertEquals(
-                "4.21.0",
+                CAMEL_VERSION,
                 result.stamp().toolVersions().get(3).version());
         assertEquals(List.of(
                 "artifact-policy",
@@ -214,10 +216,8 @@ class ShipMainValidatorTest {
         Project project = project("orders");
         Path pom = project.root().resolve("pom.xml");
         Files.writeString(pom, Files.readString(pom).replace(
-                """
-                            <dependency><groupId>org.apache.camel</groupId>
-                              <artifactId>camel-direct</artifactId><version>4.21.0</version></dependency>
-                        """, ""));
+                "<artifactId>camel-direct</artifactId>",
+                "<artifactId>camel-missing</artifactId>"));
         writeManifest(project.root(), project.routes(), project.tests());
         RecordingExecutor executor = new RecordingExecutor();
 
@@ -456,30 +456,30 @@ class ShipMainValidatorTest {
             tests.add(new TestArtifact(routeId, testPath, digest(root.resolve(testPath))));
             contracts.add(new RouteContract(routeId, routePath, testPath));
         }
-        write(root, ".camel-kit/config.properties", """
+        write(root, ".camel-kit/config.properties", String.format(Locale.ROOT, """
                 project.runtime=main
-                project.camelVersion=4.21.0
-                project.platformBomVersion=4.21.0
+                project.camelVersion=%s
+                project.platformBomVersion=%s
                 citrus.version=5.0.0-M2
-                """);
-        write(root, "pom.xml", """
+                """, CAMEL_VERSION, CAMEL_VERSION));
+        write(root, "pom.xml", String.format(Locale.ROOT, """
                 <project xmlns="http://maven.apache.org/POM/4.0.0">
                   <modelVersion>4.0.0</modelVersion>
                   <groupId>example</groupId><artifactId>orders</artifactId><version>1.0.0</version>
                   <dependencies>
                     <dependency><groupId>org.apache.camel</groupId>
-                      <artifactId>camel-main</artifactId><version>4.21.0</version></dependency>
+                      <artifactId>camel-main</artifactId><version>%s</version></dependency>
                     <dependency><groupId>org.apache.camel</groupId>
-                      <artifactId>camel-yaml-dsl</artifactId><version>4.21.0</version></dependency>
+                      <artifactId>camel-yaml-dsl</artifactId><version>%s</version></dependency>
                     <dependency><groupId>org.apache.camel</groupId>
-                      <artifactId>camel-direct</artifactId><version>4.21.0</version></dependency>
+                      <artifactId>camel-direct</artifactId><version>%s</version></dependency>
                   </dependencies>
                 </project>
-                """);
+                """, CAMEL_VERSION, CAMEL_VERSION, CAMEL_VERSION));
         writeManifest(root, routes, tests);
         ArtifactPolicy policy = new ArtifactPolicy(
                 "main",
-                "4.21.0",
+                CAMEL_VERSION,
                 null,
                 null,
                 "yaml",
@@ -500,7 +500,7 @@ class ShipMainValidatorTest {
         ArtifactManifest manifest = new ArtifactManifest(
                 ArtifactManifest.SCHEMA_VERSION,
                 "main",
-                "4.21.0",
+                CAMEL_VERSION,
                 null,
                 null,
                 "yaml",

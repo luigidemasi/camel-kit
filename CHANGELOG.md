@@ -53,6 +53,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Camel 4.22 LTS default and centralized distribution versions (#209)** — Camel Main, Spring Boot, and the Camel MCP
+  server now default to `4.22.0`. The supported Main and Spring Boot matrix is `4.22.0,4.18.4`; Spring Boot maps those
+  lines to `4.1.0` and `3.5.16`, and Forage maps them to `1.6.0` and `1.4.1`. Quarkus remains on its independent matrix.
+  Runtime defaults, generated MCP configuration, installed skill guidance, Forage tables, and Ship functional rows now
+  derive from `distribution.properties`; a small idempotent helper synchronizes the remaining Maven model-time mirror.
+  Ship records exact 4.22.0 and 4.18.4 validator/catalog evidence. Camel 4.22 adds Jactl to the known-expression
+  classifier, while Ship v1 continues to reject it under the existing Simple-only manifest policy.
+
 - **Shared Camel security checklist (#205)** — the security rules restated across the design guide, the validation
   guides, and the review personas now have one canonical source, `skills/shared/camel-security-checklist.md`. The
   consumers reference it instead of restating the rules, the drifted vault-reference and log-masking snippets are
@@ -74,12 +82,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Pre-controller `.camel-kit/ship-state.json` and non-manual `.camel-kit/pipeline.json` state is intentionally not resumable and must be archived outside the project before starting Ship; manual-mode `.camel-kit/pipeline.json` remains supported by standalone pipeline skills and validated `--start-from` imports
   - GitHub Copilot CLI uses native project skills under `.github/skills/` without generating unsupported `.github/commands/`; older command files are inert and may be removed after preserving local edits
   - Pi exposes Ship through `/skill:camel-ship` and removes the older `.pi/prompts/camel-ship.md` alias, whose argument expansion could flatten quoted option values
-
-- **Default Camel version updated to 4.21.0** — Camel Main and Spring Boot runtimes now default to Camel `4.21.0`, with the Spring Boot framework mapped to `4.1.0` (`spring.boot.4.21.0=4.1.0`, matching camel-parent 4.21.0). Supported version lists for Main and Spring Boot move to `4.21.0, 4.18.3, 4.14.7` (LTS fix release 4.18.3 maps to Spring Boot `3.5.16`).
-  - Camel MCP server now pinned to the released `4.21.0` instead of `4.21.0-SNAPSHOT`
-  - Compiled-in fallback defaults in `DistributionConfig` kept in lockstep with `distribution.properties`
-  - `spring.boot.4.20.0` mapping removed — 4.20 is not an LTS line; 4.21.0 is the current latest release alongside LTS `4.18.3` and `4.14.7`
-  - Quarkus runtime stays on Camel `4.18.2` — the latest camel-quarkus release (3.33.1, Quarkus platform 3.33.2.x) still bundles Camel 4.18.2
 
 - **Default AI target changed to IBM Bob 2** — `camel-kit init` and `camel kit init` now default to `--ai bob2` when no `--ai` option is supplied.
   - CLI help and documentation now mark Bob 2 as the default target

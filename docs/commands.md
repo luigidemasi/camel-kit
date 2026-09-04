@@ -57,7 +57,7 @@ camel kit init --here [options]
 | `--citrus-version` | `5.0.0-M2` | Citrus Framework version for test schemas and generated test dependencies |
 | `--here` | `false` | Initialize in current directory |
 | `--no-fetch` | `false` | Skip external catalog fetching |
-| `-p`, `--property` | -- | Override a config property (repeatable). Example: `-p "camel.main.version=4.18.3"` |
+| `-p`, `--property` | -- | Override a config property (repeatable). Example: `-p "camel.main.version=4.18.4"` |
 | `-c`, `--config` | `~/.camel-kit/config.properties` | Path to a custom config properties file |
 | `--source-platform` | `auto` | Source platform for migration: `mulesoft`, `camel`, `biztalk`, `auto` |
 | `--force` | `false` | Overwrite existing project without prompting (skips overwrite detection) |
@@ -102,7 +102,7 @@ camel-kit init my-integration --ai opencode
 camel-kit init --here
 
 # Override config properties via CLI
-camel-kit init my-integration --ai claude -p "camel.main.version=4.18.3"
+camel-kit init my-integration --ai claude -p "camel.main.version=4.18.4"
 
 # Override multiple properties
 camel-kit init my-integration --ai claude -p "camel.quarkus.version=4.18.2" -p "quarkus.platform.version=3.33.1"
@@ -174,9 +174,9 @@ Any property from `distribution.properties` can be overridden at layers 2 or 3. 
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `camel.main.version` | `4.21.0` | Apache Camel version for Camel Main / JBang projects |
-| `camel.springboot.version` | `4.21.0` | Apache Camel version for Spring Boot projects |
-| `springboot.bom.version` | `4.21.0` | Spring Boot BOM version |
+| `camel.main.version` | `4.22.0` | Apache Camel version for Camel Main / JBang projects |
+| `camel.springboot.version` | `4.22.0` | Apache Camel version for Spring Boot projects |
+| `springboot.bom.version` | `4.22.0` | Spring Boot BOM version |
 | `camel.quarkus.version` | `4.18.2` | Apache Camel version for Quarkus projects |
 | `quarkus.platform.version` | `3.33.1` | Quarkus platform BOM version |
 | `camel.mcp.version` | See `distribution.properties` | Camel MCP server version |

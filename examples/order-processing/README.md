@@ -17,7 +17,7 @@ camel-kit init my-integration --ai opencode   # OpenCode
 You can also override configuration at init time:
 ```bash
 # With custom Camel version
-camel-kit init my-integration --ai claude -p "camel.main.version=4.18.3"
+camel-kit init my-integration --ai claude -p "camel.main.version=4.18.4"
 
 # With custom config file
 camel-kit init my-integration --ai claude -c team-config.properties

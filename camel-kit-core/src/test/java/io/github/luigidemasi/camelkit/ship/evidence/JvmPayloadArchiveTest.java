@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.zip.ZipFile;
 import java.util.zip.ZipInputStream;
 
+import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.ship.ShipArtifactLimits;
 import io.github.luigidemasi.camelkit.ship.artifact.CitrusDependencyPolicy;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogExpressionInventory;
@@ -20,12 +21,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class JvmPayloadArchiveTest {
 
+    private static final String CAMEL_VERSION = DistributionConfig.loadBundled().camelMainVersion();
+
     @TempDir
     Path directory;
 
     @Test
     void writesAReproducibleArchive() throws Exception {
-        JvmPayloadRequest request = JvmPayloadRequest.camelMain("4.21.0");
+        JvmPayloadRequest request = JvmPayloadRequest.camelMain(CAMEL_VERSION);
         Path first = JvmPayloadTestFixture.create(
                 directory.resolve("first"), request);
         Path second = JvmPayloadTestFixture.create(
@@ -37,10 +40,10 @@ class JvmPayloadArchiveTest {
     @Test
     void isolatedLaunchersContainExactlyTheirApplicationOwnedDependencies() throws Exception {
         for (JvmPayloadRequest request : java.util.List.of(
-                JvmPayloadRequest.yamlValidator("4.21.0"),
-                JvmPayloadRequest.camelMain("4.21.0"),
+                JvmPayloadRequest.yamlValidator(CAMEL_VERSION),
+                JvmPayloadRequest.camelMain(CAMEL_VERSION),
                 JvmPayloadRequest.citrus(
-                        "4.21.0", "5.0.0-M2", CitrusDependencyPolicy.required("5.0.0-M2")))) {
+                        CAMEL_VERSION, "5.0.0-M2", CitrusDependencyPolicy.required("5.0.0-M2")))) {
             Path archive = JvmPayloadTestFixture.create(
                     directory.resolve(request.kind().id()), request);
 

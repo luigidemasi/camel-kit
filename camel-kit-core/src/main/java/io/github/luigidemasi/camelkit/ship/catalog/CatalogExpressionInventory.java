@@ -5,7 +5,7 @@ import java.util.Set;
 
 import io.github.luigidemasi.camelkit.ship.expression.ShipExpressionPolicy;
 
-/** Exact Camel YAML selector inventory layered over Ship's bounded Simple expression gate. */
+/** Union of exact, reviewed Camel YAML selectors layered over Ship's bounded Simple expression gate. */
 public final class CatalogExpressionInventory {
 
     public static final String SIMPLE = "simple";
@@ -14,12 +14,12 @@ public final class CatalogExpressionInventory {
 
     private static final Set<String> YAML_ALIASES = Set.of(
             "constant", "csimple", "datasonnet", "exchangeProperty", "groovy", "header",
-            "hl7terser", "java", "joor", "jq", "js", "jsonpath", GENERIC, METHOD, "mvel",
+            "hl7terser", "jactl", "java", "joor", "jq", "js", "jsonpath", GENERIC, METHOD, "mvel",
             "ognl", "python", "ref", SIMPLE, "spel", "tokenize", "variable", "wasm", "xpath",
             "xquery", "xtokenize");
     private static final Set<String> CATALOG_LANGUAGES = Set.of(
             "bean", "constant", "csimple", "datasonnet", "exchangeProperty", "file", "groovy",
-            "header", "hl7terser", "java", "joor", "jq", "js", "jsonpath", "mvel", "ognl",
+            "header", "hl7terser", "jactl", "java", "joor", "jq", "js", "jsonpath", "mvel", "ognl",
             "python", "ref", SIMPLE, "spel", "tokenize", "variable", "wasm", "xpath", "xquery",
             "xtokenize");
 

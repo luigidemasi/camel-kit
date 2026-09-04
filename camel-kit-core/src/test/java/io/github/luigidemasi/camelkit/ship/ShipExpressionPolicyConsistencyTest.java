@@ -45,12 +45,13 @@ class ShipExpressionPolicyConsistencyTest {
 
         assertEquals(certified, fieldNames(versions),
                 "A certified Camel version needs a reviewed expression inventory before it can ship");
+        Set<String> reviewedAliases = new TreeSet<>();
+        Set<String> reviewedLanguages = new TreeSet<>();
         for (String version : certified) {
             JsonNode inventory = versions.path(version);
             Map<String, String> aliases = textMap(inventory.path("yamlAliases"));
-            assertEquals(CatalogExpressionInventory.yamlAliases(), aliases.keySet(), version);
-            assertEquals(CatalogExpressionInventory.catalogLanguages(), textSet(inventory.path("catalogLanguages")),
-                    version);
+            reviewedAliases.addAll(aliases.keySet());
+            reviewedLanguages.addAll(textSet(inventory.path("catalogLanguages")));
             assertEquals(GENERIC_DEFINITION, aliases.get(CatalogExpressionInventory.GENERIC), version);
             assertEquals(SIMPLE_DEFINITION, aliases.get(CatalogExpressionInventory.SIMPLE), version);
             assertEquals(METHOD_DEFINITION, aliases.get(CatalogExpressionInventory.METHOD), version);
@@ -72,6 +73,10 @@ class ShipExpressionPolicyConsistencyTest {
             assertEquals(inventory.path("catalogLanguagesSha256").asText(),
                     digestLines(textSet(inventory.path("catalogLanguages"))), version);
         }
+        assertEquals(reviewedAliases, CatalogExpressionInventory.yamlAliases(),
+                "The production YAML classifier must equal the union of certified aliases");
+        assertEquals(reviewedLanguages, CatalogExpressionInventory.catalogLanguages(),
+                "The production language classifier must equal the union of certified catalogs");
     }
 
     @Test
@@ -86,6 +91,19 @@ class ShipExpressionPolicyConsistencyTest {
         assertSchemaInventory(JSON.readTree(schemaBytes), inventory);
         assertSchemaInventory(resourceJson("schema/camelYamlDsl-canonical.json"), inventory);
         assertEquals(version, resourceJson("yaml-dsl.json").path("other").path("version").asText());
+    }
+
+    @Test
+    void camel422JactlSelectorStaysVersionSpecific() throws Exception {
+        JsonNode versions = resourceJson(INVENTORY).path("versions");
+        JsonNode former = versions.path("4.18.4");
+        JsonNode current = versions.path("4.22.0");
+
+        assertFalse(former.path("yamlAliases").has("jactl"));
+        assertFalse(textSet(former.path("catalogLanguages")).contains("jactl"));
+        assertEquals("org.apache.camel.model.language.JactlExpression",
+                current.path("yamlAliases").path("jactl").asText());
+        assertTrue(textSet(current.path("catalogLanguages")).contains("jactl"));
     }
 
     private static void assertSchemaInventory(JsonNode schema, JsonNode inventory) {
