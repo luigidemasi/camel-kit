@@ -42,9 +42,9 @@
              distribution.properties is the packaged runtime source of truth.
              These literals must also exist here because Maven builds its model
              and resolves dependency/plugin versions before a lifecycle plugin
-             can read that file. DistributionVersionMirrorTest prevents drift. -->
+             can read that file. Run tools/sync_distribution_mirrors.py after
+             changing the source; DistributionVersionMirrorTest prevents drift. -->
         <camel.main.version>4.21.0</camel.main.version>
-        <camel.mcp.version>4.21.0</camel.mcp.version>
         <ship.evidence.jackson-yaml.version>2.19.2</ship.evidence.jackson-yaml.version>
         <maven.resolver.version>1.9.27</maven.resolver.version>
         <maven.provider.version>3.9.12</maven.provider.version>

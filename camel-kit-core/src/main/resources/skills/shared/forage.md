@@ -20,9 +20,7 @@ The installed distribution mapping is exact-key only:
 
 | `project.camelVersion` | required `forage.version` |
 |---|---|
-| `4.21.0` | `1.5.0` |
-| `4.18.3` | `1.3` |
-| `4.18.2` | `1.3` |
+{FORAGE_VERSION_TABLE}
 
 An unlisted Camel version has no Forage mapping. Do not infer a compatible stream from version ranges or catalog prose.
 

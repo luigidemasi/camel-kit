@@ -17,6 +17,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.jar.JarFile;
+import java.util.stream.Stream;
 
 import io.github.luigidemasi.camelkit.ship.artifact.CitrusDependencyPolicy;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogUsageRecord.RuntimeDependency;
@@ -25,6 +26,8 @@ import io.github.luigidemasi.camelkit.ship.resolver.ShipMavenResolver;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -33,9 +36,6 @@ class JvmPayloadCompatibilityIT {
 
     private static final Duration PROCESS_TIMEOUT = Duration.ofMinutes(2);
     private static final int MAX_RETAINED_OUTPUT_BYTES = 8 * 1024 * 1024;
-    private static final Set<Row> FUNCTIONALLY_TESTED_ROWS = Set.of(
-            new Row("4.21.0", "5.0.0-M2"),
-            new Row("4.18.3", "5.0.0-M2"));
     private static final String RELOCATED_RESOLVER_CLASS
             = "io/github/luigidemasi/camelkit/ship/resolver/internal/org/eclipse/aether/RepositorySystem.class";
 
@@ -64,39 +64,56 @@ class JvmPayloadCompatibilityIT {
     }
 
     @Test
-    void explicitFunctionalRowsCoverTheEntirePackagedPolicy() throws Exception {
+    void validatorAndCitrusEvidenceCoverTheSameCamelVersions() throws Exception {
+        Properties policy = packagedPolicy();
+        Set<String> validatorVersions = csv(
+                policy.getProperty("ship.evidence.camel-yaml-validator.supported"));
+        Set<Row> citrusRows = packagedFunctionalRows(policy);
+
+        assertEquals(
+                citrusRows.stream().map(Row::camelVersion).collect(java.util.stream.Collectors.toSet()),
+                validatorVersions);
+    }
+
+    @ParameterizedTest(name = "Camel {0}")
+    @MethodSource("functionalRows")
+    void packagedPayloadsMaterializeAndRunTheirFunctionalEvidenceInIsolation(Row row) throws Exception {
+        requirePayloads(row.camelVersion(), row.citrusVersion());
+    }
+
+    static Stream<Row> functionalRows() throws Exception {
+        return packagedFunctionalRows(packagedPolicy()).stream()
+                .sorted(java.util.Comparator.comparing(Row::camelVersion).thenComparing(Row::citrusVersion));
+    }
+
+    private static Properties packagedPolicy() throws IOException {
         Properties policy = new Properties();
-        try (InputStream input = getClass().getClassLoader().getResourceAsStream("distribution.properties")) {
+        try (InputStream input = JvmPayloadCompatibilityIT.class.getClassLoader()
+                .getResourceAsStream("distribution.properties")) {
             assertNotNull(input, "Missing packaged distribution.properties");
             policy.load(input);
         }
-        Set<String> validatorVersions = Set.of(
-                policy.getProperty("ship.evidence.camel-yaml-validator.supported").split(","));
-        Set<Row> citrusRows = policy.stringPropertyNames().stream()
+        return policy;
+    }
+
+    private static Set<Row> packagedFunctionalRows(Properties policy) {
+        return policy.stringPropertyNames().stream()
                 .filter(key -> key.startsWith("ship.evidence.citrus."))
                 .filter(key -> key.endsWith(".camel.supported"))
                 .flatMap(key -> {
                     String citrusVersion = key.substring(
                             "ship.evidence.citrus.".length(), key.length() - ".camel.supported".length());
-                    return List.of(policy.getProperty(key).split(",")).stream()
-                            .map(camelVersion -> new Row(camelVersion.trim(), citrusVersion));
+                    return csv(policy.getProperty(key)).stream()
+                            .map(camelVersion -> new Row(camelVersion, citrusVersion));
                 })
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());
-
-        assertEquals(FUNCTIONALLY_TESTED_ROWS, citrusRows);
-        assertEquals(
-                FUNCTIONALLY_TESTED_ROWS.stream().map(Row::camelVersion).collect(java.util.stream.Collectors.toSet()),
-                validatorVersions);
     }
 
-    @Test
-    void camel421PayloadsMaterializeAndRunTheirFunctionalEvidenceInIsolation() throws Exception {
-        requirePayloads("4.21.0", "5.0.0-M2");
-    }
-
-    @Test
-    void camel418PayloadsMaterializeAndRunTheirFunctionalEvidenceInIsolation() throws Exception {
-        requirePayloads("4.18.3", "5.0.0-M2");
+    private static Set<String> csv(String values) {
+        return Stream.of(values.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isEmpty())
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
     private void requirePayloads(String camelVersion, String citrusVersion) throws Exception {

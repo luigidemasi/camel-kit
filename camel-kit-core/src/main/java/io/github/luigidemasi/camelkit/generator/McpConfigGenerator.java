@@ -45,27 +45,10 @@ class McpConfigGenerator {
 
     private Map<String, Object> templateData(DistributionConfig dist, WorkflowManifest workflow) throws IOException {
         Map<String, Object> data = new java.util.HashMap<>(
-                Map.of(
-                        "CAMEL_MCP_VERSION", dist.camelMcpVersion(),
-                        "KNOWLEDGE_VERSION", dist.knowledgeMcpVersion(),
-                        "CITRUS_MCP_VERSION", dist.citrusMcpVersion(),
-                        "CAMEL_MCP_REPOS", dist.camelMcpRepos(),
-                        "KNOWLEDGE_MCP_REPOS", dist.knowledgeMcpRepos(),
-                        "CITRUS_MCP_REPOS", dist.citrusMcpRepos(),
-                        "CAMEL_CATALOG_REPOS", dist.camelCatalogRepos()));
+                VersionPlaceholderResolver.buildVersionTemplateData(dist));
 
         WorkflowManifest.WorkflowMcpServer camelServer = workflow.mcpServer("camel");
         data.put("CAMEL_TOOLS_JSON", toJsonArray(camelServer.allowedTools()));
-        data.put("CAMEL_VERSION", dist.camelMainVersion());
-        data.put("CAMEL_MAIN_VERSION", dist.camelMainVersion());
-        data.put("CAMEL_SPRINGBOOT_VERSION", dist.camelSpringbootVersion());
-        data.put("CAMEL_QUARKUS_VERSION", dist.camelQuarkusVersion());
-        data.put("SPRINGBOOT_BOM_VERSION", dist.springbootBomVersion());
-        data.put("SPRING_BOOT_VERSION", dist.springBootVersion());
-        data.put("QUARKUS_PLATFORM_VERSION", dist.quarkusPlatformVersion());
-        data.put("CAMEL_MAIN_SUPPORTED", dist.camelMainSupported());
-        data.put("CAMEL_SPRINGBOOT_SUPPORTED", dist.camelSpringbootSupported());
-        data.put("CAMEL_QUARKUS_SUPPORTED", dist.camelQuarkusSupported());
 
         WorkflowManifest.WorkflowMcpServer knowledgeServer = workflow.mcpServer("camel-knowledge");
         data.put("KNOWLEDGE_TOOLS_JSON", toJsonArray(knowledgeServer.allowedTools()));

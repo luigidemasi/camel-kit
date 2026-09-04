@@ -24,6 +24,11 @@ class VersionPlaceholderResolverTest {
                 {COMMAND_PREFIX} graph stats
                 Runtime property placeholder: {{CAMEL_VERSION}}
                 Version: {QUARKUS_PLATFORM_VERSION}
+                MCP: {CAMEL_MCP_VERSION}
+                Repositories: {CAMEL_MCP_REPOS}
+                Forage:
+                {FORAGE_VERSION_TABLE}
+                Selected Citrus: {CITRUS_VERSION}
                 """);
         new VersionPlaceholderResolver().substitute(mdFile);
 
@@ -33,8 +38,15 @@ class VersionPlaceholderResolverTest {
         assertTrue(result.contains("${quarkus.platform.version}"), "Maven property must be preserved");
         assertTrue(result.contains("{COMMAND_PREFIX} graph stats"), "Non-version placeholder must be preserved");
         assertTrue(result.contains("{{CAMEL_VERSION}}"), "Camel runtime property placeholder must be preserved");
+        assertTrue(result.contains("{CITRUS_VERSION}"), "Project-selected Citrus version must be preserved");
         assertTrue(result.contains(dist.quarkusPlatformVersion()), "Version placeholder must be resolved");
+        assertTrue(result.contains(dist.camelMcpVersion()), "MCP version placeholder must be resolved");
+        assertTrue(result.contains(dist.camelMcpRepos()), "MCP repository placeholder must be resolved");
+        for (var entry : dist.forageVersionMappings().entrySet()) {
+            assertTrue(result.contains("| " + entry.getKey() + " | " + entry.getValue() + " |"));
+        }
         assertFalse(result.contains("{QUARKUS_PLATFORM_VERSION}"), "Version placeholder must not remain");
+        assertFalse(result.contains("{FORAGE_VERSION_TABLE}"), "Forage table placeholder must not remain");
     }
 
     @Test

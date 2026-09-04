@@ -25,90 +25,90 @@ import static org.junit.jupiter.api.Assertions.*;
 class DistributionConfigTest {
 
     @Test
-    void loadsPerPlatformVersions() {
-        InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
-        DistributionConfig config = DistributionConfig.load(in);
+    void loadsPerPlatformVersions() throws Exception {
+        Properties properties = bundledProperties();
+        DistributionConfig config = DistributionConfig.loadBundled();
 
-        assertEquals("4.21.0", config.camelMainVersion());
-        assertEquals("4.21.0", config.camelSpringbootVersion());
-        assertEquals("4.18.2", config.camelQuarkusVersion());
-        assertEquals("4.21.0", config.springbootBomVersion());
-        assertEquals("4.1.0", config.springBootVersion());
-        assertEquals("3.33.1", config.quarkusPlatformVersion());
+        assertEquals(properties.getProperty("camel.main.version"), config.camelMainVersion());
+        assertEquals(properties.getProperty("camel.springboot.version"), config.camelSpringbootVersion());
+        assertEquals(properties.getProperty("camel.quarkus.version"), config.camelQuarkusVersion());
+        assertEquals(properties.getProperty("springboot.bom.version"), config.springbootBomVersion());
+        assertEquals(properties.getProperty("spring.boot.version"), config.springBootVersion());
+        assertEquals(properties.getProperty("quarkus.platform.version"), config.quarkusPlatformVersion());
     }
 
     @Test
-    void loadsSupportedVersions() {
-        InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
-        DistributionConfig config = DistributionConfig.load(in);
+    void loadsSupportedVersions() throws Exception {
+        Properties properties = bundledProperties();
+        DistributionConfig config = DistributionConfig.loadBundled();
 
-        assertEquals("4.21.0,4.18.3,4.14.7", config.camelMainSupported());
-        assertEquals("4.21.0,4.18.3,4.14.7", config.camelSpringbootSupported());
-        assertEquals("4.18.2,4.14.7", config.camelQuarkusSupported());
+        assertEquals(properties.getProperty("camel.main.supported"), config.camelMainSupported());
+        assertEquals(properties.getProperty("camel.springboot.supported"), config.camelSpringbootSupported());
+        assertEquals(properties.getProperty("camel.quarkus.supported"), config.camelQuarkusSupported());
     }
 
     @Test
     void quarkusPlatformForVersionLookup() {
-        InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
-        DistributionConfig config = DistributionConfig.load(in);
+        DistributionConfig config = DistributionConfig.loadBundled();
 
-        // Known mapping
-        assertEquals("3.33.1", config.quarkusPlatformForVersion("4.18.2"));
-        assertEquals("3.27.3", config.quarkusPlatformForVersion("4.14.7"));
-
-        // Unknown version falls back to default quarkus.platform.version
-        assertEquals("3.33.1", config.quarkusPlatformForVersion("9.99.99"));
+        config.quarkusPlatformMappings()
+                .forEach((camel, quarkus) -> assertEquals(quarkus, config.quarkusPlatformForVersion(camel)));
+        assertEquals(config.quarkusPlatformVersion(), config.quarkusPlatformForVersion("9.99.99"));
     }
 
     @Test
-    void quarkusPlatformMappingsReturnsExplicitEntries() {
-        InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
-        DistributionConfig config = DistributionConfig.load(in);
+    void quarkusPlatformMappingsReturnsExplicitEntries() throws Exception {
+        Properties properties = bundledProperties();
+        DistributionConfig config = DistributionConfig.loadBundled();
 
         var mappings = config.quarkusPlatformMappings();
-        assertEquals("3.33.1", mappings.get("4.18.2"));
-        assertEquals("3.27.3", mappings.get("4.14.7"));
+        long expectedSize = properties.stringPropertyNames().stream()
+                .filter(key -> key.startsWith("quarkus.platform.") && !key.equals("quarkus.platform.version"))
+                .count();
+        assertEquals(expectedSize, mappings.size());
+        mappings.forEach(
+                (camel, quarkus) -> assertEquals(properties.getProperty("quarkus.platform." + camel), quarkus));
         assertFalse(mappings.containsKey("version"), "Default quarkus.platform.version must be excluded");
     }
 
     @Test
-    void springBootMappingsReturnsExplicitEntries() {
-        InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
-        DistributionConfig config = DistributionConfig.load(in);
+    void springBootMappingsReturnsExplicitEntries() throws Exception {
+        Properties properties = bundledProperties();
+        DistributionConfig config = DistributionConfig.loadBundled();
 
         var mappings = config.springBootMappings();
-        assertEquals("4.1.0", mappings.get("4.21.0"));
-        assertEquals("3.5.16", mappings.get("4.18.3"));
-        assertEquals("3.5.12", mappings.get("4.14.7"));
+        long expectedSize = properties.stringPropertyNames().stream()
+                .filter(key -> key.startsWith("spring.boot.") && !key.equals("spring.boot.version"))
+                .count();
+        assertEquals(expectedSize, mappings.size());
+        mappings.forEach((camel, spring) -> assertEquals(properties.getProperty("spring.boot." + camel), spring));
         assertFalse(mappings.containsKey("version"), "Default spring.boot.version must be excluded");
     }
 
     @Test
-    void loadsMcpConfig() {
-        InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
-        DistributionConfig config = DistributionConfig.load(in);
+    void loadsMcpAndWorkerConfig() throws Exception {
+        Properties properties = bundledProperties();
+        DistributionConfig config = DistributionConfig.loadBundled();
 
-        assertEquals("4.21.0", config.camelMcpVersion());
-        assertEquals("0.0.1-SNAPSHOT", config.knowledgeMcpVersion());
-        assertEquals("5.0.0-M2", config.citrusVersion());
-        assertEquals("5.0.0-M1", config.citrusMcpVersion());
-        assertEquals("central=https://repo1.maven.org/maven2/,apache_snap=https://repository.apache.org/snapshots",
-                config.camelMcpRepos());
-        assertEquals("central=https://repo1.maven.org/maven2/", config.knowledgeMcpRepos());
-        assertEquals("central=https://repo1.maven.org/maven2/", config.citrusMcpRepos());
-        assertEquals("https://repo1.maven.org/maven2/,https://repository.apache.org/snapshots",
-                config.camelCatalogRepos());
-        assertEquals("0.84.2", config.piVersion());
-        assertEquals(List.of("0.84.2", "0.83.0"), config.piSupportedVersions());
-        assertEquals("22.22.2", config.nodeVersion());
-        assertEquals("2.11.0", config.piMcpAdapterVersion());
+        assertEquals(properties.getProperty("camel.mcp.version"), config.camelMcpVersion());
+        assertEquals(properties.getProperty("knowledge.mcp.version"), config.knowledgeMcpVersion());
+        assertEquals(properties.getProperty("citrus.version"), config.citrusVersion());
+        assertEquals(properties.getProperty("citrus.mcp.version"), config.citrusMcpVersion());
+        assertEquals(properties.getProperty("camel.mcp.repos"), config.camelMcpRepos());
+        assertEquals(properties.getProperty("knowledge.mcp.repos"), config.knowledgeMcpRepos());
+        assertEquals(properties.getProperty("citrus.mcp.repos"), config.citrusMcpRepos());
+        assertEquals(properties.getProperty("camel.catalog.repos"), config.camelCatalogRepos());
+        assertEquals(properties.getProperty("pi.version"), config.piVersion());
+        assertEquals(List.of(properties.getProperty("pi.supported").split(",")), config.piSupportedVersions());
+        assertEquals(properties.getProperty("node.version"), config.nodeVersion());
+        assertEquals(properties.getProperty("pi.mcp.adapter.version"), config.piMcpAdapterVersion());
     }
 
     @Test
     void camelMcpVersionCanBeOverriddenViaProperties() {
         InputStream in = getClass().getClassLoader().getResourceAsStream("distribution.properties");
         DistributionConfig baselineConfig = DistributionConfig.load(in);
-        assertEquals("4.21.0", baselineConfig.camelMcpVersion());
+        assertEquals(DistributionConfig.loadBundled().camelMcpVersion(), baselineConfig.camelMcpVersion());
 
         Properties properties = new Properties();
         properties.setProperty("camel.mcp.version", "9.9.9-TEST");
@@ -138,10 +138,11 @@ class DistributionConfigTest {
         Files.writeString(overrideFile, "camel.main.version=9.9.9\n");
 
         DistributionConfig config = DistributionConfig.loadFromFileWithClasspathBaseline(overrideFile);
+        DistributionConfig bundled = DistributionConfig.loadBundled();
 
         assertEquals("9.9.9", config.camelMainVersion());
-        assertEquals("4.21.0", config.camelSpringbootVersion());
-        assertEquals("4.21.0", config.camelMcpVersion());
+        assertEquals(bundled.camelSpringbootVersion(), config.camelSpringbootVersion());
+        assertEquals(bundled.camelMcpVersion(), config.camelMcpVersion());
     }
 
     @Test
@@ -152,7 +153,7 @@ class DistributionConfigTest {
         DistributionConfig config = DistributionConfig.load(properties);
 
         assertEquals("4.9.2", config.citrusVersion());
-        assertEquals("5.0.0-M1", config.citrusMcpVersion());
+        assertEquals(DistributionConfig.loadBundled().citrusMcpVersion(), config.citrusMcpVersion());
     }
 
     @Test
@@ -162,14 +163,15 @@ class DistributionConfigTest {
     }
 
     @Test
-    void bundledBaselineLoadsMaintainedWorkerVersionsWithoutOverrides() {
+    void bundledBaselineLoadsMaintainedWorkerVersionsWithoutOverrides() throws Exception {
+        Properties properties = bundledProperties();
         DistributionConfig config = DistributionConfig.loadBundled();
 
-        assertEquals("0.84.2", config.piVersion());
-        assertEquals(List.of("0.84.2", "0.83.0"), config.piSupportedVersions());
+        assertEquals(properties.getProperty("pi.version"), config.piVersion());
+        assertEquals(List.of(properties.getProperty("pi.supported").split(",")), config.piSupportedVersions());
         assertEquals(config.piVersion(), config.piSupportedVersions().get(0),
                 "the bundled primary pi.version must be the first pi.supported entry");
-        assertEquals("22.22.2", config.nodeVersion());
+        assertEquals(properties.getProperty("node.version"), config.nodeVersion());
         assertEquals(0, config.overrideCount());
     }
 
@@ -199,7 +201,7 @@ class DistributionConfigTest {
         assertEquals("", output.toString(StandardCharsets.UTF_8));
         assertEquals("9.9.9", config.camelMainVersion());
         assertEquals("4.9.0", config.citrusVersion());
-        assertEquals("4.21.0", config.camelSpringbootVersion());
+        assertEquals(DistributionConfig.loadBundled().camelSpringbootVersion(), config.camelSpringbootVersion());
         assertEquals("", config.knowledgeMcpVersion());
         assertEquals(5, config.overrideCount());
     }
@@ -232,7 +234,7 @@ class DistributionConfigTest {
     void strictDefaultConfigMayBeAbsentButNotMalformed(@TempDir Path tempDir) throws Exception {
         Path configFile = tempDir.resolve("config.properties");
 
-        assertEquals("4.21.0", DistributionConfig.loadWithOverridesStrict(
+        assertEquals(DistributionConfig.loadBundled().camelMainVersion(), DistributionConfig.loadWithOverridesStrict(
                 null, List.of(), configFile).camelMainVersion());
 
         Files.writeString(configFile, "camel.main.version=9.9.9\n");
@@ -274,7 +276,7 @@ class DistributionConfigTest {
             System.setErr(original);
         }
 
-        assertEquals("4.21.0", config.camelMainVersion());
+        assertEquals(DistributionConfig.loadBundled().camelMainVersion(), config.camelMainVersion());
         assertEquals(0, config.overrideCount());
         assertTrue(error.toString(StandardCharsets.UTF_8)
                 .contains("WARN: Failed to load config from " + malformed + ":"));
@@ -297,22 +299,62 @@ class DistributionConfigTest {
     @Test
     void forageVersionForCamelReturnsMappedStream() {
         Properties props = new Properties();
-        props.setProperty("forage.version.4.21.0", "1.5.0");
-        props.setProperty("forage.version.4.18.3", "1.3");
+        props.setProperty("forage.version.9.9.9", "9.1");
+        props.setProperty("forage.version.8.8.8", "8.1");
         DistributionConfig config = DistributionConfig.load(props);
-        assertEquals("1.5.0", config.forageVersionForCamel("4.21.0"));
-        assertEquals("1.3", config.forageVersionForCamel("4.18.3"));
+        assertEquals("9.1", config.forageVersionForCamel("9.9.9"));
+        assertEquals("8.1", config.forageVersionForCamel("8.8.8"));
+        assertEquals(List.of("8.8.8", "9.9.9"), List.copyOf(config.forageVersionMappings().keySet()));
     }
 
     @Test
     void forageVersionForCamelReturnsNullWhenUnmapped() {
         DistributionConfig config = DistributionConfig.load(new Properties());
-        assertNull(config.forageVersionForCamel("4.14.7"));
+        assertNull(config.forageVersionForCamel("9.9.9"));
     }
 
     @Test
-    void forageCatalogArtifactHasDefault() {
+    void forageCatalogArtifactComesFromBundledBaseline() {
         DistributionConfig config = DistributionConfig.load(new Properties());
-        assertEquals("io.kaoto.forage:forage-catalog", config.forageCatalogArtifact());
+        assertEquals(DistributionConfig.loadBundled().forageCatalogArtifact(), config.forageCatalogArtifact());
+    }
+
+    @Test
+    void partialLoadsUseBundledScalarDefaults() {
+        DistributionConfig bundled = DistributionConfig.loadBundled();
+
+        for (DistributionConfig partial : List.of(
+                DistributionConfig.load(new Properties()),
+                DistributionConfig.load((InputStream) null))) {
+            assertEquals(bundled.camelMainVersion(), partial.camelMainVersion());
+            assertEquals(bundled.camelSpringbootVersion(), partial.camelSpringbootVersion());
+            assertEquals(bundled.springbootBomVersion(), partial.springbootBomVersion());
+            assertEquals(bundled.camelMcpVersion(), partial.camelMcpVersion());
+            assertEquals(bundled.citrusVersion(), partial.citrusVersion());
+            assertEquals(bundled.nodeVersion(), partial.nodeVersion());
+            assertEquals(bundled.forageCatalogArtifact(), partial.forageCatalogArtifact());
+        }
+    }
+
+    @Test
+    void bundledRuntimeDefaultsAreInternallyConsistent() {
+        DistributionConfig bundled = DistributionConfig.loadBundled();
+
+        assertEquals(bundled.camelMainVersion(), bundled.camelMainSupported().split(",")[0]);
+        assertEquals(bundled.camelSpringbootVersion(), bundled.camelSpringbootSupported().split(",")[0]);
+        assertEquals(bundled.camelQuarkusVersion(), bundled.camelQuarkusSupported().split(",")[0]);
+        assertEquals(bundled.camelSpringbootVersion(), bundled.springbootBomVersion());
+        assertEquals(bundled.springBootVersion(),
+                bundled.springBootMappings().get(bundled.camelSpringbootVersion()));
+    }
+
+    private static Properties bundledProperties() throws java.io.IOException {
+        Properties properties = new Properties();
+        try (InputStream input = DistributionConfigTest.class.getClassLoader()
+                .getResourceAsStream("distribution.properties")) {
+            assertNotNull(input, "Missing packaged distribution.properties");
+            properties.load(input);
+        }
+        return properties;
     }
 }

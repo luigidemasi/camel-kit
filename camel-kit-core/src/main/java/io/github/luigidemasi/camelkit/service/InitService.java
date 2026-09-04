@@ -369,8 +369,7 @@ public class InitService {
                 config.setProperty("project.platformBomVersion", distribution.camelMainVersion());
             }
         }
-        // forage.version must always track project.camelVersion — recomputed on every write,
-        // including the post-graph runtime rewrite (e.g. main 4.21.0/1.5.0 -> quarkus 4.18.2/1.3).
+        // forage.version must always track project.camelVersion, including after graph-based runtime rewrites.
         String forageVersion = distribution.forageVersionForCamel(config.getProperty("project.camelVersion"));
         if (forageVersion != null) {
             config.setProperty("forage.version", forageVersion);
