@@ -8,7 +8,6 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -18,6 +17,7 @@ import java.util.stream.Stream;
 import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentGeneratorStrategy;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
+import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.output.Printer;
 import io.github.luigidemasi.camelkit.workflow.WorkflowManifest;
 import io.github.luigidemasi.camelkit.workflow.WorkflowManifestLoader;
@@ -711,7 +711,9 @@ class ResourceConsistencyTest {
                 "PKI engines issue certificates with a validity period",
                 "polls KV-v2 version metadata",
                 "does not manage dynamic-secret leases",
-                "available in supported Camel 4.18.2, 4.18.3, and 4.21.0, but not 4.14.7",
+                "bundled Camel Main matrix ({CAMEL_MAIN_SUPPORTED})",
+                "default Camel Quarkus line ({CAMEL_QUARKUS_VERSION})",
+                "not the retained Quarkus 4.14.7 compatibility row",
                 "camel.vault.hashicorp.refreshEnabled=true",
                 "camel.main.context-reload-enabled=true",
                 "may be omitted only when every tracked value is referenced through a `hashicorp:` placeholder in the default `secret` mount",
@@ -1363,36 +1365,24 @@ class ResourceConsistencyTest {
     }
 
     @Test
-    void forageVersionTableExactlyMatchesDistributionProperties() throws IOException {
-        Path root = repositoryRoot();
-        Properties distribution = new Properties();
-        try (var reader = Files.newBufferedReader(root.resolve("distribution.properties"))) {
-            distribution.load(reader);
-        }
-
-        Set<String> expected = distribution.stringPropertyNames().stream()
-                .filter(name -> name.startsWith("forage.version."))
-                .map(name -> name + "=" + distribution.getProperty(name))
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-
-        String forage = Files.readString(root.resolve(
+    void forageVersionTableRemainsDistributionDriven() throws IOException {
+        String forage = Files.readString(repositoryRoot().resolve(
                 "camel-kit-core/src/main/resources/skills/shared/forage.md"));
-        String mappingTable = section(forage,
-                "The installed distribution mapping is exact-key only:",
-                "An unlisted Camel version has no Forage mapping");
-        Matcher rows = Pattern.compile("(?m)^\\| `([^`]+)` \\| `([^`]+)` \\|$").matcher(mappingTable);
-        Set<String> documented = new LinkedHashSet<>();
-        int documentedRows = 0;
-        while (rows.find()) {
-            if (!"project.camelVersion".equals(rows.group(1))) {
-                documentedRows++;
-                documented.add("forage.version." + rows.group(1) + "=" + rows.group(2));
-            }
-        }
 
-        assertEquals(expected, documented,
-                "The shipped Forage table must match every exact forage.version.* distribution mapping");
-        assertEquals(documented.size(), documentedRows, "The shipped Forage table must not contain duplicate mappings");
+        assertEquals(1, forage.lines().filter("{FORAGE_VERSION_TABLE}"::equals).count(),
+                "The Forage compatibility table must be rendered from distribution.properties");
+    }
+
+    @Test
+    void commandReferenceDefaultsMatchTheDistribution() throws IOException {
+        DistributionConfig distribution = DistributionConfig.loadBundled();
+        String commands = Files.readString(repositoryRoot().resolve("docs/commands.md"));
+
+        assertTrue(commands.contains("| `camel.main.version` | `" + distribution.camelMainVersion() + "` |"));
+        assertTrue(commands.contains(
+                "| `camel.springboot.version` | `" + distribution.camelSpringbootVersion() + "` |"));
+        assertTrue(commands.contains(
+                "| `springboot.bom.version` | `" + distribution.springbootBomVersion() + "` |"));
     }
 
     private static void assertKnowledgeTools(String agentName, String field, JsonNode allowlist) throws IOException {

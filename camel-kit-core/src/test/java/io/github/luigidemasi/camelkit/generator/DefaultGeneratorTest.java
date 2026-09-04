@@ -253,7 +253,7 @@ class DefaultGeneratorTest {
         assertTrue(Files.exists(versionSelection));
         String content = Files.readString(versionSelection);
 
-        DistributionConfig dist = DistributionConfig.loadFromClasspathOrDefaults();
+        DistributionConfig dist = ctx.distribution();
         var quarkusMappings = dist.quarkusPlatformMappings();
         var springBootMappings = dist.springBootMappings();
         assertFalse(quarkusMappings.isEmpty(), "Expected explicit Quarkus platform mappings");
@@ -278,6 +278,43 @@ class DefaultGeneratorTest {
             assertTrue(content.contains(entry.getValue()),
                     "Spring Boot mapping for " + entry.getKey() + " should appear in table");
         }
+
+        String forage = Files.readString(ctx.skillsDir().resolve("shared/forage.md"));
+        assertFalse(forage.contains("{FORAGE_VERSION_TABLE}"),
+                "Forage table placeholder should be substituted");
+        for (var entry : dist.forageVersionMappings().entrySet()) {
+            assertTrue(forage.contains("| " + entry.getKey() + " | " + entry.getValue() + " |"),
+                    "Forage mapping for " + entry.getKey() + " should appear in table");
+        }
+
+        String mcpSetup = Files.readString(ctx.skillsDir().resolve("shared/mcp-setup.md"));
+        assertTrue(mcpSetup.contains(
+                "org.apache.camel:camel-jbang-mcp:" + dist.camelMcpVersion() + ":runner"));
+        assertTrue(mcpSetup.contains(dist.camelMcpRepos()));
+        assertTrue(mcpSetup.contains(dist.camelCatalogRepos()));
+        assertTrue(mcpSetup.contains(
+                "io.github.luigidemasi:camel-kit-knowledge-mcp:" + dist.knowledgeMcpVersion() + ":runner"));
+        assertTrue(mcpSetup.contains(
+                "org.citrusframework:citrus-mcp-server:" + dist.citrusMcpVersion() + ":runner"));
+        for (String placeholder : List.of(
+                "CAMEL_MCP_VERSION",
+                "CAMEL_MCP_REPOS",
+                "CAMEL_CATALOG_REPOS",
+                "KNOWLEDGE_VERSION",
+                "KNOWLEDGE_MCP_REPOS",
+                "CITRUS_MCP_VERSION",
+                "CITRUS_MCP_REPOS")) {
+            assertFalse(mcpSetup.contains("{" + placeholder + "}"),
+                    placeholder + " should be substituted in installed skills");
+        }
+        assertTrue(mcpSetup.contains("{project.camelVersion}"),
+                "Downstream workspace-property references must be preserved");
+
+        String security = Files.readString(ctx.skillsDir().resolve("camel-design/guides/security.md"));
+        assertTrue(security.contains(dist.camelMainSupported()));
+        assertTrue(security.contains(dist.camelQuarkusVersion()));
+        assertFalse(security.contains("{CAMEL_MAIN_SUPPORTED}"));
+        assertFalse(security.contains("{CAMEL_QUARKUS_VERSION}"));
     }
 
     @Test

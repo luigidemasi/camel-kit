@@ -791,7 +791,7 @@ class ShipCoordinatorTest {
                 controller,
                 worker,
                 target -> {
-                    assertEquals(CatalogTestVerifier.TARGET, target);
+                    assertEquals(snapshot.target(), target);
                     return snapshot;
                 },
                 new ShipMainValidator(evidence),

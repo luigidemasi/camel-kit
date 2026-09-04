@@ -411,6 +411,20 @@ We follow [Semantic Versioning](https://semver.org/):
 - MINOR: New features (backward compatible)
 - PATCH: Bug fixes (backward compatible)
 
+### Distribution Version Updates
+
+`distribution.properties` is the source of truth for distribution and compatibility
+versions. Edit the reviewed values there, then synchronize the few literals Maven needs
+while constructing its model:
+
+```bash
+./tools/sync_distribution_mirrors.py
+./tools/sync_distribution_mirrors.py --check
+```
+
+The helper is idempotent, performs no network lookup, and does not certify a version or
+replace the compatibility evidence required for a release.
+
 ### Release Steps
 
 1. Update version in `pom.xml` (parent and all modules)

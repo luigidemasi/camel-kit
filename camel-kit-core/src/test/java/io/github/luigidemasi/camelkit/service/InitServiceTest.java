@@ -345,12 +345,13 @@ class InitServiceTest {
     void forageVersionMappedToDefaultCamelVersionIsWrittenToConfig() throws Exception {
         Path targetDir = tempDir.resolve("orders");
         Properties properties = new Properties();
-        properties.setProperty("forage.version.4.21.0", "1.5.0");
+        properties.setProperty("camel.main.version", "9.9.9");
+        properties.setProperty("forage.version.9.9.9", "9.1");
         DistributionConfig distribution = DistributionConfig.load(properties);
 
         // pre-seeded cache keeps the unit test offline (isCached short-circuits the download);
         // noFetch=false so the caching path actually runs and the offline guard below stays meaningful
-        Path forageCacheDir = targetDir.resolve(".camel-kit/.cache/forage/1.5.0");
+        Path forageCacheDir = targetDir.resolve(".camel-kit/.cache/forage/9.1");
         Files.createDirectories(forageCacheDir);
         Files.writeString(forageCacheDir.resolve("forage-catalog.json"), "{}");
         Files.writeString(forageCacheDir.resolve("forage-configuration-catalog.json"), "{}");
@@ -359,7 +360,7 @@ class InitServiceTest {
                 request(targetDir, "bob2", "default", distribution, false, InitProgress.noop(), InitReporter.noop()));
 
         String config = Files.readString(targetDir.resolve(".camel-kit/config.properties"));
-        assertTrue(config.contains("forage.version=1.5.0"));
+        assertTrue(config.contains("forage.version=9.1"));
 
         // guard: if the cache short-circuit stopped working, the real download would overwrite
         // these dummy files with actual catalog JSON — asserting content stays "{}" proves no
@@ -372,14 +373,15 @@ class InitServiceTest {
     void noFetchSkipsForageCatalogCaching() throws Exception {
         Path targetDir = tempDir.resolve("orders");
         Properties properties = new Properties();
-        properties.setProperty("forage.version.4.21.0", "1.5.0");
+        properties.setProperty("camel.main.version", "9.9.9");
+        properties.setProperty("forage.version.9.9.9", "9.1");
         DistributionConfig distribution = DistributionConfig.load(properties);
 
         new InitService().initialize(
                 request(targetDir, "bob2", "default", distribution, InitProgress.noop(), InitReporter.noop()));
 
         String config = Files.readString(targetDir.resolve(".camel-kit/config.properties"));
-        assertTrue(config.contains("forage.version=1.5.0"), "version mapping is still written with --no-fetch");
+        assertTrue(config.contains("forage.version=9.1"), "version mapping is still written with --no-fetch");
         assertFalse(Files.exists(targetDir.resolve(".camel-kit/.cache/forage")),
                 "--no-fetch must not attempt any catalog download");
     }
@@ -404,8 +406,10 @@ class InitServiceTest {
                 </project>
                 """);
         Properties properties = new Properties();
-        properties.setProperty("forage.version.4.21.0", "1.5.0");
-        properties.setProperty("forage.version.4.18.2", "1.3");
+        properties.setProperty("camel.main.version", "9.9.9");
+        properties.setProperty("camel.quarkus.version", "8.8.8");
+        properties.setProperty("forage.version.9.9.9", "9.1");
+        properties.setProperty("forage.version.8.8.8", "8.1");
         DistributionConfig distribution = DistributionConfig.load(properties);
 
         new InitService().initialize(
@@ -416,7 +420,7 @@ class InitServiceTest {
             config.load(in);
         }
         assertEquals("quarkus", config.getProperty("project.runtime"));
-        assertEquals("1.3", config.getProperty("forage.version"),
+        assertEquals("8.1", config.getProperty("forage.version"),
                 "forage.version must track the runtime-detected Camel version, not the initial main default");
     }
 

@@ -124,6 +124,16 @@ class CamelYamlCatalogUsageExtractorTest {
     }
 
     @Test
+    void camel422JactlAliasFailsClosedUnderTheSimpleOnlyPolicy() throws Exception {
+        Path route = expressionRoute("jactl: accepted-order");
+
+        IOException failure = assertThrows(IOException.class,
+                () -> extractor().extract(route, available()));
+
+        assertEquals("Ship v1 permits only the Simple expression language: jactl", failure.getMessage());
+    }
+
+    @Test
     void malformedAmbiguousAndUnsafeGenericExpressionsFailClosed() throws Exception {
         for (String expression : List.of(
                 "language: simple",
@@ -392,7 +402,7 @@ class CamelYamlCatalogUsageExtractorTest {
                 "- pollEnrich:\n    simple: kafka:orders",
                 "- recipientList:\n    simple: kafka:orders",
                 "- routingSlip:\n    simple: kafka:orders",
-                // serviceCall is an endpoint EIP in the certified Camel 4.18.3 schema only.
+                // serviceCall is an endpoint EIP in the certified Camel 4.18.4 schema only.
                 "- serviceCall: orders",
                 "- serviceCall:\n    name: orders\n    component: kafka")) {
             Path route = endpointStepRoute(endpointStep);

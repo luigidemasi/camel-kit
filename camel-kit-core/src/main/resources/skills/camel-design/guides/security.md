@@ -107,8 +107,9 @@ renew a renewable lease or obtain a replacement before it expires. PKI engines i
 period, so rotation requires reissuing and deploying a replacement certificate and key before expiry rather than
 renewing a secret lease. Static KV secrets change only when explicitly updated. Camel's HashiCorp refresh hook polls
 KV-v2 version metadata and reloads route/property-placeholder configuration; it does not manage dynamic-secret leases or
-PKI certificate reissuance. The hook is available in supported Camel 4.18.2, 4.18.3, and 4.21.0, but not 4.14.7. For
-Camel Main 4.18.3/4.21.0, a complete KV refresh setup includes the normal Vault connection settings plus:
+PKI certificate reissuance. The hook is available in the bundled Camel Main matrix ({CAMEL_MAIN_SUPPORTED}) and the
+default Camel Quarkus line ({CAMEL_QUARKUS_VERSION}), but not the retained Quarkus 4.14.7 compatibility row. For a
+supported Camel Main version, a complete KV refresh setup includes the normal Vault connection settings plus:
 
 ```properties
 camel.vault.hashicorp.refreshEnabled=true

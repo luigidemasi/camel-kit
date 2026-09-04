@@ -166,13 +166,13 @@ All defaults (Camel version, BOM versions, MCP server versions) are read from a 
 
 **Per-invocation overrides** (highest priority):
 ```bash
-camel-kit init my-integration --ai claude -p "camel.main.version=4.18.3"
+camel-kit init my-integration --ai claude -p "camel.main.version=4.18.4"
 ```
 
 **Persistent user config** (applies to all invocations):
 Create `~/.camel-kit/config.properties` with your overrides:
 ```properties
-camel.main.version=4.18.3
+camel.main.version=4.18.4
 camel.quarkus.version=4.18.2
 quarkus.platform.version=3.33.1
 ```

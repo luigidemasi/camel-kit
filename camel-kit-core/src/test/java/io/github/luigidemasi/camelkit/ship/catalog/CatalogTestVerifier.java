@@ -7,10 +7,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.resolver.MavenCoordinate;
 import io.github.luigidemasi.camelkit.ship.resolver.ResolvedExactMavenArtifact;
@@ -19,7 +21,7 @@ import io.github.luigidemasi.camelkit.ship.resolver.ShipMavenResolver.Resolution
 /** Small exact catalog snapshot used by controller tests without a network resolver. */
 public final class CatalogTestVerifier {
 
-    public static final String CAMEL_VERSION = "4.21.0";
+    public static final String CAMEL_VERSION = DistributionConfig.loadBundled().camelMainVersion();
     public static final CatalogTarget TARGET = new CatalogTarget("main", CAMEL_VERSION, null, null);
 
     private CatalogTestVerifier() {
@@ -56,14 +58,14 @@ public final class CatalogTestVerifier {
         entries.put(root + "models.properties", "from\nroute\nto\n");
         entries.put(root + "dataformats.properties", "");
         entries.put(root + "languages.properties", "simple\n");
-        entries.put(root + "components/direct.json", """
+        entries.put(root + "components/direct.json", String.format(Locale.ROOT, """
                 {
                   "component": {
                     "kind": "component",
                     "name": "direct",
                     "groupId": "org.apache.camel",
                     "artifactId": "camel-direct",
-                    "version": "4.21.0",
+                    "version": "%s",
                     "deprecated": false,
                     "syntax": "direct:name",
                     "lenientProperties": false
@@ -80,7 +82,7 @@ public final class CatalogTestVerifier {
                     }
                   }
                 }
-                """);
+                """, CAMEL_VERSION));
         entries.put(root + "models/from.json", """
                 {"model":{"kind":"model","name":"from","deprecated":false}}
                 """);
@@ -90,10 +92,10 @@ public final class CatalogTestVerifier {
         entries.put(root + "models/to.json", """
                 {"model":{"kind":"model","name":"to","deprecated":false}}
                 """);
-        entries.put(root + "languages/simple.json", """
+        entries.put(root + "languages/simple.json", String.format(Locale.ROOT, """
                 {"language":{"kind":"language","name":"simple","groupId":"org.apache.camel",
-                "artifactId":"camel-core-languages","version":"4.21.0","deprecated":false}}
-                """);
+                "artifactId":"camel-core-languages","version":"%s","deprecated":false}}
+                """, CAMEL_VERSION));
 
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (ZipOutputStream zip = new ZipOutputStream(bytes)) {

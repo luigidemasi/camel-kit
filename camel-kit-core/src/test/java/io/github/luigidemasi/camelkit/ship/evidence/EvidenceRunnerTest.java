@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.ship.security.ProjectEvidenceFiles;
 
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,8 @@ import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
 
 class EvidenceRunnerTest {
+
+    private static final String CAMEL_VERSION = DistributionConfig.loadBundled().camelMainVersion();
 
     @TempDir
     Path tempDir;
@@ -384,7 +387,7 @@ class EvidenceRunnerTest {
     }
 
     private EvidenceCommand command(Path project, String id, Duration timeout) throws Exception {
-        JvmPayloadRequest payload = JvmPayloadRequest.yamlValidator("4.21.0");
+        JvmPayloadRequest payload = JvmPayloadRequest.yamlValidator(CAMEL_VERSION);
         List<String> arguments = List.of(
                 EvidenceRunner.JAVA_EXECUTABLE, "-cp", JvmPayloadArchive.ARCHIVE_NAME,
                 ShipJvmPayloadBootstrap.class.getName(), "--launcher=" + payload.launcherClass());
