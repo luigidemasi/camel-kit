@@ -311,6 +311,8 @@ sequenceDiagram
 Constitution v2.0 — eight enforced rules:
 
 - [ ] **MCP Catalog Verification** — every component, EIP, data format, language, and option was verified with runtime/platform BOM
+  MCP catalog verification is satisfied by the `Catalog Verification Evidence` block in section 5 of the active design
+  spec, as defined in `camel-brainstorm/guides/design-assembly.md`; reference its rows for this flow, do not restate the table.
 - [ ] **Route Structure** — route has a `from:` source and a final `to:` sink
 - [ ] **Single Responsibility** — route has one clear purpose; ≤ 7 processing steps
 - [ ] **Separation of Concerns** — ingestion, processing, and delivery are separate routes where appropriate

@@ -200,6 +200,14 @@ You MUST complete these items in order:
 
 Pass `runtime` and the full `platformBom` GAV (derived from `.camel-kit/config.properties` per `shared/mcp-setup.md` — the file stores bare versions, not the GAV) on every call, and establish the catalog-version binding there (Iron Law 1).
 
+For the orchestrator's own calls, record `Catalog binding:` with the `camel_catalog_components(limit=0)` probe,
+runtime, full platform BOM, returned `camelVersion`, and `binding=MATCHED` after validating the project-version match.
+For each artifact, record `Artifact identity:`, `Result:`, and `Verification provenance:` using the catalog-researcher
+labels: exact type/name, result, tool name(s), requested identity, and catalog binding. Populate section 5's
+`Catalog Verification Evidence` in `guides/design-assembly.md` from these validated fields, including equivalent
+fields returned by the integration architect. A `VERIFIED` result requires a successful matching detail call under
+the matched binding; an inline tag alone is not evidence.
+
 → For MCP setup, version mapping, and fallback policy: see `shared/mcp-setup.md`
 → For graph analysis: use `{COMMAND_PREFIX} graph` CLI commands (see `shared/graph-availability.md`)
 
@@ -217,5 +225,5 @@ Pass `runtime` and the full `platformBom` GAV (derived from `.camel-kit/config.p
 
 - **Missing constitution:** Copy from `templates/constitution.md` and continue.
 - **No config.properties:** Will be created during version selection.
-- **MCP tool failure:** Warn the user, continue with a note that verification is pending.
+- **MCP tool failure:** Warn the user and record an open design question; do not include the unverified artifact in section 3 or create a `VERIFIED` evidence row. Resume that choice only after verification succeeds, per `camel-design/guides/component-selection.md`.
 - **Ambiguous project type:** Ask explicitly — don't guess.

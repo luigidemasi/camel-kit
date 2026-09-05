@@ -253,6 +253,20 @@ per independently switchable scope as `Incremental candidate`, `Single cutover r
 scope. Both pipelines converge on the same approved design-spec contract, so `camel-plan` and `camel-execute` work
 identically afterward; the plan does not consume the runbook.
 
+### Design-Time Catalog Evidence
+
+The brainstorm orchestrator and, where dispatched, `integration-architect` record the same binding, result, and
+verification-provenance labels used by `catalog-researcher`. Component-selection calls retain these fields too.
+The shared design assembly writes them into section 5, **Constitution Compliance**, as **Catalog Verification Evidence**:
+one matched runtime/full platform BOM/returned Camel-version binding and one deduplicated `VERIFIED` row per component,
+EIP, dataformat, or language in section 3. Failed verification remains an open design question and cannot become a flow
+choice. Migration flow gates reference this same block, and re-planning updates affected rows when replacing artifacts.
+The evidence records actual catalog tools and exact artifact identities, without constructing documentation URLs.
+
+`catalog-researcher` remains an execute-time research role; it is not newly dispatched during design. Generated Bob
+gates and Gemini traits already load the shared design assembly. Ship workers run without these skills, so this block
+is not a requirement for controller-produced Ship specs.
+
 ### How camel-execute Dispatches Work
 
 1. Read the ready implementation plan derived from the approved design, prefer the `yaml plan-metadata` task graph, and fall back to Markdown task
