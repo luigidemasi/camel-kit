@@ -60,6 +60,8 @@ flow-level details:
 13. Configuration Properties
 14. Dependencies
 15. Constitution Gate Checks
+    MCP catalog verification is satisfied by the `Catalog Verification Evidence` block in section 5 of the active design
+    spec, as defined in `camel-brainstorm/guides/design-assembly.md`; reference its rows for this flow, do not restate the table.
 16. Testing Strategy (high-level test scenarios)
 17. Implementation Checklist
 

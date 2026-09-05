@@ -7,7 +7,7 @@ component, pattern, or dependency is structurally wrong and the design must chan
 
 **Always load `shared/context-authority.md` with this guide.**
 
-**Modifies affected flow design sections ONLY — NEVER the business requirements (`docs/camel-kit/<PIPELINE_ID>/business-requirements.md`).**
+**Modifies affected flow design sections and their catalog evidence rows ONLY — NEVER the business requirements (`docs/camel-kit/<PIPELINE_ID>/business-requirements.md`).**
 
 ---
 
@@ -16,7 +16,7 @@ component, pattern, or dependency is structurally wrong and the design must chan
 | Constraint | Value |
 |---|---|
 | Maximum rounds | 3 |
-| Modifiable artifacts | Affected flow sections in `docs/camel-kit/<PIPELINE_ID>/design-spec.md` only |
+| Modifiable artifacts | Affected flow sections and their catalog evidence rows in `docs/camel-kit/<PIPELINE_ID>/design-spec.md` only |
 | business requirements (`docs/camel-kit/<PIPELINE_ID>/business-requirements.md`) | NEVER modified |
 | migration runbook (`docs/camel-kit/<PIPELINE_ID>/migration-runbook.md`) | NEVER modified; marked stale when present |
 | Design scope | ONLY sections affected by the failure |
@@ -137,7 +137,11 @@ Update ONLY the affected sections. Preserve all other sections verbatim.
 1. Replace the failing component/version/pattern with the verified alternative
 2. Update the **Dependencies** table to match the new component's Maven coordinates
 3. Update **Configuration Properties** and endpoint options if the new component requires different properties
-4. Add a **Re-Plan History** appendix entry at the end of the affected flow design:
+4. In section 5's **Catalog Verification Evidence**, update the affected row with the verified replacement's exact
+   identity, result, and tool provenance under the matched catalog binding. Keep one row per artifact; retain the old
+   artifact's row if it is still used by another flow, otherwise remove it. A Step 2 result of `UNKNOWN` never produces
+   a `VERIFIED` row or a replacement choice.
+5. Add a **Re-Plan History** appendix entry at the end of the affected flow design:
 
 ```markdown
 ### Re-Plan [round N] — [YYYY-MM-DD]

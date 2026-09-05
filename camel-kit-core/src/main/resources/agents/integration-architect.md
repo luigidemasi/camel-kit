@@ -55,6 +55,12 @@ Your design output follows the flow design section format:
 - Error handling strategy
 - Configuration properties with `{{PLACEHOLDER}}` syntax
 - DataMapper sections (if XSLT transformation needed)
+- Catalog binding: record the `camel_catalog_components(limit=0)` probe, runtime, full platform BOM, returned
+  `camelVersion`, and `binding=MATCHED` only after validating the match to the resolved project version.
+- Per artifact, use the catalog-researcher labels `Artifact identity:`, `Result:`, and `Verification provenance:`:
+  record the exact type/name, verification result, tool name(s), requested identity, and catalog binding. Supply only
+  validated fields for the `Catalog Verification Evidence` block in `camel-brainstorm/guides/design-assembly.md`.
+  Failed detail calls or missing/mismatched bindings become open design questions, never verified flow choices.
 
 ## What You Do NOT Do
 

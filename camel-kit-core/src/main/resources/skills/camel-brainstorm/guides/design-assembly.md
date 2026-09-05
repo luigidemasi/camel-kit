@@ -166,6 +166,25 @@ All flows in this spec are designed to comply with the 8 constitution rules:
 - [ ] Component Support — all components MCP-verified
 - [ ] Infrastructure via Forage — beans follow the Forage configuration ladder
 
+### Catalog Verification Evidence
+
+Catalog binding: camel_catalog_components(limit=0); runtime=[runtime]; platformBom=[groupId:artifactId:version]; returned camelVersion=[camelVersion]; binding=MATCHED
+
+| Artifact identity | Result | Verification provenance |
+|---|---|---|
+| component:[name] | VERIFIED | camel_catalog_component_doc; requested component:[name]; catalog binding=MATCHED |
+| eip:[name] | VERIFIED | camel_catalog_eip_doc; requested eip:[name]; catalog binding=MATCHED |
+| dataformat:[name] | VERIFIED | camel_catalog_dataformat_doc; requested dataformat:[name]; catalog binding=MATCHED |
+| language:[name] | VERIFIED | camel_catalog_language_doc; requested language:[name]; catalog binding=MATCHED |
+
+[Replace the examples with one row per artifact named in section 3, deduplicated across flows by type and exact catalog
+name. Record only VERIFIED rows from successful detail calls whose identities and consumed fields were validated under
+the same runtime/full platform BOM binding. The probe's returned camelVersion must match the resolved project version
+per shared/mcp-setup.md. When component coordinates were consumed, include camel_catalog_component_maven alongside
+camel_catalog_component_doc in that row's provenance. Use the actual recorded calls; do not infer evidence from an
+inline (MCP-verified) tag or invent documentation URLs. If a detail call fails or the binding cannot be established,
+record an open design question and omit the artifact from section 3 until verified.]
+
 ---
 
 ## 6. Project Structure
@@ -268,7 +287,9 @@ absent source features.
 After assembling the spec, check:
 
 1. **Placeholder scan:** Any "TBD", "TODO", empty sections? Fix them.
-2. **MCP verification:** Every component/EIP has "(MCP-verified)" notation? If not, verify now.
+2. **MCP verification:** Every section 3 artifact (component, EIP, dataformat, language) has a `VERIFIED` row in section 5's
+   `Catalog Verification Evidence` under a `binding=MATCHED` line? If not, verify now; unresolved verification stays an
+   open design question and the artifact stays out of section 3. Keep the inline `(MCP-verified)` tags.
 3. **Internal consistency:** Do flow designs match the systems landscape? Are all systems used?
 4. **Constitution compliance:** Would each flow pass all 8 rules as designed?
 5. **Property completeness:** Does every externalized value have a property name?

@@ -858,6 +858,65 @@ class ResourceConsistencyTest {
     }
 
     @Test
+    void designSpecsRecordCatalogEvidenceInSectionFive() throws Exception {
+        Path resources = repositoryRoot().resolve("camel-kit-core/src/main/resources");
+        String design = Files.readString(resources.resolve("skills/camel-brainstorm/guides/design-assembly.md"));
+        String compliance = section(design, "## 5. Constitution Compliance", "## 6. Project Structure");
+        assertContainsAll(compliance,
+                "### Catalog Verification Evidence",
+                "Catalog binding: camel_catalog_components(limit=0); runtime=[runtime]; "
+                                                     + "platformBom=[groupId:artifactId:version]; returned camelVersion=[camelVersion]; binding=MATCHED",
+                "| Artifact identity | Result | Verification provenance |",
+                "one row per artifact named in section 3, deduplicated",
+                "open design question");
+        for (String type : List.of("component", "eip", "dataformat", "language")) {
+            assertTrue(compliance.contains("| " + type + ":[name] | VERIFIED | camel_catalog_" + type
+                                           + "_doc; requested " + type + ":[name]; catalog binding=MATCHED |"));
+        }
+        assertContainsAll(section(design, "## Self-Review Checklist", "## Save and Present"),
+                "Every section 3 artifact", "`VERIFIED` row", "`binding=MATCHED`", "verify now");
+        assertFalse(design.contains("camel.apache.org/components"));
+
+        for (String agentName : sortedAgentNames()) {
+            InitContext ctx = createContext(agentName, tempDir.resolve(agentName));
+            new DefaultGenerator().generate(ctx);
+            String generated = Files.readString(ctx.skillsDir().resolve("camel-brainstorm/guides/design-assembly.md"));
+            assertEquals(compliance, section(generated, "## 5. Constitution Compliance", "## 6. Project Structure"),
+                    agentName + " must receive the canonical evidence block");
+        }
+    }
+
+    @Test
+    void designEvidenceHasProducersAndOneMigrationLocation() throws IOException {
+        Path resources = repositoryRoot().resolve("camel-kit-core/src/main/resources");
+        for (String producer : List.of(
+                "agents/integration-architect.md",
+                "skills/camel-brainstorm/SKILL.md",
+                "skills/camel-design/guides/component-selection.md")) {
+            assertContainsAll(Files.readString(resources.resolve(producer)),
+                    "Catalog binding:", "Result:", "Verification provenance:", "Catalog Verification Evidence");
+        }
+        String brainstorm = Files.readString(resources.resolve("skills/camel-brainstorm/SKILL.md"));
+        assertFalse(brainstorm.contains("continue with a note that verification is pending"));
+        assertContainsAll(brainstorm, "open design question", "do not include the unverified artifact in section 3");
+        for (String consumer : List.of(
+                "skills/camel-migrate/guides/mulesoft-phase2.md",
+                "skills/camel-migrate/guides/biztalk-phase2.md",
+                "skills/camel-migrate/guides/camel-version-phase2.md",
+                "skills/camel-design/guides/tdd-assembly.md")) {
+            String content = Files.readString(resources.resolve(consumer));
+            assertContainsAll(content,
+                    "MCP catalog verification is satisfied by the `Catalog Verification Evidence` block in section 5",
+                    "camel-brainstorm/guides/design-assembly.md");
+            assertFalse(content.contains("| Artifact identity | Result | Verification provenance |"), consumer);
+        }
+        String replan = Files.readString(resources.resolve("skills/camel-execute/guides/re-plan-loop.md"));
+        assertContainsAll(section(replan, "### Step 3: Modify Design Spec", "### Step 4:"),
+                "Catalog Verification Evidence", "update the affected row", "`UNKNOWN`", "`VERIFIED`",
+                "still used by another flow");
+    }
+
+    @Test
     void catalogAndExecutionIngressRequireValidatedBindingsInsteadOfSummaryTrust() throws IOException {
         Path root = repositoryRoot().resolve("camel-kit-core/src/main/resources");
         String ironLaws = Files.readString(root.resolve("skills/shared/iron-laws.md"));

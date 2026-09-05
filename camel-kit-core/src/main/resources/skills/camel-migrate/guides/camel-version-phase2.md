@@ -321,6 +321,8 @@ datamapper-canonicalize.md, preserving its selected inline Groovy or XSLT engine
 
 ## Section 9: Constitution Gate Checks
 - [ ] MCP Catalog Verification — every component, EIP, data format, language, and option was verified with runtime/platform BOM
+  MCP catalog verification is satisfied by the `Catalog Verification Evidence` block in section 5 of the active design
+  spec, as defined in `camel-brainstorm/guides/design-assembly.md`; reference its rows for this flow, do not restate the table.
 - [ ] Route Structure — route has from: and final to:
 - [ ] Single Responsibility — ≤ 7 processing steps
 - [ ] Separation of Concerns — ingestion/processing/delivery separate

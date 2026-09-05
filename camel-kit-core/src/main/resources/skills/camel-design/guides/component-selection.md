@@ -29,6 +29,12 @@ Based on the user's description, I suggest: [component-name]
 
 Then retrieve both its documentation and runtime-specific Maven coordinates under the same binding:
 
+Record `Catalog binding:` with the `camel_catalog_components(limit=0)` probe, runtime, full platform BOM, returned
+`camelVersion`, and `binding=MATCHED` only after the project-version match succeeds. Retain this binding and the
+per-artifact `Result:` and `Verification provenance:` fields below for section 5's `Catalog Verification Evidence`
+in `camel-brainstorm/guides/design-assembly.md`, using the catalog-researcher labels. Emit `VERIFIED` only after the
+detail calls succeed and their identities and consumed fields validate under that same binding.
+
 ```
 MCP Tool: camel_catalog_component_doc
 Params: { "component": "[component-name]", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
@@ -37,6 +43,9 @@ MCP Tool: camel_catalog_component_maven
 Params: { "component": "[component-name]", "platformBom": "{{PLATFORM_BOM}}", "runtime": "{{RUNTIME}}" }
 
 Component: [component-name]
+Artifact identity: component:[component-name]
+Result: VERIFIED
+Verification provenance: camel_catalog_component_doc + camel_catalog_component_maven; requested component:[component-name]; catalog binding=MATCHED
 URI syntax:  [exact syntax from catalog]
 Maven:       [groupId]:[artifactId]:[artifact version from component_maven]
 
