@@ -133,6 +133,62 @@ class ShipCoordinatorTest {
     }
 
     @Test
+    void recordsUnansweredQuestionsUnderEveryOversightPolicyWithoutChangingPauses() throws Exception {
+        Path metadata = Files.createDirectories(project.resolve(".camel-kit"));
+        Files.writeString(metadata.resolve("pipeline.json"),
+                "{\"mode\":\"manual\",\"activePipeline\":\"149-coordinator\"}\n");
+        List<ShipRun.UnansweredQuestion> questions = List.of(
+                new ShipRun.UnansweredQuestion("Which retry limit?", "Three attempts"),
+                new ShipRun.UnansweredQuestion("May the source be retired?", null));
+        for (Oversight oversight : Oversight.values()) {
+            writeAmbiguousDesignResult(questions);
+            ShipRun run = controller.startFrom(project, Stage.DESIGN, oversight,
+                    List.of(new ShipContext.TextInput("Design the migration")));
+            ShipRun result = coordinator.run(run.id());
+
+            assertTrue(result.stage(Stage.DESIGN).materialAmbiguity());
+            assertEquals(questions, result.stage(Stage.DESIGN).unansweredQuestions());
+            assertEquals(result, new ShipController(state).status(run.id()));
+            assertEquals(Stage.PLAN, result.currentStage());
+            if (oversight == Oversight.NEVER) {
+                // The fixed DESIGN fixture is invalid for PLAN: reaching its failed attempt proves continuation.
+                assertEquals(RunStatus.FAILED, result.status());
+                assertEquals(1, result.stage(Stage.PLAN).attempts());
+            } else {
+                assertEquals(RunStatus.PAUSED, result.status());
+                assertEquals(0, result.stage(Stage.PLAN).attempts());
+            }
+            String prompt = Files.readString(fixture.resolve("prompt"));
+            assertTrue(prompt.contains("The active oversight policy is "
+                                       + oversight.name().toLowerCase(Locale.ROOT)));
+            assertTrue(prompt.contains("unansweredQuestions"));
+            if (oversight == Oversight.NEVER) {
+                assertTrue(prompt.contains("record each default in defaultApplied"));
+                assertTrue(prompt
+                        .contains("do not produce output or perform work that depends on that unresolved answer"));
+            }
+        }
+    }
+
+    @Test
+    void recoversStructuredQuestionAuditFromTheDurableWorkerResult() throws Exception {
+        List<ShipRun.UnansweredQuestion> questions = List.of(
+                new ShipRun.UnansweredQuestion("Which retry limit?", null));
+        writeAmbiguousDesignResult(questions);
+        ShipRun run = designRun(List.of(new ShipContext.TextInput("Recover the migration design")));
+        seedDurableResult(run);
+        Files.writeString(fixture.resolve("mode"), "nonzero\n");
+
+        ShipRun recovered = coordinator.run(run.id());
+
+        assertDesignPaused(recovered, 1);
+        assertTrue(recovered.stage(Stage.DESIGN).materialAmbiguity());
+        assertEquals(questions, recovered.stage(Stage.DESIGN).unansweredQuestions());
+        assertEquals(recovered, new ShipController(state).status(run.id()));
+        assertEquals(List.of(sessionId(run)), Files.readAllLines(fixture.resolve("session-ids")));
+    }
+
+    @Test
     void configuredOverridesCannotPromoteUnmaintainedWorkerTools()
             throws Exception {
         Properties overrides = new Properties();
@@ -1520,6 +1576,19 @@ class ShipCoordinatorTest {
         result.put("materialAmbiguity", true);
         Files.writeString(
                 fixture.resolve("assistant-text"),
+                mapper.writeValueAsString(result).replace("\"", "\\\""));
+    }
+
+    private void writeAmbiguousDesignResult(List<ShipRun.UnansweredQuestion> questions) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode result = mapper.createObjectNode();
+        result.put("schemaVersion", ShipStageResult.SCHEMA_VERSION);
+        result.putNull("pipelineId");
+        result.put("report", "Unanswered design decisions");
+        result.putNull("artifactPolicy");
+        result.put("materialAmbiguity", true);
+        result.set("unansweredQuestions", mapper.valueToTree(questions));
+        Files.writeString(fixture.resolve("assistant-text"),
                 mapper.writeValueAsString(result).replace("\"", "\\\""));
     }
 

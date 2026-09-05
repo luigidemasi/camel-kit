@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Unanswered migration questions (#208)** — bounded `camel-migrate` steps return open decisions to the parent
+  conversation, which asks one question at a time and resumes the step with confirmed answers. Ship workers receive
+  the active oversight policy; stage records and command summaries retain unanswered questions and applied defaults
+  under `--ask never`, while `always` and `smart` keep their existing pause behavior.
+
 - **Design-spec catalog evidence (#207)** — section 5 now records the matched runtime, full platform BOM, returned
   Camel version, and each selected artifact's verification result and tool provenance. Design-time catalog producers,
   migration gates, and re-planning share that evidence location; failed verification stays an open design question.

@@ -18,6 +18,7 @@ import io.github.luigidemasi.camelkit.ship.artifact.ArtifactPolicy.RouteContract
 import io.github.luigidemasi.camelkit.ship.artifact.CitrusDependencyPolicy;
 import io.github.luigidemasi.camelkit.ship.catalog.CatalogTarget;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.Stage;
+import io.github.luigidemasi.camelkit.ship.controller.ShipRun.UnansweredQuestion;
 import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy;
 import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy.Classification;
 
@@ -28,6 +29,9 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.cfg.CoercionAction;
+import com.fasterxml.jackson.databind.cfg.CoercionInputShape;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /** Strict typed boundary for one Pi stage response. */
 record ShipStageResult(
@@ -35,9 +39,10 @@ record ShipStageResult(
         String pipelineId,
         String report,
         ArtifactPolicy artifactPolicy,
-        boolean materialAmbiguity) {
+        boolean materialAmbiguity,
+        List<UnansweredQuestion> unansweredQuestions) {
 
-    static final int SCHEMA_VERSION = 1;
+    static final int SCHEMA_VERSION = 2;
 
     private static final int MAX_ASSISTANT_BYTES = 1024 * 1024;
     private static final int MAX_REPORT_BYTES = MAX_ASSISTANT_BYTES;
@@ -58,22 +63,46 @@ record ShipStageResult(
             .disable(DeserializationFeature.ACCEPT_FLOAT_AS_INT)
             .disable(MapperFeature.ALLOW_COERCION_OF_SCALARS);
 
+    static {
+        JSON.coercionConfigFor(String.class)
+                .setCoercion(CoercionInputShape.Integer, CoercionAction.Fail)
+                .setCoercion(CoercionInputShape.Float, CoercionAction.Fail)
+                .setCoercion(CoercionInputShape.Boolean, CoercionAction.Fail);
+    }
+
     static ShipStageResult parse(Stage stage, String assistantText) throws IOException {
         if (stage == null) {
             throw new IOException("Pi stage result has no stage");
         }
         WireResult wire;
+        boolean legacy;
         try {
-            wire = JSON.readValue(utf8(assistantText, MAX_ASSISTANT_BYTES, "assistant response"), WireResult.class);
+            JsonNode document
+                    = JSON.readValue(utf8(assistantText, MAX_ASSISTANT_BYTES, "assistant response"), JsonNode.class);
+            legacy = document instanceof ObjectNode object && object.path("schemaVersion").isIntegralNumber()
+                    && object.path("schemaVersion").intValue() == 1;
+            if (legacy && document instanceof ObjectNode object) {
+                if (object.has("unansweredQuestions")) {
+                    throw new IOException("Pi legacy stage result contains unsupported questions");
+                }
+                object.putArray("unansweredQuestions");
+            }
+            wire = JSON.treeToValue(document, WireResult.class);
         } catch (JsonProcessingException e) {
             throw new IOException("Pi stage result is malformed", e);
         }
-        if (wire.schemaVersion() != SCHEMA_VERSION) {
+        if (wire == null || wire.schemaVersion() != SCHEMA_VERSION && !legacy) {
             throw new IOException("Pi stage result has an unsupported schema version");
         }
         String pipelineId = nullableText(wire.pipelineId(), "pipelineId");
         String report = requiredText(wire.report(), "report");
         requireReport(report);
+        List<UnansweredQuestion> questions = wire.unansweredQuestions();
+        if (questions == null || questions.size() > 100 || questions.stream().anyMatch(java.util.Objects::isNull)
+                || (!questions.isEmpty() && !wire.materialAmbiguity())
+                || (!legacy && wire.materialAmbiguity() && questions.isEmpty())) {
+            throw new IOException("Pi stage unanswered questions are invalid");
+        }
 
         boolean hasPolicy = wire.artifactPolicy() != null && !wire.artifactPolicy().isNull();
         ArtifactPolicy policy = null;
@@ -101,7 +130,8 @@ record ShipStageResult(
                 pipelineId,
                 report,
                 policy,
-                wire.materialAmbiguity());
+                wire.materialAmbiguity(),
+                List.copyOf(questions));
     }
 
     private static ArtifactPolicy parsePolicy(JsonNode document) throws IOException {
@@ -275,7 +305,8 @@ record ShipStageResult(
             JsonNode pipelineId,
             JsonNode report,
             JsonNode artifactPolicy,
-            boolean materialAmbiguity) {
+            boolean materialAmbiguity,
+            List<UnansweredQuestion> unansweredQuestions) {
     }
 
 }

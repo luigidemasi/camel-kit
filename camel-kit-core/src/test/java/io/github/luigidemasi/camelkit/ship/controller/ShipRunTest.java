@@ -134,6 +134,22 @@ class ShipRunTest {
     }
 
     @Test
+    void retainsQuestionAuditWithArtifactUpdatesAndClearsItWhenInputsInvalidateTheStage() {
+        List<ShipRun.UnansweredQuestion> questions = List.of(
+                new ShipRun.UnansweredQuestion("Which retry limit?", "Three attempts"));
+        ShipRun.StageRecord completed = ShipRun.StageRecord.pending(DESIGN).start(INPUT)
+                .complete(OUTPUT, List.of(), true, questions);
+
+        ShipRun.StageRecord refreshed = completed.withArtifacts(digest("refreshed"), List.of());
+        assertTrue(refreshed.materialAmbiguity());
+        assertEquals(questions, refreshed.unansweredQuestions());
+        ShipRun.StageRecord restarted = refreshed.reset().start(digest("new human context"));
+        assertEquals(2, restarted.attempts());
+        assertFalse(restarted.materialAmbiguity());
+        assertTrue(restarted.unansweredQuestions().isEmpty());
+    }
+
+    @Test
     void incrementsAttemptsAcrossResetAndAllowsOnlyLegalTransitions() {
         ShipRun.StageRecord pending = ShipRun.StageRecord.pending(DISCOVERY);
         ShipRun.StageRecord first = pending.start(INPUT);

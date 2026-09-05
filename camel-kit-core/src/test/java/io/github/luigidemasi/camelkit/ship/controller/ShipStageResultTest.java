@@ -29,6 +29,8 @@ class ShipStageResultTest {
         ShipStageResult design = parse(Stage.DESIGN, result(null, null));
         ObjectNode planResult = result(null, policy("4.21.0", CITRUS_VERSION));
         planResult.put("materialAmbiguity", true);
+        planResult.withArray("unansweredQuestions").addObject()
+                .put("question", "Which retry limit?").putNull("defaultApplied");
         ShipStageResult plan = parse(Stage.PLAN, planResult);
         ShipStageResult execute = parse(Stage.EXECUTE, result(null, null));
 
@@ -54,10 +56,76 @@ class ShipStageResultTest {
     }
 
     @Test
+    void retainsStructuredQuestionsAndDefaultsAndReadsLegacyResults() throws Exception {
+        ObjectNode current = result(null, null);
+        current.put("materialAmbiguity", true);
+        current.withArray("unansweredQuestions").addObject()
+                .put("question", "Which retry limit?").put("defaultApplied", "Three attempts");
+        current.withArray("unansweredQuestions").addObject()
+                .put("question", "May the source be retired?").putNull("defaultApplied");
+
+        ShipStageResult parsed = parse(Stage.DESIGN, current);
+        assertTrue(parsed.materialAmbiguity());
+        assertEquals(List.of(
+                new ShipRun.UnansweredQuestion("Which retry limit?", "Three attempts"),
+                new ShipRun.UnansweredQuestion("May the source be retired?", null)), parsed.unansweredQuestions());
+
+        ObjectNode legacy = result(null, null);
+        legacy.put("schemaVersion", 1);
+        legacy.put("materialAmbiguity", true);
+        legacy.remove("unansweredQuestions");
+        ShipStageResult recovered = parse(Stage.DESIGN, legacy);
+        assertTrue(recovered.materialAmbiguity());
+        assertTrue(recovered.unansweredQuestions().isEmpty());
+        legacy.putArray("unansweredQuestions");
+        assertRejected(Stage.DESIGN, legacy, "legacy schema must not claim current audit fields");
+    }
+
+    @Test
+    void rejectsIncompleteInconsistentAndMalformedQuestionAudit() throws Exception {
+        ObjectNode valid = result(null, null);
+        valid.put("materialAmbiguity", true);
+        valid.withArray("unansweredQuestions").addObject()
+                .put("question", "Which retry limit?").put("defaultApplied", "Three attempts");
+        ObjectNode empty = valid.deepCopy();
+        empty.putArray("unansweredQuestions");
+        assertRejected(Stage.DESIGN, empty, "ambiguity requires grouped questions");
+        ObjectNode denied = valid.deepCopy();
+        denied.put("materialAmbiguity", false);
+        assertRejected(Stage.DESIGN, denied, "questions require ambiguity");
+        for (String field : List.of("question", "defaultApplied")) {
+            ObjectNode missing = valid.deepCopy();
+            ((ObjectNode) missing.withArray("unansweredQuestions").get(0)).remove(field);
+            assertRejected(Stage.DESIGN, missing, "missing question field " + field);
+            for (JsonNode value : List.of(
+                    JSON.getNodeFactory().numberNode(3),
+                    JSON.getNodeFactory().textNode(" "),
+                    JSON.getNodeFactory().textNode("bad\0text"),
+                    JSON.getNodeFactory().textNode("x".repeat(16385)))) {
+                ObjectNode invalid = valid.deepCopy();
+                ((ObjectNode) invalid.withArray("unansweredQuestions").get(0)).set(field, value);
+                assertRejected(Stage.DESIGN, invalid, "invalid question field " + field);
+            }
+        }
+        ObjectNode extra = valid.deepCopy();
+        ((ObjectNode) extra.withArray("unansweredQuestions").get(0)).put("answer", "invented");
+        assertRejected(Stage.DESIGN, extra, "unknown question field");
+        ObjectNode nullItem = valid.deepCopy();
+        nullItem.withArray("unansweredQuestions").addNull();
+        assertRejected(Stage.DESIGN, nullItem, "null question");
+        ObjectNode oversized = valid.deepCopy();
+        while (oversized.withArray("unansweredQuestions").size() <= 100) {
+            oversized.withArray("unansweredQuestions").add(valid.withArray("unansweredQuestions").get(0));
+        }
+        assertRejected(Stage.DESIGN, oversized, "too many questions");
+    }
+
+    @Test
     void rejectsMalformedOrNonCanonicalEnvelopeJson() throws Exception {
         ObjectNode valid = result("149-local-controller", null);
         for (String field : List.of(
-                "schemaVersion", "pipelineId", "report", "artifactPolicy", "materialAmbiguity")) {
+                "schemaVersion", "pipelineId", "report", "artifactPolicy", "materialAmbiguity",
+                "unansweredQuestions")) {
             ObjectNode missing = valid.deepCopy();
             missing.remove(field);
             assertRejected(Stage.DISCOVERY, missing, "missing " + field);
@@ -120,7 +188,7 @@ class ShipStageResultTest {
         assertRejected(Stage.DISCOVERY, numericReport, "numeric report");
 
         ObjectNode wrongSchema = valid.deepCopy();
-        wrongSchema.put("schemaVersion", 2);
+        wrongSchema.put("schemaVersion", ShipStageResult.SCHEMA_VERSION + 1);
         assertRejected(Stage.DISCOVERY, wrongSchema, "unsupported schema");
     }
 
@@ -363,6 +431,7 @@ class ShipStageResultTest {
             result.set("artifactPolicy", policy);
         }
         result.put("materialAmbiguity", false);
+        result.putArray("unansweredQuestions");
         return result;
     }
 

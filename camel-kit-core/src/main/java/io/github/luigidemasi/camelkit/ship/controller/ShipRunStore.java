@@ -32,6 +32,9 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.cfg.CoercionAction;
+import com.fasterxml.jackson.databind.cfg.CoercionInputShape;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /** Atomic local persistence and exclusive mutation leases for Ship runs. */
 final class ShipRunStore {
@@ -52,6 +55,13 @@ final class ShipRunStore {
             .enable(DeserializationFeature.FAIL_ON_NUMBERS_FOR_ENUMS)
             .disable(DeserializationFeature.ACCEPT_FLOAT_AS_INT)
             .disable(MapperFeature.ALLOW_COERCION_OF_SCALARS);
+
+    static {
+        JSON.coercionConfigFor(String.class)
+                .setCoercion(CoercionInputShape.Integer, CoercionAction.Fail)
+                .setCoercion(CoercionInputShape.Float, CoercionAction.Fail)
+                .setCoercion(CoercionInputShape.Boolean, CoercionAction.Fail);
+    }
 
     private final Path stateRoot;
 
@@ -132,6 +142,23 @@ final class ShipRunStore {
             throw corrupt(stateFile, null);
         }
         int schemaVersion = schema.intValue();
+        if (schemaVersion == 4) {
+            // Version 4 did not retain worker ambiguity metadata. Do not infer questions from prose.
+            JsonNode stages = document.get("stages");
+            if (stages == null || !stages.isArray()) {
+                throw corrupt(stateFile, null);
+            }
+            for (JsonNode stage : stages) {
+                if (!(stage instanceof ObjectNode record)
+                        || record.has("materialAmbiguity") || record.has("unansweredQuestions")) {
+                    throw corrupt(stateFile, null);
+                }
+                record.put("materialAmbiguity", false);
+                record.putArray("unansweredQuestions");
+            }
+            ((ObjectNode) document).put("schemaVersion", ShipRun.SCHEMA_VERSION);
+            schemaVersion = ShipRun.SCHEMA_VERSION;
+        }
         if (schemaVersion != ShipRun.SCHEMA_VERSION) {
             throw new StoreException(
                     "state-version-unsupported",
