@@ -271,6 +271,17 @@ public final class ShipCommand implements Callable<Integer> {
         } else if (run.message() != null) {
             writer.println("Message: " + safeDisplay(run.message(), false));
         }
+        for (ShipRun.StageRecord stage : run.stages()) {
+            if (!stage.unansweredQuestions().isEmpty()) {
+                writer.println("Unanswered questions (" + stage.stage() + "):");
+                for (ShipRun.UnansweredQuestion question : stage.unansweredQuestions()) {
+                    writer.println("  Question: " + safeDisplay(question.question(), false));
+                    writer.println("  Default applied: " + (question.defaultApplied() == null
+                            ? "none"
+                            : safeDisplay(question.defaultApplied(), false)));
+                }
+            }
+        }
         List<ShipRun.ArtifactRef> validation = run.stage(Stage.VALIDATE).artifacts();
         if (!validation.isEmpty()) {
             writer.println("Stamp: " + safeDisplay(validation.get(0).path(), false));

@@ -29,6 +29,7 @@ import io.github.luigidemasi.camelkit.ship.controller.ShipRun.RunStatus;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.Stage;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.StageRecord;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.StageStatus;
+import io.github.luigidemasi.camelkit.ship.controller.ShipRun.UnansweredQuestion;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStampStore;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStampStore.VerifiedStamp;
@@ -771,6 +772,20 @@ public final class ShipController {
             List<Path> artifacts,
             boolean materialAmbiguity,
             String report) {
+        return completeStage(runId, stage, attempt, inputDigest, outputDigest, artifacts, materialAmbiguity, report,
+                List.of());
+    }
+
+    ShipRun completeStage(
+            String runId,
+            Stage stage,
+            int attempt,
+            String inputDigest,
+            String outputDigest,
+            List<Path> artifacts,
+            boolean materialAmbiguity,
+            String report,
+            List<UnansweredQuestion> unansweredQuestions) {
         if (stage == Stage.EXECUTE) {
             throw failure(
                     "workspace-required",
@@ -791,6 +806,7 @@ public final class ShipController {
                 false,
                 materialAmbiguity,
                 report,
+                unansweredQuestions,
                 null);
     }
 
@@ -803,6 +819,19 @@ public final class ShipController {
             String pipelineId,
             boolean materialAmbiguity,
             String report) {
+        return completeDiscoveryStage(runId, attempt, inputDigest, outputDigest, pipelineId, materialAmbiguity, report,
+                List.of());
+    }
+
+    ShipRun completeDiscoveryStage(
+            String runId,
+            int attempt,
+            String inputDigest,
+            String outputDigest,
+            String pipelineId,
+            boolean materialAmbiguity,
+            String report,
+            List<UnansweredQuestion> unansweredQuestions) {
         if (!ShipRun.isPipelineId(pipelineId)) {
             throw failure(
                     "stage-result-invalid",
@@ -818,6 +847,7 @@ public final class ShipController {
                 false,
                 materialAmbiguity,
                 report,
+                unansweredQuestions,
                 pipelineId);
     }
 
@@ -832,6 +862,17 @@ public final class ShipController {
             List<Path> artifacts,
             boolean materialAmbiguity,
             String report) {
+        return completeExecuteStage(runId, attempt, inputDigest, artifacts, materialAmbiguity, report, List.of());
+    }
+
+    ShipRun completeExecuteStage(
+            String runId,
+            int attempt,
+            String inputDigest,
+            List<Path> artifacts,
+            boolean materialAmbiguity,
+            String report,
+            List<UnansweredQuestion> unansweredQuestions) {
         return completeStage(
                 runId,
                 Stage.EXECUTE,
@@ -842,6 +883,7 @@ public final class ShipController {
                 true,
                 materialAmbiguity,
                 report,
+                unansweredQuestions,
                 null);
     }
 
@@ -908,6 +950,7 @@ public final class ShipController {
             boolean execute,
             boolean materialAmbiguity,
             String report,
+            List<UnansweredQuestion> unansweredQuestions,
             String discoveredPipelineId) {
         Objects.requireNonNull(stage, "stage");
         Objects.requireNonNull(artifacts, "artifacts");
@@ -971,7 +1014,8 @@ public final class ShipController {
                 }
             }
             List<StageRecord> stages = new ArrayList<>(current.stages());
-            stages.set(stage.ordinal(), active.complete(acceptedOutputDigest, references));
+            stages.set(stage.ordinal(), active.complete(
+                    acceptedOutputDigest, references, materialAmbiguity, unansweredQuestions));
 
             Stage next = stage.next();
             RunStatus status;

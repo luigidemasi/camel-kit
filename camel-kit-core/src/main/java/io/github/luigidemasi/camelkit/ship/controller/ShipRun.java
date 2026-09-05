@@ -30,7 +30,7 @@ public record ShipRun(
         String updatedAt,
         String message) {
 
-    public static final int SCHEMA_VERSION = 4;
+    public static final int SCHEMA_VERSION = 5;
     static final int MAX_MESSAGE_LENGTH = 1024;
 
     private static final Pattern RUN_ID = Pattern.compile("ship-[0-9a-f]{32}");
@@ -279,13 +279,39 @@ public record ShipRun(
         }
     }
 
+    /** A worker question that has not been answered by a human; null means no default was applied. */
+    public record UnansweredQuestion(String question, String defaultApplied) {
+
+        public UnansweredQuestion {
+            requireText(question);
+            if (defaultApplied != null) {
+                requireText(defaultApplied);
+            }
+        }
+
+        private static void requireText(String value) {
+            if (value == null || value.isBlank() || value.length() > 16 * 1024
+                    || value.indexOf('\0') >= 0
+                    || !StandardCharsets.UTF_8.newEncoder().canEncode(value)) {
+                throw new IllegalArgumentException("Ship unanswered question text is invalid");
+            }
+        }
+    }
+
     public record StageRecord(
             Stage stage,
             StageStatus status,
             int attempts,
             String inputDigest,
             String outputDigest,
-            List<ArtifactRef> artifacts) {
+            List<ArtifactRef> artifacts,
+            boolean materialAmbiguity,
+            List<UnansweredQuestion> unansweredQuestions) {
+
+        public StageRecord(Stage stage, StageStatus status, int attempts,
+                           String inputDigest, String outputDigest, List<ArtifactRef> artifacts) {
+            this(stage, status, attempts, inputDigest, outputDigest, artifacts, false, List.of());
+        }
 
         public StageRecord {
             Objects.requireNonNull(stage, "stage");
@@ -294,6 +320,12 @@ public record ShipRun(
                 throw new IllegalArgumentException("Ship stage attempts are out of range");
             }
             artifacts = List.copyOf(Objects.requireNonNull(artifacts, "artifacts"));
+            unansweredQuestions = List.copyOf(Objects.requireNonNull(unansweredQuestions, "unanswered questions"));
+            if (unansweredQuestions.size() > 100
+                    || (!unansweredQuestions.isEmpty() && !materialAmbiguity)
+                    || ((materialAmbiguity || !unansweredQuestions.isEmpty()) && status != StageStatus.COMPLETED)) {
+                throw new IllegalArgumentException("Ship stage ambiguity metadata is invalid");
+            }
             if (artifacts.size() > ShipTreePolicy.DEFAULT_MAX_FILE_COUNT
                     || artifacts.stream().map(ArtifactRef::path).distinct().count()
                        != artifacts.size()) {
@@ -337,12 +369,18 @@ public record ShipRun(
         }
 
         StageRecord complete(String digest, List<ArtifactRef> references) {
+            return complete(digest, references, false, List.of());
+        }
+
+        StageRecord complete(
+                String digest, List<ArtifactRef> references,
+                boolean ambiguity, List<UnansweredQuestion> questions) {
             if (status != StageStatus.RUNNING) {
                 throw new IllegalStateException("Only a running Ship stage can complete");
             }
             return new StageRecord(
                     stage, StageStatus.COMPLETED, attempts,
-                    inputDigest, digest, references);
+                    inputDigest, digest, references, ambiguity, questions);
         }
 
         StageRecord imported(String input, String output, List<ArtifactRef> references) {
@@ -393,7 +431,9 @@ public record ShipRun(
             if (status != StageStatus.COMPLETED) {
                 throw new IllegalStateException("Only a completed Ship stage has artifacts");
             }
-            return new StageRecord(stage, status, attempts, inputDigest, digest, references);
+            return new StageRecord(
+                    stage, status, attempts, inputDigest, digest, references,
+                    materialAmbiguity, unansweredQuestions);
         }
 
         private static void require(boolean condition) {

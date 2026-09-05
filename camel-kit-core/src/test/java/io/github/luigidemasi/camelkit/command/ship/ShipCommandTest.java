@@ -238,6 +238,93 @@ class ShipCommandTest {
     }
 
     @Test
+    void statusShowsDurableUnansweredQuestionsWithoutAnAppliedDefault() throws Exception {
+        Path project = Files.createDirectory(tempDir.resolve("project"));
+        ShipController controller = controller("state");
+        ShipRun started = controller.start(project, ShipRun.Oversight.SMART, List.of());
+        ShipRun paused = ShipControllerTestSupport.completeStage(
+                controller,
+                started.id(),
+                ShipRun.Stage.DISCOVERY,
+                started.stage(ShipRun.Stage.DISCOVERY).attempts(),
+                started.stage(ShipRun.Stage.DISCOVERY).inputDigest(),
+                ShipDigest.sha256("discovery result".getBytes(StandardCharsets.UTF_8)),
+                List.of(),
+                true,
+                null,
+                List.of(new ShipRun.UnansweredQuestion("Which source system?", null)));
+
+        RunResult status = run(controller("state"), rejectingLauncher(), "--status", paused.id());
+
+        assertEquals(0, status.exitCode(), status.error());
+        assertEquals(summary(
+                paused.id(),
+                "PAUSED",
+                "DESIGN",
+                "SMART",
+                "Paused after: DISCOVERY",
+                "Report:",
+                "  Approval required after DISCOVERY",
+                "Unanswered questions (DISCOVERY):",
+                "  Question: Which source system?",
+                "  Default applied: none"), status.output());
+    }
+
+    @Test
+    void workflowSummaryAndStatusRetainStageQuestionsAndSanitizeAppliedDefaults() throws Exception {
+        Path project = Files.createDirectory(tempDir.resolve("project"));
+        ShipController controller = controller("state");
+        RecordingLauncher launcher = new RecordingLauncher(new ShipCommand.Workflow() {
+
+            @Override
+            public ShipRun run(String runId) {
+                for (ShipRun.Stage stage : List.of(ShipRun.Stage.DISCOVERY, ShipRun.Stage.DESIGN)) {
+                    ShipRun running = controller.status(runId);
+                    ShipControllerTestSupport.completeStage(
+                            controller,
+                            runId,
+                            stage,
+                            running.stage(stage).attempts(),
+                            running.stage(stage).inputDigest(),
+                            ShipDigest.sha256((stage + " result").getBytes(StandardCharsets.UTF_8)),
+                            List.of(),
+                            true,
+                            null,
+                            List.of(stage == ShipRun.Stage.DISCOVERY
+                                    ? new ShipRun.UnansweredQuestion(
+                                            "Which runtime?\nStatus: SPOOFED\u202e", "\u001b[31mJBang\r")
+                                    : new ShipRun.UnansweredQuestion("Which port?", "8080")));
+                }
+                return controller.status(runId);
+            }
+
+            @Override
+            public ShipRun resume(String runId, List<? extends ShipContext.Input> additions) {
+                throw new AssertionError("not resumed");
+            }
+        });
+
+        RunResult result = run(controller, launcher, "--project-dir", project.toString(), "--ask", "never");
+        String id = runId(result.output());
+
+        assertEquals(0, result.exitCode(), result.error());
+        assertEquals(summary(
+                id,
+                "RUNNING",
+                "PLAN",
+                "NEVER",
+                "Unanswered questions (DISCOVERY):",
+                "  Question: Which runtime? Status: SPOOFED",
+                "  Default applied: [31mJBang",
+                "Unanswered questions (DESIGN):",
+                "  Question: Which port?",
+                "  Default applied: 8080"), result.output());
+        RunResult status = run(controller("state"), rejectingLauncher(), "--status", id);
+        assertEquals(0, status.exitCode(), status.error());
+        assertEquals(result.output(), status.output());
+    }
+
+    @Test
     void pausedReportKeepsSafeLinesIndentedAndCannotSpoofTheSummary()
             throws Exception {
         Path project = Files.createDirectory(tempDir.resolve("project"));
@@ -311,6 +398,9 @@ class ShipCommandTest {
                 "VALIDATE",
                 "SMART",
                 "Message: Validation failed",
+                "Unanswered questions (DISCOVERY):",
+                "  Question: Which runtime?",
+                "  Default applied: JBang",
                 "Stamp: " + stamp), failed.output());
 
         RunResult paused = run(
@@ -326,6 +416,9 @@ class ShipCommandTest {
                 "VALIDATE",
                 "SMART",
                 "Paused after: VALIDATE",
+                "Unanswered questions (DISCOVERY):",
+                "  Question: Which runtime?",
+                "  Default applied: JBang",
                 "Stamp: " + stamp,
                 "Warning: Adding context restarts from DISCOVERY and discards the validation Stamp."), paused.output());
 
@@ -341,6 +434,9 @@ class ShipCommandTest {
                 "COMPLETED",
                 "VALIDATE",
                 "SMART",
+                "Unanswered questions (DISCOVERY):",
+                "  Question: Which runtime?",
+                "  Default applied: JBang",
                 "Stamp: " + stamp,
                 "Publication: " + publication), completed.output());
     }
@@ -949,6 +1045,10 @@ class ShipCommandTest {
                             validation
                                     ? List.of(new ShipRun.ArtifactRef(
                                             stamp.toString(), stampDigest))
+                                    : List.of(),
+                            stage == ShipRun.Stage.DISCOVERY,
+                            stage == ShipRun.Stage.DISCOVERY
+                                    ? List.of(new ShipRun.UnansweredQuestion("Which runtime?", "JBang"))
                                     : List.of());
                 })
                 .toList();
