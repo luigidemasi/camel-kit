@@ -30,4 +30,19 @@ public final class ShipControllerTestSupport {
                 materialAmbiguity,
                 report);
     }
+
+    public static ShipRun completeStage(
+            ShipController controller,
+            String runId,
+            ShipRun.Stage stage,
+            int attempt,
+            String inputDigest,
+            String outputDigest,
+            List<Path> artifacts,
+            boolean materialAmbiguity,
+            String report,
+            List<ShipRun.UnansweredQuestion> unansweredQuestions) {
+        return controller.completeStage(runId, stage, attempt, inputDigest, outputDigest,
+                artifacts, materialAmbiguity, report, unansweredQuestions);
+    }
 }

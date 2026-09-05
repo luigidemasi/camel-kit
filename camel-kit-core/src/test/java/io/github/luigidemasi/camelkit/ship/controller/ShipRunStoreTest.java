@@ -57,6 +57,60 @@ class ShipRunStoreTest {
     }
 
     @Test
+    void rejectsScalarCoercionInPersistedQuestionAudit() throws Exception {
+        ShipController controller = new ShipController(stateRoot());
+        ShipRun run = controller.start(Files.createDirectory(temporaryDirectory.resolve("audit-project")),
+                ShipRun.Oversight.SMART, List.of());
+        ShipRun.StageRecord stage = run.stage(ShipRun.Stage.DISCOVERY);
+        ShipRun completed = controller.completeStage(run.id(), stage.stage(), stage.attempts(), stage.inputDigest(),
+                ShipDigest.sha256("discovery".getBytes(java.nio.charset.StandardCharsets.UTF_8)), List.of(), true,
+                "Choose a retry limit",
+                List.of(new ShipRun.UnansweredQuestion("Which retry limit?", "Three attempts")));
+        assertEquals(completed, store().read(run.id()));
+        Path state = stateRoot().resolve(run.id()).resolve("state.json");
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode valid = (ObjectNode) mapper.readTree(Files.readString(state));
+        for (String field : List.of("question", "defaultApplied")) {
+            for (String scalar : List.of("3", "3.5", "false")) {
+                ObjectNode invalid = valid.deepCopy();
+                ObjectNode question = (ObjectNode) invalid.withArray("stages").get(0).get("unansweredQuestions").get(0);
+                question.set(field, mapper.readTree(scalar));
+                Files.writeString(state, mapper.writeValueAsString(invalid));
+                assertCode("state-corrupt", () -> store().read(run.id()));
+            }
+        }
+    }
+
+    @Test
+    void upgradesVersionFourWithoutInventingHistoricalQuestions() throws Exception {
+        ShipRunStore store = store();
+        ShipRun initial = run(RUN_ID);
+        store.create(initial);
+        Path state = stateRoot().resolve(RUN_ID).resolve("state.json");
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode legacy = (ObjectNode) mapper.readTree(Files.readString(state));
+        legacy.put("schemaVersion", 4);
+        legacy.withArray("stages").forEach(stage -> {
+            ((ObjectNode) stage).remove("materialAmbiguity");
+            ((ObjectNode) stage).remove("unansweredQuestions");
+        });
+        Files.writeString(state, mapper.writeValueAsString(legacy));
+
+        assertEquals(initial, store.read(RUN_ID));
+        assertEquals(4, mapper.readTree(Files.readString(state)).path("schemaVersion").intValue());
+        try (ShipRunStore.LockedRun locked = store.lock(RUN_ID)) {
+            locked.write(locked.read());
+        }
+        assertEquals(ShipRun.SCHEMA_VERSION,
+                mapper.readTree(Files.readString(state)).path("schemaVersion").intValue());
+
+        ObjectNode current = (ObjectNode) mapper.readTree(Files.readString(state));
+        ((ObjectNode) current.withArray("stages").get(0)).remove("unansweredQuestions");
+        Files.writeString(state, mapper.writeValueAsString(current));
+        assertCode("state-corrupt", () -> store.read(RUN_ID));
+    }
+
+    @Test
     void createsAMissingStateRootBelowASymlinkedAncestor() throws Exception {
         Path realParent = Files.createDirectory(temporaryDirectory.resolve("real-state-parent"));
         Path linkedParent = Files.createSymbolicLink(

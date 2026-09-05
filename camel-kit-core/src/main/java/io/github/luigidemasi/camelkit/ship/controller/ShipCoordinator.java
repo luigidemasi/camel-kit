@@ -435,7 +435,8 @@ public final class ShipCoordinator {
                         outputDigest,
                         typed.pipelineId(),
                         typed.materialAmbiguity(),
-                        typed.report());
+                        typed.report(),
+                        typed.unansweredQuestions());
             } else if (stage.stage() == Stage.EXECUTE) {
                 Path manifest;
                 try {
@@ -454,7 +455,8 @@ public final class ShipCoordinator {
                         stage.inputDigest(),
                         List.of(manifest),
                         typed.materialAmbiguity(),
-                        typed.report());
+                        typed.report(),
+                        typed.unansweredQuestions());
             } else {
                 committed = controller.completeStage(
                         attempt.run().id(),
@@ -464,7 +466,8 @@ public final class ShipCoordinator {
                         outputDigest,
                         List.of(),
                         typed.materialAmbiguity(),
-                        typed.report());
+                        typed.report(),
+                        typed.unansweredQuestions());
             }
             return new Step(committed, true);
         } catch (ShipController.Failure e) {
@@ -812,9 +815,25 @@ public final class ShipCoordinator {
                 .append(attempt.stage().inputDigest()).append(".\n")
                 .append("The bounded worker input identity is ")
                 .append(workerInputDigest).append(".\n")
+                .append("The active oversight policy is ")
+                .append(attempt.run().oversight().name().toLowerCase(java.util.Locale.ROOT)).append(".\n")
                 .append("Do not ask for information already resolved by any context source. ")
                 .append("If material ambiguity remains, group concrete questions at the end of report ")
-                .append("and set materialAmbiguity to true.\n");
+                .append("and set materialAmbiguity to true. Also return every question not answered by a human ")
+                .append("in unansweredQuestions, with the default actually applied, or null if none was applied. ")
+                .append("A default is not a human answer or authorization. ")
+                .append("Use at most 100 questions, each question and default at most 16384 characters.\n");
+        if (attempt.run().oversight() == ShipRun.Oversight.NEVER) {
+            prompt.append("Under never, the controller continues without pausing for questions. ")
+                    .append("Apply reasonable defaults only where the task and existing authority permit them, ")
+                    .append("keep the grouped questions, and record each default in defaultApplied. ")
+                    .append("If no permitted default is available, use null and explain the unresolved limit in report; ")
+                    .append("do not produce output or perform work that depends on that unresolved answer, ")
+                    .append("invent an answer, or perform an unauthorized action.\n");
+        } else {
+            prompt.append("The controller pauses on material ambiguity so the human can answer. ")
+                    .append("Do not choose an unresolved material decision for the human.\n");
+        }
         switch (attempt.stage().stage()) {
             case DISCOVERY -> {
                 prompt.append("Analyze every context source before unresolved requirements. ");
@@ -860,12 +879,15 @@ public final class ShipCoordinator {
         prompt.append(
                 "Return only one JSON object with exactly these fields: "
                       + "schemaVersion, pipelineId, report, artifactPolicy, "
-                      + "materialAmbiguity. Use schemaVersion 1. "
-                      + "Wire types are strict: schemaVersion is integer 1; "
+                      + "materialAmbiguity, unansweredQuestions. Use schemaVersion 2. "
+                      + "Wire types are strict: schemaVersion is integer 2; "
                       + "pipelineId is a JSON string only for DISCOVERY and JSON null otherwise; "
                       + "report is one non-empty JSON string, never an object or array; "
                       + "artifactPolicy is the policy object only for PLAN and JSON null otherwise; "
                       + "materialAmbiguity is one JSON boolean, never an object or array. "
+                      + "unansweredQuestions is an array of objects with exactly question (non-empty string) "
+                      + "and defaultApplied (non-empty string or JSON null); use [] when no questions remain. "
+                      + "A non-empty unansweredQuestions array requires materialAmbiguity true, and vice versa. "
                       + "Use JSON null for fields not allowed by this stage; "
                       + "do not use Markdown fences or surrounding prose.");
         return prompt.toString();
