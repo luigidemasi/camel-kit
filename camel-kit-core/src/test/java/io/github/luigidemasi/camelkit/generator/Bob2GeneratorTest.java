@@ -3,6 +3,7 @@ package io.github.luigidemasi.camelkit.generator;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -13,12 +14,20 @@ import io.github.luigidemasi.camelkit.config.AgentConfig;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.output.Printer;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class Bob2GeneratorTest {
+
+    private static final Set<String> PUBLIC_COMMANDS = Set.of(
+            "camel-start", "camel-brainstorm", "camel-migrate", "camel-plan", "camel-execute",
+            "camel-validate", "camel-ship", "camel-knowledge", "camel-debug");
 
     private static final Set<String> PERSONA_FILES = Set.of(
             "acr-moderator.md",
@@ -146,8 +155,15 @@ class Bob2GeneratorTest {
                 "camel-kit", printer);
 
         new Bob2Generator().generate(ctx);
+        for (String command : PUBLIC_COMMANDS) {
+            Path skill = ctx.skillsDir().resolve(command + "/SKILL.md");
+            Files.writeString(skill, Files.readString(skill)
+                    .replace("user_invocable: true", "user_invocable: false")
+                    .replace("user-invocable: true", "user-invocable: false"));
+        }
         new Bob2Generator().generate(ctx);
 
+        assertPublicCommandDiscovery(ctx);
         assertTrue(Files.isRegularFile(tempDir.resolve(".bob/skills/camel-plan/SKILL.md")));
         assertTrue(output.stream().noneMatch(
                 line -> line.contains("Removed retired generated asset") && line.contains(".bob/skills/")),
@@ -415,20 +431,48 @@ class Bob2GeneratorTest {
         assertTrue(content.contains("Read .bob/skills/camel-execute/SKILL.md and follow those instructions"));
     }
 
-    @Test
-    void skillFrontmatterKeepsSharedMetadataAndAddsBobReadableUserInvocable() throws Exception {
-        InitContext ctx = createContext();
+    @ParameterizedTest
+    @ValueSource(strings = {"camel-kit", "camel kit"})
+    void exposesPublicNativeSkillsWithExistingCommandStubs(String commandPrefix) throws Exception {
+        AgentConfig agent = AgentRegistry.get("bob2");
+        InitContext ctx = new InitContext(
+                agent, "bob2", tempDir.resolve(agent.folder()), tempDir.resolve(".bob/skills"), tempDir,
+                commandPrefix, Printer.noop());
         new Bob2Generator().generate(ctx);
 
-        String startSkill = Files.readString(ctx.skillsDir().resolve("camel-start/SKILL.md"));
-        assertTrue(startSkill.contains("user_invocable: true"));
-        assertTrue(startSkill.contains("user-invocable: true"));
-        assertSingleBlankLineBeforeDispatch(startSkill);
+        assertPublicCommandDiscovery(ctx);
+        String routing = Files.readString(tempDir.resolve("AGENTS.md"));
+        assertTrue(routing.contains("open `/skills` or type `$camel-`"));
+        assertTrue(routing.contains("In Bob IDE 2, use the `/camel-*` command stubs."));
+        assertSingleBlankLineBeforeDispatch(Files.readString(ctx.skillsDir().resolve("camel-start/SKILL.md")));
+        assertSingleBlankLineBeforeDispatch(Files.readString(ctx.skillsDir().resolve("camel-execute/SKILL.md")));
 
-        String executeSkill = Files.readString(ctx.skillsDir().resolve("camel-execute/SKILL.md"));
-        assertTrue(executeSkill.contains("user_invocable: false"));
-        assertTrue(executeSkill.contains("user-invocable: false"));
-        assertSingleBlankLineBeforeDispatch(executeSkill);
+        String ship = Files.readString(ctx.skillsDir().resolve("camel-ship/SKILL.md"));
+        assertTrue(ship.contains("Invoke `" + commandPrefix + " ship` once using the invocation's Ship options."));
+        assertTrue(ship.contains("Add no defaults."));
+        assertTrue(ship.contains("Return the command output and whether it succeeded."));
+        assertFalse(ship.contains("## Dispatch"));
+    }
+
+    private void assertPublicCommandDiscovery(InitContext ctx) throws Exception {
+        ObjectMapper yaml = new ObjectMapper(new YAMLFactory());
+        Set<String> discovered = new HashSet<>();
+        try (var files = Files.walk(ctx.skillsDir())) {
+            for (Path skill : files.filter(path -> path.getFileName().toString().equals("SKILL.md")).toList()) {
+                String name = skill.getParent().getFileName().toString();
+                var metadata = yaml.readTree(frontmatter(Files.readString(skill)));
+                assertTrue(metadata.path("user_invocable").isBoolean(), name);
+                assertTrue(metadata.path("user-invocable").isBoolean(), name);
+                assertEquals(metadata.get("user_invocable"), metadata.get("user-invocable"), name);
+                // Bob Shell's listSkills filters by this field; existing skills prevent command-stub migration.
+                if (metadata.get("user-invocable").booleanValue()) {
+                    discovered.add(name);
+                }
+                assertEquals(PUBLIC_COMMANDS.contains(name),
+                        Files.isRegularFile(ctx.commandsDir().resolve(name + ".md")), name);
+            }
+        }
+        assertEquals(PUBLIC_COMMANDS, discovered);
     }
 
     @Test

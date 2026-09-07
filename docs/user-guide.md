@@ -160,6 +160,47 @@ camel-kit init --here --ai claude
 camel kit init --here --ai codex
 ```
 
+### Bob Shell 2.0.2
+
+Use `--ai bob2` for Bob Shell 2.0.2 and Bob IDE 2. In Bob Shell, start from the
+initialized project root, open `/skills` or type `$camel-`, and select one of the nine
+public skills: `camel-start`, `camel-brainstorm`, `camel-migrate`, `camel-plan`,
+`camel-execute`, `camel-validate`, `camel-ship`, `camel-knowledge`, and `camel-debug`.
+Enter the request after the skill name, for example:
+
+```text
+$camel-migrate MuleSoft flows in src/main/mule
+$camel-ship --document requirements.md --text "Preserve HTTP status codes"
+```
+
+Bob Shell's native skill picker uses `$camel-*`. Its `/` picker contains built-in
+commands and MCP prompts; `/camel-*` workflow names in this guide correspond to
+`$camel-*` skills in Bob Shell. Bob IDE 2 uses the generated `/camel-*` command stubs.
+`$camel-ship` forwards the supplied options to the registered `camel-kit ship` or
+`camel kit ship` command once, without adding defaults.
+
+With the fix, generated `.bob/skills/*/SKILL.md` files set both `user_invocable: true`
+and `user-invocable: true` for the nine public skills. The four internal helpers
+remain hidden. Bob Shell skips migrating `.bob/commands/` stubs when same-name native
+skills already exist, so those stubs cannot repair hidden skill metadata.
+
+If only `$camel-start` appears in the skill picker, upgrade to a build containing the
+[#213 fix](https://github.com/luigidemasi/camel-kit/issues/213), exit Bob, and regenerate
+from the project root using the same command surface as the original initialization:
+
+```bash
+camel-kit init --here --ai bob2 --force
+# Or, for a workspace initialized through the Camel JBang plugin:
+camel kit init --here --ai bob2 --force
+```
+
+Commit or back up customized generated files first: `--force` overwrites them.
+Restart Bob after regeneration. Earlier `0.4.0-SNAPSHOT` builds can still contain
+the defect. Until you upgrade, set both invocation fields to `true` only in the
+nine public skills listed above, then restart Bob; leave internal helpers unchanged.
+Regeneration with an older build overwrites that workaround. MCP prompts such as
+`/camel:camel_migrate_pr` are separate from Camel-Kit's migration workflow.
+
 ### Customizing Configuration
 
 All defaults (Camel version, BOM versions, MCP server versions) are read from a built-in `distribution.properties` file. You can override any property in two ways:

@@ -48,20 +48,28 @@ user_invocable: false
 | `guides/optional-guide.md` | When condition X | Supplementary guide |
 ```
 
-**Note:** Only `camel-start` sets `user_invocable: true` — it is the single auto-discovered entry point (meta-router). Pipeline and standalone skills (Tier 1/2) are invoked through generated command stubs on slash-command agents and through native project skill selection on Codex CLI and GitHub Copilot CLI. Internal skills are dispatched only by pipeline skills.
+**Note:** Only `camel-start` sets `user_invocable: true` in the shared source — it is the single auto-discovered entry point (meta-router). Pipeline and standalone skills (Tier 1/2) are invoked through generated command stubs on slash-command agents and through native project skill selection on Codex CLI and GitHub Copilot CLI. Internal skills are dispatched only by pipeline skills.
 
 The frontmatter fields:
 - `name` -- skill identifier, used in cross-references
 - `description` -- trigger keywords that help agents match user intent to the correct skill
-- `user_invocable` -- `true` for `camel-start` (meta-router) only. Pipeline and standalone skills (Tier 1/2) still have generated entry points despite `user_invocable: false`: slash-command stubs for most agents and project skills for Codex CLI and GitHub Copilot CLI. Internal skills (`camel-verify`, `camel-design`, `camel-implement`, `camel-test`) are dispatched only by pipeline skills
+- `user_invocable` -- `true` for `camel-start` (meta-router) only in the shared source. Pipeline and standalone skills (Tier 1/2) still have generated entry points despite `user_invocable: false`: slash-command stubs for most agents and project skills for Codex CLI and GitHub Copilot CLI. Internal skills (`camel-verify`, `camel-design`, `camel-implement`, `camel-test`) are dispatched only by pipeline skills
 
 Agent-specific generators may add runtime aliases to copied skill files. For example, Copilot, Pi, and Qwen generated
 copies add `user-invocable` alongside Camel-Kit's source `user_invocable` metadata. Codex generated copies
 adapt exact `/camel-*` skill invocations to native `$camel-*` mentions while leaving file paths unchanged.
 
+Bob 2 generated copies set both invocation fields to `true` for skills referenced by
+`user_facing: true` commands in the workflow manifest. Bob Shell 2.0.2 builds its
+`$camel-*` skill picker from those native skills and skips migrating a same-name command stub
+when `SKILL.md` already exists. Internal helpers retain `false` for both fields.
+The Shell `/` menu contains built-in commands and MCP prompts.
+Bob IDE command stubs remain installed, and the native Ship skill retains the same
+CLI delegation contract. See [Bob Shell setup](user-guide.md#bob-shell-202).
+
 ### All Skills
 
-| Skill | User-Invocable | Loaded By | Purpose |
+| Skill | Source User-Invocable | Loaded By | Purpose |
 |-------|---------------|-----------|---------|
 | `camel-start` | Yes | -- | Meta-router and primary entry point: detects intent, loads appropriate pipeline |
 | `camel-brainstorm` | No | `camel-start` (greenfield) | Orchestrate design phase: interview user, produce the pipeline design spec |
@@ -77,7 +85,7 @@ adapt exact `/camel-*` skill invocations to native `$camel-*` mentions while lea
 | `camel-knowledge` | No | Direct invocation; pipeline skills as needed | Routes questions to knowledge MCP tools |
 | `camel-debug` | No | `camel-start` (ad-hoc troubleshooting) | Standalone debugging: STOP → PRESERVE → DIAGNOSE → FIX → GUARD workflow |
 
-**Note:** Only `camel-start` has `user_invocable: true` in its skill metadata. Pipeline and standalone skills still have generated entry points despite `user_invocable: false`: slash-command stubs for most agents and project skills for Codex CLI and GitHub Copilot CLI. Internal skills (`camel-verify`, `camel-design`, `camel-implement`, `camel-test`) are dispatched only by pipeline skills.
+**Note:** Only `camel-start` has `user_invocable: true` in its shared source metadata; the Bob 2 generated override described above exposes all nine public commands. Pipeline and standalone skills still have generated entry points despite `user_invocable: false`: slash-command stubs for most agents and project skills for Codex CLI and GitHub Copilot CLI. Internal skills (`camel-verify`, `camel-design`, `camel-implement`, `camel-test`) are dispatched only by pipeline skills.
 
 ### Shared Guides
 
@@ -905,7 +913,7 @@ user_invocable: false
 | `guides/main-guide.md` | Always | Primary instruction guide |
 ```
 
-**Note:** Only `camel-start` should have `user_invocable: true`. All other skills have `user_invocable: false`. Generated command stubs and Codex/Copilot project skills still work independently of this metadata; Qwen generation also emits its equivalent hyphenated `user-invocable` field.
+**Note:** Only `camel-start` should have `user_invocable: true` in the shared source. All other source skills have `user_invocable: false`; the Bob 2 generator overrides both invocation fields for public command skills. Generated command stubs and Codex/Copilot project skills still work independently of this metadata; Qwen generation also emits its equivalent hyphenated `user-invocable` field.
 
 3. **Write guide files** in `guides/`. Each guide is a self-contained markdown instruction file loaded by the agent when the skill is active.
 
