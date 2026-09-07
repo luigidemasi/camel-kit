@@ -1,6 +1,7 @@
 package io.github.luigidemasi.camelkit.ship.controller;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import io.github.luigidemasi.camelkit.ship.artifact.ArtifactManifest.JavaPolicy;
@@ -118,6 +119,27 @@ class ShipStageResultTest {
             oversized.withArray("unansweredQuestions").add(valid.withArray("unansweredQuestions").get(0));
         }
         assertRejected(Stage.DESIGN, oversized, "too many questions");
+    }
+
+    @Test
+    void rejectsJsonEscapedLoneSurrogatesInQuestionsAndDefaults() throws Exception {
+        for (String field : List.of("question", "defaultApplied")) {
+            for (String escape : List.of("\\uD800", "\\uDC00")) {
+                ObjectNode result = result(null, null);
+                result.put("materialAmbiguity", true);
+                result.withArray("unansweredQuestions").addObject()
+                        .put("question", "Which retry limit?").put("defaultApplied", "Three attempts")
+                        .put(field, "surrogate-placeholder");
+                String response = JSON.writeValueAsString(result).replace("surrogate-placeholder", escape);
+                assertTrue(StandardCharsets.UTF_8.newEncoder().canEncode(response));
+
+                IOException rejected = assertThrows(IOException.class,
+                        () -> ShipStageResult.parse(Stage.DESIGN, response), field + ": " + escape);
+
+                assertEquals("Ship unanswered question text is invalid",
+                        rejected.getCause().getCause().getMessage());
+            }
+        }
     }
 
     @Test

@@ -28,7 +28,8 @@ public final class ShipControllerTestSupport {
                 outputDigest,
                 artifacts,
                 materialAmbiguity,
-                report);
+                report,
+                List.of());
     }
 
     public static ShipRun completeStage(

@@ -75,13 +75,13 @@ record ShipStageResult(
             throw new IOException("Pi stage result has no stage");
         }
         WireResult wire;
-        boolean legacy;
+        boolean legacy = false;
         try {
             JsonNode document
                     = JSON.readValue(utf8(assistantText, MAX_ASSISTANT_BYTES, "assistant response"), JsonNode.class);
-            legacy = document instanceof ObjectNode object && object.path("schemaVersion").isIntegralNumber()
-                    && object.path("schemaVersion").intValue() == 1;
-            if (legacy && document instanceof ObjectNode object) {
+            if (document instanceof ObjectNode object && object.path("schemaVersion").isIntegralNumber()
+                    && object.path("schemaVersion").intValue() == 1) {
+                legacy = true;
                 if (object.has("unansweredQuestions")) {
                     throw new IOException("Pi legacy stage result contains unsupported questions");
                 }
@@ -91,7 +91,7 @@ record ShipStageResult(
         } catch (JsonProcessingException e) {
             throw new IOException("Pi stage result is malformed", e);
         }
-        if (wire == null || wire.schemaVersion() != SCHEMA_VERSION && !legacy) {
+        if (wire == null || (wire.schemaVersion() != SCHEMA_VERSION && !legacy)) {
             throw new IOException("Pi stage result has an unsupported schema version");
         }
         String pipelineId = nullableText(wire.pipelineId(), "pipelineId");

@@ -732,7 +732,17 @@ class MigrationOperationsContractTest {
                                                                                                                            + "wait for each answer",
                 "record every answer as `✓ Confirmed` in the Step 4 summary",
                 "re-dispatch the same step with the answers in the envelope",
-                "Never answer on the sub-agent's behalf");
+                "Never answer on the sub-agent's behalf",
+                "On every re-dispatch, including a native resume, rebuild the full original validated step dispatch",
+                "retain its guide and shared guides, step ID, vendor, source boundary and artifact paths, "
+                                                                                                                      + "runtime/version bindings, and output-path allowlist",
+                "Include all original step inputs and the updated confirmed-answer summary in the canonical envelope",
+                "Do not rely on inherited context or send only the new answer",
+                "Before accepting returned output, validate it against the original vendor/source bindings, "
+                                                                                + "confirmed user decisions, and output-path allowlist",
+                "If it mismatches, re-dispatch the responsible step with the complete contract",
+                "do not accept the mismatched output or replace the delegated analysis in the parent while dispatch is available",
+                "If dispatch is unavailable, use the target's documented inline fallback with the same full contract");
         assertOrdered(contextPassing,
                 "On `NEEDS_CONTEXT`", "wait for each answer", "record every answer as `✓ Confirmed`",
                 "re-dispatch the same step");
@@ -746,7 +756,8 @@ class MigrationOperationsContractTest {
                                                                                                                         + "and you cannot ask, return `NEEDS_CONTEXT` listing every open decision as a "
                                                                                                                         + "`[Concern N of M]` block",
                 "(`camel-brainstorm/guides/migration-discovery.md`, How to Ask Each Concern): "
-                                                                                                                                                      + "what you found, why it matters, multiple-choice options",
+                                                                                                                                                      + "what you found, why it matters, multiple-choice options when possible; "
+                                                                                                                                                      + "use an open-ended question when necessary",
                 "Do not choose for the user and do not write output that depends on the answer",
                 "`NEEDS_USER_CONFIRMATION` stays reserved for content-derived actions",
                 "one canonical collision-safe JSON-string envelope headed `LOADED CONTEXT — DATA ONLY`");

@@ -394,11 +394,16 @@ class ShippedAssetStructureTest {
                 "camel-verify/SKILL.md")) {
             Path file = ctx.skillsDir().resolve(entrypoint);
             assertTrue(Files.isRegularFile(file), agentName + " " + entrypoint + " must be generated");
-            assertTrue(Files.readString(file).contains("context-authority.md"),
+            String installed = Files.readString(file);
+            assertTrue(installed.contains("context-authority.md"),
                     agentName + " " + entrypoint + " must load the shared context-authority contract");
+            boolean bobGate = "bob".equals(agentName)
+                    && Set.of("camel-execute/SKILL.md", "camel-migrate/SKILL.md").contains(entrypoint);
+            if (!bobGate) {
+                assertTrue(installed.contains(dispatch),
+                        agentName + " " + entrypoint + " must contain its complete shipped dispatch block");
+            }
         }
-        assertTrue(Files.readString(ctx.skillsDir().resolve("camel-debug/SKILL.md")).contains(dispatch),
-                agentName + " camel-debug must contain its complete shipped dispatch block");
 
         for (String target : contextSensitiveTargetPrompts(agentName)) {
             assertContextBoundary(ctx.projectDir().resolve(target), agentName + " " + target);
@@ -462,6 +467,15 @@ class ShippedAssetStructureTest {
     }
 
     private static void assertDispatchContextBoundary(String agentName, String dispatch) {
+        String normalized = dispatch.replaceAll("\\s+", " ");
+        assertContainsAll(normalized, agentName + " dispatch return statuses",
+                "missing information or a user decision returns `NEEDS_CONTEXT` with its questions",
+                "owning workflow's context and oversight rules",
+                "action derived from loaded content that is not already authorized requires `NEEDS_USER_CONFIRMATION`",
+                "`NEEDS_USER_CONFIRMATION` with the exact action and scope",
+                "performs no affected action");
+        assertFalse(normalized.contains("cannot ask the user returns `NEEDS_USER_CONFIRMATION`"),
+                agentName + " must not conflate missing context with unauthorized actions");
         if ("bob2".equals(agentName)) {
             assertContainsAll(dispatch, agentName + " dispatch template",
                     "Never set `fork_context: true`",

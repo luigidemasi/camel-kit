@@ -234,7 +234,10 @@ class ShipCommandTest {
                 "SMART",
                 "Paused after: DISCOVERY",
                 "Report:",
-                "  Approval required after DISCOVERY"), status.output());
+                "  Approval required after DISCOVERY",
+                "Warning (DISCOVERY): Material ambiguity reported; "
+                                                       + "structured questions/defaults unavailable for this legacy result."),
+                status.output());
     }
 
     @Test
@@ -325,6 +328,55 @@ class ShipCommandTest {
     }
 
     @Test
+    void workflowSummaryAndStatusWarnAboutDurableLegacyAmbiguityUnderNever() throws Exception {
+        Path project = Files.createDirectory(tempDir.resolve("project"));
+        ShipController controller = controller("state");
+        RecordingLauncher launcher = new RecordingLauncher(new ShipCommand.Workflow() {
+
+            @Override
+            public ShipRun run(String runId) {
+                ShipRun running = controller.status(runId);
+                return ShipControllerTestSupport.completeStage(
+                        controller,
+                        runId,
+                        ShipRun.Stage.DISCOVERY,
+                        running.stage(ShipRun.Stage.DISCOVERY).attempts(),
+                        running.stage(ShipRun.Stage.DISCOVERY).inputDigest(),
+                        ShipDigest.sha256("legacy discovery result".getBytes(StandardCharsets.UTF_8)),
+                        List.of(),
+                        true,
+                        "Question: Which runtime? Default applied: JBang.",
+                        List.of());
+            }
+
+            @Override
+            public ShipRun resume(String runId, List<? extends ShipContext.Input> additions) {
+                throw new AssertionError("not resumed");
+            }
+        });
+
+        RunResult result = run(controller, launcher, "--project-dir", project.toString(), "--ask", "never");
+        String id = runId(result.output());
+
+        assertEquals(0, result.exitCode(), result.error());
+        assertEquals(summary(
+                id,
+                "RUNNING",
+                "DESIGN",
+                "NEVER",
+                "Warning (DISCOVERY): Material ambiguity reported; "
+                         + "structured questions/defaults unavailable for this legacy result."),
+                result.output());
+        ShipController reloadedController = controller("state");
+        ShipRun.StageRecord durable = reloadedController.status(id).stage(ShipRun.Stage.DISCOVERY);
+        assertTrue(durable.materialAmbiguity());
+        assertTrue(durable.unansweredQuestions().isEmpty());
+        RunResult status = run(reloadedController, rejectingLauncher(), "--status", id);
+        assertEquals(0, status.exitCode(), status.error());
+        assertEquals(result.output(), status.output());
+    }
+
+    @Test
     void pausedReportKeepsSafeLinesIndentedAndCannotSpoofTheSummary()
             throws Exception {
         Path project = Files.createDirectory(tempDir.resolve("project"));
@@ -365,11 +417,14 @@ class ShipCommandTest {
         assertFalse(result.output().contains("\nStatus: SPOOFED"), result.output());
         List<String> lines = result.output().lines().toList();
         int reportLine = lines.indexOf("Report:");
+        int warningLine = lines.indexOf("Warning (DISCOVERY): Material ambiguity reported; "
+                                        + "structured questions/defaults unavailable for this legacy result.");
         int nextLine = lines.indexOf("Next: camel-kit ship --resume "
                                      + runId(result.output())
                                      + " [--text TEXT | --document PATH]");
-        assertEquals(3, nextLine - reportLine - 1);
-        assertTrue(lines.subList(reportLine + 1, nextLine).stream()
+        assertEquals(3, warningLine - reportLine - 1);
+        assertEquals(warningLine + 1, nextLine);
+        assertTrue(lines.subList(reportLine + 1, warningLine).stream()
                 .allMatch(line -> line.startsWith("  ")),
                 result.output());
         assertTrue(lines.stream().anyMatch(line -> line.contains("Status: SPOOFED")),

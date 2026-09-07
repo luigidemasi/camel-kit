@@ -1,5 +1,6 @@
 package io.github.luigidemasi.camelkit.ship.controller;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -76,6 +77,33 @@ class ShipRunStoreTest {
                 ObjectNode question = (ObjectNode) invalid.withArray("stages").get(0).get("unansweredQuestions").get(0);
                 question.set(field, mapper.readTree(scalar));
                 Files.writeString(state, mapper.writeValueAsString(invalid));
+                assertCode("state-corrupt", () -> store().read(run.id()));
+            }
+        }
+    }
+
+    @Test
+    void rejectsJsonEscapedLoneSurrogatesInPersistedQuestionsAndDefaults() throws Exception {
+        ShipController controller = new ShipController(stateRoot());
+        ShipRun run = controller.start(Files.createDirectory(temporaryDirectory.resolve("audit-project")),
+                ShipRun.Oversight.SMART, List.of());
+        ShipRun.StageRecord stage = run.stage(ShipRun.Stage.DISCOVERY);
+        ShipRun completed = controller.completeStage(run.id(), stage.stage(), stage.attempts(), stage.inputDigest(),
+                ShipDigest.sha256("discovery".getBytes(StandardCharsets.UTF_8)), List.of(), true,
+                "Choose a retry limit",
+                List.of(new ShipRun.UnansweredQuestion("Which retry limit?", "Three attempts")));
+        assertEquals(completed, store().read(run.id()));
+        Path state = stateRoot().resolve(run.id()).resolve("state.json");
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode valid = (ObjectNode) mapper.readTree(Files.readString(state));
+        for (String field : List.of("question", "defaultApplied")) {
+            for (String escape : List.of("\\uD800", "\\uDC00")) {
+                ObjectNode invalid = valid.deepCopy();
+                ObjectNode question = (ObjectNode) invalid.withArray("stages").get(0).get("unansweredQuestions").get(0);
+                question.put(field, "surrogate-placeholder");
+                String encoded = mapper.writeValueAsString(invalid).replace("surrogate-placeholder", escape);
+                assertTrue(StandardCharsets.UTF_8.newEncoder().canEncode(encoded));
+                Files.writeString(state, encoded);
                 assertCode("state-corrupt", () -> store().read(run.id()));
             }
         }
