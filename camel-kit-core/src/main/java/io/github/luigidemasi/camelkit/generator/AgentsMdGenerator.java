@@ -12,7 +12,8 @@ class AgentsMdGenerator {
     void generate(InitContext ctx) throws Exception {
         Map<String, Object> data = new java.util.HashMap<>(
                 Map.of(
-                        "COMMAND_PREFIX", ctx.commandPrefix()));
+                        "COMMAND_PREFIX", ctx.commandPrefix(),
+                        "BOB2", "bob2".equals(ctx.agentName())));
         String content = qute.render("templates/shared/agents-md.md", data);
         Files.writeString(ctx.projectDir().resolve("AGENTS.md"), content);
         ctx.printer().println(AnsiColors.green("✓") + " Generated AGENTS.md with skill routing and iron laws");

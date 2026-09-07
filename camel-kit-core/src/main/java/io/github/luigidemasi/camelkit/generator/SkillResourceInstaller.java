@@ -140,7 +140,11 @@ class SkillResourceInstaller {
             boolean shipDelegate = "camel-ship".equals(destination.getParent().getFileName().toString());
             if (AgentGeneratorStrategy.BOB2.descriptorValue().equals(ctx.agentName())
                     || AgentGeneratorStrategy.QWEN.descriptorValue().equals(ctx.agentName())) {
-                addHyphenatedUserInvocableMetadata(destination);
+                // Bob Shell's native skill picker hides false values; same-name command stubs cannot override them.
+                boolean exposeCommand = AgentGeneratorStrategy.BOB2.descriptorValue().equals(ctx.agentName())
+                        && workflow.commands().stream().anyMatch(command -> command.userFacing()
+                                && command.skill().equals(destination.getParent().getFileName().toString()));
+                addHyphenatedUserInvocableMetadata(destination, exposeCommand);
             }
             if (AgentGeneratorStrategy.COPILOT.descriptorValue().equals(ctx.agentName())) {
                 addCopilotReadableInternalSkillMetadata(destination);
@@ -185,7 +189,7 @@ class SkillResourceInstaller {
         }
     }
 
-    private void addHyphenatedUserInvocableMetadata(Path skillFile) throws Exception {
+    private void addHyphenatedUserInvocableMetadata(Path skillFile, boolean exposeCommand) throws Exception {
         String content = Files.readString(skillFile);
         String normalized = content.replace("\r\n", "\n");
         if (!normalized.startsWith("---\n") || normalized.contains("\nuser-invocable:")) {
@@ -197,6 +201,9 @@ class SkillResourceInstaller {
         boolean inserted = false;
         for (int i = 0; i < lines.length; i++) {
             String line = lines[i];
+            if (!inserted && exposeCommand && line.startsWith("user_invocable:")) {
+                line = "user_invocable: true";
+            }
             updated.append(line);
             if (!inserted && line.startsWith("user_invocable:")) {
                 updated.append('\n');

@@ -195,6 +195,13 @@ public class InitCommand extends CamelKitCommand {
         printer().println("  " + bold("Next steps"));
         printer().println(divider);
         printer().println("  1  Open " + cyan(projectName) + " in " + agentName);
+        if (AgentGeneratorStrategy.BOB2.descriptorValue().equalsIgnoreCase(agentId)) {
+            printer().println("  2  Bob Shell: open " + cyan("/skills") + ", then invoke " + cyan("$camel-start"));
+            printer().println("     Migration shortcut: " + cyan("$camel-migrate"));
+            printer().println("  3  Bob IDE: use " + cyan("/camel-start") + " or " + cyan("/camel-migrate"));
+            printer().println();
+            return;
+        }
         if (AgentGeneratorStrategy.CODEX.descriptorValue().equalsIgnoreCase(agentId)) {
             printer().println("  2  Start Codex from the project root and review the repository before trusting it");
             printer().println("  3  Run " + cyan("/skills") + ", then invoke " + cyan("$camel-start"));

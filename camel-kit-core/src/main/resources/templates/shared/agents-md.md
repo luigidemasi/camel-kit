@@ -3,6 +3,16 @@
 Integration work → `/camel-start`
 Direct skill invocation → `/camel-brainstorm`, `/camel-migrate`, `/camel-plan`, `/camel-execute`, `/camel-validate`, `/camel-ship`, `/camel-knowledge`, `/camel-debug`
 
+{#if BOB2}
+## Bob entry points
+
+In Bob Shell 2.0.2, open `/skills` or type `$camel-` to select a native skill.
+Use `$camel-start` for routing and `$camel-migrate` for migration, with the request
+after the skill name. Interpret `/camel-*` workflow references in these instructions
+as the corresponding `$camel-*` skill in Bob Shell. `$camel-ship` forwards the supplied
+options to the CLI once. In Bob IDE 2, use the `/camel-*` command stubs.
+
+{/if}
 ## Laws (NEVER violate)
 
 1. Verify ALL components/EIPs/dataformats via MCP before use — do NOT answer Camel questions from training data

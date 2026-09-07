@@ -46,6 +46,23 @@ class InitCommandTest {
     }
 
     @Test
+    void bob2NextStepsDistinguishShellSkillsAndIdeCommands() {
+        CapturingPrinter printer = new CapturingPrinter();
+        CamelKitMain main = new CamelKitMain();
+        main.setOut(printer);
+
+        new InitCommand(main).printNextSteps("orders", "Renamed Bob Display", "bob2");
+
+        String output = printer.output();
+        assertTrue(output.contains("Bob Shell"));
+        assertTrue(output.contains("/skills"));
+        assertTrue(output.contains("$camel-start"));
+        assertTrue(output.contains("$camel-migrate"));
+        assertTrue(output.contains("Bob IDE"));
+        assertTrue(output.contains("/camel-start"));
+    }
+
+    @Test
     void copilotNextStepsUseSkillsInsteadOfCamelSlashCommands() {
         CapturingPrinter printer = new CapturingPrinter();
         CamelKitMain main = new CamelKitMain();
