@@ -12,7 +12,7 @@ A Camel JBang plugin that exposes Camel-Kit commands under `camel kit`.
 | Channel | Install source | Plugin surface |
 |---------|----------------|----------------|
 | Stable `0.3.1` | Maven Central | `camel kit init`; agents `bob`, `gemini`, and `claude` |
-| Current `0.3.2-SNAPSHOT` | Source build and local Maven repository | `init`, `doctor`, `doc`, `graph`, `plan`, `nextId`, and `ship`; all nine current agents |
+| Current `0.4.0-SNAPSHOT` | Source build and local Maven repository | `init`, `doctor`, `doc`, `graph`, `plan`, `nextId`, and `ship`; all nine current agents |
 
 Use an explicit version. Maven Central's stable `0.3.1` does not provide the current-main command and agent surface.
 
@@ -26,7 +26,7 @@ camel plugin add kit \
 camel kit init my-integration --ai claude
 ```
 
-### Current 0.3.2-SNAPSHOT from Source
+### Current 0.4.0-SNAPSHOT from Source
 
 ```bash
 git clone https://github.com/luigidemasi/camel-kit.git
@@ -34,7 +34,7 @@ cd camel-kit
 ./mvnw clean install -DskipTests
 
 camel plugin add kit \
-  --gav io.github.luigidemasi:camel-jbang-plugin-kit:0.3.2-SNAPSHOT \
+  --gav io.github.luigidemasi:camel-jbang-plugin-kit:0.4.0-SNAPSHOT \
   --description "Design Apache Camel Integrations with AI"
 
 camel kit --help

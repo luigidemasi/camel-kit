@@ -134,7 +134,7 @@ The standalone `/camel-ship` workflow additionally requires Linux, Pi, and Node.
 
 ### Initializing a Project
 
-The examples in this guide describe the current `0.3.2-SNAPSHOT` line. Any `camel kit` form requires a plugin built from current source; published stable `0.3.1` exposes only `camel kit init` with the `bob`, `gemini`, and `claude` targets.
+The examples in this guide describe the current `0.4.0-SNAPSHOT` line. Any `camel kit` form requires a plugin built from current source; published stable `0.3.1` exposes only `camel kit init` with the `bob`, `gemini`, and `claude` targets.
 
 ```bash
 # Install JBang if you don't have it

@@ -26,7 +26,7 @@ This document is the reference for all Camel-Kit commands: the `camel-kit` CLI, 
 
 ## CLI Commands
 
-This reference describes the current `0.3.2-SNAPSHOT` line. Any `camel kit` form requires a plugin built from current source; published stable `0.3.1` exposes only `camel kit init` with the `bob`, `gemini`, and `claude` targets.
+This reference describes the current `0.4.0-SNAPSHOT` line. Any `camel kit` form requires a plugin built from current source; published stable `0.3.1` exposes only `camel kit init` with the `bob`, `gemini`, and `claude` targets.
 
 These commands are run in your terminal.
 

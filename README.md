@@ -69,12 +69,12 @@ The optional Ship controller currently requires Linux, Pi, and Node, and its det
 
 ### Release channels
 
-This README describes the current `main` line, version `0.3.2-SNAPSHOT`. Choose the channel whose surface you need:
+This README describes the current `main` line, version `0.4.0-SNAPSHOT`. Choose the channel whose surface you need:
 
 | Channel | Install source | Supported surface |
 |---------|----------------|-------------------|
 | Stable `0.3.1` | Maven Central | The Camel plugin exposes `camel kit init`; init supports `bob` (default), `gemini`, and `claude`. It predates the current workflow and agent surface. |
-| Current `0.3.2-SNAPSHOT` | GitHub JBang catalog or a source build | Standalone CLI commands `init`, `doctor`, `doc`, `graph`, `plan`, `nextId`, and `ship`, plus all nine AI targets documented below. A source-built Camel plugin exposes the same commands under `camel kit`. |
+| Current `0.4.0-SNAPSHOT` | GitHub JBang catalog or a source build | Standalone CLI commands `init`, `doctor`, `doc`, `graph`, `plan`, `nextId`, and `ship`, plus all nine AI targets documented below. A source-built Camel plugin exposes the same commands under `camel kit`. |
 
 Do not use `LATEST` when following current-main instructions: Maven Central currently resolves it to stable `0.3.1`.
 Hosted snapshots are mutable and may lag `main` until the next deployment; build from source for an exact revision.
@@ -127,7 +127,7 @@ jbang app install --name camel-kit --force \
 
 # Or install the matching Camel plugin from the local Maven repository
 camel plugin add kit \
-  --gav io.github.luigidemasi:camel-jbang-plugin-kit:0.3.2-SNAPSHOT \
+  --gav io.github.luigidemasi:camel-jbang-plugin-kit:0.4.0-SNAPSHOT \
   --description "Design Apache Camel Integrations with AI"
 
 # Verify
@@ -146,7 +146,7 @@ cd camel-kit-knowledge
 
 ## Quick Start
 
-The examples below use the current `0.3.2-SNAPSHOT` channel.
+The examples below use the current `0.4.0-SNAPSHOT` channel.
 
 ```bash
 # 1. Create a new project (choose your AI assistant)
