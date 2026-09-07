@@ -65,91 +65,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Internal Copilot guide skills are marked so Copilot does not directly or automatically invoke them
   - README, command reference, user guide, architecture docs, agent architecture guide, and changelog document the Copilot target and skill-based invocation model
 
-### Changed
-
-- **Camel 4.22 LTS default and centralized distribution versions (#209)** — Camel Main, Spring Boot, and the Camel MCP
-  server now default to `4.22.0`. The supported Main and Spring Boot matrix is `4.22.0,4.18.4`; Spring Boot maps those
-  lines to `4.1.0` and `3.5.16`, and Forage maps them to `1.6.0` and `1.4.1`. Quarkus remains on its independent matrix.
-  Runtime defaults, generated MCP configuration, installed skill guidance, Forage tables, and Ship functional rows now
-  derive from `distribution.properties`; a small idempotent helper synchronizes the remaining Maven model-time mirror.
-  Ship records exact 4.22.0 and 4.18.4 validator/catalog evidence. Camel 4.22 adds Jactl to the known-expression
-  classifier, while Ship v1 continues to reject it under the existing Simple-only manifest policy.
-
-- **Shared Camel security checklist (#205)** — the security rules restated across the design guide, the validation
-  guides, and the review personas now have one canonical source, `skills/shared/camel-security-checklist.md`. The
-  consumers reference it instead of restating the rules, the drifted vault-reference and log-masking snippets are
-  reconciled, and the canonical snippets use documented Camel placeholder functions and component options. The
-  remaining restatements in the implement advanced-patterns guide, the foundational pattern guides, the constitution
-  example, and the Bob gate templates are aligned with it.
-
-- **Ship VALIDATE runs evidence commands as direct JVMs — Bubblewrap is no longer required** — the OS-level sandbox was removed from VALIDATE in line with the Ship product boundary. Evidence commands now launch as direct child JVMs on a frozen read-only copy of the accepted candidate tree, with a scrubbed environment and a command-private home and temporary directory; network access during validation is avoided by replacing every non-direct Camel endpoint with an in-memory stub, not by OS-level sandboxing.
-  - Linux hosts no longer need `bwrap` for `camel-kit ship`; the authenticated Pi/Linux live gate likewise runs without it
-  - The internal attestation stack, the Maven Central double-download verification, and the redundant catalog artifact reader were removed with it; catalog evidence keeps its digest and length checks
-
-- **Certified Pi versions: `0.84.2` and `0.83.0`** — the bundled distribution now carries a certified-version list (`pi.supported`); Ship reports every listed version as `supported`, and each entry has completed an authenticated Pi/Linux live-gate run. `pi.version=0.84.2` is the primary install target named in guidance messages (Node stays `22.22.2`; Pi `0.84.2` requires Node `>=22.19.0`). Other detected versions still run only with `--accept-experimental`.
-
-- **Ship harness entry points now delegate to the local controller** — `/camel-ship`, `$camel-ship`, and `/skill:camel-ship` forward their arguments to the configured registered `camel-kit ship` or `camel kit ship` command instead of maintaining a prompt-owned workflow. The local controller is the sole owner of Ship stages, run state, evidence, oversight, and guarded publication.
-  - Existing generated workspaces must be regenerated with the same command surface and agent, using `camel-kit init --here --ai <same-agent> --force` or `camel kit init --here --ai <same-agent> --force`; commit or back up workspace customizations first because `--force` rewrites generated configuration, instructions, skills, and templates
-  - Initialization aborts up front — before writing any project files — when a managed agent path (for example a symlinked `.claude` or `.bob` from a dotfiles setup) is a symbolic link; the error names the link. Replace the link with a real directory before running the upgrade command
-  - IBM Bob and Bob 2 Ship commands forward the invocation options in prose because IBM Bob documents only positional `$1`/`$2` command placeholders; Gemini and Qwen Ship commands interpolate their documented `{{args}}` placeholder
-  - Re-initialization removes obsolete Ship guides, harness traits, and Bob 2 Ship mode/rule assets
-  - Pre-controller `.camel-kit/ship-state.json` and non-manual `.camel-kit/pipeline.json` state is intentionally not resumable and must be archived outside the project before starting Ship; manual-mode `.camel-kit/pipeline.json` remains supported by standalone pipeline skills and validated `--start-from` imports
-  - GitHub Copilot CLI uses native project skills under `.github/skills/` without generating unsupported `.github/commands/`; older command files are inert and may be removed after preserving local edits
-  - Pi exposes Ship through `/skill:camel-ship` and removes the older `.pi/prompts/camel-ship.md` alias, whose argument expansion could flatten quoted option values
-
-- **Default AI target changed to IBM Bob 2** — `camel-kit init` and `camel kit init` now default to `--ai bob2` when no `--ai` option is supplied.
-  - CLI help and documentation now mark Bob 2 as the default target
-  - `--ai bob` remains supported for IBM Bob 1 legacy workspaces
-  - Selecting `--ai bob` emits a non-blocking legacy warning recommending `--ai bob2` for new IBM Bob projects
-
-- **Bob documentation split by generation** — README, user guide, command reference, and architecture docs now describe `--ai bob` as IBM Bob 1 legacy support and `--ai bob2` as IBM Bob 2 support.
-  - Bob 1 mode/gate architecture remains documented as legacy behavior
-  - Bob 2 documentation describes native subagents and no longer inherits broad "Bob does not support subagents" language
-  - The "Adding a New Agent" architecture guide now includes registry descriptor and `camel-kit doctor` validation steps
-
-- **Progressive skill loading via meta-router** — introduced `/camel-start` as the single auto-discovered skill that routes users into two four-stage pipelines (greenfield: brainstorm → plan → execute → validate, migration: migrate → plan → execute → validate). All other skills set to `user_invocable: false` — slash commands still work as on-demand loaders. Runtime `camel-verify` runs internally during execute. Context baseline reduced from ~1,260 to ~110 tokens (91% reduction).
-  - New `camel-start/SKILL.md` with decision tree, "When NOT to use" table, pipeline overview, and Tier 2 utility references
-  - AGENTS.md rewritten to ultra-minimal bootstrap (~80 tokens): compressed iron laws + entry point directive
-  - Skill tiering: pipeline commands (brainstorm or migrate, plan, execute, validate), standalone utilities (ship, knowledge, debug), and internal guide libraries (design, implement, test, verify)
-
-### Removed
-
-- **`/camel-flow` skill** — redundant 14-line redirect to `/camel-brainstorm` with greenfield preset, now handled by `/camel-start` routing
-
-### Fixed
-
-- **JBang launcher release synchronization (#145)** — Maven release preparation now keeps both tracked launcher fallbacks aligned with the release version and the following development snapshot.
-
-- **Citrus MCP Doctor validation (#146)** — `doctor` now fails when persisted Citrus metadata or a post-Citrus-only JSON agent proves that the generated `citrus` server is required; legacy-capable agents without that metadata retain the actionable pre-Citrus regeneration warning.
-
-- **Camel plugin command parity and public documentation (#193)** — registered `doc` and `nextId` under `camel kit`, added a direct standalone/plugin parity regression, and aligned stable-versus-snapshot installation, prerequisites, workflow, graph, Knowledge, agent, and Ship documentation.
-  - Review hardening keeps validator leaves read-only, preserves unrelated OpenCode configuration during regeneration, resolves command prefixes only in Camel-Kit-owned resources, and installs the complete persona library for every current target except the intentionally excluded Bob 1 path
-  - `doctor` accepts pre-upgrade Qwen/OpenCode MCP layouts with upgrade warnings while retaining failures for malformed current layouts, and checks registered target assets for drift
-  - Regeneration reports each retired generated asset it removes; switching between Bob generations now also removes the obsolete Ship mode rule symmetrically while preserving neighboring files
-  - OpenCode regeneration recognises `opencode.json`, `opencode.jsonc`, `.opencode/opencode.json`, and `.opencode/opencode.jsonc` as project layers, updates them in place (comments, trailing commas, newline style, and symbolic links preserved), moves the Camel-managed `permission` and `mcp` entries into the highest-precedence existing layer, validates every layer before writing anything, and reports a malformed file as one concise error instead of a stack trace
-  - `doctor` evaluates OpenCode permission rules per managed MCP server in OpenCode's last-match order and reports each finding against the layer that defines the rule
-  - `doctor` warns instead of failing for every JSON-config agent when a workspace generated before Citrus MCP support has no `citrus` server; a present but malformed `citrus` server still fails
-
-- **Citrus MCP startup (#147)** — downgraded the generated MCP runner from `5.0.0-M2`, which fails during Quarkus startup with an incompatible JSON Schema Generator dependency, to the verified working `5.0.0-M1` release. Citrus test schemas and dependencies remain on `5.0.0-M2`.
-
-- **Adversarial review findings (#126)** — hardened graph building, init/doctor contracts, generator failure handling, distribution assets, and shipped skill content:
-  - Secure XML parsing (XXE/DTD disabled) in `XmlRouteParser` and `MuleXmlFlowParser`; parser failures and warnings now surface through `graph generate`, `doctor`, and `init` instead of producing silently empty graphs
-  - `GraphSerializer.read` validates format version and required fields; graph visualizer escapes embedded JSON against `</script>` injection
-  - `init` persists `project.runtime`, `project.camelVersion`, and `project.platformBomVersion` (spring-boot projects additionally get `project.springBootVersion`); `doctor` validates them
-  - Missing MCP config, skill resources, templates, and dispatch blocks now fail init loudly instead of degrading to warnings; `plan analyze` exits non-zero with a JSON error on failure
-  - `doc stale`/`unstale` preserve unknown frontmatter keys and fail closed on malformed staleness metadata
-  - Mule `flow-ref` targets resolve across files regardless of parse order; DataWeave node IDs unified on classpath-relative paths so Mule references and `.dwl` scans converge on one node
-  - JBang launcher ships snapshot repositories; removed broken `camel-kit-aio` alias; fixed the JBang plugin `init` forwarding (`--force`, shared `CamelKitMain`) and the plugin GAV in the README
-  - Corrected shipped Camel YAML guidance (steps under `from:`, `enrich`/`pollEnrich` expressions, `idempotentRepository`, `mimeMultipart`, `json` + `library: Jackson`, circuit-breaker seconds, `toD` for dynamic URIs) and removed stale migration/removal claims (`spel`, `mvel`, `hl7terser`, `activemq`, `pgevent`, `xstream`)
-  - Distribution defaults, compiled-in fallbacks, and tests now share the single repo-root `distribution.properties` (stale test fixture removed)
-
-- **Skill pipeline contract drift** — aligned shipped skills, templates, personas, and docs on the active `docs/camel-kit/<PIPELINE_ID>/` artifact model, deterministic Spring Boot version mappings, lowercase test-data flow tokens, and design-spec terminology.
-- **`camel-kit doctor` Bob 2 MCP validation** — doctor now resolves MCP config paths through the agent registry descriptor instead of a duplicated hard-coded switch, so Bob 2 projects validate `.bob/mcp.json` correctly.
-- **Incorrect relative path in Bob test template** — `camel-test.md` used `../main/resources/` instead of `../../main/resources/` for route YAML references in test examples
-- **Stale body text in `camel-validate` and `camel-knowledge`** — both had "NOT user-invocable" text contradicting their actual invocability via slash commands
-
-### Added
-
 - **Citrus MCP integration for test generation** — generated agent MCP configs now include the published Citrus MCP server (`org.citrusframework:citrus-mcp-server:5.0.0-M1`) so `camel-test` can verify Citrus YAML actions, endpoints, and schemas during test generation.
   - Added Citrus distribution properties (`citrus.version`, `citrus.mcp.version`, `citrus.mcp.repos`)
   - `--citrus-version default` now resolves to `5.0.0-M2`
@@ -358,6 +273,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Camel 4.22 LTS default and centralized distribution versions (#209)** — Camel Main, Spring Boot, and the Camel MCP
+  server now default to `4.22.0`. The supported Main and Spring Boot matrix is `4.22.0,4.18.4`; Spring Boot maps those
+  lines to `4.1.0` and `3.5.16`, and Forage maps them to `1.6.0` and `1.4.1`. Quarkus remains on its independent matrix.
+  Runtime defaults, generated MCP configuration, installed skill guidance, Forage tables, and Ship functional rows now
+  derive from `distribution.properties`; a small idempotent helper synchronizes the remaining Maven model-time mirror.
+  Ship records exact 4.22.0 and 4.18.4 validator/catalog evidence. Camel 4.22 adds Jactl to the known-expression
+  classifier, while Ship v1 continues to reject it under the existing Simple-only manifest policy.
+
+- **Shared Camel security checklist (#205)** — the security rules restated across the design guide, the validation
+  guides, and the review personas now have one canonical source, `skills/shared/camel-security-checklist.md`. The
+  consumers reference it instead of restating the rules, the drifted vault-reference and log-masking snippets are
+  reconciled, and the canonical snippets use documented Camel placeholder functions and component options. The
+  remaining restatements in the implement advanced-patterns guide, the foundational pattern guides, the constitution
+  example, and the Bob gate templates are aligned with it.
+
+- **Context authority across workflows (#76)** — loaded files, logs, MCP responses, documentation, and delegated results
+  supply only purpose-specific data after validation; they cannot direct actions, expand scope, waive gates, or provide
+  approval. Actions proposed only by loaded content require action-specific user confirmation; normal in-scope actions
+  remain governed by the shipped workflow and the user's request. Generated Gemini instructions now load the shared
+  context-authority guide.
+
+- **Ship VALIDATE runs evidence commands as direct JVMs — Bubblewrap is no longer required** — the OS-level sandbox was removed from VALIDATE in line with the Ship product boundary. Evidence commands now launch as direct child JVMs on a frozen read-only copy of the accepted candidate tree, with a scrubbed environment and a command-private home and temporary directory; network access during validation is avoided by replacing every non-direct Camel endpoint with an in-memory stub, not by OS-level sandboxing.
+  - Linux hosts no longer need `bwrap` for `camel-kit ship`; the authenticated Pi/Linux live gate likewise runs without it
+  - The internal attestation stack, the Maven Central double-download verification, and the redundant catalog artifact reader were removed with it; catalog evidence keeps its digest and length checks
+
+- **Certified Pi versions: `0.84.2` and `0.83.0`** — the bundled distribution now carries a certified-version list (`pi.supported`); Ship reports every listed version as `supported`, and each entry has completed an authenticated Pi/Linux live-gate run. `pi.version=0.84.2` is the primary install target named in guidance messages (Node stays `22.22.2`; Pi `0.84.2` requires Node `>=22.19.0`). Other detected versions still run only with `--accept-experimental`.
+
+- **Ship harness entry points now delegate to the local controller** — `/camel-ship`, `$camel-ship`, and `/skill:camel-ship` forward their arguments to the configured registered `camel-kit ship` or `camel kit ship` command instead of maintaining a prompt-owned workflow. The local controller is the sole owner of Ship stages, run state, evidence, oversight, and guarded publication.
+  - Existing generated workspaces must be regenerated with the same command surface and agent, using `camel-kit init --here --ai <same-agent> --force` or `camel kit init --here --ai <same-agent> --force`; commit or back up workspace customizations first because `--force` rewrites generated configuration, instructions, skills, and templates
+  - Initialization aborts up front — before writing any project files — when a managed agent path (for example a symlinked `.claude` or `.bob` from a dotfiles setup) is a symbolic link; the error names the link. Replace the link with a real directory before running the upgrade command
+  - IBM Bob and Bob 2 Ship commands forward the invocation options in prose because IBM Bob documents only positional `$1`/`$2` command placeholders; Gemini and Qwen Ship commands interpolate their documented `{{args}}` placeholder
+  - Re-initialization removes obsolete Ship guides, harness traits, and Bob 2 Ship mode/rule assets
+  - Pre-controller `.camel-kit/ship-state.json` and non-manual `.camel-kit/pipeline.json` state is intentionally not resumable and must be archived outside the project before starting Ship; manual-mode `.camel-kit/pipeline.json` remains supported by standalone pipeline skills and validated `--start-from` imports
+  - GitHub Copilot CLI uses native project skills under `.github/skills/` without generating unsupported `.github/commands/`; older command files are inert and may be removed after preserving local edits
+  - Pi exposes Ship through `/skill:camel-ship` and removes the older `.pi/prompts/camel-ship.md` alias, whose argument expansion could flatten quoted option values
+
+- **Default AI target changed to IBM Bob 2** — `camel-kit init` and `camel kit init` now default to `--ai bob2` when no `--ai` option is supplied.
+  - CLI help and documentation now mark Bob 2 as the default target
+  - `--ai bob` remains supported for IBM Bob 1 legacy workspaces
+  - Selecting `--ai bob` emits a non-blocking legacy warning recommending `--ai bob2` for new IBM Bob projects
+
+- **Bob documentation split by generation** — README, user guide, command reference, and architecture docs now describe `--ai bob` as IBM Bob 1 legacy support and `--ai bob2` as IBM Bob 2 support.
+  - Bob 1 mode/gate architecture remains documented as legacy behavior
+  - Bob 2 documentation describes native subagents and no longer inherits broad "Bob does not support subagents" language
+  - The "Adding a New Agent" architecture guide now includes registry descriptor and `camel-kit doctor` validation steps
+
+- **Progressive skill loading via meta-router** — introduced `/camel-start` as the single auto-discovered skill that routes users into two four-stage pipelines (greenfield: brainstorm → plan → execute → validate, migration: migrate → plan → execute → validate). All other skills set to `user_invocable: false` — slash commands still work as on-demand loaders. Runtime `camel-verify` runs internally during execute. Context baseline reduced from ~1,260 to ~110 tokens (91% reduction).
+  - New `camel-start/SKILL.md` with decision tree, "When NOT to use" table, pipeline overview, and Tier 2 utility references
+  - AGENTS.md rewritten to ultra-minimal bootstrap (~80 tokens): compressed iron laws + entry point directive
+  - Skill tiering: pipeline commands (brainstorm or migrate, plan, execute, validate), standalone utilities (ship, knowledge, debug), and internal guide libraries (design, implement, test, verify)
+
 - **Skill architecture refactored to orchestrator pattern** — all major skills (`camel-flow`, `camel-implement`, `camel-validate`, `camel-migrate`, `camel-test`, `camel-migrate-camel2`) rewritten as slim orchestrator manifests that load micro-guides on demand; monolithic `SKILL.md` files split into focused, reusable topic guides; large template files split into topic-specific micro-templates
 
 - **`camel-kit-knowledge` separated to its own repository** — knowledge indexer, embedding, schema, index, and MCP modules moved to `camel-kit-knowledge` (separate repo with independent `0.0.1-SNAPSHOT` version line); `IndexResolver` added for runtime index download via Maven Resolver API with classpath fallback
@@ -416,11 +382,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Agent traits system — build-time append of agent-specific instructions** — `applyTraits()` in `DefaultGenerator` scans `templates/traits/{agent}/` and appends skill- or guide-level `.append.md` files during `camel-kit init`. Traits are idempotent through HTML comment sentinels (`<!-- TRAIT:agent -->`).
 
-### Changed
-
 - **BizTalk documentation updated** — added BizTalk migration references to `docs/user-guide.md`, `docs/commands.md`, `docs/architecture.md`, `docs/camel-kit-overview.md`, `README.md`, `CONTRIBUTING.md`. BizTalkMigrationStarter repository URL corrected. Camel validator-starter component reference corrected.
 
+### Removed
+
+- **`/camel-flow` skill** — redundant 14-line redirect to `/camel-brainstorm` with greenfield preset, now handled by `/camel-start` routing
+
+- **`camel-kit-graph-mcp` module** — graph MCP server removed; graph analysis now exposed exclusively through CLI commands (reduced MCP servers from 3 to 2)
+
+- **Offline/standalone mode** — removed all offline mode code and the `--offline` flag
+
+- **Red Hat references in Java source** — all distribution-specific values externalized to `distribution.properties`; Java code is distribution-neutral
+
+- **Distribution variant selection** — simplified to single distribution; removed `--distribution` field and variant selection UI
+
 ### Fixed
+
+- **JBang launcher release synchronization (#145)** — Maven release preparation now keeps both tracked launcher fallbacks aligned with the release version and the following development snapshot.
+
+- **Citrus MCP Doctor validation (#146)** — `doctor` now fails when persisted Citrus metadata or a post-Citrus-only JSON agent proves that the generated `citrus` server is required; legacy-capable agents without that metadata retain the actionable pre-Citrus regeneration warning.
+
+- **Pi worker failure recovery (#169)** — recovered failure text is normalized before selecting a fallback diagnostic,
+  so blank or NUL-only text in a worker-result marker cannot leave Ship stuck in `RUNNING`. The run reaches a failed
+  state that can be retried.
+
+- **Camel plugin command parity and public documentation (#193)** — registered `doc` and `nextId` under `camel kit`, added a direct standalone/plugin parity regression, and aligned stable-versus-snapshot installation, prerequisites, workflow, graph, Knowledge, agent, and Ship documentation.
+  - Review hardening keeps validator leaves read-only, preserves unrelated OpenCode configuration during regeneration, resolves command prefixes only in Camel-Kit-owned resources, and installs the complete persona library for every current target except the intentionally excluded Bob 1 path
+  - `doctor` accepts pre-upgrade Qwen/OpenCode MCP layouts with upgrade warnings while retaining failures for malformed current layouts, and checks registered target assets for drift
+  - Regeneration reports each retired generated asset it removes; switching between Bob generations now also removes the obsolete Ship mode rule symmetrically while preserving neighboring files
+  - OpenCode regeneration recognises `opencode.json`, `opencode.jsonc`, `.opencode/opencode.json`, and `.opencode/opencode.jsonc` as project layers, updates them in place (comments, trailing commas, newline style, and symbolic links preserved), moves the Camel-managed `permission` and `mcp` entries into the highest-precedence existing layer, validates every layer before writing anything, and reports a malformed file as one concise error instead of a stack trace
+  - `doctor` evaluates OpenCode permission rules per managed MCP server in OpenCode's last-match order and reports each finding against the layer that defines the rule
+  - `doctor` warns instead of failing for every JSON-config agent when a workspace generated before Citrus MCP support has no `citrus` server; a present but malformed `citrus` server still fails
+
+- **Ship Simple-expression validation (#179)** — replaced the narrow custom grammar with a bounded input gate, allowing
+  Simple expressions such as dotted header and body lookups to reach Camel's own syntax validation. Size, character,
+  and indirect-expansion checks remain enforced.
+
+- **Ship resolver proxy and trust-store support (#177)** — dependency resolution now honors the JVM's proxy and TLS
+  system properties, allowing downloads through configured proxies and custom trust stores.
+
+- **Citrus MCP startup (#147)** — downgraded the generated MCP runner from `5.0.0-M2`, which fails during Quarkus startup with an incompatible JSON Schema Generator dependency, to the verified working `5.0.0-M1` release. Citrus test schemas and dependencies remain on `5.0.0-M2`.
+
+- **Adversarial review findings (#126)** — hardened graph building, init/doctor contracts, generator failure handling, distribution assets, and shipped skill content:
+  - Secure XML parsing (XXE/DTD disabled) in `XmlRouteParser` and `MuleXmlFlowParser`; parser failures and warnings now surface through `graph generate`, `doctor`, and `init` instead of producing silently empty graphs
+  - `GraphSerializer.read` validates format version and required fields; graph visualizer escapes embedded JSON against `</script>` injection
+  - `init` persists `project.runtime`, `project.camelVersion`, and `project.platformBomVersion` (spring-boot projects additionally get `project.springBootVersion`); `doctor` validates them
+  - Missing MCP config, skill resources, templates, and dispatch blocks now fail init loudly instead of degrading to warnings; `plan analyze` exits non-zero with a JSON error on failure
+  - `doc stale`/`unstale` preserve unknown frontmatter keys and fail closed on malformed staleness metadata
+  - Mule `flow-ref` targets resolve across files regardless of parse order; DataWeave node IDs unified on classpath-relative paths so Mule references and `.dwl` scans converge on one node
+  - JBang launcher ships snapshot repositories; removed broken `camel-kit-aio` alias; fixed the JBang plugin `init` forwarding (`--force`, shared `CamelKitMain`) and the plugin GAV in the README
+  - Corrected shipped Camel YAML guidance (steps under `from:`, `enrich`/`pollEnrich` expressions, `idempotentRepository`, `mimeMultipart`, `json` + `library: Jackson`, circuit-breaker seconds, `toD` for dynamic URIs) and removed stale migration/removal claims (`spel`, `mvel`, `hl7terser`, `activemq`, `pgevent`, `xstream`)
+  - Distribution defaults, compiled-in fallbacks, and tests now share the single repo-root `distribution.properties` (stale test fixture removed)
+
+- **Skill pipeline contract drift** — aligned shipped skills, templates, personas, and docs on the active `docs/camel-kit/<PIPELINE_ID>/` artifact model, deterministic Spring Boot version mappings, lowercase test-data flow tokens, and design-spec terminology.
+- **`camel-kit doctor` Bob 2 MCP validation** — doctor now resolves MCP config paths through the agent registry descriptor instead of a duplicated hard-coded switch, so Bob 2 projects validate `.bob/mcp.json` correctly.
+- **Incorrect relative path in Bob test template** — `camel-test.md` used `../main/resources/` instead of `../../main/resources/` for route YAML references in test examples
+- **Stale body text in `camel-validate` and `camel-knowledge`** — both had "NOT user-invocable" text contradicting their actual invocability via slash commands
 
 - **README: `-d` flag in Camel JBang Plugin install command corrected to `--description`** — the `-d` short option is not recognized by current versions of Camel JBang. Fixed to use the correct `--description` long option.
 
@@ -476,16 +493,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Skill quality audit** — 7 evaluation passes (55+ fixes) across all 6 skills: MCP param corrections, context pollution, anti-hedging, completion gates, batch mode, guide path notation, smoke test rollback strategy, DataMapper test examples, runtime-aware test config, vendor detection recovery
 
 - **MCP configuration generation** — now creates only the config for the selected agent; `knowledge.mcp.version` tag used correctly in maven-metadata.xml parsing
-
-### Removed
-
-- **`camel-kit-graph-mcp` module** — graph MCP server removed; graph analysis now exposed exclusively through CLI commands (reduced MCP servers from 3 to 2)
-
-- **Offline/standalone mode** — removed all offline mode code and the `--offline` flag
-
-- **Red Hat references in Java source** — all distribution-specific values externalized to `distribution.properties`; Java code is distribution-neutral
-
-- **Distribution variant selection** — simplified to single distribution; removed `--distribution` field and variant selection UI
 
 ## [0.3.1] - 2026-03-02
 
