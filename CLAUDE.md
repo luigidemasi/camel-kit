@@ -64,7 +64,7 @@ Work is finished only when all of these hold:
    root when changes span modules or touch skills/templates/`distribution.properties`.
 2. `./mvnw -Psourcecheck validate -B` passes (CI format gate).
 3. Skill/template/trait change: `ShippedAssetStructureTest` passes.
-4. New user-invocable skill: registered in all 8 agent templates + `docs/commands.md`.
+4. New user-invocable skill: registered in all 9 agent templates + `docs/commands.md`.
 5. No hardcoded versions where `distribution.properties` should be referenced.
 6. `docs/` updated as needed; `CHANGELOG.md` for significant changes.
 7. Architectural decision documentation is updated as required.
