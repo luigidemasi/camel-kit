@@ -771,19 +771,6 @@ public final class ShipController {
             String outputDigest,
             List<Path> artifacts,
             boolean materialAmbiguity,
-            String report) {
-        return completeStage(runId, stage, attempt, inputDigest, outputDigest, artifacts, materialAmbiguity, report,
-                List.of());
-    }
-
-    ShipRun completeStage(
-            String runId,
-            Stage stage,
-            int attempt,
-            String inputDigest,
-            String outputDigest,
-            List<Path> artifacts,
-            boolean materialAmbiguity,
             String report,
             List<UnansweredQuestion> unansweredQuestions) {
         if (stage == Stage.EXECUTE) {
@@ -818,18 +805,6 @@ public final class ShipController {
             String outputDigest,
             String pipelineId,
             boolean materialAmbiguity,
-            String report) {
-        return completeDiscoveryStage(runId, attempt, inputDigest, outputDigest, pipelineId, materialAmbiguity, report,
-                List.of());
-    }
-
-    ShipRun completeDiscoveryStage(
-            String runId,
-            int attempt,
-            String inputDigest,
-            String outputDigest,
-            String pipelineId,
-            boolean materialAmbiguity,
             String report,
             List<UnansweredQuestion> unansweredQuestions) {
         if (!ShipRun.isPipelineId(pipelineId)) {
@@ -855,16 +830,6 @@ public final class ShipController {
      * Records an EXECUTE result from the controller-owned workspace. The workspace root is always retained;
      * {@code artifacts} contains only additional material files.
      */
-    ShipRun completeExecuteStage(
-            String runId,
-            int attempt,
-            String inputDigest,
-            List<Path> artifacts,
-            boolean materialAmbiguity,
-            String report) {
-        return completeExecuteStage(runId, attempt, inputDigest, artifacts, materialAmbiguity, report, List.of());
-    }
-
     ShipRun completeExecuteStage(
             String runId,
             int attempt,

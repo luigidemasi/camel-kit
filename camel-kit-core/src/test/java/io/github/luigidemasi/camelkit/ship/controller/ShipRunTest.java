@@ -150,6 +150,25 @@ class ShipRunTest {
     }
 
     @Test
+    void rejectsInconsistentStageQuestionAuditAndAcceptsLegacyAmbiguity() {
+        List<ShipRun.UnansweredQuestion> questions = List.of(
+                new ShipRun.UnansweredQuestion("Which retry limit?", "Three attempts"));
+
+        assertAll(
+                () -> assertRejected("Ship stage ambiguity metadata is invalid",
+                        () -> new ShipRun.StageRecord(
+                                DESIGN, ShipRun.StageStatus.COMPLETED, 1,
+                                INPUT, OUTPUT, List.of(), false, questions)),
+                () -> assertRejected("Ship stage ambiguity metadata is invalid",
+                        () -> new ShipRun.StageRecord(
+                                DESIGN, ShipRun.StageStatus.RUNNING, 1,
+                                INPUT, null, List.of(), true, List.of())),
+                () -> assertDoesNotThrow(() -> new ShipRun.StageRecord(
+                        DESIGN, ShipRun.StageStatus.COMPLETED, 1,
+                        INPUT, OUTPUT, List.of(), true, List.of())));
+    }
+
+    @Test
     void incrementsAttemptsAcrossResetAndAllowsOnlyLegalTransitions() {
         ShipRun.StageRecord pending = ShipRun.StageRecord.pending(DISCOVERY);
         ShipRun.StageRecord first = pending.start(INPUT);

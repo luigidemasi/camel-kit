@@ -280,6 +280,9 @@ public final class ShipCommand implements Callable<Integer> {
                             ? "none"
                             : safeDisplay(question.defaultApplied(), false)));
                 }
+            } else if (stage.materialAmbiguity()) {
+                writer.println("Warning (" + stage.stage() + "): Material ambiguity reported; "
+                               + "structured questions/defaults unavailable for this legacy result.");
             }
         }
         List<ShipRun.ArtifactRef> validation = run.stage(Stage.VALIDATE).artifacts();

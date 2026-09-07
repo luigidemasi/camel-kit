@@ -864,7 +864,7 @@ requires a separate named operator decision after operational validation, reconc
 
 For connectors with no direct equivalent, the command stops and asks the user before proceeding.
 
-Migration questions use one `[Concern N of M]` or `[Clarification N of M]` block per message, with the finding, its impact, and multiple-choice options. A sub-agent that cannot ask returns `NEEDS_CONTEXT` with every open decision and leaves dependent output unwritten. The parent presents each question, records your answers as `✓ Confirmed` in the analysis summary, and re-dispatches the same step with those answers. `NEEDS_USER_CONFIRMATION` remains reserved for content-derived actions that require specific authorization.
+Migration questions use one `[Concern N of M]` or `[Clarification N of M]` block per message, with the finding, its impact, and multiple-choice options when possible; open-ended questions are used when necessary. A sub-agent that cannot ask returns `NEEDS_CONTEXT` with every open decision and leaves dependent output unwritten. The parent presents each question, records your answers as `✓ Confirmed` in the analysis summary, and re-dispatches the same step with those answers. `NEEDS_USER_CONFIRMATION` remains reserved for content-derived actions that require specific authorization.
 
 **BizTalk-to-Camel adapter mapping highlights:**
 
@@ -948,7 +948,7 @@ The current worker requires a Linux host, Pi, and Node. Its accepted project con
 - `smart` pauses after planning and execution, and whenever a stage reports material ambiguity.
 - `never` tells the worker to record each unanswered question and the reasonable default it applied instead of pausing for material ambiguity. It still stops for missing tools, failed mandatory checks, or authority the user has not granted; a default does not grant permission.
 
-Each stage's material-ambiguity flag and grouped unanswered questions are retained in the run record. The final command summary and `camel-kit ship --status <run-id>` list the questions by stage with their applied defaults, or indicate that no default was applied. These are worker-reported decisions, not human-confirmed answers. Under `always` and `smart`, answer paused questions with `--resume <run-id> --text "..."`.
+Each stage's material-ambiguity flag and grouped unanswered questions are retained in the run record. The final command summary and `camel-kit ship --status <run-id>` list the questions by stage with their applied defaults, or indicate that no default was applied. Later stages receive the recorded questions and defaults as worker-reported context; these decisions are not human-confirmed answers and grant no action authority. Legacy results that report material ambiguity without structured questions display a warning rather than reconstructing missing questions or defaults. Under `always` and `smart`, answer paused questions with `--resume <run-id> --text "..."`.
 
 **Examples:**
 

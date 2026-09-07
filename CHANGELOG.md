@@ -13,7 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Unanswered migration questions (#208)** — bounded `camel-migrate` steps return open decisions to the parent
   conversation, which asks one question at a time and resumes the step with confirmed answers. Ship workers receive
   the active oversight policy; stage records and command summaries retain unanswered questions and applied defaults
-  under `--ask never`, while `always` and `smart` keep their existing pause behavior.
+  under `--ask never`, while `always` and `smart` keep their existing pause behavior. Later stages receive the
+  recorded questions and defaults as worker-reported context. Run-state schema advances from v4 to v5 and worker-result
+  schema from v1 to v2; v4 records and v1 results remain readable without inventing missing historical questions.
+  Legacy results that report material ambiguity without structured questions produce a warning in final/status output.
+  Native dispatch instructions distinguish missing context (`NEEDS_CONTEXT`) from action-specific authorization
+  (`NEEDS_USER_CONFIRMATION`) and defer question handling to the owning workflow.
 
 - **Design-spec catalog evidence (#207)** — section 5 now records the matched runtime, full platform BOM, returned
   Camel version, and each selected artifact's verification result and tool provenance. Design-time catalog producers,

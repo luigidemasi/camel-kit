@@ -206,7 +206,8 @@ class ShipControllerTest {
                 digest("discovery result"),
                 List.of(),
                 true,
-                "Which deployment region should be used?");
+                "Which deployment region should be used?",
+                List.of());
         assertEquals(RunStatus.PAUSED, paused.status());
         assertEquals("Which deployment region should be used?", paused.message());
 
@@ -264,7 +265,8 @@ class ShipControllerTest {
                         digest("late result"),
                         List.of(),
                         false,
-                        null));
+                        null,
+                        List.of()));
         assertEquals("stale-stage-attempt", stale.code());
     }
 
@@ -285,7 +287,8 @@ class ShipControllerTest {
                 digest("discovery result"),
                 List.of(),
                 true,
-                report);
+                report,
+                List.of());
 
         assertEquals(RunStatus.PAUSED, paused.status());
         assertEquals(ShipRun.MAX_MESSAGE_LENGTH, paused.message().length());
@@ -404,7 +407,8 @@ class ShipControllerTest {
                 run.stage(Stage.EXECUTE).inputDigest(),
                 List.of(route),
                 false,
-                null);
+                null,
+                List.of());
 
         assertEquals(validating, new ShipController(stateRoot).status(run.id()));
         assertEquals(
@@ -509,7 +513,8 @@ class ShipControllerTest {
                         digest("worker-prose-pass"),
                         List.of(),
                         false,
-                        null));
+                        null,
+                        List.of()));
 
         assertEquals("validation-controller-owned", failure.code());
         assertEquals(validating, controller.status(validating.id()));
@@ -565,7 +570,8 @@ class ShipControllerTest {
                         digest("late-result"),
                         List.of(),
                         false,
-                        null));
+                        null,
+                        List.of()));
         assertEquals("stale-stage-attempt", failure.code());
         assertEquals(2, controller.status(started.id()).stage(Stage.DISCOVERY).attempts());
     }
@@ -586,7 +592,8 @@ class ShipControllerTest {
                         digest("result"),
                         List.of(),
                         false,
-                        null));
+                        null,
+                        List.of()));
 
         assertEquals("stale-stage-attempt", failure.code());
         assertEquals(run, controller.status(run.id()));
@@ -887,7 +894,8 @@ class ShipControllerTest {
                         executing.stage(Stage.EXECUTE).inputDigest(),
                         List.of(route),
                         false,
-                        null));
+                        null,
+                        List.of()));
         assertEquals(executing, controller.status(executing.id()));
     }
 
@@ -979,7 +987,8 @@ class ShipControllerTest {
                         digest("result"),
                         List.of(),
                         false,
-                        null));
+                        null,
+                        List.of()));
 
         assertEquals("stale-stage-input", failure.code());
         assertEquals(run, controller.status(run.id()));
@@ -1005,7 +1014,8 @@ class ShipControllerTest {
                         digest("design"),
                         List.of(),
                         false,
-                        null));
+                        null,
+                        List.of()));
 
         assertEquals("stale-stage-input", failure.code());
         assertEquals(design, controller.status(design.id()));
@@ -1038,7 +1048,8 @@ class ShipControllerTest {
                         digest("execute"),
                         List.of(),
                         false,
-                        null));
+                        null,
+                        List.of()));
         assertFailure(
                 "artifact-invalid",
                 () -> controller.completeExecuteStage(
@@ -1047,7 +1058,8 @@ class ShipControllerTest {
                         executing.stage(Stage.EXECUTE).inputDigest(),
                         List.of(liveArtifact),
                         false,
-                        null));
+                        null,
+                        List.of()));
         assertFailure(
                 "artifact-invalid",
                 () -> controller.completeExecuteStage(
@@ -1056,7 +1068,8 @@ class ShipControllerTest {
                         executing.stage(Stage.EXECUTE).inputDigest(),
                         List.of(workspace),
                         false,
-                        null));
+                        null,
+                        List.of()));
         Path credential = Files.writeString(workspace.resolve(".env"), "TOKEN=secret");
         assertFailure(
                 "artifact-invalid",
@@ -1066,7 +1079,8 @@ class ShipControllerTest {
                         executing.stage(Stage.EXECUTE).inputDigest(),
                         List.of(report),
                         false,
-                        null));
+                        null,
+                        List.of()));
         Files.delete(credential);
         Files.createDirectories(workspace.resolve("target"));
         Files.writeString(workspace.resolve("target/build.log"), "volatile output");
@@ -1077,7 +1091,8 @@ class ShipControllerTest {
                 run.stage(Stage.EXECUTE).inputDigest(),
                 List.of(report),
                 false,
-                null);
+                null,
+                List.of());
         ProjectSnapshot acceptedSnapshot = ProjectEvidenceFiles.captureStaged(workspace);
         assertEquals(Stage.VALIDATE, validating.currentStage());
         assertTrue(ShipDigest.isSha256(validating.stage(Stage.EXECUTE).outputDigest()));
@@ -1133,7 +1148,8 @@ class ShipControllerTest {
                 run.stage(Stage.EXECUTE).inputDigest(),
                 List.of(),
                 false,
-                null);
+                null,
+                List.of());
 
         String runId = run.id();
         Path state = directory.resolve("state").resolve(runId).resolve("state.json");
@@ -1182,7 +1198,8 @@ class ShipControllerTest {
                         digest("discovery"),
                         List.of(),
                         false,
-                        null));
+                        null,
+                        List.of()));
     }
 
     @Test
@@ -1206,7 +1223,8 @@ class ShipControllerTest {
                         executing.stage(Stage.EXECUTE).inputDigest(),
                         List.of(),
                         false,
-                        null));
+                        null,
+                        List.of()));
         assertEquals(executing, controller.status(executing.id()));
 
         ShipRun resumed = controller.resume(executing.id());
@@ -1260,7 +1278,8 @@ class ShipControllerTest {
                         resumed.stage(Stage.EXECUTE).inputDigest(),
                         List.of(),
                         false,
-                        null));
+                        null,
+                        List.of()));
         assertEquals(resumed, controller.status(resumed.id()));
 
         Path rebound = controller.prepareAttempt(resumed.id()).workingDirectory();
@@ -1272,7 +1291,8 @@ class ShipControllerTest {
                 resumed.stage(Stage.EXECUTE).inputDigest(),
                 List.of(),
                 false,
-                null);
+                null,
+                List.of());
         assertEquals(Stage.VALIDATE, validating.currentStage());
     }
 
@@ -1296,7 +1316,8 @@ class ShipControllerTest {
                         executing.stage(Stage.EXECUTE).inputDigest(),
                         List.of(empty),
                         false,
-                        null));
+                        null,
+                        List.of()));
         assertEquals(executing, controller.status(executing.id()));
     }
 
@@ -1320,7 +1341,8 @@ class ShipControllerTest {
                         executing.stage(Stage.EXECUTE).inputDigest(),
                         List.of(),
                         false,
-                        null));
+                        null,
+                        List.of()));
 
         assertEquals("artifact-invalid", failure.code());
         ShipFilesystemException cause = assertInstanceOf(
@@ -1376,7 +1398,8 @@ class ShipControllerTest {
                         digest("aggregate"),
                         aggregate,
                         false,
-                        null));
+                        null,
+                        List.of()));
         assertEquals(run, controller.status(run.id()));
     }
 
@@ -1555,7 +1578,8 @@ class ShipControllerTest {
                         digest("result"),
                         List.of(link),
                         false,
-                        null));
+                        null,
+                        List.of()));
 
         assertEquals("artifact-invalid", failure.code());
         assertEquals(run, controller.status(run.id()));
@@ -1987,7 +2011,8 @@ class ShipControllerTest {
                 run.stage(Stage.EXECUTE).inputDigest(),
                 List.of(candidate.resolve("routes/order-route.yaml")),
                 false,
-                null);
+                null,
+                List.of());
         ShipController.StageAttempt attempt = controller.prepareAttempt(run.id());
         ShipLocalStamp stamp = localStamp(run.id(), Outcome.PASS);
         ShipLocalStampStore.write(attempt.evidenceDirectory(), run.id(), stamp);
@@ -2124,7 +2149,8 @@ class ShipControllerTest {
                     run.stage(stage).inputDigest(),
                     List.of(artifacts),
                     false,
-                    null);
+                    null,
+                    List.of());
         }
         return controller.completeStage(
                 run.id(),
@@ -2134,7 +2160,8 @@ class ShipControllerTest {
                 digest(result),
                 List.of(artifacts),
                 false,
-                null);
+                null,
+                List.of());
     }
 
     private static String digest(String value) {
