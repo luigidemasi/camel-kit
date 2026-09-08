@@ -1,5 +1,6 @@
 package io.github.luigidemasi.camelkit.ship.security;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -8,6 +9,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /** One versioned classification and quota policy for every Ship project tree boundary. */
 public final class ShipTreePolicy {
@@ -40,8 +42,9 @@ public final class ShipTreePolicy {
             "reject:symlink,hardlink,fifo,socket,device,unknown,duplicate-file-key",
             "reject:root-lineage-containing-protected,denied,volatile-directory-names",
             "allow:root-lineage-through-.camel-kit/ship",
+            "reject:root-lineage-containing-colon,the-GIT_CEILING_DIRECTORIES-separator",
             "reject:absolute,dot-segment,control,format,line-separator,paragraph-separator,"
-                                                          + "invalid-surrogate,empty,oversize-path-component");
+                                                                                          + "invalid-surrogate,empty,oversize-path-component");
 
     /** Project-relative subtree reserved for controller-owned Ship state; the only allowed state-in-project nesting. */
     public static final String RESERVED_STATE_SUBTREE = ".camel-kit/ship";
@@ -169,6 +172,7 @@ public final class ShipTreePolicy {
         }
         String first = normalized.getName(0).toString().toLowerCase(Locale.ROOT);
         return !List.of("proc", "sys", "dev", "run").contains(first)
+                && lineage.indexOf(':') < 0
                 && !containsUnreservedCamelKitComponent(lineage)
                 && !containsComponent(lineage, ".git")
                 && !containsComponent(lineage, "target")
@@ -247,6 +251,27 @@ public final class ShipTreePolicy {
      */
     public static boolean isReservedStatePath(Path root, Path nested) {
         return nested.startsWith(root.resolve(RESERVED_STATE_SUBTREE));
+    }
+
+    /**
+     * Stops Git from discovering a repository above {@code ceiling} in a child process launched with
+     * {@code environment}. Git reads {@code GIT_CEILING_DIRECTORIES} as a colon-separated list, so a ceiling whose path
+     * contains {@code ':'} cannot be expressed and is refused instead of silently unbounded.
+     *
+     * @param  environment child environment to amend
+     * @param  ceiling     absolute directory that Git must not enter while looking for a repository
+     * @throws IOException if the boundary cannot be expressed
+     */
+    public static void boundGitDiscovery(Map<String, String> environment, Path ceiling) throws IOException {
+        if (ceiling == null || !ceiling.isAbsolute()) {
+            throw new IOException("Git discovery cannot be bounded without an absolute ceiling directory");
+        }
+        if (ceiling.toString().indexOf(':') >= 0) {
+            throw new IOException(
+                    "Git discovery cannot be bounded at " + ceiling
+                                  + ": GIT_CEILING_DIRECTORIES cannot express a path containing ':'");
+        }
+        environment.put("GIT_CEILING_DIRECTORIES", ceiling.toString());
     }
 
     private static boolean containsUnreservedCamelKitComponent(String lineage) {

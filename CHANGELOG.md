@@ -283,7 +283,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   incompatible `.gitignore` in the state root is rewritten and a symbolic link there fails as `state-corrupt`. Git
   discovery is bounded at the staged Execute workspace, the local command runner and the frozen validation snapshot
   (`GIT_CEILING_DIRECTORIES`), so Git commands run by the worker or by validation inside the nested state directory
-  cannot inspect or alter the live repository. Material identities no longer embed the tree-policy digest (framing
+  cannot inspect or alter the live repository; because Git reads that variable as a colon-separated list, project and
+  state directory paths containing `:` are rejected at start (`project-invalid`, `state-root-invalid`) instead of
+  running unbounded. Material identities no longer embed the tree-policy digest (framing
   v1 → v2), and publication journals written by earlier releases are still recognised, so a publication interrupted
   before the upgrade recovers or rolls back on resume. Summary continuation commands include `--project-dir` when the
   run was started with it. Runs recorded under the previous default are not found at the new location; set

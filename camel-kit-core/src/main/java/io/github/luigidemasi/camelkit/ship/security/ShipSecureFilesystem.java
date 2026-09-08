@@ -56,6 +56,10 @@ final class ShipSecureFilesystem {
             throw new IllegalArgumentException("Ship secure root, label, and policy are required");
         }
         Path absolute = requestedRoot.toAbsolutePath().normalize();
+        if (absolute.toString().indexOf(':') >= 0) {
+            throw unsafe(label + " path must not contain ':' because Git discovery cannot be bounded there: "
+                         + absolute);
+        }
         if (!policy.isAllowedAbsolutePath(absolute)) {
             throw unsafe(label + " is outside the allowed project-root lineage");
         }

@@ -297,6 +297,15 @@ class ShipRunStoreTest {
     }
 
     @Test
+    void rejectsAStateRootPathContainingAColon() throws Exception {
+        Path state = temporaryDirectory.resolve("colon:state");
+
+        assertCode("state-root-invalid", () -> new ShipRunStore(state).create(run(RUN_ID)));
+
+        assertFalse(Files.exists(state));
+    }
+
+    @Test
     void retainsAndFindsADormantPublicationOwner() throws Exception {
         Path project = Files.createDirectory(temporaryDirectory.resolve("project"));
         Path state = stateRoot();

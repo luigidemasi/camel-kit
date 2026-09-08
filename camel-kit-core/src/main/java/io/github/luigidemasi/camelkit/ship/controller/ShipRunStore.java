@@ -493,6 +493,12 @@ final class ShipRunStore {
                     code,
                     "Ship state root must be a real directory");
         }
+        if (resolved.toString().indexOf(':') >= 0) {
+            throw new StoreException(
+                    code,
+                    "Ship state root path must not contain ':' because Git discovery cannot be bounded there;"
+                          + " set CAMEL_KIT_SHIP_STATE_HOME to another path");
+        }
         return resolved;
     }
 

@@ -1625,6 +1625,12 @@ public final class ShipController {
         if (!Files.isReadable(project)) {
             throw failure("project-unreadable", "Ship project directory is not readable: " + project);
         }
+        if (project.toString().indexOf(':') >= 0) {
+            throw failure(
+                    "project-invalid",
+                    "Ship project path must not contain ':' because Git discovery cannot be bounded there: "
+                                       + project);
+        }
         return project;
     }
 

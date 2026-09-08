@@ -504,6 +504,7 @@ class ProjectSnapshotServiceTest {
                 "/proc",
                 "/tmp/.git/project",
                 "/tmp/target/project",
+                "/tmp/colon:project",
                 "/tmp/" + "x".repeat(256))) {
             String digest = ProjectSnapshot.computeDigest(
                     deniedRoot, identity, policyDigest, Map.of(), Map.of());

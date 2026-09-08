@@ -97,6 +97,22 @@ class EvidenceRunnerTest {
     }
 
     @Test
+    void refusesAnEvidenceSandboxWhereGitDiscoveryCannotBeBounded() throws Exception {
+        Path project = Files.createDirectory(tempDir.resolve("candidate"));
+        Files.writeString(project.resolve("route.camel.yaml"), "route fixture");
+        Path controllerRoot = Files.createDirectories(tempDir.resolve("colon:controller/run"));
+        RecordingLauncher launcher = new RecordingLauncher();
+        EvidenceCommand command = command(project, "route-schema", Duration.ofSeconds(5));
+
+        IOException failure = assertThrows(
+                IOException.class,
+                () -> runner(launcher).run(project, controllerRoot.resolve("evidence"), command));
+
+        assertTrue(failure.getMessage().contains("':'"), failure.getMessage());
+        assertTrue(launcher.launches.isEmpty(), "no evidence launch may happen without a Git boundary");
+    }
+
+    @Test
     void abandonedEvidenceCleanupDoesNotFollowLinksOutsideItsExclusiveRoot() throws Exception {
         Path evidenceDirectory = Files.createDirectory(tempDir.resolve("partial-evidence"));
         Path outside = Files.createDirectory(tempDir.resolve("outside"));
