@@ -273,6 +273,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Ship state inside the project (#217)** — `camel-kit ship` now stores run records, evidence, Pi session
+  transcripts, the staged Execute workspace and the default validation catalog repository under
+  `<project>/.camel-kit/ship/state/` instead of `$XDG_STATE_HOME/camel-kit/ship` or `~/.local/state/camel-kit/ship`.
+  `CAMEL_KIT_SHIP_STATE_HOME` still overrides the location; the XDG and home fallbacks are removed. `.camel-kit/ship/`
+  is reserved for the controller: the tree policy denies it (policy schema v6 → v7), so it is never copied into the
+  staged workspace, never digested and never published, and the state directory carries a self-ignoring `.gitignore`.
+  Any other state directory inside the project is still rejected with `state-project-overlap`. Runs recorded under
+  the previous default are not found at the new location; set `CAMEL_KIT_SHIP_STATE_HOME` to the old path to finish
+  them. Snapshots recorded under policy v6 fail their staleness check on resume and restart the affected stage.
+
 - **Citrus 5.0.1 (#215)** — upgrade the default Citrus test dependencies and MCP server to 5.0.1,
   remove the temporary M1 server pin, and update Ship compatibility for Camel 4.22.0 and 4.18.4.
   Adapt the direct Citrus launcher to the GA context builder and test-engine API packages.

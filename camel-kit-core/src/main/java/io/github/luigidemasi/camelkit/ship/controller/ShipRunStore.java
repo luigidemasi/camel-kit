@@ -24,6 +24,7 @@ import io.github.luigidemasi.camelkit.ship.controller.ShipRun.Stage;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.StageRecord;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.StageStatus;
 import io.github.luigidemasi.camelkit.ship.security.ProjectEvidenceFiles;
+import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy;
 
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -85,6 +86,7 @@ final class ShipRunStore {
         root = resolvedStateRoot("state-root-invalid");
         runRoot = runRoot(root, initial.id());
         requireDisjoint(runRoot, initial, "state-project-overlap");
+        ignoreForGit(root);
         try {
             Files.createDirectory(runRoot, directoryAttributes());
         } catch (FileAlreadyExistsException e) {
@@ -213,7 +215,8 @@ final class ShipRunStore {
         Path project = canonicalize(Objects.requireNonNull(
                 projectDirectory, "projectDirectory"));
         Path registry = resolvedProjectRegistryRoot();
-        if (registry.startsWith(project) || project.startsWith(registry)) {
+        if ((registry.startsWith(project) || project.startsWith(registry))
+                && !ShipTreePolicy.isReservedStatePath(project, registry)) {
             throw new StoreException(
                     "state-project-overlap",
                     "Ship project and publication registry directories must be disjoint");
@@ -467,7 +470,8 @@ final class ShipRunStore {
                     "Ship run state and project directories could not be resolved",
                     e);
         }
-        if (canonicalRunRoot.startsWith(project) || project.startsWith(canonicalRunRoot)) {
+        if ((canonicalRunRoot.startsWith(project) || project.startsWith(canonicalRunRoot))
+                && !ShipTreePolicy.isReservedStatePath(project, canonicalRunRoot)) {
             throw new StoreException(
                     code,
                     "Ship run state and project directories must be disjoint");
@@ -531,6 +535,17 @@ final class ShipRunStore {
             throw new StoreException("run-id-invalid", "Invalid Ship run ID: " + runId);
         }
         return runRoot;
+    }
+
+    /** Keeps run records, transcripts, and evidence out of version control when the root sits inside a repository. */
+    private void ignoreForGit(Path root) throws IOException {
+        Path ignore = root.resolve(".gitignore");
+        if (Files.exists(ignore, LinkOption.NOFOLLOW_LINKS)) {
+            return;
+        }
+        Path temporary = Files.createTempFile(root, ".gitignore-", ".tmp", fileAttributes());
+        Files.writeString(temporary, "*\n");
+        Files.move(temporary, ignore, StandardCopyOption.ATOMIC_MOVE);
     }
 
     private FileAttribute<?>[] directoryAttributes() throws StoreException {

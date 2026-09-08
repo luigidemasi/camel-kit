@@ -207,7 +207,8 @@ public final class ShipCommand implements Callable<Integer> {
     private ShipController controller() {
         if (controller == null) {
             try {
-                controller = new ShipController(ShipController.defaultStateRoot());
+                controller = new ShipController(
+                        ShipController.defaultStateRoot(projectDirectory, System.getenv()));
             } catch (IllegalArgumentException e) {
                 throw new CommandFailure("runtime-unavailable", e.getMessage(), e);
             } catch (IllegalStateException e) {
@@ -219,7 +220,8 @@ public final class ShipCommand implements Callable<Integer> {
 
     private WorkflowLauncher launcher() {
         if (launcher == null) {
-            launcher = new ShipRuntime(ShipController.defaultStateRoot());
+            launcher = new ShipRuntime(
+                    ShipController.defaultStateRoot(projectDirectory, System.getenv()));
         }
         return launcher;
     }

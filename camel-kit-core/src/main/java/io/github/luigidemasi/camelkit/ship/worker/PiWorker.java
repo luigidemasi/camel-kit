@@ -49,6 +49,7 @@ import io.github.luigidemasi.camelkit.ship.controller.ShipRun;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.CommandRun;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp.ToolVersion;
+import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy;
 import io.github.luigidemasi.camelkit.ship.worker.LocalCommandRunner.Command;
 import io.github.luigidemasi.camelkit.ship.worker.LocalCommandRunner.RetainedLog;
 
@@ -1416,7 +1417,8 @@ public final class PiWorker {
     }
 
     private static void requireDisjoint(Path first, Path second, String label) throws IOException {
-        if (first.startsWith(second) || second.startsWith(first)) {
+        if ((first.startsWith(second) || second.startsWith(first))
+                && !ShipTreePolicy.isReservedStatePath(first, second)) {
             throw new IOException("Pi " + label + " must be disjoint");
         }
     }

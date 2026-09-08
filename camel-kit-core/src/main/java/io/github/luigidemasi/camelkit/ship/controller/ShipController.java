@@ -86,24 +86,17 @@ public final class ShipController {
                 Objects.requireNonNull(environment, "environment"));
     }
 
-    /** Resolves the conventional user-owned Ship state directory. */
-    public static Path defaultStateRoot() {
-        String configured = System.getenv("CAMEL_KIT_SHIP_STATE_HOME");
+    /** Resolves the Ship state directory: the configured home, otherwise the project's reserved subtree. */
+    public static Path defaultStateRoot(Path projectDirectory, Map<String, String> environment) {
+        String configured = environment.get("CAMEL_KIT_SHIP_STATE_HOME");
         if (configured != null && !configured.isBlank()) {
             return Path.of(configured).toAbsolutePath().normalize();
         }
-        String xdgState = System.getenv("XDG_STATE_HOME");
-        if (xdgState != null && !xdgState.isBlank()) {
-            return Path.of(xdgState).resolve("camel-kit/ship").toAbsolutePath().normalize();
-        }
-        String userHome = System.getProperty("user.home");
-        if (userHome == null || userHome.isBlank()) {
-            throw new IllegalStateException("Cannot resolve the user state directory");
-        }
-        return Path.of(userHome)
-                .resolve(".local/state/camel-kit/ship")
+        return Objects.requireNonNull(projectDirectory, "project directory")
                 .toAbsolutePath()
-                .normalize();
+                .normalize()
+                .resolve(ShipTreePolicy.RESERVED_STATE_SUBTREE)
+                .resolve("state");
     }
 
     public ShipRun start(

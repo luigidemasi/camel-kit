@@ -60,6 +60,30 @@ class ShipWorkspaceTest {
     }
 
     @Test
+    void acceptsARunDirectoryUnderTheProjectsReservedShipSubtree() throws Exception {
+        Path project = directory("project");
+        write(project, "routes/orders.camel.yaml", "- route:\n");
+        Path run = Files.createDirectories(
+                project.resolve(".camel-kit/ship/state").resolve(RUN_ID));
+
+        Path candidate = ShipWorkspace.prepare(project, run, RUN_ID, 1, INPUT_DIGEST);
+
+        assertEquals(run.resolve("workspace/candidate"), candidate);
+        assertEquals("- route:\n", Files.readString(candidate.resolve("routes/orders.camel.yaml")));
+        assertFalse(Files.exists(candidate.resolve(".camel-kit/ship")));
+        assertTrue(ProjectEvidenceFiles.unchangedMaterialTree(
+                ProjectEvidenceFiles.capture(project),
+                ProjectEvidenceFiles.captureSealed(candidate)));
+
+        Path unreserved = Files.createDirectories(
+                project.resolve(".camel-kit/state").resolve(RUN_ID));
+        IOException failure = assertThrows(
+                IOException.class,
+                () -> ShipWorkspace.prepare(project, unreserved, RUN_ID, 1, INPUT_DIGEST));
+        assertTrue(failure.getMessage().contains("disjoint"));
+    }
+
+    @Test
     void excludesCredentialAndNonMaterialPaths() throws Exception {
         Path project = directory("project");
         write(project, "README.md", "material");

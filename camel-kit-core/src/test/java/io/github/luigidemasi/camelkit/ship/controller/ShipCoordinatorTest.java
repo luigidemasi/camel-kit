@@ -1077,6 +1077,71 @@ class ShipCoordinatorTest {
     }
 
     @Test
+    void publishesWithTheStateRootUnderTheProjectsReservedShipSubtree()
+            throws Exception {
+        Path metadata = Files.createDirectories(project.resolve(".camel-kit"));
+        Files.writeString(
+                metadata.resolve("pipeline.json"),
+                "{\"mode\":\"manual\",\"activePipeline\":\"149-coordinator\"}\n");
+        Path documents = Files.createDirectories(
+                project.resolve("docs/camel-kit/149-coordinator"));
+        Files.writeString(documents.resolve("design-spec.md"), "Imported design");
+        Path reservedState = project.resolve(".camel-kit/ship/state");
+        ShipController reservedController = new ShipController(
+                reservedState, Clock.systemUTC(), Map.of());
+        ArtifactPolicy policy = mainPolicy();
+        writeWorkerResult("Implementation plan", policy);
+        var snapshot = CatalogTestVerifier.mainSnapshot(
+                Files.createDirectory(directory.resolve("catalog-fixture")));
+        DeterministicEvidenceStub evidence = new DeterministicEvidenceStub();
+        ShipCoordinator deterministic = new ShipCoordinator(
+                reservedState,
+                reservedController,
+                worker,
+                target -> snapshot,
+                new ShipMainValidator(evidence),
+                distribution,
+                Map.of(),
+                true,
+                Clock.systemUTC());
+        ShipRun run = reservedController.startFrom(
+                project, Stage.PLAN, Oversight.SMART, List.of());
+
+        ShipRun planned = deterministic.run(run.id());
+
+        assertEquals(Stage.EXECUTE, planned.currentStage());
+        reservedController.resume(run.id());
+        Path candidate = reservedController.prepareAttempt(run.id()).workingDirectory();
+        assertEquals(
+                reservedState.toRealPath().resolve(run.id()).resolve("workspace/candidate"),
+                candidate);
+        assertFalse(Files.exists(candidate.resolve(".camel-kit/ship")));
+        writeGeneratedMainCandidate(candidate, policy);
+        writeWorkerResult("Execution report", null);
+
+        ShipRun executed = deterministic.run(run.id());
+
+        assertEquals(Stage.VALIDATE, executed.currentStage());
+        reservedController.resume(run.id());
+
+        ShipRun completed = deterministic.run(run.id());
+
+        assertEquals(RunStatus.COMPLETED, completed.status());
+        assertNotNull(completed.publication());
+        assertEquals(completed, reservedController.status(run.id()));
+        assertEquals("*\n", Files.readString(reservedState.resolve(".gitignore")));
+        for (String relative : List.of(
+                "src/main/resources/routes/orders.camel.yaml",
+                "test/orders.camel.it.yaml",
+                "pom.xml")) {
+            assertEquals(
+                    Files.readString(candidate.resolve(relative)),
+                    Files.readString(project.resolve(relative)),
+                    "published " + relative);
+        }
+    }
+
+    @Test
     void distributionDriftRestartsGeneratedPlanInsteadOfWedgingValidation()
             throws Exception {
         Path metadata = Files.createDirectories(project.resolve(".camel-kit"));

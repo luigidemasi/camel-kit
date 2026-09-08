@@ -261,6 +261,13 @@ class ShipRunStoreTest {
     }
 
     @Test
+    void ignoresTheStateRootContentForGit() throws Exception {
+        store().create(run(RUN_ID));
+
+        assertEquals("*\n", Files.readString(stateRoot().resolve(".gitignore")));
+    }
+
+    @Test
     void retainsAndFindsADormantPublicationOwner() throws Exception {
         Path project = Files.createDirectory(temporaryDirectory.resolve("project"));
         Path state = stateRoot();

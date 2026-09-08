@@ -327,6 +327,13 @@ class ShipControllerTest {
                         project, Oversight.NEVER, List.of()));
         assertFalse(Files.exists(project.resolve("nested-state")));
 
+        Path unreservedMetadataState = project.resolve(".camel-kit/state");
+        assertFailure(
+                "state-project-overlap",
+                () -> new ShipController(unreservedMetadataState).start(
+                        project, Oversight.NEVER, List.of()));
+        assertFalse(Files.exists(unreservedMetadataState));
+
         Path metadata = Files.createDirectories(project.resolve(".camel-kit"));
         Files.writeString(
                 metadata.resolve("pipeline.json"),
@@ -342,6 +349,52 @@ class ShipControllerTest {
                 () -> new ShipController(importedState).startFrom(
                         project, Stage.PLAN, Oversight.NEVER, List.of()));
         assertFalse(Files.exists(importedState));
+    }
+
+    @Test
+    void completesExecuteWithStateUnderTheProjectsReservedShipSubtree() throws Exception {
+        Path project = Files.createDirectory(directory.resolve("project"));
+        Files.writeString(project.resolve("README.md"), "project\n");
+        Path stateRoot = project.resolve(".camel-kit/ship/state");
+        ShipController controller = new ShipController(stateRoot);
+        ShipRun run = controller.start(project, Oversight.NEVER, List.of());
+        run = complete(controller, run, "discovery");
+        run = complete(controller, run, "design");
+        run = complete(controller, run, "plan");
+
+        Path workspace = controller.prepareAttempt(run.id()).workingDirectory();
+
+        assertEquals(
+                stateRoot.toRealPath().resolve(run.id()).resolve("workspace/candidate"),
+                workspace);
+        assertEquals("project\n", Files.readString(workspace.resolve("README.md")));
+        assertFalse(Files.exists(workspace.resolve(".camel-kit/ship")));
+        Path route = Files.writeString(
+                workspace.resolve("route.yaml"), "from:\n  uri: direct:start\n");
+        ShipRun validating = controller.completeExecuteStage(
+                run.id(),
+                run.stage(Stage.EXECUTE).attempts(),
+                run.stage(Stage.EXECUTE).inputDigest(),
+                List.of(route),
+                false,
+                null,
+                List.of());
+
+        assertEquals(validating, new ShipController(stateRoot).status(run.id()));
+        assertEquals("*\n", Files.readString(stateRoot.resolve(".gitignore")));
+    }
+
+    @Test
+    void defaultsTheStateRootToTheProjectsReservedShipSubtree() {
+        Path project = directory.resolve("project");
+        Path expected = project.toAbsolutePath().normalize().resolve(".camel-kit/ship/state");
+
+        assertEquals(expected, ShipController.defaultStateRoot(
+                project, Map.of("XDG_STATE_HOME", "/xdg-state")));
+        assertEquals(expected, ShipController.defaultStateRoot(
+                project, Map.of("CAMEL_KIT_SHIP_STATE_HOME", " ")));
+        assertEquals(Path.of("/custom/ship-state"), ShipController.defaultStateRoot(
+                project, Map.of("CAMEL_KIT_SHIP_STATE_HOME", "/custom/ship-state")));
     }
 
     @Test

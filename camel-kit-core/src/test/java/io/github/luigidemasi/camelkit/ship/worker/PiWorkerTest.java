@@ -1077,6 +1077,31 @@ class PiWorkerTest {
     }
 
     @Test
+    void acceptsRuntimeDirectoriesUnderTheWorkingDirectorysReservedShipSubtree()
+            throws Exception {
+        Path reservedRun = Files.createDirectories(
+                workingDirectory.resolve(".camel-kit/ship/state/run"));
+        Path reservedSessions = Files.createDirectory(reservedRun.resolve("sessions"));
+        Files.setPosixFilePermissions(
+                reservedSessions, PosixFilePermissions.fromString("rwx------"));
+        Path reservedEvidence = Files.createDirectory(reservedRun.resolve("evidence"));
+
+        PiWorker.Result result = worker(Duration.ofSeconds(5)).run(new PiWorker.Request(
+                RUN_ID,
+                ShipRun.Stage.DISCOVERY,
+                1,
+                workingDirectory,
+                reservedSessions,
+                reservedEvidence,
+                inputDigest(),
+                true,
+                "prompt"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, result.outcome());
+        assertEquals(workingDirectory.toString(), result.evidence().workingDirectory());
+    }
+
+    @Test
     void rejectsInsecureSessionDirectoryBeforeLaunchingPi() throws Exception {
         Files.setPosixFilePermissions(
                 sessions, PosixFilePermissions.fromString("rwxr-x---"));

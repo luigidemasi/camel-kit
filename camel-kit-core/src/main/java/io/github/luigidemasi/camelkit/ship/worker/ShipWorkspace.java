@@ -25,6 +25,7 @@ import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun;
 import io.github.luigidemasi.camelkit.ship.security.ProjectEvidenceFiles;
 import io.github.luigidemasi.camelkit.ship.security.ProjectSnapshot;
+import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy;
 import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy.Classification;
 
 import com.fasterxml.jackson.core.JsonFactory;
@@ -67,7 +68,8 @@ public final class ShipWorkspace {
         Path project = realProject(liveProject);
         Path run = realDirectory(runDirectory, "Ship run directory");
         requireBindingFields(runId, attempt, inputDigest);
-        if (run.startsWith(project) || project.startsWith(run)) {
+        if ((run.startsWith(project) || project.startsWith(run))
+                && !ShipTreePolicy.isReservedStatePath(project, run)) {
             throw new IOException("Ship run directory and live project must be disjoint");
         }
         Path workspace = run.resolve(WORKSPACE);

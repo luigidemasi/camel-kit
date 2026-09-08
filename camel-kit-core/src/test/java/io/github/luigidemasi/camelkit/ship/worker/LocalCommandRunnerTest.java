@@ -575,6 +575,27 @@ class LocalCommandRunnerTest {
     }
 
     @Test
+    void acceptsAnEvidenceDirectoryUnderTheWorkingDirectorysReservedShipSubtree()
+            throws Exception {
+        Path working = Files.createDirectory(temporaryDirectory.resolve("project"));
+        Path reserved = Files.createDirectories(
+                working.resolve(".camel-kit/ship/state/run/evidence"));
+        Path unreserved = Files.createDirectories(working.resolve(".camel-kit/state"));
+
+        LocalCommandRunner.Result result = new LocalCommandRunner().run(new Command(
+                executable,
+                List.of("echo"),
+                working,
+                reserved,
+                Duration.ofSeconds(5),
+                4096));
+
+        assertEquals(Integer.valueOf(0), result.exitCode());
+        assertEquals(working.toRealPath(), result.workingDirectory());
+        assertOverlapRejected(working, unreserved);
+    }
+
+    @Test
     void timeoutForciblyReapsTermIgnoringChild()
             throws Exception {
         LocalCommandRunner.Result result = new LocalCommandRunner().run(command(

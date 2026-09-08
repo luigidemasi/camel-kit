@@ -448,6 +448,11 @@ class ProjectSnapshotServiceTest {
         assertEquals(Classification.DENIED, policy.classify(".CAMEL-KIT/PIPELINE.JSON"));
         assertEquals(Classification.DENIED, policy.classify(".camel-kit/ship-state.json"));
         assertEquals(Classification.DENIED, policy.classify(".CAMEL-KIT/SHIP-STATE.JSON"));
+        assertEquals(Classification.DENIED, policy.classify(".camel-kit/ship"));
+        assertEquals(Classification.DENIED, policy.classify(".camel-kit/ship/state/run/state.json"));
+        assertEquals(Classification.DENIED, policy.classify(".CAMEL-KIT/SHIP/STATE"));
+        assertEquals(Classification.DENIED, policy.classify("module/.camel-kit/ship/.gitignore"));
+        assertEquals(Classification.MATERIAL, policy.classify(".camel-kit/shipping.md"));
         assertEquals(Classification.DENIED, policy.classify(".SSH/id_rsa"));
         assertEquals(Classification.DENIED, policy.classify(".ENV"));
         assertEquals(Classification.DENIED, policy.classify("module/.m2/settings.xml"));
@@ -529,6 +534,40 @@ class ProjectSnapshotServiceTest {
                 Map.of(),
                 null,
                 emptyDigest));
+    }
+
+    @Test
+    void snapshotAdmitsRootsBelowTheReservedShipSubtreeOnly() {
+        String identity = "sha256:" + "0".repeat(64);
+        String policyDigest = ShipTreePolicy.current().digest();
+        String reservedRoot = "/tmp/project/.camel-kit/ship/state/run/workspace/candidate";
+        String digest = ProjectSnapshot.computeDigest(
+                reservedRoot, identity, policyDigest, Map.of(), Map.of());
+
+        ProjectSnapshot snapshot = new ProjectSnapshot(
+                ProjectSnapshot.SCHEMA_VERSION,
+                reservedRoot,
+                identity,
+                policyDigest,
+                Map.of(),
+                Map.of(),
+                digest);
+
+        assertEquals(reservedRoot, snapshot.root());
+        for (String deniedRoot : List.of(
+                "/tmp/project/.camel-kit/state/candidate",
+                "/tmp/project/.camel-kit/config/.camel-kit/ship/candidate")) {
+            String deniedDigest = ProjectSnapshot.computeDigest(
+                    deniedRoot, identity, policyDigest, Map.of(), Map.of());
+            assertThrows(IllegalArgumentException.class, () -> new ProjectSnapshot(
+                    ProjectSnapshot.SCHEMA_VERSION,
+                    deniedRoot,
+                    identity,
+                    policyDigest,
+                    Map.of(),
+                    Map.of(),
+                    deniedDigest));
+        }
     }
 
     @Test

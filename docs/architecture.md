@@ -816,7 +816,7 @@ no later pipeline stage consumes it.
 
 `.camel-kit/pipeline.json` tracks the active manual pipeline. Skills resolve `activePipeline` to find the working directory, and stage is detected by artifact presence (spec-kit pattern). It is not Ship run state.
 
-Ship harness entry points are thin delegates to the configured `camel-kit ship` or `camel kit ship` command. The local controller is the sole writer of Ship state and transitions. Its run records and retained evidence live under `CAMEL_KIT_SHIP_STATE_HOME` when configured, otherwise under `$XDG_STATE_HOME/camel-kit/ship` or `~/.local/state/camel-kit/ship`. This keeps controller state and validation evidence outside the live project.
+Ship harness entry points are thin delegates to the configured `camel-kit ship` or `camel kit ship` command. The local controller is the sole writer of Ship state and transitions. Its run records, retained evidence and staged workspace live under the project's reserved `.camel-kit/ship/state/` directory, or under `CAMEL_KIT_SHIP_STATE_HOME` when configured. The Ship tree policy denies `.camel-kit/ship/`, so the controller's own files never enter project snapshots, the staged workspace or publication, and the state directory ignores itself for git. Project-visible files outside that subtree are workflow artifacts, not the transition authority.
 
 ### Stage Detection
 
