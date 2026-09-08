@@ -7,11 +7,6 @@ import static org.junit.jupiter.api.Assertions.*;
 class AgentGeneratorFactoryTest {
 
     @Test
-    void bobReturnsBobGenerator() {
-        assertInstanceOf(BobGenerator.class, AgentGeneratorFactory.create("bob"));
-    }
-
-    @Test
     void bob2ReturnsBob2Generator() {
         assertInstanceOf(Bob2Generator.class, AgentGeneratorFactory.create("bob2"));
     }
@@ -32,8 +27,8 @@ class AgentGeneratorFactoryTest {
     }
 
     @Test
-    void geminiReturnsGeminiGenerator() {
-        assertInstanceOf(GeminiGenerator.class, AgentGeneratorFactory.create("gemini"));
+    void antigravityReturnsAntigravityGenerator() {
+        assertInstanceOf(AntigravityGenerator.class, AgentGeneratorFactory.create("antigravity"));
     }
 
     @Test

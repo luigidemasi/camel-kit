@@ -1,0 +1,55 @@
+id: antigravity
+displayName: Google Antigravity
+skillsDirectory: .agents/skills
+generatesCommandStubs: false
+mcpConfigPath: .agents/mcp_config.json
+mcpConfigTemplatePath: templates/mcp-configs/antigravity-mcp.json
+mcpConfigFormat: json
+mcpServerContainerKey: mcpServers
+description: Google's Antigravity agent and CLI
+generatorStrategy: antigravity
+dispatchTemplatePath: templates/dispatch/antigravity.md
+templates:
+  - source: templates/antigravity/agents-md.md
+    target: AGENTS.md
+  - source: templates/antigravity/agents/camel-worker.md
+    target: .agents/agents/camel-worker.md
+  - source: templates/antigravity/agents/camel-reviewer.md
+    target: .agents/agents/camel-reviewer.md
+  - source: agents/acr-moderator.md
+    target: .agents/camel-kit-personas/acr-moderator.md
+  - source: agents/catalog-researcher.md
+    target: .agents/camel-kit-personas/catalog-researcher.md
+  - source: agents/code-quality-reviewer.md
+    target: .agents/camel-kit-personas/code-quality-reviewer.md
+  - source: agents/critic-behavioral-equivalence.md
+    target: .agents/camel-kit-personas/critic-behavioral-equivalence.md
+  - source: agents/critic-boundary-compliance.md
+    target: .agents/camel-kit-personas/critic-boundary-compliance.md
+  - source: agents/critic-performance.md
+    target: .agents/camel-kit-personas/critic-performance.md
+  - source: agents/critic-route-architecture.md
+    target: .agents/camel-kit-personas/critic-route-architecture.md
+  - source: agents/critic-security.md
+    target: .agents/camel-kit-personas/critic-security.md
+  - source: agents/implementation-engineer.md
+    target: .agents/camel-kit-personas/implementation-engineer.md
+  - source: agents/integration-architect.md
+    target: .agents/camel-kit-personas/integration-architect.md
+  - source: agents/knowledge-researcher.md
+    target: .agents/camel-kit-personas/knowledge-researcher.md
+  - source: agents/migration-specialist.md
+    target: .agents/camel-kit-personas/migration-specialist.md
+  - source: agents/spec-compliance-reviewer.md
+    target: .agents/camel-kit-personas/spec-compliance-reviewer.md
+  - source: agents/test-engineer.md
+    target: .agents/camel-kit-personas/test-engineer.md
+supportsSubagents: true
+supportsTraits: true
+capabilities:
+  - project-skills
+  - custom-agents
+  - parallel-subagent-dispatch
+  - mcp
+  - permissions
+  - sandbox

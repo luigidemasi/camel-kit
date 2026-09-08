@@ -110,15 +110,15 @@ camel-kit/
 │       │   ├── camel-knowledge/   # Tier 2 user-facing Camel docs utility
 │       │   └── shared/            # Shared guides (iron laws, DataMapper, MCP)
 │       └── templates/           # Agent-specific instruction templates
-│           ├── bob/             # IBM Project Bob
+│           ├── bob2/            # IBM Bob 2
 │           ├── claude/          # Anthropic Claude Code
-│           ├── gemini/          # Google Gemini CLI
+│           ├── antigravity/     # Google Antigravity
 │           ├── qwen/            # Qwen
 │           ├── opencode/        # OpenCode
 │           └── traits/          # Agent-specific trait files (appended to skills at init)
 │               ├── claude/      # Claude Code traits
-│               ├── gemini/      # Gemini CLI traits
-│               ├── bob/         # IBM Bob traits
+│               ├── antigravity/ # Google Antigravity traits
+│               ├── bob2/        # IBM Bob 2 traits
 │               ├── qwen/        # Qwen traits
 │               └── opencode/    # OpenCode traits
 ├── camel-jbang-plugin-kit/      # Camel JBang plugin
@@ -396,7 +396,7 @@ templates/traits/{agent}/{skill-name}/{guide-name}.append.md  # Guide-level trai
 
 Traits are appended to the corresponding skill files during `camel-kit init` with idempotent sentinels. Each trait should contain instructions specific to that agent's tools and capabilities — not generic content that belongs in the shared skill.
 
-No code registration is required for a new trait file. `TraitApplicator` applies SKILL.md-level traits for workflow skills and discovers guide-level traits from the shipped `.append.md` files under each `templates/traits/{agent}/{skill-name}/` directory. Bob is the exception in ordering only: it installs its monolithic gate templates first, then appends Bob traits to the final generated files.
+No code registration is required for a new trait file. `TraitApplicator` applies SKILL.md-level traits for workflow skills and discovers guide-level traits from the shipped `.append.md` files under each `templates/traits/{agent}/{skill-name}/` directory.
 
 `ShippedAssetStructureTest` verifies both sides of the contract: trait files must target existing shipped skills or guides, and every shipped trait must appear in generated output for the production generator of its agent.
 

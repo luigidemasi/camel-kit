@@ -2,7 +2,7 @@
 
 ## What Is Camel-Kit?
 
-Camel-Kit is an open-source toolkit that brings structured AI assistance to Apache Camel integration development. It works as a layer on top of Claude Code, IBM Bob 1 legacy, IBM Bob 2, Gemini CLI, OpenAI Codex CLI, GitHub Copilot CLI, Pi, Qwen, and OpenCode, giving them domain-specific knowledge and a disciplined workflow for designing, implementing, and verifying integration routes.
+Camel-Kit is an open-source toolkit that brings structured AI assistance to Apache Camel integration development. It works as a layer on top of Claude Code, IBM Bob 2, Google Antigravity, OpenAI Codex CLI, GitHub Copilot CLI, Pi, Qwen, and OpenCode, giving them domain-specific knowledge and a disciplined workflow for designing, implementing, and verifying integration routes.
 
 Instead of an engineer writing boilerplate code by hand -- or an AI assistant generating plausible-looking but unverified code from its training data -- Camel-Kit guides the process through a structured pipeline that enforces quality at every step.
 
@@ -96,7 +96,7 @@ Camel-Kit addresses this with **skills** -- markdown instruction files that teac
 
 Skills compose together: the brainstorm skill loads design guides for component selection and EIP patterns; the execute skill loads implementation, validation, testing, and verification guides. Each guide is a self-contained document that the AI reads and follows step by step.
 
-Because skills are plain markdown, they are easy to read, review, audit, and extend. Adding a new capability to Camel-Kit means writing a new skill guide -- not modifying code. Most supported agents read these shared skill files. Bob 1 legacy instead receives self-contained monolithic gate variants because it cannot chain skill references, while retaining the shared rules and output contracts.
+Because skills are plain markdown, they are easy to read, review, audit, and extend. Adding a new capability to Camel-Kit means writing a new skill guide -- not modifying code. All supported targets use shared markdown skills with agent-specific traits and native configuration.
 
 ### Context Isolation and Role Separation
 
@@ -104,12 +104,11 @@ When an AI generates code and then reviews its own work, it tends to confirm its
 
 Camel-Kit enforces role separation at multiple levels:
 
-- **Implementation and review use distinct contracts.** After each task, a spec compliance reviewer checks whether the output matches the design, then a code quality reviewer checks the constitution. Subagent-capable targets isolate these reviewers from the implementer; Bob 1 runs the contracts sequentially in its gated session.
+- **Implementation and review use distinct contracts.** After each task, a spec compliance reviewer checks whether the output matches the design, then a code quality reviewer checks the constitution. Subagent-capable targets isolate these reviewers from the implementer.
 - **Fresh context per task.** When using Claude or Bob 2, each task can be dispatched to a fresh subagent with an isolated context window. The subagent has no memory of previous tasks, no accumulated assumptions, and no temptation to reuse a pattern that worked before but doesn't fit now.
-- **Tool restrictions per phase.** For Bob 1 legacy and Bob 2, the brainstorm mode's edit tool permits only design
-  Markdown and Camel-Kit configuration state; both modes also provide read and MCP access, while Bob 1 additionally
-  provides browser access. Their broad command/execute groups remain constrained by generated instructions, so the edit
-  boundary is platform-enforced and command discipline is instruction-enforced.
+- **Tool restrictions per phase.** Bob 2's brainstorm mode scopes edits to design Markdown and Camel-Kit
+  configuration state, with read and MCP access. Its command group remains constrained by generated instructions;
+  the edit boundary is platform-enforced and command discipline is instruction-enforced.
 
 ### Why Not Just Generate Code?
 
@@ -325,13 +324,13 @@ These rules are checked automatically during the validation step and recorded in
 
 ## Multi-Agent Support
 
-Camel-Kit works across multiple AI coding assistants with the same design-plan-execute-validate workflow and output contracts. Most targets load the shared markdown skills; Bob 1 legacy installs seven monolithic gate variants that carry the corresponding orchestration because it cannot chain skill references.
+Camel-Kit works across multiple AI coding assistants with the same design-plan-execute-validate workflow and output contracts. All targets load shared markdown skills with native agent traits.
 
 | Agent | Provider |
 |-------|----------|
 | Claude Code | Anthropic |
-| Project Bob 1 legacy / Bob 2 | IBM |
-| Gemini CLI | Google |
+| IBM Bob 2 | IBM |
+| Google Antigravity | Google |
 | Codex CLI | OpenAI |
 | GitHub Copilot CLI | GitHub |
 | Pi | Community |
@@ -343,7 +342,7 @@ Camel-Kit works across multiple AI coding assistants with the same design-plan-e
 - **Consistent contracts.** Regardless of which agent generates the routes, the same workflow artifacts, quality rules, and catalog checks apply. Agent-native configuration and generated assistant assets differ according to the selected `--ai` target.
 - **Future-proof.** Adding support for a new agent requires writing template files for that agent's instruction format, not rewriting the pipeline logic.
 
-Each agent uses a different internal architecture optimized for its native capabilities (parallel subagent dispatch for Claude and Bob 2, custom modes with tool restrictions for Bob 1 legacy, policy engines for Gemini, etc.). Invocation syntax and generated assistant assets differ, while the workflow and output contracts stay aligned.
+Each target adapts the workflow to its native skills, custom agents, permissions, and invocation syntax. Workflow and output contracts remain aligned.
 
 ---
 
@@ -355,8 +354,8 @@ flowchart TB
 
     subgraph templates ["Agent Templates"]
         claude["CLAUDE.md\n(Claude)"]
-        bob["custom_modes.yaml\n(Bob 1/Bob 2)"]
-        gemini["GEMINI.md\n(Gemini)"]
+        bob["custom_modes.yaml\n(Bob 2)"]
+        antigravity["AGENTS.md\n(Antigravity)"]
         codex["AGENTS.md + .codex/\n(Codex)"]
         copilot[".github/ skills + agents\n(Copilot)"]
         pi["AGENTS.md + .pi/\n(Pi)"]
@@ -364,7 +363,7 @@ flowchart TB
         opencode["AGENTS.md\n(OpenCode)"]
     end
 
-    skills["Shared Skills\n+ Bob 1 gate variants"]
+    skills["Shared Skills"]
 
     subgraph pipeline ["Pipeline Phases"]
         design["Design"]
@@ -398,7 +397,7 @@ flowchart TB
     test --> citrus
 ```
 
-**Skills and Bob 1 gate variants** carry the process knowledge -- how to conduct a design interview, generate a YAML route, and validate against the constitution. Most targets share the markdown skills directly; Bob 1 uses self-contained generated gates with the same contracts.
+**Skills** carry the process knowledge -- how to conduct a design interview, generate a YAML route, and validate against the constitution. All targets share the markdown skills directly.
 
 **Camel Catalog MCP** provides the data knowledge -- which components exist, what options they accept, whether an endpoint URI is valid. It queries the live catalog for the project's exact Camel version rather than relying on potentially outdated training data.
 
@@ -406,7 +405,7 @@ flowchart TB
 
 **Citrus MCP** provides test-generation intelligence -- which Citrus actions, endpoints, schemas, and best practices are valid for the configured Citrus version.
 
-**Templates** adapt the workflow to each AI agent's native instruction mechanism, including Bob 1's monolithic gate files.
+**Templates** adapt the workflow to each AI agent's native instruction mechanism, including native skills and custom agents.
 
 ---
 
@@ -435,7 +434,7 @@ flowchart TB
 | Documentation | Knowledge MCP server (Apache Camel docs -- hybrid semantic search) |
 | Testing | Citrus MCP + Citrus YAML + Testcontainers |
 | IDE support | Kaoto (visual route and DataMapper editing) |
-| AI agents | Claude Code, IBM Bob 1 legacy, IBM Bob 2, Gemini CLI, OpenAI Codex CLI, GitHub Copilot CLI, Pi, Qwen, OpenCode |
+| AI agents | Claude Code, IBM Bob 2, Google Antigravity, OpenAI Codex CLI, GitHub Copilot CLI, Pi, Qwen, OpenCode |
 
 ---
 

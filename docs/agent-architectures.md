@@ -41,11 +41,11 @@ Each subagent has its own context window. Only structured summaries flow back to
 
 ## Design Philosophy
 
-Each agent uses a different architecture designed to **maximize that agent's native capabilities** -- not lowest-common-denominator parity. The equalization layer aligns workflow and output contracts, while the template layer exploits each agent's strongest features for dispatch, tool restriction, and configuration. Most targets consume the shared skills directly; Bob 1 legacy installs seven self-contained monolithic gate variants.
+Each agent uses a different architecture designed to **maximize that agent's native capabilities** -- not lowest-common-denominator parity. The equalization layer aligns workflow and output contracts, while the template layer exploits each agent's strongest features for dispatch, tool restriction, and configuration. Most targets consume the shared skills directly.
 
 **What equalization covers:**
-- Workflow content (shared `SKILL.md` and guides for most targets; corresponding monolithic gates for Bob 1)
-- Six Iron Laws (Bob 1 uses a same-session sequential adversarial fallback because fresh parallel critic contexts are unavailable)
+- Workflow content (shared `SKILL.md` and guides for all targets)
+- Six Iron Laws (inline targets record missing independent reviewer context)
 - Constitution rules (enforced identically)
 - MCP tool calls (same tools, same parameters)
 - Output formats (same YAML routes, properties, test files)
@@ -57,7 +57,7 @@ Each agent uses a different architecture designed to **maximize that agent's nat
 - Parallelization strategy (Claude and Bob 2 support parallel implementation-wave dispatch; other agents vary)
 - Configuration format (YAML modes, TOML policies, markdown frontmatter)
 
-**Agent traits** bridge the gap: they append agent-specific instructions during `camel-kit init`. For targets that consume shared phase skills, Claude's trait adds `Agent` tool parallel dispatch, Bob 2 adds `spawn_subagent` orchestration, Gemini adds named agent delegation, and OpenCode adds step-limited subagents. Bob 1's traits append `switch_mode` orchestration to its gate-backed phase files. See [Architecture Guide](architecture.md#agent-traits) for details.
+**Agent traits** bridge the gap: they append agent-specific instructions during `camel-kit init`. For targets that consume shared phase skills, Claude's trait adds `Agent` tool parallel dispatch, Bob 2 adds `spawn_subagent` orchestration, Antigravity adds `invoke_subagent` delegation, and OpenCode adds step-limited subagents. See [Architecture Guide](architecture.md#agent-traits) for details.
 
 ---
 
@@ -98,64 +98,6 @@ Claude has no formal permission system. It relies on skill instructions to const
 - **Parallel reviewer fan-out:** adversarial review dispatches independent critic lanes simultaneously
 - **Adversarial Code Review:** parallel Critic Lanes (via Moderator subagent) adversarially review implementation before two-stage review
 - **Simplest configuration:** 3 template files total (fewest of any agent)
-
----
-
-## IBM Bob 1 Legacy -- B+A Hybrid with Custom Modes
-
-### Dispatch Model
-
-The `--ai bob` target is the Bob 1 legacy path. It uses a "Behavior + Advanced" hybrid. Skills load in **Advanced mode** (unrestricted), then the first step in each gate file switches to a **restricted custom mode**. This two-phase approach gives initial access to load all skill files, then constrains behavior for the actual work.
-
-### Template Files
-
-| File | Purpose |
-|------|---------|
-| `templates/bob/custom_modes.yaml` | 7 custom modes with scoped tool groups |
-| `templates/bob/gates/*.md` | 7 monolithic gate files (one per replaced skill) |
-| `templates/bob/rules/iron-laws.md` | Shared iron laws loaded across all modes |
-| `templates/bob/rules-camel-{phase}/*.md` | Per-mode custom rules |
-
-Bob 1 has the most template files (17+) because it cannot chain skill references -- each gate file must be self-contained and inline the complete orchestration logic for its skill.
-
-### How It Works
-
-```
-User: /camel-start
-  └── Bob loads the shared camel-start router
-      └── Routes to migrate / plan / execute / validate / debug / brainstorm
-          └── The selected Bob gate switches to its restricted custom mode
-              └── Follows gate instructions with phase-scoped tools
-```
-
-### Custom Modes and Tool Groups
-
-| Mode | Tools Allowed | Purpose |
-|------|---------------|---------|
-| `camel-brainstorm-mode` | read, design-markdown/config edit, command, mcp, browser | Design interview; commands are limited by instructions to pipeline metadata and read-only graph queries |
-| `camel-plan-mode` | read, edit (`.md` only), command, mcp | Planning from approved spec; commands manage document metadata/staleness |
-| `camel-implement-mode` | read, edit, command, mcp | Route implementation |
-| `camel-execute-mode` | read, edit, command, mcp | Orchestration and ordered reviews |
-| `camel-validate-mode` | read, command, report-only edit, mcp | Static quality report |
-| `camel-debug-mode` | read, edit, command, mcp | Standalone diagnosis and repair |
-| `camel-test-mode` | read, edit, command, mcp | Test generation and execution |
-
-### Checkpoint Types
-
-Bob supports three checkpoint types used in gate files:
-
-| Type | Behavior | Use Case |
-|------|----------|----------|
-| **Hard gate** | Blocks until condition is met | User must approve spec before planning begins |
-| **Soft gate** | Warns but allows proceeding | Constitution violation detected but non-critical |
-| **Review point** | Summarize and wait for approval | End of brainstorm -- present design for review |
-
-### Unique Capabilities
-
-- **Three checkpoint types** for fine-grained pipeline flow control
-- **Custom rules per mode:** each mode loads additional rules files (e.g., `interview-gates.md` enforces one-question-at-a-time during brainstorm)
-- **Monolithic gate files:** complete phase logic in a single file -- most self-contained of any agent
-- **Path-scoped edits:** brainstorm can edit design Markdown plus `.camel-kit/config.properties`, `.camel-kit/pipeline.json`, and `.camel-kit/project-snapshot.md`; plan is Markdown-scoped, test is limited to test resources/reports, and validate can write only its selected report path
 
 ---
 
@@ -215,136 +157,35 @@ broad-capability presets.
 
 ---
 
-## Gemini CLI -- Parallel Scheduler + Policy Engine + Modular Imports
+## Google Antigravity -- Project Skills and Native Subagents
 
-### Dispatch Model
+Camel-Kit targets Antigravity 2.0 and its CLI using the native project customization layout:
 
-Gemini exposes a single unified `invoke_subagent` tool (`AgentTool` class) that dispatches to subagents by name. Three invocation types are supported: **Local** (in-process context loop), **Remote** (A2A protocol), and **Browser** (headless automation). Users can also invoke via `@subagent_name` syntax.
+| Generated asset | Purpose |
+|---|---|
+| `AGENTS.md` | Skill routing, project rules, and CLI prefix |
+| `.agents/skills/` | Shared pipeline skills, guides, and Antigravity traits |
+| `.agents/agents/camel-worker.md` | Bounded implementation, testing, fixes, and verification |
+| `.agents/agents/camel-reviewer.md` | Research and review without native edit or shell tools |
+| `.agents/camel-kit-personas/` | Complete task personas supplied by the parent |
+| `.agents/mcp_config.json` | Camel, Knowledge, and Citrus stdio MCP servers |
 
-The `Scheduler` class implements **native parallel tool execution** -- all tool calls within a turn are assessed for parallelizability and batched via `Promise.all()` by default. Tools opt-out of parallelism via `wait_for_previous: true`.
+Use `/camel-start` in the CLI, or ask Antigravity to use the `camel-start` skill by name.
+The CLI exposes skills through `/skills`; Camel-Kit does not generate separate command stubs.
+The parent calls `invoke_subagent` for independent tasks in each validated plan wave, then waits before dependent work.
+It owns questions, approvals, orchestration, and report writes. Each child receives clean context, complete shipped
+roles, validated paths, and canonical data envelopes. The generated children do not delegate further.
 
-However, subagents **cannot invoke other subagents** -- `Kind.Agent` tools are hardcoded-filtered during registry creation. This means `/camel-execute` runs in the **main agent context** so it can dispatch to all 6 subagents for orchestration.
+The worker has native file read/search/edit and sandboxed command tools. The reviewer has only native read/search
+tools and inherited MCP access; its instructions constrain that MCP use to research and review. Antigravity's
+permissions remain authoritative. The MCP file configures servers without auto-approval fields or generated
+permission overrides. Reinitialization preserves unrelated MCP servers and settings.
 
-### Template Files
-
-| File | Purpose |
-|------|---------|
-| `templates/gemini/gemini-md.md` | `GEMINI.md` -- project root with `@file.md` imports |
-| `templates/gemini/instructions/*.md` | 3 imported files: `iron-laws.md`, `mcp-usage.md`, `pipeline-overview.md` |
-| `templates/gemini/policies/camel-kit.toml` | TOML policy rules (MCP auto-allow, destructive command deny) |
-| `templates/gemini/agents/*.md` | 6 subagent definitions (no executor -- runs in main agent) |
-| `templates/gemini/geminiignore` | Excludes build output from agent context |
-
-### How It Works
-
-```
-# GEMINI.md (generated)
-@.gemini/instructions/iron-laws.md       ← modular import
-@.gemini/instructions/mcp-usage.md       ← modular import
-@.gemini/instructions/pipeline-overview.md
-
-User: /camel:validate
-  └── Gemini dispatches to camel-validator subagent
-      └── Subagent reads SKILL.md → follows guides
-          └── Tool access governed by subagent tools array + TOML policy
-
-User: /camel:execute
-  └── Runs in MAIN agent context (not a subagent)
-      └── Main agent reads plan, dispatches tasks to subagents
-          ├── → camel-implementer subagent (flow A)
-          ├── → camel-validator subagent (quality check)
-          └── → camel-tester subagent (test generation)
-```
-
-### Policy Engine (TOML)
-
-Policies handle cross-cutting concerns that apply globally (main agent AND all subagents). Subagent tool arrays handle per-phase restrictions.
-
-```toml
-[[rules]]
-name = "Allow Camel MCP tools"
-toolName = "mcp_camel_*"          # server-scoped wildcard
-decision = "allow"
-priority = 3                      # workspace level
-
-[[rules]]
-name = "Allow Knowledge MCP tools"
-toolName = "mcp_camel-knowledge_*"
-decision = "allow"
-priority = 3
-
-[[rules]]
-name = "Allow Citrus MCP tools"
-toolName = "mcp_citrus_*"
-decision = "allow"
-priority = 3
-
-[[rules]]
-name = "Allow Maven commands"
-toolName = "run_shell_command"
-commandRegex = "^(\\./mvnw|mvn)\\s+"
-decision = "allow"
-priority = 3
-
-[[rules]]
-name = "Deny destructive shell commands"
-toolName = "run_shell_command"
-commandRegex = "rm\\s+-rf"
-decision = "deny"
-priority = 4                      # higher priority overrides
-```
-
-Priority levels: user policies (priority 4) override workspace policies (priority 3), so users can customize without editing the generated file.
-
-### Subagent Tool Wildcards
-
-Gemini subagents use server-scoped MCP wildcards -- no other agent supports this:
-
-```yaml
-name: camel-validator
-tools:
-  - read_file
-  - glob
-  - grep_search
-  - run_shell_command
-  - mcp_camel_*           # all tools from Camel catalog MCP server
-max_turns: 20
-timeout_mins: 20
-```
-
-Server-scoped wildcards automatically include new tools when a configured MCP server adds them. Different subagents can have different MCP server access (e.g., validator gets catalog while tester gets catalog plus Citrus).
-The validator returns a complete report to the primary session, which owns the final report write.
-
-### Path-Scoped Edits via Policy Engine
-
-The Policy Engine supports per-subagent tool restrictions based on regex matching against serialized tool arguments:
-
-```toml
-[[rules]]
-toolName = "edit_file"
-subagent = "frontend-specialist"
-argsPattern = "\"file_path\":\"src/frontend/"
-decision = "allow"
-priority = 600
-
-[[rules]]
-toolName = "edit_file"
-subagent = "frontend-specialist"
-decision = "deny"
-priority = 500
-```
-
-This restricts the `frontend-specialist` to only edit files under `src/frontend/`.
-
-### Unique Capabilities
-
-- **Default-parallel scheduler:** `Promise.all()` batches all parallelizable tool calls within a turn -- only agent with native scheduler-level parallelism
-- **`@file.md` modular imports:** only agent that supports composing instructions from multiple files -- each concern is independently editable
-- **Server-scoped MCP wildcards:** `mcp_camel_*` grants all tools from a specific server, auto-discovers new tools
-- **TOML policy engine with priority tiers:** workspace policies can be overridden by user policies, per-subagent `argsPattern` targeting
-- **Three invocation kinds:** Local (in-process), Remote (A2A protocol), Browser (headless)
-- **Execution limits per subagent:** `max_turns` and `timeout_mins` prevent runaway execution
-- **Execute in main agent:** the only agent where `/camel-execute` runs outside a subagent (platform constraint turned into a feature -- main agent has full delegation ability)
+See [Google's skills documentation](https://antigravity.google/docs/skills/),
+[subagent format](https://antigravity.google/docs/subagents/),
+[CLI 1.1.6 MCP inheritance support](https://antigravity.google/changelog), and
+[MCP configuration](https://antigravity.google/docs/mcp/).
+For existing projects, follow the [migration instructions](antigravity.md).
 
 ---
 
@@ -459,7 +300,7 @@ and MCP servers while removing lower-precedence copies of Camel-Kit's managed en
 to the highest-precedence existing file. JSON and JSONC are supported; invalid or structurally conflicting configuration
 fails before any workspace file is changed. When none exists, init creates `opencode.json`.
 
-No `.opencodeignore` -- OpenCode uses `.gitignore` for file exclusion (simpler than Qwen/Gemini).
+No `.opencodeignore` -- OpenCode uses `.gitignore` for file exclusion (Qwen also has its own ignore file).
 
 ### How It Works
 
@@ -692,14 +533,14 @@ container or VM concern.
 
 ## Agent Comparison
 
-| Aspect | Claude | Bob 1 legacy | Bob 2 | Gemini | Codex | Copilot | Pi | Qwen | OpenCode |
-|--------|--------|--------------|-------|--------|-------|---------|----|------|----------|
-| Dispatch model | Parallel subagents | Mode switching | `spawn_subagent` (`explore`, `camel-worker`, `camel-reviewer`) | `invoke_subagent` unified tool (local/remote/browser) | Project skills + custom agents | Project skills + custom agents | Project skills + prompt templates | Primary workflow + bounded named leaves/forks | `task` tool creating child sessions |
-| Template files | 3 | 17+ | Modes + scoped agents/personas + traits + rules + dispatch | 12 | 10 | 11 | 5 | Generator + 4 leaves + traits/dispatch | 9 agent definitions + traits |
-| Tool restriction | Instruction-based | Mode tool groups | Mode tool groups + `allowedSubagents` | Allowlist + TOML policy + server-scoped wildcards | Inherited sandbox/approvals + read-only research roles | Custom-agent `tools` plus hooks | Guard extension + external sandbox | Allowlist + blocklist | 3-state permissions + bash glob patterns |
-| Path-scoped edits | No | Phase-specific `fileRegex` (design Markdown/config, test resources, validation reports) | Mode-dependent `fileRegex` | Yes (Policy Engine) | No | Tool-level, not path-scoped | No | No | Yes (glob patterns) |
-| MCP auto-approval | No (manual) | No (manual) | No (manual) | Yes (TOML policy) | No (`prompt`) | No (permission prompts) | Adapter `directTools` | No (`includeTools`, approval prompts) | No (permission prompts) |
-| Parallel execution | Yes (graph-based) | No | Yes (same-turn `spawn_subagent`) | Yes (scheduler `Promise.all()`) | Yes (independent waves) | Unknown | No native subagents | Yes (same-turn agents; detached forks) | Partial (LLM-level parallel tool calls) |
-| Subagent recursion | Yes (no limit) | N/A | No (subagents must not spawn subagents) | No (hardcoded `Kind.Agent` filter) | No (parent-owned) | Unknown | N/A | Generated leaves and forks cannot dispatch | Primary executor to task-denying leaves |
-| Execute phase | Subagent with parallel dispatch | Gate file with mode switch | Parent task orchestrates subagents | Main agent (recursion prevention) | Parent dispatches custom roles with inline fallback | Project skill delegates when available | Main Pi session | Primary session dispatches bounded leaves | Executor dispatches allowlisted implementation/research/review leaves |
-| Instruction composition | Single `CLAUDE.md` | Modes + gates + rules | Shared skills + Bob 2 traits + modes | `@file.md` modular imports | `AGENTS.md` + `.agents/skills` | `.github/copilot-instructions.md` + project skills | `AGENTS.md` + `.pi/skills` | Single `QWEN.md` | Ultra-minimal `AGENTS.md` |
+| Aspect | Claude | Bob 2 | Antigravity | Codex | Copilot | Pi | Qwen | OpenCode |
+| -------- | -------- | ------- | --- | ------- | --------- | ---- | ------ | ---------- |
+| Dispatch model | Parallel subagents | `spawn_subagent` (`explore`, `camel-worker`, `camel-reviewer`) | Parent `invoke_subagent` to worker/reviewer | Project skills + custom agents | Project skills + custom agents | Project skills + prompt templates | Primary workflow + bounded named leaves/forks | `task` tool creating child sessions |
+| Template files | 3 | Modes + scoped agents/personas + traits + rules + dispatch | Project context + 2 custom agents + personas + traits | 10 | 11 | 5 | Generator + 4 leaves + traits/dispatch | 9 agent definitions + traits |
+| Tool restriction | Instruction-based | Mode tool groups + `allowedSubagents` | Native tool lists, inherited sandbox and permissions | Inherited sandbox/approvals + read-only research roles | Custom-agent `tools` plus hooks | Guard extension + external sandbox | Allowlist + blocklist | 3-state permissions + bash glob patterns |
+| Path-scoped edits | No | Mode-dependent `fileRegex` | Inherited workspace scopes; task output paths in instructions | No | Tool-level, not path-scoped | No | No | Yes (glob patterns) |
+| MCP auto-approval | No (manual) | No (manual) | No generated auto-approval | No (`prompt`) | No (permission prompts) | Adapter `directTools` | No (`includeTools`, approval prompts) | No (permission prompts) |
+| Parallel execution | Yes (graph-based) | Yes (same-turn `spawn_subagent`) | Yes (independent subagent calls) | Yes (independent waves) | Unknown | No native subagents | Yes (same-turn agents; detached forks) | Partial (LLM-level parallel tool calls) |
+| Subagent recursion | Yes (no limit) | No (subagents must not spawn subagents) | Generated children do not delegate | No (parent-owned) | Unknown | N/A | Generated leaves and forks cannot dispatch | Primary executor to task-denying leaves |
+| Execute phase | Subagent with parallel dispatch | Parent task orchestrates subagents | Parent owns orchestration and report writes | Parent dispatches custom roles with inline fallback | Project skill delegates when available | Main Pi session | Primary session dispatches bounded leaves | Executor dispatches allowlisted implementation/research/review leaves |
+| Instruction composition | Single `CLAUDE.md` | Shared skills + Bob 2 traits + modes | `AGENTS.md` + `.agents/skills/` | `AGENTS.md` + `.agents/skills` | `.github/copilot-instructions.md` + project skills | `AGENTS.md` + `.pi/skills` | Single `QWEN.md` | Ultra-minimal `AGENTS.md` |

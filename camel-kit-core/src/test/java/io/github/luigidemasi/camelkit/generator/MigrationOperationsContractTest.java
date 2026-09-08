@@ -49,7 +49,6 @@ class MigrationOperationsContractTest {
     @Test
     void migrationRiskAnalysisIsEvidenceBackedAndLoadBearing() throws Exception {
         String migrate = resource("skills/camel-migrate/SKILL.md");
-        String bobMigrate = resource("templates/bob/gates/camel-migrate.md");
         String analysis = resource("skills/camel-migrate/guides/migration-analysis.md");
         String normalizedAnalysis = analysis.replaceAll("\\s+", " ");
 
@@ -81,19 +80,6 @@ class MigrationOperationsContractTest {
                 "| C1 | guides/biztalk-phase1.md",
                 "| R1 | guides/migration-analysis.md",
                 "| C2 | guides/biztalk-phase2.md");
-        String bobPackage = bobMigrate.substring(bobMigrate.indexOf("## Generate the Vendor Design Package"));
-        assertOrdered(bobPackage,
-                "`mulesoft-phase1.md`",
-                "`.bob/skills/camel-migrate/guides/migration-analysis.md`",
-                "`mulesoft-phase2.md`");
-        assertOrdered(bobPackage,
-                "`camel-version-phase1.md`",
-                "`.bob/skills/camel-migrate/guides/migration-analysis.md`",
-                "`camel-version-phase2.md`");
-        assertOrdered(bobPackage,
-                "`biztalk-phase1.md`",
-                "`.bob/skills/camel-migrate/guides/migration-analysis.md`",
-                "`biztalk-phase2.md`");
 
         assertContainsAll(migrate,
                 "doc init --by camel-migrate docs/camel-kit/<PIPELINE_ID>/business-requirements.md",
@@ -101,14 +87,8 @@ class MigrationOperationsContractTest {
                 "doc init --by camel-migrate --from migration-analysis.md docs/camel-kit/<PIPELINE_ID>/design-spec.md",
                 "doc stale --reason \"business requirements changed\" --cascade docs/camel-kit/<PIPELINE_ID>/migration-analysis.md",
                 "doc stale --reason \"migration analysis changed\" --cascade docs/camel-kit/<PIPELINE_ID>/design-spec.md");
-        assertContainsAll(bobMigrate,
-                ".bob/skills/camel-migrate/guides/migration-analysis.md",
-                "doc init --by camel-migrate --from business-requirements.md docs/camel-kit/<PIPELINE_ID>/migration-analysis.md",
-                "doc init --by camel-migrate --from migration-analysis.md docs/camel-kit/<PIPELINE_ID>/design-spec.md");
         assertContainsAll(resource("skills/camel-plan/SKILL.md"),
                 "validate provenance from `camel-brainstorm` or `camel-migrate`");
-        assertContainsAll(resource("templates/bob/gates/camel-plan.md"),
-                "require matching `camel-brainstorm` or `camel-migrate` provenance");
 
         for (String phase2 : List.of(
                 "skills/camel-migrate/guides/mulesoft-phase2.md",
@@ -130,7 +110,6 @@ class MigrationOperationsContractTest {
                 resource("skills/camel-migrate/guides/camel-version-phase1.md"),
                 resource("skills/camel-migrate/guides/biztalk-phase1.md"),
                 analysis,
-                bobMigrate,
                 migrate);
         assertFalse(BLANKET_COMPATIBILITY.matcher(compatibilityContracts).find(),
                 "Migration resources must not assign API compatibility by default");
@@ -139,7 +118,6 @@ class MigrationOperationsContractTest {
     @Test
     void sourceRetirementAuditIsCoverageQualifiedAndLoadBearing() throws Exception {
         String migrate = resource("skills/camel-migrate/SKILL.md");
-        String bobMigrate = resource("templates/bob/gates/camel-migrate.md");
         String audit = resource("skills/camel-migrate/guides/source-retirement-audit.md");
         String normalizedAudit = audit.replaceAll("\\s+", " ");
 
@@ -208,15 +186,6 @@ class MigrationOperationsContractTest {
                 "| C1 | guides/biztalk-phase1.md",
                 sharedAuditRow,
                 "| C2 | guides/biztalk-phase2.md");
-
-        String bobPackage = bobMigrate.substring(bobMigrate.indexOf("## Generate the Vendor Design Package"));
-        for (String vendor : List.of("mulesoft", "camel-version", "biztalk")) {
-            assertOrdered(bobPackage,
-                    "`" + vendor + "-phase1.md`",
-                    "`.bob/skills/camel-migrate/guides/migration-analysis.md`",
-                    "`.bob/skills/camel-migrate/guides/source-retirement-audit.md`",
-                    "`" + vendor + "-phase2.md`");
-        }
 
         for (String phase2 : List.of(
                 "skills/camel-migrate/guides/mulesoft-phase2.md",
@@ -290,8 +259,7 @@ class MigrationOperationsContractTest {
         assertFalse(discovery.contains("ALL routes and ALL projects are migrated. Every time. No exceptions."));
 
         for (String validationResource : List.of(
-                "skills/camel-validate/guides/graph-dead-code-report.md",
-                "templates/bob/gates/camel-validate.md")) {
+                "skills/camel-validate/guides/graph-dead-code-report.md")) {
             String validationCandidates = resource(validationResource);
             assertContainsAll(validationCandidates,
                     "unusedArtifacts", "orphanedRoutes", "unusedProperties", "structural candidate");
@@ -308,7 +276,6 @@ class MigrationOperationsContractTest {
         String rawAnalysis = resource("skills/camel-migrate/guides/migration-analysis.md");
         String analysis = normalizeMarkdown(rawAnalysis);
         String migrate = normalizeMarkdown(resource("skills/camel-migrate/SKILL.md"));
-        String bobMigrate = normalizeMarkdown(resource("templates/bob/gates/camel-migrate.md"));
         int outputStart = rawAnalysis.indexOf("> **Output:**");
         int outputEnd = rawAnalysis.indexOf("\n\n", outputStart);
         assertTrue(outputStart >= 0 && outputEnd > outputStart, "Migration analysis must declare its outputs");
@@ -458,27 +425,6 @@ class MigrationOperationsContractTest {
         String r1Allowlist = "The R1 write allowlist contains exactly the validated `business-requirements.md` and "
                              + "`migration-analysis.md` paths; no other artifact may be written";
         assertContainsAll(migrate, r1Allowlist);
-        assertContainsAll(bobMigrate, r1Allowlist);
-
-        String bobPackage = bobMigrate.substring(bobMigrate.indexOf("## Generate the Vendor Design Package"));
-        assertOrdered(bobPackage,
-                "Run the detected vendor's Phase 1 guide first",
-                "Next read `.bob/skills/camel-migrate/guides/migration-analysis.md`",
-                "Then read `.bob/skills/camel-migrate/guides/source-retirement-audit.md`",
-                "return to the deferred migration-strategy pass",
-                "Only after the deferred strategy pass finishes");
-        assertContainsAll(bobMigrate,
-                "classifies each independently switchable scope as exactly `Incremental candidate`, "
-                                      + "`Single cutover required`, or `Undetermined - evidence needed`",
-                "Concrete `### Incremental / Strangler Guidance` is allowed only for a scope classified "
-                                                                                                          + "`Incremental candidate` from complete, Confirmed safe-seam evidence",
-                "`Undetermined - evidence needed` blocks that guidance",
-                "`business-requirements.md` must have `## Migration Strategy` and `design-spec.md` must have "
-                                                                         + "`### Migration Strategy Constraints`",
-                "`Covered Ingress IDs` form an exact, non-overlapping partition of every enumerated ingress/root "
-                                                                                                                   + "`MIG-###` and `SRC-###` ID",
-                "the design preserves the identical scope-to-ID mapping",
-                "preserve its classification plus supporting `MIG-###` and `SRC-###` evidence IDs");
 
         for (String phase2 : List.of(
                 "skills/camel-migrate/guides/mulesoft-phase2.md",
@@ -504,10 +450,8 @@ class MigrationOperationsContractTest {
         }
 
         for (String dispatchTemplate : List.of(
-                "templates/dispatch/bob.md",
                 "templates/dispatch/claude.md",
-                "templates/dispatch/copilot.md",
-                "templates/dispatch/gemini.md")) {
+                "templates/dispatch/copilot.md")) {
             String dispatch = normalizeMarkdown(resource(dispatchTemplate));
             assertContainsAll(dispatch,
                     "{output-paths}",
@@ -532,7 +476,7 @@ class MigrationOperationsContractTest {
         String staleDesign = "doc stale --reason \"migration analysis changed\" --cascade "
                              + "docs/camel-kit/<PIPELINE_ID>/design-spec.md";
         String unstaleDesign = "doc unstale docs/camel-kit/<PIPELINE_ID>/design-spec.md";
-        for (String orchestrator : List.of(migrate, bobMigrate)) {
+        for (String orchestrator : List.of(migrate)) {
             assertOrdered(orchestrator,
                     initRequirements,
                     initAnalysis,
@@ -623,19 +567,14 @@ class MigrationOperationsContractTest {
     @Test
     void migrationRunbookGenerationAndStalenessFollowTheDesignBranch() throws Exception {
         String migrate = normalizeMarkdown(resource("skills/camel-migrate/SKILL.md"));
-        String bobMigrate = normalizeMarkdown(resource("templates/bob/gates/camel-migrate.md"));
         String infrastructure = normalizeMarkdown(resource("skills/shared/pipeline-infrastructure.md"));
         String brainstorm = normalizeMarkdown(resource("skills/camel-brainstorm/SKILL.md"));
-        String bobBrainstorm = normalizeMarkdown(resource("templates/bob/gates/camel-brainstorm.md"));
         String replan = normalizeMarkdown(resource("skills/camel-execute/guides/re-plan-loop.md"));
         String initRunbook = "doc init --by camel-migrate --from design-spec.md "
                              + "docs/camel-kit/<PIPELINE_ID>/migration-runbook.md";
 
         assertContainsAll(migrate,
                 "| R2 | guides/migration-runbook.md | — | 3.5K | After Phase 2 and final runtime-eligibility recheck |");
-        assertContainsAll(bobMigrate,
-                "| `.bob/skills/camel-migrate/guides/migration-runbook.md` | Deployment, cutover, rollback, and "
-                                      + "retirement runbook |");
         String canonicalCompletion = migrate.substring(migrate.indexOf("## Complete the Design Phase"));
         assertOrdered(canonicalCompletion,
                 "Recheck the completed design before approval",
@@ -643,15 +582,8 @@ class MigrationOperationsContractTest {
                 initRunbook,
                 "Present `business-requirements.md`, `migration-analysis.md`, `design-spec.md`, and "
                              + "`migration-runbook.md` together exactly once");
-        String bobPackage = bobMigrate.substring(bobMigrate.indexOf("## Generate the Vendor Design Package"));
-        assertOrdered(bobPackage,
-                "Recheck the completed design before generating the runbook",
-                "Read `.bob/skills/camel-migrate/guides/migration-runbook.md`, then generate and validate",
-                initRunbook,
-                "Present `business-requirements.md`, `migration-analysis.md`, `design-spec.md`, and "
-                             + "`migration-runbook.md` together exactly once");
 
-        for (String entrypoint : List.of(canonicalCompletion, bobPackage)) {
+        for (String entrypoint : List.of(canonicalCompletion)) {
             assertContainsAll(entrypoint,
                     "from the validated final business requirements, migration analysis, design, target configuration, "
                                           + "current operational evidence, and explicit operator decisions",
@@ -686,13 +618,6 @@ class MigrationOperationsContractTest {
                 "doc stale --reason \"design spec amended\" --cascade <implementation-plan-path>",
                 "separately for each existing direct child",
                 "without marking the amended design itself stale");
-        assertContainsAll(bobBrainstorm,
-                "doc stale --reason \"design spec amended\" --cascade "
-                                         + "docs/camel-kit/<PIPELINE_ID>/migration-runbook.md",
-                "doc stale --reason \"design spec amended\" --cascade "
-                                                                                                + "docs/camel-kit/<PIPELINE_ID>/implementation-plan.md",
-                "stale each existing direct child separately",
-                "Never target the freshly amended design itself");
 
         assertOrdered(replan,
                 "doc stale --reason \"design changed by re-plan\" --cascade <migration-runbook-path>",

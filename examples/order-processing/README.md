@@ -7,8 +7,7 @@ This example demonstrates how to use Camel-Kit's workflow to design and implemen
 Initialize a new Camel-Kit project using the CLI:
 ```bash
 # Choose your AI assistant
-camel-kit init my-integration --ai bob        # Bob
-camel-kit init my-integration --ai gemini     # Gemini CLI
+camel-kit init my-integration --ai antigravity     # Google Antigravity
 camel-kit init my-integration --ai claude     # Claude Code
 camel-kit init my-integration --ai qwen       # Qwen Code
 camel-kit init my-integration --ai opencode   # OpenCode

@@ -105,9 +105,16 @@ class Bob2GeneratorTest {
 
     @Test
     void switchingFromBob1RemovesOnlyBob1ModeRules() throws Exception {
-        new BobGenerator().generate(createContext("bob"));
-        List<String> bob1Rules = registeredModeRules("bob");
+        List<String> bob1Rules = List.of(
+                ".bob/rules-camel-brainstorm-mode/interview-gates.md",
+                ".bob/rules-camel-plan-mode/plan-structure.md",
+                ".bob/rules-camel-implement-mode/implementation.md",
+                ".bob/rules-camel-validate-mode/validation.md",
+                ".bob/rules-camel-test-mode/testing.md");
         for (String rule : bob1Rules) {
+            Path current = tempDir.resolve(rule);
+            Files.createDirectories(current.getParent());
+            Files.writeString(current, "obsolete Bob 1 rule");
             Path file = tempDir.resolve(legacyModeRule(rule));
             Files.createDirectories(file.getParent());
             Files.writeString(file, "obsolete Bob 1 rule");
@@ -257,7 +264,8 @@ class Bob2GeneratorTest {
                         .filter(path -> path.getFileName().toString().endsWith(".md"))
                         .toList()) {
                     if (!file.equals(userSkill)) {
-                        assertFalse(Pattern.compile("(?<!\\.bob/)agents/").matcher(Files.readString(file)).find(),
+                        assertFalse(
+                                Pattern.compile("(?<!\\.)(?<!\\.bob/)agents/").matcher(Files.readString(file)).find(),
                                 file.toString());
                     }
                 }
@@ -473,27 +481,6 @@ class Bob2GeneratorTest {
             }
         }
         assertEquals(PUBLIC_COMMANDS, discovered);
-    }
-
-    @Test
-    void doesNotChangeLegacyBobGenerationContract() throws Exception {
-        AgentConfig bob = AgentRegistry.get("bob");
-        String agentBaseFolder = bob.folder().substring(0, bob.folder().lastIndexOf("/"));
-        InitContext bobCtx = new InitContext(
-                bob, "bob", tempDir.resolve("legacy").resolve(bob.folder()),
-                tempDir.resolve("legacy").resolve(agentBaseFolder + "/skills"),
-                tempDir.resolve("legacy"), "camel-kit", Printer.noop());
-
-        new BobGenerator().generate(bobCtx);
-
-        String command = Files.readString(bobCtx.commandsDir().resolve("camel-execute.md"));
-        assertEquals("Read .bob/skills/camel-execute/SKILL.md and follow those instructions", command);
-
-        String executeSkill = Files.readString(bobCtx.skillsDir().resolve("camel-execute/SKILL.md"));
-        assertTrue(executeSkill.contains("CHECKPOINT"));
-        assertTrue(executeSkill.contains("Switch to"));
-        assertFalse(executeSkill.contains("user-invocable:"));
-        assertFalse(executeSkill.contains("<!-- TRAIT:bob2 -->"));
     }
 
     private void assertSingleBlankLineBeforeDispatch(String content) {

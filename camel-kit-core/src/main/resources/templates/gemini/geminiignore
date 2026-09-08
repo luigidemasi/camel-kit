@@ -1,4 +1,0 @@
-target/
-*.class
-*.jar
-.camel-kit/mcp/

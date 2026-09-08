@@ -46,9 +46,6 @@ class CommandStubGenerator {
                 content += ". Requested input: " + placeholder;
             }
         }
-        if ("toml".equals(ctx.agent().fileFormat())) {
-            return wrapInToml(command.shortName(), content);
-        }
         if ("opencode".equals(ctx.agentName()) && "camel-execute".equals(command.name())) {
             return wrapInOpenCodeMarkdown(command, content);
         }
@@ -77,17 +74,6 @@ class CommandStubGenerator {
                 ---
                 %s
                 """, yamlDoubleQuoted(command.description()), yamlDoubleQuoted(commandArgumentHint(command)), content);
-    }
-
-    private String wrapInToml(String cmd, String content) {
-        String escaped = content.replace("\"\"\"", "\\\"\\\"\\\"");
-        return String.format(Locale.ROOT, """
-                description = "Camel-Kit %s command"
-
-                prompt = \"\"\"
-                %s
-                \"\"\"
-                """, cmd, escaped);
     }
 
     private String commandArgumentHint(WorkflowCommand command) {

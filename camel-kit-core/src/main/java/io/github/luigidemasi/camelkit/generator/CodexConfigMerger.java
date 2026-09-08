@@ -1,10 +1,8 @@
 package io.github.luigidemasi.camelkit.generator;
 
 import java.io.IOException;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.List;
 
 import org.tomlj.Toml;
@@ -27,7 +25,8 @@ final class CodexConfigMerger {
         String existing = Files.isRegularFile(configFile) ? Files.readString(configFile) : "";
         String merged = merge(existing, managedBlock);
         validateToml(merged, configFile.toString());
-        atomicWrite(configFile, merged + (merged.endsWith(System.lineSeparator()) ? "" : System.lineSeparator()));
+        AtomicFileWriter.write(configFile,
+                merged + (merged.endsWith(System.lineSeparator()) ? "" : System.lineSeparator()));
     }
 
     private String merge(String existing, String managedBlock) throws IOException {
@@ -68,20 +67,6 @@ final class CodexConfigMerger {
         TomlParseResult parsed = Toml.parse(content);
         if (parsed.hasErrors()) {
             throw new IOException(source + " is not valid TOML: " + parsed.errors().get(0));
-        }
-    }
-
-    private void atomicWrite(Path target, String content) throws IOException {
-        Path temp = Files.createTempFile(target.getParent(), target.getFileName().toString(), ".tmp");
-        try {
-            Files.writeString(temp, content);
-            try {
-                Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-            } catch (AtomicMoveNotSupportedException e) {
-                Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
-            }
-        } finally {
-            Files.deleteIfExists(temp);
         }
     }
 }

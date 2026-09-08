@@ -59,7 +59,7 @@ public final class TemplateUtils {
      * Read a template file from bundled resources, returning {@code null} instead of throwing if the template cannot be
      * found.
      *
-     * @param  templatePath the path to the template (e.g., "templates/bob/gates/camel-plan.md")
+     * @param  templatePath the path to the template (e.g., "templates/antigravity/agents-md.md")
      * @return              the template content, or {@code null} if the template cannot be loaded
      */
     public static String readTemplateOrNull(String templatePath) {

@@ -29,6 +29,7 @@ import io.github.luigidemasi.camelkit.graph.ParserDiagnostic;
 import io.github.luigidemasi.camelkit.util.PrerequisiteChecker;
 import io.github.luigidemasi.camelkit.util.ProcessRunner;
 
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -46,13 +47,13 @@ public class DoctorService {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final ObjectMapper YAML_MAPPER = new ObjectMapper(new YAMLFactory());
     private static final String NESTED_RULE = "\n";
-    private static final ObjectMapper OPENCODE_MAPPER = OpenCodeProjectConfig.newJsonMapper();
+    private static final ObjectMapper JSONC_MAPPER = OpenCodeProjectConfig.newJsonMapper();
+    private static final ObjectMapper ANTIGRAVITY_MAPPER = OpenCodeProjectConfig.newJsonMapper()
+            .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
     private static final Duration PREREQUISITE_TIMEOUT = Duration.ofSeconds(3);
     private static final Set<String> PRE_CITRUS_JSON_AGENTS = Set.of(
-            AgentGeneratorStrategy.BOB.descriptorValue(),
             AgentGeneratorStrategy.BOB2.descriptorValue(),
             AgentGeneratorStrategy.CLAUDE.descriptorValue(),
-            AgentGeneratorStrategy.GEMINI.descriptorValue(),
             AgentGeneratorStrategy.OPENCODE.descriptorValue(),
             AgentGeneratorStrategy.QWEN.descriptorValue());
     private static final Set<String> OPENCODE_PERMISSION_ACTIONS = Set.of("allow", "ask", "deny");
@@ -134,8 +135,10 @@ public class DoctorService {
         }
         if (!AgentRegistry.contains(agentName)) {
             findings.add(DoctorFinding.fail("config", ".camel-kit/config.properties",
-                    "Unknown agent.name '" + agentName + "'",
-                    "Set agent.name to one of: " + String.join(", ", AgentRegistry.names()) + "."));
+                    AgentRegistry.unsupportedAgentMessage(agentName),
+                    "Re-run camel-kit init --here --ai <supported-agent> --force. Supported agents: "
+                                                                      + String.join(", ", AgentRegistry.names())
+                                                                      + "."));
             return null;
         }
 
@@ -502,6 +505,8 @@ public class DoctorService {
                 .equals(normalizedAgentName);
         boolean openCodeSchema = AgentGeneratorStrategy.OPENCODE.descriptorValue()
                 .equals(normalizedAgentName);
+        boolean antigravitySchema = AgentGeneratorStrategy.ANTIGRAVITY.descriptorValue()
+                .equals(normalizedAgentName);
         Path mcpFile = mcpConfigPath(root, agentName);
         if (mcpFile == null) {
             findings.add(DoctorFinding.fail("mcp", null,
@@ -536,16 +541,26 @@ public class DoctorService {
             }
 
             try {
-                rootNode = MAPPER.readTree(mcpFile.toFile());
+                rootNode = (antigravitySchema ? ANTIGRAVITY_MAPPER : MAPPER).readTree(mcpFile.toFile());
             } catch (IOException e) {
                 findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
                         "MCP config is not valid JSON: " + e.getMessage(),
-                        "Fix the JSON syntax or regenerate the MCP config with camel-kit init --here --force."));
+                        antigravitySchema
+                                ? "Fix JSON syntax and remove duplicate keys before regenerating with "
+                                  + "camel-kit init --here --ai antigravity --force."
+                                : "Fix the JSON syntax or regenerate the MCP config with camel-kit init --here --force."));
                 return;
             }
         }
 
-        JsonNode servers = rootNode.has("mcp") ? rootNode.path("mcp") : rootNode.path("mcpServers");
+        if (rootNode == null || !rootNode.isObject()) {
+            findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                    "MCP config must be a JSON object",
+                    "Restore the MCP config or re-run camel-kit init --here --force."));
+            return;
+        }
+        JsonNode servers
+                = !antigravitySchema && rootNode.has("mcp") ? rootNode.path("mcp") : rootNode.path("mcpServers");
         if (!servers.isObject()) {
             findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
                     "MCP config does not contain an mcp or mcpServers object",
@@ -556,10 +571,10 @@ public class DoctorService {
         int findingsBeforeServerChecks = findings.size();
         boolean camelOk = checkMcpServer(
                 root, mcpFile, servers, "camel", expectations.camelMcpTools(), copilotToolsSchema,
-                piDirectToolsSchema, qwenIncludeToolsSchema, openCodeSchema, findings);
+                piDirectToolsSchema, qwenIncludeToolsSchema, openCodeSchema, antigravitySchema, findings);
         boolean knowledgeOk = checkMcpServer(
                 root, mcpFile, servers, "camel-knowledge", expectations.knowledgeMcpTools(), copilotToolsSchema,
-                piDirectToolsSchema, qwenIncludeToolsSchema, openCodeSchema, findings);
+                piDirectToolsSchema, qwenIncludeToolsSchema, openCodeSchema, antigravitySchema, findings);
         boolean citrusOptional = PRE_CITRUS_JSON_AGENTS.contains(normalizedAgentName)
                 && !config.containsKey("citrus.version")
                 && !config.containsKey("citrus.mcp.version");
@@ -567,7 +582,7 @@ public class DoctorService {
         if (servers.has("citrus") || !citrusOptional) {
             citrusOk = checkMcpServer(
                     root, mcpFile, servers, "citrus", expectations.citrusMcpTools(), copilotToolsSchema,
-                    piDirectToolsSchema, qwenIncludeToolsSchema, openCodeSchema, findings);
+                    piDirectToolsSchema, qwenIncludeToolsSchema, openCodeSchema, antigravitySchema, findings);
         } else {
             // Only legacy-capable JSON agents without persisted Citrus metadata reach this branch.
             findings.add(DoctorFinding.warn("mcp", relativize(root, mcpFile),
@@ -583,6 +598,8 @@ public class DoctorService {
         if (camelOk && knowledgeOk && citrusOk && openCodePermissionsOk && !warned) {
             String message = openCodeSchema
                     ? "OpenCode MCP config uses supported server fields; tool calls retain OpenCode permission prompts"
+                    : antigravitySchema
+                            ? "Antigravity MCP servers are configured; tool access remains subject to Antigravity permissions"
                     : "MCP config exists and tool allowlists match Camel-Kit expectations";
             findings.add(DoctorFinding.pass("mcp", relativize(root, mcpFile),
                     message,
@@ -592,7 +609,7 @@ public class DoctorService {
 
     private OpenCodeConfiguration readOpenCodeConfiguration(
             Path root, Path defaultFile, List<DoctorFinding> findings) {
-        ObjectNode effective = OPENCODE_MAPPER.createObjectNode();
+        ObjectNode effective = JSONC_MAPPER.createObjectNode();
         Map<String, Path> permissionSources = new LinkedHashMap<>();
         Path effectiveFile = null;
         List<Path> candidates;
@@ -622,8 +639,8 @@ public class DoctorService {
             try {
                 byte[] content = Files.readAllBytes(candidate);
                 parsed = new String(content, StandardCharsets.UTF_8).replace("\uFEFF", "").isBlank()
-                        ? OPENCODE_MAPPER.createObjectNode()
-                        : OPENCODE_MAPPER.readTree(content);
+                        ? JSONC_MAPPER.createObjectNode()
+                        : JSONC_MAPPER.readTree(content);
             } catch (IOException e) {
                 findings.add(DoctorFinding.fail("mcp", relativize(root, candidate),
                         "OpenCode configuration is not valid JSON or JSONC: " + e.getMessage(),
@@ -799,7 +816,7 @@ public class DoctorService {
     private boolean checkMcpServer(
             Path root, Path mcpFile, JsonNode servers, String serverName, Set<String> expected,
             boolean copilotToolsSchema, boolean piDirectToolsSchema, boolean qwenIncludeToolsSchema,
-            boolean openCodeSchema, List<DoctorFinding> findings) {
+            boolean openCodeSchema, boolean antigravitySchema, List<DoctorFinding> findings) {
         JsonNode server = servers.path(serverName);
         if (!server.isObject()) {
             findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
@@ -820,10 +837,64 @@ public class DoctorService {
         if (openCodeSchema) {
             return checkOpenCodeServer(root, mcpFile, serverName, server, findings);
         }
+        if (antigravitySchema) {
+            return checkAntigravityServer(root, mcpFile, serverName, server, expected, findings);
+        }
 
         boolean autoApproveOk = checkAllowlist(root, mcpFile, serverName, "autoApprove", server, expected, findings);
         boolean alwaysAllowOk = checkAllowlist(root, mcpFile, serverName, "alwaysAllow", server, expected, findings);
         return autoApproveOk && alwaysAllowOk;
+    }
+
+    private boolean checkAntigravityServer(
+            Path root, Path mcpFile, String serverName, JsonNode server, Set<String> expected,
+            List<DoctorFinding> findings) {
+        List<String> problems = new ArrayList<>();
+        boolean command = server.path("command").isTextual() && !server.path("command").asText().isBlank();
+        boolean remote = server.path("serverUrl").isTextual() && !server.path("serverUrl").asText().isBlank();
+        if (command == remote) {
+            problems.add("requires either command or serverUrl");
+        }
+        if (server.has("args") && (!server.path("args").isArray()
+                || !stringArray(server.path("args")))) {
+            problems.add("args must be an array of strings");
+        }
+        if (server.has("disabled") && (!server.path("disabled").isBoolean() || server.path("disabled").asBoolean())) {
+            problems.add("disabled must be absent or false");
+        }
+        if (server.has("disabledTools")) {
+            JsonNode disabled = server.path("disabledTools");
+            if (!disabled.isArray() || !stringArray(disabled)) {
+                problems.add("disabledTools must be an array of strings");
+            } else {
+                disabled.forEach(tool -> {
+                    if (expected.contains(tool.asText())) {
+                        problems.add("required tool is disabled: " + tool.asText());
+                    }
+                });
+            }
+        }
+        for (String unsupported : List.of("autoApprove", "alwaysAllow", "includeTools", "trust", "url", "httpUrl")) {
+            if (server.has(unsupported)) {
+                problems.add("unsupported field " + unsupported);
+            }
+        }
+        if (!problems.isEmpty()) {
+            findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
+                    "Antigravity MCP server '" + serverName + "': " + String.join("; ", problems),
+                    "Restore the supported MCP fields or re-run camel-kit init --here --ai antigravity --force."));
+            return false;
+        }
+        return true;
+    }
+
+    private boolean stringArray(JsonNode array) {
+        for (JsonNode value : array) {
+            if (!value.isTextual()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean checkQwenTools(
