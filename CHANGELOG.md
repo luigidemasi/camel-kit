@@ -398,11 +398,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Bob Shell 2.0.2 command discovery (#213)** — Bob 2 generation marks the nine public
+- **Bob 2 native workflow discovery (#213)** — Bob 2 generation marks the nine public
   command skills user-invocable in both metadata spellings, making them available through
-  `/skills` and `$camel-*`. Setup guidance distinguishes Shell skills from IDE slash
-  commands. Regeneration repairs earlier workspaces;
-  internal helpers, Bob IDE command stubs, and Ship CLI delegation are preserved.
+  `/skills` and `$camel-*` in Shell and `/camel-*` in IDE. Setup guidance documents both
+  native entry points. Doctor identifies hidden or empty public skills and unreadable
+  invocation metadata, with regeneration instructions. Regeneration repairs earlier workspaces;
+  internal helpers, compatibility command stubs, and Ship CLI delegation are preserved.
 
 - **JBang launcher release synchronization (#145)** — Maven release preparation now keeps both tracked launcher fallbacks aligned with the release version and the following development snapshot.
 

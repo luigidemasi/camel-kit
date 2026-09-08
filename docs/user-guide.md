@@ -162,7 +162,8 @@ camel kit init --here --ai codex
 
 ### Bob Shell 2.0.2
 
-Use `--ai bob2` for Bob Shell 2.0.2 and Bob IDE 2. In Bob Shell, start from the
+Use `--ai bob2` for both Bob Shell and Bob IDE. These entry points are verified with
+Bob Shell 2.0.2 and Bob IDE 2.1.0. In Bob Shell, start from the
 initialized project root, open `/skills` or type `$camel-`, and select one of the nine
 public skills: `camel-start`, `camel-brainstorm`, `camel-migrate`, `camel-plan`,
 `camel-execute`, `camel-validate`, `camel-ship`, `camel-knowledge`, and `camel-debug`.
@@ -175,14 +176,20 @@ $camel-ship --document requirements.md --text "Preserve HTTP status codes"
 
 Bob Shell's native skill picker uses `$camel-*`. Its `/` picker contains built-in
 commands and MCP prompts; `/camel-*` workflow names in this guide correspond to
-`$camel-*` skills in Bob Shell. Bob IDE 2 uses the generated `/camel-*` command stubs.
+`$camel-*` skills in Bob Shell. Bob IDE exposes the same native skills through
+`/camel-*`. Legacy command stubs remain installed for compatibility.
 `$camel-ship` forwards the supplied options to the registered `camel-kit ship` or
 `camel kit ship` command once, without adding defaults.
 
-With the fix, generated `.bob/skills/*/SKILL.md` files set both `user_invocable: true`
+Generated `.bob/skills/*/SKILL.md` files set both `user_invocable: true`
 and `user-invocable: true` for the nine public skills. The four internal helpers
-remain hidden. Bob Shell skips migrating `.bob/commands/` stubs when same-name native
-skills already exist, so those stubs cannot repair hidden skill metadata.
+remain hidden. The verified Shell and IDE versions skip migrating `.bob/commands/`
+stubs when same-name native skills already exist, so those stubs cannot repair hidden
+skill metadata or create duplicate entries.
+
+Run `camel-kit doctor` (or `camel kit doctor`) to diagnose hidden public skills. Doctor
+reports each affected `SKILL.md` as `FAIL` with regeneration instructions, including
+when a nested `metadata.user-invocable` value overrides the top-level field.
 
 If only `$camel-start` appears in the skill picker, upgrade to a build containing the
 [#213 fix](https://github.com/luigidemasi/camel-kit/issues/213), exit Bob, and regenerate

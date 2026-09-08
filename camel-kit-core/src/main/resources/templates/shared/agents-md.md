@@ -6,11 +6,12 @@ Direct skill invocation → `/camel-brainstorm`, `/camel-migrate`, `/camel-plan`
 {#if BOB2}
 ## Bob entry points
 
-In Bob Shell 2.0.2, open `/skills` or type `$camel-` to select a native skill.
+In Bob Shell, open `/skills` or type `$camel-` to select a native skill.
 Use `$camel-start` for routing and `$camel-migrate` for migration, with the request
 after the skill name. Interpret `/camel-*` workflow references in these instructions
 as the corresponding `$camel-*` skill in Bob Shell. `$camel-ship` forwards the supplied
-options to the CLI once. In Bob IDE 2, use the `/camel-*` command stubs.
+options to the CLI once. In Bob IDE, use `/camel-*` to invoke the corresponding native
+skill. Legacy command stubs remain installed for compatibility.
 
 {/if}
 ## Laws (NEVER violate)
