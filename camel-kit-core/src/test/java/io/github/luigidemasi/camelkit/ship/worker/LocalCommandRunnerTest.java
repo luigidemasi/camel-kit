@@ -5,9 +5,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -624,6 +627,48 @@ class LocalCommandRunnerTest {
         assertTrue(Files.readString(result.stderrLog()).contains("not a git repository"),
                 Files.readString(result.stderrLog()));
         assertFalse(Files.readString(result.stdoutLog()).contains(repository.toString()));
+    }
+
+    @Test
+    void refusesToLaunchWhereGitDiscoveryCannotBeBounded() throws Exception {
+        Path git = executableOnPath("git");
+        Assumptions.assumeTrue(git != null, "git is not installed");
+        Path repository = Files.createDirectory(temporaryDirectory.resolve("colon:project"));
+        Process init = new ProcessBuilder(git.toString(), "init", "-q")
+                .directory(repository.toFile())
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .redirectError(ProcessBuilder.Redirect.DISCARD)
+                .start();
+        assertEquals(0, init.waitFor());
+        Files.writeString(repository.resolve("live-only.txt"), "live");
+        Path candidate = Files.createDirectories(
+                repository.resolve(".camel-kit/ship/state/run/workspace/candidate"));
+        Path evidence = Files.createDirectory(temporaryDirectory.resolve("colon-evidence"));
+        List<LocalCommandRunner> runners = List.of(
+                new LocalCommandRunner(),
+                new LocalCommandRunner(
+                        Clock.systemUTC(), Map.of(
+                                "PATH", Objects.requireNonNull(System.getenv("PATH"), "test PATH"))));
+
+        for (LocalCommandRunner runner : runners) {
+            IOException failure = assertThrows(
+                    IOException.class,
+                    () -> runner.run(new Command(
+                            git,
+                            List.of("add", "-A"),
+                            candidate,
+                            evidence,
+                            Duration.ofSeconds(10),
+                            4096)));
+            assertTrue(failure.getMessage().contains("':'"), failure.getMessage());
+        }
+        Process status = new ProcessBuilder(git.toString(), "status", "--porcelain")
+                .directory(repository.toFile())
+                .redirectError(ProcessBuilder.Redirect.DISCARD)
+                .start();
+        String porcelain = new String(status.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        assertEquals(0, status.waitFor());
+        assertTrue(porcelain.contains("?? live-only.txt"), porcelain);
     }
 
     private static Path executableOnPath(String name) {

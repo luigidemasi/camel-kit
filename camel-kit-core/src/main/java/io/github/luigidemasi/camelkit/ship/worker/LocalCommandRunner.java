@@ -491,11 +491,12 @@ final class LocalCommandRunner {
      * Stops Git from discovering a repository above {@code workingDirectory}. A staged workspace nested inside a
      * project must not let worker or validation commands reach the live repository.
      */
-    static void boundGitDiscovery(Map<String, String> environment, Path workingDirectory) {
+    static void boundGitDiscovery(Map<String, String> environment, Path workingDirectory) throws IOException {
         Path parent = workingDirectory.getParent();
-        if (parent != null) {
-            environment.put("GIT_CEILING_DIRECTORIES", parent.toString());
+        if (parent == null) {
+            throw new IOException("Git discovery cannot be bounded above the filesystem root");
         }
+        ShipTreePolicy.boundGitDiscovery(environment, parent);
     }
 
     static Path trustedHelper(Path path, String name) throws IOException {

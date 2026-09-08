@@ -1158,6 +1158,28 @@ class PiWorkerTest {
     }
 
     @Test
+    void refusesAnExecuteWorkspaceWhereGitDiscoveryCannotBeBounded() throws Exception {
+        Path candidate = Files.createDirectories(
+                temporaryDirectory.resolve("colon:project/.camel-kit/ship/state/run/workspace/candidate"));
+
+        IOException failure = assertThrows(
+                IOException.class,
+                () -> worker(Duration.ofSeconds(5)).run(new PiWorker.Request(
+                        RUN_ID,
+                        ShipRun.Stage.EXECUTE,
+                        1,
+                        candidate,
+                        sessions,
+                        evidence,
+                        inputDigest(),
+                        true,
+                        "prompt")));
+
+        assertTrue(failure.getMessage().contains("':'"), failure.getMessage());
+        assertFalse(Files.exists(fixture.resolve("cwd")));
+    }
+
+    @Test
     void rejectsInsecureSessionDirectoryBeforeLaunchingPi() throws Exception {
         Files.setPosixFilePermissions(
                 sessions, PosixFilePermissions.fromString("rwxr-x---"));

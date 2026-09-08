@@ -398,6 +398,16 @@ class ShipControllerTest {
     }
 
     @Test
+    void rejectsAProjectPathContainingAColon() throws Exception {
+        Path project = Files.createDirectory(directory.resolve("colon:project"));
+
+        assertFailure(
+                "project-invalid",
+                () -> controller("state").start(project, Oversight.NEVER, List.of()));
+        assertFalse(Files.exists(directory.resolve("state")));
+    }
+
+    @Test
     void rejectsInvalidProjectRootsWithExactCodes() throws Exception {
         ShipController controller = controller("state");
 

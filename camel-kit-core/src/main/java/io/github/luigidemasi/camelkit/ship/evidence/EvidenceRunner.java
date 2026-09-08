@@ -274,15 +274,16 @@ public final class EvidenceRunner {
     }
 
     private static Map<String, String> controlledEnvironment(
-            Path sandboxRoot, Path privateHome, Path privateTemporaryDirectory, EvidenceCommand command) {
+            Path sandboxRoot, Path privateHome, Path privateTemporaryDirectory, EvidenceCommand command)
+            throws IOException {
         Map<String, String> environment = new LinkedHashMap<>();
         environment.put("LANG", "C");
         environment.put("LC_ALL", "C");
         environment.put("HOME", privateHome.toString());
         environment.put("TMPDIR", privateTemporaryDirectory.toString());
-        // The frozen snapshot has no repository; Git must not discover the live project above the sandbox.
-        environment.put("GIT_CEILING_DIRECTORIES", sandboxRoot.toString());
         environment.putAll(command.environment());
+        // The frozen snapshot has no repository; Git must not discover the live project above the sandbox.
+        ShipTreePolicy.boundGitDiscovery(environment, sandboxRoot);
         return Map.copyOf(environment);
     }
 
