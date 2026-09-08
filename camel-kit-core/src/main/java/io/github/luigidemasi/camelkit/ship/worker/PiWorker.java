@@ -307,6 +307,7 @@ public final class PiWorker {
             RpcRun turn = runRpc(
                     arguments,
                     workingDirectory,
+                    request.stage() == ShipRun.Stage.EXECUTE,
                     scratch.directory(),
                     sessionDirectory,
                     evidenceDirectory,
@@ -513,6 +514,7 @@ public final class PiWorker {
     private RpcRun runRpc(
             List<String> arguments,
             Path workingDirectory,
+            boolean staged,
             Path sessionDirectory,
             Path canonicalSessionDirectory,
             Path evidenceDirectory,
@@ -539,6 +541,9 @@ public final class PiWorker {
                 .directory(workingDirectory.toFile());
         builder.environment().clear();
         builder.environment().putAll(environment);
+        if (staged) {
+            LocalCommandRunner.boundGitDiscovery(builder.environment(), workingDirectory);
+        }
         Process process = builder.start();
         Thread shutdownHook = new Thread(
                 () -> terminateRpc(process, kill),

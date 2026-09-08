@@ -15,6 +15,7 @@ import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp;
 import io.github.luigidemasi.camelkit.ship.worker.LocalCommandRunner.Command;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
@@ -593,6 +595,52 @@ class LocalCommandRunnerTest {
         assertEquals(Integer.valueOf(0), result.exitCode());
         assertEquals(working.toRealPath(), result.workingDirectory());
         assertOverlapRejected(working, unreserved);
+    }
+
+    @Test
+    void boundsGitDiscoveryToTheWorkingDirectory() throws Exception {
+        Path git = executableOnPath("git");
+        Assumptions.assumeTrue(git != null, "git is not installed");
+        Path repository = Files.createDirectory(temporaryDirectory.resolve("repository"));
+        Process init = new ProcessBuilder(git.toString(), "init", "-q")
+                .directory(repository.toFile())
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .redirectError(ProcessBuilder.Redirect.DISCARD)
+                .start();
+        assertEquals(0, init.waitFor());
+        Path candidate = Files.createDirectories(
+                repository.resolve(".camel-kit/ship/state/run/workspace/candidate"));
+        Path evidence = Files.createDirectory(temporaryDirectory.resolve("git-evidence"));
+
+        LocalCommandRunner.Result result = new LocalCommandRunner().run(new Command(
+                git,
+                List.of("rev-parse", "--show-toplevel"),
+                candidate,
+                evidence,
+                Duration.ofSeconds(10),
+                4096));
+
+        assertNotEquals(Integer.valueOf(0), result.exitCode());
+        assertTrue(Files.readString(result.stderrLog()).contains("not a git repository"),
+                Files.readString(result.stderrLog()));
+        assertFalse(Files.readString(result.stdoutLog()).contains(repository.toString()));
+    }
+
+    private static Path executableOnPath(String name) {
+        String path = System.getenv("PATH");
+        if (path == null) {
+            return null;
+        }
+        for (String entry : path.split(java.io.File.pathSeparator)) {
+            if (entry.isBlank()) {
+                continue;
+            }
+            Path candidate = Path.of(entry, name);
+            if (Files.isRegularFile(candidate) && Files.isExecutable(candidate)) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     @Test

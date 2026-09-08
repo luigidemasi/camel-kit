@@ -279,9 +279,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `CAMEL_KIT_SHIP_STATE_HOME` still overrides the location; the XDG and home fallbacks are removed. `.camel-kit/ship/`
   is reserved for the controller: the tree policy denies it (policy schema v6 → v7), so it is never copied into the
   staged workspace, never digested and never published, and the state directory carries a self-ignoring `.gitignore`.
-  Any other state directory inside the project is still rejected with `state-project-overlap`. Runs recorded under
-  the previous default are not found at the new location; set `CAMEL_KIT_SHIP_STATE_HOME` to the old path to finish
-  them. Snapshots recorded under policy v6 fail their staleness check on resume and restart the affected stage.
+  Any other state directory inside the project is still rejected with `state-project-overlap`; an existing
+  incompatible `.gitignore` in the state root is rewritten and a symbolic link there fails as `state-corrupt`. Git
+  discovery is bounded at the staged Execute workspace, the local command runner and the frozen validation snapshot
+  (`GIT_CEILING_DIRECTORIES`), so Git commands run by the worker or by validation inside the nested state directory
+  cannot inspect or alter the live repository. Material identities no longer embed the tree-policy digest (framing
+  v1 → v2), and publication journals written by earlier releases are still recognised, so a publication interrupted
+  before the upgrade recovers or rolls back on resume. Summary continuation commands include `--project-dir` when the
+  run was started with it. Runs recorded under the previous default are not found at the new location; set
+  `CAMEL_KIT_SHIP_STATE_HOME` to the old path to finish them. Execute workspaces bound under the previous release fail
+  their staleness check on resume and restart the stage.
 
 - **Citrus 5.0.1 (#215)** — upgrade the default Citrus test dependencies and MCP server to 5.0.1,
   remove the temporary M1 server pin, and update Ship compatibility for Camel 4.22.0 and 4.18.4.

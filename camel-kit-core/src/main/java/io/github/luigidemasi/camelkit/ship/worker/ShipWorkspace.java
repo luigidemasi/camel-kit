@@ -44,6 +44,9 @@ public final class ShipWorkspace {
     private static final String BINDING = "workspace.json";
     private static final String BINDING_TEMPORARY = ".workspace.json.tmp";
     private static final int MAX_BINDING_BYTES = 16 * 1024;
+    /** Digest of tree-policy schema 6, the only policy every earlier release used; framed into v1 identities. */
+    private static final String LEGACY_TREE_POLICY_DIGEST
+            = "sha256:a54ede7e7e8598c1cf8677eb2dbf0af95fc5b1178fab8111543d049a747301c5";
     private static final ObjectMapper JSON = new ObjectMapper(
             JsonFactory.builder()
                     .enable(StreamReadFeature.STRICT_DUPLICATE_DETECTION)
@@ -466,11 +469,31 @@ public final class ShipWorkspace {
                 : new FileAttribute<?>[0];
     }
 
-    /** Framed identity of one material tree; shared by workspace baselines and publication records. */
+    /**
+     * Framed identity of one material tree; shared by workspace baselines and publication records. The tree policy is
+     * not part of the identity: a policy change that reclassifies a path already changes the material entries, while an
+     * unchanged entry set means unchanged bytes.
+     */
     public static String materialIdentity(ProjectSnapshot snapshot) {
+        return materialIdentity("camel-kit.ship.workspace-material.v2", null, snapshot);
+    }
+
+    /**
+     * Reports whether {@code recorded} identifies {@code snapshot} under the current identity or the one written by
+     * releases before tree-policy schema 7, so interrupted publications stay recoverable across the upgrade.
+     */
+    public static boolean matchesMaterialIdentity(ProjectSnapshot snapshot, String recorded) {
+        return recorded.equals(materialIdentity(snapshot))
+                || recorded.equals(materialIdentity(
+                        "camel-kit.ship.workspace-material.v1", LEGACY_TREE_POLICY_DIGEST, snapshot));
+    }
+
+    private static String materialIdentity(String label, String policyDigest, ProjectSnapshot snapshot) {
         ByteArrayOutputStream framed = new ByteArrayOutputStream();
-        field(framed, "camel-kit.ship.workspace-material.v1");
-        field(framed, snapshot.policyDigest());
+        field(framed, label);
+        if (policyDigest != null) {
+            field(framed, policyDigest);
+        }
         snapshot.directories().forEach((path, entry) -> {
             if (entry.classification() == Classification.MATERIAL) {
                 field(framed, "directory");

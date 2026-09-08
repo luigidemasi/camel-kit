@@ -100,7 +100,7 @@ public final class EvidenceRunner {
             argv.add(1, "-Duser.home=" + privateHome);
             argv.add(2, "-Djava.io.tmpdir=" + privateTemporaryDirectory);
             Map<String, String> environment
-                    = controlledEnvironment(privateHome, privateTemporaryDirectory, command);
+                    = controlledEnvironment(sandboxRoot, privateHome, privateTemporaryDirectory, command);
             Path launchDirectory = acceptedSnapshot.resolve(candidate.relativize(workingDirectory));
             Launch launch = new Launch(List.copyOf(argv), launchDirectory, environment);
 
@@ -274,12 +274,14 @@ public final class EvidenceRunner {
     }
 
     private static Map<String, String> controlledEnvironment(
-            Path privateHome, Path privateTemporaryDirectory, EvidenceCommand command) {
+            Path sandboxRoot, Path privateHome, Path privateTemporaryDirectory, EvidenceCommand command) {
         Map<String, String> environment = new LinkedHashMap<>();
         environment.put("LANG", "C");
         environment.put("LC_ALL", "C");
         environment.put("HOME", privateHome.toString());
         environment.put("TMPDIR", privateTemporaryDirectory.toString());
+        // The frozen snapshot has no repository; Git must not discover the live project above the sandbox.
+        environment.put("GIT_CEILING_DIRECTORIES", sandboxRoot.toString());
         environment.putAll(command.environment());
         return Map.copyOf(environment);
     }

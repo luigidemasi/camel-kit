@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.nio.channels.OverlappingFileLockException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -44,6 +45,7 @@ final class ShipRunStore {
     private static final int MAX_PROJECT_OWNER_BYTES = 64 * 1024;
     private static final String STATE_FILE = "state.json";
     private static final String LOCK_FILE = "run.lock";
+    private static final String GIT_IGNORE_RULE = "*\n";
     private static final int PROJECT_OWNER_SCHEMA_VERSION = 1;
     private static final ObjectMapper JSON = new ObjectMapper(
             JsonFactory.builder()
@@ -541,11 +543,17 @@ final class ShipRunStore {
     private void ignoreForGit(Path root) throws IOException {
         Path ignore = root.resolve(".gitignore");
         if (Files.exists(ignore, LinkOption.NOFOLLOW_LINKS)) {
-            return;
+            if (!Files.isRegularFile(ignore, LinkOption.NOFOLLOW_LINKS)) {
+                throw new StoreException("state-corrupt", "Ship state root .gitignore is not a real file");
+            }
+            if (Files.size(ignore) == GIT_IGNORE_RULE.length()
+                    && GIT_IGNORE_RULE.equals(Files.readString(ignore, StandardCharsets.UTF_8))) {
+                return;
+            }
         }
         Path temporary = Files.createTempFile(root, ".gitignore-", ".tmp", fileAttributes());
-        Files.writeString(temporary, "*\n");
-        Files.move(temporary, ignore, StandardCopyOption.ATOMIC_MOVE);
+        Files.writeString(temporary, GIT_IGNORE_RULE);
+        Files.move(temporary, ignore, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
     }
 
     private FileAttribute<?>[] directoryAttributes() throws StoreException {

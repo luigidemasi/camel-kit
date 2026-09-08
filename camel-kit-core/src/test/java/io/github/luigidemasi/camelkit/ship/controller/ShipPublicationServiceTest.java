@@ -69,6 +69,41 @@ class ShipPublicationServiceTest {
     }
 
     @Test
+    void appliesAndRecoversAJournalRecordedByThePreviousReleaseIdentityScheme() throws Exception {
+        Fixture fixture = fixture("legacy-identity", project -> {
+            setMode(project, "rwx------");
+            setMode(write(project.resolve("foo"), "old"), "rw-r--r--");
+        }, candidate -> {
+            setMode(candidate, "rwx------");
+            setMode(write(candidate.resolve("foo"), "new"), "rw-r--r--");
+        });
+        ShipPublicationService.Journal planned = fixture.journal();
+        // Identities recorded by the 0.3.x/0.4.0-SNAPSHOT release line for exactly these trees:
+        // v1 framing under tree-policy schema 6.
+        ShipPublicationService.Journal legacy = new ShipPublicationService.Journal(
+                planned.schemaVersion(),
+                planned.runId(),
+                planned.attempt(),
+                planned.baselineRootIdentity(),
+                "sha256:f619bdfa0f1e882964e3fc9e73c92072aaf6568855af99680707bdd0fe6c57eb",
+                "sha256:eece2551f7cd8fef94b0bfa850361f9e5dcd0a8f984e4f432561174d4009b62a",
+                planned.createdAt(),
+                planned.entries());
+        ShipPublicationService.begin(fixture.run(), legacy);
+
+        ShipPublicationService.apply(
+                fixture.project(), fixture.candidate(), fixture.run(), legacy);
+
+        assertEquals("new", Files.readString(fixture.live("foo")));
+
+        ShipPublicationService.recover(
+                fixture.project(), fixture.run(), RUN_ID, ATTEMPT);
+
+        assertEquals("old", Files.readString(fixture.live("foo")));
+        assertFalse(ShipPublicationService.journalExists(fixture.run()));
+    }
+
+    @Test
     void publishesAndRecoversAValidTwoHundredFortyByteLeaf() throws Exception {
         String leaf = "x".repeat(240);
         Fixture fixture = fixture("long-leaf", project -> {
