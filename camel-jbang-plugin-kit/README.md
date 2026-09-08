@@ -12,7 +12,7 @@ A Camel JBang plugin that exposes Camel-Kit commands under `camel kit`.
 | Channel | Install source | Plugin surface |
 |---------|----------------|----------------|
 | Stable `0.3.1` | Maven Central | `camel kit init`; agents `bob`, `gemini`, and `claude` |
-| Current `0.4.0-SNAPSHOT` | Source build and local Maven repository | `init`, `doctor`, `doc`, `graph`, `plan`, `nextId`, and `ship`; all nine current agents |
+| Current `0.4.0-SNAPSHOT` | Source build and local Maven repository | `init`, `doctor`, `doc`, `graph`, `plan`, `nextId`, and `ship`; all eight current agents |
 
 Use an explicit version. Maven Central's stable `0.3.1` does not provide the current-main command and agent surface.
 
@@ -55,7 +55,7 @@ camel kit init --here --ai codex
 camel kit doctor
 ```
 
-The current source-built snapshot supports `bob2`, `bob`, `gemini`, `claude`, `codex`, `copilot`, `pi`, `qwen`, and `opencode`.
+The current source-built snapshot supports `bob2`, `antigravity`, `claude`, `codex`, `copilot`, `pi`, `qwen`, and `opencode`.
 
 ## Current Snapshot Commands
 

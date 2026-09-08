@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Google Antigravity** (`--ai antigravity`) — native `.agents/skills/`, worker/reviewer custom agents,
+  `AGENTS.md`, and `.agents/mcp_config.json`. Shared pipeline traits keep orchestration and report writes in the
+  primary conversation. Existing unrelated MCP servers and settings are preserved; native permissions remain active.
+  Initialization rejects duplicate MCP object keys before writing project files, and Doctor reports them as failures.
+- **Retired-agent migration** — Gemini (`--ai gemini`) and IBM Bob v1 (`--ai bob`) are no longer supported.
+  Reinitialize with `--ai antigravity` or `--ai bob2`, respectively; Bob 2 remains the default. Init and Doctor
+  provide migration guidance. Antigravity reinit removes only the former generated Gemini imports from `GEMINI.md`,
+  preserving custom rules; Bob 2 reinit removes known obsolete Bob v1 mode rules.
+
 - **Unanswered migration questions (#208)** — bounded `camel-migrate` steps return open decisions to the parent
   conversation, which asks one question at a time and resumes the step with confirmed answers. Ship workers receive
   the active oversight policy; stage records and command summaries retain unanswered questions and applied defaults

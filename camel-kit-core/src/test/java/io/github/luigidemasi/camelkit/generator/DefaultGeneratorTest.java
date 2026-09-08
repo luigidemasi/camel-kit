@@ -44,7 +44,7 @@ class DefaultGeneratorTest {
 
     @Test
     void generatesSlashCommands() throws Exception {
-        InitContext ctx = createContext("bob");
+        InitContext ctx = createContext("bob2");
         new DefaultGenerator().generate(ctx);
 
         assertTrue(Files.exists(ctx.commandsDir().resolve("camel-migrate.md")));
@@ -60,7 +60,7 @@ class DefaultGeneratorTest {
 
     @Test
     void copiesSkillsWithDispatch() throws Exception {
-        InitContext ctx = createContext("bob");
+        InitContext ctx = createContext("bob2");
         new DefaultGenerator().generate(ctx);
 
         assertTrue(Files.exists(ctx.skillsDir().resolve("camel-migrate/SKILL.md")));
@@ -71,7 +71,7 @@ class DefaultGeneratorTest {
 
     @Test
     void copiesSkillGuides() throws Exception {
-        InitContext ctx = createContext("bob");
+        InitContext ctx = createContext("bob2");
         new DefaultGenerator().generate(ctx);
 
         assertTrue(Files.isDirectory(ctx.skillsDir().resolve("camel-brainstorm/guides")));
@@ -120,7 +120,7 @@ class DefaultGeneratorTest {
 
     @Test
     void generatesMcpConfig() throws Exception {
-        InitContext ctx = createContext("bob");
+        InitContext ctx = createContext("bob2");
         new DefaultGenerator().generate(ctx);
 
         assertTrue(Files.exists(tempDir.resolve(ctx.agent().mcpConfigPath())));
@@ -140,7 +140,7 @@ class DefaultGeneratorTest {
                 .allowedTools());
 
         ObjectMapper mapper = new ObjectMapper();
-        for (String agentName : List.of("bob", "claude", COPILOT, "gemini", "qwen", "opencode", PI)) {
+        for (String agentName : List.of("bob2", "claude", COPILOT, "qwen", "opencode", PI)) {
             InitContext ctx = createContext(agentName);
             new DefaultGenerator().generate(ctx);
 
@@ -168,7 +168,7 @@ class DefaultGeneratorTest {
 
     @Test
     void generatesAgentsMd() throws Exception {
-        InitContext ctx = createContext("bob");
+        InitContext ctx = createContext("bob2");
         new DefaultGenerator().generate(ctx);
 
         Path agentsMd = ctx.projectDir().resolve("AGENTS.md");
@@ -182,7 +182,7 @@ class DefaultGeneratorTest {
 
     @Test
     void copiesIronLawsFile() throws Exception {
-        InitContext ctx = createContext("bob");
+        InitContext ctx = createContext("bob2");
         new DefaultGenerator().generate(ctx);
 
         Path ironLaws = ctx.skillsDir().resolve("shared/iron-laws.md");
@@ -226,7 +226,7 @@ class DefaultGeneratorTest {
 
     @Test
     void generatesDebugCommand() throws Exception {
-        InitContext ctx = createContext("bob");
+        InitContext ctx = createContext("bob2");
         new DefaultGenerator().generate(ctx);
 
         assertTrue(Files.exists(ctx.commandsDir().resolve("camel-debug.md")));
@@ -236,7 +236,7 @@ class DefaultGeneratorTest {
 
     @Test
     void copiesDebugSkill() throws Exception {
-        InitContext ctx = createContext("bob");
+        InitContext ctx = createContext("bob2");
         new DefaultGenerator().generate(ctx);
 
         assertTrue(Files.exists(ctx.skillsDir().resolve("camel-debug/SKILL.md")));
@@ -246,7 +246,7 @@ class DefaultGeneratorTest {
 
     @Test
     void substitutesVersionPlaceholdersInSkillFiles() throws Exception {
-        InitContext ctx = createContext("bob");
+        InitContext ctx = createContext("bob2");
         new DefaultGenerator().generate(ctx);
 
         Path versionSelection = ctx.skillsDir().resolve("camel-brainstorm/guides/version-selection.md");
@@ -315,18 +315,6 @@ class DefaultGeneratorTest {
         assertTrue(security.contains(dist.camelQuarkusVersion()));
         assertFalse(security.contains("{CAMEL_MAIN_SUPPORTED}"));
         assertFalse(security.contains("{CAMEL_QUARKUS_VERSION}"));
-    }
-
-    @Test
-    void wrapsTomlForGemini() throws Exception {
-        InitContext ctx = createContext("gemini");
-        new DefaultGenerator().generate(ctx);
-
-        Path geminiCmd = ctx.commandsDir().resolve("camel-migrate.toml");
-        assertTrue(Files.exists(geminiCmd));
-        String content = Files.readString(geminiCmd);
-        assertTrue(content.contains("description ="));
-        assertTrue(content.contains("prompt ="));
     }
 
     private JsonNode readKnowledgeServerConfig(ObjectMapper mapper, String agentName) throws IOException {

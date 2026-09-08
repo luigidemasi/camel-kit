@@ -82,14 +82,14 @@ Skills tell the AI:
 - How to handle data transformation (choose the right engine for the mapping complexity)
 - How to diagnose errors (a structured error taxonomy with a fix strategy for each category)
 
-Most supported agents consume the shared markdown skills directly. Bob 1 legacy instead receives seven self-contained monolithic gate variants because it cannot chain skill references. Both delivery models enforce the same workflow, quality, MCP, and output contracts; Bob 1 runs the adversarial critic lenses sequentially in its accumulated session because it cannot provide fresh parallel reviewer contexts.
+All supported targets use shared markdown skills with agent-specific traits and native configuration.
 
 ### Role Separation
 
 When an AI generates code and reviews its own work, it tends to confirm its own choices. Camel-Kit prevents this:
 
 - After each task, a **spec compliance reviewer** checks whether the output matches the design; subagent-capable targets use a context separate from the implementer
-- Then a **code quality reviewer** checks against the constitution rules; subagent-capable targets isolate this review too, while Bob 1 performs it in the gated session
+- Then a **code quality reviewer** checks against the constitution rules; subagent-capable targets isolate this review too
 - Tool restrictions prevent the AI from jumping ahead: during the brainstorm phase, the AI physically cannot edit code files (on agents that support tool restrictions)
 
 This is why you may see the AI fix something during review that it didn't catch during implementation -- each review applies a distinct contract, with fresh context where the agent supports it.
@@ -143,9 +143,8 @@ curl -Ls https://sh.jbang.dev | bash -s - app setup
 # Create a new project (choose your AI assistant)
 camel-kit init order-processing             # IBM Bob 2 (default)
 camel-kit init order-processing --ai claude
-camel-kit init order-processing --ai bob      # IBM Bob 1 legacy
 camel-kit init order-processing --ai bob2     # IBM Bob 2
-camel-kit init order-processing --ai gemini
+camel-kit init order-processing --ai antigravity
 camel-kit init order-processing --ai codex
 camel-kit init order-processing --ai copilot
 camel-kit init order-processing --ai pi
@@ -452,7 +451,7 @@ The execute phase runs all tasks from the plan autonomously, without pausing bet
 
 1. **`camel-implement`** -- generates Camel YAML routes, properties, pom.xml dependencies, and DataMapper transformations from the approved design spec and implementation plan
 2. **`camel-test`** -- generates Citrus integration tests
-After each task's implementation, an adversarial critic pre-filter runs before the sequential spec-compliance and code-quality reviews. Subagent-capable targets use independent moderator and critic contexts; Bob 1 applies the critic lenses sequentially in its accumulated session. If a review fails, the task is sent back for fixes before moving on. After all tasks complete, execute performs a cross-cutting review and dispatches **`camel-verify`** once for the 3-phase build-or-smoke, Citrus-test, and report loop.
+After each task's implementation, an adversarial critic pre-filter runs before the sequential spec-compliance and code-quality reviews. Subagent-capable targets use independent moderator and critic contexts. If a review fails, the task is sent back for fixes before moving on. After all tasks complete, execute performs a cross-cutting review and dispatches **`camel-verify`** once for the 3-phase build-or-smoke, Citrus-test, and report loop.
 
 **Output:** Working YAML routes, test files, an execution report, and a verification report.
 
@@ -839,16 +838,15 @@ For BizTalk projects, `graph generate` automatically detects BizTalk artifacts (
 
 ## 9. Multi-Agent Support
 
-Camel-Kit presents the same workflow and output contracts across supported AI coding assistants. Most targets receive shared markdown skills plus agent-specific traits. Bob 1 legacy instead receives seven self-contained monolithic gate variants because it cannot chain the shared skill references.
+Camel-Kit presents the same workflow and output contracts across supported AI coding assistants. All supported targets use shared markdown skills with agent-specific traits and native configuration.
 
 ### Supported Agents
 
 | Agent | Init Flag | How `/camel-execute` Dispatches Work |
 |-------|-----------|--------------------------------------|
 | **Claude** (Anthropic Claude Code) | `--ai claude` | Dispatches subagents in parallel per independent task |
-| **Bob 1 legacy** (IBM Bob) | `--ai bob` | Switches between custom modes and monolithic gate files |
 | **Bob 2** (IBM Bob, default) | `--ai bob2` | Uses native `spawn_subagent` plus Bob custom modes and shared skills |
-| **Gemini** (Google Gemini CLI) | `--ai gemini` | Dispatches to 6 subagents; execute phase runs in main agent |
+| **Antigravity** (Google Antigravity) | `--ai antigravity` | Parent dispatches bounded worker/reviewer roles; owns decisions and reports |
 | **OpenAI Codex CLI** | `--ai codex` | Uses `AGENTS.md`, `.agents/skills`, seven `.codex/agents`, and `.codex/config.toml` |
 | **GitHub Copilot CLI** | `--ai copilot` | Uses `.github/skills`, `.github/agents`, `.github/mcp.json`, and repository safety hooks |
 | **Pi** | `--ai pi` | Uses `.pi/skills`, `.pi/prompts`, `.mcp.json` through `pi-mcp-adapter`, and a project guard extension |
@@ -862,9 +860,9 @@ All agents follow the same route, property, test, and report contracts. Their ag
 | If you value... | Consider |
 |-----------------|----------|
 | **Speed** (parallel implementation of independent flows) | Claude, Bob 2, or Codex CLI |
-| **Safety** (strictest tool restrictions per phase) | Bob 1 legacy, Bob 2, or OpenCode |
+| **Safety** (strictest tool restrictions per phase) | Bob 2, or OpenCode |
 | **Single intent router** (describe the work, then follow one guided pipeline) | Any target through `/camel-start` |
-| **Customizability** (override policies, compose instructions) | Gemini or GitHub Copilot CLI |
+| **Customizability** (override policies, compose instructions) | Antigravity or GitHub Copilot CLI |
 | **GitHub-native agent workflows** (skills, custom agents, hooks, MCP) | GitHub Copilot CLI |
 | **Codex-native repository workflows** (skills, custom agents, sandbox, approvals, MCP) | OpenAI Codex CLI |
 | **Fine-grained file permissions** (auto-allow test dirs, ask for source) | OpenCode |
@@ -873,17 +871,17 @@ All agents follow the same route, property, test, and report contracts. Their ag
 
 | Aspect | What You'll Notice |
 |--------|-------------------|
-| **Dispatch transparency** | Claude, Bob 2, and Codex show subagent dispatch; Bob 1 legacy shows mode switching; Gemini/OpenCode/Copilot delegate to specialized agents; Qwen keeps orchestration visible in the primary session and delegates bounded leaves; Pi runs in the main session |
+| **Dispatch transparency** | Claude, Bob 2, and Codex show subagent dispatch; Antigravity/OpenCode/Copilot delegate to specialized agents; Qwen keeps orchestration visible in the primary session and delegates bounded leaves; Pi runs in the main session |
 | **Tool restrictions** | During brainstorm, Bob modes can physically prevent code edits. Claude relies on skill instructions. Qwen combines primary-session instructions with scoped leaves. Codex keeps the active sandbox and approval policy. OpenCode uses glob-pattern permissions. Copilot uses tool allow/deny permissions and generated safety hooks. Pi uses a generated guard extension plus external sandboxing when needed. |
 | **Parallel execution** | Claude, Bob 2, Codex, and Qwen can dispatch independent work in the same wave; other agents have more limited parallelism |
-| **MCP approval prompts** | Codex uses exact `enabled_tools` allowlists with prompt approval. Qwen filters each server with `includeTools` and retains prompts. Gemini auto-approves MCP tool calls via its policy engine. Copilot uses `.github/mcp.json` plus Copilot's permission system. Pi uses `pi-mcp-adapter` `directTools`. OpenCode retains its normal permission prompts. |
-| **Execution limits** | OpenCode and Gemini enforce step/turn limits per phase. Other agents have no hard limits. |
+| **MCP approval prompts** | Codex uses exact `enabled_tools` allowlists with prompt approval. Qwen filters each server with `includeTools` and retains prompts. Antigravity uses native MCP configuration with its permission system. Copilot uses `.github/mcp.json` plus Copilot's permission system. Pi uses `pi-mcp-adapter` `directTools`. OpenCode retains its normal permission prompts. |
+| **Execution limits** | OpenCode templates set per-role step limits; other targets retain their native limits. |
 
-### How Execution Works: Subagents vs. Mode Switching
+### How Execution Works: Subagents and Inline Work
 
 During `/camel-execute`, the AI must implement multiple tasks, review each one, and fix issues -- all autonomously. How it manages this work internally depends on the agent's native capabilities.
 
-**Agents with subagent support (Claude, Bob 2, Gemini, OpenAI Codex CLI, GitHub Copilot CLI, Qwen, OpenCode)** dispatch each pipeline task to a fresh, isolated subagent. The subagent receives only the information it needs -- the task description, the relevant design spec section, and the skill guides -- and works in its own context window. When it finishes, a separate reviewer subagent checks the output. This isolation prevents cross-contamination: a mistake in one task cannot leak into the next, and the reviewer has no bias from having written the code.
+**Agents with subagent support (Claude, Bob 2, Antigravity, OpenAI Codex CLI, GitHub Copilot CLI, Qwen, OpenCode)** dispatch each pipeline task to a fresh, isolated subagent. The subagent receives only the information it needs -- the task description, the relevant design spec section, and the skill guides -- and works in its own context window. When it finishes, a separate reviewer subagent checks the output. This isolation prevents cross-contamination: a mistake in one task cannot leak into the next, and the reviewer has no bias from having written the code.
 
 The execution loop for these agents:
 
@@ -897,25 +895,13 @@ The execution loop for these agents:
 
 **Claude and Bob 2** use `camel-kit plan analyze` waves from structured task metadata, logical dependencies, and file overlap, then dispatch independent tasks to subagents in the same wave. For Bob 2, the parent Bob task calls `spawn_subagent`; multiple spawn calls in one turn run in parallel. Bob 2 reserves built-in `explore` for factual discovery, generates `camel-worker` for implementation/test/fix/verification from broad execute/debug orchestration modes, and generates a read/MCP-only `camel-reviewer` for catalog research, knowledge research, and independent review. The parent supplies each call with the complete selected role from `.bob/personas/`. Standalone restricted implement and test modes keep mutations inline; test retains its path-scoped edit restriction.
 
-**Bob 1 legacy (`--ai bob`)** uses a **mode-switching** approach instead of native subagents. The pipeline loads in Advanced mode (unrestricted, so it can read all skill files and context), then switches to a restricted custom mode (`camel-implement-mode`, `camel-validate-mode`, etc.) with scoped tool permissions. During brainstorm, the edit tool is platform-limited to design Markdown plus `.camel-kit/config.properties`, `.camel-kit/pipeline.json`, and `.camel-kit/project-snapshot.md`. Its broad command group is instruction-limited to pipeline metadata and read-only graph operations and must not mutate application code.
-
-The Bob 1 trade-off is that work stays in a single session and reviewer checks are not isolated. Its monolithic execute gate runs the adversarial critic lenses sequentially in that accumulated session before spec and quality review, and records that it cannot provide fresh-context or parallel critic independence. It combines platform-scoped edit tools with instruction-scoped command discipline. Bob 2 keeps mode restrictions where useful and adds native isolated subagents.
-
-| Capability | Subagent Agents (Claude, Bob 2, Gemini, Codex, Copilot, Qwen, OpenCode) | Bob 1 Legacy Mode Switching |
-|-----------|----------------------------------------------------------|-----------------------------|
-| Context isolation per task | Fresh subagent with clean context | Same session, accumulated context |
-| Reviewer independence | Fresh critic/reviewer subagents inspect the work | Same-session adversarial fallback and staged self-review; no fresh-context isolation |
-| Parallel execution | Claude, Bob 2, and Codex for implementation waves; other agents vary | Not possible |
-| Tool restriction enforcement | Varies by agent; Bob 2 combines modes with subagent restrictions | Platform-enforced mode restrictions |
-| Phase transition | Dispatch subagent or switch mode depending on agent | Switch custom mode |
-
-Despite these architectural differences, the route, test, report, quality, and MCP contracts remain aligned. Agent-native configuration and assistant assets are intentionally different, and Bob 1 cannot provide fresh-context review isolation.
+Pi executes these contracts inline and records the missing isolation. Other targets retain their native tool and permission boundaries.
 
 ### The Equalization Layer
 
-For most agents, skills are shared markdown instruction files that the AI agent loads and follows. Bob 1's generated monolithic gates carry the corresponding rules and output contracts. The equalization layer keeps these behaviors consistent:
+Skills are shared markdown instruction files that every supported AI target loads and follows. The equalization layer keeps these behaviors consistent:
 
-- The same six Iron Laws are enforced, with Bob 1 running the adversarial critic lenses sequentially in its monolithic gate instead of fresh parallel contexts
+- The same six Iron Laws are enforced, with inline targets recording the absence of independent reviewer contexts
 - The same constitution rules are checked
 - The same MCP tools are called
 - The same output formats are produced
@@ -947,7 +933,7 @@ MCP is auto-configured during `camel-kit init`. The init command creates agent-s
 
 - **Claude:** `.mcp.json`
 - **Bob:** `.bob/mcp.json`
-- **Gemini:** `.gemini/settings.json`
+- **Antigravity:** `.agents/mcp_config.json`
 - **OpenAI Codex CLI:** `.codex/config.toml`
 - **GitHub Copilot CLI:** `.github/mcp.json`
 - **Pi:** `.mcp.json` via `pi-mcp-adapter`

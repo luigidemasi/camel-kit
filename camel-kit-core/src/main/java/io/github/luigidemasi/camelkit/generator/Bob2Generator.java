@@ -9,7 +9,7 @@ public class Bob2Generator extends DefaultGenerator {
     public void generate(InitContext ctx) throws Exception {
         GeneratedAssetCleaner.deleteRegularFile(ctx, ctx.projectDir().resolve(".bob/rules-camel-ship/ship.md"));
         BobGeneratedAssetCleaner.deleteLegacyModeRules(ctx);
-        BobGeneratedAssetCleaner.deleteSiblingAssets(ctx, "bob");
+        BobGeneratedAssetCleaner.deleteBob1Assets(ctx);
         super.generate(ctx);
         generateRegisteredResources(ctx);
     }

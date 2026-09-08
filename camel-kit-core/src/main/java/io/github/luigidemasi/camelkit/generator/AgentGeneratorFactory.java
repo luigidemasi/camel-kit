@@ -11,12 +11,11 @@ public final class AgentGeneratorFactory {
 
     public static AgentGenerator create(String agentName) {
         return switch (generatorStrategy(agentName)) {
-            case BOB -> new BobGenerator();
+            case ANTIGRAVITY -> new AntigravityGenerator();
             case BOB2 -> new Bob2Generator();
             case CLAUDE -> new ClaudeGenerator();
             case CODEX -> new CodexGenerator();
             case COPILOT -> new CopilotGenerator();
-            case GEMINI -> new GeminiGenerator();
             case OPENCODE -> new OpenCodeGenerator();
             case PI -> new PiGenerator();
             case QWEN -> new QwenGenerator();

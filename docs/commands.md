@@ -60,7 +60,7 @@ camel kit init --here [options]
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--ai`, `-a` | `bob2` | AI coding assistant to configure (`bob2` for IBM Bob 2, `bob` for IBM Bob 1 legacy, `gemini`, `claude`, `codex`, `copilot`, `pi`, `qwen`, `opencode`) |
+| `--ai`, `-a` | `bob2` | AI coding assistant to configure (`bob2` for IBM Bob 2, `antigravity`, `claude`, `codex`, `copilot`, `pi`, `qwen`, `opencode`) |
 | `--citrus-version` | `5.0.1` | Citrus Framework version for test schemas and generated test dependencies |
 | `--here` | `false` | Initialize in current directory |
 | `--no-fetch` | `false` | Skip external catalog fetching |
@@ -77,14 +77,11 @@ camel kit init --here [options]
 # Create new project for IBM Bob 2 (default)
 camel-kit init my-integration
 
-# Create new project for IBM Bob 1 legacy
-camel-kit init my-integration --ai bob
-
 # Create new project for IBM Bob 2
 camel-kit init my-integration --ai bob2
 
-# Create new project for Gemini CLI
-camel-kit init my-integration --ai gemini
+# Create new project for Google Antigravity
+camel-kit init my-integration --ai antigravity
 
 # Create new project for Claude Code
 camel-kit init my-integration --ai claude
@@ -218,9 +215,9 @@ my-integration/
 │   └── templates/               # Reference templates
 ├── .mcp.json                    # Claude Code or Pi MCP configuration
 ├── .bob/mcp.json                # IBM Bob MCP configuration
-├── .gemini/settings.json        # Gemini CLI MCP configuration
-├── AGENTS.md                    # Codex CLI, Pi, or OpenCode project instructions
-├── .agents/skills/              # Codex CLI project skills
+├── .agents/mcp_config.json       # Google Antigravity MCP configuration
+├── AGENTS.md                    # Antigravity, Codex CLI, Pi, or OpenCode project instructions
+├── .agents/skills/              # Antigravity or Codex CLI project skills
 ├── .codex/config.toml           # Codex CLI project MCP configuration
 ├── .codex/agents/               # Codex CLI custom agents
 ├── .github/mcp.json             # GitHub Copilot CLI MCP configuration
@@ -714,7 +711,7 @@ first. Markdown-only plans remain supported for older artifacts.
 2. **Catalog research** -- batch-verifies the Camel artifacts needed by each wave before implementers run
 3. **Per-task loop** (autonomous, uninterrupted -- design approval authorizes downstream work):
    - **Dispatch implementer** -- fresh subagent where supported, with full task context, guide paths, and the catalog summary
-   - **Adversarial code review** -- independent moderator and critic contexts where supported, or a same-session sequential critic-lens fallback on single-conversation targets such as Bob 1 and Pi, review the implementation with fixes and up to three cycles
+   - **Adversarial code review** -- independent moderator and critic contexts where supported, or a same-session sequential critic-lens fallback on single-conversation targets such as Pi, review the implementation with fixes and up to three cycles
    - **Spec compliance review** -- verifies the generated artifacts match the design spec exactly
    - **Code quality review** -- checks constitution rules, security, and anti-patterns
    - If review fails, the implementer fixes and re-submits until both reviews pass
@@ -729,9 +726,8 @@ After `/camel-execute` completes, the pipeline continues to `/camel-validate` as
 | Agent | Execution Model |
 |-------|----------------|
 | Claude Code | Dispatches fresh subagents per task (isolated context) |
-| IBM Bob 1 legacy | Switches between custom modes and monolithic gate files |
 | IBM Bob 2 | Uses native `spawn_subagent` plus Bob custom modes and shared skills |
-| Gemini CLI, Qwen, OpenCode | Use their native agent/delegation models with shared Camel-Kit skills |
+| Google Antigravity, Qwen, OpenCode | Use their native agent/delegation models with shared Camel-Kit skills |
 | Pi | Runs the same implementation and review roles sequentially inline and records unavailable fresh-context isolation |
 
 **Orchestrated internal skills:**

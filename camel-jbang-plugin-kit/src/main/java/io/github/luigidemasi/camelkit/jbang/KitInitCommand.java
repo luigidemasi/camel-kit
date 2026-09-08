@@ -23,8 +23,8 @@ public class KitInitCommand extends CamelCommand {
     String projectName;
 
     @Option(names = {"-a", "--ai"},
-            description = "AI agent: bob2 (IBM Bob 2, default), bob (IBM Bob 1 legacy), "
-                          + "gemini, claude, codex, copilot, pi, qwen, opencode",
+            description = "AI agent: bob2 (IBM Bob 2, default), antigravity, "
+                          + "claude, codex, copilot, pi, qwen, opencode",
             defaultValue = "bob2")
     String ai;
 

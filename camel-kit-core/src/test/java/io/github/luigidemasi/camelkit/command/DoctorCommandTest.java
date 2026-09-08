@@ -110,7 +110,7 @@ class DoctorCommandTest {
         writeConfig("""
                 project.name=orders
                 project.command-prefix=camel-kit
-                agent.name=bob
+                agent.name=bob2
                 """);
 
         RunResult result = runDoctor("--project-dir", tempDir.toString(), "--json");
@@ -121,7 +121,7 @@ class DoctorCommandTest {
         assertTrue(hasFinding(json, "FAIL", "config",
                 ".camel-kit/config.properties is missing keys: agent.folder"), result.output());
         assertTrue(hasFinding(json, "FAIL", "config",
-                "agent.folder is '' but bob expects '.bob/commands'"), result.output());
+                "agent.folder is '' but bob2 expects '.bob/commands'"), result.output());
     }
 
     @Test
@@ -129,7 +129,7 @@ class DoctorCommandTest {
         writeConfig("""
                 project.name=orders
                 project.command-prefix=camel-kit
-                agent.name=bob
+                agent.name=bob2
                 agent.folder=.claude/commands
                 """);
 
@@ -139,7 +139,7 @@ class DoctorCommandTest {
         JsonNode json = MAPPER.readTree(result.output());
         assertEquals("FAIL", json.get("status").asText());
         assertTrue(hasFinding(json, "FAIL", "config",
-                "agent.folder is '.claude/commands' but bob expects '.bob/commands'"), result.output());
+                "agent.folder is '.claude/commands' but bob2 expects '.bob/commands'"), result.output());
     }
 
     @Test
@@ -157,14 +157,14 @@ class DoctorCommandTest {
         JsonNode json = MAPPER.readTree(result.output());
         assertEquals("FAIL", json.get("status").asText());
         assertTrue(hasFinding(json, "FAIL", "config",
-                "Unknown agent.name 'unknown-agent'",
-                "Set agent.name to one of:"), result.output());
+                "Unknown agent 'unknown-agent'",
+                "Supported agents:"), result.output());
     }
 
     @Test
     void generatedWorkspacesMatchDoctorExpectations() throws Exception {
         for (String agentName : List.of(
-                "bob", "bob2", "claude", "copilot", "codex", "gemini", "qwen", "opencode", "pi")) {
+                "antigravity", "bob2", "claude", "copilot", "codex", "qwen", "opencode", "pi")) {
             Path root = tempDir.resolve(agentName);
             createGeneratedWorkspace(root, agentName);
 
@@ -210,7 +210,7 @@ class DoctorCommandTest {
                 project.runtime=main
                 project.camelVersion=4.20.0
                 project.platformBomVersion=4.20.0
-                agent.name=bob
+                agent.name=bob2
                 agent.folder=.bob/commands
                 """);
         Files.writeString(root.resolve(".camel-kit/project-graph.json"), "{}");

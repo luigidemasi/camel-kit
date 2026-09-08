@@ -8,12 +8,11 @@ import java.util.stream.Collectors;
  */
 public enum AgentGeneratorStrategy {
     DEFAULT("default"),
-    BOB("bob"),
+    ANTIGRAVITY("antigravity"),
     BOB2("bob2"),
     CLAUDE("claude"),
     CODEX("codex"),
     COPILOT("copilot"),
-    GEMINI("gemini"),
     OPENCODE("opencode"),
     PI("pi"),
     QWEN("qwen");

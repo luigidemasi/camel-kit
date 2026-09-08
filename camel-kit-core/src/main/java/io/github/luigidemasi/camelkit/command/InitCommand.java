@@ -35,8 +35,8 @@ public class InitCommand extends CamelKitCommand {
     public String projectName;
 
     @Option(names = {"-a", "--ai"},
-            description = "AI agent: bob2 (IBM Bob 2, default), bob (IBM Bob 1 legacy), "
-                          + "gemini, claude, codex, copilot, pi, qwen, opencode",
+            description = "AI agent: bob2 (IBM Bob 2, default), antigravity, "
+                          + "claude, codex, copilot, pi, qwen, opencode",
             defaultValue = "bob2")
     public String ai;
 
@@ -94,7 +94,7 @@ public class InitCommand extends CamelKitCommand {
         if (!AgentRegistry.contains(ai)) {
             if (!silent)
                 main.printBanner();
-            printer().println(red("Error: Unknown agent '" + ai + "'"));
+            printer().println(red("Error: " + AgentRegistry.unsupportedAgentMessage(ai)));
             printer().println("Available agents: " + String.join(", ", AgentRegistry.names()));
             return 1;
         }
@@ -206,6 +206,14 @@ public class InitCommand extends CamelKitCommand {
             printer().println("  2  Start Codex from the project root and review the repository before trusting it");
             printer().println("  3  Run " + cyan("/skills") + ", then invoke " + cyan("$camel-start"));
             printer().println("     Use " + cyan("/mcp") + " to verify Camel Kit MCP servers");
+            printer().println();
+            return;
+        }
+        if (AgentGeneratorStrategy.ANTIGRAVITY.descriptorValue().equalsIgnoreCase(agentId)) {
+            printer().println("  2  Use " + cyan("/camel-start") + " or ask for the " + cyan("camel-start") + " skill");
+            printer().println("     In Antigravity CLI, inspect native skills with " + cyan("/skills"));
+            printer().println(
+                    "  3  Verify the project MCP servers through Antigravity's MCP settings or " + cyan("/mcp"));
             printer().println();
             return;
         }

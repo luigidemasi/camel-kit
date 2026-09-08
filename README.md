@@ -74,7 +74,7 @@ This README describes the current `main` line, version `0.4.0-SNAPSHOT`. Choose 
 | Channel | Install source | Supported surface |
 |---------|----------------|-------------------|
 | Stable `0.3.1` | Maven Central | The Camel plugin exposes `camel kit init`; init supports `bob` (default), `gemini`, and `claude`. It predates the current workflow and agent surface. |
-| Current `0.4.0-SNAPSHOT` | GitHub JBang catalog or a source build | Standalone CLI commands `init`, `doctor`, `doc`, `graph`, `plan`, `nextId`, and `ship`, plus all nine AI targets documented below. A source-built Camel plugin exposes the same commands under `camel kit`. |
+| Current `0.4.0-SNAPSHOT` | GitHub JBang catalog or a source build | Standalone CLI commands `init`, `doctor`, `doc`, `graph`, `plan`, `nextId`, and `ship`, plus all eight AI targets documented below. A source-built Camel plugin exposes the same commands under `camel kit`. |
 
 Do not use `LATEST` when following current-main instructions: Maven Central currently resolves it to stable `0.3.1`.
 Hosted snapshots are mutable and may lag `main` until the next deployment; build from source for an exact revision.
@@ -152,9 +152,8 @@ The examples below use the current `0.4.0-SNAPSHOT` channel.
 # 1. Create a new project (choose your AI assistant)
 camel-kit init my-integration             # IBM Bob 2 (default)
 camel-kit init my-integration --ai claude   # Anthropic Claude Code
-camel-kit init my-integration --ai bob      # IBM Bob 1 legacy
 camel-kit init my-integration --ai bob2     # IBM Bob 2
-camel-kit init my-integration --ai gemini   # Google Gemini CLI
+camel-kit init my-integration --ai antigravity   # Google Antigravity
 camel-kit init my-integration --ai codex    # OpenAI Codex CLI
 camel-kit init my-integration --ai copilot  # GitHub Copilot CLI
 camel-kit init my-integration --ai pi       # Pi
@@ -189,18 +188,19 @@ cd my-integration
 | Agent | Init Flag | Primary Generated Assets | MCP Config |
 |-------|-----------|--------------------------|------------|
 | Anthropic Claude Code | `--ai claude` | `CLAUDE.md` + `.claude/commands/` + `.claude/skills/` | `.mcp.json` |
-| IBM Bob 1 legacy | `--ai bob` | `.bob/custom_modes.yaml` + rules + monolithic gate skills | `.bob/mcp.json` |
 | IBM Bob 2 (default) | `--ai bob2` | `.bob/custom_modes.yaml` + rules + shared `.bob/skills/` + scoped `.bob/agents/` + `.bob/personas/` | `.bob/mcp.json` |
-| Google Gemini CLI | `--ai gemini` | `GEMINI.md` + `.gemini/commands/` + `.gemini/skills/` + `.gemini/agents/` | `.gemini/settings.json` |
+| Google Antigravity | `--ai antigravity` | `AGENTS.md` + `.agents/skills/` + `.agents/agents/` + `.agents/camel-kit-personas/` | `.agents/mcp_config.json` |
 | OpenAI Codex CLI | `--ai codex` | `AGENTS.md` + `.agents/skills/` + `.codex/agents/` | `.codex/config.toml` |
 | GitHub Copilot CLI | `--ai copilot` | `.github/copilot-instructions.md` + `.github/agents/` + `.github/skills/` | `.github/mcp.json` |
 | Pi | `--ai pi` | `AGENTS.md` + `.pi/skills/` + `.pi/prompts/` + guard extension/policy | `.mcp.json` via `pi-mcp-adapter` |
 | Qwen | `--ai qwen` | `QWEN.md` + `.qwen/commands/` + `.qwen/skills/` + `.qwen/agents/` + `.qwen/camel-kit-personas/` | `.qwen/settings.json` |
 | OpenCode | `--ai opencode` | `AGENTS.md` + `.opencode/commands/` + `.opencode/skills/` + `.opencode/agents/` + `.opencode/camel-kit-personas/` | `opencode.json` (default) |
 
-Most targets receive the shared skill guides plus agent-specific traits. Bob 1 legacy is the exception: it runs without subagents and replaces the shared pipeline skills with monolithic gate variants. Bob 2 keeps the shared skills and uses native subagents. Codex CLI and GitHub Copilot CLI use native project skills and custom agents instead of Camel-Kit slash-command stubs. Pi uses native project skills and prompt templates, with MCP provided by `pi-mcp-adapter`. [Architecture Guide →](docs/architecture.md)
+All supported targets use shared markdown skills with agent-specific traits and native configuration.
 
 ---
+
+See [Antigravity setup and migration from Gemini or Bob v1](docs/antigravity.md).
 
 ## Key Features
 
@@ -235,7 +235,7 @@ Most targets receive the shared skill guides plus agent-specific traits. Bob 1 l
 
 ### Multi-Agent
 
-- **9 AI targets** — Camel-Kit supports Claude Code, IBM Bob 1 legacy, IBM Bob 2, Gemini CLI, OpenAI Codex CLI, GitHub Copilot CLI, Pi, Qwen, and OpenCode. Agent-specific traits adapt the shared skills to each target; Bob 1 uses monolithic gate variants instead. [Learn more →](docs/architecture.md)
+- **8 AI targets** — Camel-Kit supports Claude Code, IBM Bob 2, Google Antigravity, OpenAI Codex CLI, GitHub Copilot CLI, Pi, Qwen, and OpenCode. Agent-specific traits adapt the shared skills to each target. [Learn more →](docs/architecture.md)
 
 ---
 

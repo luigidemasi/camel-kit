@@ -140,11 +140,7 @@ class WorkflowManifestTest {
                 .noneMatch(artifact -> "verification-report".equals(artifact.id())));
 
         String executeSkill = Files.readString(resourcePath("skills/camel-execute/SKILL.md"));
-        String bobExecute = Files.readString(resourcePath("templates/bob/gates/camel-execute.md"));
-        String bobValidate = Files.readString(resourcePath("templates/bob/gates/camel-validate.md"));
         assertTrue(executeSkill.contains("full verification report"));
-        assertTrue(bobExecute.contains("Verification Report:"));
-        assertFalse(bobValidate.contains("verification-report.md"));
     }
 
     @Test
@@ -326,7 +322,7 @@ class WorkflowManifestTest {
         assertFalse(verifyCommand.userFacing());
         assertNull(verifySkill.generatedCommand());
 
-        InitContext ctx = createContext("bob");
+        InitContext ctx = createContext("bob2");
         new DefaultGenerator().generate(ctx);
 
         assertFalse(Files.exists(ctx.commandsDir().resolve("camel-verify." + ctx.agent().fileFormat())));
@@ -367,7 +363,7 @@ class WorkflowManifestTest {
     @Test
     void generatedMcpAllowlistsMatchManifest() throws Exception {
         WorkflowManifest manifest = WorkflowManifestLoader.loadDefault();
-        InitContext ctx = createContext("bob");
+        InitContext ctx = createContext("bob2");
 
         new DefaultGenerator().generate(ctx);
 

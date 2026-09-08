@@ -272,9 +272,9 @@ EIP, dataformat, or language in section 3. Failed verification remains an open d
 choice. Migration flow gates reference this same block, and re-planning updates affected rows when replacing artifacts.
 The evidence records actual catalog tools and exact artifact identities, without constructing documentation URLs.
 
-`catalog-researcher` remains an execute-time research role; it is not newly dispatched during design. Generated Bob
-gates and Gemini traits already load the shared design assembly. Ship workers run without these skills, so this block
-is not a requirement for controller-produced Ship specs.
+The shared design assembly owns this output. When Antigravity delegates catalog research during design, the parent
+incorporates the returned evidence. Ship workers run without these skills, so this block is not a requirement for
+controller-produced Ship specs.
 
 ### How camel-execute Dispatches Work
 
@@ -283,7 +283,7 @@ is not a requirement for controller-produced Ship specs.
 2. **Catalog research** (Step 1.5): use a `catalog-researcher` sub-agent where supported to batch-verify all MCP catalog artifacts for the wave; inline targets perform the same checks in the active context.
 3. For each task:
    - Dispatch an implementer sub-agent with full task context where supported; inline targets execute the same task in their gated session
-   - **Adversarial Code Review** (Step 2b.5): use fresh Moderator and Critic Lane contexts where supported. Bob 1 runs the same critic lenses sequentially in its accumulated session and records the missing isolation. Hard cap: 3 cycles.
+   - **Adversarial Code Review** (Step 2b.5): use fresh Moderator and Critic Lane contexts where supported. Pi uses an inline fallback and records the missing isolation. Hard cap: 3 cycles.
    - Run a **spec compliance review** -- does the output match the design spec? Use an isolated reviewer where supported.
    - If spec review passes, run a **code quality review** -- constitution compliance, security, anti-patterns. Use an isolated reviewer where supported.
    - If either reviewer finds critical issues, return to the implementer for fixes, then re-review
@@ -294,16 +294,15 @@ is not a requirement for controller-produced Ship specs.
 
 After execute completes, the pipeline continues to **validation** (`camel-validate`) as Phase 4 — the final static quality gate. Validation reports findings without applying fixes. Pipeline-scoped runs write `docs/camel-kit/<PIPELINE_ID>/validation-report.md`; project-scoped standalone runs with no pipeline write `docs/validation-report-YYYY-MM-DD_HH-mm.md`.
 
-For subagent-capable targets, reviews, verification, and catalog lookups run in isolated contexts and only structured reports flow back to the orchestrator. Bob 1 legacy keeps this work in one session and relies on mode gates instead.
+For subagent-capable targets, reviews, verification, and catalog lookups run in isolated contexts and only structured reports flow back to the orchestrator. Pi uses inline execution and records missing isolation.
 
 ### Agent-Specific Execution
 
 The dispatch model varies by AI agent:
 
 - **Claude Code** -- dispatches fresh sub-agents per task. Each sub-agent runs in isolated context with no cross-contamination between tasks.
-- **IBM Bob 1 legacy** -- switches between custom modes and monolithic gate files with scoped tool permissions per mode.
 - **IBM Bob 2** -- uses native `spawn_subagent` with factual-discovery `explore` plus generated `camel-worker` and read/MCP-only `camel-reviewer` presets, while retaining Bob custom modes for parent-task tool restrictions.
-- **Gemini CLI, Qwen, OpenCode** -- use their native agent/delegation models with shared Camel-Kit skills and traits.
+- **Google Antigravity, Qwen, OpenCode** -- use their native agent/delegation models with shared Camel-Kit skills and traits.
 
 ### The Design Spec Contract
 
@@ -426,9 +425,8 @@ malformed YAML fail during registry loading with a descriptor-specific error.
 | Agent | Template Dir | Instruction File | MCP Config | Skills Location |
 |-------|-------------|-----------------|------------|-----------------|
 | Claude Code | `templates/claude/` + shared `agents/` | `CLAUDE.md` + `.claude/camel-kit-personas/` | `.mcp.json` | `.claude/skills/` |
-| IBM Bob 1 legacy | `templates/bob/` | `custom_modes.yaml` + rules + gates | `.bob/mcp.json` | `.bob/skills/` |
 | IBM Bob 2 | `templates/bob2/` + shared `agents/` | modes + rules + scoped agents + role personas + shared skills | `.bob/mcp.json` | `.bob/skills/` |
-| Gemini CLI | `templates/gemini/` + shared `agents/` | `GEMINI.md` + `@file.md` imports + policies + `.gemini/camel-kit-personas/` | `.gemini/settings.json` | `.gemini/skills/` |
+| Google Antigravity | `templates/antigravity/` + shared `agents/` | `AGENTS.md` + `.agents/agents/` + `.agents/camel-kit-personas/` | `.agents/mcp_config.json` | `.agents/skills/` |
 | OpenAI Codex CLI | `templates/codex/` + shared `agents/` | `AGENTS.md` + `.codex/agents/*.toml` + `.agents/camel-kit-personas/` | `.codex/config.toml` | `.agents/skills/` |
 | GitHub Copilot CLI | `templates/copilot/` + shared `agents/` | `.github/copilot-instructions.md` + `.github/agents/` + hooks + `.github/camel-kit-personas/` | `.github/mcp.json` | `.github/skills/` |
 | Pi | `templates/pi/` + shared `agents/` | `AGENTS.md` + `.pi/prompts/` + guard extension + `.pi/camel-kit-personas/` | `.mcp.json` | `.pi/skills/` |
@@ -449,10 +447,10 @@ Historical release notes, old planning material, and archived ADR-style document
 
 ### The Equalization Layer
 
-Most supported agents receive the shared skills (markdown instruction files), with the template layer adapting them to each agent's conventions. Bob 1 legacy is the exception: because it cannot chain skill references, its registry installs seven self-contained monolithic gate variants plus shared rules. The equalization contract keeps behavior and outputs aligned even though Bob 1 does not read the same phase `SKILL.md` files.
+All supported targets use shared markdown skills with agent-specific traits and native configuration.
 
 **What equalization covers:**
-- Workflow content (shared skills for most agents, corresponding monolithic gates for Bob 1)
+- Workflow content (shared skills for all agents)
 - Iron Laws (embedded in every agent's instruction file)
 - Constitution rules (enforced identically)
 - MCP tool calls (same tools, same parameters)
@@ -480,11 +478,9 @@ Traits are agent-specific instruction fragments that are appended to generated s
 | SKILL.md-level (strategy) | `traits/{agent}/{skill-name}.append.md` | `{skills-dir}/{skill-name}/SKILL.md` |
 | Guide-level (tactics) | `traits/{agent}/{skill-name}/{guide-name}.append.md` | `{skills-dir}/{skill-name}/guides/{guide-name}.md` |
 
-**Example:** `traits/claude/camel-execute.append.md` appends Claude-specific instructions to `camel-execute/SKILL.md` -- parallel sub-agent dispatch via the `Agent` tool, worktree isolation via `EnterWorktree`, build health monitoring via `CronCreate`. The same skill on Gemini gets different trait content: named agent delegation, TOML policy guidance, batch context loading via `read_many_files`.
+**Example:** `traits/claude/camel-execute.append.md` appends Claude-specific instructions to `camel-execute/SKILL.md` -- parallel sub-agent dispatch via the `Agent` tool, worktree isolation via `EnterWorktree`, build health monitoring via `CronCreate`. The same skill on Antigravity gets native `invoke_subagent` dispatch with parent-owned decisions and report writes.
 
-**What traits contain:** Agent-specific tool usage, dispatch strategies, state persistence mechanisms, and execution optimizations. Each trait is written for the specific agent's capabilities -- Claude traits reference `Agent`, `ScheduleWakeup`, `TaskCreate`; Gemini traits reference `save_memory`, `read_many_files`; Bob traits reference `switch_mode`, `insert_content`.
-
-**Bob ordering:** IBM Project Bob replaces several generated `SKILL.md` files with monolithic gate templates. Bob traits are applied after that replacement, so Bob-specific trait content is appended to the final gate-backed skill files rather than being overwritten. Bob guide-level traits still apply to the copied guide files.
+**What traits contain:** Agent-specific tool usage, dispatch strategies, state persistence mechanisms, and execution optimizations. Each trait is written for the specific agent's capabilities -- Claude traits reference `Agent`, `ScheduleWakeup`, `TaskCreate`; Antigravity traits reference `invoke_subagent`, `view_file`, and `grep_search`; Bob 2 traits reference `spawn_subagent`.
 
 ### Iron Laws
 
@@ -505,7 +501,7 @@ Most supported agents use native **sub-agent dispatch** or custom-agent isolatio
 
 - **Claude Code** -- uses the `Agent` tool to spawn fresh sub-agents per task. Each sub-agent receives the task text, relevant design spec section, guide file paths, and MCP parameters. Before implementation, a `catalog-researcher` sub-agent batch-verifies all MCP catalog artifacts (research isolation). After implementation, an Adversarial Code Review dispatches parallel Critic Lanes (Route Architecture, Security, Performance, Boundary Compliance, Behavioral Equivalence) via a Moderator sub-agent, then a spec-compliance reviewer sub-agent checks the design spec, then a code-quality reviewer sub-agent checks constitution compliance. Claude uniquely supports **parallel dispatch**: `camel-kit plan analyze` groups tasks into waves using structured plan metadata (`dependsOn`, file overlap, and logical `provides`/`consumes` resources such as endpoints, routes, properties, schemas, test data, beans, external services, and route contracts), then independent tasks are dispatched simultaneously to multiple sub-agents.
 
-- **Gemini CLI** -- dispatches via a unified `invoke_subagent` tool to 6 specialized sub-agents. The scheduler natively supports **parallel tool execution** via `Promise.all()` (default-parallel). However, sub-agents cannot invoke other sub-agents (hardcoded `Kind.Agent` filter), so `/camel-execute` runs in the **main agent context** where it can dispatch to all sub-agents. Within-wave parallelism is achieved through the scheduler batching multiple `invoke_subagent` calls.
+- **Google Antigravity** -- the primary conversation uses `invoke_subagent` with generated worker and reviewer roles. Independent plan-wave tasks run concurrently with clean context and inherited permissions. The parent owns user decisions and report writes; children do not delegate further.
 
 - **Qwen** -- keeps brainstorm, plan, migrate, execute, validate, and start orchestration in the primary session so
   questions, approval, arguments, and handoffs remain available. It dispatches four bounded leaves with explicit
@@ -538,40 +534,13 @@ Most supported agents use native **sub-agent dispatch** or custom-agent isolatio
 - The parent Bob task remains the orchestrator. Subagents return summaries and must not spawn subagents.
 - Bob 2 skills are the shared Camel-Kit `SKILL.md` files with Bob 2 traits appended; Bob 2 does not replace them with monolithic gates.
 
-**IBM Bob 1 legacy (`--ai bob`)** uses a fundamentally different architecture -- the **B+A (Behavior + Advanced) hybrid with mode switching**:
-
-1. Each gate-backed skill starts in **Advanced mode** (unrestricted), allowing the agent to read all skill files and project context
-2. The first instruction in the gate file switches to a **restricted custom mode** (e.g., `camel-brainstorm-mode`, `camel-implement-mode`) with scoped tool permissions
-3. The mode's tool group constrains what the AI can do for the remainder of that skill invocation
-
-This means Bob 1 cannot isolate tasks into separate context windows or use independent reviewer agents. Its edit tool
-is platform-scoped by mode, while its broad command group is constrained by the generated instructions. During design,
-`camel-brainstorm-mode` grants `read`, `mcp`, `browser`, scoped edits for design Markdown plus
-`.camel-kit/config.properties`, `.camel-kit/pipeline.json`, and `.camel-kit/project-snapshot.md`; commands are limited by
-instructions to pipeline metadata and read-only graph operations, and must not mutate application code.
-
-Bob 1 also requires **seven monolithic gate files** (one for each replaced skill) that inline complete orchestration logic, because it cannot chain skill references across mode switches the way sub-agent-based agents load skills into fresh contexts. Its execute gate runs adversarial critic lenses sequentially in the accumulated session and explicitly lacks fresh-context or parallel critic isolation.
-
-The trade-off table:
-
-| Design Dimension | Sub-agent Dispatch | Mode Switching (Bob 1 Legacy) |
-|-----------------|-------------------|------------------------------|
-| Context isolation | Per-task (fresh sub-agent) | Per-session (accumulated) |
-| Reviewer independence | Separate sub-agent | Same session self-reviews |
-| Tool restriction mechanism | Instruction-based / tool whitelists / policies | Platform-enforced mode tool groups |
-| Parallel execution | Claude (graph topology), Bob 2 (`spawn_subagent` in one turn), Gemini (scheduler `Promise.all()`), Codex (independent waves), Qwen (primary-session same-turn leaves and detached forks), OpenCode (LLM-level) | Not possible |
-| Skill loading | Loaded into sub-agent context on dispatch | Inlined in monolithic gate files |
-| Template complexity | 3-12 files per agent | 17+ files (gates + rules + modes) |
-| Failure isolation | Sub-agent failure doesn't affect other tasks | Phase failure affects entire session |
-
 ### Per-Agent Summary
 
 | Agent | Dispatch Model | Key Differentiator |
 |-------|---------------|-------------------|
 | Claude Code | Parallel sub-agent dispatch | Route graph topology, research isolation, parallel fan-out, adversarial code review |
-| IBM Bob 1 legacy | B+A hybrid with custom modes | Monolithic gate files, 3 checkpoint types |
 | IBM Bob 2 | Native `spawn_subagent` plus custom modes | Capability-scoped `explore`/`camel-worker`/`camel-reviewer` dispatch, parallel same-turn calls, shared skills |
-| Gemini CLI | `invoke_subagent` + parallel scheduler | Default-parallel `Promise.all()`, TOML policy, MCP wildcards, A2A remote agents |
+| Google Antigravity | Parent-owned `invoke_subagent` dispatch | Native project skills, bounded worker/reviewer roles, inherited permissions |
 | OpenAI Codex CLI | Native custom-agent dispatch | `.agents/skills`, `.codex/agents`, prompt-gated MCP tools, inherited sandbox and approvals |
 | GitHub Copilot CLI | Project skills + custom agents + hooks | `.github/skills`, `.github/agents`, `.github/mcp.json`, safety hooks |
 | Pi | Project skills + prompt templates + guard extension | `.pi/skills`, `.pi/prompts`, `.mcp.json`, `pi-mcp-adapter`, trust-gated resources |
@@ -876,7 +845,7 @@ Camel-Kit ships version defaults in `distribution.properties`, then persists the
 
 ### Multi-Agent Parity
 
-Most targets use the shared markdown skills, with agent-specific differences (sub-agent dispatch vs. custom modes vs. inline execution) handled by traits and templates. Bob 1 legacy instead uses generated monolithic phase gates, so shared-skill changes must also be reflected in those gate variants to preserve parity.
+All supported targets use the shared markdown skills, with agent-specific differences (sub-agent dispatch vs. custom modes vs. inline execution) handled by traits and templates.
 
 ### Constitution vs Iron Laws
 
@@ -922,9 +891,8 @@ user_invocable: false
 
 5. **If registering generated command or skill entry points:** update agent-specific guidance only where the command needs custom behavior beyond the generated stub or project skill. The default generator creates command stubs from the manifest. Agent templates still need updates when they contain human-readable command tables, custom modes, policies, or sub-agent dispatch:
    - Claude Code: update `templates/claude/claude-md.md`
-   - IBM Bob 1 legacy: update `templates/bob/custom_modes.yaml`, gate files, and rules directories
    - IBM Bob 2: update `agents/registry/bob2.yaml`, `Bob2Generator`, `templates/dispatch/bob2.md`, `templates/bob2/` modes/agents/rules, `templates/traits/bob2/`, and any shared `agents/*.md` installed under `.bob/personas/`
-   - Gemini CLI: update `templates/gemini/gemini-md.md`
+   - Google Antigravity: update `templates/antigravity/agents-md.md`
    - OpenAI Codex CLI: update `templates/codex/`, `templates/dispatch/codex.md`, and custom-agent TOML templates
    - GitHub Copilot CLI: update `templates/copilot/copilot-instructions.md`, `templates/copilot/agents-md.md`, and any affected `.github/agents` templates
    - Pi: update `templates/pi/agents-md.md`, `templates/dispatch/pi.md`, and guard policy templates when relevant

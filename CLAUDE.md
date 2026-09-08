@@ -38,8 +38,8 @@ Rules:
 - **Never hardcode versions** — reference `distribution.properties` (repo root;
   single source of truth for all version pins, copied into the JAR).
 - `skills/shared/` guides feed multiple skills — check every caller before editing.
-- A new **user-invocable** skill must be registered in ALL 9 agent templates:
-  `templates/{bob,bob2,claude,codex,copilot,gemini,opencode,pi,qwen}/` and added to
+- A new **user-invocable** skill must be registered in ALL 8 agent templates:
+  `templates/{antigravity,bob2,claude,codex,copilot,opencode,pi,qwen}/` and added to
   `docs/commands.md`.
 - Agent traits: `templates/traits/{agent}/{skill}.append.md` — no code registration
   needed. `ShippedAssetStructureTest` enforces the contract; run it after any
@@ -64,7 +64,7 @@ Work is finished only when all of these hold:
    root when changes span modules or touch skills/templates/`distribution.properties`.
 2. `./mvnw -Psourcecheck validate -B` passes (CI format gate).
 3. Skill/template/trait change: `ShippedAssetStructureTest` passes.
-4. New user-invocable skill: registered in all 9 agent templates + `docs/commands.md`.
+4. New user-invocable skill: registered in all 8 agent templates + `docs/commands.md`.
 5. No hardcoded versions where `distribution.properties` should be referenced.
 6. `docs/` updated as needed; `CHANGELOG.md` for significant changes.
 7. Architectural decision documentation is updated as required.

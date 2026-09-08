@@ -23,25 +23,24 @@ class CommandStubGeneratorTest {
 
     @Test
     void writesGeneratedManifestCommandsOnly() throws Exception {
-        InitContext ctx = createContext("gemini");
+        InitContext ctx = createContext("qwen");
         Files.createDirectories(ctx.commandsDir());
 
         WorkflowManifest workflow = WorkflowManifestLoader.loadDefault();
         new CommandStubGenerator().generate(ctx, workflow);
 
-        Path startCommand = ctx.commandsDir().resolve("camel-start.toml");
+        Path startCommand = ctx.commandsDir().resolve("camel-start.md");
         assertTrue(Files.isRegularFile(startCommand));
-        assertFalse(Files.exists(ctx.commandsDir().resolve("camel-implement.toml")));
+        assertFalse(Files.exists(ctx.commandsDir().resolve("camel-implement.md")));
 
         String content = Files.readString(startCommand);
-        assertTrue(content.contains("description = \"Camel-Kit start command\""));
-        assertTrue(content.contains("Read .gemini/skills/camel-start/SKILL.md and follow those instructions"));
+        assertTrue(content.contains("Read .qwen/skills/camel-start/SKILL.md and follow those instructions"));
         assertTrue(content.contains("Requested input: {{args}}"));
     }
 
     @Test
     void writesPlainTextCommandsForMarkdownAgents() throws Exception {
-        InitContext ctx = createContext("bob");
+        InitContext ctx = createContext("claude");
         Files.createDirectories(ctx.commandsDir());
 
         WorkflowManifest workflow = WorkflowManifestLoader.loadDefault();
@@ -51,7 +50,7 @@ class CommandStubGeneratorTest {
         assertTrue(Files.isRegularFile(startCommand));
 
         String content = Files.readString(startCommand);
-        assertEquals("Read .bob/skills/camel-start/SKILL.md and follow those instructions", content);
+        assertTrue(content.contains("Read .claude/skills/camel-start/SKILL.md and follow those instructions"));
         assertFalse(content.startsWith("description = "));
     }
 
@@ -76,7 +75,7 @@ class CommandStubGeneratorTest {
 
     @Test
     void shipStubForwardsOptionsInProseWhenNoPlaceholderIsDocumented() throws Exception {
-        InitContext ctx = createContext("bob");
+        InitContext ctx = createContext("bob2");
         Files.createDirectories(ctx.commandsDir());
 
         new CommandStubGenerator().generate(ctx, WorkflowManifestLoader.loadDefault());
@@ -88,21 +87,8 @@ class CommandStubGeneratorTest {
     }
 
     @Test
-    void escapesTripleQuotesInTomlWrappedContent() throws Exception {
-        InitContext ctx = createContext("gemini");
-        Files.createDirectories(ctx.commandsDir());
-        WorkflowManifest workflow = workflowWithCommands(List.of(command("camel-quote", "skill-\"\"\"-name")));
-
-        new CommandStubGenerator().generate(ctx, workflow);
-
-        String content = Files.readString(ctx.commandsDir().resolve("camel-quote.toml"));
-        assertTrue(content.contains("skill-\\\"\\\"\\\"-name"));
-        assertFalse(content.contains("skill-\"\"\"-name"));
-    }
-
-    @Test
     void handlesEmptyGeneratedCommandStubsWithoutCreatingFiles() throws Exception {
-        InitContext ctx = createContext("gemini");
+        InitContext ctx = createContext("qwen");
         Files.createDirectories(ctx.commandsDir());
 
         new CommandStubGenerator().generate(ctx, workflowWithCommands(List.of()));
@@ -122,20 +108,6 @@ class CommandStubGeneratorTest {
                 List.of(),
                 List.of(),
                 null);
-    }
-
-    private WorkflowCommand command(String name, String skill) {
-        return new WorkflowCommand(
-                name,
-                List.of(),
-                skill,
-                true,
-                true,
-                "entry",
-                "Test command",
-                true,
-                false,
-                List.of());
     }
 
     private InitContext createContext(String agentName) {

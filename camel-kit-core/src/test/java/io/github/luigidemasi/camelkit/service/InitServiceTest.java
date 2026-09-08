@@ -17,6 +17,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -33,10 +35,10 @@ class InitServiceTest {
         RecordingReporter reporter = new RecordingReporter();
         Path targetDir = tempDir.resolve("orders");
 
-        InitResult result = new InitService().initialize(request(targetDir, "bob", progress, reporter));
+        InitResult result = new InitService().initialize(request(targetDir, "bob2", progress, reporter));
 
         assertEquals("orders", result.projectName());
-        assertEquals("bob", result.agentName());
+        assertEquals("bob2", result.agentName());
         assertEquals(targetDir, result.targetDir());
         assertEquals("5.0.1", result.citrusVersion());
         assertEquals(0, result.citrusSchemaCount());
@@ -50,17 +52,14 @@ class InitServiceTest {
 
         String config = Files.readString(targetDir.resolve(".camel-kit/config.properties"));
         assertTrue(config.contains("project.name=orders"));
-        assertTrue(config.contains("agent.name=bob"));
+        assertTrue(config.contains("agent.name=bob2"));
         assertTrue(config.contains("project.sourcePlatform=mulesoft"));
         assertTrue(config.contains("citrus.version=5.0.1"));
         assertTrue(config.contains("citrus.mcp.version=" + EXPECTED_CITRUS_MCP_VERSION));
 
         assertTrue(progress.events().contains("start:Creating project structure"));
-        assertTrue(progress.events().contains("start:Generating IBM Project Bob workspace"));
+        assertTrue(progress.events().contains("start:Generating IBM Bob 2 workspace"));
         assertEquals("3.9.9", reporter.mavenVersion());
-        assertTrue(result.warnings().stream()
-                .anyMatch(warning -> warning.message().contains("IBM Bob 1 legacy selected")));
-        assertTrue(reporter.hasWarningContaining("use --ai bob2 for new IBM Bob projects"));
         assertTrue(reporter.wasGraphSkipped() || reporter.graph() != null || !reporter.warnings().isEmpty());
     }
 
@@ -82,23 +81,76 @@ class InitServiceTest {
     }
 
     @Test
-    void bob2InitializationDoesNotReportBob1LegacyWarning() throws Exception {
-        RecordingReporter reporter = new RecordingReporter();
-        Path targetDir = tempDir.resolve("orders");
+    void removedTargetsFailBeforeWritingWithMigrationGuidance() {
+        for (var migration : java.util.Map.of(
+                "bob", "bob2", "Bob", "bob2", "BOB", "bob2",
+                "gemini", "antigravity", "Gemini", "antigravity", "GEMINI", "antigravity").entrySet()) {
+            Path target = tempDir.resolve(migration.getKey());
+            IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                    () -> new InitService()
+                            .initialize(request(target, migration.getKey(), InitProgress.noop(), InitReporter.noop())));
+            assertTrue(failure.getMessage().contains("support has been removed"));
+            assertTrue(failure.getMessage().contains("--ai " + migration.getValue()));
+            assertFalse(Files.exists(target));
+        }
+    }
 
-        InitResult result = new InitService().initialize(
-                request(targetDir, "bob2", InitProgress.noop(), reporter));
+    @Test
+    void antigravityRejectsWrongManagedNodeTypesBeforeAnyProjectWrites() throws Exception {
+        for (String name : List.of(".agents", "AGENTS.md", "GEMINI.md", ".agents/skills",
+                ".agents/skills/camel-start", ".agents/skills/camel-start/SKILL.md",
+                ".agents/skills/shared", ".agents/agents", ".agents/agents/camel-worker.md",
+                ".agents/camel-kit-personas", ".agents/camel-kit-personas/catalog-researcher.md")) {
+            Path project = Files.createTempDirectory(tempDir, "conflicting-node-");
+            Files.createDirectories(project.resolve(name).getParent());
+            if (!name.endsWith(".md")) {
+                Files.writeString(project.resolve(name), "custom file");
+            } else {
+                Files.createDirectory(project.resolve(name));
+            }
+            List<String> before = snapshot(project);
+            assertThrows(IOException.class,
+                    () -> new InitService()
+                            .initialize(request(project, "antigravity", InitProgress.noop(), InitReporter.noop())),
+                    name);
+            assertEquals(before, snapshot(project), name);
+        }
+    }
 
-        assertEquals("bob2", result.agentName());
-        assertFalse(result.warnings().stream()
-                .anyMatch(warning -> warning.message().contains("IBM Bob 1 legacy selected")));
-        assertFalse(reporter.hasWarningContaining("IBM Bob 1 legacy selected"));
+    @Test
+    void invalidAntigravityMcpFailsBeforeAnyProjectWrites() throws Exception {
+        Path config = tempDir.resolve(".agents/mcp_config.json");
+        Files.createDirectories(config.getParent());
+        Files.writeString(config, "{} {}");
+        List<String> before = snapshot(tempDir);
+        assertThrows(InvalidAgentConfigurationException.class,
+                () -> new InitService()
+                        .initialize(request(tempDir, "antigravity", InitProgress.noop(), InitReporter.noop())));
+        assertEquals(before, snapshot(tempDir));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"mcpServers", "camel"})
+    void duplicateAntigravityMcpFailsBeforeAnyProjectWrites(String key) throws Exception {
+        new InitService().initialize(request(tempDir, "antigravity", InitProgress.noop(), InitReporter.noop()));
+        Path config = tempDir.resolve(".agents/mcp_config.json");
+        String original = Files.readString(config);
+        Files.writeString(config, original.replaceFirst("\"" + key + "\"\\s*:",
+                "\"" + key + "\": {}, \"" + key + "\":"));
+        List<String> before = snapshot(tempDir);
+
+        InvalidAgentConfigurationException failure = assertThrows(InvalidAgentConfigurationException.class,
+                () -> new InitService()
+                        .initialize(request(tempDir, "antigravity", InitProgress.noop(), InitReporter.noop())));
+
+        assertTrue(failure.getMessage().contains("Duplicate field '" + key + "'"));
+        assertEquals(before, snapshot(tempDir));
     }
 
     @Test
     @EnabledOnOs(OS.LINUX)
     void rejectsSymlinkedAgentRootsBeforeWritingOutsideTheProject() throws Exception {
-        for (String agentName : List.of("claude", "bob2", "opencode")) {
+        for (String agentName : List.of("claude", "bob2", "opencode", "antigravity")) {
             Path targetDir = Files.createDirectory(tempDir.resolve(agentName));
             Path outside = Files.createDirectory(tempDir.resolve(agentName + "-outside"));
             Files.writeString(outside.resolve("keep.md"), "outside");
@@ -108,6 +160,7 @@ class InitServiceTest {
             String agentRoot = switch (agentName) {
                 case "claude" -> ".claude";
                 case "bob2" -> ".bob";
+                case "antigravity" -> ".agents";
                 default -> ".opencode";
             };
             Files.createSymbolicLink(targetDir.resolve(agentRoot), outside);
@@ -237,7 +290,7 @@ class InitServiceTest {
                 () -> new InitService().initialize(
                         request(targetDir, "unknown-agent", InitProgress.noop(), InitReporter.noop())));
 
-        assertEquals("Unknown agent: unknown-agent", error.getMessage());
+        assertEquals("Unknown agent 'unknown-agent'", error.getMessage());
         assertFalse(Files.exists(targetDir));
     }
 

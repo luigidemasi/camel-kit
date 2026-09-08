@@ -40,8 +40,75 @@ class DoctorServiceTest {
     Path tempDir;
 
     @Test
+    void antigravityMcpUsesNativeSchemaAndRequiresCitrus() throws Exception {
+        createHealthyWorkspace(tempDir, "antigravity");
+        Path commented = tempDir.resolve(".agents/mcp_config.json");
+        Files.writeString(commented, Files.readString(commented).replaceFirst("\\{", "{ // custom comment\n"));
+        DoctorResult healthy = new DoctorService().inspect(new DoctorRequest(tempDir));
+        assertTrue(hasFinding(healthy, DoctorFinding.Status.PASS, "mcp", "Antigravity permissions", null));
+        Path path = tempDir.resolve(".agents/mcp_config.json");
+        ObjectNode config = (ObjectNode) io.github.luigidemasi.camelkit.config.OpenCodeProjectConfig.newJsonMapper()
+                .readTree(Files.readString(path));
+        ((ObjectNode) config.path("mcpServers")).remove("citrus");
+        Files.writeString(path, config.toString());
+        DoctorResult broken = new DoctorService().inspect(new DoctorRequest(tempDir));
+        assertTrue(hasFinding(broken, DoctorFinding.Status.FAIL, "mcp", "'citrus' is missing", null));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "autoApprove", "alwaysAllow", "includeTools", "trust", "url", "httpUrl",
+            "disabled", "disabledTools", "args", "command"})
+    void antigravityDoctorRejectsUnsupportedOrDisabledManagedServers(String field) throws Exception {
+        createHealthyWorkspace(tempDir, "antigravity");
+        Path path = tempDir.resolve(".agents/mcp_config.json");
+        ObjectNode config = (ObjectNode) MAPPER.readTree(Files.readString(path));
+        ObjectNode server = (ObjectNode) config.at("/mcpServers/camel");
+        if ("disabledTools".equals(field)) {
+            server.putArray(field).add(EXPECTATIONS.camelMcpTools().iterator().next());
+        } else if ("command".equals(field)) {
+            server.put(field, "");
+        } else {
+            server.put(field, true);
+        }
+        Files.writeString(path, config.toString());
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp", "Antigravity MCP server 'camel'",
+                "--ai antigravity"));
+        assertFalse(hasFinding(result, DoctorFinding.Status.PASS, "mcp"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"mcpServers", "camel"})
+    void antigravityDoctorRejectsDuplicateMcpMembers(String key) throws Exception {
+        createHealthyWorkspace(tempDir, "antigravity");
+        Path config = tempDir.resolve(".agents/mcp_config.json");
+        Files.writeString(config, Files.readString(config).replaceFirst("\"" + key + "\"\\s*:",
+                "\"" + key + "\": {}, \"" + key + "\":"));
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp", "Duplicate field '" + key + "'",
+                "duplicate keys"));
+        assertFalse(hasFinding(result, DoctorFinding.Status.PASS, "mcp"));
+    }
+
+    @Test
+    void removedAgentsHaveDoctorMigrationGuidance() throws Exception {
+        for (var migration : Map.of("bob", "bob2", "gemini", "antigravity").entrySet()) {
+            Path project = tempDir.resolve(migration.getKey());
+            createHealthyWorkspace(project, migration.getValue());
+            Path config = project.resolve(".camel-kit/config.properties");
+            Files.writeString(config, Files.readString(config)
+                    .replace("agent.name=" + migration.getValue(), "agent.name=" + migration.getKey()));
+            DoctorResult result = new DoctorService().inspect(new DoctorRequest(project));
+            assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "config", "--ai " + migration.getValue(), null));
+        }
+    }
+
+    @Test
     void healthyWorkspaceReturnsStructuredFindings() throws Exception {
-        createHealthyWorkspace(tempDir, "bob");
+        createHealthyWorkspace(tempDir, "bob2");
 
         DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
 
@@ -948,7 +1015,7 @@ class DoctorServiceTest {
 
     @Test
     void missingCitrusServerWarnsWithoutVersionPropertiesForLegacyCapableJsonAgents() throws Exception {
-        for (String agentName : List.of("bob", "bob2", CLAUDE, "gemini", OPENCODE, QWEN)) {
+        for (String agentName : List.of("bob2", CLAUDE, OPENCODE, QWEN)) {
             Path root = tempDir.resolve(agentName);
             createHealthyWorkspace(root, agentName);
             removeCitrusServer(root, agentName);
@@ -1000,7 +1067,7 @@ class DoctorServiceTest {
     @Test
     void citrusToolAllowlistMismatchFailsForEachJsonAllowlistSchema() throws Exception {
         Map<String, List<String>> schemas = Map.of(
-                "bob", List.of("autoApprove", "alwaysAllow"),
+                "bob2", List.of("autoApprove", "alwaysAllow"),
                 COPILOT, List.of("tools"),
                 PI, List.of("directTools"),
                 QWEN, List.of("includeTools"));
@@ -1535,8 +1602,8 @@ class DoctorServiceTest {
 
     @Test
     void nonCopilotToolsKeyDoesNotBypassLegacyAllowlistValidation() throws Exception {
-        createHealthyWorkspace(tempDir, "bob");
-        writeMcpConfig(tempDir, "bob", """
+        createHealthyWorkspace(tempDir, "bob2");
+        writeMcpConfig(tempDir, "bob2", """
                 {
                   "mcpServers": {
                     "camel": {
@@ -1561,18 +1628,18 @@ class DoctorServiceTest {
 
     @Test
     void mixedCaseAgentNameStillResolvesRegisteredMcpPathForMcpChecks() throws Exception {
-        createHealthyWorkspace(tempDir, "bob");
+        createHealthyWorkspace(tempDir, "bob2");
         Path configFile = tempDir.resolve(".camel-kit/config.properties");
-        Files.writeString(configFile, Files.readString(configFile).replace("agent.name=bob", "agent.name=Bob"));
+        Files.writeString(configFile, Files.readString(configFile).replace("agent.name=bob2", "agent.name=Bob2"));
 
         DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
 
-        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "config", "Unknown agent.name 'Bob'", null));
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "config", "Unknown agent 'Bob2'", null));
         assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
                 "MCP config exists and tool allowlists match Camel-Kit expectations",
                 "No action required."));
         assertFalse(hasFinding(result, DoctorFinding.Status.FAIL, "mcp",
-                "Cannot determine MCP config path for agent 'Bob'", null));
+                "Cannot determine MCP config path for agent 'Bob2'", null));
     }
 
     @Test

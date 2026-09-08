@@ -23,7 +23,7 @@ class AgentRegistryTest {
 
     @Test
     void builtInAgentsAreLoadedFromResourceDescriptors() {
-        assertEquals(Set.of("bob", "bob2", "claude", "codex", "copilot", "gemini", "opencode", "pi", "qwen"),
+        assertEquals(Set.of("antigravity", "bob2", "claude", "codex", "copilot", "opencode", "pi", "qwen"),
                 AgentRegistry.names());
 
         AgentConfig claude = AgentRegistry.get("claude");
@@ -97,16 +97,16 @@ class AgentRegistryTest {
 
     @Test
     void commandAgentsUseTheirNativeArgumentPlaceholders() {
-        for (String agent : Set.of("gemini", "qwen")) {
+        for (String agent : Set.of("qwen")) {
             assertEquals("{{args}}", AgentRegistry.get(agent).argPlaceholder(), agent);
         }
         for (String agent : Set.of("claude", "opencode", "pi")) {
             assertEquals("$ARGUMENTS", AgentRegistry.get(agent).argPlaceholder(), agent);
         }
         // IBM Bob documents only positional $1/$2 command placeholders and no all-arguments
-        // placeholder (bob.ibm.com/docs/shell/features/slash-commands), so bob/bob2 declare
+        // placeholder (bob.ibm.com/docs/shell/features/slash-commands), so bob2 declares
         // none and their Ship stub forwards the invocation options in prose.
-        for (String agent : Set.of("bob", "bob2", "codex", "copilot")) {
+        for (String agent : Set.of("antigravity", "bob2", "codex", "copilot")) {
             assertNull(AgentRegistry.get(agent).argPlaceholder(), agent);
         }
     }
