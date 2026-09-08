@@ -112,7 +112,7 @@ camel-kit init --here
 camel-kit init my-integration --ai claude -p "camel.main.version=4.18.4"
 
 # Override multiple properties
-camel-kit init my-integration --ai claude -p "camel.quarkus.version=4.18.2" -p "quarkus.platform.version=3.33.1"
+camel-kit init my-integration --ai claude -p "camel.quarkus.version=4.18.3" -p "quarkus.platform.version=3.33.3.2"
 
 # Use a custom config file
 camel-kit init my-integration --ai claude -c /path/to/my-config.properties
@@ -184,8 +184,8 @@ Any property from `distribution.properties` can be overridden at layers 2 or 3. 
 | `camel.main.version` | `4.22.0` | Apache Camel version for Camel Main / JBang projects |
 | `camel.springboot.version` | `4.22.0` | Apache Camel version for Spring Boot projects |
 | `springboot.bom.version` | `4.22.0` | Spring Boot BOM version |
-| `camel.quarkus.version` | `4.18.2` | Apache Camel version for Quarkus projects |
-| `quarkus.platform.version` | `3.33.1` | Quarkus platform BOM version |
+| `camel.quarkus.version` | `4.18.3` | Apache Camel version for Quarkus projects |
+| `quarkus.platform.version` | `3.33.3.2` | Quarkus platform BOM version |
 | `camel.mcp.version` | See `distribution.properties` | Camel MCP server version |
 | `knowledge.mcp.version` | `0.0.1-SNAPSHOT` | Knowledge MCP server version |
 | `citrus.version` | `5.0.1` | Citrus test schema and dependency version |

@@ -273,6 +273,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Quarkus platform 3.33.3.2** — update the default platform BOM and its Camel version to 4.18.3,
+  matching the published BOM's Camel Quarkus 3.33.2 dependencies. Update the supported-version mapping,
+  installed guidance, documentation, and companion Forage stream to 1.4.0.
+
 - **Ship state inside the project (#217)** — `camel-kit ship` now stores run records, evidence, Pi session
   transcripts, the staged Execute workspace and the default validation catalog repository under
   `<project>/.camel-kit/ship/state/` instead of `$XDG_STATE_HOME/camel-kit/ship` or `~/.local/state/camel-kit/ship`.
