@@ -12,7 +12,6 @@ import io.github.luigidemasi.camelkit.util.AnsiColors;
 import io.github.luigidemasi.camelkit.util.TemplateUtils;
 import io.github.luigidemasi.camelkit.workflow.WorkflowManifest;
 
-import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -21,8 +20,7 @@ class McpConfigGenerator {
 
     private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
     private static final ObjectMapper ANTIGRAVITY_MAPPER
-            = io.github.luigidemasi.camelkit.config.OpenCodeProjectConfig.newJsonMapper()
-                    .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
+            = io.github.luigidemasi.camelkit.config.OpenCodeProjectConfig.newJsonMapper();
 
     void generate(InitContext ctx, WorkflowManifest workflow) throws InvalidAgentConfigurationException {
         try {

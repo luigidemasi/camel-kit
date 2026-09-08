@@ -29,7 +29,6 @@ import io.github.luigidemasi.camelkit.graph.ParserDiagnostic;
 import io.github.luigidemasi.camelkit.util.PrerequisiteChecker;
 import io.github.luigidemasi.camelkit.util.ProcessRunner;
 
-import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -48,8 +47,6 @@ public class DoctorService {
     private static final ObjectMapper YAML_MAPPER = new ObjectMapper(new YAMLFactory());
     private static final String NESTED_RULE = "\n";
     private static final ObjectMapper JSONC_MAPPER = OpenCodeProjectConfig.newJsonMapper();
-    private static final ObjectMapper ANTIGRAVITY_MAPPER = OpenCodeProjectConfig.newJsonMapper()
-            .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
     private static final Duration PREREQUISITE_TIMEOUT = Duration.ofSeconds(3);
     private static final Set<String> PRE_CITRUS_JSON_AGENTS = Set.of(
             AgentGeneratorStrategy.BOB2.descriptorValue(),
@@ -541,7 +538,7 @@ public class DoctorService {
             }
 
             try {
-                rootNode = (antigravitySchema ? ANTIGRAVITY_MAPPER : MAPPER).readTree(mcpFile.toFile());
+                rootNode = (antigravitySchema ? JSONC_MAPPER : MAPPER).readTree(mcpFile.toFile());
             } catch (IOException e) {
                 findings.add(DoctorFinding.fail("mcp", relativize(root, mcpFile),
                         "MCP config is not valid JSON: " + e.getMessage(),
@@ -644,7 +641,7 @@ public class DoctorService {
             } catch (IOException e) {
                 findings.add(DoctorFinding.fail("mcp", relativize(root, candidate),
                         "OpenCode configuration is not valid JSON or JSONC: " + e.getMessage(),
-                        "Fix the syntax or regenerate the OpenCode config with camel-kit init --here --force."));
+                        "Fix the syntax or remove duplicate keys, then re-run camel-kit init --here --ai opencode --force."));
                 return null;
             }
             if (parsed == null || !parsed.isObject()) {

@@ -247,7 +247,10 @@ final class OpenCodeConfigMerger {
         } catch (JsonProcessingException e) {
             String message = source + " is not valid JSON or JSONC";
             if (existing) {
-                throw new InvalidAgentConfigurationException(message, e);
+                throw new InvalidAgentConfigurationException(
+                        message + ": " + e.getOriginalMessage()
+                                                             + ". Fix the syntax or remove duplicate keys before retrying initialization.",
+                        e);
             }
             throw new IOException(message, e);
         }

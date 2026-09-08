@@ -434,6 +434,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **OpenCode duplicate MCP configuration** — initialization rejects duplicate JSON/JSONC object keys in every
+  project configuration layer before writing workspace files, and Doctor reports the offending file and key.
+  Remove duplicate keys before retrying initialization; valid layered overrides, comments and trailing commas remain supported.
+
 - **Bob 2 native workflow discovery (#213)** — Bob 2 generation marks the nine public
   command skills user-invocable in both metadata spellings, making them available through
   `/skills` and `$camel-*` in Shell and `/camel-*` in IDE. Setup guidance documents both

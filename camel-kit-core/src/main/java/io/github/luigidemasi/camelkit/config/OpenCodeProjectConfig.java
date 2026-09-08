@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonFactory;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.json.JsonReadFeature;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -56,6 +57,7 @@ public final class OpenCodeProjectConfig {
                         .enable(JsonReadFeature.ALLOW_JAVA_COMMENTS)
                         .enable(JsonReadFeature.ALLOW_TRAILING_COMMA)
                         .build())
+                .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
                 .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
     }
 

@@ -18,6 +18,7 @@ import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -144,6 +145,30 @@ class InitServiceTest {
                         .initialize(request(tempDir, "antigravity", InitProgress.noop(), InitReporter.noop())));
 
         assertTrue(failure.getMessage().contains("Duplicate field '" + key + "'"));
+        assertEquals(before, snapshot(tempDir));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "opencode.json, mcp", "opencode.json, camel",
+            "opencode.jsonc, mcp", "opencode.jsonc, camel",
+            ".opencode/opencode.json, mcp", ".opencode/opencode.json, camel",
+            ".opencode/opencode.jsonc, mcp", ".opencode/opencode.jsonc, camel"})
+    void duplicateOpenCodeMcpFailsBeforeAnyProjectWrites(String file, String key) throws Exception {
+        new InitService().initialize(request(tempDir, "opencode", InitProgress.noop(), InitReporter.noop()));
+        String original = Files.readString(tempDir.resolve("opencode.json"));
+        Files.writeString(tempDir.resolve(".opencode/opencode.jsonc"), original);
+        Files.writeString(tempDir.resolve(file), original.replaceFirst("\"" + key + "\"\\s*:",
+                "\"" + key + "\": {}, \"" + key + "\":"));
+        List<String> before = snapshot(tempDir);
+
+        InvalidAgentConfigurationException failure = assertThrows(InvalidAgentConfigurationException.class,
+                () -> new InitService()
+                        .initialize(request(tempDir, "opencode", InitProgress.noop(), InitReporter.noop())));
+
+        assertTrue(failure.getMessage().contains(file));
+        assertTrue(failure.getMessage().contains("Duplicate field '" + key + "'"));
+        assertTrue(failure.getMessage().contains("remove duplicate keys"));
         assertEquals(before, snapshot(tempDir));
     }
 
