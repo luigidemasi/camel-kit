@@ -137,13 +137,14 @@ class SkillResourceInstaller {
             Files.copy(in, destination, StandardCopyOption.REPLACE_EXISTING);
         }
         if (destination.getFileName().toString().equals("SKILL.md")) {
-            boolean shipDelegate = "camel-ship".equals(destination.getParent().getFileName().toString());
+            String skillName = destination.getParent().getFileName().toString();
+            boolean shipDelegate = "camel-ship".equals(skillName);
             if (AgentGeneratorStrategy.BOB2.descriptorValue().equals(ctx.agentName())
                     || AgentGeneratorStrategy.QWEN.descriptorValue().equals(ctx.agentName())) {
                 // Bob Shell's native skill picker hides false values; same-name command stubs cannot override them.
                 boolean exposeCommand = AgentGeneratorStrategy.BOB2.descriptorValue().equals(ctx.agentName())
                         && workflow.commands().stream().anyMatch(command -> command.userFacing()
-                                && command.skill().equals(destination.getParent().getFileName().toString()));
+                                && command.skill().equals(skillName));
                 addHyphenatedUserInvocableMetadata(destination, exposeCommand);
             }
             if (AgentGeneratorStrategy.COPILOT.descriptorValue().equals(ctx.agentName())) {

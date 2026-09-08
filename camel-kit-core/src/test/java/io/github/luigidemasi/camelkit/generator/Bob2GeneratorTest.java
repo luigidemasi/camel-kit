@@ -443,7 +443,7 @@ class Bob2GeneratorTest {
         assertPublicCommandDiscovery(ctx);
         String routing = Files.readString(tempDir.resolve("AGENTS.md"));
         assertTrue(routing.contains("open `/skills` or type `$camel-`"));
-        assertTrue(routing.contains("In Bob IDE 2, use the `/camel-*` command stubs."));
+        assertTrue(routing.contains("In Bob IDE, use `/camel-*` to invoke the corresponding native"));
         assertSingleBlankLineBeforeDispatch(Files.readString(ctx.skillsDir().resolve("camel-start/SKILL.md")));
         assertSingleBlankLineBeforeDispatch(Files.readString(ctx.skillsDir().resolve("camel-execute/SKILL.md")));
 

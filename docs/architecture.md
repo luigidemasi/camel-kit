@@ -60,12 +60,13 @@ copies add `user-invocable` alongside Camel-Kit's source `user_invocable` metada
 adapt exact `/camel-*` skill invocations to native `$camel-*` mentions while leaving file paths unchanged.
 
 Bob 2 generated copies set both invocation fields to `true` for skills referenced by
-`user_facing: true` commands in the workflow manifest. Bob Shell 2.0.2 builds its
-`$camel-*` skill picker from those native skills and skips migrating a same-name command stub
-when `SKILL.md` already exists. Internal helpers retain `false` for both fields.
+`user_facing: true` commands in the workflow manifest. Bob Shell uses those native
+skills through `/skills` and `$camel-*`; Bob IDE exposes them through `/camel-*`.
+Verified Shell 2.0.2 and IDE 2.1.0 skip migrating a same-name command stub when
+`SKILL.md` already exists. Internal helpers retain `false` for both fields.
 The Shell `/` menu contains built-in commands and MCP prompts.
-Bob IDE command stubs remain installed, and the native Ship skill retains the same
-CLI delegation contract. See [Bob Shell setup](user-guide.md#bob-shell-202).
+Legacy command stubs remain installed for compatibility, and the native Ship skill
+retains the same CLI delegation contract. See [Bob setup](user-guide.md#bob-shell-202).
 
 ### All Skills
 

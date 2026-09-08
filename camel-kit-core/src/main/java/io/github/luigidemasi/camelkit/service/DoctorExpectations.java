@@ -17,6 +17,7 @@ public final class DoctorExpectations {
 
     private final List<WorkflowManifest.WorkflowCommand> generatedStubs;
     private final List<String> requiredSkills;
+    private final List<String> publicSkills;
     private final Set<String> camelMcpTools;
     private final Set<String> knowledgeMcpTools;
     private final Set<String> citrusMcpTools;
@@ -24,11 +25,13 @@ public final class DoctorExpectations {
     private DoctorExpectations(
                                List<WorkflowManifest.WorkflowCommand> generatedStubs,
                                List<String> requiredSkills,
+                               List<String> publicSkills,
                                Set<String> camelMcpTools,
                                Set<String> knowledgeMcpTools,
                                Set<String> citrusMcpTools) {
         this.generatedStubs = List.copyOf(generatedStubs);
         this.requiredSkills = List.copyOf(requiredSkills);
+        this.publicSkills = List.copyOf(publicSkills);
         this.camelMcpTools = Collections.unmodifiableSet(new LinkedHashSet<>(camelMcpTools));
         this.knowledgeMcpTools = Collections.unmodifiableSet(new LinkedHashSet<>(knowledgeMcpTools));
         this.citrusMcpTools = Collections.unmodifiableSet(new LinkedHashSet<>(citrusMcpTools));
@@ -47,6 +50,11 @@ public final class DoctorExpectations {
                 workflow.generatedCommandStubs(),
                 workflow.skills().stream()
                         .map(WorkflowManifest.WorkflowSkill::name)
+                        .toList(),
+                workflow.commands().stream()
+                        .filter(WorkflowManifest.WorkflowCommand::userFacing)
+                        .map(WorkflowManifest.WorkflowCommand::skill)
+                        .distinct()
                         .toList(),
                 orderedSet(workflow.mcpServer("camel").allowedTools()),
                 orderedSet(workflow.mcpServer("camel-knowledge").allowedTools()),
@@ -69,6 +77,10 @@ public final class DoctorExpectations {
 
     public List<String> requiredSkills() {
         return requiredSkills;
+    }
+
+    public List<String> publicSkills() {
+        return publicSkills;
     }
 
     public Set<String> camelMcpTools() {

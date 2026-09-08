@@ -20,6 +20,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -61,6 +63,98 @@ class DoctorServiceTest {
         assertTrue(hasFinding(result, DoctorFinding.Status.PASS, "mcp",
                 "MCP config exists and tool allowlists match Camel-Kit expectations",
                 "No action required."));
+    }
+
+    @Test
+    void bob2DoctorDetectsHiddenPublicSkillsUntilRegeneration() throws Exception {
+        createHealthyWorkspace(tempDir, "bob2");
+        List<String> hiddenSkills = List.of("camel-brainstorm", "camel-migrate", "camel-plan", "camel-execute",
+                "camel-validate", "camel-ship", "camel-knowledge", "camel-debug");
+        for (String name : hiddenSkills) {
+            Path skill = tempDir.resolve(".bob/skills/" + name + "/SKILL.md");
+            Files.writeString(skill, Files.readString(skill)
+                    .replace("user_invocable: true", "user_invocable: false")
+                    .replace("user-invocable: true", "user-invocable: false"));
+        }
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertEquals(hiddenSkills.stream().map(name -> ".bob/skills/" + name + "/SKILL.md").sorted().toList(),
+                result.findings().stream()
+                        .filter(finding -> finding.status() == DoctorFinding.Status.FAIL)
+                        .map(DoctorFinding::path).sorted().toList());
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "skills",
+                "hidden by user-invocable: false", "--ai bob2 --force"));
+
+        createHealthyWorkspace(tempDir, "bob2");
+        DoctorResult regenerated = new DoctorService().inspect(new DoctorRequest(tempDir));
+        assertFalse(regenerated.hasFailures(), regenerated.findings().toString());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "user-invocable: true\nmetadata:\n  user-invocable: false",
+            "user-invocable: false\nmetadata:\n  user-invocable: null"
+    })
+    void bob2DoctorUsesBobsNestedInvocationMetadataPrecedence(String metadata) throws Exception {
+        createHealthyWorkspace(tempDir, "bob2");
+        Files.writeString(tempDir.resolve(".bob/skills/camel-migrate/SKILL.md"),
+                "---\nname: camel-migrate\n" + metadata + "\n---\nMigration instructions.\n");
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "skills",
+                "camel-migrate", "--ai bob2 --force"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "user-invocable: false\nmetadata:\n  user-invocable: true",
+            "user_invocable: false",
+            "user-invocable: \"false\""
+    })
+    void bob2DoctorAcceptsMetadataThatBobTreatsAsVisible(String metadata) throws Exception {
+        createHealthyWorkspace(tempDir, "bob2");
+        Files.writeString(tempDir.resolve(".bob/skills/camel-migrate/SKILL.md"),
+                "---\nname: camel-migrate\n" + metadata + "\n---\nMigration instructions.\n");
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
+    }
+
+    @Test
+    void bob2DoctorReportsUnparseableSkillMetadata() throws Exception {
+        createHealthyWorkspace(tempDir, "bob2");
+        Files.writeString(tempDir.resolve(".bob/skills/camel-migrate/SKILL.md"),
+                "---\nname: camel-migrate\nmetadata: [\n---\nMigration instructions.\n");
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "skills",
+                "Could not read invocation metadata", "--ai bob2 --force"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", " \t\r\n"})
+    void bob2DoctorReportsEmptyPublicSkills(String content) throws Exception {
+        createHealthyWorkspace(tempDir, "bob2");
+        Files.writeString(tempDir.resolve(".bob/skills/camel-migrate/SKILL.md"), content);
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "skills",
+                "empty and cannot be discovered", "--ai bob2 --force"));
+    }
+
+    @Test
+    void bob2DoctorAcceptsNonemptySkillsWithoutFrontmatter() throws Exception {
+        createHealthyWorkspace(tempDir, "bob2");
+        Files.writeString(tempDir.resolve(".bob/skills/camel-migrate/SKILL.md"), "Migration instructions.\n");
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertFalse(result.hasFailures(), result.findings().toString());
     }
 
     @Test

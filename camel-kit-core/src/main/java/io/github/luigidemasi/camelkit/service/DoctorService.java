@@ -22,6 +22,7 @@ import io.github.luigidemasi.camelkit.config.AgentDescriptor;
 import io.github.luigidemasi.camelkit.config.AgentGeneratorStrategy;
 import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.config.OpenCodeProjectConfig;
+import io.github.luigidemasi.camelkit.doc.FrontmatterHandler;
 import io.github.luigidemasi.camelkit.graph.GraphBuildResult;
 import io.github.luigidemasi.camelkit.graph.GraphBuilder;
 import io.github.luigidemasi.camelkit.graph.ParserDiagnostic;
@@ -31,6 +32,7 @@ import io.github.luigidemasi.camelkit.util.ProcessRunner;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.tomlj.Toml;
 import org.tomlj.TomlArray;
 import org.tomlj.TomlParseResult;
@@ -42,6 +44,7 @@ import org.tomlj.TomlTable;
 public class DoctorService {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper YAML_MAPPER = new ObjectMapper(new YAMLFactory());
     private static final String NESTED_RULE = "\n";
     private static final ObjectMapper OPENCODE_MAPPER = OpenCodeProjectConfig.newJsonMapper();
     private static final Duration PREREQUISITE_TIMEOUT = Duration.ofSeconds(3);
@@ -194,11 +197,54 @@ public class DoctorService {
 
     private void checkAgentSpecificWorkspace(Path root, AgentConfig agent, List<DoctorFinding> findings) {
         checkRegisteredTemplates(root, agent, findings);
+        if (AgentGeneratorStrategy.BOB2.descriptorValue().equals(agentKey(agent))) {
+            checkBobSkillVisibility(root, agent, findings);
+        }
         if (AgentGeneratorStrategy.PI.descriptorValue().equals(agentKey(agent))) {
             checkPiGuard(root, findings);
         }
         if (AgentGeneratorStrategy.CODEX.descriptorValue().equals(agentKey(agent))) {
             checkCodexAgents(root, findings);
+        }
+    }
+
+    private void checkBobSkillVisibility(Path root, AgentConfig agent, List<DoctorFinding> findings) {
+        String remediation = "Use a build containing the Bob skill discovery fix, back up generated customizations, "
+                             + "then run camel-kit init --here --ai bob2 --force "
+                             + "(or camel kit init --here --ai bob2 --force).";
+        for (String skill : expectations.publicSkills()) {
+            Path skillFile = root.resolve(agent.skillsDirectory()).resolve(skill).resolve("SKILL.md");
+            if (!Files.isRegularFile(skillFile)) {
+                continue; // Missing files are already reported by checkGeneratedWorkspace.
+            }
+            try {
+                String content = Files.readString(skillFile);
+                if (content.isBlank()) {
+                    findings.add(DoctorFinding.fail("skills", relativize(root, skillFile),
+                            "Bob public skill '" + skill + "' is empty and cannot be discovered", remediation));
+                    continue;
+                }
+                String yaml = FrontmatterHandler.extractFrontmatterYaml(content);
+                if (yaml == null || yaml.isBlank()) {
+                    continue;
+                }
+                JsonNode frontmatter = YAML_MAPPER.readTree(yaml);
+                if (frontmatter == null) {
+                    continue;
+                }
+                JsonNode invocable = frontmatter.path("metadata").get("user-invocable");
+                if (invocable == null || invocable.isNull()) {
+                    invocable = frontmatter.get("user-invocable");
+                }
+                // Bob defaults to visible unless the effective hyphenated field is boolean false.
+                if (invocable != null && invocable.isBoolean() && !invocable.booleanValue()) {
+                    findings.add(DoctorFinding.fail("skills", relativize(root, skillFile),
+                            "Bob public skill '" + skill + "' is hidden by user-invocable: false", remediation));
+                }
+            } catch (IOException e) {
+                findings.add(DoctorFinding.fail("skills", relativize(root, skillFile),
+                        "Could not read invocation metadata for Bob public skill '" + skill + "'", remediation));
+            }
         }
     }
 
