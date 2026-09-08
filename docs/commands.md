@@ -61,7 +61,7 @@ camel kit init --here [options]
 | Option | Default | Description |
 |--------|---------|-------------|
 | `--ai`, `-a` | `bob2` | AI coding assistant to configure (`bob2` for IBM Bob 2, `bob` for IBM Bob 1 legacy, `gemini`, `claude`, `codex`, `copilot`, `pi`, `qwen`, `opencode`) |
-| `--citrus-version` | `5.0.0-M2` | Citrus Framework version for test schemas and generated test dependencies |
+| `--citrus-version` | `5.0.1` | Citrus Framework version for test schemas and generated test dependencies |
 | `--here` | `false` | Initialize in current directory |
 | `--no-fetch` | `false` | Skip external catalog fetching |
 | `-p`, `--property` | -- | Override a config property (repeatable). Example: `-p "camel.main.version=4.18.4"` |
@@ -188,8 +188,8 @@ Any property from `distribution.properties` can be overridden at layers 2 or 3. 
 | `quarkus.platform.version` | `3.33.1` | Quarkus platform BOM version |
 | `camel.mcp.version` | See `distribution.properties` | Camel MCP server version |
 | `knowledge.mcp.version` | `0.0.1-SNAPSHOT` | Knowledge MCP server version |
-| `citrus.version` | `5.0.0-M2` | Citrus test schema and dependency version |
-| `citrus.mcp.version` | `5.0.0-M1` | Citrus MCP server artifact version |
+| `citrus.version` | `5.0.1` | Citrus test schema and dependency version |
+| `citrus.mcp.version` | `5.0.1` | Citrus MCP server artifact version |
 
 **Output:**
 

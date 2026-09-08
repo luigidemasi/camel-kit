@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Properties;
 
 import io.github.luigidemasi.camelkit.CamelKitMain;
+import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.config.DistributionConfig;
 import io.github.luigidemasi.camelkit.generator.InvalidAgentConfigurationException;
 import io.github.luigidemasi.camelkit.output.Printer;
@@ -21,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class InitServiceTest {
 
-    private static final String EXPECTED_CITRUS_MCP_VERSION = "5.0.0-M1";
+    private static final String EXPECTED_CITRUS_MCP_VERSION = "5.0.1";
 
     @TempDir
     Path tempDir;
@@ -37,7 +38,7 @@ class InitServiceTest {
         assertEquals("orders", result.projectName());
         assertEquals("bob", result.agentName());
         assertEquals(targetDir, result.targetDir());
-        assertEquals("5.0.0-M2", result.citrusVersion());
+        assertEquals("5.0.1", result.citrusVersion());
         assertEquals(0, result.citrusSchemaCount());
         assertEquals("3.9.9", result.mavenWrapperVersion());
         assertFalse(result.createdPaths().isEmpty());
@@ -51,7 +52,7 @@ class InitServiceTest {
         assertTrue(config.contains("project.name=orders"));
         assertTrue(config.contains("agent.name=bob"));
         assertTrue(config.contains("project.sourcePlatform=mulesoft"));
-        assertTrue(config.contains("citrus.version=5.0.0-M2"));
+        assertTrue(config.contains("citrus.version=5.0.1"));
         assertTrue(config.contains("citrus.mcp.version=" + EXPECTED_CITRUS_MCP_VERSION));
 
         assertTrue(progress.events().contains("start:Creating project structure"));
@@ -61,6 +62,23 @@ class InitServiceTest {
                 .anyMatch(warning -> warning.message().contains("IBM Bob 1 legacy selected")));
         assertTrue(reporter.hasWarningContaining("use --ai bob2 for new IBM Bob projects"));
         assertTrue(reporter.wasGraphSkipped() || reporter.graph() != null || !reporter.warnings().isEmpty());
+    }
+
+    @Test
+    void allAgentsGenerateTheDefaultCitrusRunnerAndPassDoctorMcpChecks() throws Exception {
+        for (String agentName : AgentRegistry.names()) {
+            Path targetDir = tempDir.resolve(agentName);
+            new InitService().initialize(request(targetDir, agentName, InitProgress.noop(), InitReporter.noop()));
+
+            String mcp = Files.readString(targetDir.resolve(AgentRegistry.get(agentName).mcpConfigPath()));
+            assertTrue(mcp.contains(
+                    "org.citrusframework:citrus-mcp-server:" + EXPECTED_CITRUS_MCP_VERSION + ":runner"), agentName);
+            DoctorResult result = new DoctorService().inspect(new DoctorRequest(targetDir));
+            assertTrue(result.findings().stream().anyMatch(finding -> "mcp".equals(finding.category())
+                    && finding.status() == DoctorFinding.Status.PASS), agentName + ": " + result.findings());
+            assertFalse(result.findings().stream().anyMatch(finding -> "mcp".equals(finding.category())
+                    && finding.status() == DoctorFinding.Status.FAIL), agentName + ": " + result.findings());
+        }
     }
 
     @Test
@@ -437,7 +455,7 @@ class InitServiceTest {
                 true,
                 "mulesoft",
                 "camel-kit",
-                "5.0.0-M2",
+                "5.0.1",
                 CamelKitMain.distribution(),
                 Printer.noop(),
                 progress,
@@ -495,7 +513,7 @@ class InitServiceTest {
                 noFetch,
                 "mulesoft",
                 "camel-kit",
-                "5.0.0-M2",
+                "5.0.1",
                 distribution,
                 Printer.noop(),
                 progress,

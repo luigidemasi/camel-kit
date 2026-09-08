@@ -244,7 +244,7 @@ public final class ShipCitrusYamlMain {
                 "org.citrusframework.camel.context.CamelReferenceResolver", true, loader);
         Object resolver = resolverType.getConstructor(CamelContext.class).newInstance(camelContext);
         Class<?> referenceResolver = Class.forName("org.citrusframework.spi.ReferenceResolver", true, loader);
-        Class<?> builderType = Class.forName("org.citrusframework.CitrusContext$Builder", true, loader);
+        Class<?> builderType = Class.forName("org.citrusframework.base.DefaultCitrusContext$Builder", true, loader);
         Object builder = builderType.getMethod("defaultContext").invoke(null);
         builderType.getMethod("referenceResolver", referenceResolver).invoke(builder, resolver);
         Object citrusContext = builderType.getMethod("build").invoke(builder);
@@ -281,7 +281,7 @@ public final class ShipCitrusYamlMain {
             }
 
             Class<?> configurationType = Class.forName(
-                    "org.citrusframework.main.TestRunConfiguration", true, loader);
+                    "org.citrusframework.api.main.TestRunConfiguration", true, loader);
             Object configuration = configurationType.getConstructor().newInstance();
             configurationType.getMethod("setEngine", String.class).invoke(configuration, "junit-jupiter");
             Class<?> sourceType = Class.forName("org.citrusframework.TestSource", true, loader);
@@ -297,7 +297,7 @@ public final class ShipCitrusYamlMain {
             configurationType.getMethod("setVerbose", boolean.class).invoke(configuration, false);
             configurationType.getMethod("setReset", boolean.class).invoke(configuration, false);
 
-            Class<?> engineType = Class.forName("org.citrusframework.main.TestEngine", true, loader);
+            Class<?> engineType = Class.forName("org.citrusframework.api.main.TestEngine", true, loader);
             Object engine = engineType.getMethod("lookup", configurationType).invoke(null, configuration);
             if (!"org.citrusframework.junit.jupiter.JUnitJupiterEngine".equals(engine.getClass().getName())) {
                 throw new IOException("Citrus resolved an unexpected test engine");

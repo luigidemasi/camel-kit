@@ -273,6 +273,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Citrus 5.0.1 (#215)** — upgrade the default Citrus test dependencies and MCP server to 5.0.1,
+  remove the temporary M1 server pin, and update Ship compatibility for Camel 4.22.0 and 4.18.4.
+  Adapt the direct Citrus launcher to the GA context builder and test-engine API packages.
+
 - **Camel 4.22 LTS default and centralized distribution versions (#209)** — Camel Main, Spring Boot, and the Camel MCP
   server now default to `4.22.0`. The supported Main and Spring Boot matrix is `4.22.0,4.18.4`; Spring Boot maps those
   lines to `4.1.0` and `3.5.16`, and Forage maps them to `1.6.0` and `1.4.1`. Quarkus remains on its independent matrix.

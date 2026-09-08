@@ -22,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ShipStageResultTest {
 
     private static final ObjectMapper JSON = new ObjectMapper();
-    private static final String CITRUS_VERSION = "5.0.0-M2";
+    private static final String CITRUS_VERSION = "5.0.1";
 
     @Test
     void parsesEveryPiOwnedStageShape() throws Exception {
