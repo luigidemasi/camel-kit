@@ -18,7 +18,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ArtifactValidatorTest {
 
-    private static final String CITRUS_VERSION = "5.0.0-M2";
+    private static final String CITRUS_VERSION = "5.0.1";
     private static final List<String> CITRUS_DEPENDENCIES = CitrusDependencyPolicy.required(CITRUS_VERSION);
 
     @TempDir
@@ -683,7 +683,7 @@ class ArtifactValidatorTest {
                 project.camelVersion=4.21.0
                 project.platformBomVersion=4.21.0
                 project.springBootVersion=4.1.0
-                citrus.version=5.0.0-M2
+                citrus.version=5.0.1
                 """);
 
         ArtifactValidationResult result = ArtifactValidator.validate(
@@ -715,7 +715,7 @@ class ArtifactValidatorTest {
                 project.camelVersion=4.21.0
                 project.platformBomVersion=4.21.0
                 project.springBootVersion=4.1.0
-                citrus.version=5.0.0-M2
+                citrus.version=5.0.1
                 """);
         write("pom.xml", String.format(Locale.ROOT, """
                 <project xmlns="http://maven.apache.org/POM/4.0.0">
@@ -789,7 +789,7 @@ class ArtifactValidatorTest {
                 project.runtime=quarkus
                 project.camelVersion=4.18.2
                 project.platformBomVersion=3.33.1
-                citrus.version=5.0.0-M2
+                citrus.version=5.0.1
                 """);
         String versionElement = extensionVersion == null ? "" : "<version>" + extensionVersion + "</version>";
         write("pom.xml", String.format(Locale.ROOT, """
@@ -926,7 +926,7 @@ class ArtifactValidatorTest {
                 project.runtime=main
                 project.camelVersion=4.21.0
                 project.platformBomVersion=4.21.0
-                citrus.version=5.0.0-M2
+                citrus.version=5.0.1
                 """;
     }
 

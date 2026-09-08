@@ -43,7 +43,7 @@ class JvmPayloadArchiveTest {
                 JvmPayloadRequest.yamlValidator(CAMEL_VERSION),
                 JvmPayloadRequest.camelMain(CAMEL_VERSION),
                 JvmPayloadRequest.citrus(
-                        CAMEL_VERSION, "5.0.0-M2", CitrusDependencyPolicy.required("5.0.0-M2")))) {
+                        CAMEL_VERSION, "5.0.1", CitrusDependencyPolicy.required("5.0.1")))) {
             Path archive = JvmPayloadTestFixture.create(
                     directory.resolve(request.kind().id()), request);
 

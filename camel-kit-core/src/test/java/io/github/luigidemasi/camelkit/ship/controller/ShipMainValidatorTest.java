@@ -46,7 +46,7 @@ class ShipMainValidatorTest {
 
     private static final String RUN_ID = "ship-" + "a".repeat(32);
     private static final String CAMEL_VERSION = DistributionConfig.loadBundled().camelMainVersion();
-    private static final String CITRUS_VERSION = "5.0.0-M2";
+    private static final String CITRUS_VERSION = "5.0.1";
     private static final List<String> CITRUS_DEPENDENCIES
             = CitrusDependencyPolicy.required(CITRUS_VERSION);
     private static final Instant STARTED = Instant.parse("2026-07-29T10:00:00Z");
@@ -460,7 +460,7 @@ class ShipMainValidatorTest {
                 project.runtime=main
                 project.camelVersion=%s
                 project.platformBomVersion=%s
-                citrus.version=5.0.0-M2
+                citrus.version=5.0.1
                 """, CAMEL_VERSION, CAMEL_VERSION));
         write(root, "pom.xml", String.format(Locale.ROOT, """
                 <project xmlns="http://maven.apache.org/POM/4.0.0">
