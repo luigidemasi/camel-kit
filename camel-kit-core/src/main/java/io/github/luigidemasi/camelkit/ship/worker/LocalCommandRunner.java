@@ -32,6 +32,7 @@ import java.util.regex.Pattern;
 
 import io.github.luigidemasi.camelkit.ship.ShipDigest;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp;
+import io.github.luigidemasi.camelkit.ship.security.ShipTreePolicy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -93,8 +94,9 @@ final class LocalCommandRunner {
         Path kill = trustedHelper(KILL, "kill");
         Path workingDirectory = realDirectory(command.workingDirectory(), "working directory");
         Path evidenceDirectory = realDirectory(command.evidenceDirectory(), "evidence directory");
-        if (workingDirectory.startsWith(evidenceDirectory)
-                || evidenceDirectory.startsWith(workingDirectory)) {
+        if ((workingDirectory.startsWith(evidenceDirectory)
+                || evidenceDirectory.startsWith(workingDirectory))
+                && !ShipTreePolicy.isReservedStatePath(workingDirectory, evidenceDirectory)) {
             throw new IOException(
                     "Local command working and evidence directories must be disjoint");
         }

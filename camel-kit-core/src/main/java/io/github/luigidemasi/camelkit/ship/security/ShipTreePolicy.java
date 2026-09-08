@@ -12,7 +12,7 @@ import java.util.Locale;
 /** One versioned classification and quota policy for every Ship project tree boundary. */
 public final class ShipTreePolicy {
 
-    private static final int SCHEMA_VERSION = 6;
+    private static final int SCHEMA_VERSION = 7;
     public static final int DEFAULT_MAX_FILE_COUNT = 20_000;
     public static final long DEFAULT_MAX_FILE_BYTES = 64L * 1024 * 1024;
     public static final long DEFAULT_MAX_AGGREGATE_BYTES = 1024L * 1024 * 1024;
@@ -27,6 +27,7 @@ public final class ShipTreePolicy {
             "protected:**/.vscode/**",
             "denied:**/.camel-kit/pipeline.json/**,**/.camel-kit/ship-state.json/**,"
                                        + "**/.camel-kit/ship-projection.json/**",
+            "denied:**/.camel-kit/ship/**",
             "volatile:**/.camel-kit/.cache/**,**/.camel-kit/mcp/**",
             "denied:credential directories .ssh,.gnupg,.aws,.azure,.kube,.docker",
             "denied:credential files .env,.env.* except final .env.example,.npmrc,.pypirc,.netrc",
@@ -38,8 +39,12 @@ public final class ShipTreePolicy {
             "quota:max-depth=policy-value",
             "reject:symlink,hardlink,fifo,socket,device,unknown,duplicate-file-key",
             "reject:root-lineage-containing-protected,denied,volatile-directory-names",
+            "allow:root-lineage-through-.camel-kit/ship",
             "reject:absolute,dot-segment,control,format,line-separator,paragraph-separator,"
-                                                                                        + "invalid-surrogate,empty,oversize-path-component");
+                                                          + "invalid-surrogate,empty,oversize-path-component");
+
+    /** Project-relative subtree reserved for controller-owned Ship state; the only allowed state-in-project nesting. */
+    public static final String RESERVED_STATE_SUBTREE = ".camel-kit/ship";
 
     private static final ShipTreePolicy CURRENT = new ShipTreePolicy(
             DEFAULT_MAX_FILE_COUNT,
@@ -114,6 +119,7 @@ public final class ShipTreePolicy {
                 || subtreeAtAnyDepth(folded, ".camel-kit/pipeline.json")
                 || subtreeAtAnyDepth(folded, ".camel-kit/ship-state.json")
                 || subtreeAtAnyDepth(folded, ".camel-kit/ship-projection.json")
+                || subtreeAtAnyDepth(folded, RESERVED_STATE_SUBTREE)
                 || isCredentialPath(folded)) {
             return Classification.DENIED;
         }
@@ -163,7 +169,7 @@ public final class ShipTreePolicy {
         }
         String first = normalized.getName(0).toString().toLowerCase(Locale.ROOT);
         return !List.of("proc", "sys", "dev", "run").contains(first)
-                && !containsComponent(lineage, ".camel-kit")
+                && !containsUnreservedCamelKitComponent(lineage)
                 && !containsComponent(lineage, ".git")
                 && !containsComponent(lineage, "target")
                 && !subtreeAtAnyDepth(lineage, ".idea")
@@ -231,6 +237,29 @@ public final class ShipTreePolicy {
         return component.equals(".env.example") && exactAtAnyDepth(path, component);
     }
 
+    /**
+     * Reports whether {@code nested} lies below the reserved Ship state subtree of {@code root}. Both paths must be
+     * absolute and normalized; the check is lexical.
+     *
+     * @param  root   project or working directory
+     * @param  nested state-derived directory to test
+     * @return        {@code true} when {@code nested} is at or below {@code root/.camel-kit/ship}
+     */
+    public static boolean isReservedStatePath(Path root, Path nested) {
+        return nested.startsWith(root.resolve(RESERVED_STATE_SUBTREE));
+    }
+
+    private static boolean containsUnreservedCamelKitComponent(String lineage) {
+        String[] components = lineage.split("/");
+        for (int index = 0; index < components.length; index++) {
+            if (".camel-kit".equals(components[index])
+                    && (index + 1 >= components.length || !"ship".equals(components[index + 1]))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static boolean containsComponent(String path, String component) {
         return path.equals(component)
                 || path.startsWith(component + "/")
@@ -276,7 +305,7 @@ public final class ShipTreePolicy {
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 is unavailable", e);
         }
-        update(hash, "camel-kit.ship.tree-policy.v6");
+        update(hash, "camel-kit.ship.tree-policy.v7");
         update(hash, Integer.toString(SCHEMA_VERSION));
         update(hash, Integer.toString(maxFileCount));
         update(hash, Long.toString(maxFileBytes));
