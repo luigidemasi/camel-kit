@@ -21,6 +21,7 @@ import org.junit.jupiter.api.condition.EnabledOnOs;
 import org.junit.jupiter.api.condition.OS;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -90,6 +91,28 @@ class DoctorServiceTest {
 
         assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp", "Duplicate field '" + key + "'",
                 "duplicate keys"));
+        assertFalse(hasFinding(result, DoctorFinding.Status.PASS, "mcp"));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "opencode.json, mcp", "opencode.json, camel",
+            "opencode.jsonc, mcp", "opencode.jsonc, camel",
+            ".opencode/opencode.json, mcp", ".opencode/opencode.json, camel",
+            ".opencode/opencode.jsonc, mcp", ".opencode/opencode.jsonc, camel"})
+    void openCodeDoctorRejectsDuplicateMcpMembers(String file, String key) throws Exception {
+        createHealthyWorkspace(tempDir, OPENCODE);
+        String original = Files.readString(tempDir.resolve("opencode.json"));
+        Files.writeString(tempDir.resolve(".opencode/opencode.jsonc"), original);
+        Files.writeString(tempDir.resolve(file), original.replaceFirst("\"" + key + "\"\\s*:",
+                "\"" + key + "\": {}, \"" + key + "\":"));
+
+        DoctorResult result = new DoctorService().inspect(new DoctorRequest(tempDir));
+
+        assertTrue(hasFinding(result, DoctorFinding.Status.FAIL, "mcp", "Duplicate field '" + key + "'",
+                "remove duplicate keys"));
+        assertTrue(result.findings().stream().anyMatch(finding -> "mcp".equals(finding.category())
+                && finding.status() == DoctorFinding.Status.FAIL && file.equals(finding.path())));
         assertFalse(hasFinding(result, DoctorFinding.Status.PASS, "mcp"));
     }
 

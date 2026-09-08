@@ -215,7 +215,7 @@ my-integration/
 │   └── templates/               # Reference templates
 ├── .mcp.json                    # Claude Code or Pi MCP configuration
 ├── .bob/mcp.json                # IBM Bob MCP configuration
-├── .agents/mcp_config.json       # Google Antigravity MCP configuration
+├── .agents/mcp_config.json      # Google Antigravity MCP configuration
 ├── AGENTS.md                    # Antigravity, Codex CLI, Pi, or OpenCode project instructions
 ├── .agents/skills/              # Antigravity or Codex CLI project skills
 ├── .codex/config.toml           # Codex CLI project MCP configuration
