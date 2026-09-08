@@ -221,8 +221,8 @@ camel-kit init my-integration --ai claude -p "camel.main.version=4.18.4"
 Create `~/.camel-kit/config.properties` with your overrides:
 ```properties
 camel.main.version=4.18.4
-camel.quarkus.version=4.18.2
-quarkus.platform.version=3.33.1
+camel.quarkus.version=4.18.3
+quarkus.platform.version=3.33.3.2
 ```
 
 Or point to a custom config file:
