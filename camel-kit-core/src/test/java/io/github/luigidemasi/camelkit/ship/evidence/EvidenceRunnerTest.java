@@ -81,7 +81,8 @@ class EvidenceRunnerTest {
                         "LANG", "C",
                         "LC_ALL", "C",
                         "HOME", sandbox.resolve("home").toString(),
-                        "TMPDIR", sandbox.resolve("tmp").toString()),
+                        "TMPDIR", sandbox.resolve("tmp").toString(),
+                        "GIT_CEILING_DIRECTORIES", sandbox.toString()),
                 launch.environment(),
                 "the child environment must be exactly the scrubbed controller set");
         assertEquals("PASS\n", Files.readString(Path.of(result.stdoutLog())));

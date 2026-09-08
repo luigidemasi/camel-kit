@@ -128,6 +128,7 @@ final class LocalCommandRunner {
                 builder.environment().clear();
                 builder.environment().putAll(environment);
             }
+            boundGitDiscovery(builder.environment(), workingDirectory);
             process = builder.start();
             Process launched = process;
             launched.getOutputStream().close();
@@ -484,6 +485,17 @@ final class LocalCommandRunner {
             throw new IOException("Local command executable is missing or not executable");
         }
         return executable;
+    }
+
+    /**
+     * Stops Git from discovering a repository above {@code workingDirectory}. A staged workspace nested inside a
+     * project must not let worker or validation commands reach the live repository.
+     */
+    static void boundGitDiscovery(Map<String, String> environment, Path workingDirectory) {
+        Path parent = workingDirectory.getParent();
+        if (parent != null) {
+            environment.put("GIT_CEILING_DIRECTORIES", parent.toString());
+        }
     }
 
     static Path trustedHelper(Path path, String name) throws IOException {

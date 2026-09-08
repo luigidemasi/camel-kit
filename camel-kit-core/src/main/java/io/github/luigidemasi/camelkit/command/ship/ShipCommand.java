@@ -305,12 +305,26 @@ public final class ShipCommand implements Callable<Integer> {
                 writer.println("Warning: Adding context restarts from DISCOVERY and discards the validation Stamp.");
             }
             writer.println("Next: " + spec.qualifiedName() + " --resume " + run.id()
-                           + " [--text TEXT | --document PATH]");
+                           + projectDirectoryOption(run) + " [--text TEXT | --document PATH]");
         } else if (run.status() == ShipRun.RunStatus.RUNNING
                 || run.status() == ShipRun.RunStatus.FAILED) {
-            writer.println("Next: " + spec.qualifiedName() + " --resume " + run.id());
+            writer.println("Next: " + spec.qualifiedName() + " --resume " + run.id()
+                           + projectDirectoryOption(run));
         }
         writer.flush();
+    }
+
+    /** The run store is project-local, so a continuation issued from elsewhere must name the run's project. */
+    private static String projectDirectoryOption(ShipRun run) {
+        Path project = Path.of(run.projectDirectory());
+        try {
+            if (project.equals(Path.of("").toAbsolutePath().toRealPath())) {
+                return "";
+            }
+        } catch (IOException | RuntimeException e) {
+            // The working directory cannot be resolved; name the project explicitly.
+        }
+        return " --project-dir '" + project.toString().replace("'", "'\\''") + "'";
     }
 
     private static Stage pausedAfter(ShipRun run) {

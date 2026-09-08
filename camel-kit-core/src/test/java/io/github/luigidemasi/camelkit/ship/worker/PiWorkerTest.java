@@ -1102,6 +1102,62 @@ class PiWorkerTest {
     }
 
     @Test
+    void boundsGitDiscoveryToTheExecuteWorkspaceOnly() throws Exception {
+        Path wrapper = writeExecutable(
+                fixture.resolve("pi-env"),
+                """
+                        #!/bin/sh
+                        fixture=$(dirname "$0")
+                        if [ "${1:-}" = "--version" ]; then
+                          /usr/bin/env > "$fixture/version-env"
+                        else
+                          /usr/bin/env > "$fixture/rpc-env"
+                        fi
+                        exec "$fixture/pi-rpc" "$@"
+                        """);
+        Path project = Files.createDirectory(temporaryDirectory.resolve("project"));
+        Path candidate = Files.createDirectories(
+                project.resolve(".camel-kit/ship/state/run/workspace/candidate"));
+        PiWorker worker = new PiWorker(
+                wrapper,
+                List.of("0.83.0"),
+                nodeExecutable,
+                "22.22.2",
+                Duration.ofSeconds(5),
+                Map.of("PATH", Objects.requireNonNull(System.getenv("PATH"), "test PATH")));
+
+        PiWorker.Result execute = worker.run(new PiWorker.Request(
+                RUN_ID,
+                ShipRun.Stage.EXECUTE,
+                1,
+                candidate,
+                sessions,
+                evidence,
+                inputDigest(),
+                true,
+                "prompt"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, execute.outcome());
+        assertTrue(Files.readAllLines(fixture.resolve("rpc-env")).contains(
+                "GIT_CEILING_DIRECTORIES=" + candidate.toRealPath().getParent()));
+
+        PiWorker.Result discovery = worker.run(new PiWorker.Request(
+                RUN_ID,
+                ShipRun.Stage.DISCOVERY,
+                1,
+                project,
+                sessions,
+                evidence,
+                inputDigest(),
+                true,
+                "prompt"));
+
+        assertEquals(PiWorker.Outcome.SUCCEEDED, discovery.outcome());
+        assertTrue(Files.readAllLines(fixture.resolve("rpc-env")).stream()
+                .noneMatch(value -> value.startsWith("GIT_CEILING_DIRECTORIES=")));
+    }
+
+    @Test
     void rejectsInsecureSessionDirectoryBeforeLaunchingPi() throws Exception {
         Files.setPosixFilePermissions(
                 sessions, PosixFilePermissions.fromString("rwxr-x---"));

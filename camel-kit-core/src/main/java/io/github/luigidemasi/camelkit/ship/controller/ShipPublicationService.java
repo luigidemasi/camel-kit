@@ -218,8 +218,7 @@ final class ShipPublicationService {
             applyPhase(project, candidate, journal);
             ProjectSnapshot published = ProjectEvidenceFiles.capture(project);
             if (!journal.baselineRootIdentity().equals(published.rootIdentity())
-                    || !ShipWorkspace.materialIdentity(published).equals(
-                            journal.candidateIdentity())) {
+                    || !ShipWorkspace.matchesMaterialIdentity(published, journal.candidateIdentity())) {
                 throw new IOException(
                         "Published Ship project differs from the validated candidate");
             }
@@ -330,7 +329,7 @@ final class ShipPublicationService {
             throws IOException {
         ProjectSnapshot observed = ProjectEvidenceFiles.capture(project);
         if (!journal.baselineRootIdentity().equals(observed.rootIdentity())
-                || !ShipWorkspace.materialIdentity(observed).equals(journal.baselineIdentity())) {
+                || !ShipWorkspace.matchesMaterialIdentity(observed, journal.baselineIdentity())) {
             throw new StaleLiveTreeException(
                     "Live project changed since the publication baseline");
         }
@@ -507,7 +506,7 @@ final class ShipPublicationService {
             throw recoveryBlocked(
                     "Ship candidate cannot be safely inspected for publication recovery", e);
         }
-        if (!journal.candidateIdentity().equals(ShipWorkspace.materialIdentity(candidate))) {
+        if (!ShipWorkspace.matchesMaterialIdentity(candidate, journal.candidateIdentity())) {
             throw new RecoveryBlockedException(
                     "Ship candidate no longer matches the publication journal");
         }
@@ -618,8 +617,7 @@ final class ShipPublicationService {
 
         ProjectSnapshot restored = ProjectEvidenceFiles.capture(project);
         if (!journal.baselineRootIdentity().equals(restored.rootIdentity())
-                || !journal.baselineIdentity().equals(
-                        ShipWorkspace.materialIdentity(restored))) {
+                || !ShipWorkspace.matchesMaterialIdentity(restored, journal.baselineIdentity())) {
             throw new RecoveryBlockedException(
                     "Ship publication rollback did not restore the exact baseline");
         }

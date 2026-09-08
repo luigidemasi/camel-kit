@@ -268,6 +268,35 @@ class ShipRunStoreTest {
     }
 
     @Test
+    void repairsAnIncompatibleStateRootIgnoreFileBeforeWritingRunData() throws Exception {
+        Path root = Files.createDirectories(
+                stateRoot(),
+                PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+        Files.writeString(root.resolve(".gitignore"), "");
+        store().create(run(RUN_ID));
+        assertEquals("*\n", Files.readString(root.resolve(".gitignore")));
+
+        Files.writeString(root.resolve(".gitignore"), "*.tmp\n");
+        store().create(run(OTHER_RUN_ID));
+        assertEquals("*\n", Files.readString(root.resolve(".gitignore")));
+    }
+
+    @Test
+    void rejectsASymbolicLinkAsTheStateRootIgnoreFile() throws Exception {
+        Path root = Files.createDirectories(
+                stateRoot(),
+                PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+        Path target = Files.writeString(temporaryDirectory.resolve("ignore-target"), "*\n");
+        Files.createSymbolicLink(root.resolve(".gitignore"), target);
+
+        assertCode("state-corrupt", () -> store().create(run(RUN_ID)));
+
+        assertFalse(Files.exists(root.resolve(RUN_ID)));
+        assertTrue(Files.isSymbolicLink(root.resolve(".gitignore")));
+        assertEquals("*\n", Files.readString(target));
+    }
+
+    @Test
     void retainsAndFindsADormantPublicationOwner() throws Exception {
         Path project = Files.createDirectory(temporaryDirectory.resolve("project"));
         Path state = stateRoot();

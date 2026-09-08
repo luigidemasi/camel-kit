@@ -30,6 +30,7 @@ import picocli.CommandLine;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -37,6 +38,39 @@ class ShipCommandTest {
 
     @TempDir
     Path tempDir;
+
+    @Test
+    void continuationCommandsCarryTheProjectDirectoryOfTheProjectLocalStore() throws Exception {
+        Assumptions.assumeTrue(System.getenv("CAMEL_KIT_SHIP_STATE_HOME") == null,
+                "CAMEL_KIT_SHIP_STATE_HOME overrides the project-local store");
+        Path project = Files.createDirectory(tempDir.resolve("my project"));
+        ShipController controller = new ShipController(
+                ShipController.defaultStateRoot(project, System.getenv()));
+        RecordingLauncher launcher = RecordingLauncher.passThrough(controller);
+        Path foreignStore = Path.of("").toAbsolutePath().resolve(".camel-kit");
+        Assumptions.assumeFalse(Files.exists(foreignStore), "unexpected .camel-kit in the test working directory");
+
+        RunResult started = run(null, launcher, "--project-dir", project.toString());
+        String id = runId(started.output());
+
+        assertEquals(0, started.exitCode(), started.error());
+        assertTrue(started.output().contains(
+                "Next: camel-kit ship --resume " + id + projectDirectoryOption(project)
+                                             + System.lineSeparator()),
+                started.output());
+        assertTrue(Files.isDirectory(project.resolve(".camel-kit/ship/state").resolve(id)));
+
+        RunResult status = run(null, rejectingLauncher(), "--status", id, "--project-dir", project.toString());
+
+        assertEquals(0, status.exitCode(), status.error());
+        assertTrue(status.output().contains("Run: " + id), status.output());
+
+        RunResult elsewhere = run(null, rejectingLauncher(), "--status", id);
+
+        assertNotEquals(0, elsewhere.exitCode());
+        assertTrue(elsewhere.error().contains("run-not-found"), elsewhere.error());
+        assertFalse(Files.exists(foreignStore));
+    }
 
     @Test
     void bareStartUsesSmartOversightAndPrintsStableSummary() throws Exception {
@@ -421,6 +455,7 @@ class ShipCommandTest {
                                         + "structured questions/defaults unavailable for this legacy result.");
         int nextLine = lines.indexOf("Next: camel-kit ship --resume "
                                      + runId(result.output())
+                                     + projectDirectoryOption(tempDir.resolve("project"))
                                      + " [--text TEXT | --document PATH]");
         assertEquals(3, warningLine - reportLine - 1);
         assertEquals(warningLine + 1, nextLine);
@@ -885,7 +920,8 @@ class ShipCommandTest {
 
         assertEquals(0, result.exitCode(), result.error());
         assertTrue(result.output().contains(
-                "Next: camel kit ship --resume " + started.id() + System.lineSeparator()),
+                "Next: camel kit ship --resume " + started.id()
+                                            + projectDirectoryOption(project) + System.lineSeparator()),
                 result.output());
     }
 
@@ -1126,7 +1162,7 @@ class ShipCommandTest {
                 status == ShipRun.RunStatus.FAILED ? "Validation failed" : null);
     }
 
-    private static String summary(
+    private String summary(
             String id, String status, String stage, String oversight, String... details) {
         List<String> lines = new ArrayList<>(
                 List.of(
@@ -1135,14 +1171,19 @@ class ShipCommandTest {
                         "Stage: " + stage,
                         "Oversight: " + oversight));
         lines.addAll(List.of(details));
+        String project = projectDirectoryOption(tempDir.resolve("project"));
         if ("PAUSED".equals(status)) {
-            lines.add("Next: camel-kit ship --resume " + id
+            lines.add("Next: camel-kit ship --resume " + id + project
                       + " [--text TEXT | --document PATH]");
         } else if ("RUNNING".equals(status) || "FAILED".equals(status)) {
-            lines.add("Next: camel-kit ship --resume " + id);
+            lines.add("Next: camel-kit ship --resume " + id + project);
         }
         lines.add("");
         return String.join(System.lineSeparator(), lines);
+    }
+
+    private static String projectDirectoryOption(Path project) {
+        return " --project-dir '" + project.toAbsolutePath().normalize() + "'";
     }
 
     /** Records launches and workflow invocations; the pass-through variant mirrors today's state. */
