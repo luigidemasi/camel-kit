@@ -951,6 +951,10 @@ The registered command is `camel-kit ship` when Camel-Kit is installed standalon
 
 Runtime and configuration options apply when starting, resuming or submitting a native result. Repeat the original `--stage-timeout`, `--maven-repository` and `-c`/`-p` options on resume and submission; these settings are not persisted for future stages. Pi/Node options are rejected for native runs.
 
+With `--json`, a failed workflow returns structured run state with exit code 1; inspect `run.status` and `run.message`.
+Other command errors can return only stderr. Read valid JSON on exit code 0 or 1 and report errors when no valid JSON
+is available. See [native recovery](ship-native.md#resume-timeout-and-abort) for unreadable handoffs and explicit retries.
+
 Ship requires Linux. The Pi backend requires Pi and Node; Bob native execution uses the active host and does not discover or launch either executable. Its accepted project contract currently supports the Camel Main runtime and Camel YAML DSL routes named `<routeId>.camel.yaml`, with matching Citrus tests at `test/<routeId>.camel.it.yaml`. Spring Boot and Quarkus Ship projects are rejected until deterministic evidence support is available for those runtimes. Deterministic validation commands run in a separate JVM launched by the controller with a pinned, controller-resolved classpath, a scrubbed environment, and a frozen read-only copy of the accepted project tree; network access during validation is avoided by replacing every non-direct Camel endpoint with an in-memory stub, not by OS-level sandboxing. Missing executables fail with installation guidance; an unrecognized Pi or Node version is reported as experimental and runs only with `--accept-experimental`.
 
 **Oversight:**

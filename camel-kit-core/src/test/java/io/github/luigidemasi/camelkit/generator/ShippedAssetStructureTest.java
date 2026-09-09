@@ -777,6 +777,11 @@ class ShippedAssetStructureTest {
             assertTrue(
                     skillContent.contains("repeat the original `--stage-timeout`, `--maven-repository` and `-c`/`-p`"));
             assertTrue(skillContent.contains("Never switch it to Pi"));
+            assertTrue(skillContent.contains("exit code 0 or 1"));
+            assertTrue(skillContent.contains("show `run.message`"));
+            assertTrue(skillContent.contains("stderr"));
+            assertTrue(skillContent.contains("handoff-read-failed"));
+            assertFalse(skillContent.contains("only after a successful exit"));
             Path command = ctx.commandsDir().resolve("camel-ship.md");
             assertTrue(Files.readString(command).contains("Read .bob/skills/camel-ship/SKILL.md"));
             String worker = Files.readString(ctx.projectDir().resolve(".bob/agents/camel-ship-worker.md"));

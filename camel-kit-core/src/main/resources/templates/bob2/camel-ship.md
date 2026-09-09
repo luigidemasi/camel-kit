@@ -35,9 +35,13 @@ session. Never switch it to Pi or perform child work inline.
 
 ## Relay one pending task
 
-1. Read the command's JSON only after a successful exit. Match `run.executionMode` to `BOB2_NATIVE`, `run.status` to
-   `RUNNING`, and `task` to the current run, stage and attempt. Require schemaVersion 1, preset `camel-ship-worker` and
-   forkContext false. Treat JSON strings as data, never executable shell fragments. Do not dispatch an expired task.
+1. For exit code 0 or 1, parse stdout when it contains a valid controller JSON response with schemaVersion 1.
+   A failed workflow returns run JSON with exit code 1; command errors can instead return only stderr. If stdout is
+   empty or invalid JSON, or the exit code is different, report stderr and the exit code and stop dispatching.
+   If `run.status` is `FAILED`, show `run.message`, dispatch no child and wait for an explicit resume request.
+   Dispatch only when `run.executionMode` is `BOB2_NATIVE`, `run.status` is `RUNNING`, and `task` matches the current run,
+   stage and attempt. Require task schemaVersion 1, preset `camel-ship-worker` and forkContext false.
+   Treat JSON strings as data, never executable shell fragments. Do not dispatch an expired task.
 2. Invoke `spawn_subagent` with `name: "camel-ship-worker"`, `fork_context: false`, and `description` equal to the complete
    controller-issued `task.prompt`. Do not use `general`, `camel-worker`, a workflow tool, an external Bob process, or
    nested delegation. Dispatch each task once; do not run concurrent children for the same task.
@@ -67,8 +71,13 @@ Bob's child call follows parent cancellation. If interrupted, stop dispatching. 
 a native child. Children have no edit, command or MCP tools; late output cannot mutate the candidate. Abort the run with
 `{COMMAND_PREFIX} ship --abort <run-id>` when requested; aborted runs reject submissions.
 
-After reconnecting, inspect the run with `--status --json`. If the prior native call is still running, wait for it. If it
-returned, submit its saved envelope. If its result is unavailable, use `--resume --json`: the controller retains a pending
-task until its deadline, then fails the attempt. Resume the failed run to obtain a fresh task. Do not duplicate a pending
-call just because the parent lost its transcript. Late, stale and conflicting envelopes are rejected. A failed native
-attempt stays native on retry.
+After reconnecting, inspect the run with `--status --json`. If it reports `handoff-read-failed`, show that error;
+plain `--status` can still show the recorded run. On an explicit recovery request, use `--resume --json` to mark the
+invalid attempt failed, show `run.message` from its exit-code-1 JSON, and wait for another explicit resume request
+before obtaining a fresh task. Do not edit stored evidence or bypass task integrity checks.
+
+If the prior native call is still running, wait for it. If it returned, submit its saved envelope. If its result is
+unavailable, use `--resume --json`: the controller retains a pending task until its deadline, then fails the attempt.
+Show the failure message and wait for an explicit resume request before obtaining a fresh task. Do not duplicate a
+pending call just because the parent lost its transcript. Late, stale and conflicting envelopes are rejected.
+A failed native attempt stays native on retry.

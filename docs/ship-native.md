@@ -52,9 +52,18 @@ task or attempt is rejected. Repeat the original `--stage-timeout`, `--maven-rep
 resume or submission. These settings apply to subsequent work and are not persisted; an issued task keeps its deadline.
 Status and abort do not accept runtime/config options.
 
+With `--json`, a failed workflow returns run state and exit code 1. Read valid JSON on exit code 0 or 1 and show
+`run.message` when `run.status` is `FAILED`; do not dispatch a child for that run. Some command errors return only
+stderr, so exit code 1 does not guarantee JSON. Report those errors without dispatching work.
+
+If `--status --json` reports `handoff-read-failed`, the pending task could not be verified. Plain `--status` can still
+show the recorded run. To recover, use `--resume --json` to mark the damaged attempt failed, inspect its failure
+message, then explicitly resume again to create a fresh task. Do not edit stored evidence or bypass integrity checks.
+
 An interrupted parent can submit a saved result or wait for its existing native call. Do not dispatch the same pending
 task again after losing the parent transcript. Pending work keeps its original deadline across reconnections; after
-that deadline, `--resume` fails the attempt. Resume the failed run to get a fresh task. The old task's result is rejected.
+that deadline, `--resume` fails the attempt. Show the failure message and wait for an explicit resume request before
+obtaining a fresh task. The old task's result is rejected.
 
 Bob handles cancellation of its native call. The Ship CLI cannot terminate a host-owned child; `--abort` invalidates
 the run and rejects later submissions. Because children are read-only, an orphan cannot write into the candidate.
