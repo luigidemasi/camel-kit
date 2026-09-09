@@ -179,15 +179,24 @@ class CopilotGeneratorTest {
         assertTrue(hookText.contains("permissionDecision"));
     }
 
-    @Test
-    void exposesShipThroughTheNativeProjectSkillWithoutUnsupportedCommands() throws Exception {
-        InitContext ctx = createContext();
-        new CopilotGenerator().generate(ctx);
-
-        assertFalse(Files.exists(tempDir.resolve(".github/commands")));
-        String content = Files.readString(tempDir.resolve(".github/skills/camel-ship/SKILL.md"));
-        assertTrue(content.contains("camel-kit ship"));
-        assertFalse(content.contains("user-invocable: false"));
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"camel-kit", "camel kit"})
+    void exposesShipThroughTheNativeProjectSkillWithoutUnsupportedCommands(String prefix) throws Exception {
+        InitContext original = createContext();
+        InitContext ctx = new InitContext(
+                original.agent(), "copilot", original.skillsDir(), original.commandsDir(),
+                tempDir, prefix, Printer.noop());
+        for (int initialization = 0; initialization < 2; initialization++) {
+            new CopilotGenerator().generate(ctx);
+            assertFalse(Files.exists(tempDir.resolve(".github/commands")));
+            String content = Files.readString(tempDir.resolve(".github/skills/camel-ship/SKILL.md"));
+            assertTrue(content.contains(prefix + " ship --backend copilot-native --json"));
+            assertFalse(content.contains("{COMMAND_PREFIX}"));
+            assertFalse(content.contains("user-invocable: false"));
+            String worker = Files.readString(tempDir.resolve(".github/agents/camel-ship-worker.agent.md"));
+            assertTrue(worker.contains("tools: [\"read\", \"search\"]"));
+            assertTrue(worker.contains("target: github-copilot"));
+        }
     }
 
     private String resourceText(String resourcePath) throws Exception {

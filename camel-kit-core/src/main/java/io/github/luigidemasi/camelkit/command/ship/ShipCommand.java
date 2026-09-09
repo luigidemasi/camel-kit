@@ -62,7 +62,7 @@ public final class ShipCommand implements Callable<Integer> {
     Path projectDirectory;
 
     @Option(names = "--backend", converter = ExecutionModeConverter.class,
-            description = "Execution backend for a new run: pi (default) or bob2-native")
+            description = "Execution backend for a new run: pi (default), bob2-native or copilot-native")
     ShipRun.ExecutionMode executionMode;
 
     @Option(names = "--json", description = "Return structured run state and any pending native task")
@@ -258,7 +258,7 @@ public final class ShipCommand implements Callable<Integer> {
         if (operation != null && (operation.status != null || operation.abort != null) && executionMode != null) {
             throw new ParameterException(spec.commandLine(), "--backend is only valid for workflow operations");
         }
-        if (executionMode == ShipRun.ExecutionMode.BOB2_NATIVE
+        if (executionMode != null && executionMode.isNative()
                 && (piExecutable != null || nodeExecutable != null || acceptExperimental != null)) {
             throw new ParameterException(spec.commandLine(), "Pi/Node options cannot configure a native backend");
         }
@@ -529,7 +529,8 @@ public final class ShipCommand implements Callable<Integer> {
             return switch (value) {
                 case "pi" -> ShipRun.ExecutionMode.PI;
                 case "bob2-native" -> ShipRun.ExecutionMode.BOB2_NATIVE;
-                default -> throw new TypeConversionException("expected pi or bob2-native");
+                case "copilot-native" -> ShipRun.ExecutionMode.COPILOT_NATIVE;
+                default -> throw new TypeConversionException("expected pi, bob2-native or copilot-native");
             };
         }
     }

@@ -15,10 +15,10 @@ import io.github.luigidemasi.camelkit.jbang.CamelKitPlugin;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import picocli.CommandLine;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CamelKitCommandParityTest {
@@ -58,8 +58,8 @@ class CamelKitCommandParityTest {
     }
 
     @ParameterizedTest
-    @ValueSource(booleans = {false, true})
-    void bob2InitAndRegenerationDetectThePrefixInSeparateProcesses(boolean plugin) throws Exception {
+    @org.junit.jupiter.params.provider.CsvSource({"false,bob2", "true,bob2", "false,copilot", "true,copilot"})
+    void nativeInitAndRegenerationDetectThePrefixInSeparateProcesses(boolean plugin, String agent) throws Exception {
         Path workspace = tempDir.resolve("workspace");
         String expectedPrefix = plugin ? "camel kit" : "camel-kit";
         // The argument file keeps dependency paths out of process-based prefix detection.
@@ -67,7 +67,7 @@ class CamelKitCommandParityTest {
         String classpath = System.getProperty("surefire.test.class.path", System.getProperty("java.class.path"));
         Files.writeString(arguments, "--class-path\n" + quoteJavaArgument(classpath) + "\n"
                                      + InitProcess.class.getName() + "\n" + plugin + "\n"
-                                     + quoteJavaArgument(workspace.toString()) + "\n");
+                                     + quoteJavaArgument(workspace.toString()) + "\n" + agent + "\n");
 
         for (int initialization = 0; initialization < 2; initialization++) {
             Path log = tempDir.resolve("init-" + initialization + ".log");
@@ -90,11 +90,15 @@ class CamelKitCommandParityTest {
             }
             assertEquals(expectedPrefix, config.getProperty("project.command-prefix"));
             for (String name : PUBLIC_SKILLS) {
-                String skill = Files.readString(workspace.resolve(".bob/skills/" + name + "/SKILL.md"));
-                assertTrue(skill.contains("\nuser-invocable: true\n"), name);
+                String skillsRoot = agent.equals("bob2") ? ".bob/skills/" : ".github/skills/";
+                String skill = Files.readString(workspace.resolve(skillsRoot + name + "/SKILL.md"));
+                assertFalse(skill.contains("\nuser-invocable: false\n"), name);
+                if (agent.equals("bob2")) {
+                    assertTrue(skill.contains("\nuser-invocable: true\n"), name);
+                }
                 if (name.equals("camel-ship")) {
                     assertTrue(skill.contains(
-                            expectedPrefix + " ship --backend bob2-native --json"));
+                            expectedPrefix + " ship --backend " + agent + "-native --json"));
                 }
             }
         }
@@ -109,7 +113,7 @@ class CamelKitCommandParityTest {
             CommandLine command;
             boolean plugin = Boolean.parseBoolean(args[0]);
             var invocation
-                    = new ArrayList<>(List.of("init", args[1], "--ai", "bob2", "--silent", "--no-fetch", "--force"));
+                    = new ArrayList<>(List.of("init", args[1], "--ai", args[2], "--silent", "--no-fetch", "--force"));
             if (plugin) {
                 CamelJBangMain main = new CamelJBangMain();
                 command = new CommandLine(main);

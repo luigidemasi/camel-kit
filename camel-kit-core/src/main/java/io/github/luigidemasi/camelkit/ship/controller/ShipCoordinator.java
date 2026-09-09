@@ -130,12 +130,18 @@ public final class ShipCoordinator {
     public static ShipCoordinator bob2(
             Path stateRoot, Path localMavenRepository,
             DistributionConfig distribution, Duration timeout) {
+        return nativeHost(stateRoot, localMavenRepository, distribution, timeout, ShipRun.ExecutionMode.BOB2_NATIVE);
+    }
+
+    public static ShipCoordinator nativeHost(
+            Path stateRoot, Path localMavenRepository, DistributionConfig distribution, Duration timeout,
+            ShipRun.ExecutionMode mode) {
         Map<String, String> environment = Map.copyOf(System.getenv());
         Clock clock = Clock.systemUTC();
         ShipController controller = new ShipController(stateRoot, environment);
         return new ShipCoordinator(
                 stateRoot, controller,
-                new ShipNativeWorker(controller, timeout, environment, clock),
+                new ShipNativeWorker(controller, timeout, environment, clock, mode),
                 new ShipCatalogService(localMavenRepository)::snapshot, new ShipMainValidator(),
                 distribution, environment, false, clock);
     }
@@ -489,7 +495,7 @@ public final class ShipCoordinator {
                 Path manifest;
                 try {
                     manifest = manifestPath(attempt.run(), attempt.workingDirectory());
-                    if (worker.mode() == ShipRun.ExecutionMode.BOB2_NATIVE) {
+                    if (worker.mode().isNative()) {
                         ShipNativeWorker.applyProposals(attempt.workingDirectory(), manifest,
                                 acceptedPolicy(attempt), result.files(), environment);
                     }
@@ -679,8 +685,10 @@ public final class ShipCoordinator {
     private String workerInputDigest(StageRecord stage)
             throws IOException {
         String baseDigest = stage.inputDigest();
-        if (worker.mode() == ShipRun.ExecutionMode.BOB2_NATIVE) {
-            baseDigest = ShipDigest.sha256((baseDigest + "\nbob2-native-proposals:v1")
+        if (worker.mode().isNative()) {
+            String transport = worker.mode() == ShipRun.ExecutionMode.COPILOT_NATIVE
+                    ? "copilot-native-proposals:v1" : "bob2-native-proposals:v1";
+            baseDigest = ShipDigest.sha256((baseDigest + "\n" + transport)
                     .getBytes(StandardCharsets.UTF_8));
         }
         String contract = switch (stage.stage()) {
@@ -932,7 +940,7 @@ public final class ShipCoordinator {
                             + "test/<routeId>.camel.it.yaml. Sort routes canonically by routeId, "
                             + "then routePath, then citrusTestPath.\n");
             case EXECUTE -> {
-                if (worker.mode() == ShipRun.ExecutionMode.BOB2_NATIVE) {
+                if (worker.mode().isNative()) {
                     prompt.append("Propose the implementation as complete text file contents for the approved PLAN ")
                             .append("route/test paths, pom.xml and .camel-kit/config.properties only. ")
                             .append("Inspect existing files using absolute paths rooted at ")

@@ -37,7 +37,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.cfg.CoercionAction;
 import com.fasterxml.jackson.databind.cfg.CoercionInputShape;
 
-/** Durable, single-stage handoff to the caller's read-only Bob subagent. */
+/** Durable, single-stage handoff to the caller's read-only native subagent. */
 public final class ShipNativeWorker implements ShipStageWorker {
 
     static final int MAX_BYTES = 16 * 1024 * 1024;
@@ -68,8 +68,17 @@ public final class ShipNativeWorker implements ShipStageWorker {
     private final Duration timeout;
     private final Map<String, String> environment;
     private final Clock clock;
+    private final ShipRun.ExecutionMode executionMode;
 
     ShipNativeWorker(ShipController controller, Duration timeout, Map<String, String> environment, Clock clock) {
+        this(controller, timeout, environment, clock, ShipRun.ExecutionMode.BOB2_NATIVE);
+    }
+
+    ShipNativeWorker(ShipController controller, Duration timeout, Map<String, String> environment, Clock clock,
+                     ShipRun.ExecutionMode executionMode) {
+        if (!Objects.requireNonNull(executionMode).isNative()) {
+            throw new IllegalArgumentException("Native worker requires a native execution mode");
+        }
         if (timeout.isZero() || timeout.isNegative()) {
             throw new IllegalArgumentException("Native stage timeout must be positive");
         }
@@ -82,11 +91,12 @@ public final class ShipNativeWorker implements ShipStageWorker {
         this.timeout = timeout;
         this.environment = Map.copyOf(environment);
         this.clock = Objects.requireNonNull(clock);
+        this.executionMode = executionMode;
     }
 
     @Override
     public ShipRun.ExecutionMode mode() {
-        return ShipRun.ExecutionMode.BOB2_NATIVE;
+        return executionMode;
     }
 
     @Override
@@ -161,7 +171,7 @@ public final class ShipNativeWorker implements ShipStageWorker {
     }
 
     static Task pending(Path stateRoot, ShipRun run) throws IOException {
-        if (run.executionMode() != ShipRun.ExecutionMode.BOB2_NATIVE
+        if (!run.executionMode().isNative()
                 || run.status() != ShipRun.RunStatus.RUNNING || run.publicationPending()
                 || run.currentStage() == ShipRun.Stage.VALIDATE) {
             return null;
@@ -263,9 +273,13 @@ public final class ShipNativeWorker implements ShipStageWorker {
         return new Result(assistantText, null, diagnostics(receipt.hostVersion()), files);
     }
 
-    private static List<ToolVersion> diagnostics(String version) {
+    private List<ToolVersion> diagnostics(String version) {
+        return diagnostics(executionMode == ShipRun.ExecutionMode.COPILOT_NATIVE ? "copilot" : "bob2", version);
+    }
+
+    private static List<ToolVersion> diagnostics(String host, String version) {
         return List.of(new ToolVersion(
-                "bob2", null, version, Support.UNTESTED,
+                host, null, version, Support.UNTESTED,
                 "Native host metadata is reported by the caller; exact host-version certification is not claimed"));
     }
 
@@ -458,7 +472,7 @@ public final class ShipNativeWorker implements ShipStageWorker {
             Response response, String failure) {
         Receipt {
             requireIdentityFields(schemaVersion, taskId, runId, stage, attempt, inputDigest);
-            diagnostics(hostVersion);
+            diagnostics("native", hostVersion);
             if (outcome == null
                     || (outcome == NativeOutcome.SUCCEEDED
                             ? response == null || failure != null

@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **GitHub Copilot CLI native Ship (#226)** — eligible sessions relay controller-issued stages through the dedicated
+  read-only `camel-ship-worker` custom agent. `--backend copilot-native` reuses the native task/result, recovery,
+  oversight and deterministic publication contract while preserving Copilot permissions, hooks and existing roles.
+  Fresh and regenerated standalone/plugin workspaces receive the native skill; runs retain their recorded host.
+
 - **Bob 2 native Ship (#223)** — eligible Bob sessions relay controller-issued stages to a dedicated read-only native
   subagent. The controller accepts bounded text proposals, binds task/result hashes in run state, and retains oversight,
   deterministic validation and guarded publication. `--backend bob2-native`, `--json` and `--submit` expose the handoff;

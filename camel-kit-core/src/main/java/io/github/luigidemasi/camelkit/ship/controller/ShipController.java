@@ -214,7 +214,7 @@ public final class ShipController {
         try (ShipRunStore.LockedRun locked = store.lock(runId)) {
             ShipRun current = locked.read();
             StageRecord active = requireActiveAttempt(current, stage, attempt, current.stage(stage).inputDigest());
-            if (current.executionMode() != ShipRun.ExecutionMode.BOB2_NATIVE) {
+            if (!current.executionMode().isNative()) {
                 throw failure("execution-mode-mismatch", "Native evidence requires a native run");
             }
             requireCurrentInputs(current, active, locked.directory());

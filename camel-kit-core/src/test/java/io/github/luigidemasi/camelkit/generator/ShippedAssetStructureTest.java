@@ -768,9 +768,8 @@ class ShippedAssetStructureTest {
                 agentName + " Ship skill must not receive an orchestration trait");
         assertFalse(skillContent.contains("## Dispatch"),
                 agentName + " Ship skill must not receive an orchestration dispatch block");
-        if ("bob2".equals(agentName)) {
-            assertTrue(skillContent.contains(ctx.commandPrefix() + " ship --backend bob2-native --json"));
-            assertTrue(skillContent.contains("fork_context: false"));
+        if ("bob2".equals(agentName) || "copilot".equals(agentName)) {
+            assertTrue(skillContent.contains(ctx.commandPrefix() + " ship --backend " + agentName + "-native --json"));
             assertTrue(skillContent.contains("For every Ship invocation (new, submit, resume, status and abort)"));
             assertTrue(skillContent.contains("use an argument array or individually shell-quoted"));
             assertFalse(skillContent.contains("`childId`"));
@@ -782,6 +781,18 @@ class ShippedAssetStructureTest {
             assertTrue(skillContent.contains("stderr"));
             assertTrue(skillContent.contains("handoff-read-failed"));
             assertFalse(skillContent.contains("only after a successful exit"));
+            if ("copilot".equals(agentName)) {
+                assertTrue(skillContent.contains("agent_type: \"camel-ship-worker\""));
+                assertTrue(skillContent.contains("mode: \"sync\""));
+                assertTrue(skillContent.contains("In plan mode, do not start, resume or submit Ship work"));
+                assertTrue(skillContent.contains("only read-only `--status` is allowed"));
+                assertTrue(skillContent.contains("Do not duplicate a pending call"));
+                String worker = Files.readString(ctx.projectDir().resolve(".github/agents/camel-ship-worker.agent.md"));
+                assertTrue(worker.contains("tools: [\"read\", \"search\"]"));
+                assertFalse(Files.exists(ctx.projectDir().resolve(".github/commands")));
+                return;
+            }
+            assertTrue(skillContent.contains("fork_context: false"));
             Path command = ctx.commandsDir().resolve("camel-ship.md");
             assertTrue(Files.readString(command).contains("Read .bob/skills/camel-ship/SKILL.md"));
             String worker = Files.readString(ctx.projectDir().resolve(".bob/agents/camel-ship-worker.md"));

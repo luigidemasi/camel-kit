@@ -39,19 +39,21 @@ class ShipCommandTest {
     @TempDir
     Path tempDir;
 
-    @Test
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"bob2-native", "copilot-native"})
     @EnabledOnOs(OS.LINUX)
-    void nativeCommandReturnsAndAcceptsHandoffsOnBothCommandSurfaces() throws Exception {
+    void nativeCommandReturnsAndAcceptsHandoffsOnBothCommandSurfaces(String backend) throws Exception {
         Assumptions.assumeTrue(System.getenv("CAMEL_KIT_SHIP_STATE_HOME") == null);
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         for (String prefix : List.of("camel-kit ship", "camel kit ship")) {
             Path project = Files.createDirectory(tempDir.resolve(prefix.replace(' ', '_')));
             RunResult started = runAs(prefix, null, null, "--project-dir", project.toString(),
-                    "--backend", "bob2-native", "--json", "--stage-timeout", "1h", "--text", "Design an orders route");
+                    "--backend", backend, "--json", "--stage-timeout", "1h", "--text", "Design an orders route");
             assertEquals(0, started.exitCode(), started.error());
             var reply = mapper.readTree(started.output());
             String id = reply.path("run").path("id").asText();
-            assertEquals("BOB2_NATIVE", reply.path("run").path("executionMode").asText());
+            assertEquals(backend.toUpperCase(Locale.ROOT).replace('-', '_'),
+                    reply.path("run").path("executionMode").asText());
             assertEquals("DISCOVERY", reply.path("task").path("stage").asText());
             assertEquals("camel-ship-worker", reply.path("task").path("preset").asText());
 
@@ -63,6 +65,10 @@ class ShipCommandTest {
                     "--resume", id, "--backend", "pi");
             assertEquals(1, mismatch.exitCode());
             assertTrue(mismatch.error().contains("execution-mode-mismatch"));
+            RunResult wrongHost = runAs(prefix, null, null, "--project-dir", project.toString(),
+                    "--resume", id, "--backend", backend.equals("bob2-native") ? "copilot-native" : "bob2-native");
+            assertEquals(1, wrongHost.exitCode());
+            assertTrue(wrongHost.error().contains("execution-mode-mismatch"));
 
             var envelope = mapper.createObjectNode();
             for (String field : List.of("schemaVersion", "taskId", "runId", "stage", "attempt", "inputDigest")) {
@@ -95,15 +101,18 @@ class ShipCommandTest {
     }
 
     @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.ValueSource(strings = {"FAILED", "CANCELLED", "TIMED_OUT"})
+    @org.junit.jupiter.params.provider.CsvSource({
+            "bob2-native,FAILED", "bob2-native,CANCELLED", "bob2-native,TIMED_OUT",
+            "copilot-native,FAILED", "copilot-native,CANCELLED", "copilot-native,TIMED_OUT"})
     @EnabledOnOs(OS.LINUX)
-    void nativeChildFailuresReturnJsonWithExitOneAndPreserveTheFailure(String outcome) throws Exception {
+    void nativeChildFailuresReturnJsonWithExitOneAndPreserveTheFailure(String backend, String outcome)
+            throws Exception {
         Assumptions.assumeTrue(System.getenv("CAMEL_KIT_SHIP_STATE_HOME") == null);
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         for (String prefix : List.of("camel-kit ship", "camel kit ship")) {
             Path project = Files.createDirectory(tempDir.resolve(prefix.replace(' ', '_')));
             RunResult started = runAs(prefix, null, null, "--project-dir", project.toString(),
-                    "--backend", "bob2-native", "--json", "--text", "Design an orders route");
+                    "--backend", backend, "--json", "--text", "Design an orders route");
             assertEquals(0, started.exitCode(), started.error());
             var task = mapper.readTree(started.output()).path("task");
             String id = task.path("runId").asText();
@@ -137,14 +146,17 @@ class ShipCommandTest {
     }
 
     @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    @org.junit.jupiter.params.provider.CsvSource({
+            "bob2-native,false", "bob2-native,true",
+            "copilot-native,false", "copilot-native,true"})
     @EnabledOnOs(OS.LINUX)
-    void nativeStatusRejectsInvalidHandoffsAndExplicitResumesRecoverThem(boolean unbound) throws Exception {
+    void nativeStatusRejectsInvalidHandoffsAndExplicitResumesRecoverThem(String backend, boolean unbound)
+            throws Exception {
         Assumptions.assumeTrue(System.getenv("CAMEL_KIT_SHIP_STATE_HOME") == null);
         var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
         Path project = Files.createDirectory(tempDir.resolve("project"));
         RunResult started = run(null, null, "--project-dir", project.toString(),
-                "--backend", "bob2-native", "--json", "--text", "Design an orders route");
+                "--backend", backend, "--json", "--text", "Design an orders route");
         assertEquals(0, started.exitCode(), started.error());
         var task = mapper.readTree(started.output()).path("task");
         String id = task.path("runId").asText();
