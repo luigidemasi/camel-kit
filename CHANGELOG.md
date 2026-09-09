@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deterministic validation and guarded publication. `--backend bob2-native`, `--json` and `--submit` expose the handoff;
   resumable runs retain their backend, and legacy state migrates to Pi. Other agent execution models stay unchanged.
   The relay preserves failed-run diagnostics and documents explicit recovery for unreadable handoffs.
+  Ship preserves dependency JAR filenames in its isolated validation payloads so Citrus resource lookup also works
+  when the temporary directory has no spaces.
 
 - **Google Antigravity** (`--ai antigravity`) — native `.agents/skills/`, worker/reviewer custom agents,
   `AGENTS.md`, and `.agents/mcp_config.json`. Shared pipeline traits keep orchestration and report writes in the

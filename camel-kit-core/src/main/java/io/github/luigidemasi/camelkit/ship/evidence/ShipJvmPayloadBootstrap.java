@@ -42,7 +42,10 @@ public final class ShipJvmPayloadBootstrap {
                     if (entry.isDirectory() || !name.startsWith("lib/") || !name.endsWith(".jar")) {
                         continue;
                     }
-                    Path target = extraction.resolve(Path.of(name).getFileName().toString());
+                    // Libraries can use their JAR basename for resource discovery. Keep it intact,
+                    // and isolate each dependency in a generated directory to prevent name collisions.
+                    Path target = Files.createDirectory(extraction.resolve(Integer.toString(urls.size())))
+                            .resolve(Path.of(name).getFileName().toString());
                     try (InputStream input = zip.getInputStream(entry)) {
                         Files.copy(input, target);
                     }
