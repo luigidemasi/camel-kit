@@ -40,6 +40,61 @@ class ShipCommandTest {
     Path tempDir;
 
     @Test
+    @EnabledOnOs(OS.LINUX)
+    void nativeCommandReturnsAndAcceptsHandoffsOnBothCommandSurfaces() throws Exception {
+        Assumptions.assumeTrue(System.getenv("CAMEL_KIT_SHIP_STATE_HOME") == null);
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        for (String prefix : List.of("camel-kit ship", "camel kit ship")) {
+            Path project = Files.createDirectory(tempDir.resolve(prefix.replace(' ', '_')));
+            RunResult started = runAs(prefix, null, null, "--project-dir", project.toString(),
+                    "--backend", "bob2-native", "--json", "--stage-timeout", "1h", "--text", "Design an orders route");
+            assertEquals(0, started.exitCode(), started.error());
+            var reply = mapper.readTree(started.output());
+            String id = reply.path("run").path("id").asText();
+            assertEquals("BOB2_NATIVE", reply.path("run").path("executionMode").asText());
+            assertEquals("DISCOVERY", reply.path("task").path("stage").asText());
+            assertEquals("camel-ship-worker", reply.path("task").path("preset").asText());
+
+            RunResult resumed = runAs(prefix, null, null, "--project-dir", project.toString(),
+                    "--resume", id, "--json");
+            assertEquals(0, resumed.exitCode(), resumed.error());
+            assertEquals(reply.path("task"), mapper.readTree(resumed.output()).path("task"));
+            RunResult mismatch = runAs(prefix, null, null, "--project-dir", project.toString(),
+                    "--resume", id, "--backend", "pi");
+            assertEquals(1, mismatch.exitCode());
+            assertTrue(mismatch.error().contains("execution-mode-mismatch"));
+
+            var envelope = mapper.createObjectNode();
+            for (String field : List.of("schemaVersion", "taskId", "runId", "stage", "attempt", "inputDigest")) {
+                envelope.set(field, reply.path("task").get(field));
+            }
+            envelope.put("hostVersion", "2.0.2");
+            envelope.put("outcome", "SUCCEEDED");
+            envelope.putNull("failure");
+            var response = envelope.putObject("response");
+            response.set("result", mapper.readTree("""
+                    {"schemaVersion":2,"pipelineId":"223-cli","report":"Requirements understood",
+                     "artifactPolicy":null,"materialAmbiguity":false,"unansweredQuestions":[]}
+                    """));
+            response.putArray("files");
+            Path result = Files.writeString(tempDir.resolve(prefix.replace(' ', '_') + ".json"),
+                    mapper.writeValueAsString(envelope));
+            RunResult submitted = runAs(prefix, null, null, "--project-dir", project.toString(),
+                    "--submit", id, "--result", result.toString(), "--json", "--stage-timeout", "1h");
+            assertEquals(0, submitted.exitCode(), submitted.error());
+            var nextTask = mapper.readTree(submitted.output()).path("task");
+            assertEquals("DESIGN", nextTask.path("stage").asText());
+            assertTrue(java.time.Instant.parse(nextTask.path("deadline").asText())
+                    .isAfter(java.time.Instant.now().plus(Duration.ofMinutes(55))));
+            RunResult aborted = runAs(prefix, null, rejectingLauncher(), "--project-dir", project.toString(),
+                    "--abort", id, "--json");
+            assertEquals(0, aborted.exitCode(), aborted.error());
+            assertEquals("ABORTED", mapper.readTree(aborted.output()).path("run").path("status").asText());
+            assertTrue(mapper.readTree(aborted.output()).path("task").isNull());
+        }
+    }
+
+    @Test
     void continuationCommandsCarryTheProjectDirectoryOfTheProjectLocalStore() throws Exception {
         Assumptions.assumeTrue(System.getenv("CAMEL_KIT_SHIP_STATE_HOME") == null,
                 "CAMEL_KIT_SHIP_STATE_HOME overrides the project-local store");
@@ -802,6 +857,20 @@ class ShipCommandTest {
             assertTrue(result.error().contains(
                     "only valid when starting or resuming a run"), result.error());
         }
+    }
+
+    @Test
+    @EnabledOnOs(OS.LINUX)
+    void rejectsUnrepresentableNativeDeadlineBeforeCreatingRunState() throws Exception {
+        Path project = Files.createDirectory(tempDir.resolve("overflow-project"));
+        Path state = tempDir.resolve("overflow-state");
+        RunResult result = run(new ShipController(state), new ShipRuntime(state),
+                "--project-dir", project.toString(), "--backend", "bob2-native",
+                "--stage-timeout", "100000000000000h", "--text", "Generate a route");
+        assertEquals(1, result.exitCode());
+        assertTrue(result.error().contains("runtime-unavailable"), result.error());
+        assertTrue(result.error().contains("deadline range"), result.error());
+        assertFalse(Files.exists(state));
     }
 
     @Test

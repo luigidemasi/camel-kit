@@ -912,7 +912,7 @@ Validation is static and report-only: it does not modify routes or fix the findi
 
 ### /camel-ship
 
-**Purpose:** Start or control the local Ship workflow through the configured Camel-Kit CLI. The harness skill is a thin delegate: it invokes the command once with the supplied Ship options, returns the command result, and does not implement stages or write Ship state.
+**Purpose:** Start or control the local Ship workflow through the configured Camel-Kit CLI. Harness skills delegate stage decisions and state to the CLI. Eligible Bob 2 sessions relay pending work to native subagents; other execution models retain the single CLI invocation. See [Bob native Ship](ship-native.md).
 
 The registered command is `camel-kit ship` when Camel-Kit is installed standalone and `camel kit ship` when it is installed as a Camel JBang plugin. Harness-native forms such as `/camel-ship`, `$camel-ship`, and `/skill:camel-ship` invoke that configured command prefix. Pi uses `/skill:camel-ship`; Camel-Kit intentionally does not generate a Pi `/camel-ship` prompt because that prompt surface flattens quoted option values.
 
@@ -930,25 +930,28 @@ The registered command is `camel-kit ship` when Camel-Kit is installed standalon
 | `--abort RUN_ID` | none | Abort any run that has not completed, terminating its active attempt when present and recording the durable outcome. |
 | `--start-from STAGE` | none | Start a new run at `discovery`, `design`, or `plan` after validating the required context and imported artifacts. |
 
-`--resume`, `--status`, `--abort`, and `--start-from` are mutually exclusive. A bare invocation is valid and starts a short discovery conversation.
+`--resume`, `--status`, `--abort`, `--submit`, and `--start-from` are mutually exclusive. A bare invocation is valid and starts a short discovery conversation.
 
-`--start-from discovery` has no import prerequisite. `--start-from design` requires text or document context and a manual `activePipeline` in `.camel-kit/pipeline.json`. `--start-from plan` requires that manual active pipeline and its readable `docs/camel-kit/<pipeline-id>/design-spec.md`. Starting from `execute` or `validate` is unsupported because those stages require controller-owned plan and Pi evidence.
+`--start-from discovery` has no import prerequisite. `--start-from design` requires text or document context and a manual `activePipeline` in `.camel-kit/pipeline.json`. `--start-from plan` requires that manual active pipeline and its readable `docs/camel-kit/<pipeline-id>/design-spec.md`. Starting from `execute` or `validate` is unsupported because those stages require controller-owned plan and worker evidence.
 
 **Runtime and configuration options:**
 
 | Argument | Default | Description |
 |---|---|---|
 | `--accept-experimental` | false | Continue after the warning for an experimental Pi or Node version. |
-| `--pi PATH` | discovered on `PATH` | Pi executable used by stage workers. |
+| `--backend pi\|bob2-native` | `pi` | Execution mode for a new run; resume retains the recorded mode. |
+| `--json` | off | Structured run state and any pending native task. |
+| `--submit RUN_ID --result PATH` | none | Relay one native child result; mutually exclusive with other lifecycle operations. |
+| `--pi PATH` | discovered on `PATH` | Pi executable used by Pi stage workers. |
 | `--node PATH` | discovered on `PATH` | Node executable used to run Pi. |
 | `--maven-repository PATH` | `<Ship state root>/catalog-repository` | Private Maven repository used for validation payloads. |
 | `--stage-timeout DURATION` | `10m` | Limit for one stage attempt, such as `90s`, `10m`, or `1h`. |
 | `-c`, `--config PATH` | `~/.camel-kit/config.properties` | Configuration properties file. |
 | `-p`, `--property KEY=VALUE` | none | Override a configuration property. Repeat as needed. |
 
-Runtime and configuration options apply only when starting or resuming a workflow. Repeat the same `-c` and `-p` options when resuming a run that used overrides.
+Runtime and configuration options apply when starting, resuming or submitting a native result. Repeat the original `--stage-timeout`, `--maven-repository` and `-c`/`-p` options on resume and submission; these settings are not persisted for future stages. Pi/Node options are rejected for native runs.
 
-The current worker requires a Linux host, Pi, and Node. Its accepted project contract currently supports the Camel Main runtime and Camel YAML DSL routes named `<routeId>.camel.yaml`, with matching Citrus tests at `test/<routeId>.camel.it.yaml`. Spring Boot and Quarkus Ship projects are rejected until deterministic evidence support is available for those runtimes. Deterministic validation commands run in a separate JVM launched by the controller with a pinned, controller-resolved classpath, a scrubbed environment, and a frozen read-only copy of the accepted project tree; network access during validation is avoided by replacing every non-direct Camel endpoint with an in-memory stub, not by OS-level sandboxing. Missing executables fail with installation guidance; an unrecognized Pi or Node version is reported as experimental and runs only with `--accept-experimental`.
+Ship requires Linux. The Pi backend requires Pi and Node; Bob native execution uses the active host and does not discover or launch either executable. Its accepted project contract currently supports the Camel Main runtime and Camel YAML DSL routes named `<routeId>.camel.yaml`, with matching Citrus tests at `test/<routeId>.camel.it.yaml`. Spring Boot and Quarkus Ship projects are rejected until deterministic evidence support is available for those runtimes. Deterministic validation commands run in a separate JVM launched by the controller with a pinned, controller-resolved classpath, a scrubbed environment, and a frozen read-only copy of the accepted project tree; network access during validation is avoided by replacing every non-direct Camel endpoint with an in-memory stub, not by OS-level sandboxing. Missing executables fail with installation guidance; an unrecognized Pi or Node version is reported as experimental and runs only with `--accept-experimental`.
 
 **Oversight:**
 
@@ -1013,7 +1016,7 @@ camel-kit init --here --ai <same-agent> --force
 camel kit init --here --ai <same-agent> --force
 ```
 
-`--force` overwrites generated assets. Re-initialization installs the thin delegate and removes obsolete Ship guides, harness traits, and Bob 2 Ship mode/rule assets so an old prompt-owned workflow cannot continue alongside the controller. Pre-controller Ship state in `.camel-kit/ship-state.json` or a non-manual `.camel-kit/pipeline.json` is deliberately not imported. Inspect it if needed, then archive it outside the project before starting a controller run; its presence makes Ship fail closed. Preserve a manual-mode `.camel-kit/pipeline.json`, because standalone pipeline skills and validated `--start-from` imports still use its active pipeline ID.
+`--force` overwrites generated assets. Re-initialization installs the current entry point and removes obsolete prompt-owned Ship guides, traits and rules. Bob 2 receives its native relay skill, read-only worker preset and `camel-ship-mode`; other agents retain their current delegates. Pre-controller Ship state in `.camel-kit/ship-state.json` or a non-manual `.camel-kit/pipeline.json` is deliberately not imported. Inspect it if needed, then archive it outside the project before starting a controller run; its presence makes Ship fail closed. Preserve a manual-mode `.camel-kit/pipeline.json`, because standalone pipeline skills and validated `--start-from` imports still use its active pipeline ID.
 
 GitHub Copilot CLI now uses its native `.github/skills/` surface exclusively. Older generated `.github/commands/` files are ignored by current Copilot CLI; after preserving any local edits, they may be removed. Re-initialization records `agent.folder=.github/skills`.
 

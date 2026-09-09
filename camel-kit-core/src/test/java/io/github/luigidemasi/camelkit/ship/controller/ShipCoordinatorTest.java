@@ -1528,10 +1528,10 @@ class ShipCoordinatorTest {
                 true);
     }
 
-    private void writeGeneratedMainCandidate(
+    static void writeGeneratedMainCandidate(
             Path candidate, ArtifactPolicy policy)
             throws Exception {
-        String routePath = "src/main/resources/routes/orders.camel.yaml";
+        String routePath = policy.routes().get(0).routePath();
         String testPath = "test/orders.camel.it.yaml";
         write(candidate, routePath, """
                 - route:
@@ -1748,7 +1748,7 @@ class ShipCoordinatorTest {
                         .replace("\"", "\\\""));
     }
 
-    private final class DeterministicEvidenceStub
+    static final class DeterministicEvidenceStub
             implements ShipMainValidator.EvidenceExecutor {
 
         private final List<String> commandIds = new ArrayList<>();

@@ -1,4 +1,24 @@
 customModes:
+  - slug: camel-ship-mode
+    name: "Camel Ship"
+    description: "Relay controller-issued Ship tasks to read-only Bob subagents."
+    roleDefinition: >
+      You are the parent Bob task for the registered Camel Ship controller. Follow
+      .bob/skills/camel-ship/SKILL.md. The CLI owns state, oversight, artifact writes,
+      deterministic validation and publication. You relay tasks and observed results.
+    whenToUse: >
+      Use for a user-requested end-to-end Ship workflow with native Bob subagents.
+    customInstructions: >
+      Use only camel-ship-worker with fork_context false. Children return structured
+      proposals and cannot write files. Keep user decisions in the parent. Never
+      reproduce stage orchestration, broaden a worker, or switch an existing run's backend.
+    groups:
+      - read
+      - edit
+      - execute
+      - subagent
+    allowedSubagents: [camel-ship-worker]
+
   - slug: camel-brainstorm-mode
     name: "Camel Brainstorm"
     description: "Design Camel integrations and migrations without implementation edits."

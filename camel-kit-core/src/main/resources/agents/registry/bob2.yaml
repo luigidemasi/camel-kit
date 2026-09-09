@@ -17,6 +17,8 @@ description: IBM Bob 2 with native skills and subagents
 generatorStrategy: bob2
 dispatchTemplatePath: templates/dispatch/bob2.md
 templates:
+  - source: templates/bob2/agents/camel-ship-worker.md
+    target: .bob/agents/camel-ship-worker.md
   - source: templates/bob2/agents/camel-worker.md
     target: .bob/agents/camel-worker.md
   - source: templates/bob2/agents/camel-reviewer.md

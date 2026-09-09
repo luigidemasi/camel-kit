@@ -139,6 +139,14 @@ class SkillResourceInstaller {
         if (destination.getFileName().toString().equals("SKILL.md")) {
             String skillName = destination.getParent().getFileName().toString();
             boolean shipDelegate = "camel-ship".equals(skillName);
+            if (shipDelegate && AgentGeneratorStrategy.BOB2.descriptorValue().equals(ctx.agentName())) {
+                try (InputStream nativeSkill = getClass().getResourceAsStream("/templates/bob2/camel-ship.md")) {
+                    if (nativeSkill == null) {
+                        throw new IOException("Bob native Ship skill is missing");
+                    }
+                    Files.copy(nativeSkill, destination, StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
             if (AgentGeneratorStrategy.BOB2.descriptorValue().equals(ctx.agentName())
                     || AgentGeneratorStrategy.QWEN.descriptorValue().equals(ctx.agentName())) {
                 // Bob Shell's native skill picker hides false values; same-name command stubs cannot override them.

@@ -98,13 +98,19 @@ final class ShipMainValidator {
             ToolVersion node,
             Clock clock)
             throws IOException, InterruptedException {
+        return validate(runId, candidateRoot, manifestPath, policy, catalog, evidenceRoot,
+                List.of(pi, node), clock);
+    }
+
+    Result validate(
+            String runId, Path candidateRoot, Path manifestPath, ArtifactPolicy policy,
+            ShipCatalogService.Snapshot catalog, Path evidenceRoot, List<ToolVersion> workerTools, Clock clock)
+            throws IOException, InterruptedException {
         requireNotInterrupted();
         Objects.requireNonNull(policy, "artifact policy must not be null");
         Objects.requireNonNull(catalog, "catalog snapshot must not be null");
-        Objects.requireNonNull(pi, "Pi tool version must not be null");
-        Objects.requireNonNull(node, "Node tool version must not be null");
         Objects.requireNonNull(clock, "clock must not be null");
-        List<ToolVersion> tools = toolVersions(pi, node, policy);
+        List<ToolVersion> tools = toolVersions(workerTools, policy);
         Path evidence = privateDirectory(evidenceRoot);
         Path candidate = realDirectory(candidateRoot, "candidate root");
         List<Check> checks = new ArrayList<>();
@@ -530,15 +536,13 @@ final class ShipMainValidator {
         return new Result(stamp);
     }
 
-    private static List<ToolVersion> toolVersions(
-            ToolVersion pi, ToolVersion node, ArtifactPolicy policy) {
-        if (!"pi".equals(pi.tool()) || !"node".equals(node.tool())) {
-            throw new IllegalArgumentException(
-                    "Ship worker tool diagnostics must be ordered Pi then Node");
+    private static List<ToolVersion> toolVersions(List<ToolVersion> workerTools, ArtifactPolicy policy) {
+        List<String> names = workerTools.stream().map(ToolVersion::tool).toList();
+        if (!names.equals(List.of("pi", "node")) && !names.equals(List.of("bob2"))) {
+            throw new IllegalArgumentException("Ship worker diagnostics must identify its execution backend");
         }
-        return List.of(
-                pi,
-                node,
+        List<ToolVersion> result = new ArrayList<>(workerTools);
+        result.addAll(List.of(
                 new ToolVersion(
                         "java",
                         null,
@@ -559,7 +563,8 @@ final class ShipMainValidator {
                 diagnostic(
                         "architecture",
                         diagnosticProperty("os.arch"),
-                        "Recorded for diagnostics; exact architecture certification is not claimed"));
+                        "Recorded for diagnostics; exact architecture certification is not claimed")));
+        return List.copyOf(result);
     }
 
     private static ToolVersion diagnostic(

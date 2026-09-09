@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Bob 2 native Ship (#223)** — eligible Bob sessions relay controller-issued stages to a dedicated read-only native
+  subagent. The controller accepts bounded text proposals, binds task/result hashes in run state, and retains oversight,
+  deterministic validation and guarded publication. `--backend bob2-native`, `--json` and `--submit` expose the handoff;
+  resumable runs retain their backend, and legacy state migrates to Pi. Other agent execution models stay unchanged.
+
 - **Google Antigravity** (`--ai antigravity`) — native `.agents/skills/`, worker/reviewer custom agents,
   `AGENTS.md`, and `.agents/mcp_config.json`. Shared pipeline traits keep orchestration and report writes in the
   primary conversation. Existing unrelated MCP servers and settings are preserved; native permissions remain active.

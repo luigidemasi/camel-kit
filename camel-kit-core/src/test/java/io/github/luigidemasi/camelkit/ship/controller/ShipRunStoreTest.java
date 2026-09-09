@@ -35,6 +35,23 @@ class ShipRunStoreTest {
     Path temporaryDirectory;
 
     @Test
+    void migratesVersionFiveAsPiAndRejectsAnInjectedLegacyBackend() throws Exception {
+        ShipRunStore store = store();
+        store.create(run(RUN_ID));
+        Path state = stateRoot().resolve(RUN_ID).resolve("state.json");
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode legacy = (ObjectNode) mapper.readTree(Files.readString(state));
+        legacy.put("schemaVersion", 5);
+        legacy.remove("executionMode");
+        legacy.withArray("stages").forEach(stage -> ((ObjectNode) stage).remove("nativeEvidence"));
+        Files.writeString(state, mapper.writeValueAsString(legacy));
+        assertEquals(ShipRun.ExecutionMode.PI, store.read(RUN_ID).executionMode());
+        legacy.put("executionMode", "BOB2_NATIVE");
+        Files.writeString(state, mapper.writeValueAsString(legacy));
+        assertCode("state-corrupt", () -> store.read(RUN_ID));
+    }
+
+    @Test
     void createsReadsAndAtomicallyReplacesRunState() throws Exception {
         ShipRunStore store = store();
         ShipRun initial = run(RUN_ID);
@@ -118,6 +135,8 @@ class ShipRunStoreTest {
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode legacy = (ObjectNode) mapper.readTree(Files.readString(state));
         legacy.put("schemaVersion", 4);
+        legacy.remove("executionMode");
+        legacy.withArray("stages").forEach(stage -> ((ObjectNode) stage).remove("nativeEvidence"));
         legacy.withArray("stages").forEach(stage -> {
             ((ObjectNode) stage).remove("materialAmbiguity");
             ((ObjectNode) stage).remove("unansweredQuestions");

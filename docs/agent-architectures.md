@@ -107,7 +107,7 @@ Claude has no formal permission system. It relies on skill instructions to const
 
 The `--ai bob2` target uses Bob 2 native `spawn_subagent` while still generating files under `.bob/`. The target name is only the Camel-Kit selector; Camel-Kit installs commands, skills, capability-scoped agent presets, role personas, modes, rules, and MCP configuration under `.bob/`.
 
-Bob 2 keeps the shared Camel-Kit skills and appends Bob 2 traits. It does not replace `SKILL.md` files with monolithic gates.
+Bob 2 keeps shared phase skills and appends Bob 2 traits. Ship has a dedicated [native relay skill](ship-native.md): the parent dispatches `camel-ship-worker`, a read-only preset, and returns its proposals to the CLI controller. `camel-ship-mode` permits this relay without changing the restrictions of existing phase modes.
 
 ### Template Files
 

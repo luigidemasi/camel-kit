@@ -299,8 +299,8 @@ class Bob2GeneratorTest {
                 .filter(line -> line.startsWith("  - slug: "))
                 .map(line -> line.substring("  - slug: ".length()))
                 .collect(Collectors.toSet());
-        assertEquals(7, content.lines().filter(line -> line.startsWith("  - slug: ")).count());
-        assertEquals(Set.of("camel-brainstorm-mode", "camel-plan-mode", "camel-implement-mode",
+        assertEquals(8, content.lines().filter(line -> line.startsWith("  - slug: ")).count());
+        assertEquals(Set.of("camel-ship-mode", "camel-brainstorm-mode", "camel-plan-mode", "camel-implement-mode",
                 "camel-execute-mode", "camel-validate-mode", "camel-test-mode", "camel-debug-mode"), slugs);
         for (String slug : slugs) {
             assertFalse(Files.exists(ctx.commandsDir().resolve(slug + ".md")), slug);
@@ -456,9 +456,15 @@ class Bob2GeneratorTest {
         assertSingleBlankLineBeforeDispatch(Files.readString(ctx.skillsDir().resolve("camel-execute/SKILL.md")));
 
         String ship = Files.readString(ctx.skillsDir().resolve("camel-ship/SKILL.md"));
-        assertTrue(ship.contains("Invoke `" + commandPrefix + " ship` once using the invocation's Ship options."));
-        assertTrue(ship.contains("Add no defaults."));
-        assertTrue(ship.contains("Return the command output and whether it succeeded."));
+        assertTrue(ship.contains(commandPrefix + " ship --backend bob2-native --json"));
+        assertTrue(ship.contains(commandPrefix + " ship --submit"));
+        assertTrue(ship.contains("fork_context: false"));
+        assertTrue(ship.contains("persisted backend is authoritative"));
+        String nativeWorker = Files.readString(tempDir.resolve(".bob/agents/camel-ship-worker.md"));
+        assertTrue(nativeWorker.contains("groups:\n  - read\nallowForkContext: false"));
+        assertFalse(nativeWorker.contains("  - edit"));
+        assertFalse(nativeWorker.contains("  - execute"));
+        assertFalse(nativeWorker.contains("  - mcp"));
         assertFalse(ship.contains("## Dispatch"));
     }
 
