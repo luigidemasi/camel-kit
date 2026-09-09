@@ -94,7 +94,7 @@ class CamelKitCommandParityTest {
                 assertTrue(skill.contains("\nuser-invocable: true\n"), name);
                 if (name.equals("camel-ship")) {
                     assertTrue(skill.contains(
-                            "Invoke `" + expectedPrefix + " ship` once using the invocation's Ship options."));
+                            expectedPrefix + " ship --backend bob2-native --json"));
                 }
             }
         }

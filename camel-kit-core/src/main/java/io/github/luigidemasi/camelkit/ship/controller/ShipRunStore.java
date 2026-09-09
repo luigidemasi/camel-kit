@@ -160,7 +160,26 @@ final class ShipRunStore {
                 record.put("materialAmbiguity", false);
                 record.putArray("unansweredQuestions");
             }
-            ((ObjectNode) document).put("schemaVersion", ShipRun.SCHEMA_VERSION);
+            ((ObjectNode) document).put("schemaVersion", 5);
+            schemaVersion = 5;
+        }
+        if (schemaVersion == 5) {
+            ObjectNode state = (ObjectNode) document;
+            if (state.has("executionMode")) {
+                throw corrupt(stateFile, null);
+            }
+            JsonNode stages = state.get("stages");
+            if (stages == null || !stages.isArray()) {
+                throw corrupt(stateFile, null);
+            }
+            for (JsonNode stage : stages) {
+                if (!(stage instanceof ObjectNode record) || record.has("nativeEvidence")) {
+                    throw corrupt(stateFile, null);
+                }
+                record.putNull("nativeEvidence");
+            }
+            state.put("executionMode", ShipRun.ExecutionMode.PI.name());
+            state.put("schemaVersion", ShipRun.SCHEMA_VERSION);
             schemaVersion = ShipRun.SCHEMA_VERSION;
         }
         if (schemaVersion != ShipRun.SCHEMA_VERSION) {
@@ -445,7 +464,7 @@ final class ShipRunStore {
                 "Imported Ship stage evidence is invalid for run " + run.id());
     }
 
-    private Path existingRunRoot(String runId) throws StoreException {
+    Path existingRunRoot(String runId) throws StoreException {
         Path runRoot = runRoot(resolvedStateRoot("state-corrupt"), runId);
         if (!Files.exists(runRoot, LinkOption.NOFOLLOW_LINKS)) {
             throw new StoreException("run-not-found", "Ship run was not found: " + runId);

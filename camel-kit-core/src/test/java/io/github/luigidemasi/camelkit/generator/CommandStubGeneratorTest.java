@@ -74,7 +74,7 @@ class CommandStubGeneratorTest {
     }
 
     @Test
-    void shipStubForwardsOptionsInProseWhenNoPlaceholderIsDocumented() throws Exception {
+    void bobShipStubLoadsItsNativeRelaySkill() throws Exception {
         InitContext ctx = createContext("bob2");
         Files.createDirectories(ctx.commandsDir());
 
@@ -82,7 +82,7 @@ class CommandStubGeneratorTest {
 
         String content = Files.readString(ctx.commandsDir().resolve("camel-ship.md"));
         assertTrue(content.contains(
-                "Run `camel-kit ship` once, appending every option supplied to this command invocation verbatim."));
+                "Read .bob/skills/camel-ship/SKILL.md and follow those instructions"));
         assertFalse(content.contains("null"), "a missing placeholder must never be concatenated into the stub");
     }
 

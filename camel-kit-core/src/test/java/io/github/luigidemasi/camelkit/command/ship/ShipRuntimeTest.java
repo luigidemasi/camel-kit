@@ -26,6 +26,19 @@ class ShipRuntimeTest {
     Path tempDir;
 
     @Test
+    void nativeRuntimeDoesNotDiscoverPiOrNodeAndRejectsTheirOptions() {
+        ShipRuntime runtime = new ShipRuntime(tempDir.resolve("state"), "");
+        var mode = io.github.luigidemasi.camelkit.ship.controller.ShipRun.ExecutionMode.BOB2_NATIVE;
+        var resolved = runtime.resolve(new ShipCommand.RuntimeSettings(
+                null, null, null, null, false, null, List.of(), mode));
+        assertEquals(mode, resolved.executionMode());
+        assertEquals(null, resolved.piExecutable());
+        assertEquals(null, resolved.nodeExecutable());
+        assertThrows(IllegalArgumentException.class, () -> runtime.resolve(new ShipCommand.RuntimeSettings(
+                tempDir.resolve("pi"), null, null, null, false, null, List.of(), mode)));
+    }
+
+    @Test
     @EnabledOnOs(OS.LINUX)
     void findsTheFirstExecutableRegularFileOnThePath() throws Exception {
         Path first = Files.createDirectory(tempDir.resolve("first"));

@@ -34,19 +34,18 @@ import io.github.luigidemasi.camelkit.ship.controller.ShipRun.RunStatus;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.Stage;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.StageRecord;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.StageStatus;
+import io.github.luigidemasi.camelkit.ship.controller.ShipStageWorker.Recovery;
+import io.github.luigidemasi.camelkit.ship.controller.ShipStageWorker.Request;
+import io.github.luigidemasi.camelkit.ship.controller.ShipStageWorker.Result;
 import io.github.luigidemasi.camelkit.ship.evidence.ShipLocalStamp;
 import io.github.luigidemasi.camelkit.ship.worker.ChangedWorkspaceSecretScanner;
 import io.github.luigidemasi.camelkit.ship.worker.PiWorker;
-import io.github.luigidemasi.camelkit.ship.worker.PiWorker.Outcome;
-import io.github.luigidemasi.camelkit.ship.worker.PiWorker.Recovery;
-import io.github.luigidemasi.camelkit.ship.worker.PiWorker.Request;
-import io.github.luigidemasi.camelkit.ship.worker.PiWorker.Result;
 import io.github.luigidemasi.camelkit.ship.worker.PiWorker.SessionBusyException;
 import io.github.luigidemasi.camelkit.ship.worker.PiWorker.UntrustedResultException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-/** Concrete local composition of the compact Ship controller, Pi worker, and deterministic Main validation. */
+/** Concrete local composition of the compact Ship controller, stage workers, and deterministic Main validation. */
 public final class ShipCoordinator {
 
     private static final long ABORT_POLL_MILLIS = 50;
@@ -58,7 +57,7 @@ public final class ShipCoordinator {
 
     private final Path stateRoot;
     private final ShipController controller;
-    private final PiWorker worker;
+    private final ShipStageWorker worker;
     private final CatalogProvider catalogs;
     private final ShipMainValidator validator;
     private final DistributionConfig distribution;
@@ -82,13 +81,13 @@ public final class ShipCoordinator {
         this.distribution = Objects.requireNonNull(distribution, "distribution");
         // Only bundled pins may mark Pi/Node supported; injected config still drives artifact policy.
         DistributionConfig maintained = DistributionConfig.loadBundled();
-        this.worker = new PiWorker(
+        this.worker = ShipStageWorker.pi(new PiWorker(
                 piExecutable,
                 maintained.piSupportedVersions(),
                 nodeExecutable,
                 maintained.nodeVersion(),
                 timeout,
-                environment);
+                environment));
         this.catalogs = new ShipCatalogService(localMavenRepository)::snapshot;
         this.validator = new ShipMainValidator();
         this.environment = environment;
@@ -106,6 +105,13 @@ public final class ShipCoordinator {
                     Map<String, String> environment,
                     boolean acceptExperimental,
                     Clock clock) {
+        this(stateRoot, controller, ShipStageWorker.pi(worker), catalogs, validator,
+             distribution, environment, acceptExperimental, clock);
+    }
+
+    ShipCoordinator(Path stateRoot, ShipController controller, ShipStageWorker worker,
+                    CatalogProvider catalogs, ShipMainValidator validator, DistributionConfig distribution,
+                    Map<String, String> environment, boolean acceptExperimental, Clock clock) {
         this.stateRoot = Objects.requireNonNull(stateRoot, "state root")
                 .toAbsolutePath()
                 .normalize();
@@ -121,6 +127,38 @@ public final class ShipCoordinator {
     }
 
     /** Runs authoritative stages until an oversight gate or terminal outcome is reached. */
+    public static ShipCoordinator bob2(
+            Path stateRoot, Path localMavenRepository,
+            DistributionConfig distribution, Duration timeout) {
+        Map<String, String> environment = Map.copyOf(System.getenv());
+        Clock clock = Clock.systemUTC();
+        ShipController controller = new ShipController(stateRoot, environment);
+        return new ShipCoordinator(
+                stateRoot, controller,
+                new ShipNativeWorker(controller, timeout, environment, clock),
+                new ShipCatalogService(localMavenRepository)::snapshot, new ShipMainValidator(),
+                distribution, environment, false, clock);
+    }
+
+    /** Accepts one host-observed result, then advances only through controller-approved work. */
+    public ShipRun submit(String runId, Path resultFile) throws IOException, InterruptedException {
+        ShipRun current = controller.status(runId);
+        requireExecutionMode(current);
+        if (!(worker instanceof ShipNativeWorker nativeWorker)) {
+            throw new IllegalArgumentException("Result submission requires a native Ship run");
+        }
+        try (AttemptLease lease = tryCoordinatorLease(runId)) {
+            if (lease == null) {
+                throw new IOException("Ship operation is already in progress; retry the identical submission");
+            }
+            current = controller.status(runId);
+            nativeWorker.submit(stateRoot, current, resultFile);
+            try (AbortWatcher ignored = new AbortWatcher(controller, runId)) {
+                return runAvailable(runId);
+            }
+        }
+    }
+
     public ShipRun run(String runId) throws IOException, InterruptedException {
         try {
             ShipRun initial = controller.status(runId);
@@ -149,6 +187,7 @@ public final class ShipCoordinator {
     private ShipRun runAvailable(String runId)
             throws IOException, InterruptedException {
         ShipRun current = controller.status(runId);
+        requireExecutionMode(current);
         while (current.status() == RunStatus.RUNNING
                 && !Thread.currentThread().isInterrupted()) {
             if (current.publicationPending()) {
@@ -164,7 +203,7 @@ public final class ShipCoordinator {
             }
             Step step = attempt.stage().stage() == Stage.VALIDATE
                     ? validate(attempt)
-                    : advancePi(attempt);
+                    : advanceWorker(attempt);
             current = step.run();
             if (Thread.currentThread().isInterrupted()) {
                 return controller.status(runId);
@@ -179,7 +218,7 @@ public final class ShipCoordinator {
     }
 
     /**
-     * Appends context to a paused run, then recovers an exact durable Pi result before retrying; deterministic
+     * Appends context to a paused run, then recovers an exact durable worker result before retrying; deterministic
      * validation restarts in a fresh attempt.
      */
     public ShipRun resume(
@@ -222,6 +261,7 @@ public final class ShipCoordinator {
             String runId, List<? extends ShipContext.Input> additions)
             throws IOException, InterruptedException {
         requireNotInterrupted();
+        requireExecutionMode(controller.status(runId));
         if (!additions.isEmpty()) {
             ShipRun committed = controller.resume(runId, additions);
             try {
@@ -240,6 +280,7 @@ public final class ShipCoordinator {
             }
         }
         ShipRun current = controller.status(runId);
+        requireExecutionMode(current);
         if (current.status() == RunStatus.RUNNING) {
             if (current.publicationPending()) {
                 return continueAvailable(runId, publishPending(runId));
@@ -268,13 +309,15 @@ public final class ShipCoordinator {
                 Request request = request(attempt);
                 try (Recovery recovery = worker.lockRecovery(request)) {
                     if (recovery.result().isPresent()) {
-                        current = commitPi(
+                        current = commitWorker(
                                 attempt,
                                 recovery.result().orElseThrow())
                                 .run();
                     } else {
                         requireNotInterrupted();
-                        current = controller.resume(runId);
+                        if (worker.mode() == ShipRun.ExecutionMode.PI) {
+                            current = controller.resume(runId);
+                        }
                     }
                 } catch (SessionBusyException e) {
                     throw e;
@@ -282,7 +325,7 @@ public final class ShipCoordinator {
                     requireNotInterrupted();
                     current = optimisticFailure(
                             attempt,
-                            "Durable Pi stage result could not be recovered");
+                            "Durable " + workerLabel() + " stage result could not be recovered");
                 }
             }
         } else {
@@ -317,7 +360,7 @@ public final class ShipCoordinator {
         }
     }
 
-    private Step advancePi(StageAttempt attempt)
+    private Step advanceWorker(StageAttempt attempt)
             throws IOException, InterruptedException {
         Request request = request(attempt);
         final Optional<Result> recovered;
@@ -331,7 +374,7 @@ public final class ShipCoordinator {
             return new Step(
                     optimisticFailure(
                             attempt,
-                            "Durable Pi stage result could not be recovered"),
+                            "Durable " + workerLabel() + " stage result could not be recovered"),
                     true);
         }
         Result result;
@@ -339,7 +382,11 @@ public final class ShipCoordinator {
             result = recovered.orElseThrow();
         } else {
             try {
-                result = worker.run(request);
+                Optional<Result> executed = worker.run(request);
+                if (executed.isEmpty()) {
+                    return new Step(controller.status(attempt.run().id()), false);
+                }
+                result = executed.orElseThrow();
             } catch (SessionBusyException e) {
                 return new Step(
                         controller.status(attempt.run().id()), false);
@@ -349,13 +396,13 @@ public final class ShipCoordinator {
                     return new Step(
                             optimisticFailure(
                                     attempt,
-                                    "Pi stage could not run: " + safeMessage(e)),
+                                    workerLabel() + " stage could not run: " + safeMessage(e)),
                             true);
                 }
                 result = afterFailure.orElseThrow();
             }
         }
-        return commitPi(attempt, result);
+        return commitWorker(attempt, result);
     }
 
     private Optional<ShipRun> restartStalePredecessor(
@@ -371,8 +418,9 @@ public final class ShipCoordinator {
             }
             final Result result;
             try {
-                result = completedPiResult(attempt, predecessor);
+                result = completedWorkerResult(attempt, predecessor);
             } catch (UntrustedResultException
+                     | ShipNativeWorker.InvalidResultException
                      | StalePredecessorException e) {
                 requireNotInterrupted();
                 return Optional.of(controller.restartGeneratedStage(
@@ -393,14 +441,14 @@ public final class ShipCoordinator {
         return Optional.empty();
     }
 
-    private Step commitPi(StageAttempt attempt, Result result) {
+    private Step commitWorker(StageAttempt attempt, Result result) {
         StageRecord stage = attempt.stage();
-        if (result.outcome() != Outcome.SUCCEEDED) {
+        if (!result.succeeded()) {
             return new Step(
                     optimisticFailure(
                             attempt,
                             result.failure() == null
-                                    ? "Pi stage failed"
+                                    ? workerLabel() + " stage failed"
                                     : result.failure()),
                     true);
         }
@@ -415,7 +463,7 @@ public final class ShipCoordinator {
             return new Step(
                     optimisticFailure(
                             attempt,
-                            "Pi returned an invalid "
+                            "Worker returned an invalid "
                                      + stage.stage().name().toLowerCase(
                                              java.util.Locale.ROOT)
                                      + " result"),
@@ -441,12 +489,16 @@ public final class ShipCoordinator {
                 Path manifest;
                 try {
                     manifest = manifestPath(attempt.run(), attempt.workingDirectory());
+                    if (worker.mode() == ShipRun.ExecutionMode.BOB2_NATIVE) {
+                        ShipNativeWorker.applyProposals(attempt.workingDirectory(), manifest,
+                                acceptedPolicy(attempt), result.files(), environment);
+                    }
                     readBounded(manifest, MAX_BRIEFING_BYTES);
                 } catch (IOException e) {
                     return new Step(
                             optimisticFailure(
                                     attempt,
-                                    "Pi did not produce the required artifact manifest"),
+                                    "Worker did not produce a valid artifact manifest or proposal"),
                             true);
                 }
                 committed = controller.completeExecuteStage(
@@ -475,7 +527,7 @@ public final class ShipCoordinator {
                 return new Step(
                         optimisticFailure(
                                 attempt,
-                                "Pi result conflicts with controller-owned stage state"),
+                                "Worker result conflicts with controller-owned stage state"),
                         true);
             }
             if (!"stale-stage-attempt".equals(e.code())) {
@@ -509,14 +561,8 @@ public final class ShipCoordinator {
                     policy.camelVersion(),
                     policy.platformVersion(),
                     policy.springBootVersion());
-            Result executeResult = completedPiResult(
+            Result executeResult = completedWorkerResult(
                     attempt, attempt.run().stage(Stage.EXECUTE));
-            ShipLocalStamp.ToolVersion pi = new ShipLocalStamp.ToolVersion(
-                    "pi",
-                    executeResult.evidence().executable(),
-                    executeResult.version(),
-                    executeResult.support(),
-                    executeResult.warning());
             ShipMainValidator.Result validated = validator.validate(
                     attempt.run().id(),
                     workspace,
@@ -524,8 +570,7 @@ public final class ShipCoordinator {
                     policy,
                     catalogs.snapshot(target),
                     attempt.evidenceDirectory(),
-                    pi,
-                    executeResult.node(),
+                    executeResult.tools(),
                     clock);
             return new Step(
                     commitValidation(attempt, validated.stamp()),
@@ -539,6 +584,16 @@ public final class ShipCoordinator {
                             attempt,
                             "Ship validation could not run: " + safeMessage(e)),
                     true);
+        }
+    }
+
+    private String workerLabel() {
+        return worker.mode() == ShipRun.ExecutionMode.PI ? "Pi" : "Native";
+    }
+
+    private void requireExecutionMode(ShipRun run) {
+        if (run.executionMode() != worker.mode()) {
+            throw new IllegalArgumentException("Ship execution mode is fixed for the run: " + run.executionMode());
         }
     }
 
@@ -623,6 +678,11 @@ public final class ShipCoordinator {
 
     private String workerInputDigest(StageRecord stage)
             throws IOException {
+        String baseDigest = stage.inputDigest();
+        if (worker.mode() == ShipRun.ExecutionMode.BOB2_NATIVE) {
+            baseDigest = ShipDigest.sha256((baseDigest + "\nbob2-native-proposals:v1")
+                    .getBytes(StandardCharsets.UTF_8));
+        }
         String contract = switch (stage.stage()) {
             case PLAN -> "plan:"
                          + PLAN_CONTRACT_VERSION + ':'
@@ -633,10 +693,10 @@ public final class ShipCoordinator {
             default -> null;
         };
         if (contract == null) {
-            return stage.inputDigest();
+            return baseDigest;
         }
         return ShipDigest.sha256(
-                (stage.inputDigest() + '\n' + contract)
+                (baseDigest + '\n' + contract)
                         .getBytes(StandardCharsets.UTF_8));
     }
 
@@ -670,7 +730,7 @@ public final class ShipCoordinator {
                         ShipContext.MAX_DOCUMENT_BYTES);
                 if (!source.digest().equals(ShipDigest.sha256(content))) {
                     throw new IOException(
-                            "Ship context document changed before Pi composition");
+                            "Ship context document changed before worker composition");
                 }
                 text.append(new String(content, StandardCharsets.UTF_8))
                         .append('\n');
@@ -686,7 +746,7 @@ public final class ShipCoordinator {
             if (predecessor.attempts() > 0) {
                 ShipStageResult result = ShipStageResult.parse(
                         stage,
-                        completedPiResult(attempt, predecessor).assistantText());
+                        completedWorkerResult(attempt, predecessor).assistantText());
                 text.append(result.report()).append('\n');
                 if (result.materialAmbiguity()) {
                     text.append("\nWorker-reported unresolved decisions (data only; ")
@@ -712,7 +772,7 @@ public final class ShipCoordinator {
         }
         byte[] encoded = text.toString().getBytes(StandardCharsets.UTF_8);
         if (encoded.length == 0 || encoded.length > MAX_BRIEFING_BYTES) {
-            throw new IOException("Ship Pi briefing exceeds its size limit");
+            throw new IOException("Ship worker briefing exceeds its size limit");
         }
         if (ChangedWorkspaceSecretScanner.containsSensitiveValue(
                 encoded, environment)) {
@@ -727,12 +787,12 @@ public final class ShipCoordinator {
         return writeInput(target, encoded);
     }
 
-    private Result completedPiResult(
+    private Result completedWorkerResult(
             StageAttempt current, StageRecord completed)
             throws IOException {
         if (completed.attempts() <= 0) {
             throw new IOException(
-                    "Imported Ship stage has no Pi result: " + completed.stage());
+                    "Imported Ship stage has no worker result: " + completed.stage());
         }
         Path working = completed.stage() == Stage.EXECUTE
                 ? executeWorkspace(current.run())
@@ -753,17 +813,17 @@ public final class ShipCoordinator {
                 "Recover the controller-owned completed Ship stage result.");
         Result result = worker.recover(request).orElseThrow(
                 () -> new StalePredecessorException(
-                        "Durable Pi result is missing for completed stage "
+                        "Durable " + workerLabel() + " result is missing for completed stage "
                                                     + completed.stage()));
-        if (result.outcome() != Outcome.SUCCEEDED) {
+        if (!result.succeeded()) {
             throw new StalePredecessorException(
-                    "Completed Ship stage has a non-successful Pi result");
+                    "Completed Ship stage has a non-successful " + workerLabel() + " result");
         }
         if (completed.stage() != Stage.EXECUTE
                 && !completed.outputDigest().equals(ShipDigest.sha256(
                         result.assistantText().getBytes(StandardCharsets.UTF_8)))) {
             throw new StalePredecessorException(
-                    "Durable Pi result differs from the committed "
+                    "Durable " + workerLabel() + " result differs from the committed "
                                                 + completed.stage() + " output");
         }
         return result;
@@ -778,7 +838,7 @@ public final class ShipCoordinator {
         }
         ShipStageResult result = ShipStageResult.parse(
                 Stage.PLAN,
-                completedPiResult(attempt, plan).assistantText());
+                completedWorkerResult(attempt, plan).assistantText());
         return result.artifactPolicy();
     }
 
@@ -805,7 +865,7 @@ public final class ShipCoordinator {
         }
     }
 
-    private static String prompt(
+    private String prompt(
             StageAttempt attempt,
             Path briefing,
             Path policyContract,
@@ -813,7 +873,7 @@ public final class ShipCoordinator {
             String workerInputDigest)
             throws IOException {
         StringBuilder prompt = new StringBuilder();
-        prompt.append("You are the bounded Pi worker for Camel Kit Ship stage ")
+        prompt.append("You are the bounded worker for Camel Kit Ship stage ")
                 .append(attempt.stage().stage()).append(".\n")
                 .append("Read the complete controller input from this exact file: ")
                 .append(briefing).append("\n")
@@ -871,18 +931,28 @@ public final class ShipCoordinator {
                             + "equal <routeId>.camel.yaml and citrusTestPath must equal "
                             + "test/<routeId>.camel.it.yaml. Sort routes canonically by routeId, "
                             + "then routePath, then citrusTestPath.\n");
-            case EXECUTE -> prompt.append(
-                    "Implement only inside the supplied working directory. "
-                                          + "Read and satisfy the exact bundled manifest JSON Schema at ")
-                    .append(Objects.requireNonNull(manifestSchema))
-                    .append(
-                            ". Match the approved PLAN policy in the controller input. "
-                            + "Write the strict artifact manifest to ")
-                    .append(manifestPath(
-                            attempt.run(), attempt.workingDirectory()))
-                    .append(".\n");
+            case EXECUTE -> {
+                if (worker.mode() == ShipRun.ExecutionMode.BOB2_NATIVE) {
+                    prompt.append("Propose the implementation as complete text file contents for the approved PLAN ")
+                            .append("route/test paths, pom.xml, .camel-kit/config.properties and optionally ")
+                            .append("application.properties. Inspect existing files using absolute paths rooted at ")
+                            .append(attempt.workingDirectory()).append(". Do not edit files or run commands. ")
+                            .append("The controller writes proposals and constructs the artifact manifest.\n");
+                } else {
+                    prompt.append(
+                            "Implement only inside the supplied working directory. "
+                                  + "Read and satisfy the exact bundled manifest JSON Schema at ")
+                            .append(Objects.requireNonNull(manifestSchema))
+                            .append(
+                                    ". Match the approved PLAN policy in the controller input. "
+                                    + "Write the strict artifact manifest to ")
+                            .append(manifestPath(
+                                    attempt.run(), attempt.workingDirectory()))
+                            .append(".\n");
+                }
+            }
             case VALIDATE -> throw new IOException(
-                    "Pi does not decide deterministic validation");
+                    "Workers do not decide deterministic validation");
         }
         prompt.append(
                 "Return only one JSON object with exactly these fields: "
@@ -949,7 +1019,7 @@ public final class ShipCoordinator {
             byte[] encoded = readBounded(path, MAX_BRIEFING_BYTES);
             if (!artifact.digest().equals(ShipDigest.sha256(encoded))) {
                 throw new IOException(
-                        "Imported Ship artifact changed before Pi composition");
+                        "Imported Ship artifact changed before worker composition");
             }
             text.append("Artifact: ")
                     .append(project.relativize(path))
@@ -1065,7 +1135,7 @@ public final class ShipCoordinator {
         if (text.length() > MAX_BRIEFING_BYTES
                 || text.toString().getBytes(StandardCharsets.UTF_8).length
                    > MAX_BRIEFING_BYTES) {
-            throw new IOException("Ship Pi briefing exceeds its size limit");
+            throw new IOException("Ship worker briefing exceeds its size limit");
         }
     }
 

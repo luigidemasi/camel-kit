@@ -28,15 +28,26 @@ public record ShipRun(
         ArtifactRef publication,
         String createdAt,
         String updatedAt,
-        String message) {
+        String message,
+        ExecutionMode executionMode) {
 
-    public static final int SCHEMA_VERSION = 5;
+    public static final int SCHEMA_VERSION = 6;
     static final int MAX_MESSAGE_LENGTH = 1024;
 
     private static final Pattern RUN_ID = Pattern.compile("ship-[0-9a-f]{32}");
     private static final Pattern PIPELINE_ID = Pattern.compile("[0-9]{3,}-[a-z0-9]+(?:-[a-z0-9]+)*");
 
+    /** Source-compatible constructor for the original Pi execution model. */
+    public ShipRun(int schemaVersion, String id, String projectDirectory, String pipelineId,
+                   Oversight oversight, RunStatus status, Stage currentStage, ShipContext context,
+                   List<StageRecord> stages, ArtifactRef publication, String createdAt, String updatedAt,
+                   String message) {
+        this(schemaVersion, id, projectDirectory, pipelineId, oversight, status, currentStage, context,
+             stages, publication, createdAt, updatedAt, message, ExecutionMode.PI);
+    }
+
     public ShipRun {
+        Objects.requireNonNull(executionMode, "execution mode");
         if (schemaVersion != SCHEMA_VERSION) {
             throw new IllegalArgumentException("Unsupported Ship run schema version: " + schemaVersion);
         }
@@ -53,6 +64,16 @@ public record ShipRun(
         Objects.requireNonNull(context, "context");
         stages = List.copyOf(Objects.requireNonNull(stages, "stages"));
         requireCanonicalStages(stages);
+        for (StageRecord record : stages) {
+            if (record.nativeEvidence() != null && executionMode != ExecutionMode.BOB2_NATIVE) {
+                throw new IllegalArgumentException("Pi stages cannot contain native evidence");
+            }
+            if (executionMode == ExecutionMode.BOB2_NATIVE && record.stage() != Stage.VALIDATE
+                    && record.attempts() > 0 && record.status() == StageStatus.COMPLETED
+                    && (record.nativeEvidence() == null || record.nativeEvidence().resultDigest() == null)) {
+                throw new IllegalArgumentException("Completed native stages require bound task and result evidence");
+            }
+        }
         createdAt = canonicalInstant(createdAt, "created timestamp");
         updatedAt = canonicalInstant(updatedAt, "updated timestamp");
         if (Instant.parse(updatedAt).isBefore(Instant.parse(createdAt))) {
@@ -221,6 +242,11 @@ public record ShipRun(
         }
     }
 
+    public enum ExecutionMode {
+        PI,
+        BOB2_NATIVE
+    }
+
     public enum Oversight {
         ALWAYS,
         SMART,
@@ -298,6 +324,14 @@ public record ShipRun(
         }
     }
 
+    public record NativeEvidence(String taskDigest, String resultDigest) {
+        public NativeEvidence {
+            if (!ShipDigest.isSha256(taskDigest) || resultDigest != null && !ShipDigest.isSha256(resultDigest)) {
+                throw new IllegalArgumentException("Native evidence digests are invalid");
+            }
+        }
+    }
+
     public record StageRecord(
             Stage stage,
             StageStatus status,
@@ -306,7 +340,15 @@ public record ShipRun(
             String outputDigest,
             List<ArtifactRef> artifacts,
             boolean materialAmbiguity,
-            List<UnansweredQuestion> unansweredQuestions) {
+            List<UnansweredQuestion> unansweredQuestions,
+            NativeEvidence nativeEvidence) {
+
+        public StageRecord(Stage stage, StageStatus status, int attempts,
+                           String inputDigest, String outputDigest, List<ArtifactRef> artifacts,
+                           boolean materialAmbiguity, List<UnansweredQuestion> unansweredQuestions) {
+            this(stage, status, attempts, inputDigest, outputDigest, artifacts, materialAmbiguity,
+                 unansweredQuestions, null);
+        }
 
         public StageRecord(Stage stage, StageStatus status, int attempts,
                            String inputDigest, String outputDigest, List<ArtifactRef> artifacts) {
@@ -314,6 +356,9 @@ public record ShipRun(
         }
 
         public StageRecord {
+            if (nativeEvidence != null && (attempts == 0 || stage == Stage.VALIDATE || status == StageStatus.PENDING)) {
+                throw new IllegalArgumentException("Native evidence requires a generated non-pending worker attempt");
+            }
             Objects.requireNonNull(stage, "stage");
             Objects.requireNonNull(status, "stage status");
             if (attempts < 0 || attempts == Integer.MAX_VALUE) {
@@ -380,7 +425,7 @@ public record ShipRun(
             }
             return new StageRecord(
                     stage, StageStatus.COMPLETED, attempts,
-                    inputDigest, digest, references, ambiguity, questions);
+                    inputDigest, digest, references, ambiguity, questions, nativeEvidence);
         }
 
         StageRecord imported(String input, String output, List<ArtifactRef> references) {
@@ -396,7 +441,7 @@ public record ShipRun(
             }
             return new StageRecord(
                     stage, StageStatus.FAILED, attempts,
-                    inputDigest, null, List.of());
+                    inputDigest, null, List.of(), false, List.of(), nativeEvidence);
         }
 
         StageRecord fail(String digest, List<ArtifactRef> references) {
@@ -420,11 +465,17 @@ public record ShipRun(
             }
             return new StageRecord(
                     stage, StageStatus.ABORTED, attempts,
-                    inputDigest, null, List.of());
+                    inputDigest, null, List.of(), false, List.of(), nativeEvidence);
         }
 
         StageRecord reset() {
             return new StageRecord(stage, StageStatus.PENDING, attempts, null, null, List.of());
+        }
+
+        StageRecord withNativeEvidence(NativeEvidence evidence) {
+            return new StageRecord(
+                    stage, status, attempts, inputDigest, outputDigest, artifacts,
+                    materialAmbiguity, unansweredQuestions, evidence);
         }
 
         StageRecord withArtifacts(String digest, List<ArtifactRef> references) {
@@ -433,7 +484,7 @@ public record ShipRun(
             }
             return new StageRecord(
                     stage, status, attempts, inputDigest, digest, references,
-                    materialAmbiguity, unansweredQuestions);
+                    materialAmbiguity, unansweredQuestions, nativeEvidence);
         }
 
         private static void require(boolean condition) {

@@ -26,7 +26,7 @@ class CommandStubGenerator {
 
     private String commandContent(InitContext ctx, WorkflowCommand command) {
         String content;
-        if ("camel-ship".equals(command.name())) {
+        if ("camel-ship".equals(command.name()) && !"bob2".equals(ctx.agentName())) {
             String placeholder = ctx.agent().argPlaceholder();
             if (placeholder == null) {
                 // No documented all-arguments placeholder for this harness — forward the options in prose.

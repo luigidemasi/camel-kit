@@ -101,6 +101,12 @@ public final class ShipController {
 
     public ShipRun start(
             Path projectDirectory, Oversight oversight, List<? extends Input> inputs) {
+        return start(projectDirectory, oversight, inputs, ShipRun.ExecutionMode.PI);
+    }
+
+    public ShipRun start(
+            Path projectDirectory, Oversight oversight, List<? extends Input> inputs,
+            ShipRun.ExecutionMode executionMode) {
         String runId = newRunId();
         Path project = requireProject(projectDirectory);
         String pipelineId = inspectProjectState(project);
@@ -119,7 +125,8 @@ public final class ShipController {
                 oversight,
                 Stage.DISCOVERY,
                 context,
-                stages);
+                stages,
+                executionMode);
         create(run);
         return run;
     }
@@ -129,6 +136,12 @@ public final class ShipController {
             Stage target,
             Oversight oversight,
             List<? extends Input> inputs) {
+        return startFrom(projectDirectory, target, oversight, inputs, ShipRun.ExecutionMode.PI);
+    }
+
+    public ShipRun startFrom(
+            Path projectDirectory, Stage target, Oversight oversight,
+            List<? extends Input> inputs, ShipRun.ExecutionMode executionMode) {
         String runId = newRunId();
         Path project = requireProject(projectDirectory);
         Stage startStage = Objects.requireNonNull(target, "start stage");
@@ -179,7 +192,8 @@ public final class ShipController {
                 oversight,
                 startStage,
                 context,
-                stages);
+                stages,
+                executionMode);
         create(run);
         return run;
     }
@@ -193,6 +207,45 @@ public final class ShipController {
         } catch (IOException e) {
             throw failure("state-read-failed", "Could not read Ship run " + runId, e);
         }
+    }
+
+    /** Binds immutable native transport bytes while the matching generated attempt is active. */
+    void bindNativeEvidence(String runId, Stage stage, int attempt, String taskDigest, String resultDigest) {
+        try (ShipRunStore.LockedRun locked = store.lock(runId)) {
+            ShipRun current = locked.read();
+            StageRecord active = requireActiveAttempt(current, stage, attempt, current.stage(stage).inputDigest());
+            if (current.executionMode() != ShipRun.ExecutionMode.BOB2_NATIVE) {
+                throw failure("execution-mode-mismatch", "Native evidence requires a native run");
+            }
+            requireCurrentInputs(current, active, locked.directory());
+            ShipRun.NativeEvidence existing = active.nativeEvidence();
+            ShipRun.NativeEvidence evidence = new ShipRun.NativeEvidence(taskDigest, resultDigest);
+            if (existing != null && (!existing.taskDigest().equals(taskDigest)
+                    || existing.resultDigest() != null && !existing.resultDigest().equals(resultDigest))) {
+                throw failure("native-evidence-conflict", "Native evidence is already bound to different bytes");
+            }
+            if (existing == null && resultDigest != null) {
+                throw failure("native-evidence-conflict", "A native result requires an issued task");
+            }
+            if (evidence.equals(existing)) {
+                return;
+            }
+            List<StageRecord> stages = new ArrayList<>(current.stages());
+            stages.set(stage.ordinal(), active.withNativeEvidence(evidence));
+            locked.write(copy(current, current.status(), current.currentStage(), current.context(), stages,
+                    current.message()));
+        } catch (ShipRunStore.StoreException e) {
+            throw failure(e.code(), e.getMessage(), e);
+        } catch (IOException e) {
+            throw failure("state-write-failed", "Could not bind native Ship evidence", e);
+        }
+    }
+
+    public ShipNativeWorker.Task pendingTask(ShipRun run) throws IOException {
+        if (!run.equals(status(run.id()))) {
+            return null;
+        }
+        return ShipNativeWorker.pending(store.existingRunRoot(run.id()).getParent(), run);
     }
 
     /**
@@ -1125,7 +1178,8 @@ public final class ShipController {
             Oversight oversight,
             Stage stage,
             ShipContext context,
-            List<StageRecord> stages) {
+            List<StageRecord> stages,
+            ShipRun.ExecutionMode executionMode) {
         String timestamp = now();
         return new ShipRun(
                 ShipRun.SCHEMA_VERSION,
@@ -1140,7 +1194,8 @@ public final class ShipController {
                 null,
                 timestamp,
                 timestamp,
-                null);
+                null,
+                executionMode);
     }
 
     private void create(ShipRun run) {
@@ -1203,7 +1258,8 @@ public final class ShipController {
                 publication,
                 run.createdAt(),
                 mutationTime(run),
-                message);
+                message,
+                run.executionMode());
     }
 
     private static StageRecord requireActiveAttempt(

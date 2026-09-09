@@ -33,7 +33,7 @@ import com.fasterxml.jackson.databind.cfg.CoercionAction;
 import com.fasterxml.jackson.databind.cfg.CoercionInputShape;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-/** Strict typed boundary for one Pi stage response. */
+/** Strict typed boundary for one worker stage response. */
 record ShipStageResult(
         int schemaVersion,
         String pipelineId,
@@ -280,7 +280,7 @@ record ShipStageResult(
         utf8(report, MAX_REPORT_BYTES, "stage report");
     }
 
-    private static byte[] utf8(String value, int maximum, String label) throws IOException {
+    static byte[] utf8(String value, int maximum, String label) throws IOException {
         if (value == null || value.length() > maximum) {
             throw new IOException("Pi " + label + " exceeds its size limit");
         }

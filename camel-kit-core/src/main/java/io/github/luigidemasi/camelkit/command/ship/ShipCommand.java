@@ -14,10 +14,12 @@ import java.util.regex.Pattern;
 
 import io.github.luigidemasi.camelkit.ship.context.ShipContext;
 import io.github.luigidemasi.camelkit.ship.controller.ShipController;
+import io.github.luigidemasi.camelkit.ship.controller.ShipNativeWorker;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.Oversight;
 import io.github.luigidemasi.camelkit.ship.controller.ShipRun.Stage;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import picocli.CommandLine;
 import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
@@ -58,6 +60,16 @@ public final class ShipCommand implements Callable<Integer> {
 
     @Option(names = "--project-dir", defaultValue = ".", hidden = true)
     Path projectDirectory;
+
+    @Option(names = "--backend", converter = ExecutionModeConverter.class,
+            description = "Execution backend for a new run: pi (default) or bob2-native")
+    ShipRun.ExecutionMode executionMode;
+
+    @Option(names = "--json", description = "Return structured run state and any pending native task")
+    boolean json;
+
+    @Option(names = "--result", paramLabel = "PATH", description = "Native result envelope for --submit")
+    Path resultFile;
 
     @Option(
             names = "--pi",
@@ -116,7 +128,11 @@ public final class ShipCommand implements Callable<Integer> {
         validateArguments();
         try {
             ShipRun run = execute();
-            printSummary(run);
+            if (json) {
+                printJson(run);
+            } else {
+                printSummary(run);
+            }
             return workflowOperation() && run.status() == ShipRun.RunStatus.FAILED ? 1 : 0;
         } catch (ShipController.Failure e) {
             return failure(e.code(), e.getMessage());
@@ -133,19 +149,23 @@ public final class ShipCommand implements Callable<Integer> {
             return controller().abort(operation.abort);
         }
         Workflow workflow = launchWorkflow();
+        if (operation != null && operation.submit != null) {
+            return awaitWorkflow(runId -> workflow.submit(runId, resultFile), operation.submit);
+        }
         if (operation != null && operation.resume != null) {
             List<ShipContext.Input> additions = inputs();
             return awaitWorkflow(
                     runId -> workflow.resume(runId, additions), operation.resume);
         }
         ShipRun run = operation == null
-                ? controller().start(projectDirectory, selectedOversight(), inputs())
-                : controller().startFrom(projectDirectory, operation.startFrom, selectedOversight(), inputs());
+                ? controller().start(projectDirectory, selectedOversight(), inputs(), selectedExecutionMode())
+                : controller().startFrom(projectDirectory, operation.startFrom, selectedOversight(), inputs(),
+                        selectedExecutionMode());
         return awaitWorkflow(workflow::run, run.id());
     }
 
     private boolean workflowOperation() {
-        return operation == null || operation.resume != null || operation.startFrom != null;
+        return operation == null || operation.resume != null || operation.startFrom != null || operation.submit != null;
     }
 
     private Workflow launchWorkflow() {
@@ -157,7 +177,8 @@ public final class ShipCommand implements Callable<Integer> {
                     stageTimeout,
                     Boolean.TRUE.equals(acceptExperimental),
                     configFile,
-                    configProperties));
+                    configProperties,
+                    selectedExecutionMode()));
         } catch (IllegalArgumentException e) {
             throw new CommandFailure("runtime-unavailable", e.getMessage(), e);
         } catch (IllegalStateException e) {
@@ -227,6 +248,21 @@ public final class ShipCommand implements Callable<Integer> {
     }
 
     private void validateArguments() {
+        boolean submission = operation != null && operation.submit != null;
+        if (submission != (resultFile != null)) {
+            throw new ParameterException(spec.commandLine(), "--submit and --result must be supplied together");
+        }
+        if (submission && !contextArguments.isEmpty()) {
+            throw new ParameterException(spec.commandLine(), "--submit does not accept context additions");
+        }
+        if (operation != null && (operation.status != null || operation.abort != null) && executionMode != null) {
+            throw new ParameterException(spec.commandLine(), "--backend is only valid for workflow operations");
+        }
+        if (executionMode == ShipRun.ExecutionMode.BOB2_NATIVE
+                && (piExecutable != null || nodeExecutable != null || acceptExperimental != null)) {
+            throw new ParameterException(spec.commandLine(), "Pi/Node options cannot configure a native backend");
+        }
+
         if (operation != null && operation.startFrom == null && oversight != null) {
             throw new ParameterException(
                     spec.commandLine(),
@@ -248,6 +284,22 @@ public final class ShipCommand implements Callable<Integer> {
         }
     }
 
+    private ShipRun.ExecutionMode selectedExecutionMode() {
+        String runId = operation == null ? null
+                : operation.resume != null ? operation.resume : operation.submit;
+        if (runId != null) {
+            ShipRun.ExecutionMode recorded = controller().status(runId).executionMode();
+            if (executionMode != null && executionMode != recorded) {
+                throw new CommandFailure(
+                        "execution-mode-mismatch", "Ship execution mode is fixed for this run: "
+                                                   + recorded,
+                        null);
+            }
+            return recorded;
+        }
+        return executionMode == null ? ShipRun.ExecutionMode.PI : executionMode;
+    }
+
     private Oversight selectedOversight() {
         return oversight == null ? Oversight.SMART : oversight;
     }
@@ -256,12 +308,28 @@ public final class ShipCommand implements Callable<Integer> {
         return contextArguments.stream().map(ContextArgument::input).toList();
     }
 
+    private void printJson(ShipRun run) {
+        try {
+            ShipNativeWorker.Task task = controller().pendingTask(run);
+            spec.commandLine().getOut().println(new ObjectMapper().writeValueAsString(new JsonResponse(1, run, task)));
+            spec.commandLine().getOut().flush();
+        } catch (IOException e) {
+            throw new CommandFailure("handoff-read-failed", "Could not read native task" + runReference(run.id()), e);
+        }
+    }
+
+    private record JsonResponse(int schemaVersion, ShipRun run, ShipNativeWorker.Task task) {
+    }
+
     private void printSummary(ShipRun run) {
         PrintWriter writer = spec.commandLine().getOut();
         writer.println("Run: " + run.id());
         writer.println("Status: " + run.status());
         writer.println("Stage: " + run.currentStage());
         writer.println("Oversight: " + run.oversight());
+        if (run.executionMode() != ShipRun.ExecutionMode.PI) {
+            writer.println("Backend: " + run.executionMode());
+        }
         if (run.status() == ShipRun.RunStatus.PAUSED) {
             writer.println("Paused after: " + pausedAfter(run));
             if (run.message() != null) {
@@ -374,6 +442,11 @@ public final class ShipCommand implements Callable<Integer> {
 
         ShipRun resume(String runId, List<? extends ShipContext.Input> additions)
                 throws IOException, InterruptedException;
+
+        default ShipRun submit(String runId, Path resultFile) throws IOException, InterruptedException {
+            throw new IllegalArgumentException("Result submission requires a native backend");
+        }
+
     }
 
     /** Builds the runtime-backed workflow, failing fast before any run state exists. */
@@ -386,7 +459,13 @@ public final class ShipCommand implements Callable<Integer> {
     /** Raw runtime option values; the launcher resolves defaults and discovery. */
     record RuntimeSettings(Path piExecutable, Path nodeExecutable, Path mavenRepository,
             Duration stageTimeout, boolean acceptExperimental, Path configFile,
-            List<String> configProperties) {
+            List<String> configProperties, ShipRun.ExecutionMode executionMode) {
+        RuntimeSettings(Path piExecutable, Path nodeExecutable, Path mavenRepository,
+                        Duration stageTimeout, boolean acceptExperimental, Path configFile,
+                        List<String> configProperties) {
+            this(piExecutable, nodeExecutable, mavenRepository, stageTimeout, acceptExperimental, configFile,
+                 configProperties, ShipRun.ExecutionMode.PI);
+        }
     }
 
     @FunctionalInterface
@@ -408,6 +487,9 @@ public final class ShipCommand implements Callable<Integer> {
     }
 
     static final class Operation {
+
+        @Option(names = "--submit", paramLabel = "RUN_ID", description = "Submit a native subagent result")
+        String submit;
 
         @Option(names = "--resume", paramLabel = "RUN_ID", description = "Resume an existing run")
         String resume;
@@ -438,6 +520,17 @@ public final class ShipCommand implements Callable<Integer> {
             return document == null
                     ? new ShipContext.TextInput(text)
                     : new ShipContext.DocumentInput(document);
+        }
+    }
+
+    static final class ExecutionModeConverter implements ITypeConverter<ShipRun.ExecutionMode> {
+        @Override
+        public ShipRun.ExecutionMode convert(String value) {
+            return switch (value) {
+                case "pi" -> ShipRun.ExecutionMode.PI;
+                case "bob2-native" -> ShipRun.ExecutionMode.BOB2_NATIVE;
+                default -> throw new TypeConversionException("expected pi or bob2-native");
+            };
         }
     }
 

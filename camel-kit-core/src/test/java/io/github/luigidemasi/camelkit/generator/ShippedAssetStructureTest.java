@@ -768,6 +768,24 @@ class ShippedAssetStructureTest {
                 agentName + " Ship skill must not receive an orchestration trait");
         assertFalse(skillContent.contains("## Dispatch"),
                 agentName + " Ship skill must not receive an orchestration dispatch block");
+        if ("bob2".equals(agentName)) {
+            assertTrue(skillContent.contains(ctx.commandPrefix() + " ship --backend bob2-native --json"));
+            assertTrue(skillContent.contains("fork_context: false"));
+            assertTrue(skillContent.contains("For every Ship invocation (new, submit, resume, status and abort)"));
+            assertTrue(skillContent.contains("use an argument array or individually shell-quoted"));
+            assertFalse(skillContent.contains("`childId`"));
+            assertTrue(
+                    skillContent.contains("repeat the original `--stage-timeout`, `--maven-repository` and `-c`/`-p`"));
+            assertTrue(skillContent.contains("Never switch it to Pi"));
+            Path command = ctx.commandsDir().resolve("camel-ship.md");
+            assertTrue(Files.readString(command).contains("Read .bob/skills/camel-ship/SKILL.md"));
+            String worker = Files.readString(ctx.projectDir().resolve(".bob/agents/camel-ship-worker.md"));
+            assertTrue(worker.contains("groups:\n  - read\nallowForkContext: false"));
+            assertFalse(Files.exists(ctx.projectDir().resolve(".bob/rules-camel-ship/ship.md")));
+            assertTrue(Files.readString(ctx.projectDir().resolve(".bob/custom_modes.yaml"))
+                    .contains("allowedSubagents: [camel-ship-worker]"));
+            return;
+        }
         assertTrue(skillContent.contains("using the invocation's Ship options. Add no defaults"),
                 agentName + " Ship skill must pass the invocation options without inventing defaults");
         assertTrue(skillContent.contains("Return the command output and whether it succeeded"),
@@ -795,9 +813,6 @@ class ShippedAssetStructureTest {
                 "Run `" + ctx.commandPrefix() + " ship $ARGUMENTS` once using the supplied Ship options.";
             case "qwen" ->
                 "Run `" + ctx.commandPrefix() + " ship {{args}}` once using the supplied Ship options.";
-            case "bob2" -> "Run `" + ctx.commandPrefix()
-                           + " ship` once, appending every option supplied to this command invocation "
-                           + "verbatim.";
             default -> throw new AssertionError(
                     "No golden Ship stub expectation for agent " + agentName
                                                 + " — add one before registering the agent");
@@ -811,14 +826,6 @@ class ShippedAssetStructureTest {
         assertFalse(commandContent.contains("camel-ship/SKILL.md"),
                 agentName + " Ship command must not delegate to a prompt-owned workflow");
 
-        if ("bob2".equals(agentName)) {
-            assertTrue(commandContent.contains("argument-hint: \"[ship-options]\""),
-                    "Bob2 Ship must advertise CLI options instead of a positional request");
-            String modes = Files.readString(ctx.projectDir().resolve(".bob/custom_modes.yaml"));
-            assertFalse(modes.contains("slug: camel-ship"), "Bob2 must not install the retired Ship mode");
-            assertFalse(Files.exists(ctx.projectDir().resolve(".bob/rules-camel-ship/ship.md")),
-                    "Bob2 must not install the retired Ship mode rule");
-        }
     }
 
     private static void assertRetiredShipAssetsWereCleaned(String agentName, InitContext ctx, boolean shipSkillOnly) {

@@ -49,16 +49,24 @@ final class ShipRuntime implements ShipCommand.WorkflowLauncher {
     public ShipCommand.Workflow launch(ShipCommand.RuntimeSettings settings) {
         requireLinux();
         ShipCommand.RuntimeSettings resolved = resolve(settings);
-        ShipCoordinator coordinator = new ShipCoordinator(
-                stateRoot,
-                resolved.piExecutable(),
-                resolved.nodeExecutable(),
-                resolved.mavenRepository(),
-                DistributionConfig.loadWithOverridesStrict(
-                        resolved.configFile(), resolved.configProperties()),
-                resolved.stageTimeout(),
-                resolved.acceptExperimental());
+        DistributionConfig distribution = DistributionConfig.loadWithOverridesStrict(
+                resolved.configFile(), resolved.configProperties());
+        ShipCoordinator coordinator = resolved.executionMode() == ShipRun.ExecutionMode.BOB2_NATIVE
+                ? ShipCoordinator.bob2(stateRoot, resolved.mavenRepository(), distribution, resolved.stageTimeout())
+                : new ShipCoordinator(
+                        stateRoot,
+                        resolved.piExecutable(),
+                        resolved.nodeExecutable(),
+                        resolved.mavenRepository(),
+                        distribution,
+                        resolved.stageTimeout(),
+                        resolved.acceptExperimental());
         return new ShipCommand.Workflow() {
+
+            @Override
+            public ShipRun submit(String runId, Path resultFile) throws IOException, InterruptedException {
+                return coordinator.submit(runId, resultFile);
+            }
 
             @Override
             public ShipRun run(String runId) throws IOException, InterruptedException {
@@ -76,16 +84,21 @@ final class ShipRuntime implements ShipCommand.WorkflowLauncher {
 
     /** Returns the settings with discovery applied and every default filled in. */
     ShipCommand.RuntimeSettings resolve(ShipCommand.RuntimeSettings settings) {
+        boolean nativeMode = settings.executionMode() == ShipRun.ExecutionMode.BOB2_NATIVE;
+        if (nativeMode && (settings.piExecutable() != null || settings.nodeExecutable() != null
+                || settings.acceptExperimental())) {
+            throw new IllegalArgumentException("Pi/Node options cannot configure a native backend");
+        }
         return new ShipCommand.RuntimeSettings(
-                resolveExecutable(settings.piExecutable(), "pi", "Pi"),
-                resolveExecutable(settings.nodeExecutable(), "node", "Node"),
+                nativeMode ? null : resolveExecutable(settings.piExecutable(), "pi", "Pi"),
+                nativeMode ? null : resolveExecutable(settings.nodeExecutable(), "node", "Node"),
                 settings.mavenRepository() == null
                         ? stateRoot.resolve(CATALOG_REPOSITORY)
                         : settings.mavenRepository(),
                 settings.stageTimeout() == null ? DEFAULT_STAGE_TIMEOUT : settings.stageTimeout(),
                 settings.acceptExperimental(),
                 settings.configFile(),
-                settings.configProperties());
+                settings.configProperties(), settings.executionMode());
     }
 
     private Path resolveExecutable(Path configured, String name, String label) {
