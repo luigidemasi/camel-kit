@@ -51,8 +51,9 @@ final class ShipRuntime implements ShipCommand.WorkflowLauncher {
         ShipCommand.RuntimeSettings resolved = resolve(settings);
         DistributionConfig distribution = DistributionConfig.loadWithOverridesStrict(
                 resolved.configFile(), resolved.configProperties());
-        ShipCoordinator coordinator = resolved.executionMode() == ShipRun.ExecutionMode.BOB2_NATIVE
-                ? ShipCoordinator.bob2(stateRoot, resolved.mavenRepository(), distribution, resolved.stageTimeout())
+        ShipCoordinator coordinator = resolved.executionMode().isNative()
+                ? ShipCoordinator.nativeHost(stateRoot, resolved.mavenRepository(), distribution,
+                        resolved.stageTimeout(), resolved.executionMode())
                 : new ShipCoordinator(
                         stateRoot,
                         resolved.piExecutable(),
@@ -84,7 +85,7 @@ final class ShipRuntime implements ShipCommand.WorkflowLauncher {
 
     /** Returns the settings with discovery applied and every default filled in. */
     ShipCommand.RuntimeSettings resolve(ShipCommand.RuntimeSettings settings) {
-        boolean nativeMode = settings.executionMode() == ShipRun.ExecutionMode.BOB2_NATIVE;
+        boolean nativeMode = settings.executionMode().isNative();
         if (nativeMode && (settings.piExecutable() != null || settings.nodeExecutable() != null
                 || settings.acceptExperimental())) {
             throw new IllegalArgumentException("Pi/Node options cannot configure a native backend");
@@ -132,12 +133,11 @@ final class ShipRuntime implements ShipCommand.WorkflowLauncher {
         return Optional.empty();
     }
 
-    // Mirrors PiWorker.requireLinux (private there, and only checked inside run); this copy is
-    // what makes the OS gate fire at launch, before any run state exists. Keep messages identical.
+    // Native dispatch does not broaden the controller's validation and lifecycle platform support.
     private static void requireLinux() {
         String os = System.getProperty("os.name", "");
         if (!os.toLowerCase(Locale.ROOT).contains("linux")) {
-            throw new IllegalStateException("The first Pi Ship worker supports Linux only");
+            throw new IllegalStateException("Ship currently supports Linux only");
         }
     }
 }

@@ -65,10 +65,10 @@ public record ShipRun(
         stages = List.copyOf(Objects.requireNonNull(stages, "stages"));
         requireCanonicalStages(stages);
         for (StageRecord record : stages) {
-            if (record.nativeEvidence() != null && executionMode != ExecutionMode.BOB2_NATIVE) {
+            if (record.nativeEvidence() != null && !executionMode.isNative()) {
                 throw new IllegalArgumentException("Pi stages cannot contain native evidence");
             }
-            if (executionMode == ExecutionMode.BOB2_NATIVE && record.stage() != Stage.VALIDATE
+            if (executionMode.isNative() && record.stage() != Stage.VALIDATE
                     && record.attempts() > 0 && record.status() == StageStatus.COMPLETED
                     && (record.nativeEvidence() == null || record.nativeEvidence().resultDigest() == null)) {
                 throw new IllegalArgumentException("Completed native stages require bound task and result evidence");
@@ -244,7 +244,12 @@ public record ShipRun(
 
     public enum ExecutionMode {
         PI,
-        BOB2_NATIVE
+        BOB2_NATIVE,
+        COPILOT_NATIVE;
+
+        public boolean isNative() {
+            return this != PI;
+        }
     }
 
     public enum Oversight {

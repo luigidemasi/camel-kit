@@ -25,10 +25,32 @@ class ShipRuntimeTest {
     @TempDir
     Path tempDir;
 
-    @Test
-    void nativeRuntimeDoesNotDiscoverPiOrNodeAndRejectsTheirOptions() {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(io.github.luigidemasi.camelkit.ship.controller.ShipRun.ExecutionMode.class)
+    void unsupportedPlatformDiagnosticAppliesToEveryBackend(
+            io.github.luigidemasi.camelkit.ship.controller.ShipRun.ExecutionMode mode) {
+        String original = System.getProperty("os.name");
+        try {
+            System.setProperty("os.name", "Windows 11");
+            var runtime = new ShipRuntime(tempDir.resolve("state"), "");
+            var settings = new ShipCommand.RuntimeSettings(null, null, null, null, false, null, List.of(), mode);
+            var failure = assertThrows(IllegalStateException.class, () -> runtime.launch(settings));
+            assertEquals("Ship currently supports Linux only", failure.getMessage());
+        } finally {
+            if (original == null) {
+                System.clearProperty("os.name");
+            } else {
+                System.setProperty("os.name", original);
+            }
+        }
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value = io.github.luigidemasi.camelkit.ship.controller.ShipRun.ExecutionMode.class,
+                                                  names = {"BOB2_NATIVE", "COPILOT_NATIVE"})
+    void nativeRuntimeDoesNotDiscoverPiOrNodeAndRejectsTheirOptions(
+            io.github.luigidemasi.camelkit.ship.controller.ShipRun.ExecutionMode mode) {
         ShipRuntime runtime = new ShipRuntime(tempDir.resolve("state"), "");
-        var mode = io.github.luigidemasi.camelkit.ship.controller.ShipRun.ExecutionMode.BOB2_NATIVE;
         var resolved = runtime.resolve(new ShipCommand.RuntimeSettings(
                 null, null, null, null, false, null, List.of(), mode));
         assertEquals(mode, resolved.executionMode());

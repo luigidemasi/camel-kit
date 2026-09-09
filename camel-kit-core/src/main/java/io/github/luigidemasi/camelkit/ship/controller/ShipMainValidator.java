@@ -538,7 +538,8 @@ final class ShipMainValidator {
 
     private static List<ToolVersion> toolVersions(List<ToolVersion> workerTools, ArtifactPolicy policy) {
         List<String> names = workerTools.stream().map(ToolVersion::tool).toList();
-        if (!names.equals(List.of("pi", "node")) && !names.equals(List.of("bob2"))) {
+        if (!names.equals(List.of("pi", "node")) && !names.equals(List.of("bob2"))
+                && !names.equals(List.of("copilot"))) {
             throw new IllegalArgumentException("Ship worker diagnostics must identify its execution backend");
         }
         List<ToolVersion> result = new ArrayList<>(workerTools);

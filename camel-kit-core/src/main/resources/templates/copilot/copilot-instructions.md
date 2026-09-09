@@ -16,6 +16,10 @@ For integration work, use the `/camel-start` project skill first. It routes to t
 Use `camel-knowledge` directly for Apache Camel documentation, component,
 CVE/security-advisory, and version questions; `/camel-start` does not route knowledge queries.
 
+Use `/camel-ship` directly for a controller-owned end-to-end run. Follow its generated project skill: eligible native
+stages use the dedicated read-only `camel-ship-worker`, while the CLI owns oversight, catalog checks, candidate writes,
+validation and publication. Do not route Ship through the manual pipeline skills or substitute another custom agent.
+
 Use `/skills list` if you need to inspect project skills.
 
 ## Native Copilot Assets

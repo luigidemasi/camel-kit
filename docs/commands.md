@@ -912,7 +912,7 @@ Validation is static and report-only: it does not modify routes or fix the findi
 
 ### /camel-ship
 
-**Purpose:** Start or control the local Ship workflow through the configured Camel-Kit CLI. Harness skills delegate stage decisions and state to the CLI. Eligible Bob 2 sessions relay pending work to native subagents; other execution models retain the single CLI invocation. See [Bob native Ship](ship-native.md).
+**Purpose:** Start or control the local Ship workflow through the configured Camel-Kit CLI. Harness skills delegate stage decisions and state to the CLI. Eligible Bob 2 and Copilot CLI sessions relay pending work to native subagents; other execution models retain the single CLI invocation. See [Bob native Ship](ship-native.md) and [Copilot native Ship](ship-copilot.md).
 
 The registered command is `camel-kit ship` when Camel-Kit is installed standalone and `camel kit ship` when it is installed as a Camel JBang plugin. Harness-native forms such as `/camel-ship`, `$camel-ship`, and `/skill:camel-ship` invoke that configured command prefix. Pi uses `/skill:camel-ship`; Camel-Kit intentionally does not generate a Pi `/camel-ship` prompt because that prompt surface flattens quoted option values.
 
@@ -939,7 +939,7 @@ The registered command is `camel-kit ship` when Camel-Kit is installed standalon
 | Argument | Default | Description |
 |---|---|---|
 | `--accept-experimental` | false | Continue after the warning for an experimental Pi or Node version. |
-| `--backend pi\|bob2-native` | `pi` | Execution mode for a new run; resume retains the recorded mode. |
+| `--backend pi\|bob2-native\|copilot-native` | `pi` | Execution mode for a new run; resume retains the recorded mode. |
 | `--json` | off | Structured run state and any pending native task. |
 | `--submit RUN_ID --result PATH` | none | Relay one native child result; mutually exclusive with other lifecycle operations. |
 | `--pi PATH` | discovered on `PATH` | Pi executable used by Pi stage workers. |
@@ -955,7 +955,7 @@ With `--json`, a failed workflow returns structured run state with exit code 1; 
 Other command errors can return only stderr. Read valid JSON on exit code 0 or 1 and report errors when no valid JSON
 is available. See [native recovery](ship-native.md#resume-timeout-and-abort) for unreadable handoffs and explicit retries.
 
-Ship requires Linux. The Pi backend requires Pi and Node; Bob native execution uses the active host and does not discover or launch either executable. Its accepted project contract currently supports the Camel Main runtime and Camel YAML DSL routes named `<routeId>.camel.yaml`, with matching Citrus tests at `test/<routeId>.camel.it.yaml`. Spring Boot and Quarkus Ship projects are rejected until deterministic evidence support is available for those runtimes. Deterministic validation commands run in a separate JVM launched by the controller with a pinned, controller-resolved classpath, a scrubbed environment, and a frozen read-only copy of the accepted project tree; network access during validation is avoided by replacing every non-direct Camel endpoint with an in-memory stub, not by OS-level sandboxing. Missing executables fail with installation guidance; an unrecognized Pi or Node version is reported as experimental and runs only with `--accept-experimental`.
+Ship requires Linux. The Pi backend requires Pi and Node; Native execution uses the active host and does not discover or launch either executable. Its accepted project contract currently supports the Camel Main runtime and Camel YAML DSL routes named `<routeId>.camel.yaml`, with matching Citrus tests at `test/<routeId>.camel.it.yaml`. Spring Boot and Quarkus Ship projects are rejected until deterministic evidence support is available for those runtimes. Deterministic validation commands run in a separate JVM launched by the controller with a pinned, controller-resolved classpath, a scrubbed environment, and a frozen read-only copy of the accepted project tree; network access during validation is avoided by replacing every non-direct Camel endpoint with an in-memory stub, not by OS-level sandboxing. Missing executables fail with installation guidance; an unrecognized Pi or Node version is reported as experimental and runs only with `--accept-experimental`.
 
 **Oversight:**
 

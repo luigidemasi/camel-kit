@@ -26,6 +26,8 @@ templates:
     target: .github/agents/camel-catalog-researcher.agent.md
   - source: templates/copilot/agents/camel-security-reviewer.agent.md
     target: .github/agents/camel-security-reviewer.agent.md
+  - source: templates/copilot/agents/camel-ship-worker.agent.md
+    target: .github/agents/camel-ship-worker.agent.md
   - source: templates/copilot/hooks/camel-kit-safety.json
     target: .github/hooks/camel-kit-safety.json
   - source: templates/copilot/agents-md.md

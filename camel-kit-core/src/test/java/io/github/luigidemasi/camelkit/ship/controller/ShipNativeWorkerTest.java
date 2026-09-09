@@ -58,7 +58,7 @@ class ShipNativeWorkerTest {
         controller = new ShipController(state, clock, Map.of());
         coordinator = new ShipCoordinator(
                 state, controller,
-                new ShipNativeWorker(controller, Duration.ofMinutes(5), Map.of(), clock),
+                new ShipNativeWorker(controller, Duration.ofMinutes(5), Map.of(), clock, executionMode()),
                 target -> {
                     throw new IOException("This fixture stops before catalog validation");
                 },
@@ -72,7 +72,8 @@ class ShipNativeWorkerTest {
                 Files.createDirectory(directory.resolve("catalog-fixture")));
         coordinator = new ShipCoordinator(
                 state, controller,
-                new ShipNativeWorker(controller, Duration.ofMinutes(5), Map.of(), clock), target -> snapshot,
+                new ShipNativeWorker(controller, Duration.ofMinutes(5), Map.of(), clock, executionMode()),
+                target -> snapshot,
                 new ShipMainValidator(new ShipCoordinatorTest.DeterministicEvidenceStub()),
                 distribution, Map.of(), false, clock);
         Path proposed = Files.createDirectory(directory.resolve("proposed"));
@@ -103,7 +104,8 @@ class ShipNativeWorkerTest {
             assertNotNull(run.publication());
             var stampPath = Path.of(run.stage(Stage.VALIDATE).artifacts().get(0).path());
             var stamp = JSON.readTree(Files.readString(stampPath));
-            assertEquals("bob2", stamp.path("toolVersions").get(0).path("tool").asText());
+            assertEquals(executionMode() == ExecutionMode.COPILOT_NATIVE ? "copilot" : "bob2",
+                    stamp.path("toolVersions").get(0).path("tool").asText());
             assertEquals("UNTESTED", stamp.path("toolVersions").get(0).path("support").asText());
             org.junit.jupiter.api.Assertions.assertTrue(stamp.path("toolVersions").get(0).path("version").isNull());
         }
@@ -241,7 +243,7 @@ class ShipNativeWorkerTest {
         ShipRun run = start(Oversight.SMART);
         ShipNativeWorker.Task discovery = controller.pendingTask(run);
         assertNotNull(discovery);
-        assertEquals(ExecutionMode.BOB2_NATIVE, run.executionMode());
+        assertEquals(executionMode(), run.executionMode());
         assertEquals(discovery, controller.pendingTask(coordinator.resume(run.id(), List.of())));
 
         Path first = receipt(discovery);
@@ -259,7 +261,7 @@ class ShipNativeWorkerTest {
         assertFalse(Files.exists(project.resolve("orders.camel.yaml")));
         run = coordinator.resume(run.id(), List.of());
         assertEquals(Stage.EXECUTE, run.currentStage());
-        assertEquals(ExecutionMode.BOB2_NATIVE, run.executionMode());
+        assertEquals(executionMode(), run.executionMode());
         assertEquals("camel-ship-worker", controller.pendingTask(run).preset());
         assertFalse(controller.pendingTask(run).forkContext());
     }
@@ -371,9 +373,13 @@ class ShipNativeWorkerTest {
         assertEquals(run, controller.status(run.id()));
     }
 
+    ExecutionMode executionMode() {
+        return ExecutionMode.BOB2_NATIVE;
+    }
+
     private ShipRun start(Oversight oversight) throws Exception {
         return coordinator.run(controller.start(project, oversight,
-                List.of(new ShipContext.TextInput("Generate an orders route")), ExecutionMode.BOB2_NATIVE).id());
+                List.of(new ShipContext.TextInput("Generate an orders route")), executionMode()).id());
     }
 
     private Path receipt(ShipNativeWorker.Task task) throws Exception {

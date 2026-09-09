@@ -139,10 +139,12 @@ class SkillResourceInstaller {
         if (destination.getFileName().toString().equals("SKILL.md")) {
             String skillName = destination.getParent().getFileName().toString();
             boolean shipDelegate = "camel-ship".equals(skillName);
-            if (shipDelegate && AgentGeneratorStrategy.BOB2.descriptorValue().equals(ctx.agentName())) {
-                try (InputStream nativeSkill = getClass().getResourceAsStream("/templates/bob2/camel-ship.md")) {
+            if (shipDelegate && (AgentGeneratorStrategy.BOB2.descriptorValue().equals(ctx.agentName())
+                    || AgentGeneratorStrategy.COPILOT.descriptorValue().equals(ctx.agentName()))) {
+                try (InputStream nativeSkill = getClass()
+                        .getResourceAsStream("/templates/" + ctx.agentName() + "/camel-ship.md")) {
                     if (nativeSkill == null) {
-                        throw new IOException("Bob native Ship skill is missing");
+                        throw new IOException("Native Ship skill is missing for " + ctx.agentName());
                     }
                     Files.copy(nativeSkill, destination, StandardCopyOption.REPLACE_EXISTING);
                 }
