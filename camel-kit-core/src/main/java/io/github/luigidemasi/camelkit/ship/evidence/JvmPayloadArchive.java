@@ -93,7 +93,7 @@ public final class JvmPayloadArchive {
             ArtifactFile artifact = ordered.get(index);
             String name = safeName(artifact.artifactId()) + '-' + safeName(artifact.version()) + ".jar";
             sources.add(SourceEntry.file(
-                    String.format(Locale.ROOT, "lib/%03d-%s", index + 100, name), artifact.path()));
+                    String.format(Locale.ROOT, "lib/%03d/%s", index + 100, name), artifact.path()));
         }
         sources.sort(Comparator.comparing(SourceEntry::path));
         long total = sources.stream().mapToLong(SourceEntry::size).reduce(0, Math::addExact);

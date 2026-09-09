@@ -173,7 +173,9 @@ class JvmPayloadCompatibilityIT {
         for (JvmPayloadRequest request : requests) {
             Path root = Files.createDirectory(directory.resolve(request.kind().id()));
             Path payload = JvmPayloadArchive.materialize(root, request);
-            requireIsolatedLaunch(payload, workspace, request, functionalArguments(request));
+            for (String pathSuffix : List.of("-plain", " with spaces")) {
+                requireIsolatedLaunch(payload, workspace, request, functionalArguments(request), pathSuffix);
+            }
         }
     }
 
@@ -193,13 +195,16 @@ class JvmPayloadCompatibilityIT {
             Path archive,
             Path workspace,
             JvmPayloadRequest request,
-            List<String> launcherArguments)
+            List<String> launcherArguments,
+            String pathSuffix)
             throws Exception {
         Path java = Path.of(System.getProperty("java.home"), "bin", "java").toRealPath();
         Path acceptedRoot = workspace.toRealPath();
-        // Space-bearing names prove the sandbox JVM options survive as argv entries.
-        Path home = Files.createDirectory(directory.resolve(request.kind().id() + " home"));
-        Path temporary = Files.createDirectory(directory.resolve(request.kind().id() + " tmp"));
+        // Exercise ordinary URLs as well as space-bearing JVM option values. Spaces can hide
+        // dependency resource-scanner failures when a library converts a URL directly to a path.
+        Path home = Files.createDirectory(directory.resolve(request.kind().id() + pathSuffix + "-home"));
+        Path temporary = Files.createDirectory(directory.resolve(request.kind().id() + pathSuffix + "-tmp"));
+        assertEquals(pathSuffix.contains(" "), temporary.toString().contains(" "));
 
         List<String> arguments = new ArrayList<>(
                 List.of(

@@ -1,8 +1,10 @@
 # Bob 2 native Ship
 
-Development status: the controller integration is implemented, but authenticated Bob host acceptance remains open in
-[#223](https://github.com/luigidemasi/camel-kit/issues/223). This page describes the development contract, not released
-or verified native-host compatibility.
+Development status: authenticated acceptance on 2026-09-09 exercised Bob Shell 2.0.2 on Linux through the registered
+Ship skill: four native stages, oversight pauses and explicit resume, deterministic validation and publication.
+Interruption, timeout recovery, abort, repeated submissions and rejection of stale/conflicting results were also checked.
+This integration is tracked in [#223](https://github.com/luigidemasi/camel-kit/issues/223) and requires a development build.
+Bob IDE and other host versions have not undergone the same live acceptance test.
 
 In an eligible Bob 2 session, the generated Ship skill uses Bob's `spawn_subagent` tool. The active Bob session keeps its
 own authentication and model. Camel-Kit does not launch a second Bob process, Pi, or Node for these stages.
