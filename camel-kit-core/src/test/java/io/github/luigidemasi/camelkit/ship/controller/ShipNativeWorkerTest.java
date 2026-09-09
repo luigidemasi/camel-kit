@@ -84,15 +84,17 @@ class ShipNativeWorkerTest {
         for (int index = 0; index < 4; index++) {
             ShipNativeWorker.Task task = controller.pendingTask(run);
             Path responseFile = receipt(task);
+            ObjectNode envelope = (ObjectNode) JSON.readTree(Files.readString(responseFile));
+            envelope.putNull("hostVersion");
             if (task.stage() == Stage.EXECUTE) {
-                ObjectNode envelope = (ObjectNode) JSON.readTree(Files.readString(responseFile));
+                assertFalse(task.prompt().contains("application.properties"), task.prompt());
                 var proposals = ((ObjectNode) envelope.path("response")).putArray("files");
                 for (String path : List.of("orders.camel.yaml", "test/orders.camel.it.yaml",
                         ".camel-kit/config.properties", "pom.xml")) {
                     proposals.addObject().put("path", path).put("content", Files.readString(proposed.resolve(path)));
                 }
-                Files.writeString(responseFile, JSON.writeValueAsString(envelope));
             }
+            Files.writeString(responseFile, JSON.writeValueAsString(envelope));
             run = coordinator.submit(run.id(), responseFile);
         }
         assertEquals(invalidRoute ? RunStatus.FAILED : RunStatus.COMPLETED, run.status(), run.message());
@@ -103,7 +105,40 @@ class ShipNativeWorkerTest {
             var stamp = JSON.readTree(Files.readString(stampPath));
             assertEquals("bob2", stamp.path("toolVersions").get(0).path("tool").asText());
             assertEquals("UNTESTED", stamp.path("toolVersions").get(0).path("support").asText());
+            org.junit.jupiter.api.Assertions.assertTrue(stamp.path("toolVersions").get(0).path("version").isNull());
         }
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(value = Stage.class, names = {"DISCOVERY", "DESIGN", "PLAN"})
+    void rejectsFileProposalsOutsideExecuteWithoutAcceptingTheReceipt(Stage stage) throws Exception {
+        ShipRun run = start(Oversight.NEVER);
+        while (run.currentStage() != stage) {
+            run = coordinator.submit(run.id(), receipt(controller.pendingTask(run)));
+        }
+        ShipRun unchanged = run;
+        ShipNativeWorker.Task task = controller.pendingTask(run);
+        Path input = receipt(task);
+        ObjectNode envelope = (ObjectNode) JSON.readTree(Files.readString(input));
+        ((ObjectNode) envelope.path("response")).putArray("files")
+                .addObject().put("path", "orders.camel.yaml").put("content", "Unexpected source write");
+        Files.writeString(input, JSON.writeValueAsString(envelope));
+
+        assertThrows(IOException.class, () -> coordinator.submit(unchanged.id(), input));
+        assertEquals(unchanged, controller.status(run.id()));
+        assertFalse(Files.exists(evidence(task).resolve("native-result.json")));
+        assertFalse(Files.exists(project.resolve("orders.camel.yaml")));
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints = {0, ShipNativeWorker.MAX_BYTES + 1})
+    void distinguishesEmptyAndOversizedReceiptInputs(int size) throws Exception {
+        ShipRun run = start(Oversight.NEVER);
+        Path input = Files.write(directory.resolve("invalid-receipt.json"), new byte[size]);
+        IOException failure = assertThrows(IOException.class, () -> coordinator.submit(run.id(), input));
+        assertEquals(size == 0 ? "Native handoff input is empty" : "Native handoff input exceeds its size limit",
+                failure.getMessage());
+        assertEquals(run, controller.status(run.id()));
     }
 
     @org.junit.jupiter.params.ParameterizedTest
@@ -316,6 +351,10 @@ class ShipNativeWorkerTest {
                 List.of(new ProposedFile("application.properties", "camel.main.routes-include-pattern=other.yaml")),
                 Map.of()));
         assertFalse(Files.exists(candidate.resolve("application.properties")));
+
+        IOException empty = assertThrows(IOException.class, () -> ShipNativeWorker.applyProposals(
+                candidate, manifest, policy, List.of(new ProposedFile(".camel-kit/config.properties", "")), Map.of()));
+        assertEquals("Native handoff input is empty", empty.getMessage());
 
         Path outside = Files.writeString(directory.resolve("outside"), "untouched");
         Files.delete(candidate.resolve("pom.xml"));

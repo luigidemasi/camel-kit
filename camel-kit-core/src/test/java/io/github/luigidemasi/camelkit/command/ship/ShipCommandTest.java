@@ -94,6 +94,92 @@ class ShipCommandTest {
         }
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"FAILED", "CANCELLED", "TIMED_OUT"})
+    @EnabledOnOs(OS.LINUX)
+    void nativeChildFailuresReturnJsonWithExitOneAndPreserveTheFailure(String outcome) throws Exception {
+        Assumptions.assumeTrue(System.getenv("CAMEL_KIT_SHIP_STATE_HOME") == null);
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        for (String prefix : List.of("camel-kit ship", "camel kit ship")) {
+            Path project = Files.createDirectory(tempDir.resolve(prefix.replace(' ', '_')));
+            RunResult started = runAs(prefix, null, null, "--project-dir", project.toString(),
+                    "--backend", "bob2-native", "--json", "--text", "Design an orders route");
+            assertEquals(0, started.exitCode(), started.error());
+            var task = mapper.readTree(started.output()).path("task");
+            String id = task.path("runId").asText();
+            var envelope = mapper.createObjectNode();
+            for (String field : List.of("schemaVersion", "taskId", "runId", "stage", "attempt", "inputDigest")) {
+                envelope.set(field, task.get(field));
+            }
+            envelope.putNull("hostVersion");
+            envelope.put("outcome", outcome);
+            envelope.putNull("response");
+            String message = "Observed child outcome: " + outcome;
+            envelope.put("failure", message);
+            Path input = Files.writeString(tempDir.resolve(prefix.replace(' ', '_') + ".json"),
+                    mapper.writeValueAsString(envelope));
+            RunResult submitted = runAs(prefix, null, null, "--project-dir", project.toString(),
+                    "--submit", id, "--result", input.toString(), "--json");
+            assertEquals(1, submitted.exitCode());
+            assertEquals("", submitted.error());
+            var failed = mapper.readTree(submitted.output());
+            assertEquals("FAILED", failed.path("run").path("status").asText());
+            assertEquals(message, failed.path("run").path("message").asText());
+            assertTrue(failed.path("task").isNull());
+
+            Files.writeString(input, "{}");
+            RunResult rejected = runAs(prefix, null, null, "--project-dir", project.toString(),
+                    "--submit", id, "--result", input.toString(), "--json");
+            assertEquals(1, rejected.exitCode());
+            assertEquals("", rejected.output());
+            assertTrue(rejected.error().contains("workflow-failed"), rejected.error());
+        }
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    @EnabledOnOs(OS.LINUX)
+    void nativeStatusRejectsInvalidHandoffsAndExplicitResumesRecoverThem(boolean unbound) throws Exception {
+        Assumptions.assumeTrue(System.getenv("CAMEL_KIT_SHIP_STATE_HOME") == null);
+        var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        Path project = Files.createDirectory(tempDir.resolve("project"));
+        RunResult started = run(null, null, "--project-dir", project.toString(),
+                "--backend", "bob2-native", "--json", "--text", "Design an orders route");
+        assertEquals(0, started.exitCode(), started.error());
+        var task = mapper.readTree(started.output()).path("task");
+        String id = task.path("runId").asText();
+        Path runRoot = ShipController.defaultStateRoot(project, System.getenv()).resolve(id);
+        if (unbound) {
+            Path stateFile = runRoot.resolve("state.json");
+            var state = mapper.readTree(Files.readString(stateFile));
+            ((com.fasterxml.jackson.databind.node.ObjectNode) state.path("stages").get(0)).putNull("nativeEvidence");
+            Files.writeString(stateFile, mapper.writeValueAsString(state));
+        } else {
+            Files.writeString(runRoot.resolve("evidence/discovery-1/native-task.json"), "null");
+        }
+
+        RunResult status = run(null, rejectingLauncher(), "--project-dir", project.toString(),
+                "--status", id, "--json");
+        assertEquals(1, status.exitCode());
+        assertEquals("", status.output());
+        assertTrue(status.error().contains("handoff-read-failed"), status.error());
+        RunResult plain = run(null, rejectingLauncher(), "--project-dir", project.toString(), "--status", id);
+        assertEquals(0, plain.exitCode(), plain.error());
+        assertTrue(plain.output().contains("Status: RUNNING"), plain.output());
+
+        RunResult failed = run(null, null, "--project-dir", project.toString(), "--resume", id, "--json");
+        assertEquals(1, failed.exitCode());
+        var failure = mapper.readTree(failed.output());
+        assertEquals("FAILED", failure.path("run").path("status").asText());
+        assertTrue(failure.path("run").path("message").asText().contains("Durable Native stage result"));
+        assertTrue(failure.path("task").isNull());
+        RunResult retried = run(null, null, "--project-dir", project.toString(), "--resume", id, "--json");
+        assertEquals(0, retried.exitCode(), retried.error());
+        var freshTask = mapper.readTree(retried.output()).path("task");
+        assertEquals(2, freshTask.path("attempt").asInt());
+        assertNotEquals(task.path("taskId"), freshTask.path("taskId"));
+    }
+
     @Test
     void continuationCommandsCarryTheProjectDirectoryOfTheProjectLocalStore() throws Exception {
         Assumptions.assumeTrue(System.getenv("CAMEL_KIT_SHIP_STATE_HOME") == null,

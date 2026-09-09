@@ -934,8 +934,8 @@ public final class ShipCoordinator {
             case EXECUTE -> {
                 if (worker.mode() == ShipRun.ExecutionMode.BOB2_NATIVE) {
                     prompt.append("Propose the implementation as complete text file contents for the approved PLAN ")
-                            .append("route/test paths, pom.xml, .camel-kit/config.properties and optionally ")
-                            .append("application.properties. Inspect existing files using absolute paths rooted at ")
+                            .append("route/test paths, pom.xml and .camel-kit/config.properties only. ")
+                            .append("Inspect existing files using absolute paths rooted at ")
                             .append(attempt.workingDirectory()).append(". Do not edit files or run commands. ")
                             .append("The controller writes proposals and constructs the artifact manifest.\n");
                 } else {
