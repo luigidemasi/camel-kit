@@ -271,8 +271,7 @@ public final class ShipNativeWorker implements ShipStageWorker {
 
     private List<ToolVersion> diagnostics(String version) {
         return List.of(new ToolVersion(
-                executionMode == ShipRun.ExecutionMode.COPILOT_NATIVE ? "copilot" : "bob2",
-                null, version, Support.UNTESTED,
+                executionMode.host(), null, version, Support.UNTESTED,
                 "Native host metadata is reported by the caller; exact host-version certification is not claimed"));
     }
 

@@ -104,8 +104,7 @@ class ShipNativeWorkerTest {
             assertNotNull(run.publication());
             var stampPath = Path.of(run.stage(Stage.VALIDATE).artifacts().get(0).path());
             var stamp = JSON.readTree(Files.readString(stampPath));
-            assertEquals(executionMode() == ExecutionMode.COPILOT_NATIVE ? "copilot" : "bob2",
-                    stamp.path("toolVersions").get(0).path("tool").asText());
+            assertEquals(executionMode().host(), stamp.path("toolVersions").get(0).path("tool").asText());
             assertEquals("UNTESTED", stamp.path("toolVersions").get(0).path("support").asText());
             org.junit.jupiter.api.Assertions.assertTrue(stamp.path("toolVersions").get(0).path("version").isNull());
         }

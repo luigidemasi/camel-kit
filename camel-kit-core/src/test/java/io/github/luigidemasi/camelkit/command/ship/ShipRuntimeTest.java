@@ -47,7 +47,7 @@ class ShipRuntimeTest {
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.EnumSource(value = io.github.luigidemasi.camelkit.ship.controller.ShipRun.ExecutionMode.class,
-                                                  names = {"BOB2_NATIVE", "COPILOT_NATIVE"})
+                                                  names = {"BOB2_NATIVE", "COPILOT_NATIVE", "CLAUDE_NATIVE"})
     void nativeRuntimeDoesNotDiscoverPiOrNodeAndRejectsTheirOptions(
             io.github.luigidemasi.camelkit.ship.controller.ShipRun.ExecutionMode mode) {
         ShipRuntime runtime = new ShipRuntime(tempDir.resolve("state"), "");

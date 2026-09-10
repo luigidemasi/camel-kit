@@ -56,6 +56,30 @@ class ClaudeGeneratorTest {
         assertTrue(content.contains("<!-- TRAIT:claude -->"), "Should be applied via trait sentinel");
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"camel-kit", "camel kit"})
+    void exposesShipThroughTheNativeRelaySkillAndReadOnlyWorker(String prefix) throws Exception {
+        InitContext original = createContext();
+        InitContext ctx = new InitContext(
+                original.agent(), "claude", original.commandsDir(), original.skillsDir(),
+                tempDir, prefix, Printer.noop());
+        for (int initialization = 0; initialization < 2; initialization++) {
+            new ClaudeGenerator().generate(ctx);
+            String skill = Files.readString(tempDir.resolve(".claude/skills/camel-ship/SKILL.md"));
+            assertTrue(skill.contains(prefix + " ship --backend claude-native --json"));
+            assertTrue(skill.contains("subagent_type: \"camel-ship-worker\""));
+            assertFalse(skill.contains("{COMMAND_PREFIX}"));
+            assertFalse(skill.contains("<!-- TRAIT:claude -->"));
+            String worker = Files.readString(tempDir.resolve(".claude/agents/camel-ship-worker.md"));
+            assertTrue(worker.contains("name: camel-ship-worker"));
+            assertTrue(worker.contains("tools: Read, Grep, Glob"));
+            assertFalse(worker.contains("mcpServers"));
+            String command = Files.readString(ctx.commandsDir().resolve("camel-ship.md"));
+            assertTrue(command.contains("Read .claude/skills/camel-ship/SKILL.md and follow those instructions"));
+            assertTrue(Files.readString(tempDir.resolve("CLAUDE.md")).contains("camel-ship-worker"));
+        }
+    }
+
     @Test
     void preservesBaseSkillBehavior() throws Exception {
         InitContext ctx = createContext();

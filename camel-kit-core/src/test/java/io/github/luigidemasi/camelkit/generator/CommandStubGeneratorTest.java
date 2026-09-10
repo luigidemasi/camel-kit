@@ -87,6 +87,19 @@ class CommandStubGeneratorTest {
     }
 
     @Test
+    void claudeShipStubLoadsItsNativeRelaySkill() throws Exception {
+        InitContext ctx = createContext("claude");
+        Files.createDirectories(ctx.commandsDir());
+
+        new CommandStubGenerator().generate(ctx, WorkflowManifestLoader.loadDefault());
+
+        String content = Files.readString(ctx.commandsDir().resolve("camel-ship.md"));
+        assertTrue(content.contains(
+                "Read .claude/skills/camel-ship/SKILL.md and follow those instructions. Requested input: $ARGUMENTS"));
+        assertFalse(content.contains("camel-kit ship $ARGUMENTS"));
+    }
+
+    @Test
     void handlesEmptyGeneratedCommandStubsWithoutCreatingFiles() throws Exception {
         InitContext ctx = createContext("qwen");
         Files.createDirectories(ctx.commandsDir());

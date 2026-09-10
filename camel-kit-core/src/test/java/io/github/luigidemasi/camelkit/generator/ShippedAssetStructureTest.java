@@ -768,10 +768,10 @@ class ShippedAssetStructureTest {
                 agentName + " Ship skill must not receive an orchestration trait");
         assertFalse(skillContent.contains("## Dispatch"),
                 agentName + " Ship skill must not receive an orchestration dispatch block");
-        if ("bob2".equals(agentName) || "copilot".equals(agentName)) {
+        if (Set.of("bob2", "copilot", "claude").contains(agentName)) {
             assertTrue(skillContent.contains(ctx.commandPrefix() + " ship --backend " + agentName + "-native --json"));
             assertTrue(skillContent.contains("For every Ship invocation (new, submit, resume, status and abort)"));
-            assertTrue(skillContent.contains("use an argument array or individually shell-quoted"));
+            assertTrue(skillContent.contains("individually shell-quoted"));
             assertFalse(skillContent.contains("`childId`"));
             assertTrue(
                     skillContent.contains("repeat the original `--stage-timeout`, `--maven-repository` and `-c`/`-p`"));
@@ -781,15 +781,30 @@ class ShippedAssetStructureTest {
             assertTrue(skillContent.contains("stderr"));
             assertTrue(skillContent.contains("handoff-read-failed"));
             assertFalse(skillContent.contains("only after a successful exit"));
-            if ("copilot".equals(agentName)) {
-                assertTrue(skillContent.contains("agent_type: \"camel-ship-worker\""));
-                assertTrue(skillContent.contains("mode: \"sync\""));
+            if ("copilot".equals(agentName) || "claude".equals(agentName)) {
                 assertTrue(skillContent.contains("In plan mode, do not start, resume or submit Ship work"));
                 assertTrue(skillContent.contains("only read-only `--status` is allowed"));
                 assertTrue(skillContent.contains("Do not duplicate a pending call"));
+            }
+            if ("copilot".equals(agentName)) {
+                assertTrue(skillContent.contains("agent_type: \"camel-ship-worker\""));
+                assertTrue(skillContent.contains("mode: \"sync\""));
                 String worker = Files.readString(ctx.projectDir().resolve(".github/agents/camel-ship-worker.agent.md"));
                 assertTrue(worker.contains("tools: [\"read\", \"search\"]"));
                 assertFalse(Files.exists(ctx.projectDir().resolve(".github/commands")));
+                return;
+            }
+            if ("claude".equals(agentName)) {
+                assertTrue(skillContent.contains("subagent_type: \"camel-ship-worker\""));
+                assertTrue(skillContent.contains("Leave `model` and `isolation` unset"));
+                assertTrue(skillContent.contains("outside the project directory"));
+                assertFalse(skillContent.contains("`fork_context`"));
+                Path command = ctx.commandsDir().resolve("camel-ship.md");
+                assertTrue(Files.readString(command).contains("Read .claude/skills/camel-ship/SKILL.md"));
+                String worker = Files.readString(ctx.projectDir().resolve(".claude/agents/camel-ship-worker.md"));
+                assertTrue(worker.contains("\ntools: Read, Grep, Glob\n"));
+                assertFalse(worker.contains("mcpServers"));
+                assertFalse(worker.contains("permissionMode"));
                 return;
             }
             assertTrue(skillContent.contains("fork_context: false"));
@@ -825,7 +840,7 @@ class ShippedAssetStructureTest {
         // Golden expectations: hard-coded per agent so a wrong registry placeholder cannot
         // self-validate through ctx.agent().argPlaceholder().
         String expectedInvocation = switch (agentName) {
-            case "claude", "opencode" ->
+            case "opencode" ->
                 "Run `" + ctx.commandPrefix() + " ship $ARGUMENTS` once using the supplied Ship options.";
             case "qwen" ->
                 "Run `" + ctx.commandPrefix() + " ship {{args}}` once using the supplied Ship options.";

@@ -59,7 +59,7 @@ class CamelKitCommandParityTest {
     }
 
     @ParameterizedTest
-    @CsvSource({"false,bob2", "true,bob2", "false,copilot", "true,copilot"})
+    @CsvSource({"false,bob2", "true,bob2", "false,copilot", "true,copilot", "false,claude", "true,claude"})
     void nativeInitAndRegenerationDetectThePrefixInSeparateProcesses(boolean plugin, String agent) throws Exception {
         Path workspace = tempDir.resolve("workspace");
         String expectedPrefix = plugin ? "camel kit" : "camel-kit";
@@ -91,7 +91,11 @@ class CamelKitCommandParityTest {
             }
             assertEquals(expectedPrefix, config.getProperty("project.command-prefix"));
             for (String name : PUBLIC_SKILLS) {
-                String skillsRoot = agent.equals("bob2") ? ".bob/skills/" : ".github/skills/";
+                String skillsRoot = switch (agent) {
+                    case "bob2" -> ".bob/skills/";
+                    case "copilot" -> ".github/skills/";
+                    default -> ".claude/skills/";
+                };
                 String skill = Files.readString(workspace.resolve(skillsRoot + name + "/SKILL.md"));
                 assertFalse(skill.contains("\nuser-invocable: false\n"), name);
                 if (agent.equals("bob2")) {

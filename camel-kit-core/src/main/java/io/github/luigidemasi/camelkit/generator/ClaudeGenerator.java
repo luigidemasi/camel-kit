@@ -5,6 +5,8 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 
+import io.github.luigidemasi.camelkit.config.AgentDescriptor;
+import io.github.luigidemasi.camelkit.config.AgentRegistry;
 import io.github.luigidemasi.camelkit.util.AnsiColors;
 
 public class ClaudeGenerator extends DefaultGenerator {
@@ -16,6 +18,21 @@ public class ClaudeGenerator extends DefaultGenerator {
         super.generate(ctx);
         generateClaudeMd(ctx);
         generateSettings(ctx);
+        generateSubagents(ctx);
+    }
+
+    /** Installs the registry-declared project subagents, currently the read-only Ship worker. */
+    private void generateSubagents(InitContext ctx) throws Exception {
+        int subagents = 0;
+        for (AgentDescriptor.TemplateInstall template : AgentRegistry.descriptor(ctx.agentName()).templates()) {
+            if (template.target().startsWith(".claude/agents/")) {
+                copyTemplateResource(template.source(), ctx.projectDir().resolve(template.target()));
+                subagents++;
+            }
+        }
+        if (subagents > 0) {
+            ctx.printer().println(AnsiColors.green("✓") + " Generated " + subagents + " Claude Code subagents");
+        }
     }
 
     private void generateClaudeMd(InitContext ctx) throws Exception {

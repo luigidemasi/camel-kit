@@ -40,7 +40,7 @@ class ShipCommandTest {
     Path tempDir;
 
     @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.ValueSource(strings = {"bob2-native", "copilot-native"})
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"bob2-native", "copilot-native", "claude-native"})
     @EnabledOnOs(OS.LINUX)
     void nativeCommandReturnsAndAcceptsHandoffsOnBothCommandSurfaces(String backend) throws Exception {
         Assumptions.assumeTrue(System.getenv("CAMEL_KIT_SHIP_STATE_HOME") == null);
@@ -103,7 +103,8 @@ class ShipCommandTest {
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.CsvSource({
             "bob2-native,FAILED", "bob2-native,CANCELLED", "bob2-native,TIMED_OUT",
-            "copilot-native,FAILED", "copilot-native,CANCELLED", "copilot-native,TIMED_OUT"})
+            "copilot-native,FAILED", "copilot-native,CANCELLED", "copilot-native,TIMED_OUT",
+            "claude-native,FAILED", "claude-native,CANCELLED", "claude-native,TIMED_OUT"})
     @EnabledOnOs(OS.LINUX)
     void nativeChildFailuresReturnJsonWithExitOneAndPreserveTheFailure(String backend, String outcome)
             throws Exception {
@@ -148,7 +149,8 @@ class ShipCommandTest {
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.CsvSource({
             "bob2-native,false", "bob2-native,true",
-            "copilot-native,false", "copilot-native,true"})
+            "copilot-native,false", "copilot-native,true",
+            "claude-native,false", "claude-native,true"})
     @EnabledOnOs(OS.LINUX)
     void nativeStatusRejectsInvalidHandoffsAndExplicitResumesRecoverThem(String backend, boolean unbound)
             throws Exception {

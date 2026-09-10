@@ -912,7 +912,7 @@ Validation is static and report-only: it does not modify routes or fix the findi
 
 ### /camel-ship
 
-**Purpose:** Start or control the local Ship workflow through the configured Camel-Kit CLI. Harness skills delegate stage decisions and state to the CLI. Eligible Bob 2 and Copilot CLI sessions relay pending work to native subagents; other execution models retain the single CLI invocation. See [Bob native Ship](ship-native.md) and [Copilot native Ship](ship-copilot.md).
+**Purpose:** Start or control the local Ship workflow through the configured Camel-Kit CLI. Harness skills delegate stage decisions and state to the CLI. Eligible Bob 2, Copilot CLI and Claude Code sessions relay pending work to native subagents; other execution models retain the single CLI invocation. See [Bob native Ship](ship-native.md), [Copilot native Ship](ship-copilot.md) and [Claude Code native Ship](ship-claude.md).
 
 The registered command is `camel-kit ship` when Camel-Kit is installed standalone and `camel kit ship` when it is installed as a Camel JBang plugin. Harness-native forms such as `/camel-ship`, `$camel-ship`, and `/skill:camel-ship` invoke that configured command prefix. Pi uses `/skill:camel-ship`; Camel-Kit intentionally does not generate a Pi `/camel-ship` prompt because that prompt surface flattens quoted option values.
 
@@ -939,7 +939,7 @@ The registered command is `camel-kit ship` when Camel-Kit is installed standalon
 | Argument | Default | Description |
 |---|---|---|
 | `--accept-experimental` | false | Continue after the warning for an experimental Pi or Node version. |
-| `--backend pi\|bob2-native\|copilot-native` | `pi` | Execution mode for a new run; resume retains the recorded mode. |
+| `--backend pi\|bob2-native\|copilot-native\|claude-native` | `pi` | Execution mode for a new run; resume retains the recorded mode. |
 | `--json` | off | Structured run state and any pending native task. |
 | `--submit RUN_ID --result PATH` | none | Relay one native child result; mutually exclusive with other lifecycle operations. |
 | `--pi PATH` | discovered on `PATH` | Pi executable used by Pi stage workers. |
@@ -1020,7 +1020,7 @@ camel-kit init --here --ai <same-agent> --force
 camel kit init --here --ai <same-agent> --force
 ```
 
-`--force` overwrites generated assets. Re-initialization installs the current entry point and removes obsolete prompt-owned Ship guides, traits and rules. Bob 2 receives its native relay skill, read-only worker preset and `camel-ship-mode`; other agents retain their current delegates. Pre-controller Ship state in `.camel-kit/ship-state.json` or a non-manual `.camel-kit/pipeline.json` is deliberately not imported. Inspect it if needed, then archive it outside the project before starting a controller run; its presence makes Ship fail closed. Preserve a manual-mode `.camel-kit/pipeline.json`, because standalone pipeline skills and validated `--start-from` imports still use its active pipeline ID.
+`--force` overwrites generated assets. Re-initialization installs the current entry point and removes obsolete prompt-owned Ship guides, traits and rules. Bob 2 receives its native relay skill, read-only worker preset and `camel-ship-mode`; Copilot CLI and Claude Code receive their native relay skill and read-only worker agent; other agents retain their current delegates. Pre-controller Ship state in `.camel-kit/ship-state.json` or a non-manual `.camel-kit/pipeline.json` is deliberately not imported. Inspect it if needed, then archive it outside the project before starting a controller run; its presence makes Ship fail closed. Preserve a manual-mode `.camel-kit/pipeline.json`, because standalone pipeline skills and validated `--start-from` imports still use its active pipeline ID.
 
 GitHub Copilot CLI now uses its native `.github/skills/` surface exclusively. Older generated `.github/commands/` files are ignored by current Copilot CLI; after preserving any local edits, they may be removed. Re-initialization records `agent.folder=.github/skills`.
 
