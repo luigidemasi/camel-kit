@@ -326,6 +326,28 @@ class ShipNativeWorkerTest {
         }
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.EnumSource(ShipNativeWorker.NativeOutcome.class)
+    void rejectsUnsafeHostVersionsWithoutAcceptingTheReceipt(ShipNativeWorker.NativeOutcome outcome) throws Exception {
+        ShipRun run = start(Oversight.NEVER);
+        ShipNativeWorker.Task task = controller.pendingTask(run);
+        Path input = receipt(task);
+        ObjectNode envelope = (ObjectNode) JSON.readTree(Files.readString(input));
+        envelope.put("outcome", outcome.name());
+        if (outcome != ShipNativeWorker.NativeOutcome.SUCCEEDED) {
+            envelope.putNull("response");
+            envelope.put("failure", "Native child did not complete");
+        }
+        for (String version : List.of("", " ", "x".repeat(1025), "1\n2", "1\r2", "1\0", "1\u001b[31m", "1\u202e2")) {
+            envelope.put("hostVersion", version);
+            Files.writeString(input, JSON.writeValueAsString(envelope));
+
+            assertThrows(IOException.class, () -> coordinator.submit(run.id(), input));
+            assertEquals(run, controller.status(run.id()));
+            assertFalse(Files.exists(evidence(task).resolve("native-result.json")));
+        }
+    }
+
     @Test
     void controllerWritesOnlyApprovedFilesAndConstructsHashes() throws Exception {
         Path candidate = Files.createDirectory(directory.resolve("candidate"));

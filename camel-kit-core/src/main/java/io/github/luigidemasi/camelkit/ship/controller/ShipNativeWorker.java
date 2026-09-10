@@ -70,10 +70,6 @@ public final class ShipNativeWorker implements ShipStageWorker {
     private final Clock clock;
     private final ShipRun.ExecutionMode executionMode;
 
-    ShipNativeWorker(ShipController controller, Duration timeout, Map<String, String> environment, Clock clock) {
-        this(controller, timeout, environment, clock, ShipRun.ExecutionMode.BOB2_NATIVE);
-    }
-
     ShipNativeWorker(ShipController controller, Duration timeout, Map<String, String> environment, Clock clock,
                      ShipRun.ExecutionMode executionMode) {
         if (!Objects.requireNonNull(executionMode).isNative()) {
@@ -274,12 +270,9 @@ public final class ShipNativeWorker implements ShipStageWorker {
     }
 
     private List<ToolVersion> diagnostics(String version) {
-        return diagnostics(executionMode == ShipRun.ExecutionMode.COPILOT_NATIVE ? "copilot" : "bob2", version);
-    }
-
-    private static List<ToolVersion> diagnostics(String host, String version) {
         return List.of(new ToolVersion(
-                host, null, version, Support.UNTESTED,
+                executionMode == ShipRun.ExecutionMode.COPILOT_NATIVE ? "copilot" : "bob2",
+                null, version, Support.UNTESTED,
                 "Native host metadata is reported by the caller; exact host-version certification is not claimed"));
     }
 
@@ -472,7 +465,6 @@ public final class ShipNativeWorker implements ShipStageWorker {
             Response response, String failure) {
         Receipt {
             requireIdentityFields(schemaVersion, taskId, runId, stage, attempt, inputDigest);
-            diagnostics("native", hostVersion);
             if (outcome == null
                     || (outcome == NativeOutcome.SUCCEEDED
                             ? response == null || failure != null
