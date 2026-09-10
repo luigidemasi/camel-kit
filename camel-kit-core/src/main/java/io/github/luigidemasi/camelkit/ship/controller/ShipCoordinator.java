@@ -127,12 +127,6 @@ public final class ShipCoordinator {
     }
 
     /** Runs authoritative stages until an oversight gate or terminal outcome is reached. */
-    public static ShipCoordinator bob2(
-            Path stateRoot, Path localMavenRepository,
-            DistributionConfig distribution, Duration timeout) {
-        return nativeHost(stateRoot, localMavenRepository, distribution, timeout, ShipRun.ExecutionMode.BOB2_NATIVE);
-    }
-
     public static ShipCoordinator nativeHost(
             Path stateRoot, Path localMavenRepository, DistributionConfig distribution, Duration timeout,
             ShipRun.ExecutionMode mode) {

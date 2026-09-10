@@ -709,13 +709,13 @@ class ShipCommandTest {
         Path project = Files.createDirectory(tempDir.resolve("project"));
         ShipController controller = controller("state");
         ShipCommand.WorkflowLauncher unsupported = settings -> {
-            throw new IllegalStateException("The first Pi Ship worker supports Linux only");
+            throw new IllegalStateException("Ship currently supports Linux only");
         };
 
         RunResult result = run(controller, unsupported, "--project-dir", project.toString());
 
         assertEquals(1, result.exitCode());
-        assertEquals("Error [runtime-unsupported]: The first Pi Ship worker supports Linux only"
+        assertEquals("Error [runtime-unsupported]: Ship currently supports Linux only"
                      + System.lineSeparator(),
                 result.error());
     }

@@ -15,6 +15,7 @@ import io.github.luigidemasi.camelkit.jbang.CamelKitPlugin;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import picocli.CommandLine;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -58,7 +59,7 @@ class CamelKitCommandParityTest {
     }
 
     @ParameterizedTest
-    @org.junit.jupiter.params.provider.CsvSource({"false,bob2", "true,bob2", "false,copilot", "true,copilot"})
+    @CsvSource({"false,bob2", "true,bob2", "false,copilot", "true,copilot"})
     void nativeInitAndRegenerationDetectThePrefixInSeparateProcesses(boolean plugin, String agent) throws Exception {
         Path workspace = tempDir.resolve("workspace");
         String expectedPrefix = plugin ? "camel kit" : "camel-kit";

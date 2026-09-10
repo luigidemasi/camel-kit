@@ -1776,7 +1776,7 @@ public final class PiWorker {
     private static void requireLinux() {
         String os = System.getProperty("os.name", "");
         if (!os.toLowerCase(Locale.ROOT).contains("linux")) {
-            throw new IllegalStateException("The first Pi Ship worker supports Linux only");
+            throw new IllegalStateException("Ship currently supports Linux only");
         }
     }
 
