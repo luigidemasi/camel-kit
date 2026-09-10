@@ -410,6 +410,20 @@ class ShipRunTest {
         return List.copyOf(stages);
     }
 
+    /**
+     * The host label is hashed into the native proposal-transport digest namespace and names the stamp tool, so a
+     * rename would silently break recovery of existing runs. Pin every label rather than deriving the expectation.
+     */
+    @Test
+    void pinsExecutionModeHostLabelsBecauseTheyArePersisted() {
+        assertEquals("pi", ShipRun.ExecutionMode.PI.host());
+        assertEquals("bob2", ShipRun.ExecutionMode.BOB2_NATIVE.host());
+        assertEquals("copilot", ShipRun.ExecutionMode.COPILOT_NATIVE.host());
+        assertEquals("claude", ShipRun.ExecutionMode.CLAUDE_NATIVE.host());
+        assertEquals(4, ShipRun.ExecutionMode.values().length,
+                "A new execution mode must pin its host label here before it can persist runs");
+    }
+
     private static List<ShipRun.StageRecord> replace(
             List<ShipRun.StageRecord> stages, ShipRun.Stage stage, ShipRun.StageRecord record) {
         List<ShipRun.StageRecord> changed = new ArrayList<>(stages);

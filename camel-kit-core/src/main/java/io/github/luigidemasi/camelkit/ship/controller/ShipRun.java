@@ -254,7 +254,15 @@ public record ShipRun(
             this.host = host;
         }
 
-        /** Host label used in worker diagnostics and the native proposal-transport digest namespace. */
+        /**
+         * Host label used in worker diagnostics and the native proposal-transport digest namespace.
+         *
+         * <p>
+         * These values are part of the persisted contract, not display text: the label is hashed into every native
+         * stage input digest, so renaming one makes existing runs of that host unrecoverable. {@code ShipRunTest} pins
+         * them for that reason.
+         * </p>
+         */
         public String host() {
             return host;
         }
