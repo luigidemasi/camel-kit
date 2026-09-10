@@ -62,7 +62,8 @@ public final class ShipCommand implements Callable<Integer> {
     Path projectDirectory;
 
     @Option(names = "--backend", converter = ExecutionModeConverter.class,
-            description = "Execution backend for a new run: pi (default), bob2-native or copilot-native")
+            description = "Execution backend for a new run: pi (default), bob2-native, copilot-native"
+                          + " or claude-native")
     ShipRun.ExecutionMode executionMode;
 
     @Option(names = "--json", description = "Return structured run state and any pending native task")
@@ -530,7 +531,9 @@ public final class ShipCommand implements Callable<Integer> {
                 case "pi" -> ShipRun.ExecutionMode.PI;
                 case "bob2-native" -> ShipRun.ExecutionMode.BOB2_NATIVE;
                 case "copilot-native" -> ShipRun.ExecutionMode.COPILOT_NATIVE;
-                default -> throw new TypeConversionException("expected pi, bob2-native or copilot-native");
+                case "claude-native" -> ShipRun.ExecutionMode.CLAUDE_NATIVE;
+                default -> throw new TypeConversionException(
+                        "expected pi, bob2-native, copilot-native or claude-native");
             };
         }
     }

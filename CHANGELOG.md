@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Claude Code native Ship (#222)** — eligible sessions relay controller-issued stages through the dedicated
+  read-only `camel-ship-worker` project subagent via the `Agent` tool. `--backend claude-native` reuses the native
+  task/result, recovery, oversight and deterministic publication contract while preserving Claude Code permissions,
+  hooks and existing roles. Fresh and regenerated standalone/plugin workspaces receive the native skill and worker;
+  runs retain their recorded host.
+
 - **GitHub Copilot CLI native Ship (#226)** — eligible sessions relay controller-issued stages through the dedicated
   read-only `camel-ship-worker` custom agent. `--backend copilot-native` reuses the native task/result, recovery,
   oversight and deterministic publication contract while preserving Copilot permissions, hooks and existing roles.

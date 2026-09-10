@@ -680,8 +680,7 @@ public final class ShipCoordinator {
             throws IOException {
         String baseDigest = stage.inputDigest();
         if (worker.mode().isNative()) {
-            String transport = worker.mode() == ShipRun.ExecutionMode.COPILOT_NATIVE
-                    ? "copilot-native-proposals:v1" : "bob2-native-proposals:v1";
+            String transport = worker.mode().host() + "-native-proposals:v1";
             baseDigest = ShipDigest.sha256((baseDigest + "\n" + transport)
                     .getBytes(StandardCharsets.UTF_8));
         }

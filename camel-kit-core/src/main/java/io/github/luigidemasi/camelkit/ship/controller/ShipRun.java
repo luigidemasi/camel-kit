@@ -243,9 +243,21 @@ public record ShipRun(
     }
 
     public enum ExecutionMode {
-        PI,
-        BOB2_NATIVE,
-        COPILOT_NATIVE;
+        PI("pi"),
+        BOB2_NATIVE("bob2"),
+        COPILOT_NATIVE("copilot"),
+        CLAUDE_NATIVE("claude");
+
+        private final String host;
+
+        ExecutionMode(String host) {
+            this.host = host;
+        }
+
+        /** Host label used in worker diagnostics and the native proposal-transport digest namespace. */
+        public String host() {
+            return host;
+        }
 
         public boolean isNative() {
             return this != PI;

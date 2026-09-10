@@ -16,6 +16,7 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -538,8 +539,9 @@ final class ShipMainValidator {
 
     private static List<ToolVersion> toolVersions(List<ToolVersion> workerTools, ArtifactPolicy policy) {
         List<String> names = workerTools.stream().map(ToolVersion::tool).toList();
-        if (!names.equals(List.of("pi", "node")) && !names.equals(List.of("bob2"))
-                && !names.equals(List.of("copilot"))) {
+        boolean nativeHost = names.size() == 1 && Arrays.stream(ShipRun.ExecutionMode.values())
+                .anyMatch(mode -> mode.isNative() && mode.host().equals(names.get(0)));
+        if (!names.equals(List.of("pi", "node")) && !nativeHost) {
             throw new IllegalArgumentException("Ship worker diagnostics must identify its execution backend");
         }
         List<ToolVersion> result = new ArrayList<>(workerTools);

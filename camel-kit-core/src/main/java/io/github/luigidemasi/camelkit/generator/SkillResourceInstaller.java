@@ -26,6 +26,12 @@ class SkillResourceInstaller {
             "oversight-matrix.md",
             "state-management.md");
 
+    /** Agents whose generated Ship entry point relays controller tasks to a read-only native subagent. */
+    static final Set<String> NATIVE_SHIP_AGENTS = Set.of(
+            AgentGeneratorStrategy.BOB2.descriptorValue(),
+            AgentGeneratorStrategy.COPILOT.descriptorValue(),
+            AgentGeneratorStrategy.CLAUDE.descriptorValue());
+
     private static final Set<String> MODEL_HIDDEN_INTERNAL_SKILLS = Set.of(
             "camel-design",
             "camel-implement",
@@ -139,8 +145,7 @@ class SkillResourceInstaller {
         if (destination.getFileName().toString().equals("SKILL.md")) {
             String skillName = destination.getParent().getFileName().toString();
             boolean shipDelegate = "camel-ship".equals(skillName);
-            if (shipDelegate && (AgentGeneratorStrategy.BOB2.descriptorValue().equals(ctx.agentName())
-                    || AgentGeneratorStrategy.COPILOT.descriptorValue().equals(ctx.agentName()))) {
+            if (shipDelegate && NATIVE_SHIP_AGENTS.contains(ctx.agentName())) {
                 try (InputStream nativeSkill = getClass()
                         .getResourceAsStream("/templates/" + ctx.agentName() + "/camel-ship.md")) {
                     if (nativeSkill == null) {

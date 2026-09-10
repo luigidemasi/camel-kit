@@ -73,6 +73,8 @@ Claude's `Agent` tool dispatches subagents with isolated context windows. Each s
 |------|---------|
 | `templates/claude/claude-md.md` | `CLAUDE.md` -- project rules (iron laws, Camel version, command prefix, MCP setup) |
 | `templates/claude/settings.json` | Claude Code project settings |
+| `templates/claude/camel-ship.md` | `.claude/skills/camel-ship/SKILL.md` -- native Ship relay skill (replaces the CLI delegate) |
+| `templates/claude/agents/camel-ship-worker.md` | `.claude/agents/camel-ship-worker.md` -- read-only Ship stage worker subagent (`tools: Read, Grep, Glob`) |
 
 ### How It Works
 
@@ -87,7 +89,7 @@ User: /camel-execute
 
 ### Tool Restriction Model
 
-Claude has no formal permission system. It relies on skill instructions to constrain agent behavior -- skills say "do NOT generate code" during brainstorm, and the agent follows these instructions. The trade-off: simpler configuration, but no hard enforcement at the platform level.
+Claude Code enforces permission rules and per-subagent `tools` allowlists at the harness level; the Ship worker subagent relies on that allowlist for its read-only boundary. Pipeline skills otherwise rely on instructions to constrain agent behavior -- skills say "do NOT generate code" during brainstorm, and the agent follows these instructions. Read access inside a subagent still follows the parent's working directory and permission rules; a fresh context is not filesystem isolation.
 
 ### Unique Capabilities
 
