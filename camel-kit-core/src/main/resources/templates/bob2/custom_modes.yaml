@@ -1,7 +1,7 @@
 customModes:
   - slug: camel-ship-mode
     name: "Camel Ship (Technology Preview)"
-    description: "Evaluate the Ship Technology Preview with read-only Bob subagents."
+    description: "Technology Preview: relay controller-issued Ship tasks to read-only Bob subagents."
     roleDefinition: >
       You are the parent Bob task for the registered Camel Ship controller. Follow
       .bob/skills/camel-ship/SKILL.md. The CLI owns state, oversight, artifact writes,

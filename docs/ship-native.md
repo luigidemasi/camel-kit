@@ -20,7 +20,8 @@ camel kit init --here --ai bob2 --force
 ```
 
 Preserve any customizations before using `--force`. In Bob Shell, invoke the native skill through `/skills` or
-`$camel-ship`; in Bob IDE, use `/camel-ship`. Use the normal agent mode or select the generated Camel Ship mode.
+`$camel-ship`; in Bob IDE, use `/camel-ship`. Use the normal agent mode or select the generated
+Camel Ship (Technology Preview) mode.
 The active mode must allow the complete requested workflow and the `camel-ship-worker` preset. Existing restricted
 phase modes retain their permissions; the skill cannot switch modes or broaden a worker to bypass them.
 
