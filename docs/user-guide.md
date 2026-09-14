@@ -130,6 +130,8 @@ The verification loop treats code, dependencies, and the execution environment a
 - **Docker** (conditional) -- required for full Citrus/Testcontainers verification; without it, the test-verification phase is skipped and reported
 - **AI coding assistant** -- one of the supported agents (see [Multi-Agent Support](#9-multi-agent-support))
 
+**Technology Preview:** Camel Ship is still being stabilized. Its behavior and interfaces may change, and it is not recommended for production use. For the established staged workflow, start with `/camel-start`.
+
 The standalone `/camel-ship` workflow additionally requires Linux. Its default backend needs Pi and Node; eligible Bob 2, Copilot CLI and Claude Code sessions can use their own native children. See [Bob native Ship](ship-native.md), [Copilot native Ship](ship-copilot.md) and [Claude Code native Ship](ship-claude.md). Its current deterministic evidence path accepts Camel Main projects with Camel YAML DSL route artifacts; Spring Boot and Quarkus Ship projects are not yet supported.
 
 ### Initializing a Project

@@ -1,5 +1,7 @@
 # Claude Code native Ship
 
+**Technology Preview:** Camel Ship is still being stabilized. Its behavior and interfaces may change, and it is not recommended for production use. For the established staged workflow, start with `/camel-start`. See the [Ship command reference](commands.md#camel-ship) for the preview scope.
+
 This development integration implements [#222](https://github.com/luigidemasi/camel-kit/issues/222) using the shared
 [native controller handoff](ship-native.md#controller-handoff). A development build is required.
 

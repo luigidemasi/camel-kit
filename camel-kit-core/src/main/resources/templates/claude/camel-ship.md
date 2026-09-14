@@ -1,11 +1,13 @@
 ---
 name: camel-ship
-description: Run Camel Ship through Claude Code native subagents when the active session permits it.
+description: Run the Camel Ship Technology Preview through Claude Code native subagents when the active session permits it.
 argument-hint: "[ship-options]"
 user-invocable: true
 ---
 
 # Camel Ship
+
+**Technology Preview:** Ship is still being stabilized, may change, and is not recommended for production use.
 
 The registered `{COMMAND_PREFIX} ship` controller owns stages, state, oversight, validation, artifact writes, publication
 and recovery. The parent Claude Code session only relays controller-issued work to a fresh native subagent and returns

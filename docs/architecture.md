@@ -78,7 +78,7 @@ retains the same CLI delegation contract. See [Bob setup](user-guide.md#bob-shel
 | `camel-execute` | No | `camel-plan` (auto-invoked after planning) | Environment probe, adversarial pre-filter, then ordered spec and quality review per task |
 | `camel-migrate` | No | `camel-start` (migration) | Vendor-aware risk, retirement, and safe-seam analysis plus design; hands an approved design to `camel-plan` |
 | `camel-verify` | No | `camel-execute` (internal role: subagent where supported, inline otherwise) | 3-phase runtime verification loop (build, Citrus tests, report) — runs inside execute, not as a standalone pipeline stage |
-| `camel-ship` | No | -- (standalone CLI delegate) | Forwards to the configured local Ship command; the controller owns stages, run state, and oversight |
+| `camel-ship` | No | -- (standalone CLI delegate) | **Technology Preview.** Forwards to the configured local Ship command; the controller owns stages, run state, and oversight |
 | `camel-design` | No | `camel-brainstorm` | Guides for component selection, EIP catalog, and flow design assembly |
 | `camel-implement` | No | `camel-execute` | Guides for YAML generation, properties, Docker Compose, DataMapper |
 | `camel-validate` | No | `camel-execute` or direct invocation | Tier 1 quality gate: schema validation, endpoint verification, security analysis |
@@ -784,6 +784,8 @@ no later pipeline stage consumes it.
 ### Pipeline State
 
 `.camel-kit/pipeline.json` tracks the active manual pipeline. Skills resolve `activePipeline` to find the working directory, and stage is detected by artifact presence (spec-kit pattern). It is not Ship run state.
+
+**Camel Ship is a Technology Preview:** it is still being stabilized, may change, and is not recommended for production use. This status applies to every backend.
 
 Ship harness entry points delegate to the configured `camel-kit ship` or `camel kit ship` command. The local controller is the sole writer of Ship state and transitions. Eligible Bob 2, Copilot CLI and Claude Code sessions relay controller-issued tasks to read-only native children; the controller accepts bounded proposals, writes its private candidate, and validates before publication. Each run persists its execution mode, and resume cannot change hosts. Copilot uses a synchronous `task` with the dedicated `.github/agents/camel-ship-worker.agent.md` profile; Claude Code uses the `Agent` tool with the dedicated `.claude/agents/camel-ship-worker.md` subagent, whose `tools` allowlist is enforced by the harness. Both inherit parent path permissions; a fresh context is not filesystem isolation. See [Copilot native Ship](ship-copilot.md) and [Claude Code native Ship](ship-claude.md). Its run records, retained evidence and staged workspace live under the project's reserved `.camel-kit/ship/state/` directory, or under `CAMEL_KIT_SHIP_STATE_HOME` when configured. The Ship tree policy denies `.camel-kit/ship/`, so the controller's own files never enter project snapshots, the staged workspace or publication, and the state directory ignores itself for git. Project-visible files outside that subtree are workflow artifacts, not the transition authority.
 

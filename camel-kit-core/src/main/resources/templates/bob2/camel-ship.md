@@ -1,10 +1,12 @@
 ---
 name: camel-ship
-description: Run Camel Ship through Bob native subagents when the active host and mode permit it.
+description: Run the Camel Ship Technology Preview through Bob native subagents when the active host and mode permit it.
 user_invocable: true
 ---
 
 # Camel Ship
+
+**Technology Preview:** Ship is still being stabilized, may change, and is not recommended for production use.
 
 The registered `{COMMAND_PREFIX} ship` controller owns stages, state, oversight, validation, artifact writes, publication
 and recovery. The parent Bob task only relays controller-issued work to a fresh native child and returns its result.

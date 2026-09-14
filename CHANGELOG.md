@@ -301,6 +301,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Camel Ship is a Technology Preview** — all backends are still being stabilized, may change, and are not recommended for production use. CLI help and text summaries, generated skills, and documentation now show this status. The staged `/camel-start` workflow remains the recommended path. Runtime compatibility tiers and `--accept-experimental` keep their existing meaning; Ship validation and publication gates are unchanged.
+
 - **Quarkus platform 3.33.3.2** — update the default platform BOM and its Camel version to 4.18.3,
   matching the published BOM's Camel Quarkus 3.33.2 dependencies. Update the supported-version mapping,
   installed guidance, documentation, and companion Forage stream to 1.4.0.

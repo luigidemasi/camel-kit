@@ -1,10 +1,12 @@
 ---
 name: camel-ship
-description: Run Camel Ship through GitHub Copilot CLI native subagents when the active session permits it.
+description: Run the Camel Ship Technology Preview through GitHub Copilot CLI native subagents when the active session permits it.
 user-invocable: true
 ---
 
 # Camel Ship
+
+**Technology Preview:** Ship is still being stabilized, may change, and is not recommended for production use.
 
 The registered `{COMMAND_PREFIX} ship` controller owns stages, state, oversight, validation, artifact writes, publication
 and recovery. The parent Copilot CLI session only relays controller-issued work to a fresh native child and returns its
