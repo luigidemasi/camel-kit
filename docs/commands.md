@@ -912,6 +912,10 @@ Validation is static and report-only: it does not modify routes or fix the findi
 
 ### /camel-ship
 
+**Technology Preview:** Camel Ship is still being stabilized. Its behavior and interfaces may change, and it is not recommended for production use. For the established staged workflow, start with `/camel-start`.
+
+The preview status applies to every Ship backend. `--accept-experimental` only permits unverified Pi/Node versions; it does not enable Ship or change its preview status. Tested runtime compatibility and passing validation checks do not imply production readiness.
+
 **Purpose:** Start or control the local Ship workflow through the configured Camel-Kit CLI. Harness skills delegate stage decisions and state to the CLI. Eligible Bob 2, Copilot CLI and Claude Code sessions relay pending work to native subagents; other execution models retain the single CLI invocation. See [Bob native Ship](ship-native.md), [Copilot native Ship](ship-copilot.md) and [Claude Code native Ship](ship-claude.md).
 
 The registered command is `camel-kit ship` when Camel-Kit is installed standalone and `camel kit ship` when it is installed as a Camel JBang plugin. Harness-native forms such as `/camel-ship`, `$camel-ship`, and `/skill:camel-ship` invoke that configured command prefix. Pi uses `/skill:camel-ship`; Camel-Kit intentionally does not generate a Pi `/camel-ship` prompt because that prompt surface flattens quoted option values.

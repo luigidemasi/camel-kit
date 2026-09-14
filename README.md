@@ -28,7 +28,7 @@ Greenfield:   /camel-brainstorm → /camel-plan → /camel-execute → /camel-va
 
 Migration:    /camel-migrate    → /camel-plan → /camel-execute → /camel-validate
 
-Utilities:    /camel-ship          (delegate to the local Ship controller)
+Utilities:    /camel-ship          (Technology Preview — delegate to the local Ship controller)
               /camel-knowledge     (documentation Q&A)
               /camel-debug         (standalone troubleshooting)
 ```
@@ -42,7 +42,7 @@ Utilities:    /camel-ship          (delegate to the local Ship controller)
 | `/camel-execute` | Orchestrated execution — probes the environment, implements tasks in dependency waves, runs adversarial/spec/quality reviews, and performs applicable smoke and runtime verification |
 | `/camel-validate` | Final static quality gate or standalone project check — covers schema, endpoints, quality, security, anti-patterns, and constitution compliance without modifying routes |
 | `/camel-debug` | Standalone troubleshooting outside a pipeline for broken routes, build failures, startup errors, and runtime exceptions |
-| `/camel-ship` | Thin harness entry point for the local Ship controller, which owns the end-to-end run and configurable oversight (`always`, `smart`, `never`) |
+| `/camel-ship` | **Technology Preview.** Thin harness entry point for the local Ship controller, which owns the end-to-end run and configurable oversight (`always`, `smart`, `never`) |
 | `/camel-knowledge` | Documentation Q&A — semantic search over Apache Camel docs, CVE advisories, release notes, and component catalog |
 
 [Command Reference →](docs/commands.md)
@@ -62,6 +62,8 @@ Utilities:    /camel-ship          (delegate to the local Ship controller)
 | [Docker](https://docs.docker.com/get-docker/) | Conditional: external-service probes and full Citrus/Testcontainers verification | Install Docker Engine or Docker Desktop |
 
 Camel JBang and its test plugin are needed for the complete execution and verification loops. Docker-dependent checks are reported as skipped when Docker is unavailable; design, planning, and checks that do not need containers still work.
+
+**Technology Preview:** Camel Ship is still being stabilized. Its behavior and interfaces may change, and it is not recommended for production use. For the established staged workflow, start with `/camel-start`.
 
 The optional Ship controller requires Linux and supports Camel Main projects with YAML DSL routes. Its default backend requires Pi and Node. Bob 2, GitHub Copilot CLI and Claude Code can use their own read-only native subagents through the generated Ship skill; the controller writes their proposals and validates the result. See [Bob native Ship](docs/ship-native.md), [Copilot native Ship](docs/ship-copilot.md) and [Claude Code native Ship](docs/ship-claude.md). The maintained versions are Pi `0.84.2` or `0.83.0` with Node `22.22.2`; unverified versions run only with `--accept-experimental`, while explicitly incompatible versions remain rejected. See [`camel-ship`](docs/commands.md#camel-ship) for the complete contract.
 
@@ -207,7 +209,7 @@ See [Antigravity setup and migration from Gemini or Bob v1](docs/antigravity.md)
 ### Pipeline
 
 - **4-step orchestrated pipeline** — brainstorm or migrate, plan, execute, then validate. Execute performs the environment probe, dependency-wave implementation, adversarial/spec/quality reviews, and applicable smoke and internal runtime verification before the final static validation gate. [Learn more →](docs/user-guide.md)
-- **Local Ship controller** — `/camel-ship` delegates to the configured `camel-kit ship` or `camel kit ship` command. The controller, rather than the AI harness, owns run state, stage transitions, validation evidence, and guarded publication, with `always`, `smart`, and `never` oversight. [Learn more →](docs/commands.md#camel-ship)
+- **Local Ship controller (Technology Preview)** — `/camel-ship` delegates to the configured `camel-kit ship` or `camel kit ship` command. The controller, rather than the AI harness, owns run state, stage transitions, validation evidence, and guarded publication, with `always`, `smart`, and `never` oversight. [Learn more →](docs/commands.md#camel-ship)
 - **Environment probe** — validates the target environment (dependency resolution, Docker services, runtime startup) before implementation begins. Mechanical failures are auto-fixed; architectural failures trigger re-planning. [Learn more →](docs/architecture.md)
 - **Wave analysis** — the plan analyzer uses structured task metadata, logical dependencies, and file overlap to group independent tasks into parallel execution waves.
 - **Deterministic staleness detection** — `doc check`, `doc stale`, and `doc unstale` CLI commands manage pipeline artifact validity via structured YAML frontmatter, with `--cascade` for automatic downstream propagation. [Learn more →](docs/commands.md)

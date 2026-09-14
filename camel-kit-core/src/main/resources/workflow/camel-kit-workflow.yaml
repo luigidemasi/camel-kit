@@ -62,7 +62,7 @@ commands:
     generated_stub: true
     user_facing: true
     tier: utility
-    description: "Delegate Ship workflow execution to the registered Camel-Kit CLI command."
+    description: "Delegate the Technology Preview Ship workflow to the registered Camel-Kit CLI command."
     standalone: true
     chained: false
     # Pi prompt-file argument expansion flattens quoted option values; Pi exposes Ship

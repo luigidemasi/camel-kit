@@ -1,5 +1,7 @@
 # Bob 2 native Ship
 
+**Technology Preview:** Camel Ship is still being stabilized. Its behavior and interfaces may change, and it is not recommended for production use. For the established staged workflow, start with `/camel-start`. See the [Ship command reference](commands.md#camel-ship) for the preview scope.
+
 Development status: authenticated acceptance on 2026-09-09 exercised Bob Shell 2.0.2 on Linux through the registered
 Ship skill: four native stages, oversight pauses and explicit resume, deterministic validation and publication.
 Interruption, timeout recovery, abort, repeated submissions and rejection of stale/conflicting results were also checked.

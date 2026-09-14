@@ -990,12 +990,14 @@ class ShipCommandTest {
     }
 
     @Test
-    void advertisesTheStageTimeoutDefaultInHelp() throws Exception {
+    void advertisesTechnologyPreviewAndStageTimeoutDefaultInHelp() throws Exception {
         ShipController controller = controller("state");
 
         RunResult help = run(controller, RecordingLauncher.passThrough(controller), "--help");
 
         assertEquals(0, help.exitCode(), help.error());
+        assertTrue(help.output().contains("Technology Preview"), help.output());
+        assertTrue(help.output().replaceAll("\\s+", " ").contains("not recommended for production use"), help.output());
         assertTrue(help.output().contains("(default: " + ShipRuntime.DEFAULT_STAGE_TIMEOUT.toMinutes() + "m)"),
                 help.output());
     }
@@ -1336,6 +1338,8 @@ class ShipCommandTest {
         List<String> lines = new ArrayList<>(
                 List.of(
                         "Run: " + id,
+                        "Feature status: Technology Preview — still being stabilized; "
+                                      + "may change; not recommended for production use.",
                         "Status: " + status,
                         "Stage: " + stage,
                         "Oversight: " + oversight));

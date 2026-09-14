@@ -36,7 +36,8 @@ import picocli.CommandLine.TypeConversionException;
 @Command(
          name = "ship",
          mixinStandardHelpOptions = true,
-         description = "Start, inspect, resume, or abort a local Camel Ship run")
+         description = "Technology Preview: start, inspect, resume, or abort a local Camel Ship run",
+         footer = "Camel Ship is still being stabilized, may change, and is not recommended for production use.")
 public final class ShipCommand implements Callable<Integer> {
 
     private ShipController controller;
@@ -325,6 +326,8 @@ public final class ShipCommand implements Callable<Integer> {
     private void printSummary(ShipRun run) {
         PrintWriter writer = spec.commandLine().getOut();
         writer.println("Run: " + run.id());
+        writer.println("Feature status: Technology Preview — still being stabilized; "
+                       + "may change; not recommended for production use.");
         writer.println("Status: " + run.status());
         writer.println("Stage: " + run.currentStage());
         writer.println("Oversight: " + run.oversight());
