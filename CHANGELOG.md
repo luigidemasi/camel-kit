@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Changes since 0.3.1 for the upcoming 0.4.0 release.
+
 ### Added
 
 - **Claude Code native Ship (#222)** — eligible sessions relay controller-issued stages through the dedicated
@@ -93,22 +95,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Internal Copilot guide skills are marked so Copilot does not directly or automatically invoke them
   - README, command reference, user guide, architecture docs, agent architecture guide, and changelog document the Copilot target and skill-based invocation model
 
-- **Citrus MCP integration for test generation** — generated agent MCP configs now include the published Citrus MCP server (`org.citrusframework:citrus-mcp-server:5.0.0-M1`) so `camel-test` can verify Citrus YAML actions, endpoints, and schemas during test generation.
+- **Citrus MCP integration for test generation** — generated agent MCP configs now include the published Citrus MCP server (`org.citrusframework:citrus-mcp-server:5.0.1`) so `camel-test` can verify Citrus YAML actions, endpoints, and schemas during test generation.
   - Added Citrus distribution properties (`citrus.version`, `citrus.mcp.version`, `citrus.mcp.repos`)
-  - `--citrus-version default` now resolves to `5.0.0-M2`
+  - `--citrus-version default` now resolves to `5.0.1`
   - Generated project config records `citrus.version`
   - Citrus MCP is preferred over cached quick references, with same-version cache fallback only
 
-- **IBM Bob 2 AI target (`--ai bob2`)** — added a new Bob 2 target while preserving `--ai bob` as the IBM Bob 1 legacy path.
+- **IBM Bob 2 AI target (`--ai bob2`)** — added native Bob 2 project assets and subagent orchestration.
   - New `bob2` agent registry descriptor, generator strategy, and `Bob2Generator`
   - Bob 2 workspaces still generate under `.bob/` with `.bob/commands`, `.bob/skills`, capability-scoped `.bob/agents`, role text under `.bob/personas`, `.bob/custom_modes.yaml`, and `.bob/mcp.json`
   - Bob 2 custom modes use the current Bob 2 tool groups (`read`, `edit`, `execute`, `mcp`, `skill`, `todo`, `artifact`, `subagent`, `mode`) with `allowedSubagents`
   - New Bob 2 rules, dispatch template, and traits for native `spawn_subagent` orchestration with factual-discovery `explore`, generated `camel-worker` and read/MCP-only `camel-reviewer` presets, and `fork_context`
   - Bob 2 command stubs include markdown frontmatter from workflow metadata, including `description` and argument hints
-  - Bob 2 generated skills keep the shared `SKILL.md` content and append Bob 2 traits instead of replacing skills with Bob 1 monolithic gates
+  - Bob 2 generated skills keep the shared `SKILL.md` content and append Bob 2 traits
   - Bob 2 and Qwen skill copies include their runtime-readable `user-invocable` aliases while preserving source metadata
 
-- **Bob 2 coverage and regression tests** — added registry, factory, generator, command-frontmatter, skill-metadata, custom-mode, doctor, and CLI default tests for Bob 2, plus explicit guards that legacy Bob 1 output remains unchanged.
+- **Bob 2 coverage and regression tests** — added registry, factory, generator, command-frontmatter, skill-metadata, custom-mode, doctor, and CLI default tests for Bob 2.
 
 - **Project graph analysis (`camel-kit-graph` module)** — new module that builds an in-memory graph of an entire Camel project and exposes it through CLI commands
   - 9 parsers: `YamlRouteParser`, `XmlRouteParser`, `JavaGraphParser`, `GroovyGraphParser`, `ConfigParser`, `PomParser`, `MuleXmlFlowParser`, `DataWeaveParser`, `CrossLinker` (for direct/seda, component, and config cross-references)
@@ -117,7 +119,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `GraphBuilder` orchestrator with parallel parsing across all file types
   - `GraphVisualizer` — generates interactive HTML visualizations with 4 library options: Cytoscape, D3, vis-network, AntV G6
 
-- **Graph CLI commands** — 15 commands under `camel-kit graph`:
+- **Graph CLI commands** — commands under `camel-kit graph`:
   - Navigation: `find`, `neighbors`, `path`, `subgraph`
   - Camel-specific: `route-flow`, `route-topology`, `impact`, `dead-code`, `stats`
   - Composite (AI-facing): `project-context`, `project-norms`, `route-context`
@@ -128,7 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `camel-implement`: graph-project-context guide for consistent property naming, bean reuse, version alignment across routes
   - `camel-validate`: graph-project-context for project-aware validation; graph-dead-code-report for dead code detection; `PROJECT_NORMS` for dynamic quality thresholds
   - `camel-test`: graph-project-context for cross-route test awareness and endpoint classification
-  - `camel-migrate`: Step 0 graph detection fork; graph snapshot in Phase 1 BRD; per-route graph impact analysis in Phase 2 TDD generation
+  - `camel-migrate`: Step 0 graph detection fork; graph snapshot in Phase 1 analysis; per-route graph impact analysis in Phase 2 design-spec generation
   - Shared `graph-availability.md` primitive for graceful fallback when graph is unavailable
 
 - **MuleSoft graph parsers** — `MuleXmlFlowParser` (Mule 3.x/4.x XML) and `DataWeaveParser` (`.dwl` files) with dedicated node and edge types; `XmlRouteParser` skips Mule XML automatically
@@ -146,25 +148,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Deferred BTP component emission (handles FriendlyName appearing after Component elements)
   - Suspend Shape marked as not supported (BizTalk dehydration has no Camel equivalent)
 
-- **3-phase orchestrated pipeline** — replaced the linear `/camel-project` → `/camel-flow` → `/camel-implement` → `/camel-validate` → `/camel-test` workflow with a structured 3-phase pipeline:
-  - `/camel-brainstorm` — interactive design session producing a Blueprint Reference Document (BRD) with Technical Design Documents (TDDs)
-  - `/camel-plan` — reviews approved design, creates detailed implementation plan with task decomposition
-  - `/camel-execute` — orchestrated execution dispatching tasks to internal skills (implement → validate → test → verify) with two-stage review (spec compliance then code quality)
-  - `/camel-flow` remains as a single-flow shortcut (brainstorm + plan + execute in one command)
-  - `/camel-implement`, `/camel-validate`, `/camel-test` are now internal skills loaded by `/camel-execute`
+- **Four-stage orchestrated pipeline** — replaced the linear `/camel-project` → `/camel-flow` workflow with
+  Design → Plan → Execute → Validate:
+  - `/camel-brainstorm` produces `design-spec.md`; `/camel-migrate` is the alternate Design entry for migrations
+  - `/camel-plan` decomposes the approved design into an implementation plan
+  - `/camel-execute` dispatches implementation, testing, adversarial review, spec-compliance review, code-quality review,
+    and internal runtime verification; `/camel-validate` provides the final static validation stage
+  - Design approval authorizes downstream planning and execution; artifacts live under `docs/camel-kit/<PIPELINE_ID>/`
+  - `/camel-start` routes requests to the appropriate entry point; `/camel-flow` has been removed
 
 - **`camel-kit plan analyze` command** — parses implementation plan markdown files and computes parallel execution waves; outputs a JSON task graph showing which tasks can run concurrently
 
 - **`--source-platform` option for `camel-kit init`** — allows specifying the source platform during project initialization for migration workflows
 
-- **`/camel-verify` — runtime verification skill**
-  - 5-phase verification loop: environment preparation, build, startup, behavioral, report
-  - Camel-specific error classification taxonomy with 14 error patterns (4 build, 7 startup, 3 runtime)
-  - Fix routing: self-repair (pom.xml, properties, docker-compose), route to camel-validate, route to camel-implement, escalate to user
-  - Behavioral verification using `camel cmd send` for payload injection and semantic comparison
-  - Max 15 iteration attempts per phase
-  - Invocable manually or automatically at the end of `/camel-execute`
-  - Integration with all runtimes: Quarkus (`./mvnw quarkus:dev`), Spring Boot (`./mvnw spring-boot:run`), JBang (`camel run`)
+- **`camel-verify` — internal runtime verification** — `/camel-execute` dispatches a bounded build-or-smoke,
+  Citrus-test, and report loop for Camel Main/JBang, Spring Boot, and Quarkus projects. Failures are classified and
+  routed to the appropriate repair step, with up to 15 build/test repair attempts. The skill is an internal guide;
+  standalone quality checks use `/camel-validate`.
 
 - **Groovy DataMapper engine** — alternative to XSLT for simple data transformations
   - Engine selection: < 20 fields → Groovy; no schemas → Groovy; otherwise → XSLT
@@ -177,15 +177,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Single source of truth for Camel versions (main, Spring Boot, Quarkus), MCP server versions, and Maven repository URLs
   - Per-platform version defaults and supported version lists
   - Quarkus platform BOM version mapping
-  - Skill variant selection: skills like iron-laws, constitution, mcp-setup, version-selection, maven-deps, quality-checks, and camel-knowledge have community/redhat variants auto-selected by distribution
-  - `DefaultGenerator` selects variant files by distribution at init time
-  - `BobGenerator` passes distribution values to Qute templates
+  - Generated skills and agent templates receive distribution values through Qute placeholders
   - `InitCommand` and catalog classes read Maven repo URLs from `DistributionConfig`
 
 - **Multi-agent parity** — expanded the supported AI targets while preserving shared workflow and output contracts
   - Added Qwen (`--ai qwen`) and OpenCode (`--ai opencode`)
-  - Skills-based equalization layer: most targets consume shared skills; Bob 1 legacy installs self-contained monolithic gates with the same contracts
-  - Agent-specific generators: `ClaudeGenerator` (CLAUDE.md + parallel dispatch), `BobGenerator` (modes + monolithic gates), `GeminiGenerator` (@imports + policies + subagents), `QwenGenerator` (primary workflows + bounded leaves), `OpenCodeGenerator` (primary executor + permission-bounded leaves)
+  - Shared skills preserve workflow contracts across the supported targets
+  - Agent-specific generators apply each target's native instructions, permissions, and dispatch model
   - `AgentGenerator` interface with `AgentGeneratorFactory` routing
   - `QuteTemplateEngine` for agent-specific template rendering (replaced `String.replace()`)
   - `InitContext` carries distribution and agent info through the init pipeline
@@ -195,7 +193,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Iron laws** — 6 non-negotiable pipeline rules enforced across all skills
   1. MCP Catalog Verification — every component verified via MCP before use
-  2. Constitution Compliance — every route passes all 8 constitution rules
+  2. Constitution Compliance — every route follows the project constitution
   3. No Code Without Design Approval and an Existing Plan — one design approval authorizes plan and execution
   4. Spec Compliance Before Quality — ordered review in the correct sequence
   5. Adversarial Code Review — critic lanes run before spec and quality review
@@ -203,103 +201,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Migration support expanded** — `/camel-migrate` now handles Apache Camel 2.x/3.x and JBoss Fuse migrations in addition to MuleSoft Mule
 
-- **Mandatory MCP catalog lookups in `/camel-flow`**
-  - `camel_catalog_components` + `camel_catalog_component_doc` required before any component is suggested (Q2 source, Q4 sink); `CAMEL_VERSION` from `config.yaml` must be passed — training-data component names are forbidden
-  - `camel_catalog_dataformats` + `camel_catalog_dataformat_doc` required before any data format is chosen (Q1); verifies availability in `CAMEL_VERSION` and records Maven coordinates
-  - `camel_catalog_eips` + `camel_catalog_eip_doc` required before any EIP is suggested (Q3); catalog descriptions replace hardcoded examples
-  - `camel_catalog_languages` + `camel_catalog_language_doc` required before any expression language is chosen (Q3); prevents defaulting to `simple` without checking fit for the data format
-  - `.camel-kit/config.yaml` is now REQUIRED at skill start to extract `CAMEL_VERSION`; skill asks the user if the file is missing
-
-- **Mandatory MCP catalog lookups in `/camel-implement`**
-  - Rule 0: all component scheme names, endpoint option names, component-level option names, and Maven coordinates must come from `camel_catalog_component_doc` — never from training data
-  - Rule 0b: data format names and options must come from `camel_catalog_dataformat_doc`
-  - Rule 0c: expression language names and syntax must come from `camel_catalog_language_doc`
-  - Rule 0d: EIP names and options must come from `camel_catalog_eip_doc`
-  - Step 2 (Load Component Documentation) is now MANDATORY — hard stop if a component is not found in the catalog
-  - Step 4 (Route Validation) is a validate→fix→re-query→retry loop up to 3 attempts; fixes must re-query the catalog before editing the YAML; failure after 3 attempts stops generation and reports errors
-
-- **Mandatory MCP catalog lookups in `/camel-migrate-mule`** (Phase 2)
-  - Same rules as `/camel-flow` and `/camel-implement`: `camel_catalog_component_doc` before writing any Camel component to the TDD; `camel_catalog_eip_doc` for each EIP mapping; `camel_catalog_language_doc` for predicates/expressions; `camel_catalog_dataformat_doc` for data format choices
-  - `mule-component-mapping.md` is a starting-point only — catalog verification is always required
-
-- **`/camel-migrate` rewritten as a generic migration orchestrator (v2.0)**
-  - New step order: locate artifacts → scan ALL files → detect vendor from full scan content → build pre-populated analysis summary → confirm gaps with user → delegate to sub-skill
-  - Vendor detection now uses the complete picture from all scanned files (namespaces, groupIds, descriptor files, property key patterns, dependency names) rather than a single file
-  - Pre-populated analysis summary covers: vendor & version, business purpose, owning team, SLA/throughput, compliance/security, failure behaviour, deployment target — all extracted from artifacts without asking the user
-  - Only genuine gaps (fields not found in any artifact) are asked; API compatibility is the only field that cannot be inferred
-  - Defines a generic contract for all future vendor sub-skills: receive summary → do vendor-specific work → fill gaps only
-
-- **Run without installing** — `jbang run camel-kit@luigidemasi/camel-kit` runs camel-kit directly without a global install; local clone and local SNAPSHOT variants also documented in README
-
-- **`camel-kit init --silent`** — new flag that suppresses all output (no banner, no TUI, no progress messages, no summary); useful for scripted/CI environments where only the exit code matters; `Printer.noop()` added to the `Printer` interface as the no-op implementation
-
-- **Comprehensive Data Transformation & Field Mapping (Kaoto DataMapper)**
-  - Interactive schema-based field mapping in `/camel-flow`
-  - Support for both XML Schema (XSD) and JSON Schema
-  - Automatic field name matching and automapping proposals
-  - Nested field handling (e.g., `order.customer.name` → `customer.name`)
-  - Detailed field mapping tables in TDD with transformation types
-  - Parameter support for Camel Variables and Message Headers
-  - Conditional mappings: IF and CHOOSE-WHEN-OTHERWISE
-  - Collection processing with FOR-EACH and position tracking
-  - Comprehensive XPath function library (string, numeric, date/time, boolean)
-
-- **Automatic XSLT Generation**
-  - Generate Kaoto-compatible DataMapper XSLT from TDD field mappings
-  - File naming: `{flow-name}-datamapper-{random-8-char-id}.xsl`
-  - XSLT 2.0 for XML transformations, XSLT 3.0 for JSON
-  - Support for all transformation types: direct copy, nested flattening, date/time formatting, string concatenation, numeric calculations, conditional logic (IF, CHOOSE-WHEN-OTHERWISE), array iteration with position tracking, parameter usage from Camel context
-  - JSON transformation with `fn:json-to-xml()` and `fn:xml-to-json()`
-  - XML namespace preservation and handling
-  - Automatic integration in route YAML with xslt-saxon component
-  - Parameter passing from route to XSLT
-
-- **Apache Camel MCP Server Integration**
-  - Automatic project-specific MCP configuration during `camel-kit init`
-  - Agent-specific paths include Claude Code (`.mcp.json`), IBM Bob (`.bob/mcp.json`), Gemini CLI (`.gemini/settings.json`), Qwen (`.qwen/settings.json`), and OpenCode (`opencode.json`)
-  - 15 MCP tools available, 7 actively used across skills
-  - Real-time catalog queries: `camel_catalog_components`, `camel_catalog_component_doc`
-  - Route validation: `camel_validate_route`, `camel_route_context`
-  - Security analysis: `camel_route_harden_context` with 47 automated checks
-  - Version management: `camel_version_list`
-  - 60-70% token savings compared to loading full catalog
-
-- **Skills-based architecture with MCP integration**
-  - Converted 5 commands to skills standard with YAML frontmatter and metadata
-  - Commands now use kebab-case naming: `/camel-project`, `/camel-flow`, `/camel-implement`, `/camel-validate`, `/camel-test`
-  - `camel-start` is the auto-discovered entry point; generated commands expose public pipeline and utility skills while internal guides remain hidden
-  - On-demand guide loading for token optimization (60-70% token savings)
-  - Bundled component skills structure for offline use
-
-- **`/camel-migrate` skill — vendor migration workflow**
-  - Detects the source platform from a provided XML file, project directory, or ZIP archive
-  - Delegates to vendor-specific sub-skills; first implementation: MuleSoft Mule 3.x / 4.x
-  - Detection by XML namespace (`mulesoft.org`) and `pom.xml` groupId (`org.mule`, `com.mulesoft`)
-  - Unknown vendors report found signatures and link to GitHub issues
-
-- **`camel-migrate-mule` internal sub-skill (MuleSoft Mule → Apache Camel)**
-  - Phase 1 (Business Analyst): parses all Mule XML flows, resolves proprietary connectors, conducts a one-question-at-a-time business interview, produces `.camel-kit/business-requirements.md` and `.camel-kit/constitution.md`
-  - Phase 2 (Integration Architect): maps Mule components to Camel equivalents, converts DataWeave transformations into TDD field-mapping tables, produces one `.camel-kit/flows/{name}/{name}.tdd.md` per Mule flow — identical format to `/camel-flow` output
-  - `guides/mule-component-mapping.md`: reference table for 40+ Mule → Camel component mappings
-  - `guides/mule-dataweave-conversion.md`: DataWeave 1.0 / 2.0 conversion guide with 9 common patterns mapped to TDD Section 3 table format
-
-- **Split-screen TUI for `camel-kit init` (TamboUI integration)**
-  - Full-screen two-panel layout on terminals that support native image protocols (Kitty, iTerm2, Sixel): left panel shows the Camel-Kit logo; right panel shows live task progress with animated DOTS spinner and green tick on completion
-  - Auto-exits when all tasks complete; Ctrl+C as emergency exit
-  - Falls back gracefully to the existing banner + sequential output on terminals that do not support native image protocols
-  - New dependencies: `dev.tamboui:tamboui-core`, `tamboui-image`, `tamboui-tui`, `tamboui-widgets`, `tamboui-jline3-backend` at version `0.1.0`
-  - `LogoRenderer` utility, `TaskTracker` interface for TUI lifecycle events
-
-- **Jakarta EE namespace rule in `/camel-implement`**
-  - When Camel version >= 4.0, `jakarta.*` packages are used for all Jakarta EE APIs
-  - Java SE packages (`javax.sql.*`, `javax.xml.*`) are explicitly exempt
-  - Validation gate scans all generated files and replaces offending `javax.` references before saving
-
-- **`onException` ordering constraint in `/camel-implement`**
-  - Global `onException` (top-level `- onException:`) must be declared before all `- route:` blocks
-  - Route-scoped error handling (`errorHandler:`, `doTry`/`doCatch`) stays inside the route
-
 ### Changed
+
+- **GitHub Actions Node 24 migration (#234)** — update JavaScript actions to Node 24 versions across build,
+  snapshot, Pages, and website-impact workflows. Ship's Node runtime pin is unchanged.
 
 - **Camel Ship is a Technology Preview** — all backends are still being stabilized, may change, and are not recommended for production use. CLI help and text summaries, generated skills, and documentation now show this status. The staged `/camel-start` workflow remains the recommended path. Runtime compatibility tiers and `--accept-experimental` keep their existing meaning; Ship validation and publication gates are unchanged.
 
@@ -328,7 +233,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Citrus 5.0.1 (#215)** — upgrade the default Citrus test dependencies and MCP server to 5.0.1,
   remove the temporary M1 server pin, and update Ship compatibility for Camel 4.22.0 and 4.18.4.
-  Adapt the direct Citrus launcher to the GA context builder and test-engine API packages.
+  Adapt the direct Citrus launcher to the GA context builder and test-engine API packages. The 5.0.1 server
+  supersedes the temporary M1 startup workaround (#147).
 
 - **Camel 4.22 LTS default and centralized distribution versions (#209)** — Camel Main, Spring Boot, and the Camel MCP
   server now default to `4.22.0`. The supported Main and Spring Boot matrix is `4.22.0,4.18.4`; Spring Boot maps those
@@ -348,8 +254,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Context authority across workflows (#76)** — loaded files, logs, MCP responses, documentation, and delegated results
   supply only purpose-specific data after validation; they cannot direct actions, expand scope, waive gates, or provide
   approval. Actions proposed only by loaded content require action-specific user confirmation; normal in-scope actions
-  remain governed by the shipped workflow and the user's request. Generated Gemini instructions now load the shared
-  context-authority guide.
+  remain governed by the shipped workflow and the user's request. The shared context-authority guide carries this
+  contract into generated workflow instructions.
 
 - **Ship VALIDATE runs evidence commands as direct JVMs — Bubblewrap is no longer required** — the OS-level sandbox was removed from VALIDATE in line with the Ship product boundary. Evidence commands now launch as direct child JVMs on a frozen read-only copy of the accepted candidate tree, with a scrubbed environment and a command-private home and temporary directory; network access during validation is avoided by replacing every non-direct Camel endpoint with an in-memory stub, not by OS-level sandboxing.
   - Linux hosts no longer need `bwrap` for `camel-kit ship`; the authenticated Pi/Linux live gate likewise runs without it
@@ -360,82 +266,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Ship harness entry points now delegate to the local controller** — `/camel-ship`, `$camel-ship`, and `/skill:camel-ship` forward their arguments to the configured registered `camel-kit ship` or `camel kit ship` command instead of maintaining a prompt-owned workflow. The local controller is the sole owner of Ship stages, run state, evidence, oversight, and guarded publication.
   - Existing generated workspaces must be regenerated with the same command surface and agent, using `camel-kit init --here --ai <same-agent> --force` or `camel kit init --here --ai <same-agent> --force`; commit or back up workspace customizations first because `--force` rewrites generated configuration, instructions, skills, and templates
   - Initialization aborts up front — before writing any project files — when a managed agent path (for example a symlinked `.claude` or `.bob` from a dotfiles setup) is a symbolic link; the error names the link. Replace the link with a real directory before running the upgrade command
-  - IBM Bob and Bob 2 Ship commands forward the invocation options in prose because IBM Bob documents only positional `$1`/`$2` command placeholders; Gemini and Qwen Ship commands interpolate their documented `{{args}}` placeholder
-  - Re-initialization removes obsolete Ship guides, harness traits, and Bob 2 Ship mode/rule assets
+  - Re-initialization removes obsolete generated Ship assets; eligible Bob 2, Copilot CLI, and Claude Code sessions
+    receive the native Ship skills and workers described above
   - Pre-controller `.camel-kit/ship-state.json` and non-manual `.camel-kit/pipeline.json` state is intentionally not resumable and must be archived outside the project before starting Ship; manual-mode `.camel-kit/pipeline.json` remains supported by standalone pipeline skills and validated `--start-from` imports
   - GitHub Copilot CLI uses native project skills under `.github/skills/` without generating unsupported `.github/commands/`; older command files are inert and may be removed after preserving local edits
   - Pi exposes Ship through `/skill:camel-ship` and removes the older `.pi/prompts/camel-ship.md` alias, whose argument expansion could flatten quoted option values
 
 - **Default AI target changed to IBM Bob 2** — `camel-kit init` and `camel kit init` now default to `--ai bob2` when no `--ai` option is supplied.
   - CLI help and documentation now mark Bob 2 as the default target
-  - `--ai bob` remains supported for IBM Bob 1 legacy workspaces
-  - Selecting `--ai bob` emits a non-blocking legacy warning recommending `--ai bob2` for new IBM Bob projects
 
-- **Bob documentation split by generation** — README, user guide, command reference, and architecture docs now describe `--ai bob` as IBM Bob 1 legacy support and `--ai bob2` as IBM Bob 2 support.
-  - Bob 1 mode/gate architecture remains documented as legacy behavior
-  - Bob 2 documentation describes native subagents and no longer inherits broad "Bob does not support subagents" language
-  - The "Adding a New Agent" architecture guide now includes registry descriptor and `camel-kit doctor` validation steps
+- **Progressive skill loading via meta-router** — `/camel-start` routes users into the greenfield or migration
+  pipeline and loads guides on demand. It is the sole auto-discovered entry point in shared source metadata;
+  generated public entry points follow each agent's native discovery rules, including the Bob 2 overrides above.
+  Pipeline skills are brainstorm or migrate, plan, execute, and validate; standalone utilities are ship, knowledge,
+  and debug. Design, implement, test, and verify remain internal guide libraries.
 
-- **Progressive skill loading via meta-router** — introduced `/camel-start` as the single auto-discovered skill that routes users into two four-stage pipelines (greenfield: brainstorm → plan → execute → validate, migration: migrate → plan → execute → validate). All other skills set to `user_invocable: false` — slash commands still work as on-demand loaders. Runtime `camel-verify` runs internally during execute. Context baseline reduced from ~1,260 to ~110 tokens (91% reduction).
-  - New `camel-start/SKILL.md` with decision tree, "When NOT to use" table, pipeline overview, and Tier 2 utility references
-  - AGENTS.md rewritten to ultra-minimal bootstrap (~80 tokens): compressed iron laws + entry point directive
-  - Skill tiering: pipeline commands (brainstorm or migrate, plan, execute, validate), standalone utilities (ship, knowledge, debug), and internal guide libraries (design, implement, test, verify)
+- **Skill architecture refactored to orchestrator pattern** — the implementation, validation, migration, and test skills rewritten as slim orchestrator manifests that load micro-guides on demand; monolithic `SKILL.md` files split into focused, reusable topic guides; large template files split into topic-specific micro-templates
 
-- **Skill architecture refactored to orchestrator pattern** — all major skills (`camel-flow`, `camel-implement`, `camel-validate`, `camel-migrate`, `camel-test`, `camel-migrate-camel2`) rewritten as slim orchestrator manifests that load micro-guides on demand; monolithic `SKILL.md` files split into focused, reusable topic guides; large template files split into topic-specific micro-templates
+- **`camel-kit-knowledge` separated to its own repository** — knowledge indexer, embedding, schema, index, and MCP modules moved to `camel-kit-knowledge` (separate repo with independent `0.0.1-SNAPSHOT` version line); Camel-Kit connects through the separately packaged MCP runner artifact
 
-- **`camel-kit-knowledge` separated to its own repository** — knowledge indexer, embedding, schema, index, and MCP modules moved to `camel-kit-knowledge` (separate repo with independent `0.0.1-SNAPSHOT` version line); `IndexResolver` added for runtime index download via Maven Resolver API with classpath fallback
-
-- **Offline/standalone mode removed** — removed `--offline` runtime variant and all standalone mode code; single distribution only
-
-- **Red Hat references externalized from Java source code** — all distribution-specific values (version numbers, Maven repository URLs, product names) moved to `distribution.properties`; Java source is distribution-neutral
-
-- **Template engine migrated to Qute** — all templates migrated from `String.replace()` to Qute engine (`qute-core` dependency); supports conditional blocks, loops, and distribution-aware rendering
+- **Template engine migrated to Qute** — all templates migrated from `String.replace()` to Qute engine (`qute-core` dependency); supports conditional blocks, loops, and distribution-property substitution
 
 - **Documentation rewritten** — all docs updated to reflect the four-stage orchestrated pipeline, user-invocable workflows, AI-agent targets, Groovy DataMapper, and internal runtime verification
 
 - **`/camel-project` deprecated** — replaced by `/camel-brainstorm`
 
 - **`/camel-knowledge` progressive-loaded** — available through its generated command and used internally by pipeline skills without automatic skill discovery
-
-- **Constitution is now a static file — no generation step**
-  - Removed Step 1.5 (Produce Constitution) from `camel-migrate-mule/SKILL.md`
-  - Removed constitution generation logic and `constitution-template.md` guide from `camel-project/SKILL.md`
-  - `camel-implement`, `camel-validate`, `camel-flow`: if `.camel-kit/constitution.md` is missing, copy from `templates/constitution.md` and continue
-
-- **Constitution rewritten to v2.0** — reduced from 700 lines to ~100; contains only the six enforced rules: Route Structure, Single Responsibility, Separation of Concerns, Naming Conventions, Observability, External Configuration; all informational-only sections removed
-
-- **`/camel-flow` — simplified defaults, advanced patterns now opt-in**
-  - `unmarshal`/`marshal` no longer suggested by default; included only when the user explicitly needs typed Java object processing
-  - DataMapper/XSLT-saxon is now the preferred transformation approach
-  - Circuit Breaker, Idempotent Consumer, and Transactions moved from default questions to separate conditional questions asked only when contextually relevant
-  - Q5 (Error Handling) expanded with retry policy guidance inline
-  - Q6 (Performance) expanded with throttling, Kafka `consumersCount`, and Kubernetes deployment guidance
-
-- **`/camel-implement` — `unmarshal` removed from default YAML template** — `unmarshal` added only when TDD explicitly requires typed object processing and no DataMapper XSLT covers the transformation
-
-- **`/camel-migrate-mule` updated to sub-skill contract (v2.0)** — Phase 1 receives the pre-populated summary from the orchestrator and does not re-ask confirmed questions
-
-- **MCP tool invocation — try-first, handle-failure** — all skills now attempt MCP tool calls directly without pre-checking for `.mcp.json` or trying to detect MCP availability upfront; if a call fails the skill falls back to bundled component skill files or manual analysis
-
-- **`/camel-migrate` — error handling inferred from artifacts, not asked** — error handlers, retry policies, DLQ endpoints, and alert mechanisms are extracted from the source artifacts during the scan phase
-
-- **`/camel-migrate` — API compatibility assumed by default** — Camel routes preserve the same HTTP paths, queue/topic names, and data contracts as the original integration unless the user explicitly opts out
-
-- **Constitution — Principles 6, 7, 8 changed to informational** — Resilience (Circuit Breaker), Transaction Handling, and Idempotent Processing enforcement removed
-
-- **`camel-kit init` — removed MCP guide file copying** — `MCP-SETUP.md` and `MCP-TESTING.md` are no longer copied to `.camel-kit/` during init
-
-- **`CitrusSchemaDownloader`** — `fetchCitrusSchemas()` now accepts an optional `Consumer<String>` logger parameter; in TUI mode the printer is passed so download messages appear in the right panel
-
-- **InitCommand improvements**
-  - Create MCP configs only for selected AI agent (not all 3)
-  - Fixed JAR filesystem handling for bundled skill distribution
-  - Skills copied to both `.bob/commands/` (flat) and `.bob/skills/` (full structure)
-  - Removed redundant catalog downloads — component and Kamelet catalogs no longer downloaded during init (MCP queries catalogs in real-time)
-
-- **File generation locations corrected** — all generated routes now in project root (NOT in `.camel-kit/`); `.camel-kit/` reserved only for internal metadata
-
-- **`camel-implement` — Route validation with MCP** — replaced Maven YAML DSL Validator with MCP `camel_validate_route` tool; validates all endpoint URIs against Camel catalog in real-time
 
 - **Agent traits system — build-time append of agent-specific instructions** — `applyTraits()` in `DefaultGenerator` scans `templates/traits/{agent}/` and appends skill- or guide-level `.append.md` files during `camel-kit init`. Traits are idempotent through HTML comment sentinels (`<!-- TRAIT:agent -->`).
 
@@ -475,12 +331,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   state that can be retried.
 
 - **Camel plugin command parity and public documentation (#193)** — registered `doc` and `nextId` under `camel kit`, added a direct standalone/plugin parity regression, and aligned stable-versus-snapshot installation, prerequisites, workflow, graph, Knowledge, agent, and Ship documentation.
-  - Review hardening keeps validator leaves read-only, preserves unrelated OpenCode configuration during regeneration, resolves command prefixes only in Camel-Kit-owned resources, and installs the complete persona library for every current target except the intentionally excluded Bob 1 path
+  - Review hardening keeps validator leaves read-only, preserves unrelated OpenCode configuration during regeneration, resolves command prefixes only in Camel-Kit-owned resources, and installs the complete persona library for every supported target
   - `doctor` accepts pre-upgrade Qwen/OpenCode MCP layouts with upgrade warnings while retaining failures for malformed current layouts, and checks registered target assets for drift
-  - Regeneration reports each retired generated asset it removes; switching between Bob generations now also removes the obsolete Ship mode rule symmetrically while preserving neighboring files
+  - Regeneration reports each retired generated asset it removes while preserving neighboring files
   - OpenCode regeneration recognises `opencode.json`, `opencode.jsonc`, `.opencode/opencode.json`, and `.opencode/opencode.jsonc` as project layers, updates them in place (comments, trailing commas, newline style, and symbolic links preserved), moves the Camel-managed `permission` and `mcp` entries into the highest-precedence existing layer, validates every layer before writing anything, and reports a malformed file as one concise error instead of a stack trace
   - `doctor` evaluates OpenCode permission rules per managed MCP server in OpenCode's last-match order and reports each finding against the layer that defines the rule
-  - `doctor` warns instead of failing for every JSON-config agent when a workspace generated before Citrus MCP support has no `citrus` server; a present but malformed `citrus` server still fails
 
 - **Ship Simple-expression validation (#179)** — replaced the narrow custom grammar with a bounded input gate, allowing
   Simple expressions such as dotted header and body lookups to reach Camel's own syntax validation. Size, character,
@@ -488,8 +343,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Ship resolver proxy and trust-store support (#177)** — dependency resolution now honors the JVM's proxy and TLS
   system properties, allowing downloads through configured proxies and custom trust stores.
-
-- **Citrus MCP startup (#147)** — downgraded the generated MCP runner from `5.0.0-M2`, which fails during Quarkus startup with an incompatible JSON Schema Generator dependency, to the verified working `5.0.0-M1` release. Citrus test schemas and dependencies remain on `5.0.0-M2`.
 
 - **Adversarial review findings (#126)** — hardened graph building, init/doctor contracts, generator failure handling, distribution assets, and shipped skill content:
   - Secure XML parsing (XXE/DTD disabled) in `XmlRouteParser` and `MuleXmlFlowParser`; parser failures and warnings now surface through `graph generate`, `doctor`, and `init` instead of producing silently empty graphs
@@ -515,59 +368,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **LTS version detection no longer relies on even-number heuristic** — `getLatestLtsVersion()` assumed LTS versions have even minor numbers (`minor % 2 == 0`), which is not officially guaranteed by Apache Camel. Replaced with an explicit `Set<String>` of known LTS minor versions passed via constructor, built from `DistributionConfig.camelMainSupported()`.
 
-- **`.kaoto` filename and format hardening against hallucination**
-  - Filename must be `.kaoto` (single project-level file) — NOT `kaoto-datamapper-{id}.kaoto` (per-mapping file invented by analogy with XSL naming)
-  - Content must use Kaoto's internal format (`sourceBody`, `targetBody`, `sourceParameters`, `namespaceMap`) — NOT a custom JSON schema with invented keys
-  - Added "WRONG names" column to artifact table and explicit allowed-keys list in `datamapper-implement.md`
-
-- **Route generation runtime fixes (Rules 0h, run.sh, docker-compose)**
-  - Rule 0h — HTTP response body marshal: when a route starts with an HTTP consumer and has an `unmarshal` mid-route, add a matching `marshal` step at the end
-  - `run.sh` template: use `jbang camel@apache/camel run` (JBang alias) instead of non-existent Maven artifact; include `*.xsl` in the `camel run` command
-  - `docker-compose.yaml` template: `apache/camel-jbang` image entrypoint is `camel`, so `command:` must be `run ...` not `camel run ...`
-
-- **`.kaoto` metadata type values must use Kaoto display strings** — `type` field must use `"JSON Schema"` / `"XML Schema"` (space-separated display strings), not `"JSON_SCHEMA"` / `"XML_SCHEMA"` (underscore enum keys)
-
-- **Primitive type fallback — correct type when no schema file exists** — "No schema file" != "Primitive data": structured JSON without a schema is `JSON_SCHEMA` with path `"none"`, not `Primitive`
-
-- **MCP catalog verification for component properties and hardened DataMapper XSLT generation**
-  - `application.properties` must use the exact URI scheme from the route (e.g., `smtp`, not `mail`)
-  - Every `camel.component.<name>.<property>` must be verified against the catalog — no invented property names
-  - `platform-http` has no `host` or `port` component options — Mule HTTP Listener port converts to `camel.server.enabled=true` + `camel.server.port=XXXX`
-  - DataMapper TDD validation: auto-corrects wrong XSLT Pattern, detects plain Source XPaths and plain Target Elements and recomputes them
-  - Explicit `json-to-xml()` prohibition for Approach A
-  - Split Step 4 (YAML injection) into three per-approach blocks: Approach A with mandatory `useJsonBody: true`, Approach B with `setHeader`/`setBody`, Approach N/A without special params
-
-- **Deterministic DataMapper XSLT generation with canonical XPaths and self-validation**
-  - Pre-compute Source XPaths and Target Elements during flow design and migration so that `/camel-implement` performs mechanical translation
-  - New shared guide `skills/shared/datamapper-canonicalize.md` — enriches semantic field mappings with XSLT-ready structural data; used by both `datamapper-interview.md` and `datamapper-migrate.md`
-  - Split Pattern B (JSON→JSON) and Pattern C (JSON→XML) skeletons into per-approach variants
-  - New mandatory Step 3.5 self-validation pass in `datamapper-implement.md`
-
-- **JSON DataMapper XSLT correctness rules**
-  - `json-to-xml($paramName)` not `json-to-xml(.)` — the JSON string arrives via `xsl:param`, not as the context node
-  - `unmarshal: json:` ordering — Rule 0g: never place `unmarshal: json:` before an xslt-saxon DataMapper step when `useJsonBody: true`
-  - Structural checklist: every generated JSON XSLT must have `xsl:param`, `json-to-xml($paramName)` variable, `xsl:template match="/"`, and `xml-to-json($mapped-xml)` output
-
-- **`toD` for dynamic URIs and parameters** — Rule 0f in `/camel-implement`: `to` evaluates its URI once at startup; any `${...}` Simple expression in the `uri` or in any `parameters:` value is treated as a literal string; use `toD` instead
-
-- **HTTP header cleanup between HTTP endpoints** — Rule 0e: when a route has both an inbound HTTP consumer and outbound HTTP producer calls, `removeHeaders("CamelHttp*")` is inserted before each outbound call
-
-- **DataMapper XSLT generation — empty skeleton prevented** — new Step 1.5 validation gate stops generation with an actionable error message instead of producing an empty XSLT skeleton; Pattern B (JSON→JSON) rules expanded with field-path translation table
-
 - **Bob guide resolution, splash screen, MCP stdio transport**
 
 - **Qwen Code tool names** — corrected sub-agent definitions to use correct Qwen Code tool names
 
 - **Skill quality audit** — 7 evaluation passes (55+ fixes) across all 6 skills: MCP param corrections, context pollution, anti-hedging, completion gates, batch mode, guide path notation, smoke test rollback strategy, DataMapper test examples, runtime-aware test config, vendor detection recovery
 
-- **MCP configuration generation** — now creates only the config for the selected agent; `knowledge.mcp.version` tag used correctly in maven-metadata.xml parsing
+- **Knowledge MCP version lookup** — `knowledge.mcp.version` is used correctly in `maven-metadata.xml` parsing
 
 ## [0.3.1] - 2026-03-02
 
 ### Fixed
 
 - Replace `{{DATE}}` and `{{CAMEL_VERSION}}` placeholders in constitution during init
-- `.kaoto` format hardening and constitution simplification (see Unreleased for full details)
+- `.kaoto` format hardening and constitution simplification
 - Route generation runtime fixes
 - MCP catalog verification for component properties
 - Deterministic DataMapper XSLT generation with canonical XPaths
