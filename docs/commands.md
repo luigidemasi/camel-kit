@@ -33,7 +33,7 @@ retains its single CLI invocation with the supplied options.
 
 ## CLI Commands
 
-This reference describes the current `0.4.0-SNAPSHOT` line. Any `camel kit` form requires a plugin built from current source; published stable `0.3.1` exposes only `camel kit init` with the `bob`, `gemini`, and `claude` targets.
+This guide describes Camel Kit `0.4.0`. The standalone CLI and the `0.4.0` Camel JBang plugin provide the equivalent `camel-kit` and `camel kit` command forms. Development continues at `0.4.1-SNAPSHOT`; see [installation](../README.md#installation) for release and development channels.
 
 These commands are run in your terminal.
 
@@ -184,7 +184,7 @@ Any property from `distribution.properties` can be overridden at layers 2 or 3. 
 | `camel.quarkus.version` | `4.18.3` | Apache Camel version for Quarkus projects |
 | `quarkus.platform.version` | `3.33.3.2` | Quarkus platform BOM version |
 | `camel.mcp.version` | See `distribution.properties` | Camel MCP server version |
-| `knowledge.mcp.version` | `0.0.1-SNAPSHOT` | Knowledge MCP server version |
+| `knowledge.mcp.version` | `0.0.1` | Knowledge MCP server version |
 | `citrus.version` | `5.0.1` | Citrus test schema and dependency version |
 | `citrus.mcp.version` | `5.0.1` | Citrus MCP server artifact version |
 

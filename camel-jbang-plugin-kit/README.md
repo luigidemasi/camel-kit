@@ -11,22 +11,22 @@ A Camel JBang plugin that exposes Camel-Kit commands under `camel kit`.
 
 | Channel | Install source | Plugin surface |
 |---------|----------------|----------------|
-| Stable `0.3.1` | Maven Central | `camel kit init`; agents `bob`, `gemini`, and `claude` |
-| Current `0.4.0-SNAPSHOT` | Source build and local Maven repository | `init`, `doctor`, `doc`, `graph`, `plan`, `nextId`, and `ship`; all eight current agents |
+| Release `0.4.0` | Maven Central | `init`, `doctor`, `doc`, `graph`, `plan`, `nextId`, and `ship`; all eight supported agents |
+| Development `0.4.1-SNAPSHOT` | Source build and local Maven repository | `init`, `doctor`, `doc`, `graph`, `plan`, `nextId`, and `ship`; all eight current agents |
 
-Use an explicit version. Maven Central's stable `0.3.1` does not provide the current-main command and agent surface.
+Pin `0.4.0` for a fixed release. Ship remains a **Technology Preview** and is not recommended for production use.
 
-### Stable 0.3.1
+### Release 0.4.0
 
 ```bash
 camel plugin add kit \
-  --gav io.github.luigidemasi:camel-jbang-plugin-kit:0.3.1 \
+  --gav io.github.luigidemasi:camel-jbang-plugin-kit:0.4.0 \
   --description "Design Apache Camel Integrations with AI"
 
 camel kit init my-integration --ai claude
 ```
 
-### Current 0.4.0-SNAPSHOT from Source
+### Development 0.4.1-SNAPSHOT from Source
 
 ```bash
 git clone https://github.com/luigidemasi/camel-kit.git
@@ -34,7 +34,7 @@ cd camel-kit
 ./mvnw clean install -DskipTests
 
 camel plugin add kit \
-  --gav io.github.luigidemasi:camel-jbang-plugin-kit:0.4.0-SNAPSHOT \
+  --gav io.github.luigidemasi:camel-jbang-plugin-kit:0.4.1-SNAPSHOT \
   --description "Design Apache Camel Integrations with AI"
 
 camel kit --help
@@ -42,7 +42,7 @@ camel kit --help
 
 Use `camel plugin add` rather than editing `~/.camel-jbang-plugins.json` manually; the command records the exact plugin coordinate and description.
 
-## Current Snapshot Usage
+## Usage
 
 ```bash
 # IBM Bob 2 is the default agent
@@ -55,9 +55,9 @@ camel kit init --here --ai codex
 camel kit doctor
 ```
 
-The current source-built snapshot supports `bob2`, `antigravity`, `claude`, `codex`, `copilot`, `pi`, `qwen`, and `opencode`.
+Release `0.4.0` supports `bob2`, `antigravity`, `claude`, `codex`, `copilot`, `pi`, `qwen`, and `opencode`.
 
-## Current Snapshot Commands
+## Commands
 
 | Command | Purpose |
 |---------|---------|
@@ -67,9 +67,9 @@ The current source-built snapshot supports `bob2`, `antigravity`, `claude`, `cod
 | `camel kit graph` | Query the project graph |
 | `camel kit plan` | Analyze implementation-plan execution waves |
 | `camel kit nextId` | Create the next pipeline ID |
-| `camel kit ship` | Run or control the local Ship workflow |
+| `camel kit ship` | Run or control the local Ship workflow (Technology Preview) |
 
-Stable `0.3.1` exposes only `camel kit init`.
+When upgrading from `0.3.1`, replace the retired `bob` and `gemini` targets with `bob2` and `antigravity`; see [migration guidance](../docs/antigravity.md).
 
 ## Development
 

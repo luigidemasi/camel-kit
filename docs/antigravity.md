@@ -1,13 +1,13 @@
 # Google Antigravity setup and retired-target migration
 
-The current Camel-Kit source supports Google Antigravity with `--ai antigravity` and IBM Bob 2 with `--ai bob2`
-(the default). The `gemini` and `bob` targets have been removed. These changes require a source build containing
-this update until a distribution with the change is published; stable `0.3.1` retains its historical target set.
+Camel Kit `0.4.0` supports Google Antigravity with `--ai antigravity` and IBM Bob 2 with `--ai bob2`
+(the default). The `gemini` and `bob` targets have been removed. When upgrading from `0.3.1`, use the
+replacement targets and regenerate project assets as described below.
 
 ## Set up Antigravity
 
 Install Antigravity using [Google's getting-started guide](https://antigravity.google/docs/getting-started).
-Build and use the current Camel-Kit source as described in the [installation instructions](../README.md#installation), then run:
+Install Camel Kit `0.4.0` as described in the [installation instructions](../README.md#installation), then run:
 
 ```bash
 camel-kit init my-integration --ai antigravity

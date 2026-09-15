@@ -8,7 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Changes since 0.3.1 for the upcoming 0.4.0 release.
+## [0.4.0] - 2026-09-15
+
+Changes since 0.3.1. Ship remains a Technology Preview.
 
 ### Added
 
@@ -202,6 +204,9 @@ Changes since 0.3.1 for the upcoming 0.4.0 release.
 - **Migration support expanded** — `/camel-migrate` now handles Apache Camel 2.x/3.x and JBoss Fuse migrations in addition to MuleSoft Mule
 
 ### Changed
+
+- **Knowledge MCP 0.0.1** — pin the fixed server release; development snapshots of Camel Kit
+  continue to use the released Knowledge server.
 
 - **GitHub Actions Node 24 migration (#234)** — update JavaScript actions to Node 24 versions across build,
   snapshot, Pages, and website-impact workflows. Ship's Node runtime pin is unchanged.
@@ -557,7 +562,8 @@ Changes since 0.3.1 for the upcoming 0.4.0 release.
 - Heavily inspired by [GitHub Spec-Kit](https://github.com/github/spec-kit)
 - Built for the Apache Camel community
 
-[Unreleased]: https://github.com/luigidemasi/camel-kit/compare/camel-kit-0.3.1...HEAD
+[Unreleased]: https://github.com/luigidemasi/camel-kit/compare/camel-kit-0.4.0...HEAD
+[0.4.0]: https://github.com/luigidemasi/camel-kit/compare/camel-kit-0.3.1...camel-kit-0.4.0
 [0.3.1]: https://github.com/luigidemasi/camel-kit/compare/camel-kit-0.3.0...camel-kit-0.3.1
 [0.3.0]: https://github.com/luigidemasi/camel-kit/compare/camel-kit-0.2.0...camel-kit-0.3.0
 [0.2.0]: https://github.com/luigidemasi/camel-kit/tree/camel-kit-0.2.0

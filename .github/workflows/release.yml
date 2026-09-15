@@ -1,66 +1,92 @@
-name: Release with Maven
+name: Publish Maven Release
 
 on:
   workflow_dispatch:
-  create:
+    inputs:
+      tag:
+        description: 'Prepared release tag (for example, camel-kit-0.4.0)'
+        required: true
+        type: string
+      expected_sha:
+        description: 'Full commit SHA reviewed and tagged for this release'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maven-release
+  cancel-in-progress: false
 
 jobs:
   release:
-    # only run on the release branch
-    if: github.ref == 'refs/heads/release'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    timeout-minutes: 120
 
     steps:
-      - name: Checkout code
+      - name: Checkout release tag
         uses: actions/checkout@v6.0.2
         with:
-          token: ${{ secrets.ACCESS_TOKEN || secrets.GITHUB_TOKEN }}
+          ref: refs/tags/${{ inputs.tag }}
           persist-credentials: false
 
-      - name: Set up JDK 17
+      - name: Verify release identity
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^camel-kit-[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$(git rev-parse HEAD)" == "$EXPECTED_SHA" ]]
+          [[ "$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")" == "$EXPECTED_SHA" ]]
+          version=$(python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          ns = "{http://maven.apache.org/POM/4.0.0}"
+          root = ET.parse("pom.xml").getroot()
+          version = root.findtext(ns + "version", default="")
+          for entry in root.findall(f"{ns}modules/{ns}module"):
+              path = f"{entry.text}/pom.xml"
+              module = ET.parse(path).getroot()
+              parent_version = module.findtext(f"{ns}parent/{ns}version")
+              if parent_version != version or module.findtext(ns + "version", parent_version) != version:
+                  raise SystemExit(f"{path}: release module and parent versions must match {version}")
+          print(version)
+          PY
+          )
+          [[ "$RELEASE_TAG" == "camel-kit-$version" ]]
+
+      - name: Set up JDK 17 and Maven Central settings
         uses: actions/setup-java@v5.2.0
         with:
           java-version: '17'
-          distribution: 'temurin'
+          distribution: temurin
           cache: maven
+          server-id: central
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
 
-      - name: Set up Maven settings
-        uses: s4u/maven-settings-action@v4.0.0
-        with:
-          githubServer: false
-          servers: |
-            [{
-              "id": "${env.MAVEN_REPO_SERVER_ID}",
-              "username": "${env.MAVEN_REPO_SERVER_USERNAME}",
-              "password": "${env.MAVEN_REPO_SERVER_PASSWORD}"
-            }]
-
-      - name: Execute Release
+      - name: Prepare release signing
         env:
-          RELEASE_BRANCH_NAME: "release"
-
-          GPG_ENABLED: "true"
-          GPG_KEY_ID: ${{ secrets.GPG_ID }}
           GPG_KEY: ${{ secrets.GPG_KEY }}
-
-          MAVEN_REPO_SERVER_ID: ${{ secrets.MVN_CENTRAL }}
-          MAVEN_REPO_SERVER_USERNAME: ${{ secrets.MVN_CENTRAL_USER }}
-          MAVEN_REPO_SERVER_PASSWORD: ${{ secrets.MVN_CENTRAL_PASSWORD }}
-          MAVEN_ARGS: "-Dgpg.passphrase= -Plinux-ship-certification"
-
-          GIT_RELEASE_BOT_NAME: "release-bot"
-          GIT_RELEASE_BOT_EMAIL: "luigidemasi@gmail.com"
-
-          GITHUB_ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN || secrets.GITHUB_TOKEN }}
-        run: ./.github/workflows/release.sh
-
-      - name: Merge snapshot version to main
+          GPG_ID: ${{ secrets.GPG_ID }}
+          MAVEN_USERNAME: ${{ secrets.MVN_CENTRAL_USER }}
+          MAVEN_PASSWORD: ${{ secrets.MVN_CENTRAL_PASSWORD }}
         run: |
-          git config --global user.name "release-bot"
-          git config --global user.email "luigidemasi@gmail.com"
-          git fetch origin main
-          git checkout main
-          git merge origin/release --no-ff -m "chore: update to next snapshot version after release [skip ci]"
-          git push https://x-access-token:${{ secrets.ACCESS_TOKEN || secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git main
+          set -euo pipefail
+          : "${GPG_KEY:?Configure the GPG_KEY secret with the base64-encoded signing key}"
+          : "${GPG_ID:?Configure the GPG_ID signing-key secret}"
+          : "${MAVEN_USERNAME:?Configure the MVN_CENTRAL_USER secret}"
+          : "${MAVEN_PASSWORD:?Configure the MVN_CENTRAL_PASSWORD secret}"
+          export GNUPGHOME="$RUNNER_TEMP/camel-kit-release-gnupg"
+          install -d -m 700 "$GNUPGHOME"
+          printf '%s' "$GPG_KEY" | base64 --decode | gpg --batch --import
+          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+
+      - name: Test, sign and publish release artifacts
+        env:
+          GPG_ID: ${{ secrets.GPG_ID }}
+          MAVEN_USERNAME: ${{ secrets.MVN_CENTRAL_USER }}
+          MAVEN_PASSWORD: ${{ secrets.MVN_CENTRAL_PASSWORD }}
+        run: ./.github/workflows/release.sh

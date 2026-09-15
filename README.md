@@ -71,48 +71,61 @@ The optional Ship controller requires Linux and supports Camel Main projects wit
 
 ### Release channels
 
-This README describes the current `main` line, version `0.4.0-SNAPSHOT`. Choose the channel whose surface you need:
+This guide describes Camel Kit **0.4.0**, paired with Knowledge MCP **0.0.1**.
+Ship remains a **Technology Preview** and is not recommended for production use.
 
-| Channel | Install source | Supported surface |
-|---------|----------------|-------------------|
-| Stable `0.3.1` | Maven Central | The Camel plugin exposes `camel kit init`; init supports `bob` (default), `gemini`, and `claude`. It predates the current workflow and agent surface. |
-| Current `0.4.0-SNAPSHOT` | GitHub JBang catalog or a source build | Standalone CLI commands `init`, `doctor`, `doc`, `graph`, `plan`, `nextId`, and `ship`, plus all eight AI targets documented below. A source-built Camel plugin exposes the same commands under `camel kit`. |
+| Channel | Install source | Version |
+|---------|----------------|---------|
+| Release | Tagged JBang catalog or Maven Central plugin | `0.4.0` |
+| Development | Default GitHub JBang catalog or a source build | `0.4.1-SNAPSHOT` |
 
-Do not use `LATEST` when following current-main instructions: Maven Central currently resolves it to stable `0.3.1`.
-Hosted snapshots are mutable and may lag `main` until the next deployment; build from source for an exact revision.
+Both command surfaces provide `init`, `doctor`, `doc`, `graph`, `plan`, `nextId`, and `ship`,
+and all eight AI targets documented below. Pin the release when you need reproducible installation.
+The unqualified GitHub alias follows development; hosted snapshots are mutable and may lag `main`.
 
-### Current snapshot (standalone JBang)
+### Install 0.4.0 (standalone JBang)
 
 ```bash
 # Install JBang (if not already installed)
 curl -Ls https://sh.jbang.dev | bash -s - app setup        # Linux/macOS
 iex "& { $(iwr -useb https://ps.jbang.dev) } app setup"    # Windows PowerShell
 
-# Install the current snapshot globally
-jbang app install camel-kit@luigidemasi/camel-kit
+# Install the release globally
+jbang app install camel-kit@luigidemasi/camel-kit/camel-kit-0.4.0
 
-# Verify
-camel-kit --help
+# Verify: prints 0.4.0
+camel-kit --version
 ```
 
-### Run the current snapshot without installing
+### Run 0.4.0 without installing
 
 ```bash
-jbang run camel-kit@luigidemasi/camel-kit init my-integration --ai claude
+jbang run camel-kit@luigidemasi/camel-kit/camel-kit-0.4.0 init my-integration --ai claude
 ```
 
-### Stable 0.3.1 (Camel JBang plugin)
+### Install 0.4.0 (Camel JBang plugin)
 
-If you already use [Camel JBang](https://camel.apache.org/manual/camel-jbang.html), install camel-kit as a plugin:
+If you already use [Camel JBang](https://camel.apache.org/manual/camel-jbang.html), install Camel Kit as a plugin:
 
 ```bash
 camel plugin add kit \
-  --gav io.github.luigidemasi:camel-jbang-plugin-kit:0.3.1 \
+  --gav io.github.luigidemasi:camel-jbang-plugin-kit:0.4.0 \
   --description "Design Apache Camel Integrations with AI"
 
-# Stable 0.3.1 provides init for bob, gemini, and claude
 camel kit init my-integration --ai claude
 ```
+
+To upgrade from `0.3.1`, reinstall the plugin at `0.4.0`. The retired `bob` and `gemini`
+targets are replaced by `bob2` (the default) and `antigravity`; see the
+[migration instructions](docs/antigravity.md). Back up customized generated files before reinitializing with `--force`.
+
+### Development snapshot
+
+```bash
+jbang app install --force camel-kit@luigidemasi/camel-kit
+```
+
+This installs the latest deployed `0.4.1-SNAPSHOT`. Build from source for a specific revision.
 
 ### Build from Source (development version)
 
@@ -129,7 +142,7 @@ jbang app install --name camel-kit --force \
 
 # Or install the matching Camel plugin from the local Maven repository
 camel plugin add kit \
-  --gav io.github.luigidemasi:camel-jbang-plugin-kit:0.4.0-SNAPSHOT \
+  --gav io.github.luigidemasi:camel-jbang-plugin-kit:0.4.1-SNAPSHOT \
   --description "Design Apache Camel Integrations with AI"
 
 # Verify
@@ -148,7 +161,7 @@ cd camel-kit-knowledge
 
 ## Quick Start
 
-The examples below use the current `0.4.0-SNAPSHOT` channel.
+The examples below use the `0.4.0` release.
 
 ```bash
 # 1. Create a new project (choose your AI assistant)
@@ -232,7 +245,7 @@ See [Antigravity setup and migration from Gemini or Bob v1](docs/antigravity.md)
 ### Knowledge & MCP
 
 - **MCP integration** — real-time catalog queries, route validation, security analysis, documentation lookup, and Citrus test-generation metadata via MCP servers. [Learn more →](docs/architecture.md)
-- **Knowledge layer** — hybrid BM25 + vector search over Apache Camel documentation, component catalogs, release notes, and CVE advisories ingested from `apache/camel-website`, with best-effort NVD enrichment. The target-specific MCP tool contract is defined in the workflow manifest. [Learn more →](docs/architecture.md)
+- **Knowledge layer** — hybrid BM25 + vector search over Apache Camel documentation, component catalogs, release notes, and CVE advisories ingested from `apache/camel-website`, with best-effort NVD enrichment and a CIRCL fallback during index rebuilds. The target-specific MCP tool contract is defined in the workflow manifest. [Learn more →](docs/architecture.md)
 - **DataMapper** — automatic data transformation with two engines: XSLT for complex schema-driven mappings, Groovy for simple field-level transformations. [Learn more →](docs/architecture.md)
 
 ### Multi-Agent
@@ -251,6 +264,8 @@ See [Antigravity setup and migration from Gemini or Bob v1](docs/antigravity.md)
 Workflow contributors should treat `camel-kit-core/src/main/resources/workflow/camel-kit-workflow.yaml` as the source of truth for command, skill, stage, artifact, and MCP tool metadata before updating generated templates or reference docs.
 
 ---
+
+See [Releasing](docs/releasing.md) for the maintainer publication procedure.
 
 ## License
 

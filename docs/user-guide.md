@@ -136,7 +136,7 @@ The standalone `/camel-ship` workflow additionally requires Linux. Its default b
 
 ### Initializing a Project
 
-The examples in this guide describe the current `0.4.0-SNAPSHOT` line. Any `camel kit` form requires a plugin built from current source; published stable `0.3.1` exposes only `camel kit init` with the `bob`, `gemini`, and `claude` targets.
+This guide describes Camel Kit `0.4.0`. The standalone CLI and the `0.4.0` Camel JBang plugin provide the equivalent `camel-kit` and `camel kit` command forms. Development continues at `0.4.1-SNAPSHOT`; see [installation](../README.md#installation) for release and development channels.
 
 ```bash
 # Install JBang if you don't have it
