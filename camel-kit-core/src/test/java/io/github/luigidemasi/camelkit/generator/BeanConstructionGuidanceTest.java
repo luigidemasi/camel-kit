@@ -33,9 +33,10 @@ class BeanConstructionGuidanceTest {
     void generatedWorkflowsReachTheSameBeanPolicy(String agentName) throws Exception {
         AgentConfig agent = AgentRegistry.get(agentName);
         Path project = tempDir.resolve(agentName);
-        Path commands = project.resolve(agent.generatesCommandStubs() ? agent.commandDirectory() : ".codex/commands");
+        Path skills = project.resolve(agent.skillsDirectory());
+        Path commands = agent.generatesCommandStubs() ? project.resolve(agent.commandDirectory()) : skills;
         InitContext context = new InitContext(
-                agent, agentName, commands, project.resolve(agent.skillsDirectory()),
+                agent, agentName, commands, skills,
                 project, "camel-kit", Printer.noop());
         new DefaultGenerator().generate(context);
 
@@ -47,6 +48,7 @@ class BeanConstructionGuidanceTest {
         assertTrue(policy.contains("stop at the first rung that works"));
         assertTrue(policy.contains("Use Forage; do not generate a custom factory bean or script"));
         assertTrue(policy.contains("factoryBean: com.influxdb.client.InfluxDBClientFactory"));
+        // Verify distributed fallback guidance, not runtime scripting or live-agent decisions.
         assertTrue(policy.contains("Accept a script that performs that initialization"));
         assertTrue(policy.contains("Report an evidence gap; do not invent a replacement"));
         assertTrue(policy.contains("Outside this policy; preserve the approved transformation engine"));
@@ -77,8 +79,13 @@ class BeanConstructionGuidanceTest {
             assertNotNull(resource);
             policy = new String(resource.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
         }
-        int start = policy.indexOf("```yaml\n") + "```yaml\n".length();
+        int factory = policy.indexOf("factoryBean: com.influxdb.client.InfluxDBClientFactory");
+        assertTrue(factory >= 0, "Missing InfluxDB factory example");
+        int fence = policy.lastIndexOf("```yaml\n", factory);
+        assertTrue(fence >= 0, "Factory example must be in a YAML code block");
+        int start = fence + "```yaml\n".length();
         int end = policy.indexOf("```", start);
+        assertTrue(end > factory, "Factory declaration must be inside the YAML code block");
         // Exercise the shipped YAML with a local factory having the same signature, without a database dependency.
         String yaml = policy.substring(start, end)
                 .replace("com.influxdb.client.InfluxDBClientFactory", ClientFactory.class.getName())

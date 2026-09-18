@@ -101,9 +101,9 @@ Every component used in a route MUST be verified as **available** in the target 
 
 ### 8. Infrastructure via Forage
 
-Declare infrastructure beans with `forage.*` properties when Forage covers them; follow the configuration ladder (Forage → component properties → hand-rolled bean with a stated reason). Hand-rolled `camel.beans.*` definitions require a one-line reason comment.
+Declare infrastructure beans with `forage.*` properties when Forage covers them; follow the configuration ladder (Forage → component properties → hand-rolled bean with a stated reason). Hand-rolled bean definitions (`camel.beans.*` or YAML `beans`) require a one-line reason comment.
 
-- **Violation:** an unknown `forage.*` key, or a hand-rolled `camel.beans.*` bean with a Forage (rung-1) equivalent and no reason comment, fails validation. A hand-rolled bean where only a rung-2 scalar alternative exists triggers a WARNING.
+- **Violation:** an unknown `forage.*` key, or a hand-rolled bean (`camel.beans.*` or YAML `beans`) with a Forage (rung-1) equivalent and no reason comment, fails validation. A hand-rolled bean where only a rung-2 scalar alternative exists triggers a WARNING.
 
 ---
 
