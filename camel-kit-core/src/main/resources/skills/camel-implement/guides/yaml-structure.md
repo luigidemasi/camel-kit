@@ -43,7 +43,11 @@ Generate the route by translating the active design spec flow section to Camel Y
 
 ### 3.2 Structural Rules
 
-1. **Clean Routes** - NO connection details in YAML:
+Before emitting top-level `beans`, load and apply **Custom Bean Construction** in `shared/forage.md`, including the
+higher infrastructure rungs. Keep definitions in approved route files; verify factories/builders before selecting them
+and justify any initialization script. Bean arguments may use externalized `{{...}}` values.
+
+1. **Clean Routes** - NO hardcoded connection values in YAML:
    ```yaml
    # CORRECT
    from:

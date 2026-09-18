@@ -57,6 +57,9 @@ source of truth for these checks; do not substitute a different list.
 - Consistent indentation and formatting
 - No deprecated DSL constructs
 - Proper use of `parameters:` blocks vs inline URI options
+- For YAML `beans` and `camel.beans.*`, load and apply **Custom Bean Construction** in `shared/forage.md`.
+  Use its evidence requirements and Important/WARNING classification for unnecessary scripts; accept a corroborated
+  script fallback and keep message transformations outside this check.
 
 ### 5. MCP Verification
 

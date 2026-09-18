@@ -11,6 +11,10 @@ Always attempt `camel_validate_route` directly. If the call fails (tool not foun
 
 ## 4.1 Validate Route Endpoints Against the Catalog
 
+For any YAML `beans`, also apply **Custom Bean Construction** in `shared/forage.md`: check declarative creation,
+script fallback evidence, dependencies and lifecycle. Keep this check separate from endpoint catalog results;
+an endpoint-only success or tool failure does not complete or bypass bean self-validation.
+
 Statically walk the YAML and collect every actual component endpoint URI from `from`, `to`, `toD`, and all other
 endpoint-bearing EIP fields, including literal endpoint expressions such as `enrich.expression.constant`. Do not rely on
 the tool's route-content extraction for completeness; it is best-effort and can miss endpoint expressions.

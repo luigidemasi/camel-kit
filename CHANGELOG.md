@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Prefer verified declarative bean construction over initialization scripts across shared generation and review
+  workflows (#238). Preserve Forage/component configuration priority and allow scripts with a corroborated limitation;
+  message transformations and DataMapper selection remain unchanged.
+
 ## [0.4.0] - 2026-09-15
 
 Changes since 0.3.1. Ship remains a Technology Preview.

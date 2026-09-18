@@ -215,11 +215,17 @@ All placeholders resolved: ✅
 
 ### 7.3 Bean Definitions
 
+Inventory top-level YAML `beans` in the module's route files as well as `camel.beans.*` properties. Apply
+**Custom Bean Construction** in `shared/forage.md` to both forms, including script rationale and verification gaps.
+Count verified YAML registry names when resolving references; do not require a duplicate properties definition.
+
 `camel.beans.*` lines are excluded from the 7.1 MCP call, so they MUST be fully checked here — at least as strictly as the bean rules in `camel-implement/guides/properties-generation.md` (strictness invariant):
 
 1. Every root definition follows `camel.beans.<name>=#class:<fully.qualified.ClassName>` — any other value shape is ❌ FAIL.
 2. Every nested line `camel.beans.<name>.<prop>=<value>` has a matching root `camel.beans.<name>=#class:...` in the same file — orphan nested keys are ❌ FAIL.
-3. Every bean reference in a component option value (`camel.component.<c>.<option>=#<name>`) resolves to a defined `camel.beans.<name>` or a documented existing project bean — dangling references are ❌ FAIL.
+3. Every bean reference in a component option value (`camel.component.<c>.<option>=#<name>`) resolves to a defined
+   `camel.beans.<name>`, a verified YAML bean, a verified Forage registration, or a documented existing project bean —
+   dangling references are ❌ FAIL.
 4. For each nested `<prop>`, cross-check the name against the bean class's setters/documented properties (from the design spec or the class's documentation) — a property the class does not have is ❌ FAIL. If the class is unknown, report the property as ⚠️ unverified, never silently ✅.
 5. The bean class's Maven dependency must be declared in the project — missing dependency is ❌ FAIL.
 
@@ -244,16 +250,16 @@ Load `skills/shared/forage.md` (availability check included there). Then:
    segment and confirm the resulting key exists in
    `.camel-kit/.cache/forage/{FORAGE_VERSION}/forage-configuration-catalog.json` (query 4 in the shared guide).
    Unknown Forage key = ❌ FAIL with the closest catalog key as suggestion.
-2. **Ladder violations:** for every `camel.beans.<n>=#class:<FQCN>` bean, check whether a HIGHER rung could serve:
+2. **Ladder violations:** for every custom infrastructure bean (`camel.beans.*` or YAML `beans`), check whether a HIGHER rung could serve:
    - rung 1: the bean's type/purpose matches a Forage factory (`javax.sql.DataSource`, `jakarta.jms.ConnectionFactory`
      for artemis/ibmmq, chat models/agents, `CxfEndpoint`, Spring RabbitMQ connection factory) → ❌ FAIL,
      suggest the `forage.*` replacement;
    - rung 2: the component has scalar options building the same object in this Camel version (check
      `camel_catalog_component_doc`) → ⚠️ WARNING, suggest the scalar form.
-   A rung-3 bean with a `#`-comment stating why rungs 1–2 don't apply passes.
+   A rung-3 bean passes only when its `#`-comment explaining why rungs 1–2 don't apply is corroborated by the checks.
 3. **Required-bean check:** for every component used in routes, if its catalog doc lists an object-type option that
    the component needs to operate (`connectionFactory`, `dataSource`) and NEITHER a Forage bean NOR a
-   `camel.beans.*` bean NOR rung-2 scalar auto-configuration provides it → ❌ FAIL ("component X requires a
+   `camel.beans.*` or YAML bean NOR rung-2 scalar auto-configuration provides it → ❌ FAIL ("component X requires a
    <option> — none configured").
 4. If the Forage cache is absent, skip checks 1–2 with the note "Forage unavailable — ladder checks skipped" (check 3
    still runs).

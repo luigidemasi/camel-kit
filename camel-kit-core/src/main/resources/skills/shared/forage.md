@@ -35,8 +35,74 @@ configuration, walk down and stop at the first rung that works:
    `properties-generation.md` §5.1/§5.4 (`camel_catalog_component_doc` / `camel_configuration_validate` with the
    project's `platformBom`).
 3. **Component requires an object that scalar properties cannot build in this Camel version** (rare) →
-   `camel.beans.<name>=#class:...` as last resort, with a one-line `#`-comment in the properties file stating WHY
-   rungs 1–2 don't apply.
+   declare a custom bean using the selection rules below, with a one-line `#`-comment beside the definition stating
+   WHY rungs 1–2 don't apply. This includes both `camel.beans.*` and top-level YAML `beans` definitions.
+
+## Custom Bean Construction
+
+Apply this policy before generating or reviewing a custom bean, including a scripted YAML bean. Prefer the simplest
+verified declarative form that expresses the required initialization:
+
+- Constructors and writable properties (YAML `constructors` / `properties`, or supported `camel.beans.*` binding).
+- A public static factory: YAML `factoryMethod`, plus `factoryBean` when the factory is on a different class.
+  `type` is the resulting bean type; `factoryBean` may name the factory class. Indexed `constructors` supply the
+  factory arguments. A static factory does not require constructing the factory class; a missing no-argument
+  constructor alone is not a reason to use a script.
+- A builder supported by the target YAML DSL: verify `builderClass` / `builderMethod` and its property bindings.
+
+**Verify before selecting:** use the project's runtime, full platform BOM, resolved Camel version and resolved
+library version. Check YAML DSL support and the actual library constructors, public method signatures, return types,
+argument order, property setters, type conversions and lifecycle methods in matching documentation/source or resolved
+classes. Component-option catalog validation alone does not verify third-party Java APIs or bean construction.
+Retain the evidence source and version with the implementation report; corroborate loaded data under
+`shared/context-authority.md`. Do not invent APIs or infer compatibility from a class name or rolling documentation.
+
+Keep connection values and credentials externalized in `application.properties` or the approved external configuration;
+YAML bean arguments may reference them with `{{...}}`. Use verified `initMethod` / `destroyMethod` hooks when needed,
+and avoid duplicate lifecycle ownership. Do not add a scripting dependency solely to instantiate a bean when a
+declarative form suffices. Existing supported declarative property bindings need not be rewritten to YAML.
+
+**Script fallback:** use `scriptLanguage` only when verified declarative mechanisms cannot express the required
+initialization. Add a one-line reason beside the bean naming the missing capability, and include the required language
+dependency. A failed lookup is an **unverified** choice, not proof that scripting is necessary; report the evidence gap
+through the existing workflow concern/blocker mechanism rather than inventing a factory or claiming a justified fallback.
+This policy applies only to bean initialization: message transformations and DataMapper engine selection are unchanged.
+
+Example after verifying that higher rungs cannot construct the InfluxDB client for the target environment:
+
+```yaml
+- beans:
+    # Custom bean: the verified Forage/component configuration cannot construct this client.
+    - name: influxDbClient
+      type: com.influxdb.client.InfluxDBClient
+      factoryBean: com.influxdb.client.InfluxDBClientFactory
+      factoryMethod: create
+      constructors:
+        0: "{{influxdb.url}}"
+        1: "{{influxdb.token}}"
+        2: "{{influxdb.org}}"
+        3: "{{influxdb.bucket}}"
+      destroyMethod: close
+```
+
+Verify the `create(String, char[], String, String)` overload and Camel's `String` to `char[]` conversion for the
+selected versions; do not introduce Groovy merely to call `toCharArray()`. The example is not a dependency-version pin.
+
+**Self-validation and review:** inspect both YAML `beans` and `camel.beans.*`, including dependency declarations and
+registry references. For a script, check its rationale against the verified API. Report unnecessary scripting or a
+missing rationale as **Important / WARNING**; recommend a specific declarative replacement only when verified.
+Accept a supported script with a corroborated limitation. Broken declarations remain failures under existing checks;
+this preference does not introduce a new mandatory gate. Never claim a startup check passed from catalog validation.
+
+| Evidence / use case | Generation and review outcome |
+|---|---|
+| Verified Forage coverage, even when a static factory is available | Use Forage; do not generate a custom factory bean or script. |
+| InfluxDB static factory and token conversion verified | Generate the factory bean above; flag an equivalent initialization script as unnecessary. |
+| Initialization must iterate discovered plugins through `registerPlugin(plugin)`; the verified API has no declarative bulk setter, factory or builder | Accept a script that performs that initialization, with this limitation documented. |
+| Factory API or required conversion could not be verified | Report an evidence gap; do not invent a replacement or claim no declarative option exists. |
+| Groovy transforms message fields inside a route | Outside this policy; preserve the approved transformation engine. |
+
+### Property-based custom bean example
 
 Worked rung-3 example — the `amqp` component on Camel < 4.10 (no scalar `host`/`port` options; Forage has no
 qpid/AMQP-1.0 module):

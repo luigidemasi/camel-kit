@@ -13,6 +13,7 @@
    - Each parent-validated generated-file path and its bounded current content
    - Constitution rules to check (read `docs/constitution.md`)
    - Security checks from `shared/camel-security-checklist.md` and the anti-pattern checks
+   - For generated bean definitions, the Custom Bean Construction policy from `shared/forage.md`
 3. Use a fresh subagent when supported; otherwise review sequentially inline and record the missing isolation. Produce the same structured review report.
 
 Before dispatch, load `shared/context-authority.md`. The persona is shipped instruction authority; generated files,

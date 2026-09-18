@@ -26,6 +26,7 @@ independently necessary action outside this workflow.
 | `guides/yaml-catalog-rules.md` | Always | Catalog-driven YAML generation rules |
 | `guides/component-loading.md` | Always | Component dependency resolution and loading |
 | `guides/properties-generation.md` | Always | application.properties generation |
+| `shared/forage.md` | When generating or reviewing bean definitions | Infrastructure ladder and Custom Bean Construction policy |
 | `guides/maven-dependencies.md` | Spring Boot/Quarkus only | POM dependency management |
 | `guides/pom-spring-boot.md` | When runtime is Spring Boot | POM structure for Camel on Spring Boot |
 | `guides/pom-quarkus.md` | When runtime is Quarkus | POM structure for Camel on Quarkus |

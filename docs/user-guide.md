@@ -459,6 +459,13 @@ After each task's implementation, an adversarial critic pre-filter runs before t
 
 ### Phase 4: Validate (`/camel-validate`)
 
+Bean generation and review follow the infrastructure order: Forage, then component scalar configuration, then a custom
+bean if needed. Custom beans prefer verified declarative constructors/properties, factory methods or supported builders.
+The target runtime and library API must support the chosen form, including argument conversions and cleanup. Scripts
+remain available when initialization cannot be expressed declaratively, with a concrete reason recorded beside the bean.
+Missing verification is reported as a concern, not treated as proof that a script is required. This preference does not
+change message transformations or DataMapper engine selection.
+
 Validation is the final, static quality gate. It checks route schemas, endpoint URIs, project-relative quality thresholds, security, anti-patterns, and all constitution rules. It reports findings without modifying the routes. Pipeline-scoped runs write `docs/camel-kit/<PIPELINE_ID>/validation-report.md`; a standalone project-scoped run with no pipeline writes `docs/validation-report-YYYY-MM-DD_HH-mm.md`.
 
 ### Example Walkthrough

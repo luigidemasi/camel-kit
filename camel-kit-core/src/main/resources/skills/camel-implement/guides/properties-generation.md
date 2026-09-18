@@ -56,7 +56,10 @@ For `RUNTIME=main`, never write `camel.component.x.y=${other.prop}` — write `c
 ## Infrastructure beans — the Configuration Ladder
 
 Before writing ANY bean definition, load `skills/shared/forage.md` and follow the Configuration Ladder
-(rung 1: `forage.*` → rung 2: `camel.component.*` scalars → rung 3: `camel.beans.*` with reason comment).
+(rung 1: `forage.*` → rung 2: `camel.component.*` scalars → rung 3: custom bean with reason comment).
+Apply its **Custom Bean Construction** policy to choose a verified declarative property binding or YAML `beans`
+definition before considering a script. Keep the bean's configurable values here and reference them from YAML;
+do not emit a second `camel.beans.*` definition for a bean already declared in YAML.
 Case (c) of the option-not-in-catalog branch above resolves through this ladder.
 
 ## Properties Template

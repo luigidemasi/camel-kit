@@ -57,7 +57,8 @@ Endpoint 2: sql:{{sql.insert}}
   MCP catalog/URI result: ✅ VALID
   - Component: sql exists
   - Endpoint URI and options are valid in the bound catalog; SQL grammar is not proven by this tool
-  - Warning: Ensure dataSource bean is configured (Configured means: a `forage.<name>.jdbc.*` block, a `camel.beans.dataSource` definition, or rung-2 scalar configuration — see `skills/shared/forage.md`.)
+  - Warning: Ensure dataSource bean is configured (Configured means: a verified Forage registration, YAML bean,
+    `camel.beans.dataSource` definition, or rung-2 scalar configuration — see `skills/shared/forage.md`.)
 
 Endpoint 3: http://{{api.endpoint}}
   MCP Tool: camel_validate_route
