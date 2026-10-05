@@ -1,0 +1,1 @@
+Using the camel-knowledge MCP server, look up information about the camel-kafka component. Return the component description, supported options, and any known CVEs. Be concise.

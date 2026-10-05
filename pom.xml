@@ -138,6 +138,7 @@
         <module>camel-kit-graph</module>
         <module>camel-kit-ship-resolver</module>
         <module>camel-jbang-plugin-kit</module>
+        <module>camel-kit-perf</module>
     </modules>
 
     <dependencyManagement>
