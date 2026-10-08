@@ -232,7 +232,7 @@ my-integration/
 
 The MCP configuration file created depends on the `--ai` option chosen.
 
-For OpenAI Codex CLI, Camel-Kit generates `AGENTS.md`, native project skills under `.agents/skills/`, seven custom agents under `.codex/agents/`, and the `camel`, `camel-knowledge`, and `citrus` MCP servers in `.codex/config.toml`. It does not create `.codex/commands/`; after trusting the repository, start with `$camel-start`, use `/skills` to inspect skills, and use `/mcp` to inspect servers. Codex skips project config and any project hooks until the repository is trusted. The three generated MCP servers use exact tool allowlists and `default_tools_approval_mode = "prompt"`. Existing valid, unrelated project configuration is preserved; invalid TOML or conflicting managed server tables cause init to fail without changing the existing config file. Camel-Kit does not change global Codex configuration or authentication and does not install project hooks.
+For OpenAI Codex CLI, Camel-Kit generates `AGENTS.md`, native project skills under `.agents/skills/`, eight custom agents under `.codex/agents/`, and the `camel`, `camel-knowledge`, and `citrus` MCP servers in `.codex/config.toml`. It does not create `.codex/commands/`; after trusting the repository, start with `$camel-start`, use `/skills` to inspect skills, and use `/mcp` to inspect servers. Codex skips project config and any project hooks until the repository is trusted. The three generated MCP servers use exact tool allowlists and `default_tools_approval_mode = "prompt"`. Existing valid, unrelated project configuration is preserved; invalid TOML or conflicting managed server tables cause init to fail without changing the existing config file. Camel-Kit does not change global Codex configuration or authentication and does not install project hooks.
 
 For GitHub Copilot CLI, Camel-Kit also generates `.github/copilot-instructions.md`, project skills under `.github/skills/`, custom agents under `.github/agents/`, and a conservative `.github/hooks/camel-kit-safety.json` hook that denies destructive or secret-sensitive shell commands while leaving normal Copilot permission prompts intact. Copilot users should start by asking Copilot to "Use the `/camel-start` skill." Run `/skills list` to inspect available project skills.
 
@@ -916,7 +916,7 @@ Validation is static and report-only: it does not modify routes or fix the findi
 
 The preview status applies to every Ship backend. `--accept-experimental` only permits unverified Pi/Node versions; it does not enable Ship or change its preview status. Tested runtime compatibility and passing validation checks do not imply production readiness.
 
-**Purpose:** Start or control the local Ship workflow through the configured Camel-Kit CLI. Harness skills delegate stage decisions and state to the CLI. Eligible Bob 2, Copilot CLI and Claude Code sessions relay pending work to native subagents; other execution models retain the single CLI invocation. See [Bob native Ship](ship-native.md), [Copilot native Ship](ship-copilot.md) and [Claude Code native Ship](ship-claude.md).
+**Purpose:** Start or control the local Ship workflow through the configured Camel-Kit CLI. Harness skills delegate stage decisions and state to the CLI. Eligible Bob 2, Copilot CLI, Claude Code and OpenAI Codex CLI sessions relay pending work to native subagents; other execution models retain the single CLI invocation. See [Bob native Ship](ship-native.md), [Copilot native Ship](ship-copilot.md), [Claude Code native Ship](ship-claude.md) and [Codex CLI native Ship](ship-codex.md).
 
 The registered command is `camel-kit ship` when Camel-Kit is installed standalone and `camel kit ship` when it is installed as a Camel JBang plugin. Harness-native forms such as `/camel-ship`, `$camel-ship`, and `/skill:camel-ship` invoke that configured command prefix. Pi uses `/skill:camel-ship`; Camel-Kit intentionally does not generate a Pi `/camel-ship` prompt because that prompt surface flattens quoted option values.
 
@@ -943,7 +943,7 @@ The registered command is `camel-kit ship` when Camel-Kit is installed standalon
 | Argument | Default | Description |
 |---|---|---|
 | `--accept-experimental` | false | Continue after the warning for an experimental Pi or Node version. |
-| `--backend pi\|bob2-native\|copilot-native\|claude-native` | `pi` | Execution mode for a new run; resume retains the recorded mode. |
+| `--backend pi\|bob2-native\|copilot-native\|claude-native\|codex-native` | `pi` | Execution mode for a new run; resume retains the recorded mode. |
 | `--json` | off | Structured run state and any pending native task. |
 | `--submit RUN_ID --result PATH` | none | Relay one native child result; mutually exclusive with other lifecycle operations. |
 | `--pi PATH` | discovered on `PATH` | Pi executable used by Pi stage workers. |

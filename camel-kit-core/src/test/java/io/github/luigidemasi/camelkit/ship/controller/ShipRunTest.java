@@ -420,7 +420,8 @@ class ShipRunTest {
         assertEquals("bob2", ShipRun.ExecutionMode.BOB2_NATIVE.host());
         assertEquals("copilot", ShipRun.ExecutionMode.COPILOT_NATIVE.host());
         assertEquals("claude", ShipRun.ExecutionMode.CLAUDE_NATIVE.host());
-        assertEquals(4, ShipRun.ExecutionMode.values().length,
+        assertEquals("codex", ShipRun.ExecutionMode.CODEX_NATIVE.host());
+        assertEquals(5, ShipRun.ExecutionMode.values().length,
                 "A new execution mode must pin its host label here before it can persist runs");
     }
 

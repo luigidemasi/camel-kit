@@ -246,7 +246,8 @@ public record ShipRun(
         PI("pi"),
         BOB2_NATIVE("bob2"),
         COPILOT_NATIVE("copilot"),
-        CLAUDE_NATIVE("claude");
+        CLAUDE_NATIVE("claude"),
+        CODEX_NATIVE("codex");
 
         private final String host;
 

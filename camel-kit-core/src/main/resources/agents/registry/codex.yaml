@@ -26,6 +26,8 @@ templates:
     target: .codex/agents/camel-catalog-researcher.toml
   - source: templates/codex/agents/camel-security-reviewer.toml
     target: .codex/agents/camel-security-reviewer.toml
+  - source: templates/codex/agents/camel-ship-worker.toml
+    target: .codex/agents/camel-ship-worker.toml
   - source: agents/acr-moderator.md
     target: .agents/camel-kit-personas/acr-moderator.md
   - source: agents/catalog-researcher.md

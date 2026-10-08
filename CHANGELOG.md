@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **OpenAI Codex CLI native Ship (#225)** — eligible sessions relay controller-issued stages through the dedicated
+  read-only `camel_ship_worker` custom agent with `sandbox_mode = "read-only"`. `--backend codex-native` reuses the
+  native task/result, recovery, oversight and deterministic publication contract while preserving Codex CLI sandbox,
+  approval policies and existing roles. Fresh and regenerated workspaces receive the native skill and worker; runs
+  retain their recorded host.
+
 ## [0.4.1] - 2026-09-21
 
 ### Changed

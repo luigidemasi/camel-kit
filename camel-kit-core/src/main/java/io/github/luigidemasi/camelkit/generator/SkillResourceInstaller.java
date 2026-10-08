@@ -30,7 +30,8 @@ class SkillResourceInstaller {
     static final Set<String> NATIVE_SHIP_AGENTS = Set.of(
             AgentGeneratorStrategy.BOB2.descriptorValue(),
             AgentGeneratorStrategy.COPILOT.descriptorValue(),
-            AgentGeneratorStrategy.CLAUDE.descriptorValue());
+            AgentGeneratorStrategy.CLAUDE.descriptorValue(),
+            AgentGeneratorStrategy.CODEX.descriptorValue());
 
     private static final Set<String> MODEL_HIDDEN_INTERNAL_SKILLS = Set.of(
             "camel-design",

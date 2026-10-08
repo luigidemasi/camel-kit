@@ -437,7 +437,8 @@ class ShippedAssetStructureTest {
                     ".codex/agents/camel-validator.toml",
                     ".codex/agents/camel-migrator.toml",
                     ".codex/agents/camel-catalog-researcher.toml",
-                    ".codex/agents/camel-security-reviewer.toml");
+                    ".codex/agents/camel-security-reviewer.toml",
+                    ".codex/agents/camel-ship-worker.toml");
             case "copilot" -> List.of(
                     ".github/agents/camel-planner.agent.md",
                     ".github/agents/camel-implementer.agent.md",
@@ -768,7 +769,7 @@ class ShippedAssetStructureTest {
                 agentName + " Ship skill must not receive an orchestration trait");
         assertFalse(skillContent.contains("## Dispatch"),
                 agentName + " Ship skill must not receive an orchestration dispatch block");
-        if (Set.of("bob2", "copilot", "claude").contains(agentName)) {
+        if (Set.of("bob2", "copilot", "claude", "codex").contains(agentName)) {
             assertTrue(skillContent.contains(ctx.commandPrefix() + " ship --backend " + agentName + "-native --json"));
             assertTrue(skillContent.contains("For every Ship invocation (new, submit, resume, status and abort)"));
             assertTrue(skillContent.contains("individually shell-quoted"));
@@ -781,7 +782,7 @@ class ShippedAssetStructureTest {
             assertTrue(skillContent.contains("stderr"));
             assertTrue(skillContent.contains("handoff-read-failed"));
             assertFalse(skillContent.contains("only after a successful exit"));
-            if ("copilot".equals(agentName) || "claude".equals(agentName)) {
+            if ("copilot".equals(agentName) || "claude".equals(agentName) || "codex".equals(agentName)) {
                 assertTrue(skillContent.contains("In plan mode, do not start, resume or submit Ship work"));
                 assertTrue(skillContent.contains("only read-only `--status` is allowed"));
                 assertTrue(skillContent.contains("Do not duplicate a pending call"));
@@ -805,6 +806,14 @@ class ShippedAssetStructureTest {
                 assertTrue(worker.contains("\ntools: Read, Grep, Glob\n"));
                 assertFalse(worker.contains("mcpServers"));
                 assertFalse(worker.contains("permissionMode"));
+                return;
+            }
+            if ("codex".equals(agentName)) {
+                assertTrue(skillContent.contains("camel_ship_worker"));
+                assertTrue(skillContent.contains("sandbox_mode = \"read-only\""));
+                String worker = Files.readString(ctx.projectDir().resolve(".codex/agents/camel-ship-worker.toml"));
+                assertTrue(worker.contains("sandbox_mode = \"read-only\""));
+                assertFalse(worker.contains("[mcp_servers"));
                 return;
             }
             assertTrue(skillContent.contains("fork_context: false"));

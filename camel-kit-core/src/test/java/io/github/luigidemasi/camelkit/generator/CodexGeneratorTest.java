@@ -75,7 +75,7 @@ class CodexGeneratorTest {
         long customAgentCount = descriptor.templates().stream()
                 .filter(template -> template.target().startsWith(".codex/agents/"))
                 .count();
-        assertEquals(7, customAgentCount);
+        assertEquals(8, customAgentCount);
         for (AgentDescriptor.TemplateInstall template : descriptor.templates()) {
             if (!template.target().startsWith(".codex/agents/")) {
                 continue;
@@ -86,7 +86,8 @@ class CodexGeneratorTest {
             assertNonBlankString(agent, "description");
             assertNonBlankString(agent, "developer_instructions");
             if (template.target().endsWith("camel-catalog-researcher.toml")
-                    || template.target().endsWith("camel-security-reviewer.toml")) {
+                    || template.target().endsWith("camel-security-reviewer.toml")
+                    || template.target().endsWith("camel-ship-worker.toml")) {
                 assertEquals("read-only", agent.getString("sandbox_mode"), template.target());
             }
         }

@@ -132,7 +132,7 @@ The verification loop treats code, dependencies, and the execution environment a
 
 **Technology Preview:** Camel Ship is still being stabilized. Its behavior and interfaces may change, and it is not recommended for production use. For the established staged workflow, start with `/camel-start`.
 
-The standalone `/camel-ship` workflow additionally requires Linux. Its default backend needs Pi and Node; eligible Bob 2, Copilot CLI and Claude Code sessions can use their own native children. See [Bob native Ship](ship-native.md), [Copilot native Ship](ship-copilot.md) and [Claude Code native Ship](ship-claude.md). Its current deterministic evidence path accepts Camel Main projects with Camel YAML DSL route artifacts; Spring Boot and Quarkus Ship projects are not yet supported.
+The standalone `/camel-ship` workflow additionally requires Linux. Its default backend needs Pi and Node; eligible Bob 2, Copilot CLI, Claude Code and OpenAI Codex CLI sessions can use their own native children. See [Bob native Ship](ship-native.md), [Copilot native Ship](ship-copilot.md), [Claude Code native Ship](ship-claude.md) and [Codex CLI native Ship](ship-codex.md). Its current deterministic evidence path accepts Camel Main projects with Camel YAML DSL route artifacts; Spring Boot and Quarkus Ship projects are not yet supported.
 
 ### Initializing a Project
 

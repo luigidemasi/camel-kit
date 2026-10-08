@@ -40,7 +40,8 @@ class ShipCommandTest {
     Path tempDir;
 
     @org.junit.jupiter.params.ParameterizedTest
-    @org.junit.jupiter.params.provider.ValueSource(strings = {"bob2-native", "copilot-native", "claude-native"})
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+            "bob2-native", "copilot-native", "claude-native", "codex-native"})
     @EnabledOnOs(OS.LINUX)
     void nativeCommandReturnsAndAcceptsHandoffsOnBothCommandSurfaces(String backend) throws Exception {
         Assumptions.assumeTrue(System.getenv("CAMEL_KIT_SHIP_STATE_HOME") == null);
