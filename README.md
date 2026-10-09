@@ -271,6 +271,13 @@ See [Antigravity setup and migration from Gemini or Bob v1](docs/antigravity.md)
 
 ---
 
+## Examples
+
+Workflow examples and migration samples live in [camel-kit-examples](https://github.com/luigidemasi/camel-kit-examples):
+
+- [Order processing walkthrough](https://github.com/luigidemasi/camel-kit-examples/tree/main/order-processing)
+- [BizTalk order processing migration](https://github.com/luigidemasi/camel-kit-examples/tree/main/biztalk-order-processing)
+
 ## Documentation
 
 - **[User Guide](docs/user-guide.md)** — workflows, migration, verification, DataMapper
