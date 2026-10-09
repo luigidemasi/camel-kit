@@ -133,7 +133,7 @@ camel-kit/
 │   ├── architecture.md          # Contributor guide
 │   └── constitution.md          # Route quality rules
 ├── distribution.properties      # Root config (source of truth, copied into JAR)
-├── examples/                    # Usage examples
+├── examples/                    # Link to the separate examples repository
 ├── pom.xml                      # Parent Maven POM
 ├── jbang-catalog.json           # JBang catalog definition
 ├── mvnw, mvnw.cmd               # Maven Wrapper scripts
@@ -143,6 +143,10 @@ camel-kit/
 ```
 
 ## How to Contribute
+
+Workflow examples and migration samples are maintained in
+[camel-kit-examples](https://github.com/luigidemasi/camel-kit-examples).
+Submit example changes there; CLI and skill changes belong in this repository.
 
 ### Types of Contributions
 
