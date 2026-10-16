@@ -51,6 +51,8 @@ class PiGeneratorTest {
         assertTrue(agentsMd.contains(".mcp.json"));
         assertTrue(agentsMd.contains("pi install npm:pi-mcp-adapter@2.11.0"));
         assertTrue(agentsMd.contains("pi -a -p"));
+        assertTrue(agentsMd.contains("Camel 4.22 rules"));
+        assertTrue(agentsMd.contains("routeConfiguration"));
         assertFalse(agentsMd.contains("{COMMAND_PREFIX}"));
         assertFalse(agentsMd.contains("{PI_MCP_ADAPTER_VERSION}"));
 

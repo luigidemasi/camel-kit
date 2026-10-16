@@ -174,15 +174,15 @@ and justify any initialization script. Bean arguments may use externalized `{{..
 
    **Validation gate:** After generating all YAML and property files, scan for any `javax.` reference that belongs to the Jakarta EE list above. If the Camel version is >= 4.0, replace it with the corresponding `jakarta.` equivalent before saving.
 
-7. **Choosing between global and route-scoped `onException`** — Use global scope by default; use route scope only when handling differs per route.
+7. **Choosing between global and route-scoped exception handling** — Use a global top-level `onException` by default; use a `routeConfiguration` only when handling genuinely differs per route.
 
-   | Use case | Correct scope |
-   |----------|--------------|
+   | Use case | Correct approach |
+   |----------|-----------------|
    | Same exception handled identically across all routes in the file | **Global** (`- onException:` at top level) |
-   | Exception handling differs route by route | **Route** (`onException:` inside the route) |
+   | Exception handling differs route by route | **`routeConfiguration`** — create a `routeConfiguration` with an `id` containing the `onException`, and set `routeConfigurationId` on the route; `onException:` is not valid as a route property in the 4.22.1 schema. |
    | Only one route in the file | Either — prefer **global** for consistency |
 
-   **Do not default to route-scoped just to avoid placement complexity.** Global `onException` is the standard, idiomatic choice for cross-cutting error handling in Camel YAML DSL. The ordering rule below is a mechanical constraint to follow, not a reason to prefer route scope.
+   **Do not reach for `routeConfiguration` just to avoid placement complexity.** Global `onException` is the standard, idiomatic choice for cross-cutting error handling in Camel YAML DSL. The ordering rule below is a mechanical constraint to follow, not a reason to prefer route-scoped handling.
 
    **Ordering constraint — enforced by the Camel YAML DSL schema:** A top-level `- onException:` element MUST appear before the first `- route:` element. Placing it after a route is a **schema validation error**, not a runtime warning.
 
@@ -223,6 +223,40 @@ and justify any initialization script. Bean arguments may use externalized `{{..
    - onException:   # schema error — must appear before all routes
        exception:
          - com.example.ValidationException
+   ```
+
+   **Route-scoped exception handling via `routeConfiguration`:**
+
+   ```yaml
+   - routeConfiguration:
+       id: validation-error-config
+       onException:
+         - onException:
+             exception:
+               - com.example.ValidationException
+             handled:
+               constant:
+                 expression: "true"
+             steps:
+               - to:
+                   uri: "kafka:{{kafka.topic.invalid}}"
+
+   - route:
+       id: route-one
+       routeConfigurationId: validation-error-config
+       from:
+         uri: "kafka:{{kafka.topic.input}}"
+         steps:
+           - to:
+               uri: "direct:process"
+
+   - route:
+       id: route-two
+       from:
+         uri: "direct:process"
+         steps:
+           - to:
+               uri: "https:{{api.host}}"
    ```
 
    **Validation gate:** Scan the generated YAML top-to-bottom. If any `- onException:` top-level element appears after a `- route:` element, move it above all routes before saving the file.

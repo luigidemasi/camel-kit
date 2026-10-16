@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Move workflow examples and migration samples to the dedicated
   [camel-kit-examples](https://github.com/luigidemasi/camel-kit-examples) repository.
+- **Camel 4.22 YAML DSL rules in all agent templates (#246)** — add 15 rules to
+  `agents-md.md` for shared, antigravity, codex, copilot, and pi targets addressing
+  common defects in schema-valid YAML. Fix the `yaml-structure.md` scope table to
+  use `routeConfiguration` instead of the invalid route-scoped `onException:` form.
 
 ## [0.4.1] - 2026-09-21
 

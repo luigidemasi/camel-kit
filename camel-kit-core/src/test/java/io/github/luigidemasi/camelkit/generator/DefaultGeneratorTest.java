@@ -177,6 +177,8 @@ class DefaultGeneratorTest {
         assertTrue(content.contains("/camel-start"));
         assertTrue(content.contains("/camel-brainstorm"));
         assertTrue(content.contains("Laws"));
+        assertTrue(content.contains("Camel 4.22 rules"));
+        assertTrue(content.contains("routeConfiguration"));
         assertTrue(content.contains("config.properties"));
     }
 

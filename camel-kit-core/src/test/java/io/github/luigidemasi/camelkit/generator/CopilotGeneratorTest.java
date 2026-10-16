@@ -55,6 +55,8 @@ class CopilotGeneratorTest {
         assertTrue(agentsMd.contains("GitHub Copilot CLI"));
         assertTrue(agentsMd.contains("camel-start"));
         assertTrue(agentsMd.contains("/camel-start"));
+        assertTrue(agentsMd.contains("Camel 4.22 rules"));
+        assertTrue(agentsMd.contains("routeConfiguration"));
     }
 
     @Test
