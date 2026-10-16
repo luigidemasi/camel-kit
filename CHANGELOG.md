@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Generated `CLAUDE.md` now imports `AGENTS.md` via `@AGENTS.md` directive so Claude Code loads routing rules and
+  iron laws. `/camel-ship` is opt-in ("only when the user explicitly asks") instead of the default route.
+  The same opt-in wording applies to the generated Copilot instructions (#244).
 - Move workflow examples and migration samples to the dedicated
   [camel-kit-examples](https://github.com/luigidemasi/camel-kit-examples) repository.
 

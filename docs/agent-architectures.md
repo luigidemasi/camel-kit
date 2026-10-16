@@ -71,7 +71,7 @@ Claude's `Agent` tool dispatches subagents with isolated context windows. Each s
 
 | File | Purpose |
 |------|---------|
-| `templates/claude/claude-md.md` | `CLAUDE.md` -- project rules (iron laws, Camel version, command prefix, MCP setup) |
+| `templates/claude/claude-md.md` | `CLAUDE.md` -- imports `AGENTS.md` (shared routing, iron laws, command prefix, MCP setup) and constrains Ship to opt-in use |
 | `templates/claude/settings.json` | Claude Code project settings |
 | `templates/claude/camel-ship.md` | `.claude/skills/camel-ship/SKILL.md` -- native Ship relay skill (replaces the CLI delegate) |
 | `templates/claude/agents/camel-ship-worker.md` | `.claude/agents/camel-ship-worker.md` -- read-only Ship stage worker subagent (`tools: Read, Grep, Glob`) |
@@ -548,4 +548,4 @@ container or VM concern.
 | Parallel execution | Yes (graph-based) | Yes (same-turn `spawn_subagent`) | Yes (independent subagent calls) | Yes (independent waves) | Unknown | No native subagents | Yes (same-turn agents; detached forks) | Partial (LLM-level parallel tool calls) |
 | Subagent recursion | Yes (no limit) | No (subagents must not spawn subagents) | Generated children do not delegate | No (parent-owned) | Unknown | N/A | Generated leaves and forks cannot dispatch | Primary executor to task-denying leaves |
 | Execute phase | Subagent with parallel dispatch | Parent task orchestrates subagents | Parent owns orchestration and report writes | Parent dispatches custom roles with inline fallback | Project skill delegates when available | Main Pi session | Primary session dispatches bounded leaves | Executor dispatches allowlisted implementation/research/review leaves |
-| Instruction composition | Single `CLAUDE.md` | Shared skills + Bob 2 traits + modes | `AGENTS.md` + `.agents/skills/` | `AGENTS.md` + `.agents/skills` | `.github/copilot-instructions.md` + project skills | `AGENTS.md` + `.pi/skills` | Single `QWEN.md` | Ultra-minimal `AGENTS.md` |
+| Instruction composition | `CLAUDE.md` importing `AGENTS.md` | Shared skills + Bob 2 traits + modes | `AGENTS.md` + `.agents/skills/` | `AGENTS.md` + `.agents/skills` | `.github/copilot-instructions.md` + project skills | `AGENTS.md` + `.pi/skills` | Single `QWEN.md` | Ultra-minimal `AGENTS.md` |

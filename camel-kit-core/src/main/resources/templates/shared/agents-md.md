@@ -1,7 +1,7 @@
 # Camel-Kit Project
 
 Integration work → `/camel-start`
-Direct skill invocation → `/camel-brainstorm`, `/camel-migrate`, `/camel-plan`, `/camel-execute`, `/camel-validate`, `/camel-ship`, `/camel-knowledge`, `/camel-debug`
+Direct skill invocation → `/camel-brainstorm`, `/camel-migrate`, `/camel-plan`, `/camel-execute`, `/camel-validate`, `/camel-ship` (only when the user explicitly asks for Ship), `/camel-knowledge`, `/camel-debug`
 
 {#if BOB2}
 ## Bob entry points

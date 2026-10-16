@@ -50,6 +50,8 @@ class CopilotGeneratorTest {
         assertTrue(content.contains(".github/skills"));
         assertTrue(content.contains(".github/mcp.json"));
         assertFalse(content.contains("{COMMAND_PREFIX}"));
+        assertTrue(content.contains("only when the user explicitly asks"),
+                "Ship must be opt-in in Copilot instructions");
 
         String agentsMd = Files.readString(tempDir.resolve("AGENTS.md"));
         assertTrue(agentsMd.contains("GitHub Copilot CLI"));
